@@ -1,11 +1,14 @@
 	' FORMAT.BAS: formats a diskette or a hard disk volume for BASIC-DOS
 	'
-	'   FORMAT d: [/S] [/1] [/8]
+	'   FORMAT d: [/S] [/V[:label]] [/F:size] [/1] [/8]
 	'
 	' /S copies the system files (from the root of the current drive), and
 	' makes them read-only system files (and BASDEV.COM and BASDOS.COM hidden
-	' files, too), /1 formats one side of a diskette, and /8 formats 8 sectors
-	' per track (for PC DOS 1.x).
+	' files, too), and /V gives the volume a label (asking for it, unless
+	' it's given as /V:label).  A diskette's size is 360 (360K), 720 (720K),
+	' or 1200 (1.2M), with /F:size, or by default, the drive's own size (on
+	' a PC or XT, whose BIOS doesn't report it, 360K); with 360K, /1 formats
+	' one side, and /8 formats 8 sectors per track (for PC DOS 1.x).
 	'
 	' The drive's volume is opened for writing (an unformatted diskette or
 	' a new hard disk has "unknown media", but can still be opened), and the
@@ -14,9 +17,9 @@
 	' (copied from the current drive, with the new BPB), the FATs, and the
 	' root directory are written to the volume as one stream of bytes.
 	' Cluster and root directory sizes follow the PC DOS 2.x rules, with
-	' 12-bit FATs, except that a hard disk volume of more than 32680 sectors
-	' gets a 16-bit FAT (as PC DOS 3.x did), since a 12-bit FAT can't hold
-	' more than 4084 clusters.
+	' 12-bit FATs, except that 1.2M diskettes get the PC DOS 3.x layout, and
+	' a hard disk volume of more than 32680 sectors gets a 16-bit FAT (as PC
+	' DOS 3.x did), since a 12-bit FAT can't hold more than 4084 clusters.
 	'
 	' A hard disk's partition table is displayed first (IOCTL$ &HF3): if it
 	' has FAT volumes, one of them is formatted (as above, without track
@@ -24,33 +27,51 @@
 	' one (IOCTL &HF4) with a single volume of the requested size.
 	'
 	DEFINT A-Z
-	D$ = "" : S = 0 : H = 2 : T = 9
-	FOR I = 1 TO 4
-	A$ = UCASE$(ARG$(I))
-	IF A$ = "/S" OR A$ = "-S" THEN S = 1
-	IF A$ = "/1" OR A$ = "-1" THEN H = 1
-	IF A$ = "/8" OR A$ = "-8" THEN T = 8
+	D$ = "" : S = 0 : H = 2 : T = 9 : V = 0 : VC$ = "" : FS = 0
+	FOR I = 1 TO 6
+	A$ = UCASE$(ARG$(I)) : W$ = MID$(A$, 2)
+	IF LEFT$(A$, 1) <> "/" AND LEFT$(A$, 1) <> "-" THEN W$ = ""
+	IF W$ = "S" THEN S = 1
+	IF W$ = "1" THEN H = 1
+	IF W$ = "8" THEN T = 8
+	IF W$ = "V" THEN V = 1
+	IF LEFT$(W$, 2) = "V:" THEN V = 1 : VC$ = MID$(W$, 3)
+	IF LEFT$(W$, 2) = "F:" THEN FS = VAL(MID$(W$, 3))
 	IF LEN(A$) = 2 AND RIGHT$(A$, 1) = ":" THEN D$ = A$
 	NEXT
 	IF D$ = "" THEN PRINT "Drive letter required (eg, FORMAT A:)" : END
+	IF FS AND FS <> 360 AND FS <> 720 AND FS <> 1200 THEN GOTO 96
+	IF FS > 360 AND (H = 1 OR T = 8) THEN PRINT "/1 and /8 are only for 360K" : END
 	V$ = LEFT$(CURDIR$, 2)
 	IF D$ = V$ THEN PRINT "Cannot format the current drive" : END
 	Z = 0 : U = 0
 	ON ERROR GOTO 90
 	OPEN D$ FOR OUTPUT AS #1
 	P$ = IOCTL$(1, &HF3)
-	IF P$ <> "" THEN GOTO 100
-	' Diskette geometry: 40 cylinders, H heads, T sectors per track, N sectors;
-	' the media ID is FE (1 head, 8 sectors), FF (2, 8), FC (1, 9), or FD (2, 9)
-	N = 40 * H * T : HS = 0
-	M = &HFC - 2 * (T = 8) - (H = 2)
+	IF LEN(P$) > 1 THEN GOTO 100
+	' A diskette drive's IOCTL &HF3 returns its type (DT), if the BIOS knows
+	' it: 1 (360K), 2 (1.2M), 3 (720K), or 4 (1.44M, which formats 720K)
+	DT = 0 : IF P$ <> "" THEN DT = ASC(P$)
+	IF FS = 0 AND DT = 2 THEN FS = 1200
+	IF FS = 0 AND DT >= 3 THEN FS = 720
+	IF FS = 0 THEN FS = 360
+	IF DT AND ((FS = 1200 AND DT <> 2) OR (FS = 720 AND DT < 3)) THEN GOTO 95
+	IF FS = 360 AND DT >= 3 THEN GOTO 95
+	' Diskette geometry: CY cylinders, H heads, T sectors per track, and N
+	' sectors; the media ID is FE (1 head, 8 sectors), FF (2, 8), FC (1, 9),
+	' FD (2, 9), or F9 (720K or 1.2M)
+	CY = 40
+	IF FS = 720 THEN CY = 80
+	IF FS = 1200 THEN CY = 80 : T = 15
+	N = CY * H * T : HS = 0
+	M = &HFC - 2 * (T = 8) - (H = 2) : IF CY = 80 THEN M = &HF9
 10	PRINT "Insert new diskette for drive "; D$
 	PRINT "and strike any key when ready"
 	GOSUB 60
 	GOSUB 50
 	PRINT "Formatting...";
 	Z = 1
-	FOR C = 0 TO 39 : FOR I = 0 TO H - 1 : IOCTL #1, &HF2, C, I : NEXT : NEXT
+	FOR C = 0 TO CY - 1 : FOR I = 0 TO H - 1 : IOCTL #1, &HF2, C, I : NEXT : NEXT
 	Z = 0
 	GOSUB 70
 	GOSUB 80
@@ -79,6 +100,9 @@
 	IF N > 32768 THEN K = 16 : E = 1024
 	F = ((((N + K - 1) \ K + 1) AND -2) * 3 \ 2 + 511) \ 512
 	IF N > 32680 THEN K = 4 : E = 512 : Y = 4 : F = ((N \ K + 2) * 2 + 511) \ 512
+	' A 1.2M diskette gets PC DOS 3.x's layout: 1-sector clusters, 224 root
+	' entries, and 7-sector FATs
+	IF N = 2400 AND HS = 0 THEN K = 1 : E = 224 : F = 7
 	R = E \ 16 : B = 1 + 2 * F + R
 	' Copy the boot sector from the current drive, replacing its BPB; the BPB
 	' ends with the drive, sectors per cylinder, and first root directory and
@@ -121,21 +145,22 @@
 	' &H4301: 1 = read-only, 2 = hidden, 4 = system) and adding their sizes
 	' (rounded up to clusters) to U, and report the space on the volume
 	ON ERROR GOTO 0
-	IF S = 0 THEN GOTO 85
+	SC = 0 : IF S = 0 THEN GOTO 85
 	RESTORE
 	FOR I = 1 TO 3
 	READ N$, A
 	F$ = V$ + MID$(CURDIR$, 3, 1) + N$
 	COPY F$ D$
 	IF ERRORLEVEL THEN PRINT "Unable to copy "; F$ : GOTO 85
-	DOS &H4301, 0, A, D$ + N$
+	DOS &H4301, 0, A, D$ + N$ : SC = SC + 1
 	OPEN F$ FOR INPUT AS #2
 	L = LOF(2) + K * 512 - 1
 	U = U + L - L MOD (K * 512)
 	CLOSE #2
 	NEXT
 	PRINT "System transferred"
-85	PRINT
+85	IF V THEN GOSUB 400
+	PRINT
 	L = ((N - B) \ K) * K * 512
 	PRINT L; "bytes total disk space"
 	IF S THEN PRINT U; "bytes used by system"
@@ -151,6 +176,8 @@
 	IF ERR = 75 THEN PRINT "Invalid drive: "; D$ : END
 	PRINT "Format failed (error"; ERR; ")"
 	END
+95	PRINT "Drive "; D$; " can't format" + STR$(FS) + "K diskettes" : END
+96	PRINT "Invalid size (use /F:360, /F:720, or /F:1200)" : END
 100	' Hard disk: P$ holds the disk's cylinders, heads, and sectors per track,
 	' its BIOS drive number, whether its MBR is valid, the drive letter of
 	' each partition (0 if it isn't a volume), and the partition table, so
@@ -230,3 +257,27 @@
 	GOSUB 70
 	GOSUB 80
 	END
+400	' Give the volume a label (VC$, from /V:label, or one that's typed),
+	' with a root directory entry that has attribute 8, after the SC system
+	' files
+	VL$ = VC$
+401	IF VL$ <> "" THEN GOTO 405
+	LINE INPUT "Volume label (11 characters, ENTER for none)? "; VL$
+405	VL$ = UCASE$(VL$) : IF VL$ = "" THEN RETURN
+	IF LEN(VL$) > 11 THEN PRINT "Too many characters in volume label" : GOTO 410
+	FOR I = 1 TO LEN(VL$)
+	IF INSTR("*?/\|.,;:+=[]<>" + CHR$(34), MID$(VL$, I, 1)) THEN GOTO 408
+	NEXT
+	GOTO 409
+408	PRINT "Invalid characters in volume label" : GOTO 410
+409	T$ = TIME$ : Y$ = DATE$
+	TM = VAL(T$) * 2048 + VAL(MID$(T$, 4)) * 32 + VAL(MID$(T$, 7)) \ 2
+	DM = (VAL(MID$(Y$, 7)) - 1980) * 512 + VAL(Y$) * 32 + VAL(MID$(Y$, 4))
+	OPEN D$ AS #2 LEN = 32
+	FIELD #2, 32 AS Q$
+	Q2$ = MKI$(TM) + MKI$(DM) + MKI$(0) + MKL$(0)
+	LSET Q$ = LEFT$(VL$ + SPACE$(11), 11) + CHR$(8) + STRING$(10, 0) + Q2$
+	PUT #2, (1 + 2 * F) * 16 + 1 + SC
+	CLOSE #2
+	RETURN
+410	VL$ = "" : GOTO 401

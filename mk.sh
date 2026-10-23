@@ -2,8 +2,11 @@
 #
 # Builds BASIC-DOS on BASIC-DOS (mkdos.sh builds it on MS-DOS 3.20 instead).
 # As in mkdos.sh, if pc.js exits normally (ie, via QUIT) and PCJS is set,
-# the demo disks are then updated with the new binaries (except the 64K demo
-# disk, after a DEBUG build).
+# the disk images are then updated with the new binaries: while package.json's
+# config.release is "debug", a DEBUG build updates every disk except the
+# release diskette and the 64K demo disk, and a FINAL build updates only those
+# two; once config.release is "final", a FINAL build updates them all, and a
+# DEBUG build updates all but those two (see gulpfile.js).
 #
 # pc.js builds a bootable BASIC-DOS hard disk (C:) directly from software/src,
 # using the system files from the previous build (os/*/OBJ, so run mkdos.sh at

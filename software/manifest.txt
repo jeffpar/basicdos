@@ -6,24 +6,29 @@
 #
 #   ROOT     the root directory, in order; "CONFIG.SYS" stands for each disk's own
 #            CONFIG.SYS (followed by AUTOEXEC.BAT, if its SHELL lines run one)
-#   BIN      BASIC-DOS utilities (including BASIC programs) and drivers (distribution)
+#   EXT      all the external BASIC-DOS utilities (including BASIC programs) and
+#            device drivers (distribution)
+#   DEMOS    demo programs (distribution)
 #   SAMPLES  the PC DOS 1.00 BASIC samples (distribution)
-#   DEMOS    the programs that the demos run
-#   TESTS    DIR.BAS, STRESS.BAT, and MISC.BAT, which runs the tests in TESTS/MISC
-#   TESTS/MISC  the test programs
+#   TESTS    BENCH.BAS, STRESS.BAT, and REGRESS.BAT (which runs the tests in
+#            TESTS/REGRESS)
+#   TESTS/REGRESS  the regression tests (which tools/tests/quick.sh runs, too)
+#   TESTS/MISC  other test programs (eg, GFXTEST.BAS, which needs a CGA, and
+#            the BAT and EXE versions of PRIMES)
 #   TOOLS    tools used for testing (DISKREAD, DISKWRIT, SYMDEB, and MSBASIC)
 #
 # A section named FOLDER/SUBFOLDER (eg, DEMOS/WOLF3D) is a subfolder of FOLDER,
 # and a file inside a disk image can be listed as the image's path (which PCJS's
 # diskimage.js resolves) followed by the file's path within the image.
 #
-# gulpfile.js builds every demo diskette with ROOT, BIN, SAMPLES, and DEMOS, the
-# BASICDOS-360K-TESTS diskette with TESTS, TESTS/MISC, and TOOLS, and the
-# BASICDOS-10MB hard disk with all of them (plus DEMOS/WOLF3D, the WOLF3D.BAT and
-# JIVE files that only it has in DEMOS, SRC, and the build tools in TOOLS).
-# tools/tests/prep.sh copies BIN into each test configuration's BIN folder, DEMOS
-# and TESTS into its TESTS folder, TESTS/MISC into TESTS\MISC, and TOOLS into
-# TOOLS.
+# gulpfile.js builds the BASICDOS-360K distribution diskette and every demo
+# diskette with ROOT, EXT, DEMOS, and SAMPLES, the BASICDOS-360K-TESTS diskette
+# with TESTS (and its subfolders) and TOOLS, and the BASICDOS-10MB hard disk with
+# all of them (plus DEMOS/WOLF3D, the WOLF3D.BAT and JIVE files that only it has
+# in DEMOS, SRC, and the build tools in TOOLS).  tools/tests/prep.sh copies EXT
+# into each test configuration's EXT folder, DEMOS and TESTS into its TESTS
+# folder, TESTS/REGRESS and TESTS/MISC into its TESTS\REGRESS and TESTS\MISC
+# folders, and TOOLS into TOOLS.
 #
 [ROOT]
 CONFIG.SYS
@@ -32,38 +37,41 @@ software/src/os/dos/obj/BASDOS.COM
 software/src/os/cmd/obj/COMMAND.COM
 software/src/os/cmd/HELP.TXT
 
-[BIN]
+[EXT]
 software/src/os/util/misc/obj/*.COM
 software/src/os/util/vi/obj/VI.COM
 software/src/os/dd/dbg/obj/DEBUG.COM
 software/src/os/util/bas/ATTRIB.BAS
+software/src/os/util/bas/CHKDSK.BAS
+software/src/os/util/bas/COMP.BAS
+software/src/os/util/bas/DISKCOPY.BAS
 software/src/os/util/bas/FORMAT.BAS
+software/src/os/util/bas/LABEL.BAS
 software/src/os/util/bas/MODE.BAS
-
-[SAMPLES]
-demos/samples/*.BAS
+software/src/os/util/bas/SYS.BAS
+software/src/os/util/bas/TREE.BAS
+software/src/os/util/bas/VOL.BAS
 
 [DEMOS]
-software/src/tests/misc/BENCH.BAS
+software/src/tests/misc/DIR.BAS
 software/src/tests/misc/FIBO.BAT
 software/src/tests/misc/HELLO.BAT
 software/src/tests/misc/PIPES.BAT
 demos/mouse/PAINT.BAS
 software/src/tests/primes/PRIMES.BAS
-software/src/tests/primes/PRIMES.BAT
-software/src/tests/bin/PRIMES.EXE
 
 [DEMOS/WOLF3D]
 /harddisks/pcx86/10mb/COMPAQ331-WOLF3D.json/WOLF3D/*
 
+[SAMPLES]
+demos/samples/*.BAS
+
 [TESTS]
-software/src/tests/misc/DIR.BAS
-software/src/tests/misc/MISC.BAT
+software/src/tests/misc/BENCH.BAS
+software/src/tests/misc/REGRESS.BAT
 software/src/tests/misc/STRESS.BAT
 
-[TESTS/MISC]
-software/src/tests/bin/ASSERT.COM
-software/src/tests/bin/DBGTEST.COM
+[TESTS/REGRESS]
 software/src/tests/bin/DOSTESTS.COM
 software/src/tests/bin/FCBTESTS.COM
 software/src/tests/bin/FPUTESTS.COM
@@ -75,14 +83,21 @@ software/src/tests/misc/ATTRS.BAS
 software/src/tests/misc/CMDS.BAT
 software/src/tests/misc/EXPRERR.BAS
 software/src/tests/misc/FILEIO.BAS
-software/src/tests/misc/IOERR.BAS
 software/src/tests/misc/FLOW.BAS
-software/src/tests/misc/MICRO.BAS
+software/src/tests/misc/IOERR.BAS
 software/src/tests/misc/MOVES.BAS
 software/src/tests/misc/PRTUSING.BAS
 software/src/tests/misc/STRFUN.BAS
 software/src/tests/misc/STRPOOL.BAS
 software/src/tests/misc/VARS.BAS
+
+[TESTS/MISC]
+software/src/tests/bin/ASSERT.COM
+software/src/tests/bin/DBGTEST.COM
+software/src/tests/misc/GFXTEST.BAS
+software/src/tests/misc/MICRO.BAS
+software/src/tests/primes/PRIMES.BAT
+software/src/tests/bin/PRIMES.EXE
 
 [TOOLS]
 software/src/tests/bin/DISKREAD.COM

@@ -21,11 +21,15 @@
 # directory had 512 entries, so all files appear to be corrupted).
 #
 # After building, if pc.js exits normally (ie, via QUIT, which a successful
-# build runs automatically), update the BASIC-DOS demo disks with the new
-# binaries (which requires PCJS; see gulpfile.js), except that a DEBUG build
-# never updates the 64K demo disk (BASICDOS-360K-M64), which has room only for
-# FINAL binaries.  If a build fails and you don't want the demo disks updated,
-# use pc.js's "abort" command.
+# build runs automatically), update the BASIC-DOS disk images with the new
+# binaries (which requires PCJS; see gulpfile.js): while package.json's
+# config.release is "debug", a DEBUG build updates every disk except the
+# release diskette (BASICDOS-360K) and the 64K demo disk (BASICDOS-360K-M64,
+# which has room only for FINAL binaries), and a FINAL build updates only
+# those two; once config.release is "final", a FINAL build updates them all,
+# and a DEBUG build updates all but those two.
+# If a build fails and you don't want the disks updated, use pc.js's "abort"
+# command.
 #
 # Usage: mkdos.sh [FINAL or DEBUG] [CLEAN] (the same arguments as mk.sh and
 # os/mk.bat, in either case).  FINAL builds non-debug binaries, and DEBUG

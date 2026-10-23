@@ -192,7 +192,7 @@ All other keys are returned as their ASCII codes, including control characters (
 |----|------|-------------|
 | F1h | IOCTL_SETPARMS | Copies the BPB at DS:SI (CX = its length, at least 21h bytes, eg, the BPB of a new boot sector) to the volume's BPB and initializes the rest of the BPB (as building it from the boot sector would), so that the volume of an unformatted diskette can be written; an unusable BPB is DDERR_UNKMEDIA, and too little data is DDERR_BADREQ |
 | F2h | IOCTL_FORMAT | Formats and verifies the track at cylinder CX, head DX, with the sectors per track in the volume's BPB (the DPT's sectors per track and format gap are set accordingly, and on a PC AT, the media type is set with INT 13h function 17h), and then timestamps the BPB, so that the media check that follows treats the media as unchanged; errors are the BIOS error codes (eg, 03h for a write-protected diskette) |
-| F3h | IOCTL_GETPART | Stores nothing (DX = 0), since diskettes have no partition table; see HDC$ below |
+| F3h | IOCTL_GETPART | Since diskettes have no partition table, stores only the drive's type, in one byte (DX = 1): 1 (360K), 2 (1.2M), 3 (720K), or 4 (1.44M), from INT 13h function 08h, or nothing (DX = 0) if the BIOS can't report it (eg, on a PC or XT); a hard disk's PARTINFO is longer (see HDC$ below), so FORMAT and DISKCOPY can tell a diskette from a hard disk |
 
 #### HDC$ {#hdc-ioctl}
 

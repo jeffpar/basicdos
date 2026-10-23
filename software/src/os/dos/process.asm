@@ -896,7 +896,7 @@ lp6g:	push	es:[EXE_START_SEG]
 ; TODO: Determine a reasonable amount to add to the minimum.  SYMDEB.EXE 4.0
 ; was the first non-BASIC-DOS EXE I tried to load, and if I provided only its
 ; minimum of 11h paragraphs (for a total of 90Bh), it would trash the memory
-; arena when creating a PSP, so it's unclear the minimum, at least in SYMDEB's
+; pool when creating a PSP, so it's unclear the minimum, at least in SYMDEB's
 ; case, can be fully trusted.
 ;
 ; More info on SYMDEB.EXE 4.0 and PC DOS 2.00: it seems the smallest amount of
@@ -1531,7 +1531,7 @@ DEFPROC	psp_calcsum
 	call	psp_addsum		; DX = checksum
 	pop	ax
 ;
-; Scan the arena for a PSP block with matching PSP_CODESIZE and PSP_CHECKSUM,
+; Scan the pool for a PSP block with matching PSP_CODESIZE and PSP_CHECKSUM,
 ; whose memory still contains all of its code (eg, COMMAND discards the
 ; transient portion of its code while running a program; see runTransient).
 ;

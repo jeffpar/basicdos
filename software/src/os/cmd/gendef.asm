@@ -23,7 +23,7 @@
 ;	RESTORE				(genRestore: reset the next DATA item)
 ;
 ; and for array element references (genArrayRef), which genExpr and genLet
-; use, and entire integer arrays (genArrayVar), which GET and PUT use.  See
+; use, and entire numeric arrays (genArrayVar), which GET and PUT use.  See
 ; arr.asm for the array functions that the generated code calls, and sys.asm
 ; for the DATA functions.
 ;
@@ -455,8 +455,8 @@ ENDPROC	genArrayRef
 ;
 ; genArrayVar
 ;
-; Generate code to push a far pointer to an integer array variable (eg, the
-; CAR% in "PUT (X,Y),CAR%"), for statements that use an entire array.
+; Generate code to push a far pointer to an integer or double array variable
+; (eg, the CAR% in "PUT (X,Y),CAR%"), for statements that use an entire array.
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs
@@ -474,8 +474,10 @@ DEFPROC	genArrayVar
 	jbe	gav9
 	and	ah,VAR_TYPE		; convert CLS_VAR_* to VAR_*
 	cmp	ah,VAR_LONG
+	je	gav1
+	cmp	ah,VAR_DOUBLE
 	jne	gav9
-	mov	al,1
+gav1:	mov	al,1
 	call	findArray		; DX:SI -> array variable
 	jc	gav9
 	call	genPushVarPtr

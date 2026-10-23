@@ -314,9 +314,11 @@ KEYWORDS	macro	PASS
 	PASS	TYPE,   23, cmdType
 	PASS	USING, 213,,PUB
 	PASS	VER,     9, cmdVer
+	PASS	VIEW,  111, genView
 	PASS	WEND,   62, genWend
 	PASS	WHILE,  63, genWhile
 	PASS	WIDTH,  66, genWidth
+	PASS	WINDOW,112, genWindow
 	PASS	WRITE,  90, genWrite
 	endm
 
@@ -331,11 +333,9 @@ KEYOPS	macro	PASS
 	endm
 
 ;
-; Options recognized by commands (eg, LIST SESSIONS, LIST VARS, and RESTART
-; SYSTEM).
+; Options recognized by commands (eg, LIST VARS and RESTART SYSTEM).
 ;
 OPTIONS	macro	PASS
-	PASS	SESSIONS, 1,,PUB
 	PASS	SYSTEM,   2,,PUB
 	PASS	VARS,     3,,PUB
 	endm

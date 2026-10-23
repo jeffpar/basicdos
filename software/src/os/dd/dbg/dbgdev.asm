@@ -7,7 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Usage (in CONFIG.SYS): DEVICE=BIN\DEBUG.COM COM2:9600,N,8,1,VT100 [/cmd...]
+; Usage (in CONFIG.SYS): DEVICE=EXT\DEBUG.COM COM2:9600,N,8,1,VT100 [/cmd...]
 ;
 ; Each switch is a monitor command, performed once the driver is installed
 ; (eg, /BP 70:100), and then booting continues, unless one of them is /H.
@@ -134,7 +134,7 @@ FLAG_MASK	equ	0ED5h	; OF, DF, IF, SF, ZF, AF, PF, and CF
 	db	"BP [n] addr",9,"set breakpoint",13,10
 	db	"DB [range]",9,"dump bytes",13,10
 	db	"DW [range]",9,"dump words",13,10
-	db	"DM",9,9,"dump memory arena",13,10
+	db	"DM",9,9,"dump memory blocks",13,10
 	db	"E addr [list]",9,"edit memory",13,10
 	db	"G [addr]",9,"go (to address)",13,10
 	db	"R [reg | F]",9,"display or edit registers",13,10
@@ -996,15 +996,15 @@ ENDPROC	cmd_u
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dump_arena
+; dump_blocks
 ;
 ; DM displays memory in address order, as MEM /D once did: the system area
 ; (from 0000 to the first built-in driver), each built-in driver, DOS, and
-; then every memory block in the arena.  Each row has the segment, owner, and
-; size (in paragraphs), and a name (or type).  The arena walk stops at an
-; invalid MCB, which is reported as an error.
+; then every memory block in the system.  Each row has the segment, owner, and
+; size (in paragraphs), and a name (or type).  The dump stops at an invalid
+; MCB, which is reported as an error.
 ;
-DEFPROC	dump_arena
+DEFPROC	dump_blocks
 	call	end_command
 	jnc	ma0
 	ret
@@ -1015,8 +1015,8 @@ ma0:	mov	si,offset MA_HDR
 	les	di,es:[bx-2].DV_DD_LIST	; ES:DI -> first driver
 ;
 ; Skip any installed drivers (DEVICE= puts them at the head of the list);
-; they're above DOS, in memory blocks of their own, so the arena walk lists
-; them.
+; they're above DOS, in memory blocks of their own, so they will be listed
+; normally.
 ;
 mb1:	mov	bx,es
 	cmp	bx,cx			; installed driver?
@@ -1081,7 +1081,7 @@ ma6:	mov	es,bp
 	jmp	ma1
 ma8:	stc
 ma9:	ret
-ENDPROC	dump_arena
+ENDPROC	dump_blocks
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1891,7 +1891,7 @@ DEFPROC	dump_memory
 	je	dm0			; yes
 	cmp	al,'M'			; DM?
 	jne	dm0a			; no
-	jmp	dump_arena
+	jmp	dump_blocks
 dm0a:	dec	si
 	mov	ah,[dump_size]		; no, so use the last format
 dm0:	push	ax

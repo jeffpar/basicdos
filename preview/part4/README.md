@@ -13,12 +13,12 @@ machines:
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
     autoMount:
       A: "BASICDOS-360K-D80"
-    autoType: LIST SESSIONS\r
+    autoType: RESTART\r
 ---
 
 ### Part 4: Pipes and Sessions
 
-The two machines below each run two *foreground* sessions on the same screen.  The first boots the `BASICDOS-360K-D40` diskette, whose CONFIG.SYS defines two 40-column sessions side by side; use **SHIFT-TAB** to toggle keyboard focus between them, and notice how the border changes to indicate which session has focus (the second session runs `DIR | TR a-z A-Z` in a loop, which you can stop with CTRL-C).  The second boots the `BASICDOS-360K-D80` diskette, whose CONFIG.SYS defines two 80-column sessions, one above the other, and runs `LIST SESSIONS` to list both sessions.
+The two machines below each run two *foreground* sessions on the same screen.  The first boots the `BASICDOS-360K-D40` diskette, whose CONFIG.SYS defines two 40-column sessions side by side; use **SHIFT-TAB** to toggle keyboard focus between them, and notice how the border changes to indicate which session has focus (the second session runs `DIR | TR a-z A-Z` in a loop, which you can stop with CTRL-C).  The second boots the `BASICDOS-360K-D80` diskette, whose CONFIG.SYS defines two 80-column sessions, one above the other, and runs `RESTART` to list both sessions.
 
 {% include machine.html id="ibm5150-2" %}
 
@@ -39,7 +39,7 @@ the interpreter opens a `PIPE$` handle to create a FIFO queue and passes the han
 
 BASIC-DOS supports a tasking unit known as a "session".  Sessions represent separate execution environments, each of which can run a separate DOS program. Each program can open its own files, allocate its own memory, define its own signal handlers, etc, and BASIC-DOS smoothly multitasks between them.
 
-BASIC-DOS maintains session state using internal structures called Session Control Blocks (SCBs).  These contain all per-session kernel state, including the session's current drive and directories, its handles, and its CTRL-C and critical error handlers.  `LIST SESSIONS` lists every session's number, console, and program, and `RESTART` can restart any of them (see `HELP LIST` and `HELP RESTART`).
+BASIC-DOS maintains session state using internal structures called Session Control Blocks (SCBs).  These contain all per-session kernel state, including the session's current drive and directories, its handles, and its CTRL-C and critical error handlers.  `RESTART` alone lists every session's number, console, and program, and `RESTART` *n* can restart any of them (see `HELP RESTART`).
 
 Sessions can run entirely in the *background*, or they can be assigned to specific regions of the screen, like the *foreground* sessions in the machines above.
 

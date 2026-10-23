@@ -170,7 +170,9 @@ ENDPROC	cmdType
 ; Copy one input file (or device) to an output file (or device): open the
 ; input, open the output, copy the data, and then close them both.  If the
 ; output is already open (eg, STDOUT for TYPE), it's used and left open.
-; copyWild (for walkFiles) prints the input filename first.
+; Like DOS, the output gets the input file's date and time (a concatenated
+; copy keeps the current date and time; see copyCat).  copyWild (for
+; walkFiles) prints the input filename first.
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -207,9 +209,25 @@ cf2:	lea	si,[bx].LINEBUF		; SI -> output filename
 	jne	cf8			; no
 	PRINTF	<"File cannot be copied onto itself",13,10,13,10>
 	jmp	short cf9
-cf3:	call	copyData		; copy (and close) the input
+cf3:	push	bx
+	mov	bx,[bx].HDL_INPUT
+	mov	ax,DOS_HDL_GETTIME
+	int	21h			; CX = time, DX = date (0 for a device)
+	pop	bx
+	push	cx
+	push	dx
+	call	copyData		; copy (and close) the input
+	pop	dx
+	pop	cx
 	jc	cf9
-	call	closeOutput		; close the output (if we opened it)
+	test	dx,dx			; does the input have a date?
+	jz	cf3c			; no (it's a device)
+	push	bx
+	mov	bx,[bx].HDL_OUTPUT
+	mov	ax,DOS_HDL_SETTIME
+	int	21h			; give the output the input's date and time
+	pop	bx
+cf3c:	call	closeOutput		; close the output (if we opened it)
 	jnc	cf9a
 cf7a:	call	writeError		; report a failure to update the file
 	jmp	short cf9
@@ -1018,7 +1036,7 @@ ENV_VARS	db	"COMSPEC=",0,"PATH=",0
 ;
 ; Find the program named at DS:SI, first as specified, and then (if the name
 ; contains no drive or path) in each directory listed in PATH$, separated by
-; semicolons (eg, "A:\;A:\BIN;A:\SAMPLES").  If the name has no extension,
+; semicolons (eg, "A:\;A:\EXT;A:\SAMPLES").  If the name has no extension,
 ; .COM, .EXE, .BAT, and .BAS are tried, in that order, starting with DX (eg,
 ; LOAD starts with .BAT).  A name longer than 64 characters isn't searched.
 ;
@@ -1717,7 +1735,8 @@ ENDPROC	openHandle
 ;
 ; Open a file (or device) for redirection, as described for openHandle;
 ; redirOut uses this, too.  openMode (for OPEN; see openFile) does the same,
-; without reporting an error.
+; without reporting an error.  Like MSBASIC (whose FCB opens are read-only
+; for a read-only file), random access opens a read-only file for reading.
 ;
 ; Inputs:
 ;	AL = 0 for input, 1 for output, or 2 for append (see openHandle),
@@ -1751,8 +1770,14 @@ DEFPROC	openMode
 	mov	cl,al			; CL = 2 (append) or 3 (random)
 	mov	al,MODE_ACC_RW
 	int	21h			; so try opening an existing file
-	jc	oh0a			; and if that fails, create it
+	jnc	oh0d
+	cmp	ax,ERR_ACCDENIED	; is the file read-only?
+	jne	oh0a			; no, so create it
 	cmp	cl,3			; random access?
+	jne	oh0c			; no (and carry is set)
+	mov	ax,DOS_HDL_OPENRO	; yes, so open it for reading
+	jmp	short oh0b
+oh0d:	cmp	cl,3			; random access?
 	je	oh0c			; yes (carry is clear)
 	xchg	bx,ax			; BX = handle
 	push	dx

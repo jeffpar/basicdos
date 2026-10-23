@@ -19,7 +19,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<strIllegal,gfxInit,getColor,getPoint,setLastPt,clampCoord>
+	EXTNEAR	<strIllegal,gfxInit,getColor,getPoint,setLastPt,getRadius>
 	EXTNEAR	<setPixel,drawLine>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -94,9 +94,8 @@ ci0:	mov	[ciAsp],ax
 	mov	[ciCX],cx
 	mov	[ciCY],dx
 	push	bx
-	mov	ax,[ciR].LOW
-	mov	dx,[ciR].HIW
-	call	clampCoord
+	lea	si,[ciR]
+	call	getRadius		; AX = radius (in pixels)
 	test	ax,ax
 	jns	ci0a
 	jmp	ciErr			; the radius must not be negative

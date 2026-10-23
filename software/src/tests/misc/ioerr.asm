@@ -305,11 +305,11 @@ keys_saved	db	':q',13,':q!',13
 keys_end	db	0
 force_quit	db	27,':q!',13,0
 command		db	"A:\COMMAND.COM",0
-vi_program	db	"A:\BIN\VI.COM",0
+vi_program	db	"A:\EXT\VI.COM",0
 vi_file		db	"VIERR.TMP",0
 exec_parms	EPB	<0,0,PSP_FCB1,PSP_FCB2>
 cmd_tail	db	cmd_end-cmd_text-1
-cmd_text	db	"/C \TESTS\MISC\IOERR.BAS",13
+cmd_text	db	"/C \TESTS\REGRESS\IOERR.BAS",13
 cmd_end		label	byte
 vi_tail		db	9,"VIERR.TMP",13
 starting	db	"IOERR starting",13,10,'$'

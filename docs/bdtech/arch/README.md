@@ -66,11 +66,11 @@ In DEBUG builds, the [DOS_UTL_DPRINTF](../util/#formatted-output) messages are p
 | 0750h | Second disk buffer (header and 512-byte sector) |
 | 0960h | BIOS_END: device drivers (BASDEV.COM), followed by the DOS kernel (BASDOS.COM) |
 | | Resident tables: SCBs, BPBs, current directories, SFBs, and any extra disk buffers (BUFFERS=) |
-| | Memory arena: MCB chain (programs, COMMAND.COM blocks, and free memory) |
+| | Memory pool: MCB chain (programs, COMMAND.COM blocks, and free memory) |
 
 All the disk buffers form a circular chain, ordered from most to least recently used.  Each buffer holds a FAT sector or a directory sector (file data goes directly through the disk drivers), and when a sector isn't already in a buffer, the least recently used buffer is reused, except that the most recently used buffer of the other kind (FAT or directory) is never reused, so that DOS can keep working with a directory entry while it updates the FAT (and vice versa).
 
-The memory arena is a chain of Memory Control Blocks (see [MCB](../data/#mcb)), as in PC DOS.  [DOS_MEM_ALLOC](../dos/#memory) normally allocates from the bottom of the first free block that's big enough, but with MCBTYPE_HIGH (80h) set in AL, it allocates from the top of the last one.  COMMAND.COM allocates its code, text, variable, and string blocks from the top, so that the memory it frees before running a program stays contiguous.
+The memory pool is a chain of Memory Control Blocks (see [MCB](../data/#mcb)), as in PC DOS.  [DOS_MEM_ALLOC](../dos/#memory) normally allocates from the bottom of the first free block that's big enough, but with MCBTYPE_HIGH (80h) set in AL, it allocates from the top of the last one.  COMMAND.COM allocates its code, text, variable, and string blocks from the top, so that the memory it frees before running a program stays contiguous.
 
 Unlike PC DOS, BASIC-DOS doesn't give a program all available memory: a COM program gets its file size plus a heap (at least MINHEAP, or 1K, or more if the program requests it; see [COMDATA](../data/#comdata)), or at least half of the available memory if it has no COMDATA, and an EXE program gets its image size plus the minimum its header requests (EXE_PARASMIN), plus as much of the maximum (EXE_PARASMAX) as is available, up to 64K (or the minimum, if larger).  This leaves memory available for other sessions, while still giving programs like LINK.EXE (which sizes its stack from the memory it's given) enough room to run.
 

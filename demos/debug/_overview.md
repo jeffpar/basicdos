@@ -1,4 +1,4 @@
-The BASIC-DOS Serial Debugger Demo diskette boots with a local console and a debugger on a DEC VT100 connected to COM2 at 9600 baud.  `DEBUG.COM` (in the **BIN** directory) is loaded by `DEVICE=` in CONFIG.SYS, independently of BASDEV.  It opens and exclusively claims COM2; subsequent attempts to open that port fail.
+The BASIC-DOS Serial Debugger Demo diskette boots with a local console and a debugger on a DEC VT100 connected to COM2 at 9600 baud.  `DEBUG.COM` (in the **EXT** directory) is loaded by `DEVICE=` in CONFIG.SYS, independently of BASDEV.  It opens and exclusively claims COM2; subsequent attempts to open that port fail.
 
 Wait for the debugger's startup message on the VT100, then click its screen and press **Ctrl-C** (or BREAK).  The local machine stops and the terminal displays the interrupted registers, the current instruction, and a `-` prompt.  Type `?` for help, `R` to display registers, `U` to disassemble, `T` to single-step, or `G` to resume the local session.  Breakpoints and any other INT 1 or INT 3 also enter the debugger.
 

@@ -175,15 +175,16 @@ On a machine with too little memory for all of COMMAND.COM (eg, 64K), the graphi
 
 On a machine with too little memory for all of COMMAND.COM (eg, 64K), BASIC-DOS loads only its core, and [MEM](../cmd/system/#mem) displays `Core functions only (see HELP CORE)`.  The following are then unavailable, and using one of them displays "Not enough memory":
 
-- The graphics commands: CIRCLE, DRAW, PAINT, PRESET, PSET, and the graphics forms of GET, LINE, and PUT
+- The graphics commands: CIRCLE, DRAW, PAINT, PRESET, PSET, VIEW, WINDOW, and the graphics forms of GET, LINE, and PUT, and the PMAP and POINT functions
 - The MOUSE command and function
 - The sound commands: PLAY and SOUND
 - PRINTF
 - The program editing commands AUTO, DELETE, and EDIT (lines can still be entered and deleted by number)
-- The file statements (OPEN, CLOSE, FIELD, GET, PUT, LSET, RSET, IOCTL, and the # forms of INPUT, LINE INPUT, PRINT, and WRITE) and file functions (CVD, CVI, CVL, EOF, IOCTL$, LOC, LOF, MKD$, MKI$, and MKL$)
+- The file statements (OPEN, CLOSE, FIELD, GET, PUT, LSET, RSET, RESET, IOCTL, and the # forms of INPUT, LINE INPUT, PRINT, and WRITE) and file functions (CVD, CVI, CVL, EOF, IOCTL$, LOC, LOF, MKD$, MKI$, and MKL$)
+- The DOS statement and function
 - LOAD of tokenized BAS files (eg, those saved by BASICA or GW-BASIC)
 
-Everything else, including INPUT and LINE INPUT from the keyboard and WRITE to the screen, is still available.  `HELP CORE` displays the same list.
+Everything else, including INPUT and LINE INPUT from the keyboard and WRITE to the screen, is still available.  `HELP CORE` lists the same keywords (HELP.TXT marks each one with a "+" after its category tag).
 
 ### Differences from Microsoft BASIC
 
@@ -197,6 +198,7 @@ BASIC-DOS runs many IBM PC BASIC programs unchanged (eg, DONKEY.BAS, from the or
 - Up to 4 files can be open at once, random access records are limited to 255 bytes, MKD$ and CVD use IEEE doubles (not MBF), MKS$, CVS, and the OPEN "mode",#n,file form aren't supported, and file statements need a space before the # (eg, PRINT #1, not PRINT#1)
 - INPUT doesn't display "Redo from start"; missing items are empty (or zero), and extra items are ignored
 - RANDOMIZE without a seed uses the BIOS tick count instead of prompting for a seed
-- Not supported yet: the MID$ statement, PRINT USING, RESUME without a label, RESUME NEXT, POINT, and STEP coordinates
+- Not supported yet: the MID$ statement, RESUME without a label, RESUME NEXT, and PCOPY
+- PRINT USING isn't supported (and won't be); use PRINTF USING instead (see [How to replace PRINT USING](../cmd/device/screen/#how-to-replace-print-using))
 
 {% include footer.html prev="System Commands:../cmd/system/" next="Configuring BASIC-DOS:../cfg/" %}

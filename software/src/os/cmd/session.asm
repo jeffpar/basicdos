@@ -7,7 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; LIST SESSIONS and RESTART.
+; RESTART, which also lists the sessions.
 ;
 	DOSFUNC equ 1
 	include	cmd.inc
@@ -24,9 +24,10 @@ CODE    SEGMENT
 ;
 ; listSessions
 ;
-; Lists every session: its number (from 1, as used by RESTART), its console
-; (the name of the device its output goes to), and its program (or "Unused"
-; if it has none), marking the current session with "*".
+; Used by RESTART with no argument to list every session: its number (from 1,
+; as used by RESTART), its console (the name of the device its output goes
+; to), and its program (or "Unused" if it has none), marking the current
+; session with "*".
 ;
 ; Inputs:
 ;	None
@@ -75,10 +76,10 @@ NO_NAME	db	0
 ; cmdRestart
 ;
 ; RESTART SYSTEM restarts the system, and RESTART *n* restarts session *n*
-; (see LIST SESSIONS): its program is aborted, as when CTRL-ALT-DEL is
-; pressed on its console, which also stops a program that never calls DOS
-; (and if the program is the session's command processor, the abort is
-; turned into a CTRLC, returning it to its prompt).
+; (from the list that RESTART alone displays; see listSessions): its program
+; is aborted, as when CTRL-ALT-DEL is pressed on its console, which also stops
+; a program that never calls DOS (and if the program is the session's command
+; processor, the abort is turned into a CTRLC, returning it to its prompt).
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -92,8 +93,9 @@ NO_NAME	db	0
 DEFPROC	cmdRestart
 	mov	dl,[bx].CMD_ARG
 	call	getToken		; DS:SI -> argument, CX = length
-	jc	rst8			; none
-	push	si
+	jnc	rst0
+	jmp	listSessions		; none, so list the sessions
+rst0:	push	si
 	lea	dx,[OPTION_TOKENS]
 	DOSUTIL	TOKID			; AX = option ID, if any
 	pop	si
@@ -112,9 +114,6 @@ rst1:	mov	bl,10			; BL = base 10
 	DOSUTIL	END			; abort the session's program
 	jnc	rst9
 rst7:	PRINTF	<"Invalid session",13,10,13,10>
-	stc
-	ret
-rst8:	PRINTF	<"Specify a session or SYSTEM",13,10,13,10>
 	stc
 rst9:	ret
 ENDPROC	cmdRestart

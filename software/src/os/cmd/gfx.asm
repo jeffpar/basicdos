@@ -7,277 +7,40 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Runtime functions for DRAW, LINE, PAINT, PRESET, and PSET (see gengfx.asm;
-; GET and PUT are in gfximg.asm), which draw directly into CGA video memory
-; in video modes 4 and 5 (320x200, 4 colors) and 6 (640x200, 2 colors); in
-; any other mode, they report an "Illegal function call" error.  The MOUSE
-; statement and function are here, too (except for mouseReset and mouseCall,
-; which are in sys.asm).
+; Runtime functions for LINE, PAINT, PRESET, PSET, and VIEW (see gengfx.asm;
+; DRAW is in gfxdraw.asm, GET and PUT are in gfximg.asm, and POINT, PMAP, and
+; WINDOW are in gfxpt.asm), which draw directly into CGA video memory in video
+; modes 4 and 5 (320x200, 4 colors) and 6 (640x200, 2 colors); in any other
+; mode, they report an "Illegal function call" error.  The MOUSE statement and
+; function are here, too (except for mouseReset and mouseCall, which are in
+; sys.asm).
 ;
 ; Coordinates are clamped to -8192 through 8191 (so that LINE's arithmetic
-; can't overflow), and pixels outside the screen are simply not drawn.
+; can't overflow), and pixels outside the screen (or the viewport that VIEW
+; defines; see GFX_VX1) are simply not drawn.  The points that genPoint has
+; converted (see gfxPt in gfxpt.asm) are already clamped, and marked as such
+; (see GFX_MARK).
 ;
 ; The graphics state is kept in GFX_DATA (see GFX_*), whose zero-initialized
 ; values are the defaults.
 ;
 	DOSFUNC equ 1
+	GFXDEFS equ 1
 	include	cmd.inc
 
 CODE    SEGMENT
 
-	EXTNEAR	<ioctlCon,strIllegal,rtError,playChar,playNum,releaseStr>
-	EXTNEAR	<mouseCall,mouseReset>
+	EXTNEAR	<ioctlCon,strIllegal,rtError,mouseCall,mouseReset,mapPoint>
+	EXTNEAR	<setScale,releaseStr>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; gfxDraw
-;
-; Used by "DRAW string", which supports these commands from MSBASIC's
-; graphics macro language (in upper or lower case, with spaces ignored):
-;
-;	U, D, L, R [n]		move up, down, left, or right n (default 1)
-;	E, F, G, H [n]		move diagonally (up and right, down and right,
-;				down and left, or up and left)
-;	M x,y			move to x,y, or relative to the current point
-;				if x begins with + or -
-;	B			prefix: move without drawing
-;	N			prefix: draw, but don't move
-;	C n			color
-;	S n			scale (1-255; default 4), where every distance
-;				(except an absolute M) is multiplied by n/4
-;
-; The color and scale persist from one DRAW to the next.
-;
-; Inputs:
-;	string value (popped)
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	Any
-;
-DEFPROC	gfxDraw,FAR
-	ARGVAR	pDrawStr,dword
-	LOCVAR	drFlags,byte		; bit 0 for B, bit 1 for N
-	LOCVAR	drMode,byte		; BH from gfxInit
-	LOCVAR	drFgnd,byte		; BL from gfxInit
-	LOCVAR	drNegX,byte		; non-zero if M's x is relative
-	LOCVAR	drX,word
-	LOCVAR	drY,word
-	ENTER
-	call	gfxInit
-	mov	[drMode],bh
-	mov	[drFgnd],bl
-	push	ds
-	lds	si,[pDrawStr]
-	mov	cx,ds
-	jcxz	dr9			; empty string
-	lodsb
-	mov	cl,al
-	mov	ch,0			; CX = length, DS:SI -> characters
-	jmp	short dr0
-
-dr8:	les	di,[pDrawStr]
-	call	releaseStr
-dr9:	pop	ds
-	LEAVE
-	RETURN
-
-dr0:	mov	[drFlags],0
-dr1:	call	playChar		; AL = next command
-	jc	dr8
-	cmp	al,'B'
-	jne	dr2
-	or	[drFlags],1
-	jmp	dr1
-dr2:	cmp	al,'N'
-	jne	dr3
-	or	[drFlags],2
-	jmp	dr1
-dr3:	cmp	al,';'
-	je	dr1
-	cmp	al,'C'
-	jne	dr4
-	call	drNum
-	inc	ax
-	mov	byte ptr ss:[bx].GFX_DATA.GFX_COLOR,al
-	jmp	dr0
-dr4:	cmp	al,'S'
-	jne	dr5
-	call	drNum
-	cmp	ax,255
-	ja	drE1
-	test	al,al
-	jz	drE1
-	xor	al,4
-	mov	byte ptr ss:[bx].GFX_DATA.GFX_SCALE,al
-	jmp	dr0
-dr5:	cmp	al,'M'
-	jne	dr6
-	call	drSigned		; AX = x
-	mov	[drX],ax
-	mov	[drNegX],dl		; DL = non-zero if relative
-	call	playChar
-	jc	drE1
-	cmp	al,','
-	jne	drE1
-	call	drSigned		; AX = y
-	cmp	[drNegX],0		; relative?
-	je	dr5a			; no
-	call	drScale
-	xchg	[drX],ax
-	call	drScale
-	mov	dx,[drX]		; DX = scaled y
-	jmp	short dr7		; AX = scaled x
-dr5a:	xchg	dx,ax			; DX = y
-	mov	ax,[drX]		; AX = x
-	jmp	short dr7a		; absolute
-drE1:	jmp	drErr
-
-dr6:	push	cx
-	push	di
-	push	es
-	push	cs
-	pop	es
-	mov	di,offset DRAW_DIRS
-	mov	cx,8
-	repne	scasb
-	pop	es
-	mov	ax,cx
-	pop	di
-	pop	cx
-	jne	drE1			; not a direction
-	push	ax			; AX = direction index (see DRAW_DIRS)
-	call	playNum
-	jnc	dr6a
-	mov	ax,1			; default distance is 1
-dr6a:	call	drScale			; AX = scaled distance
-	pop	bx			; BX = direction index
-	mov	dl,cs:DRAW_DX[bx]
-	mov	dh,cs:DRAW_DY[bx]
-	mov	bx,ax			; BX = distance
-	sub	ax,ax
-	test	dl,dl
-	jz	dr6b
-	mov	ax,bx
-	jns	dr6b
-	neg	ax
-dr6b:	push	ax			; push x distance
-	sub	ax,ax
-	test	dh,dh
-	jz	dr6c
-	mov	ax,bx
-	jns	dr6c
-	neg	ax
-dr6c:	xchg	dx,ax			; DX = y distance
-	pop	ax			; AX = x distance
-;
-; AX and DX are the x and y distances of a relative move, which we add to the
-; current point, and then draw (unless B) and update the point (unless N).
-;
-dr7:	mov	bx,ss:[PSP_HEAP]
-	add	ax,ss:[bx].GFX_DATA.GFX_LPX
-	add	dx,ss:[bx].GFX_DATA.GFX_LPY
-dr7a:	push	si
-	push	di
-	push	cx
-	mov	si,ax
-	mov	di,dx			; DI:SI = new point
-	mov	bx,ss:[PSP_HEAP]
-	mov	cx,ss:[bx].GFX_DATA.GFX_LPX
-	mov	dx,ss:[bx].GFX_DATA.GFX_LPY	; DX:CX = current point
-	test	[drFlags],1		; B?
-	jnz	dr7c			; yes
-	mov	al,byte ptr ss:[bx].GFX_DATA.GFX_COLOR
-	mov	bl,[drFgnd]
-	sub	al,1
-	jb	dr7b
-	mov	bl,al
-dr7b:	mov	bh,[drMode]
-	call	maskColor
-	call	drawLine
-dr7c:	test	[drFlags],2		; N?
-	jnz	dr7d			; yes
-	mov	bx,ss:[PSP_HEAP]
-	mov	ss:[bx].GFX_DATA.GFX_LPX,si
-	mov	ss:[bx].GFX_DATA.GFX_LPY,di
-dr7d:	pop	cx
-	pop	di
-	pop	si
-	jmp	dr0
-drErr:	jmp	strIllegal
-ENDPROC	gfxDraw
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; drNum, drSigned, and drScale (gfxDraw internal functions)
-;
-; drNum returns AX = required number, and BX -> heap; drSigned returns AX =
-; number with an optional sign, and DL = non-zero if a sign was present; and
-; drScale returns AX * scale / 4.
-;
-DEFPROC	drNum
-	call	playNum
-	jc	drErr
-	mov	bx,ss:[PSP_HEAP]
-	ret
-ENDPROC	drNum
-
-DEFPROC	drSigned
-	sub	dx,dx
-	jcxz	drErr
-	mov	al,[si]
-	cmp	al,'+'
-	je	ds1
-	cmp	al,'-'
-	jne	ds2
-	inc	dh			; DH = 1 if negative
-ds1:	inc	dx			; DL = 1 if signed
-	inc	si
-	dec	cx
-ds2:	push	dx
-	call	playNum
-	pop	dx
-	jc	drErr
-	test	dh,dh
-	jz	ds3
-	neg	ax
-ds3:	ret
-ENDPROC	drSigned
-
-DEFPROC	drScale
-	push	bx
-	push	dx
-	mov	bx,ss:[PSP_HEAP]
-	mov	bl,byte ptr ss:[bx].GFX_DATA.GFX_SCALE
-	xor	bl,4
-	mov	bh,0
-	imul	bx
-	sar	dx,1
-	rcr	ax,1
-	sar	dx,1
-	rcr	ax,1
-	pop	dx
-	pop	bx
-	ret
-ENDPROC	drScale
-
-;
-; DRAW_DIRS is in reverse, so that the count that REPNE SCASB leaves in CX is
-; the direction's index in DRAW_DX and DRAW_DY (ie, U, D, L, R, E, F, G, H).
-;
-DRAW_DIRS	db	"HGFERLDU"
-DRAW_DX		db	0, 0, -1, 1, 1, 1, -1, -1
-DRAW_DY		db	-1, 1, 0, 0, -1, 1, 1, -1
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; gfxLastPt
 ;
-; Used by "LINE -(x,y)": pushes the last point referenced (as two longs).
+; Used by "LINE -(x,y)": pushes the last point referenced (as two longs,
+; marked as converted; see gfxPt).
 ;
 ; Inputs:
 ;	None
@@ -286,20 +49,17 @@ DRAW_DY		db	-1, 1, 0, 0, -1, 1, 1, -1
 ;	X and Y on the stack
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI
+;	AX, BX, CX, SI
 ;
 DEFPROC	gfxLastPt,FAR
 	pop	cx
 	pop	si			; SI:CX = return address
 	mov	bx,ss:[PSP_HEAP]
-	mov	ax,ss:[bx].GFX_DATA.GFX_LPX
-	cwd
-	push	dx
+	mov	ax,GFX_MARK
 	push	ax
-	mov	ax,ss:[bx].GFX_DATA.GFX_LPY
-	cwd
-	push	dx
+	push	ss:[bx].GFX_DATA.GFX_LPX
 	push	ax
+	push	ss:[bx].GFX_DATA.GFX_LPY
 	push	si
 	push	cx
 	ret
@@ -347,11 +107,38 @@ DEFPROC	gfxLine,FAR
 	pop	cx			; DX:CX = 1st point
 	call	mouseArea		; hide the mouse pointer, if necessary
 	mov	al,byte ptr [lnBox]
-	cmp	al,1
-	jae	ln1
-	call	drawLine		; draw a line
+	test	al,al			; a box?
+	jnz	ln1			; yes
+	call	drawLine		; no, draw a line
 	jmp	short ln9
-ln1:	ja	ln3
+ln1:	call	drawBox
+ln9:	LEAVE
+	RETURN
+ENDPROC	gfxLine
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; drawBox
+;
+; Inputs:
+;	AL = 1 for a box, 2 for a filled box
+;	CX = x1, DX = y1, SI = x2, DI = y2
+;	BL = color, BH = mode (see gfxInit)
+;	ES -> video memory
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+DEFPROC	drawBox
+	push	cx
+	push	dx
+	push	si
+	push	di
+	cmp	al,1
+	ja	db3
 	push	di			; draw a box
 	mov	di,dx
 	call	drawLine		; top
@@ -366,30 +153,187 @@ ln1:	ja	ln3
 	pop	dx
 	mov	si,cx
 	call	drawLine		; left
-	jmp	short ln9
-ln3:	cmp	dx,di			; draw a filled box
-	jle	ln4
+	jmp	short db9
+db3:	cmp	dx,di			; draw a filled box
+	jle	db4
 	xchg	dx,di			; make sure DX <= DI
-ln4:	push	di
+db4:	push	di
 	mov	di,dx
 	call	drawLine		; draw each row
 	pop	di
 	inc	dx
 	cmp	dx,di
-	jle	ln4
-ln9:	LEAVE
+	jle	db4
+db9:	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	ret
+ENDPROC	drawBox
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; gfxView
+;
+; Used by "VIEW [SCREEN] (x1,y1)-(x2,y2)[,[fill][,border]]", which clips all
+; drawing to the viewport, after filling it (unless fill is -1) and drawing a
+; border around it (unless border is -1).  Without SCREEN, coordinates are
+; relative to the viewport, too (see GF_VREL).  If WINDOW is in effect, its
+; world coordinates are mapped to the new viewport.
+;
+; Inputs:
+;	screen (1 if SCREEN, 0 if not), x1, y1, x2, y2, fill, and border, on
+;	the stack
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	gfxView,FAR
+	ARGVAR	vwScreen,dword
+	ARGVAR	vwX1,dword
+	ARGVAR	vwY1,dword
+	ARGVAR	vwX2,dword
+	ARGVAR	vwY2,dword
+	ARGVAR	vwFill,dword
+	ARGVAR	vwBorder,dword
+	ENTER
+	call	gfxInit
+	call	setClip			; (the border is clipped to the screen)
+	mov	di,ss:[PSP_HEAP]
+	lea	si,[vwX1]
+	mov	cx,4
+	jmp	short vw1
+vw8:	jmp	strIllegal
+vw1:	mov	dx,ss:[di].GFX_DATA.GFX_VX2
+	test	cl,1			; a y coordinate?
+	jz	vw2			; no
+	mov	dx,ss:[di].GFX_DATA.GFX_VY2
+vw2:	cmp	word ptr ss:[si].HIW,0	; is the coordinate on the screen?
+	jne	vw8			; no
+	cmp	ss:[si].LOW,dx
+	ja	vw8			; no
+	sub	si,4
+	loop	vw1
+	mov	cx,[vwX1].LOW
+	mov	dx,[vwY1].LOW
+	mov	si,[vwX2].LOW
+	mov	di,[vwY2].LOW
+	cmp	cx,si
+	jle	vw3
+	xchg	cx,si			; make sure CX <= SI
+vw3:	cmp	dx,di
+	jle	vw4
+	xchg	dx,di			; and DX <= DI
+vw4:	lea	ax,[vwBorder]
+	call	vwColor			; is there a border color?
+	jz	vw5			; no
+	dec	cx
+	dec	dx
+	inc	si
+	inc	di
+	mov	al,1
+	call	drawBox			; draw the border
+	inc	cx
+	inc	dx
+	dec	si
+	dec	di
+vw5:	push	bx
+	mov	bx,ss:[PSP_HEAP]
+	mov	ss:[bx].GFX_DATA.GFX_VX1,cx
+	mov	ss:[bx].GFX_DATA.GFX_VY1,dx
+	mov	ss:[bx].GFX_DATA.GFX_VX2,si
+	mov	ss:[bx].GFX_DATA.GFX_VY2,di
+	mov	al,GF_VIEW
+	cmp	byte ptr [vwScreen],0	; SCREEN?
+	jne	vw6			; yes
+	or	al,GF_VREL
+vw6:	and	ss:[bx].GFX_DATA.GFX_FLAGS,NOT (GF_VIEW OR GF_VREL)
+	or	ss:[bx].GFX_DATA.GFX_FLAGS,al
+	pop	bx
+	lea	ax,[vwFill]
+	call	vwColor			; is there a fill color?
+	jz	vw7			; no
+	mov	al,2
+	call	drawBox			; fill the viewport
+vw7:	call	setScale		; map WINDOW to the viewport, if any
+	LEAVE
 	RETURN
-ENDPROC	gfxLine
+ENDPROC	gfxView
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; vwColor (gfxView internal function)
+;
+; Inputs:
+;	SS:AX -> color (-1 if none)
+;	BL = default color, BH = mode (see gfxInit)
+;
+; Outputs:
+;	ZF set if the color is -1; otherwise, BL = color (see getColor)
+;
+; Modifies:
+;	AX, BL
+;
+DEFPROC	vwColor
+	push	dx
+	push	si
+	xchg	si,ax			; SS:SI -> color
+	mov	ax,ss:[si].LOW
+	mov	dx,ss:[si].HIW
+	pop	si
+	push	ax
+	and	ax,dx
+	inc	ax			; -1?
+	pop	ax
+	jz	vc9			; yes
+	pushf
+	call	getColor		; BL = color
+	popf				; (ZF is still clear)
+vc9:	pop	dx
+	ret
+ENDPROC	vwColor
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; gfxViewOff
+;
+; Used by "VIEW", which clips drawing to the screen again.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	gfxViewOff,FAR
+	mov	bx,ss:[PSP_HEAP]
+	and	ss:[bx].GFX_DATA.GFX_FLAGS,NOT (GF_VIEW OR GF_VREL)
+	call	gfxInit			; (which clips to the screen again)
+	call	setScale		; map WINDOW to the screen, if any
+	ret
+ENDPROC	gfxViewOff
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; gfxPaint
 ;
-; Used by "PAINT (x,y)[,[paint][,border]]", which fills the area around x,y
-; that's bounded by the border color (which defaults to the paint color).
-; Like MSBASIC, pixels that already have the paint color are fillable (so the
-; fill passes through them), but a span that has nothing left to paint is
-; skipped (which is what ensures that the fill ends).
+; Used by "PAINT (x,y)[,[paint][,[border][,background]]]", which fills the
+; area around x,y that's bounded by the border color (which defaults to the
+; paint color).  Like MSBASIC, pixels that already have the paint color are
+; fillable (so the fill passes through them), but a span that has nothing left
+; to paint is skipped (which is what ensures that the fill ends).
+;
+; If background isn't -1, paint is a tile string (see ptTile) of up to 64
+; bytes, which are painted on successive rows (row y gets byte y MOD length),
+; aligned with the bytes of video memory; a span "has nothing left to paint"
+; when it already matches its tile byte, unless that byte is the background
+; byte (since an unpainted area would match it, too).
 ;
 ; We use a "span fill": each seed (initially, x,y) fills the horizontal span
 ; of fillable pixels around it, and then adds seeds for the fillable spans in
@@ -406,8 +350,8 @@ ENDPROC	gfxLine
 ; XLAT, and skip entire bytes that are fillable (or not).
 ;
 ; Inputs:
-;	Coordinates, paint color, and border color (the colors are -1 for
-;	the defaults) on the stack
+;	Coordinates, paint color (or tile), border color (the colors are -1
+;	for the defaults), and background (-1 if not a tile) on the stack
 ;
 ; Outputs:
 ;	None
@@ -423,6 +367,7 @@ DEFPROC	gfxPaint,FAR
 	ARGVAR	ptY,dword
 	ARGVAR	ptPaint,dword
 	ARGVAR	ptBorder,dword
+	ARGVAR	ptBack,dword
 	LOCVAR	ptBdr,byte		; border color
 	LOCVAR	ptColor,byte		; paint color
 	LOCVAR	ptMode,byte		; BH from gfxInit
@@ -431,8 +376,13 @@ DEFPROC	gfxPaint,FAR
 	LOCVAR	ptFirst,byte		; mask bit of a byte's leftmost pixel
 	LOCVAR	ptFull,byte		; mask of all of a byte's pixels
 	LOCVAR	ptDir,byte		; direction of the seeds (1 or -1)
+	LOCVAR	ptTiles,byte		; length of the tile (0 if none)
+	LOCVAR	ptXor,byte		; tile byte for scanRight (see ptPat)
 	LOCVAR	ptPPB,word		; pixels per byte (4 or 8)
-	LOCVAR	ptMaxX,word		; rightmost x (319 or 639)
+	LOCVAR	ptMinX,word		; leftmost x (see setClip)
+	LOCVAR	ptMaxX,word		; rightmost x
+	LOCVAR	ptMinY,word		; top row
+	LOCVAR	ptMaxY,word		; bottom row
 	LOCVAR	ptTop,word		; offset of the next seed
 	LOCVAR	ptMax,word		; offset of the last possible seed
 	LOCVAR	ptXL,word		; left end of the current span
@@ -445,31 +395,44 @@ DEFPROC	gfxPaint,FAR
 	call	gfxInit
 	mov	ax,[ptPaint].LOW
 	mov	dx,[ptPaint].HIW
-	call	getColor		; BL = paint color
+	mov	word ptr [ptXor],0	; (and ptTiles)
+	cmp	[ptBack].HIW,0		; a tile?
+	jne	ptA			; no
+	call	ptTile			; ptTiles = its length (DX:AX = -1)
+ptA:	call	getColor		; BL = paint color
 	push	bx
 	mov	ax,[ptBorder].LOW
 	mov	dx,[ptBorder].HIW
 	call	getColor		; BL = border color (default is paint)
 	mov	[ptBdr],bl
 	pop	bx
-	mov	[ptColor],bl
+	cmp	[ptTiles],0		; a tile?
+	je	ptB			; no
+	mov	bl,0			; yes (see ptPat)
+ptB:	mov	[ptColor],bl
 	mov	[ptMode],bh
 	mov	ax,0302h		; 2 bits per pixel: AL = bpp, AH = mask
 	mov	cx,0F08h		; CL = 1st bit, CH = full mask
-	mov	dx,319
 	mov	si,4
 	test	bh,bh
 	jz	pt0
 	mov	ax,0101h		; 1 bit per pixel
 	mov	cx,0FF80h
-	mov	dx,639
 	mov	si,8
 pt0:	mov	[ptBpp],al
 	mov	[ptMask],ah
 	mov	[ptFirst],cl
 	mov	[ptFull],ch
-	mov	[ptMaxX],dx
 	mov	[ptPPB],si
+	mov	si,ss:[PSP_HEAP]	; copy the clip rectangle
+	mov	ax,ss:[si].GFX_DATA.GFX_VX1
+	mov	[ptMinX],ax
+	mov	ax,ss:[si].GFX_DATA.GFX_VX2
+	mov	[ptMaxX],ax
+	mov	ax,ss:[si].GFX_DATA.GFX_VY1
+	mov	[ptMinY],ax
+	mov	ax,ss:[si].GFX_DATA.GFX_VY2
+	mov	[ptMaxY],ax
 	lea	si,[ptX]
 	call	getPoint		; DX:CX = seed
 	call	setLastPt
@@ -498,10 +461,8 @@ pt1:	mov	cl,4
 	mov	[ptXL],7FFFh		; the first seed has no parent span
 	mov	[ptXR],7FFEh
 	call	ptPush			; push the first seed
-	cmp	dx,200			; is it on the screen?
-	jae	ptE9			; no
-	cmp	cx,[ptMaxX]
-	ja	ptE9
+	call	inClip			; is it in the clip rectangle?
+	jc	ptE9			; no
 
 pt2:	mov	si,[ptTop]
 	cmp	si,PT_TABLE		; any seeds left?
@@ -538,13 +499,17 @@ pt2a:	sub	si,8
 	call	scanRight		; CX = right end of the span + 1
 	dec	cx
 	mov	[ptXR],cx
-	mov	cx,[ptXL]
 	mov	dx,[ptRow]
+	call	ptPat			; AL = tile byte (CF set if background)
+	jc	pt3			; the span always needs paint
+	mov	[ptXor],al
+	mov	cx,[ptXL]
 	call	pixRef
 	mov	si,[ptXR]
 	mov	dl,0
 	mov	bx,256			; BX = 256 (the paint color table)
 	call	scanRight		; CX = first pixel that needs paint
+	mov	[ptXor],0
 	cmp	cx,si			; is there one?
 	jbe	pt3			; yes
 	jmp	pt2			; no, so skip the span
@@ -552,7 +517,12 @@ pt3:	mov	cx,[ptXL]
 	mov	dx,[ptRow]
 	mov	bl,[ptColor]
 	mov	bh,[ptMode]
-	call	hline			; fill the span
+	cmp	[ptTiles],0		; a tile?
+	je	pt3a			; no
+	call	ptPat
+	mov	bl,al			; BL = tile byte
+	or	bh,80h			; (which hline uses as is)
+pt3a:	call	hline			; fill the span
 	mov	al,[ptDir]
 	cbw
 	add	dx,ax			; DX = the next row in this direction
@@ -582,14 +552,16 @@ pt5:	mov	si,[ptXR]
 	call	ptSeeds			; and where we overhang on the right
 	jmp	pt2
 
-pt9:	push	es
-	mov	ax,ds
+pt9:	mov	ax,ds
 	mov	es,ax
 	mov	ah,DOS_MEM_FREE
 	int	21h
-	pop	es
 	pop	ds
-	LEAVE
+	cmp	[ptTiles],0		; a tile?
+	je	pt9a			; no
+	les	di,[ptPaint]
+	call	releaseStr		; yes, so release it
+pt9a:	LEAVE
 	RETURN
 ptErr:	mov	al,7			; "Out of memory"
 	jmp	rtError
@@ -637,6 +609,98 @@ ENDPROC	ptTable
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; ptTile (gfxPaint internal function, using its frame)
+;
+; Checks the tile string (ptPaint): like MSBASIC, its length must be 1 to 64,
+; and it can't have more than two consecutive background bytes (ptBack), or
+; painting might never end (since such bytes always need paint).
+;
+; Outputs:
+;	ptTiles = length of the tile
+;	DX:AX = -1 (the default paint color)
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	ptTile
+	push	bx
+	push	ds
+	lds	si,[ptPaint]
+	mov	cx,ds
+	jcxz	pti8			; empty string
+	lodsb
+	mov	ah,0
+	mov	cx,ax			; CX = length
+	dec	ax
+	cmp	ax,63			; is it 1 to 64?
+	ja	pti8			; no
+	mov	[ptTiles],cl
+	mov	dx,cx
+	add	dx,cx
+	add	dx,cx			; DX = # to check (3 times around)
+	sub	cx,cx			; CX = # consecutive background bytes
+pti1:	mov	ax,dx
+	dec	ax
+	div	[ptTiles]		; AH = (DX - 1) MOD length
+	mov	bl,ah
+	mov	bh,0
+	mov	al,[si+bx]
+	cmp	al,byte ptr [ptBack]	; background?
+	je	pti2			; yes
+	sub	cx,cx
+	jmp	short pti3
+pti2:	inc	cx
+	cmp	cx,3			; three (or more) in a row?
+	jae	pti8			; yes
+pti3:	dec	dx
+	jnz	pti1
+	pop	ds
+	pop	bx
+	mov	ax,-1
+	cwd
+	ret
+pti8:	pop	ds
+	jmp	strIllegal
+ENDPROC	ptTile
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ptPat (gfxPaint internal function, using its frame)
+;
+; Inputs:
+;	DX = row
+;
+; Outputs:
+;	AL = the row's tile byte (0 if there's no tile)
+;	Carry set if it's the background byte (see gfxPaint)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	ptPat
+	mov	al,0
+	cmp	[ptTiles],al		; a tile? (carry is clear)
+	je	pq9			; no
+	push	si
+	push	ds
+	mov	ax,dx
+	div	[ptTiles]		; AH = row MOD length
+	mov	al,ah
+	cbw
+	lds	si,[ptPaint]
+	add	si,ax
+	mov	al,[si+1]		; AL = tile byte
+	pop	ds
+	pop	si
+	cmp	al,byte ptr [ptBack]	; background?
+	clc
+	jne	pq9			; no
+	stc
+pq9:	ret
+ENDPROC	ptPat
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; ptSeeds (gfxPaint internal function, using its frame)
 ;
 ; Adds a seed (in direction ptDir, with ptXL and ptXR as its parent span) for
@@ -648,8 +712,10 @@ ENDPROC	ptTable
 DEFPROC	ptSeeds
 	cmp	cx,si			; is the range empty?
 	jg	ps9			; yes
-	cmp	dx,200			; is the row on the screen?
-	jae	ps9			; no
+	cmp	dx,[ptMinY]		; is the row in the clip rectangle?
+	jl	ps9			; no
+	cmp	dx,[ptMaxY]
+	jg	ps9			; no
 	mov	[ptSR],si
 	push	dx
 	sub	bx,bx			; BX = 0 (for XLAT)
@@ -752,14 +818,17 @@ ENDPROC	pixRef
 ;	CX = x of the leftmost fillable pixel
 ;
 ; Modifies:
-;	AX, CX, DI
+;	AX, CX, DX, DI
 ;
 DEFPROC	scanLeft
-sl1:	jcxz	sl9			; at the left edge
+sl1:	cmp	cx,[ptMinX]		; at the left edge?
+	jle	sl9			; yes
 	cmp	ah,[ptFirst]		; leftmost pixel of the byte?
 	jne	sl3			; no
-	cmp	cx,[ptPPB]		; yes; is there a whole byte to skip?
-	jb	sl2			; no
+	mov	dx,cx
+	sub	dx,[ptPPB]
+	cmp	dx,[ptMinX]		; yes; is there a whole byte to skip?
+	jl	sl2			; no
 	mov	al,es:[di-1]
 	xlat
 	test	al,al			; is the previous byte all fillable?
@@ -806,6 +875,7 @@ sr1:	cmp	cx,si			; past the end?
 	cmp	ah,[ptFirst]		; leftmost pixel of the byte?
 	jne	sr2			; no
 	mov	al,es:[di]
+	xor	al,[ptXor]
 	xlat
 	cmp	al,dl			; does the entire byte match?
 	jne	sr2			; no
@@ -819,6 +889,7 @@ sr1:	cmp	cx,si			; past the end?
 	inc	di
 	jmp	sr1
 sr2:	mov	al,es:[di]
+	xor	al,[ptXor]
 	xlat
 	and	al,ah			; AL = non-zero if a boundary
 	jz	sr3
@@ -879,7 +950,8 @@ ENDPROC	gfxPset
 ; Draws a line from DX:CX to DI:SI; horizontal lines (eg, the rows of a filled
 ; box) are drawn by hline instead.
 ;
-; If both points are on the screen, we use the same algorithm as MSBASIC (see
+; If both points are in the clip rectangle (the screen, or the viewport that
+; VIEW defines), we use the same algorithm as MSBASIC (see
 ; DOGRPH in msb/GENGRP.ASM), so that the same pixels are drawn, but we update
 ; the video address and pixel mask as we go (see dlFast); otherwise, we use
 ; Bresenham's algorithm with setPixel, which clips each pixel to the screen.
@@ -899,18 +971,14 @@ DEFPROC	drawLine
 	cmp	dx,di			; horizontal?
 	jne	dl0			; no
 	jmp	hline			; yes
-dl0:	mov	ax,320			; AX = screen width
-	test	bh,bh
-	jz	dl0a
-	shl	ax,1
-dl0a:	cmp	cx,ax			; are both points on the screen?
-	jae	dl0b			; no
-	cmp	si,ax
-	jae	dl0b
-	cmp	dx,200
-	jae	dl0b
-	cmp	di,200
-	jae	dl0b
+dl0:	call	inClip			; are both points in the clip rect?
+	jc	dl0b			; no
+	xchg	cx,si
+	xchg	dx,di
+	call	inClip
+	xchg	cx,si
+	xchg	dx,di
+	jc	dl0b			; no
 	jmp	dlFast			; yes
 dl0b:	push	cx
 	push	dx
@@ -1105,13 +1173,27 @@ ENDPROC	getColor
 ;	SS:SI -> x, followed by y (as ARGVARs, so y is at SI-4)
 ;
 ; Outputs:
-;	CX = x, DX = y (clamped to -8192 through 8191)
+;	CX = x, DX = y (clamped to -8192 through 8191, unless converted
+;	already; see gfxPt), mapped to the screen if VIEW or WINDOW applies
+;	(see mapPoint)
 ;
 ; Modifies:
 ;	AX, CX, DX
 ;
 DEFPROC	getPoint
-	mov	ax,ss:[si-4].LOW
+	cmp	word ptr ss:[si].HIW,GFX_MARK
+	jne	gp1			; it hasn't been converted (see gfxPt)
+	mov	cx,ss:[si].LOW
+	mov	dx,ss:[si-4].LOW
+	ret
+gp1:	push	bx
+	mov	bx,ss:[PSP_HEAP]
+	test	ss:[bx].GFX_DATA.GFX_FLAGS,GF_VREL OR GF_WINDOW
+	pop	bx
+	jz	gp2			; no mapping is required
+	mov	al,4			; (and it becomes the last point)
+	jmp	mapPoint
+gp2:	mov	ax,ss:[si-4].LOW
 	mov	dx,ss:[si-4].HIW
 	call	clampCoord
 	push	ax
@@ -1169,7 +1251,8 @@ ENDPROC	clampCoord
 ; once per program (or after a SCREEN or WIDTH; see setScreen).
 ;
 ; gfxInit also hides the mouse pointer (see mouseGfx), whereas gfxMode (used
-; by statements that call mouseArea themselves) doesn't.
+; by statements that call mouseArea themselves) doesn't.  Unless VIEW defined
+; a viewport, drawing is clipped to the screen (see setClip).
 ;
 ; Modifies:
 ;	AX, BX, DX, ES
@@ -1200,8 +1283,73 @@ gi9:	jmp	strIllegal
 gi1:	mov	bx,0101h
 gi2:	mov	ax,0B800h
 	mov	es,ax
+	push	di
+	mov	di,ss:[PSP_HEAP]
+	test	ss:[di].GFX_DATA.GFX_FLAGS,GF_VIEW
+	pop	di
+	jz	setClip			; no viewport, so clip to the screen
 	ret
 ENDPROC	gfxInit
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; setClip
+;
+; Clips drawing to the screen (GFX_VX1 through GFX_VY2).
+;
+; Inputs:
+;	BH = mode (see gfxInit)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	setClip
+	push	di
+	mov	di,ss:[PSP_HEAP]
+	sub	ax,ax
+	mov	ss:[di].GFX_DATA.GFX_VX1,ax
+	mov	ss:[di].GFX_DATA.GFX_VY1,ax
+	mov	ss:[di].GFX_DATA.GFX_VY2,199
+	mov	ax,319
+	test	bh,bh			; 320x200?
+	jz	sc1			; yes
+	mov	ax,639
+sc1:	mov	ss:[di].GFX_DATA.GFX_VX2,ax
+	pop	di
+	ret
+ENDPROC	setClip
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; inClip
+;
+; Inputs:
+;	CX = x, DX = y
+;
+; Outputs:
+;	Carry clear if the point is in the clipping rectangle (see setClip)
+;
+; Modifies:
+;	None
+;
+DEFPROC	inClip
+	push	bx
+	mov	bx,ss:[PSP_HEAP]
+	cmp	cx,ss:[bx].GFX_DATA.GFX_VX1
+	jl	ic8
+	cmp	cx,ss:[bx].GFX_DATA.GFX_VX2
+	jg	ic8
+	cmp	dx,ss:[bx].GFX_DATA.GFX_VY1
+	jl	ic8
+	cmp	dx,ss:[bx].GFX_DATA.GFX_VY2
+	jg	ic8
+	pop	bx
+	clc
+	ret
+ic8:	pop	bx
+	stc
+	ret
+ENDPROC	inClip
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1302,7 +1450,7 @@ ENDPROC	getPixel
 ;	BH = mode (see gfxInit)
 ;
 ; Outputs:
-;	Carry clear if on the screen, with:
+;	Carry clear if on the screen (and in the viewport, if any), with:
 ;	DI = offset of the pixel's byte
 ;	CL = bit shift of the pixel within the byte
 ;	CH = pixel mask (before shifting): 3 or 1
@@ -1311,15 +1459,13 @@ ENDPROC	getPixel
 ;	AX, CX, DI
 ;
 DEFPROC	pixAddr
-	cmp	dx,200
-	jae	pa9
+	call	inClip
+	jc	pa9
 	call	rowAddr
 	mov	di,ax
 	mov	ax,cx
 	test	bh,bh			; 2 bits per pixel?
 	jnz	pa2			; no
-	cmp	ax,320
-	jae	pa9
 	shr	ax,1
 	shr	ax,1
 	add	di,ax			; DI = offset of the byte
@@ -1328,9 +1474,7 @@ DEFPROC	pixAddr
 	shl	cl,1			; CL = (3 - (x AND 3)) * 2
 	mov	ch,3
 	ret				; (carry is clear)
-pa2:	cmp	ax,640
-	jae	pa9
-	shr	ax,1
+pa2:	shr	ax,1
 	shr	ax,1
 	shr	ax,1
 	add	di,ax			; DI = offset of the byte
@@ -1382,12 +1526,14 @@ ENDPROC	rowAddr
 ;
 ; hline
 ;
-; Draws a horizontal line from CX to SI on row DX, clipped to the screen,
-; a byte at a time (with masks for the partial bytes at either end).
+; Draws a horizontal line from CX to SI on row DX, clipped to the screen (or
+; viewport), a byte at a time (with masks for the partial bytes at either
+; end).
 ;
 ; Inputs:
 ;	CX = x1, SI = x2, DX = y
-;	BL = color, BH = mode (see gfxInit)
+;	BL = color (masked; see getColor), BH = mode (see gfxInit), plus 80h
+;	if BL is a byte pattern instead
 ;	ES -> video memory
 ;
 ; Outputs:
@@ -1397,45 +1543,45 @@ ENDPROC	rowAddr
 ;	AX
 ;
 DEFPROC	hline
-	cmp	dx,200
-	jb	hl0
-	ret
-hl0:	push	bx
+	push	bx
 	push	cx
 	push	dx
 	push	si
 	push	di
+	mov	di,ss:[PSP_HEAP]
+	cmp	dx,ss:[di].GFX_DATA.GFX_VY1
+	jl	hl8x			; the row is outside the clip rectangle
+	cmp	dx,ss:[di].GFX_DATA.GFX_VY2
+	jg	hl8x
 	cmp	cx,si
 	jle	hl1
 	xchg	cx,si			; CX = left, SI = right
-hl1:	mov	ax,319
-	test	bh,bh
-	jz	hl2
-	mov	ax,639			; AX = rightmost x
-hl2:	test	si,si
-	js	hl8x			; the line is entirely off the screen
+hl1:	mov	ax,ss:[di].GFX_DATA.GFX_VX1
+	cmp	si,ax
+	jl	hl8x			; the line is entirely outside it
+	cmp	cx,ax
+	jge	hl2
+	xchg	cx,ax			; (CX = leftmost x)
+hl2:	mov	ax,ss:[di].GFX_DATA.GFX_VX2	; AX = rightmost x
 	cmp	cx,ax
 	jg	hl8x
-	test	cx,cx
-	jns	hl3
-	sub	cx,cx
 hl3:	cmp	si,ax
 	jle	hl4
 	mov	si,ax
 hl4:	call	rowAddr
 	mov	di,ax			; DI = offset of the row
-	mov	al,bl
-	and	al,3
-	test	bh,bh			; 2 bits per pixel?
+	mov	al,bl			; AL = color (or pattern)
+	test	bh,1			; 2 bits per pixel?
 	jnz	hl5			; no
-	mov	ah,55h
-	mul	ah			; AL = color repeated 4 times
 	shl	cx,1
 	shl	si,1
 	inc	si			; CX, SI = bit positions
-	jmp	short hl6
-hl5:	and	al,1
-	neg	al			; AL = 00h or FFh
+	mov	ah,55h			; (to repeat the color 4 times)
+	jmp	short hl5a
+hl5:	mov	ah,0FFh			; (or 8 times)
+hl5a:	test	bh,bh			; is AL a pattern?
+	js	hl6			; yes
+	mul	ah			; no, so repeat the color
 hl6:	mov	bl,al			; BL = fill pattern
 	mov	ax,cx
 	shr	ax,1

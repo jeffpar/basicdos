@@ -23,8 +23,11 @@ CODE    SEGMENT
 ;
 ; cmdHelp
 ;
-; If a keyword is specified, display help for that keyword; otherwise,
-; display a list of all keywords.
+; If a keyword is specified, display help for that keyword, or if it's a
+; category (ALL, BASIC, DISK, EXT, FUNC, or SYS), list the keywords in that
+; category (see findHelp), or for CORE, display help for CORE and then list
+; the keywords that aren't in COMMAND's core; otherwise, display help for
+; HELP, which describes the categories.
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -41,8 +44,52 @@ HELP_TEXTLEN	equ	256
 DEFPROC	cmdHelp
 	mov	dl,[bx].CMD_ARG		; is there a non-switch argument?
 	call	getToken
-	jnc	doHelp
-	sub	cx,cx			; no, so list all HELP entries
+	jnc	hp0			; yes
+	mov	si,offset HELP_FILE	; no, so use "HELP" (the first 4
+	mov	cx,4			; characters of HELP_FILE)
+	jmp	short doHelp
+;
+; If the argument is a category, list the entries tagged with the category's
+; first letter in lower case (eg, "b" for BASIC), or for ALL, every entry.
+;
+hp0:	mov	di,offset HELP_CATS
+hpc1:	mov	ah,[di]			; AH = 1st letter of the next category
+	test	ah,ah			; any more?
+	jz	doHelp			; no
+	push	cx
+	push	si
+hpc2:	lodsb
+	and	al,0DFh			; (upper-case the argument)
+	cmp	al,[di]
+	jne	hpc4
+	inc	di
+	loop	hpc2
+	cmp	[di],cl			; does the category end here, too?
+	jne	hpc4			; no
+	pop	si
+	pop	cx
+	or	ah,20h			; AH = tag (eg, "b")
+	cmp	ah,'a'			; ALL?
+	jne	hpc3			; no
+	mov	ah,0			; yes, so list every entry
+hpc3:	mov	ch,ah
+	mov	cl,0			; CL = 0 to list entries, CH = tag
+	cmp	ch,'c'			; CORE?
+	jne	doHelp			; no
+	push	bx
+	push	cx
+	mov	si,offset HELP_CORE	; yes, so display help for CORE first
+	mov	cx,4
+	call	doHelp
+	pop	cx
+	pop	bx
+	jmp	short doHelp
+hpc4:	pop	si
+	pop	cx
+hpc5:	inc	di
+	cmp	byte ptr [di-1],0	; skip the rest of the category
+	jne	hpc5
+	jmp	hpc1
 ;
 ; Look up the second token (DS:SI) with length CX in the HELP file.
 ;
@@ -80,7 +127,7 @@ hp1:	lods	byte ptr cs:[si]
 	push	ax
 	call	closeInput
 	pop	ax
-	test	ax,ax			; were we just listing entries?
+	test	al,al			; were we just listing entries?
 	jz	h9			; yes
 	jmp	short h3
 h1:	push	cx
@@ -130,6 +177,13 @@ h3:	PRINTF	<"No help available",13,10>
 	ret
 h9:	ret
 ENDPROC	cmdHelp
+
+;
+; HELP_CATS contains the categories (see cmdHelp), whose first letters (in
+; lower case) are the tags in HELP.TXT, except for CORE (see findHelp).
+;
+HELP_CATS	db	"ALL",0,"BASIC",0
+HELP_CORE	db	"CORE",0,"DISK",0,"EXT",0,"FUNC",0,"SYS",0,0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -208,9 +262,14 @@ ENDPROC	fillHelp
 ; letters, digits, '$', and '%' are printed, so an entry that begins with any
 ; other character, like '*', is omitted).
 ;
+; An entry can begin with tags in brackets (eg, "[b+]"), which aren't part of
+; the entry: a category (a lower-case letter, such as "b" for BASIC; see
+; cmdHelp), and "+" if it isn't in COMMAND's core.  A listing of one category (or of tag "c", for CORE, the
+; entries tagged "+") lists only the entries that have that tag.
+;
 ; Inputs:
 ;	DS:SI -> name
-;	CX = length of name (zero to list all entries)
+;	CL = length of name (zero to list entries), CH = tag (zero for all)
 ;
 ; Outputs:
 ;	If carry clear, DX = offset of entry, CX = length of entry
@@ -224,12 +283,13 @@ DEFPROC	findHelp
 	push	bp
 	mov	bp,sp
 	push	si			; [bp-2] -> name
-	push	cx			; [bp-4] = length of name
+	push	cx			; [bp-4] = length of name, [bp-3] = tag
 	mov	ax,2
 	push	ax			; [bp-6] = # consecutive LINEFEEDs
 	push	ax			; [bp-8] = offset of current entry
 	sub	ax,ax
-	push	ax			; [bp-10] = column (if listing)
+	push	ax			; [bp-10] = column (if listing),
+					; [bp-9] = the current entry's tags
 	sub	sp,HELP_BUFLEN
 	sub	di,di			; DI = offset of next character
 	mov	dx,-1			; DX = offset of matching entry (none)
@@ -266,7 +326,7 @@ fh3:	cmp	word ptr [bp-6],2	; does an entry start here?
 	cmp	dx,-1			; did we already find a match?
 	jne	fh9			; yes, so this is the end of it
 	mov	[bp-8],di
-	mov	al,0			; start matching
+	jmp	fh16			; check the entry's category
 fh4:	cmp	al,-1			; still matching (or listing)?
 	je	fh7			; no
 	cmp	byte ptr [bp-4],0	; listing entries?
@@ -363,6 +423,43 @@ fh14:	push	ax
 	pop	ax
 	mov	byte ptr [bp-10],0
 fh15:	jmp	fh7
+;
+; At the start of an entry, skip its tags and their brackets, recording the
+; tags in [bp-9] (the category letter, and bit 7 for "+"), and since the next
+; character may be a tag, too, it's also the start of the entry.  After the tags, if we're
+; listing one category (or the "+" entries), skip the entry if it isn't in it.
+;
+fh16:	cmp	ah,'+'			; not in the core?
+	jne	fh16a			; no
+	or	byte ptr [bp-9],80h
+	jmp	short fh16b
+fh16a:	cmp	ah,'['			; a bracket or category?
+	jb	fh16c			; no, so the tags are done
+	cmp	ah,'a'			; a category?
+	jb	fh16b			; no, so skip the bracket
+	or	[bp-9],ah
+fh16b:	mov	word ptr [bp-6],2	; (so the next char starts the entry)
+	jmp	fh7
+fh16c:	mov	al,[bp-3]		; AL = category to list (0 for all)
+	cmp	byte ptr [bp-4],0	; listing entries?
+	jne	fh16e			; no
+	test	al,al			; all of them?
+	jz	fh16e			; yes
+	cmp	al,'c'			; the entries that aren't in the core?
+	jne	fh16d			; no
+	test	byte ptr [bp-9],80h	; is this one of them?
+	jnz	fh16e			; yes
+	jmp	short fh16x
+fh16d:	mov	al,[bp-9]
+	and	al,7Fh
+	cmp	al,[bp-3]		; is the entry in the category?
+	je	fh16e			; yes
+fh16x:	mov	byte ptr [bp-9],0
+	mov	al,-1			; no, so skip the entry
+	jmp	fh7
+fh16e:	mov	byte ptr [bp-9],0
+	mov	al,0			; start matching
+	jmp	fh4
 ENDPROC	findHelp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

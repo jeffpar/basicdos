@@ -62,7 +62,7 @@ A command line can contain more than one command, separated by colons (eg, `CLS:
 
 	FOR I = 1 TO 3:PRINT I;:NEXT
 
-A DOS command (eg, DIR, TYPE, or the name of a program) ends at any colon outside quotes (eg, `DIR *.BAS:PRINT "done"`), except a colon that follows a drive letter (eg, `DIR A:`) or separates two digits (eg, `TIME 12:30`).
+A DOS command (eg, DIR, TYPE, or the name of a program) ends at any colon outside quotes (eg, `DIR *.BAS:PRINT "done"`), except a colon that follows a drive letter (eg, `DIR A:`) or a switch's letter (eg, `FORMAT A: /F:720`), or separates two digits (eg, `TIME 12:30`).
 
 As in IBM PC BASIC, [LET](../cmd/basic/let/) is optional for assignments, even at the prompt (eg, `A = 1`).
 
@@ -95,13 +95,13 @@ For example, if a disk contains both DONKEY.COM and DONKEY.BAS, typing `DONKEY` 
 If the program isn't in the current directory, and its name doesn't include a drive or directory, BASIC-DOS searches the directories listed in [PATH$](../cmd/basic/func/#path), in order.  Every bootable BASIC-DOS disk has the same layout:
 
 - The root directory contains BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, AUTOEXEC.BAT (if any), and HELP.TXT; BASDEV.COM and BASDOS.COM are read-only hidden system files (so only `DIR /A` lists them), and COMMAND.COM is a read-only system file (see [ATTRIB](../cmd/external/#attrib))
-- **BIN** contains the BASIC-DOS utilities (eg, [FIND, MORE, and SORT](../cmd/external/#filters)) and DEBUG.COM
+- **EXT** contains the external BASIC-DOS utilities (eg, [FIND, MORE, and SORT](../cmd/external/#filters)) and DEBUG.COM
+- **DEMOS** contains demo programs (eg, HELLO.BAT, FIBO.BAT, PRIMES.BAS, and DIR.BAS, a DIR written in BASIC, using [DIR$](../cmd/basic/func/#dir))
 - **SAMPLES** contains the PC DOS BASIC samples (eg, DONKEY.BAS)
-- **DEMOS** contains the programs that the demos run (eg, HELLO.BAT, FIBO.BAT, and PRIMES.BAS)
 
-and its CONFIG.SYS sets PATH$ to the root, BIN, DEMOS, and SAMPLES (eg, `A:\;A:\BIN;A:\DEMOS;A:\SAMPLES`), so you can type `PRIMES` or `DIR | SORT` from any directory.
+and its CONFIG.SYS sets PATH$ to the root, EXT, DEMOS, and SAMPLES (eg, `A:\;A:\EXT;A:\DEMOS;A:\SAMPLES`), so you can type `PRIMES` or `DIR | SORT` from any directory.
 
-Test programs are on a separate diskette, BASIC-DOS Tests, in its **TESTS\MISC** directory (eg, DOSTESTS.COM; MISC.BAT in **TESTS** runs them all, and DIR.BAS in **TESTS** is a DIR written in BASIC, using [DIR$](../cmd/basic/func/#dir)), with MSBASIC.EXE and SYMDEB.EXE in its **TOOLS** directory; load it in drive B: and type (for example) `B:\TOOLS\MSBASIC`, or `B:`, `CD \TESTS`, and `MISC`.  Most of the tests can run while other sessions are busy, but HARDERR skips its tests if any other session is running a program (its disk hook would affect them).
+Test programs are on a separate diskette, BASIC-DOS Tests: the regression tests are in its **TESTS\REGRESS** directory (eg, DOSTESTS.COM; REGRESS.BAT in **TESTS** runs them all), other test programs (eg, GFXTEST.BAS) are in **TESTS\MISC**, and BENCH.BAS is in **TESTS**, with MSBASIC.EXE and SYMDEB.EXE in its **TOOLS** directory; load it in drive B: and type (for example) `B:\TOOLS\MSBASIC`, or `B:`, `CD \TESTS`, and `REGRESS`.  Most of the tests can run while other sessions are busy, but HARDERR skips its tests if any other session is running a program (its disk hook would affect them).
 
 The [hard disk demo](/demos/hd/at/) adds three more directories: **TESTS** (the same tests as the BASIC-DOS Tests diskette), **SRC** (the BASIC-DOS source code), and **TOOLS** (MASM and the other build tools, plus MSBASIC.EXE and SYMDEB.EXE).
 

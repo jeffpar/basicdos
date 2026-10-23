@@ -8,6 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	DOSFUNC equ 1
+	GFXDEFS equ 1
 	include	cmd.inc
 
 CODE    SEGMENT
@@ -414,7 +415,7 @@ rsm1:	mov	cl,0
 rsm2:	mov	al,IOCTL_SETMODE
 	call	ioctlCon		; yes, so restore it
 	mov	bx,ss:[PSP_HEAP]
-	mov	byte ptr ss:[bx].GFX_DATA.GFX_MODE,0	; (see gfxInit)
+	mov	word ptr ss:[bx].GFX_DATA.GFX_FLAGS,0	; (and GFX_MODE)
 	mov	cx,ss:[bx].GFX_DATA.GFX_COLORS
 	mov	al,IOCTL_SETCOLOR
 	call	ioctlCon		; and the colors, too
@@ -852,11 +853,12 @@ ss4:	mov	cl,bh			; CL = current video mode
 	cmp	al,cl			; any change?
 	je	ss9			; no
 	xchg	cx,ax			; CL = new video mode
+	mov	bx,ss:[PSP_HEAP]
+	mov	word ptr ss:[bx].GFX_DATA.GFX_FLAGS,0	; (and GFX_MODE)
 ;
 ; If a program whose mode was saved selects a graphics mode (4-6), mark the
 ; saved mode, so that restoreMode restores it when the program ends.
 ;
-	mov	bx,ss:[PSP_HEAP]
 	mov	al,cl
 	sub	al,4
 	cmp	al,3			; is it a graphics mode?
@@ -875,8 +877,6 @@ ss5:	push	cx
 	call	mouseCall		; and show it again (in the new mode)
 	popf
 	jc	ss8			; the adapter doesn't support the mode
-	mov	bx,ss:[PSP_HEAP]
-	mov	byte ptr ss:[bx].GFX_DATA.GFX_MODE,0	; see gfxInit
 ss9:	ret
 ss8:	jmp	strIllegal
 ENDPROC	setScreen

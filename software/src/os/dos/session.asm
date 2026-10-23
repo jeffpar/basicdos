@@ -466,7 +466,7 @@ ENDPROC	scb_waitend
 ; scb_query
 ;
 ; Returns info about a session (see utl_qryscb), such as its program's PSP
-; and its console's name, so that commands (eg, LIST SESSIONS) don't need the
+; and its console's name, so that commands (eg, RESTART) don't need the
 ; kernel's internal structures.  Unlike get_scb, this accepts any SCB in the
 ; table, so that unused sessions (no program, no console) can be listed, too.
 ;

@@ -54,9 +54,9 @@ Exits the command shell if there is a previously loaded copy (see [COMMAND.COM](
 
 ### HELP
 
-> HELP [*command*|*function*]
+> HELP [*keyword*|ALL|BASIC|CORE|DISK|EXT|FUNC|SYS]
 
-Displays help for the specified *command* or *function* (eg, `HELP MID$`), or lists all commands if none is specified.  The help text comes from HELP.TXT, in the root directory of the drive that COMMAND.COM was loaded from (so HELP works from any directory).
+Displays help for *keyword* (eg, `HELP MID$`), or lists the keywords in a category: ALL (every keyword), BASIC (BASIC statements and commands), DISK (disk commands, like DIR), EXT (external commands and drivers, like FORMAT), FUNC (functions, like MID$), or SYS (system commands, like MEM), and HELP CORE explains low memory systems and lists the keywords they don't support.  HELP alone displays help for HELP.  The help text comes from HELP.TXT, in the root directory of the drive that COMMAND.COM was loaded from (so HELP works from any directory), where each entry begins with a lower-case letter for its category, in brackets (eg, `[b]PRINT` or `[f]MID$`), followed by `+` if it isn't available on low memory systems (eg, `[b+]CIRCLE`), which HELP doesn't display.
 
 ### KEYS
 
@@ -66,19 +66,11 @@ Displays a summary of the special keys that can be used when typing commands (se
 
 ### LIST
 
-> LIST [*line*][-[*line*]] | VARS | SESSIONS
+> LIST [*line*][-[*line*]] | VARS
 
 Lists all lines of the currently loaded BAS or BAT program, or the specified range of lines (eg, `LIST 100`, `LIST 100-200`, `LIST 100-`, or `LIST -200`).  Lines without line numbers are listed with the numbered line that precedes them.
 
 `LIST VARS` lists preserved string variables such as `PATH$` first, followed by the current session's ordinary variables and their values in allocation order.  Names include `%`, `#`, or `$` to identify their types, and string values are quoted.  Arrays show each dimension's lower and upper bounds (eg, `A%(0 TO 2, 0 TO 3)`), without listing their elements.  Function definitions are omitted.  The listing can be redirected (eg, `LIST VARS > VARS.TXT` at the prompt) or paged with `LIST VARS | MORE`.
-
-`LIST SESSIONS` lists every session: its number (for [RESTART](#restart)), its console, and its program, or `Unused` if it has none (the number of sessions comes from `SESSIONS=` in CONFIG.SYS, which defaults to 4), with `*` marking the current session:
-
-	C:\>LIST SESSIONS
-	* 1 CON      COMMAND
-	  2 COM1     COMMAND
-	  3          Unused
-	  4          Unused
 
 ### MEM
 
@@ -103,13 +95,21 @@ Erases the loaded program, functions, and variables.
 
 ### RESTART
 
-> RESTART SYSTEM | *session*
+> RESTART [SYSTEM | *session*]
+
+`RESTART` alone lists every session: its number, its console, and its program, or `Unused` if it has none (the number of sessions comes from `SESSIONS=` in CONFIG.SYS, which defaults to 4), with `*` marking the current session:
+
+	C:\>RESTART
+	* 1 CON      COMMAND
+	  2 COM1     COMMAND
+	  3          Unused
+	  4          Unused
 
 `RESTART SYSTEM` restarts the system, after writing any modified disk data.
 
-`RESTART` *session* restarts the specified session (a number from [LIST SESSIONS](#list)), by stopping its program as **Ctrl-Alt-Del** does on its console, which works even if the program is stuck in a loop that never uses DOS; if the session is only running its shell (eg, a BASIC loop typed at its prompt), it returns to its prompt instead.  For example, `RESTART 2` stops a looping program on a serial display from the PC's own console display.
+`RESTART` *session* restarts the specified session (a number from that list), by stopping its program as **Ctrl-Alt-Del** does on its console, which works even if the program is stuck in a loop that never uses DOS; if the session is only running its shell (eg, a BASIC loop typed at its prompt), it returns to its prompt instead.  For example, `RESTART 2` stops a looping program on a serial display from the PC's own console display.
 
-`RESTART` without an argument is an error, so that a system restart always requires `SYSTEM`.
+A system restart always requires `SYSTEM`.
 
 ### RUN
 

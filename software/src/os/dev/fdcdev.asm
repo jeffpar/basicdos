@@ -625,9 +625,11 @@ ENDPROC	ddfdc_none
 ; sector) from DDPRW_ADDR to the volume's BPB (see init_bpb), so that the
 ; volume of an unformatted diskette can be written, and IOCTL_FORMAT formats
 ; and verifies the track at cylinder DDPRW_LENGTH, head DDPRW_LBA (see
-; format_track).  IOCTL_GETPART returns nothing (diskettes have no partition
-; table), so FORMAT can tell a diskette from a hard disk.  Errors are returned
-; to the caller (see dev_request).
+; format_track).  Since diskettes have no partition table, IOCTL_GETPART
+; stores only the drive's type, as one byte (1 = 360K, 2 = 1.2M, 3 = 720K,
+; or 4 = 1.44M), or nothing if the BIOS can't tell (eg, on a PC or XT), so
+; FORMAT can tell a diskette from a hard disk, and choose a diskette size.
+; Errors are returned to the caller (see dev_request).
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW (DDP_CODE = IOCTL code)
@@ -646,8 +648,8 @@ DEFPROC	ddfdc_ioctl
 	je	dio1
 	cmp	al,IOCTL_FORMAT
 	je	dio2
-	cmp	al,IOCTL_GETPART	; (carry clear if equal)
-	je	dio8
+	cmp	al,IOCTL_GETPART
+	je	dio3
 	jmp	ddfdc_none
 dio1:	mov	ax,DDERR_BADREQ
 	cmp	es:[di].DDPRW_LENGTH,BPB_DRIVE	; enough data for a BPB?
@@ -661,6 +663,23 @@ dio1:	mov	ax,DDERR_BADREQ
 dio2:	push	di
 	push	es
 	call	format_track
+	jmp	short dio7
+dio3:	push	di
+	push	es
+	lds	si,es:[di].DDPRW_BPB	; DS:SI -> BPB
+	mov	dl,[si].BPB_DRIVE	; DL = drive #
+	mov	ah,HDC_GETPARMS
+	int	INT_FDC			; BL = drive type (AT only)
+	pop	es
+	pop	di
+	jnc	dio4
+	mov	bl,0			; no drive type
+dio4:	test	bl,bl			; (carry clear)
+	jz	dio8			; no drive type, so store nothing
+	lds	si,es:[di].DDPRW_ADDR
+	mov	[si],bl			; store the drive type
+	mov	es:[di].DDP_CONTEXT,1	; (one byte)
+	jmp	short dio8
 dio7:	pop	es
 	pop	di
 dio8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE

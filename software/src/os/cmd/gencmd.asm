@@ -46,6 +46,7 @@
 ;					peekNextToken, validateOp, etc)
 ;
 	DOSFUNC equ 1
+	GFXDEFS equ 1
 	include	cmd.inc
 	include	gen.inc
 	include	8086.inc
@@ -127,6 +128,7 @@ gc1a:	push	ds
 gc1b:	rep	stosb			; (and CX is zero again)
 	mov	si,size TBLK
 	mov	[bx].DATA_STATE.DATA_SEG,cx	; start READ at the first DATA item
+	mov	[bx].GFX_DATA.GFX_FLAGS,cl	; and end any VIEW and WINDOW
 gc2:	mov	[bx].LINE_PTR.OFF,si
 	mov	[bx].LINE_PTR.SEG,dx
 	mov	[bx].LINE_LEN,cx	; CX = previous length (0)

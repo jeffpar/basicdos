@@ -515,7 +515,8 @@ ENDPROC	setField
 ; is zeros), and PUT # writes each FIELD variable to its part of the record
 ; (padded with spaces).
 ;
-; DOS failures raise "Device I/O error"; a short PUT raises "Disk full".
+; DOS failures raise "Device I/O error" ("Permission denied" for a PUT to a
+; read-only file); a short PUT raises "Disk full".
 ; Failed operations preserve the last completed record number.
 ;
 ; Inputs:
@@ -595,7 +596,10 @@ fr9:	pop	ds
 	RETURN
 frX:	mov	al,63			; "Bad record number"
 	jmp	rtError
-frIO:	mov	al,57			; "Device I/O error"
+frIO:	cmp	al,ERR_ACCDENIED	; a PUT to a read-only file?
+	mov	al,70			; "Permission denied"
+	je	frErr			; yes
+	mov	al,57			; "Device I/O error"
 frErr:	mov	dx,[frLast]
 	mov	word ptr ss:[bx].FS_REC,dx
 	jmp	rtError

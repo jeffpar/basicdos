@@ -1,6 +1,6 @@
 10 REM ATTRS.BAS: file attribute tests (DOS functions 43h and 57h, read-only
 20 REM files, and DIR /A and /S), using the DOS statement
-30 F$ = "ATTR.TMP" : G$ = "ATTRRO.TMP" : FAILS = 0
+30 F$ = "ATTR.TMP" : G$ = "ATTRRO.TMP" : H$ = "ATTRCP.TMP" : FAILS = 0
 40 OPEN F$ FOR OUTPUT AS #1 : PRINT #1, "data" : CLOSE #1
 50 DOS &H4300, 0, 0, F$
 60 IF DOS(2) <> 32 THEN PRINT "archive failed" : FAILS = FAILS + 1
@@ -13,6 +13,12 @@
 130 ON ERROR GOTO 0
 140 OPEN F$ FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
 150 IF L$ <> "data" THEN PRINT "read-only input failed" : FAILS = FAILS + 1
+151 REM FOR RANDOM opens a read-only file for reading
+152 OPEN F$ AS #1 LEN = 4 : FIELD #1, 4 AS R$ : GET #1, 1
+154 IF R$ <> "data" THEN PRINT "read-only random failed" : FAILS = FAILS + 1
+156 E = 0 : ON ERROR GOTO 950 : PUT #1, 1
+158 IF E <> 70 THEN PRINT "read-only PUT failed" : FAILS = FAILS + 1
+159 ON ERROR GOTO 0 : CLOSE #1
 160 DEL F$
 170 IF ERRORLEVEL = 0 THEN PRINT "read-only delete failed" : FAILS = FAILS + 1
 180 DOS &H4301, 0, 2, F$ : DIR F$
@@ -31,6 +37,9 @@
 310 DOS &H4000, H, 2, "xy" : DOS &H3E00, H
 320 D$ = DIR$(F$)
 330 IF CVI(MID$(D$, 2)) <> T OR CVI(MID$(D$, 4)) <> D THEN PRINT "set time failed" : FAILS = FAILS + 1
+332 REM COPY keeps the date and time
+334 COPY F$ H$ : D$ = DIR$(H$) : DEL H$
+336 IF CVI(MID$(D$, 2)) <> T OR CVI(MID$(D$, 4)) <> D THEN PRINT "copy time failed" : FAILS = FAILS + 1
 340 REM A file created read-only is writable until it's closed
 350 DOS &H3C00, 0, 1, G$ : H = DOS(0)
 360 DOS &H4000, H, 3, "abc"
@@ -59,3 +68,4 @@
 920 E = ERR : RESUME 410
 930 E = ERR : RESUME 430
 940 E = ERR : RESUME 450
+950 E = ERR : RESUME 158

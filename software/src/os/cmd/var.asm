@@ -8,6 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	DOSFUNC equ 1
+	GFXDEFS equ 1
 	include	cmd.inc
 	include	8086.inc
 
@@ -698,7 +699,7 @@ DEFPROC	runCode
 	jne	rcd1			; yes
 	jmp	genCode
 rcd1:	mov	[bx].GEN_FLAGS,al
-	mov	byte ptr [bx].GFX_DATA.GFX_MODE,0	; see gfxInit
+	mov	word ptr [bx].GFX_DATA.GFX_FLAGS,0	; (and GFX_MODE)
 	mov	ax,[bx].TBLKDEF.BLK_NEXT
 	mov	[bx].LINE_PTR.SEG,ax	; (see keepCode)
 	sub	ax,ax

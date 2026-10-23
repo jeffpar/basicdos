@@ -445,7 +445,9 @@ ENDPROC	validateOp
 ;
 ; A colon (outside quotes) ends a DOS command, so that other commands can
 ; follow it (eg, "DIR *.COM:PRINT 1"), unless it follows a letter at the start
-; of a word (eg, "DIR A:") or separates two digits (eg, "TIME 12:30").
+; of a word (eg, "DIR A:") or right after the switch character (eg, the value
+; of a switch, as in "FORMAT A: /F:720"), or separates two digits (eg, "TIME
+; 12:30").
 ;
 ; Inputs:
 ;	DS:BX -> colon
@@ -475,7 +477,16 @@ cc1:	mov	al,[bx-1]
 	cmp	ax,dx			; at the start of the command?
 	stc
 	je	cc9			; yes
-	cmp	byte ptr [bx-2],' '+1	; at the start of a word (carry set)?
+	mov	al,[bx-2]
+	cmp	al,' '+1		; at the start of a word?
+	jb	cc9			; yes (carry set)
+	push	si
+	mov	si,ds:[PSP_HEAP]
+	cmp	al,[si].SWITCH_CHAR	; after the switch character?
+	pop	si
+	stc
+	je	cc9			; yes
+	clc
 cc9:	ret
 ENDPROC	chkColon
 
@@ -484,7 +495,7 @@ ENDPROC	chkColon
 ; splitCmd
 ;
 ; Like MS-DOS, if a command is one word consisting of a DOS command followed by
-; PATHCHAR (eg, "CD\" or "DIR\BIN"), split it into two words (eg, "CD" and
+; PATHCHAR (eg, "CD\" or "DIR\EXT"), split it into two words (eg, "CD" and
 ; "\").  A word that begins with PATHCHAR (eg, "\DOS\EDIT") or with something
 ; other than a DOS command (eg, "TOOLS\MASM") is left alone.
 ;

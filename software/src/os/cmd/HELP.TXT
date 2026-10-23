@@ -1,237 +1,247 @@
-ABS(*x*)
+[f]ABS(*x*)
 Returns the absolute value of *x*.
 
-ARG$[(*n*)]
+[f]ARG$[(*n*)]
 Returns argument *n* from the command line that ran the current BAS or BAT file (0 is the file's name), or all the arguments if *n* is omitted.  Quoted arguments can contain spaces.
 
-ASC(*string*)
+[f]ASC(*string*)
 Returns the character code (0-255) of the first character of *string*.  As in MSBASIC, an empty *string* is an "Illegal function call" error.
 
-ATN(*x*)
+[f]ATN(*x*)
 Returns the arctangent of *x*, in radians.
 
-ATTRIB [+R|-R] [+H|-H] [+S|-S] [+A|-A] [*filespec*]
+[e]ATTRIB [+R|-R] [+H|-H] [+S|-S] [+A|-A] [*filespec*]
 Displays the attributes of each file matching *filespec* (or every file), including hidden and system files: A (archive), S (system), H (hidden), and R (read-only).  Attributes given with + are set first, and those given with - are cleared (eg, ATTRIB +R *.BAS).  A read-only file can't be changed or deleted, and only a hidden file is left out of DIR listings.
 
-AUTO [*line*][,*increment*]
+[b+]AUTO [*line*][,*increment*]
 Prompts for program lines, starting with *line* (default 10) and adding *increment* (default 10) after each one.  If a line already exists, it's displayed for editing.  To stop, press ENTER on a line with nothing after its number, or press CTRL-C.
 
-CD [*drive*:][*path*]
+[d]CD [*drive*:][*path*]
 Changes the current directory of *drive* (or the current drive) to *path*, where directory names are separated by the path character (slash or backslash, depending on PATHCHAR in CONFIG.SYS).  A *path* that begins with the path character starts at the root directory, and .. refers to the parent directory.  If no *path* is specified, the current directory is displayed.  CHDIR is the same as CD.
 
-CDBL(*x*)
+[f]CDBL(*x*)
 Returns *x* as a double.  CSNG is the same, since all floating-point values are double-precision.
 
-CHAIN *file*[,*line*]
+[b]CHAIN *file*[,*line*]
 Runs the specified BAS file and then ends the program.  The *line* is currently ignored, and other CHAIN options are not supported.
 
-CHDIR [*drive*:][*path*]
+[d]CHDIR [*drive*:][*path*]
 Same as CD.
 
-CHR$(*code*)
+[e]CHKDSK [*d*:] [~V]
+Checks the FAT and directories of drive *d* (or the current drive), following every file's and directory's cluster chain, and reports chains that are cross-linked, don't match a file's size, or contain invalid clusters, and lost clusters, and then the space used by hidden files, directories, and user files, and the space available.  ~V lists every file.  Problems are reported, not fixed.
+
+[f]CHR$(*code*)
 Returns a one-character string containing the character with the specified *code* (0-255).
 
-CINT(*x*)
+[f]CINT(*x*)
 Returns *x* rounded to an integer (eg, CINT(2.6) is 3), as assigning it to an integer variable would.
 
-CIRCLE (*x*,*y*),*r*[,[*color*][,[*start*][,[*end*][,*aspect*]]]]
-Draws a circle (or ellipse) with radius *r* in a graphics mode, or an arc from the *start* to the *end* angle (in radians), with lines to the center for negative angles.
+[b+]CIRCLE (*x*,*y*),*r*[,[*color*][,[*start*][,[*end*][,*aspect*]]]]
+Draws a circle (or ellipse) with radius *r* in a graphics mode, or an arc from the *start* to the *end* angle (in radians), with lines to the center for negative angles.  Any point (*x*,*y*) in a graphics command can be STEP (*x*,*y*) instead, which is relative to the last point.
 If *aspect* (the ratio of the y radius to the x radius) is omitted, the circle looks round on a standard display.
 
-CLEAR [[*n*][,[*m*][,*k*]]]
+[b]CLEAR [[*n*][,[*m*][,*k*]]]
 Resets all numeric variables to zero and all string variables to empty strings, and erases all arrays.  The values are ignored.
 
-CLOSE [[#]*n*[,[#]*n*]...]
+[b+]CLOSE [[#]*n*[,[#]*n*]...]
 Closes the specified files (or all files if none are specified).  Files that a program leaves open are closed when it ends.
 
-CLS
+[b]CLS
 Clears the session using the background color and moves the cursor to the top left corner.
 
-COLOR [*foreground*][,[*background*][,*border*]]
+[b]COLOR [*foreground*][,[*background*][,*border*]]
 Sets the foreground (0-15), background (0-7), and border (0-255) colors of the session.
 For blinking colors, use 16-31 for *foreground* and 128-255 for *border*; as in MSBASIC, a *background* of 8-15 is the same as 0-7.
 In SCREEN 1, the values are the background color (0-15) and palette (0 or 1) instead.
 
-COPY *input* [*output*]
-Copies the contents of the input file or device to the output file or device, or with wildcards (? and *), every matching file to the output drive or directory (eg, COPY B:\*.BAS).  If *output* is omitted, the current directory is used.  Input files separated by + are combined into the output file (eg, COPY A.BIN+B.BIN C.BIN).
+[e]COMP *file1* *file2*
+Compares each file matching *file1* (which can contain wildcards, but doesn't match hidden files) with *file2* (or if *file2* is a drive or directory, with the file there that has the same name), and reports the offset (in hex) and bytes of each difference, up to 10 differences.
+
+[d]COPY *input* [*output*]
+Copies the contents of the input file or device to the output file or device (a file keeps its date and time), or with wildcards (? and *), every matching file to the output drive or directory (eg, COPY B:\*.BAS).  If *output* is omitted, the current directory is used.  Input files separated by + are combined into the output file (eg, COPY A.BIN+B.BIN C.BIN).
 
 CORE
-On low memory systems, BASIC-DOS loads only core functions, so the following are unavailable: graphics commands (CIRCLE, DRAW, PAINT, PRESET, PSET, GET, LINE, and PUT), mouse commands, sound commands, program editing commands (AUTO, DELETE, and EDIT), file commands (OPEN, CLOSE, FIELD, GET, PUT, LSET, RSET, IOCTL, DOS, and the # forms of INPUT, LINE INPUT, PRINT, and WRITE) and functions (CVD, CVI, CVL, DOS, EOF, IOCTL$, LOC, LOF, MKD$, MKI$, and MKL$), and support for tokenized BAS files.  Unavailable commands will display a memory error.
+On low memory systems, BASIC-DOS loads only core functions, so the commands and functions listed below are unavailable (and display a memory error), along with the graphics form of LINE, the # forms of INPUT, LINE INPUT, PRINT, and WRITE, and support for tokenized BAS files.
 
-COS(*x*)
+[f]COS(*x*)
 Returns the cosine of *x*, where *x* is in radians.
 
-CSNG(*x*)
+[f]CSNG(*x*)
 Same as CDBL.
 
-CSRLIN
+[f]CSRLIN
 Returns the cursor's row, starting at 1.  See also POS.
 
-CURDIR$
+[f]CURDIR$
 Returns the current drive and directory (eg, C:\BASIC), as CD displays them.
 
-CVD(*string*)
+[f+]CVD(*string*)
 Returns the double stored in the first 8 bytes of *string* by MKD$.
 
-CVI(*string*)
+[f+]CVI(*string*)
 Returns the integer stored in the first 2 bytes of *string* by MKI$ (-32768 to 32767).
 
-CVL(*string*)
+[f+]CVL(*string*)
 Returns the integer stored in the first 4 bytes of *string* by MKL$.
 
-DATA *item*[,*item*]...
+[b]DATA *item*[,*item*]...
 Defines items for READ to assign to variables, in the order they appear in the program.  An item can be a number or a string; quoted strings can contain commas and colons.
 
-DATE [*date*] [~P]
+[s]DATE [*date*] [~P]
 Sets the system date (or prompts for a date if ~P) and then displays the date.
 The date must be entered as M-D-Y or M/D/Y, where M is 1-12, D is 1-31, and Y is 0-99 or 1980-2099.
 If D or Y are omitted, current values are assumed.
 
-DATE$
+[f]DATE$
 Returns the current date as a string in the form MM-DD-YYYY.
 
-DEBUG [*program* [*arguments*]] or DEBUG ~*command*
+[e]DEBUG [*program* [*arguments*]] or DEBUG ~*command*
 Loads *program* (a full filename) without starting it, displays its registers, and accepts debugger commands (type ? to list them, G to run, and Q to quit).  The DB, DW, and DM commands can also be switches, which DEBUG performs before exiting (eg, DEBUG ~DB 40:0 or DEBUG ~DM).
+DEBUG.COM can also be loaded as a device driver and used to debug the system from a terminal via a serial port.  For example, this CONFIG.SYS line connects DEBUG.COM to a VT100 terminal on COM2:\
+DEVICE=EXT\DEBUG.COM COM2:9600,N,8,1,VT100
 
-DEF *function*(*parms*)[=expression]
+[b]DEF *function*(*parms*)[=expression]
 Defines a function expression or function block.  Function expressions must fit on a single line and can be defined at any time.
 Function blocks may contain multiple lines and must end with a RETURN command.  The function name does not need to begin with FN.
 DEF SEG[=*segment*] sets the segment that PEEK and POKE use; without a *segment*, BASIC-DOS's own data segment is used.
 
-DEFDBL [*letter(s)*]
+[b]DEFDBL [*letter(s)*]
 Defines the first letter(s) of variables that will default to double-precision (64-bit) floating-point values.  Variables default to double-precision unless DEFINT or DEFSTR is used (or floating-point is disabled).
 
-DEFINT [*letter(s)*]
+[b]DEFINT [*letter(s)*]
 Defines the first letter(s) of variables that will default to integer values.  BAT files start with an implied DEFINT A-Z.
 
-DEFSNG [*letter(s)*]
+[b]DEFSNG [*letter(s)*]
 Same as DEFDBL, since all floating-point values are double-precision.
 
-DEFSTR [*letter(s)*]
+[b]DEFSTR [*letter(s)*]
 Defines the first letter(s) of variables that will default to string values.  Unless DEFSTR is used, all string variables must be defined using the $ suffix.
 
-DEL *file*
+[d]DEL *file*
 Deletes the specified file, or with wildcards (? and *), every matching file (eg, DEL *.TMP).  DEL *.* asks "Are you sure (Y/N)?" first.  ERASE is the same as DEL, unless it's erasing arrays.
 
-DELETE *line*[-[*line*]] | -*line*
+[b+]DELETE *line*[-[*line*]] | -*line*
 Deletes the specified range of program lines.  Typing a line number by itself deletes just that line.
 
-DIM *array*(*bounds*)[,*array*(*bounds*)]...
+[b]DIM *array*(*bounds*)[,*array*(*bounds*)]...
 Dimensions one or more arrays, with up to 255 dimensions each (eg, DIM A(10), B$(5,5)).  Each bound is the largest subscript for that dimension.
 Arrays that are used without DIM have a largest subscript of 10.
 
-DIR [*filespec*] [~A] [~S]
-Displays a directory listing of all files matching the given *filespec* (or all files if none is specified), after the drive's volume label and the directory's path.  Subdirectories are listed as <DIR>, and if *filespec* is a directory, its files are listed.  Hidden files are listed only with ~A, and ~S lists the matching files in every subdirectory, too.  Use DIR | MORE to page the listing.
+[d]DIR [*filespec*] [~A] [~S]
+Displays a directory listing of all files matching the given *filespec* (or all files if none is specified), after the drive's volume label and the directory's path.  Subdirectories are listed as <DIR>, and if *filespec* is a directory, its files are listed.  Hidden files are listed only with ~A (with an * after the name), and ~S lists the matching files in every subdirectory, too.  Use DIR | MORE to page the listing.
 
-DIR$[(*filespec*[,*attributes*])]
-Returns the first file or directory matching *filespec* (which may contain wildcards), or if *filespec* is omitted, the next match, or an empty string if there are no (more) matches.  For a match F$, ASC(F$) is its attributes, CVI(MID$(F$,2)) its time, CVI(MID$(F$,4)) its date, CVL(MID$(F$,6)) its size, and MID$(F$,10) its name.  The default *attributes* (&H16) include hidden, system, and directory entries; 8 finds the volume label.  See TESTS\DIR.BAS.
+[f]DIR$[(*filespec*[,*attributes*])]
+Returns the first file or directory matching *filespec* (which may contain wildcards), or if *filespec* is omitted, the next match, or an empty string if there are no (more) matches.  For a match F$, ASC(F$) is its attributes, CVI(MID$(F$,2)) its time, CVI(MID$(F$,4)) its date, CVL(MID$(F$,6)) its size, and MID$(F$,10) its name.  The default *attributes* (&H16) include hidden, system, and directory entries; 8 finds the volume label.  See DEMOS\DIR.BAS.
 
-DOS *ax*[,*bx*[,*cx*[,*dx*|*string*]]]
+[e]DISKCOPY [*d1*: [*d2*:]]
+Copies the diskette in drive *d1* (or the current drive) to the diskette in drive *d2* (or *d1*), formatting the target's tracks as it goes.  If both drives are the same, the copy is made in passes, asking for the source and target diskettes in turn.
+
+[b+]DOS *ax*[,*bx*[,*cx*[,*dx*|*string*]]]
 Calls DOS (INT 21h) with the values in registers AX, BX, CX, and DX (omitted values are zero), or with DS:DX pointing to a null-terminated copy of *string* (eg, DOS &H4301,0,1,F$ makes file F$ read-only).  A DOS error is a runtime error (eg, "File not found" or "Permission denied").  See DOS(*n*) for the registers that DOS returns.
-
 DOS(*n*)
 Returns register AX (*n* = 0), BX (1), CX (2), or DX (3), as DOS returned it to the last DOS statement (0-65535).  For example, after DOS &H4300,0,0,F$, DOS(2) is the attributes of file F$.
 
-DRAW *string*
-Draws lines from the last point, using these commands: U, D, L, R, E, F, G, and H [*n*] (move up, down, left, right, or diagonally), M *x*,*y* (move to *x*,*y*, or relative to the last point if *x* begins with + or -), B (prefix: move without drawing), N (prefix: draw without moving), C *n* (color), and S *n* (scale, in quarters).  Any number can be given as =*variable*; (eg, "M=X;,=Y;").
+[b+]DRAW *string*
+Draws lines from the last point, using these commands: U, D, L, R, E, F, G, and H [*n*] (move up, down, left, right, or diagonally), M *x*,*y* (move to *x*,*y*, or relative to the last point if *x* begins with + or -), B (prefix: move without drawing), N (prefix: draw without moving), C *n* (color), S *n* (scale, in quarters), A *n* (angle 0-3, in 90-degree turns), TA *n* (angle in degrees, -360 to 360), P *paint*,*border* (paint the area around the last point), and X*variable*; (draw the commands in a string variable).  Any number can be given as =*variable*; (eg, "M=X;,=Y;").
 
-ECHO [ON|OFF]
+[b]ECHO [ON|OFF]
 Controls the echo of lines in a BAT file.  Every BAT file starts with ECHO OFF; after ECHO ON, echoed lines are displayed with a @ in front, and lines that begin with @ are not echoed.
 
-EDIT *line*
+[b+]EDIT *line*
 Displays the specified program line for editing.  Press ENTER to store the edited line.
 
-END
+[b]END
 Ends the program.  STOP and SYSTEM are the same.
 
-EOF(*n*)
+[f+]EOF(*n*)
 Returns -1 (true) if file *n*, which must be open for INPUT, is at its end, or 0 (false) if not (eg, WHILE NOT EOF(1)).
 
-ERASE *array*[,*array*]...
+[b]ERASE *array*[,*array*]...
 Erases the specified arrays, so that they can be dimensioned again.  If the first name is not an array, ERASE is the same as DEL.
 
-ERL
+[f]ERL
 Returns the line number of the last error (see ON ERROR), or 0 if the program has no line numbers.
 
-ERR
+[f]ERR
 Returns the number of the last error (see ON ERROR).
 
-ERROR *n*
+[b]ERROR *n*
 Simulates error *n* (1-255).
 
-ERRORLEVEL
+[f]ERRORLEVEL
 Constant equal to the return code from the last program executed, or for an internal command, 0 if it succeeded or 1 if it failed.
 
-EXISTS(*filespec*)
+[f]EXISTS(*filespec*)
 Returns -1 (true) if a file or directory matching *filespec* exists, or 0 (false) if not; *filespec* may contain wildcards (eg, EXISTS("C:\SAMPLES\*.BAS")).  For example, a batch file can create a directory only if it doesn't exist with IF NOT EXISTS("OBJ") THEN MD OBJ.
 
-EXIT
+[s]EXIT
 Exits the command shell if there is a previously loaded copy.
 
-EXP(*x*)
+[f]EXP(*x*)
 Returns e (2.71828...) raised to the power of *x*.
 
-FIELD [#]*n*,*width* AS *variable$*[,*width* AS *variable$*]...
+[b+]FIELD [#]*n*,*width* AS *variable$*[,*width* AS *variable$*]...
 Divides each record of random access file *n* into fields (up to 16): GET # sets each variable to its field, and PUT # writes each variable to its field (see LSET and RSET).
 
-FIND [~C] [~I] [~N] [~V] "*string*" [*file*...]
+[e]FIND [~C] [~I] [~N] [~V] "*string*" [*file*...]
 Displays the lines of input (or of each *file*, or with wildcards (? and *), every matching file) that contain *string* (eg, DIR | FIND "BAS").  ~C displays only the number of lines, ~I ignores case, ~N adds line numbers, and ~V displays the lines that do NOT contain *string*.
 ERRORLEVEL is set to 0 if any lines were displayed (or counted), 1 if none, and 2 if a *file* couldn't be opened.
 
-FIX(*x*)
+[f]FIX(*x*)
 Returns *x* truncated to an integer (eg, FIX(-2.5) is -2).  See also INT.
 
-FOR *variable*=*start* TO *limit* [STEP *step*]
+[b]FOR *variable*=*start* TO *limit* [STEP *step*]
 Executes the lines up to the matching NEXT repeatedly, adding *step* (default 1) to the *variable* each time, until it passes the *limit*.
 If the *start* is already past the *limit*, the lines are skipped.
 
-FORMAT *d*: [~S] [~1] [~8]
-Formats the diskette or hard disk volume in drive *d*.  ~S copies the system files from the current drive (making *d* bootable), ~1 formats one side of a diskette, and ~8 formats 8 sectors per track (for PC DOS 1.x).
+[e]FORMAT *d*: [~S] [~V[:*label*]] [~F:*size*] [~1] [~8]
+Formats the diskette or hard disk volume in drive *d*.  ~S copies the system files from the current drive (making *d* bootable), and ~V gives the volume a label (asking for one, unless it's given).  A diskette is formatted as 360K, 720K, or 1.2M (~F:360, ~F:720, or ~F:1200; by default, the drive's own size, which a PC or XT can't report, so 360K); for 360K, ~1 formats one side, and ~8 formats 8 sectors per track (for PC DOS 1.x).
 
-FRE(*x*)
+[f]FRE(*x*)
 Compacts string memory and returns the number of bytes available, or if *x* is negative (eg, FRE(-1)), the number of bytes owned by this session, which other sessions can't change.
 
-GET (*x1*,*y1*)-(*x2*,*y2*),*array* or GET [#]*n*[,*record*]
-Stores the pixels of the specified rectangle in an integer *array*, in the same format as MSBASIC (see PUT).
+[b+]GET (*x1*,*y1*)-(*x2*,*y2*),*array* or GET [#]*n*[,*record*]
+Stores the pixels of the specified rectangle in an integer or double *array*, in the same format as MSBASIC (see PUT).
 With a file number, reads the specified record (or the next one) of random access file *n* into its FIELD variables.
 
-GOSUB *label*
+[b]GOSUB *label*
 Calls the subroutine at the line with the specified label number; the subroutine ends with RETURN.
 
-GOTO *label*
+[b]GOTO *label*
 Transfers program control to the line with the specified label number.
 
-HELP [*command*|*function*]
-Displays help for the specified *command* or *function* (eg, HELP MID$), or lists all commands if none is specified.
+[s]HELP [*keyword*|ALL|BASIC|CORE|DISK|EXT|FUNC|SYS]
+Displays help for *keyword* (eg, HELP MID$), or lists the keywords in a category: ALL (every keyword), BASIC (BASIC statements and commands), DISK (disk commands, like DIR), EXT (external commands and drivers, like FORMAT), FUNC (functions, like MID$), or SYS (system commands, like MEM).  HELP CORE lists the keywords that low memory systems don't support.
 
-HEX$(*n*)
+[f]HEX$(*n*)
 Returns the hexadecimal representation of the integer *n*.  Negative values are treated as unsigned 32-bit values (eg, HEX$(-1) is FFFFFFFF).
 
-IF *expression* THEN *command(s)* [ELSE *command(s)*]
+[b]IF *expression* THEN *command(s)* [ELSE *command(s)*]
 Evaluates the *expression*, and if it is TRUE (non-zero), executes the commands after THEN; otherwise, executes the commands after ELSE, if any.  Multiple commands are separated by colons, and a line number by itself (eg, THEN 100) is the same as GOTO 100.
 
-INKEY$
+[f]INKEY$
 Returns the next key pressed, without waiting (an empty string if no key was pressed).  Extended keys (eg, cursor keys) return two characters: a null and the key's scan code.
 
-INPUT [*prompt*;|,]*variable*[,*variable*]... or INPUT #*n*,*variable*[,*variable*]...
+[b]INPUT [*prompt*;|,]*variable*[,*variable*]... or INPUT #*n*,*variable*[,*variable*]...
 Reads a line from the keyboard (after displaying the prompt, followed by "? " unless a comma follows the prompt), or with #*n*, from file *n*, and assigns the next item to each variable.  Leading spaces and line breaks are skipped, and an item ends at a comma or line break (or for a number, a space).  A quoted item can contain commas.  Missing keyboard items are empty (or zero).
 
-INSTR([*start*,]*string1*,*string2*)
+[f]INSTR([*start*,]*string1*,*string2*)
 Returns the position of *string2* within *string1*, searching from position *start* (default 1), or 0 if not found.
 
-INT(*x*)
+[f]INT(*x*)
 Returns the largest integer less than or equal to *x* (eg, INT(-2.5) is -3).  See also FIX.
 
-IOCTL [#]*n*,*code*[,*value*|*string*[,*value*]]
+[b+]IOCTL [#]*n*,*code*[,*value*|*string*[,*value*]]
 Sends an IOCTL request with the specified *code* to the device or volume open as file *n*: a numeric *value* is passed in CX (and a second *value* in DX), or a *string*'s data is passed with the request (with its length in CX).  The driver determines what each code does (eg, FORMAT uses the diskette driver's &HF1 and &HF2 requests to set a volume's parameters and format a track); a request the driver doesn't support is an "Illegal function call".
 
-IOCTL$(*n*,*code*[,*value*])
+[f+]IOCTL$(*n*,*code*[,*value*])
 Sends an IOCTL request with the specified *code* (and *value* in DX) to the device or volume open as file *n*, and returns the data (up to 255 bytes) that the driver stored in response (eg, a hard disk's partition table, with the diskette driver's &HF3 request); an empty string if the driver stored nothing.
 
-KEY ON|OFF
+[b]KEY ON|OFF
 Accepted for compatibility with MSBASIC, but does nothing, since BASIC-DOS doesn't display function keys.
 
-KEYS
+[s]KEYS
 CTRL-E  Up         CTRL-X  Down\
 CTRL-S  Left       CTRL-D  Right\
 CTRL-W  Home       CTRL-R  End\
@@ -244,300 +254,321 @@ DELETE  Del Left Char\
 ESCAPE  Erase Line
 CTRL-ALT-DEL is reserved for terminating programs. Use RESTART to restart the system.
 
-KILL *file*
+[d]KILL *file*
 Same as DEL.
 
-LCASE$(*string*)
+[e]LABEL [*d*:][*label*]
+Gives drive *d* (or the current drive) a volume label (up to 11 characters), or without a *label*, displays the current label and asks for a new one (or ENTER to delete it).
+
+[f]LCASE$(*string*)
 Returns *string* with all upper-case letters converted to lower-case.
 
-LEFT$(*string*,*n*)
+[f]LEFT$(*string*,*n*)
 Returns the leftmost *n* characters of *string*.
 
-LEN(*string*)
+[f]LEN(*string*)
 Returns the number of characters in *string* (0-255).
 
-LET *variable*=*expression*
+[b]LET *variable*=*expression*
 Assigns the value of the *expression* to the *variable*.  LET is optional (eg, A = 1), even at the prompt.  Values cannot be assigned to predefined variables.
 
-LINE [(*x1*,*y1*)]-(*x2*,*y2*)[,[*color*][,B|BF]]
+[b]LINE [(*x1*,*y1*)]-(*x2*,*y2*)[,[*color*][,B|BF]]
 Draws a line (or with B, a box; or with BF, a filled box) in a graphics mode.  If the first point is omitted, the last point is used.
 LINE INPUT [*prompt*;]*variable$* (or LINE INPUT #*n*,*variable$*) reads a whole line from the keyboard (or file *n*) into the string variable.
 
-LIST [*line*][-[*line*]] | VARS | SESSIONS
+[b]LIST [*line*][-[*line*]] | VARS
 Lists all lines (or the specified range of lines) of the currently loaded BAS or BAT program.
 LIST VARS lists preserved strings (including PATH$), then ordinary variable values with type suffixes and quoted strings, and array bounds without their elements.  Function definitions are omitted.  Use LIST VARS | MORE to page the listing.
-LIST SESSIONS lists every session's number (see RESTART), console, and program (or "Unused" if it has none), marking the current session with "*".
 To add a line to the program (or replace the line with the same number), type the line with its line number at the prompt.
 
-LOAD *file*
+[b]LOAD *file*
 Loads the specified BAT or BAS file (searching PATH$ if necessary), which can be a text file or a tokenized BAS file saved by BASICA or GW-BASIC.  LOAD can't be used inside a BAS or BAT file (yet).
 
-LOC(*n*)
+[f+]LOC(*n*)
 Returns the last record number used by GET # or PUT # for file *n* (or for a sequential file, its position divided by 128).
 
-LOCATE [*row*][,[*col*][,*cursor*]]
+[b]LOCATE [*row*][,[*col*][,*cursor*]]
 Moves the cursor to the specified *row* and *col* (starting at 1,1), and hides (0) or shows (1) the cursor.
 The cursor remains hidden until the next input.  Omitted values are unchanged.
 
-LOF(*n*)
+[f+]LOF(*n*)
 Returns the size of file *n*, in bytes.
 
-LOG(*x*)
+[f]LOG(*x*)
 Returns the natural logarithm of *x*, which must be greater than zero.
 
-LSET *variable$*=*string*
+[b+]LSET *variable$*=*string*
 Sets the variable to *string*, left-justified and padded with spaces (or truncated) to the variable's FIELD width (or if it isn't a FIELD variable, its current length).  RSET is the same, but right-justified.
 
-MAXINT
+[f]MAXINT
 Constant equal to the largest positive integer.
 
-MD [*drive*:]*path*
+[d]MD [*drive*:]*path*
 Creates a new directory.  MKDIR is the same as MD.
 
-MEM
+[s]MEM
 Displays total memory, memory available for executables, and memory available for BASIC programs, and notes anything unavailable (eg, floating-point when the FPU$ driver isn't loaded, or the functions outside COMMAND.COM's core when there wasn't enough memory for all of it, as HELP CORE explains).
 
-MID$(*string*,*start*[,*n*])
+[f]MID$(*string*,*start*[,*n*])
 Returns *n* characters of *string*, beginning at position *start* (or the rest of *string* if *n* is omitted).
 
-MKD$(*x*)
+[f+]MKD$(*x*)
 Returns an 8-byte string containing the double *x* (see CVD), for a random access file.
 
-MKDIR [*drive*:]*path*
+[d]MKDIR [*drive*:]*path*
 Same as MD.
 
-MKI$(*n*)
+[f+]MKI$(*n*)
 Returns a 2-byte string containing the integer *n* (see CVI), for a random access file.
 
-MKL$(*n*)
+[f+]MKL$(*n*)
 Returns a 4-byte string containing the integer *n* (see CVL), for a random access file.
 
-MODE 40|80|BW40|BW80|CO40|CO80|COM*n*:*settings*|LPT*n*:[*cols*][,*lines*]
+[e]MODE 40|80|BW40|BW80|CO40|CO80|COM*n*:*settings*|LPT*n*:[*cols*][,*lines*]
 Sets the display's columns (BW or CO also turns color off or on), a serial port's *settings* (*baud*[,*parity*[,*data*[,*stop*]]], eg, COM1:9600,N,8,1), or a printer's columns (80 or 132) and lines per inch (6 or 8).
 
-MORE [*file*]
+[e]MORE [*file*]
 Displays input (or *file*) one screen at a time (eg, TYPE README.TXT | MORE), displaying "-- More --" and waiting for a key after each screen.  Press CTRL-C to stop.
 
-MOUSE ON|OFF
+[b+]MOUSE ON|OFF
 Resets the mouse and shows (ON) or hides (OFF) the mouse pointer.  If there's no mouse, nothing happens.  The pointer is hidden while graphics statements run, until the next MOUSE function.
-
 MOUSE(*n*)
 Returns the next button event (*n* = 0: 0 if none, 1 = left pressed, 2 = left released, 3 = right pressed, 4 = right released), the x (1) or y (2) of that event, or the current x (3), y (4), or buttons (5: 1 = left, 2 = right).
 Positions are pixels in graphics modes, or a column and row (starting at 1) in text modes.
 
-MV *source* *destination*
+[d]MV *source* *destination*
 Same as REN.
 
-NEW
+[b]NEW
 Erases the loaded program, functions, and variables.
 
-NEXT [*variable*[,*variable*]...]
+[b]NEXT [*variable*[,*variable*]...]
 Ends the innermost FOR loop (or, for each *variable*, the FOR loop with that *variable*).
 
-OCT$(*n*)
+[f]OCT$(*n*)
 Returns the octal representation of the integer *n*.
 
-ON *expression* GOTO|GOSUB *label*[,*label*]...
+[b]ON *expression* GOTO|GOSUB *label*[,*label*]...
 Transfers program control to (or calls) the Nth label, where N is the value of the *expression*.
 If N is zero or greater than the number of labels, the program continues with the next command.
 ON ERROR GOTO *label* transfers program control to the label when a runtime error occurs (see ERR and RESUME), and ON ERROR GOTO 0 disables it.
 
-OPEN *file* [FOR INPUT|OUTPUT|APPEND|RANDOM] AS [#]*n* [LEN=*reclen*]
+[b+]OPEN *file* [FOR INPUT|OUTPUT|APPEND|RANDOM] AS [#]*n* [LEN=*reclen*]
 Opens *file* as file number *n* (1-4) for reading (INPUT), for writing (OUTPUT, which creates or truncates the file), for adding to the end (APPEND), or without FOR, for random access to records of *reclen* (1-255, default 128) bytes.  See also CLOSE, EOF, INPUT #, LINE INPUT #, PRINT #, and WRITE, and for random access, FIELD, GET #, PUT #, LSET, and RSET.
 
-OPTION BASE 0|1
+[b]OPTION BASE 0|1
 Sets the smallest subscript (0 or 1) of arrays dimensioned afterward.  The default is 0.
 
-PAINT (*x*,*y*)[,[*paint*][,*border*]]
-Fills the area around *x*,*y* with the *paint* color, up to the *border* color (which defaults to the *paint* color).
+[b+]PAINT (*x*,*y*)[,[*paint*][,[*border*][,*background*]]]
+Fills the area around *x*,*y* with the *paint* color, up to the *border* color (which defaults to the *paint* color).  *paint* can also be a tile string of 1 to 64 bytes, one per row (each byte holds 4 pixels in SCREEN 1, or 8 in SCREEN 2); then *background* (default CHR$(0)) is a tile byte that unpainted rows may already match.
 
-PATH$ [= *string*]
-Returns (or sets) the directories, separated by semicolons, that are searched for a program that isn't in the current directory (eg, PATH$ = "A:\;A:\BIN;A:\SAMPLES").  A program name that includes a drive or directory isn't searched for.  PATH$ keeps its value when variables are cleared (eg, by NEW or CLEAR); CONFIG.SYS usually sets it on the SHELL line.
+[f]PATH$ [= *string*]
+Returns (or sets) the directories, separated by semicolons, that are searched for a program that isn't in the current directory (eg, PATH$ = "A:\;A:\EXT;A:\SAMPLES").  A program name that includes a drive or directory isn't searched for.  PATH$ keeps its value when variables are cleared (eg, by NEW or CLEAR); CONFIG.SYS usually sets it on the SHELL line.
 
-PEEK(*offset*)
+[f]PEEK(*offset*)
 Returns the byte at *offset* in the segment set by DEF SEG.
 
-PLAY *string*
-Plays music, using these commands: A-G[#|+|-][*n*][.] (notes), N *n* (note 0-84), O *n* (octave 0-6), < and >, L *n* (length), P *n* (pause), T *n* (tempo), and MN, ML, MS (normal, legato, or staccato).  Any number can be given as =*variable*; (eg, "O=J;").
+[b+]PLAY *string*
+Plays music, using these commands: A-G[#|+|-][*n*][.] (notes), N *n* (note 0-84), O *n* (octave 0-6), < and >, L *n* (length), P *n* (pause), T *n* (tempo), MN, ML, MS (normal, legato, or staccato), and X*variable*; (play the commands in a string variable).  Any number can be given as =*variable*; (eg, "O=J;"), and commands can be separated by semicolons.
 
-POKE *offset*,*value*
+[f+]PMAP(*v*,*n*)
+Maps the world coordinate *v* (see WINDOW) to a physical x (*n* = 0) or y (*n* = 1), or the physical coordinate *v* to a world x (*n* = 2) or y (*n* = 3).
+
+[f+]POINT(*x*,*y*) or POINT(*n*)
+Returns the color of the pixel at *x*,*y* in a graphics mode (or -1 if it's outside the screen or viewport), or the last point's physical x (*n* = 0) or y (*n* = 1), or its world x (*n* = 2) or y (*n* = 3), rounded to an integer.
+
+[b]POKE *offset*,*value*
 Stores *value* (0-255) at *offset* in the segment set by DEF SEG.
 
-POS(*n*)
+[f]POS(*n*)
 Returns the cursor's column, starting at 1 (*n* is ignored).  See also CSRLIN.
 
-PRESET (*x*,*y*)[,*color*]
+[b+]PRESET (*x*,*y*)[,*color*]
 Same as PSET, except that the default color is the background color.
 
-PRINT [#*n*,]
-Prints a comma or semi-colon separated series of values (or with #*n*, writes them to file *n*).  To send the output of a line to a file instead, end the line with :> *file* (or :>> *file* to append).
+[b]PRINT [#*n*,]
+Prints a comma or semi-colon separated series of values (or with #*n*, writes them to file *n*).  To send the output of a line to a file instead, end the line with :> *file* (or :>> *file* to append).  For formatted output, use PRINTF USING (PRINT USING isn't supported).
 
-PRINTF [#*n*,] USING *format*;[*value*[,*value*]...]
+[b+]PRINTF [#*n*,] USING *format*;[*value*[,*value*]...]
 Prints the values with the C-style *format* (or with #*n*, writes them to file *n*): %d prints a number (%x in hex), %f a double, %s a string, and %c a character, with an optional width and precision (eg, "%5d", "%-8.3s", "%.2f"); %% prints a percent sign.  A trailing ; or , suppresses the newline.
 
-PSET (*x*,*y*)[,*color*]
+[b+]PSET (*x*,*y*)[,*color*]
 Draws a point in a graphics mode, using the foreground color if no *color* is specified.
 
-PUT (*x*,*y*),*array*[,PSET|PRESET|XOR|OR|AND] or PUT [#]*n*[,*record*]
+[b+]PUT (*x*,*y*),*array*[,PSET|PRESET|XOR|OR|AND] or PUT [#]*n*[,*record*]
 Draws an image stored by GET, combining it with the screen using XOR, unless another action is specified.
 With a file number, writes the FIELD variables of random access file *n* to the specified record (or the next one).
 
-RANDOMIZE [*seed*]
+[b]RANDOMIZE [*seed*]
 Reseeds the random number generator, so that the same *seed* always produces the same sequence (without a *seed*, the BIOS tick count is used).
 
-RD [*drive*:]*path*
+[d]RD [*drive*:]*path*
 Removes an empty directory, unless it's the current directory of any session.  RMDIR is the same as RD.
 
-READ *variable*[,*variable*]...
+[b]READ *variable*[,*variable*]...
 Assigns the next DATA item to each variable.  Reading past the last item is an "Out of DATA" error.
 
-REM
+[b]REM
 Used for program remarks.  The rest of the line is not executed.  An apostrophe (') outside of quotes is the same as REM.
 
-REN *source* *destination*
-Renames or moves one file or directory on the same drive.  The destination can be a new filename or an existing directory (which keeps the source filename).  Existing destination files are not overwritten; open files, cross-drive moves, and wildcards are rejected.  Directory moves update ".." and preserve active current directories; moving into itself or a descendant is rejected.  RENAME and MV are the same as REN.
+[d]REN *source* *destination*
+Renames or moves one file or directory on the same drive.  The destination can be a new filename or an existing directory (which keeps the source filename).  Existing destination files are not overwritten; open files, cross-drive moves, and wildcards are rejected.  RENAME and MV are the same as REN.
 
-RENAME *source* *destination*
+[d]RENAME *source* *destination*
 Same as REN.
 
-RESET
+[b+]RESET
 Same as CLOSE without file numbers (ie, closes all files).
 
-RESTART SYSTEM | *session*
-RESTART SYSTEM restarts the system.  RESTART *session* (a number from LIST SESSIONS) stops the program running in that session, as CTRL-ALT-DEL does on its console, even if the program is stuck in a loop; a session running only its shell returns to its prompt.
+[s]RESTART [SYSTEM | *session*]
+RESTART alone lists every session's number, console, and program (or "Unused" if it has none), marking the current session with an *.  RESTART SYSTEM restarts the system.  RESTART *session* (a number from that list) stops the program running in that session, as CTRL-ALT-DEL does on its console, even if the program is stuck in a loop; a session running only its shell returns to its prompt.
 
-RESTORE [*line*]
+[b]RESTORE [*line*]
 Makes the first DATA item (or the first DATA item at or after *line*) the next item for READ.
 
-RESUME *label*
+[b]RESUME *label*
 Ends the handling of a runtime error (see ON ERROR) and continues at the specified label.
 
-RETURN [*expression*]
+[b]RETURN [*expression*]
 Returns from a GOSUB subroutine, or ends a function block and returns the specified *expression*.
 
-RIGHT$(*string*,*n*)
+[f]RIGHT$(*string*,*n*)
 Returns the rightmost *n* characters of *string*.
 
-RMDIR [*drive*:]*path*
+[d]RMDIR [*drive*:]*path*
 Same as RD.
 
-RND[(*n*)]
+[f]RND[(*n*)]
 Returns a random number from 0 up to (but not including) 1.  *n* has the same effect as with RND%.
 
-RND%[(*n*)]
+[f]RND%[(*n*)]
 Returns a random integer between 0 and MAXINT, inclusive.  If *n* is negative, it reseeds the generator first, and if *n* is zero, the previous random integer is returned.
 
-RSET *variable$*=*string*
+[b+]RSET *variable$*=*string*
 Same as LSET, but right-justified.
 
-RUN
+[b]RUN
 Runs the currently loaded BAS or BAT file.
 Program files can also be run without the RUN command.
 If no file extension is specified, files with COM, EXE, BAT, and BAS extensions are checked, in that order.
 
-SAVE *file*
+[b]SAVE *file*
 Saves the currently loaded program as a text file (if no file extension is specified, BAS is used).
 
-SCREEN [*mode*][,*burst*]
+[b]SCREEN [*mode*][,*burst*]
 Sets the screen mode: 0 (text), 1 (320x200 graphics), or 2 (640x200 graphics).
 A *burst* of 0 disables color in mode 0, and a *burst* of 1 disables color in mode 1.
 Changing the mode clears the screen and removes the session's border, if any.
-
 SCREEN(*row*,*col*[,*z*])
 Returns the character code at *row* and *col*, or its attributes if *z* is non-zero.
 
-SGN(*x*)
+[f]SGN(*x*)
 Returns -1 if *x* is negative, 0 if *x* is zero, or 1 if *x* is positive.
 
-SIN(*x*)
+[f]SIN(*x*)
 Returns the sine of *x*, where *x* is in radians.
 
-SLEEP *seconds*
+[e]SLEEP *seconds*
 Waits the specified number of *seconds*.  Press CTRL-C to stop waiting.
 
-SORT [~R] [~+*n*] [*file*]
+[e]SORT [~R] [~+*n*] [*file*]
 Displays the lines of input (or *file*) in sorted order, ignoring case (eg, DIR | SORT).  ~R sorts in reverse order, and ~+*n* sorts on the characters starting at column *n*.  Up to 64K of text can be sorted.
 
-SOUND *frequency*,*duration*
+[b+]SOUND *frequency*,*duration*
 Plays a tone of the specified *frequency* (37-32767 Hz) for *duration* clock ticks (18.2 per second).
 The program continues while the tone plays, but the next SOUND waits for it to finish, unless its *duration* is 0, which stops the tone.
 
-SPACE$(*n*)
+[f]SPACE$(*n*)
 Returns a string of *n* spaces.
 
-SPC(*n*)
+[f]SPC(*n*)
 Same as SPACE$ (eg, PRINT "A"; SPC(5); "B").
 
-SQR(*x*)
+[f]SQR(*x*)
 Returns the square root of *x*, which must not be negative.
 
-STOP
+[b]STOP
 Same as END.
 
-STR$(*x*)
+[f]STR$(*x*)
 Returns *x* as a string, with a leading space if *x* is not negative.
 
-STRING$(*n*,*char*)
+[f]STRING$(*n*,*char*)
 Returns a string of *n* copies of *char*, which can be either a character code or a string (whose first character is used).
 
-SWAP *variable1*,*variable2*
+[b]SWAP *variable1*,*variable2*
 Exchanges the values of two variables (or array elements) of the same type.
 
-SYSTEM
+[e]SYS *d*:
+Copies the system files (BASDEV.COM, BASDOS.COM, and COMMAND.COM) from the root directory of the current drive to drive *d*, and gives *d*'s boot sector the current drive's boot code, making *d* bootable without reformatting it.
+
+[b]SYSTEM
 Same as END.
 
-TAB(*n*)
+[f]TAB(*n*)
 Returns enough spaces to move the cursor to column *n* (1-254), for PRINT; if the cursor is already past column *n*, the spaces start on the next line.
 
-TAN(*x*)
+[f]TAN(*x*)
 Returns the tangent of *x*, where *x* is in radians.
 
-TEE [~A] *file*
+[e]TEE [~A] *file*
 Copies input to output and to *file* (eg, DIR | TEE DIR.TXT | MORE), replacing *file*, or with ~A, appending to it.
 ERRORLEVEL is set to 0, or 2 if *file* couldn't be opened or written.
 
-TIME [*time*] [~D] [~P]
+[s]TIME [*time*] [~D] [~P]
 Sets the system time (or prompts for a time if ~P) and then displays the time. ~D displays elapsed time.
 The time must be entered as H:M:S.D, where where H is 0-23, M is 0-59, S is 0-59, and D is 0-99.
 If M, S, or D are omitted, zeros are assumed.
 
-TIME$
+[f]TIME$
 Returns the current time as a string in the form HH:MM:SS.
 
-TR [~C] [~D] [~S] *set1* [*set2*]
+[e]TR [~C] [~D] [~S] *set1* [*set2*]
 Copies input to output, replacing each character in *set1* with the matching character in *set2* (eg, DIR | TR a-z A-Z converts to upper-case); if *set2* is shorter, its last character repeats.  ~D deletes the characters in *set1* instead, ~C uses every character NOT in *set1*, and ~S squeezes each run of a character in the last set into one (eg, TR ~S " ").  A set can contain ranges (eg, a-z) and the escapes \t, \n, \r, and \ before any other character (eg, \-); quote a set that contains spaces.
 ERRORLEVEL is set to 0, or 2 if a set is missing.
 
-TYPE *file*
+[e]TREE [*d*:][*path*] [~F] [~A]
+Displays the directories below *path* (or the current directory), connected by line-drawing characters (or ASCII characters, with ~A); ~F also lists each directory's files.
+
+[d]TYPE *file*
 Displays the contents of the specified file, or with wildcards (? and *), the name and contents of every matching file.  A CTRL-Z ends the contents of each file.
 
-UCASE$(*string*)
+[f]UCASE$(*string*)
 Returns *string* with all lower-case letters converted to upper-case.
 
-VAL(*string*)
+[f]VAL(*string*)
 Returns the numeric value of *string*, ignoring any blanks.  If *string* does not begin with a number, the result is 0.  The &H (hex) and &O (octal) prefixes are allowed (eg, VAL("&HFF") is 255).  Without floating-point (see MEM), the result is an integer (eg, VAL("3.9") is 3).
 
-VER
+[s]VER
 Displays the BASIC-DOS version number.
 
-VI [~WS] [*file*]
+[e]VI [~WS] [*file*]
 Edits *file* full-screen, using a subset of the commands of the UNIX *vi* editor (see the BASIC-DOS manual).  Press i to insert text and ESC to stop, then type :wq to save and exit, or :q! to exit without saving.  ~WS adds WordStar keys (eg, CTRL-E, CTRL-X, CTRL-S, and CTRL-D move the cursor, and CTRL-V switches insert mode on and off).
 
-WC [~L] [~W] [~C] [*file*...]
+[b+]VIEW [[SCREEN] (*x1*,*y1*)-(*x2*,*y2*)[,[*fill*][,*border*]]]
+Limits drawing in a graphics mode to a viewport, after filling it with the *fill* color and drawing a *border* around it, if specified.  Points are relative to the viewport, unless SCREEN is specified.  VIEW alone ends the viewport.
+
+[e]VOL [*d*:]
+Displays the volume label of drive *d* (or the current drive).
+
+[e]WC [~L] [~W] [~C] [*file*...]
 Displays the number of lines, words, and bytes of input (or of each *file*, or with wildcards (? and *), every matching file, and their totals) (eg, DIR | WC ~L).  ~L, ~W, and ~C display only the selected counts.
 ERRORLEVEL is set to 0, or 2 if a *file* couldn't be opened.
 
-WEND
+[b]WEND
 Ends a WHILE loop.
 
-WHILE *expression*
+[b]WHILE *expression*
 Executes the lines up to the matching WEND repeatedly, as long as the *expression* is TRUE (non-zero).
 
-WIDTH 40|80
+[b]WIDTH 40|80
 Sets the number of columns in text mode (which clears the screen).
 In SCREEN 1, WIDTH 80 selects SCREEN 2, and in SCREEN 2, WIDTH 40 selects SCREEN 1.
 
-WRITE [#*n*,][*expression*[,*expression*]...]
+[b+]WINDOW [[SCREEN] (*x1*,*y1*)-(*x2*,*y2*)]
+Defines the world coordinates of the viewport (or screen) for graphics commands, where x increases to the right and y increases upward (or with SCREEN, downward).  Requires floating-point (see MEM).  WINDOW alone ends world coordinates.
+
+[b]WRITE [#*n*,][*expression*[,*expression*]...]
 Prints the values (or with #*n*, writes them to file *n*) separated by commas, with strings in quotes, so that INPUT # can read them back.
 
 *Unsupported Commands*

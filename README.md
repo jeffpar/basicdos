@@ -6,9 +6,15 @@ permalink: /
 
 # PC DOS Reimagined
 
-Read the [Blog](blog/), then check out the [Preview](preview/), which highlights a few of the original [Demos](demos/).
+Read the [Blog](blog/), check out the [Preview](preview/), see a few of the original [Demos](demos/), and then [Download](#download) the first release.
 
 [![BASIC-DOS 1.00](assets/images/BASIC-DOS-Cover.gif)](preview/)
+
+## Download
+
+The first BASIC-DOS release diskette is a bootable 360K diskette with BASIC-DOS, a "basic" set of utilities, a collection of BASIC samples (all from PC DOS 1.00), and a few demo programs.  See it running on the [BASIC-DOS Release](download/) page, or download [BASICDOS-360K](software/disks/BASICDOS-360K.img), a diskette image that most PC emulators can boot, or which can be written to a genuine 360K diskette.
+
+When we say that BASIC-DOS comes with a "basic" set of utilities, we mean that both figuratively and literally, because while some are written in assembly language, most are in fact written in BASIC, including [CHKDSK](docs/bdman/cmd/external/#chkdsk), [FORMAT](docs/bdman/cmd/external/#format), [MODE](docs/bdman/cmd/external/#mode), and more.  BASIC-DOS takes it commitment to BASIC integration, performance, and eas-of-use very seriously.
 
 ## Project Status
 
@@ -52,7 +58,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] CTRL-C/CTRL-Break handling, and CTRL-ALT-DEL session aborts (vectors 08h, 09h, 1Bh, and 1Ch that a terminated program left hooked, like MSBASIC's, are restored)
 - [x] Session END: abort the current program in a specified session, interrupting any pending wait; WAITEND waits for the session to close
 - [x] Environment segments for EXEC (EPB_ENVSEG; zero inherits the parent's), and COMMAND.COM gives every program an environment with COMSPEC and PATH
-- [ ] TSR support (INT 27h and INT 21h function 31h)
+- [ ] TSR support (INT 27h and INT 21h function 31h; currently NOT under consideration for inclusion in BASIC-DOS)
 
 ### Kernel: File System
 
@@ -69,8 +75,8 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] Same-drive file and directory moves (function 56h): preserve contents and metadata, update a moved directory's `..` entry, retain active current directories, and reject moves into itself or a descendant
 - [x] Absolute disk reads and writes: opening a volume (eg, `C:`) as a file gives read/write access to its sectors, in place of INT 25h and INT 26h; a volume can also be created (ie, opened FOR OUTPUT) and opened when its media is unknown (eg, an unformatted diskette), with no critical error prompt, and IOCTLs on a volume handle go to the drive's driver (with their errors returned to the caller)
 - [x] Configurable disk buffer cache (BUFFERS=2-32, default 2), with least-recently-used replacement for FAT and directory sectors; file data is transferred directly by the disk drivers
-- [x] File attributes: a read-only file can't be opened for writing, replaced, or deleted; getting and setting a file's attributes (function 43h) and a handle's time and date (function 57h, kept when the file is closed); and on every BASIC-DOS disk, BASDEV.COM and BASDOS.COM are read-only hidden system files and COMMAND.COM is a read-only system file
-- [ ] Extended disk partitions
+- [x] File attributes: a read-only file can't be opened for writing, replaced, or deleted; getting and setting a file's attributes (function 43h) and a handle's time and date (function 57h, kept when the file is closed); and on every BASIC-DOS disk, BASDEV.COM and BASDOS.COM are read-only hidden system files and COMMAND.COM is a read-only system file; BASIC's OPEN FOR RANDOM opens a read-only file for reading (as MSBASIC does)
+- [ ] Extended disk partitions (currently NOT under consideration for inclusion in BASIC-DOS)
 
 ### Command Interpreter: DOS Commands
 
@@ -95,23 +101,24 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] Pipelines with more than one filter (eg, `TYPE FILE | SORT | MORE`): when a session ends, its output pipe receives end-of-input
 - [x] When any command of a pipeline fails (eg, a program that can't be found, or no session available for it), the error is reported, the commands already running in other sessions are ended (DOS_UTL_END), and the first command never runs; and when a command stops reading a pipe early, the command writing to it gets a write error instead of waiting forever
 - [x] LIST VARS: list preserved strings (including PATH$), scalar values, and array dimensions in the current session
-- [x] PATH$: the directories searched for programs (eg, `PATH$="A:\;A:\BIN;A:\DEMOS;A:\SAMPLES"` on a SHELL line in CONFIG.SYS); unlike other variables, it survives NEW and CLEAR
-- [x] Every bootable BASIC-DOS disk has the same layout: BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, AUTOEXEC.BAT (if any), and HELP.TXT in the root, utilities (including DEBUG.COM) in BIN, the PC DOS 1.00 BASIC samples in SAMPLES, and demo programs in DEMOS (test programs are on a separate diskette, in TESTS); every disk has a volume label (eg, BD-D40), and every machine's diskette list shows the BASIC-DOS diskettes by title (eg, "BASIC-DOS 40-Column Demo"); HELP finds HELP.TXT in the root of the boot drive from any directory
+- [x] PATH$: the directories searched for programs (eg, `PATH$="A:\;A:\EXT;A:\DEMOS;A:\SAMPLES"` on a SHELL line in CONFIG.SYS); unlike other variables, it survives NEW and CLEAR
+- [x] Every bootable BASIC-DOS disk has the same layout: BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, AUTOEXEC.BAT (if any), and HELP.TXT in the root, utilities (including DEBUG.COM) in EXT, demo programs in DEMOS, and the PC DOS 1.00 BASIC samples in SAMPLES (test programs are on a separate diskette, in TESTS); the [BASIC-DOS Release](download/) diskette, BASICDOS-360K, is also available as a raw 360K image; every disk has a volume label (eg, BD-D40), and every machine's diskette list shows the BASIC-DOS diskettes by title (eg, "BASIC-DOS 40-Column Demo"); HELP finds HELP.TXT in the root of the boot drive from any directory
 - [x] REN/RENAME/MV: rename files and directories and move them between directories on the same drive
 - [x] Loading tokenized (binary) BAS files saved by BASICA or GW-BASIC (eg, the samples on the PC DOS diskettes): they're converted back to text as they're loaded (as LIST would display them), including MBF floating-point constants (converted to IEEE doubles and formatted by FPU$); protected BAS files are still rejected with "Invalid file format"
 - [x] Disk utilities are external programs; see [Utilities](#utilities)
-- [ ] LOAD inside a running BAS or BAT file (for now, it's an error, "Not allowed in a program", because it would replace the running file's own text)
 
 ### Utilities
 
-Utilities live in the BIN directory of every BASIC-DOS disk.  The filters, SLEEP, VI, and DEBUG are assembly language, but utilities that don't need that speed are written in BASIC-DOS BASIC: clean, succinctly commented programs, with every line indented by a tab (after a line number only where one is needed as a label), the style in which BASIC-DOS lists programs.  The interpreter is extended as needed to make them possible (eg, IOCTL #, and opening unformatted volumes, for FORMAT).
+Utilities live in the EXT directory of every BASIC-DOS disk.  The filters, SLEEP, VI, and DEBUG are assembly language, but utilities that don't need that speed are written in BASIC-DOS BASIC: clean, succinctly commented programs, with every line indented by a tab (after a line number only where one is needed as a label), the style in which BASIC-DOS lists programs.  The interpreter is extended as needed to make them possible (eg, IOCTL #, and opening unformatted volumes, for FORMAT).
 
 - [x] *partial*: FORMAT.BAS (360K diskettes by default, /1 for single-sided, /8 for 8 sectors per track, and /S to copy the system files from the current drive), which formats and verifies each track through the diskette driver, builds the boot sector, FATs, and root directory using the PC DOS 2.x rules for cluster and root directory sizes (with 12-bit FATs, which PC DOS 2.x used whenever it could), and reports the space available; it refuses the current drive
 - [x] *partial*: FORMAT for hard disks: it displays the disk's partition table first, formats one of its FAT volumes (asking which, when the drive given is the whole disk) after a warning, and when a disk has no partition table, offers to create one (with prompts, rather than a separate FDISK) with a single volume of the size requested in Mb (up to 32Mb), writing an MBR and formatting the volume (12-bit FAT up to 32680 sectors, as PC DOS 3.x did, and 16-bit FAT beyond)
+- [x] FORMAT.BAS: 720K and 1.2M diskettes (/F:720 and /F:1200, or by default, the drive's own size, which the diskette driver's IOCTL_GETPART reports on a PC AT), with PC DOS 3.x's layout for 1.2M, and volume labels (/V or /V:*label*); since a colon in a DOS command can now follow a switch's letter, switch values like /F:720 work in BAS and BAT files, too
+- [x] CHKDSK.BAS (checks every cluster chain, and reports cross-linked files, allocation errors, invalid clusters, lost clusters, and disk space, without fixing anything), COMP.BAS, DISKCOPY.BAS (formats the target as it copies, with multiple passes for single-drive copies), LABEL.BAS and VOL.BAS (writing the label entry directly), SYS.BAS, and TREE.BAS (with /F and /A)
 - [x] ATTRIB.BAS: displays the attributes (R, H, S, and A) of the matching files, including hidden and system files, after setting (+) or clearing (-) any that are given (eg, ATTRIB +R *.BAS), using the DOS statement
 - [x] MODE.BAS: display columns and color (MODE 40, 80, BW40, BW80, CO40, CO80), serial ports (eg, MODE COM1:9600,N,8,1, which sets the port by opening it with those parameters and no input buffer), and printer columns and lines per inch (MODE LPT1:132,8)
-- [ ] Additional FORMAT features: adding volumes to a partitioned disk, extended partitions, verifying hard disk sectors, marking bad clusters, volume labels (/V), and 720K and 1.2M diskettes
-- [ ] Other PC DOS-inspired utilities possibly written in BASIC: CHKDSK, SYS, DISKCOPY, DISKCOMP, COMP, LABEL (and VOL), TREE, and PRINT (background printing, using a session); not ASSIGN, SUBST, JOIN, BACKUP, RESTORE, or EDLIN (VI covers editing)
+- [ ] Additional FORMAT features: adding volumes to a partitioned disk, verifying hard disk sectors, and marking bad clusters
+- [ ] Other PC DOS-inspired utilities possibly written in BASIC: DISKCOMP and PRINT (background printing, using a session), and CHKDSK /F (ASSIGN, BACKUP, EDLIN, JOIN, RESTORE, and SUBST are currently NOT under consideration for inclusion in BASIC-DOS)
 - [ ] Additional third-party tools (eg, PKZIP and PKUNZIP) added to the TOOLS directory
 
 ### Command Interpreter: BASIC Language
@@ -138,14 +145,21 @@ Utilities live in the BIN directory of every BASIC-DOS disk.  The filters, SLEEP
 - [x] Random access file I/O: OPEN FOR RANDOM with LEN, FIELD, LSET, RSET, GET #, PUT #, and binary conversion functions (CVI, CVL, CVD, MKI$, MKL$, and MKD$)
 - [x] IOCTL #: sends an IOCTL request (with a numeric value in CX and DX, or a string's data) to the device or volume open as a file, with driver errors reported as runtime errors (eg, "Permission denied" for a write-protected diskette); IOCTL$ returns the data (up to 255 bytes) a driver stores in response to a request
 - [x] DOS *ax*[,*bx*[,*cx*[,*dx*|*string*]]]: calls DOS (INT 21h) with those registers (a string is passed as DS:DX, null-terminated), with DOS errors reported as runtime errors (eg, "File not found"); DOS(*n*) returns the registers that DOS returned (eg, attributes from function 43h); used by ATTRIB.BAS and FORMAT.BAS
-- [x] *partial*: Error handling (ON ERROR GOTO, RESUME *line*, ERROR, and ERR; see the DONKEY.BAS checklist)
+- [x] *partial*: Error handling (ON ERROR GOTO, RESUME *line*, ERROR, ERR, and ERL; see the DONKEY.BAS checklist)
 - [x] Specific error messages for compile-time errors: "NEXT without FOR", "FOR without NEXT", "WHILE without WEND", "WEND without WHILE", and "Type mismatch" (formerly all reported as syntax errors), with the line of the FOR or WHILE for an unclosed loop, and no "in line 0" for commands typed at the prompt
 - [ ] Runtime error messages for numeric errors
 - [ ] STOP's "Break" message (STOP is currently the same as END)
 - [ ] The MID$ statement (ie, `MID$(A$,N[,M]) = B$`)
 - [ ] Comma print zones in PRINT (commas currently print a tab)
-- [ ] PRINT USING (MSBASIC's template formats, such as `###.##`, `$$`, `**`, `^^^^`, `!`, `&`, and `\ \`); since PRINTF USING covers most of the same needs, this may remain unimplemented
-- [ ] Limitations: a DEF function's code must fit in a single block, a function block ends at its first RETURN (so RETURN can't be conditional), and each array requires a single block (64K max)
+- [ ] RUN *file* (eg, `RUN "MENU"`, which BASICA programs use to run another program; currently, RUN in a program ignores the name and runs the program itself again, and at the prompt, it runs the loaded program, if any)
+- [ ] BEEP, TIMER, and INPUT$(*n*[,#*f*]) (reading characters without ENTER)
+- [ ] LPRINT, LLIST, and LPOS (PRINT #*n* to an OPEN "LPT1:" works now)
+- [ ] TRON and TROFF (line tracing), and CONT (continuing after STOP or CTRL-C)
+- [ ] Event trapping: ON TIMER(*n*), ON KEY(*n*), ON STRIG(*n*), ON PLAY(*n*), and ON COM(*n*) GOSUB, with TIMER, KEY(*n*), STRIG(*n*), PLAY, and COM(*n*) ON, OFF, and STOP
+- [ ] BLOAD and BSAVE (eg, saving and loading screen images with DEF SEG)
+- [ ] MERGE, and CHAIN MERGE and COMMON (CHAIN currently passes no variables)
+- [ ] Low-level features: INP, OUT, WAIT, VARPTR, VARPTR$, CALL, USR, and DEF USR (machine language routines), and STICK and STRIG (joysticks)
+- [ ] Limitations of BASIC-DOS-specific features: multi-line DEF functions must fit in a single code block, function blocks end at the first RETURN (ie, RETURN can't be conditional), and each array requires a single block (64K max)
 
 ### Floating-Point
 
@@ -180,7 +194,7 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] RND as a floating-point function (0 <= RND < 1); RND% still returns an integer
 - [x] String constants with no closing quote at the end of a line
 - [x] ON ERROR GOTO (and GOTO 0), RESUME *line*, ERROR, and ERR, with MSBASIC's error numbers for runtime errors
-- [x] PLAY (notes, N, O, <, >, L, P, T, MN/ML/MS, and dots; MF/MB are ignored, since music always plays in the foreground)
+- [x] PLAY (notes, N, O, <, >, L, P, T, MN/ML/MS, X, dots, and semicolons; MF/MB are ignored, since music always plays in the foreground)
 - [x] SOUND *frequency*,*duration*
 - [x] CHAIN *file* (runs the BAS file, then ends the program; the line number is ignored)
 - [x] PSET, PRESET, LINE (including `LINE -(x,y)`, B, BF, and an omitted color), PAINT, and DRAW (U, D, L, R, E, F, G, H, M, B, N, C, and S), drawing directly into CGA memory in modes 4-6
@@ -195,8 +209,12 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] LINE (and DRAW and CIRCLE's lines to the center) use MSBASIC's line algorithm, so they draw the same pixels as MSBASIC, but lines whose endpoints are on the screen are drawn by stepping the video address and pixel mask directly (about 4 times faster than before)
 - [x] When a BAS program ends (or is aborted), its video mode is restored (undoing any SCREEN or WIDTH), and when a console returns to its original mode, its original geometry (eg, its border) is restored, too
 - [ ] More performance: text output in graphics modes goes through the CON driver and the BIOS
-- [ ] Graphics features that the samples don't use: STEP coordinates, POINT, DRAW's A, TA, X, and "=variable" commands, and GET/PUT with floating-point arrays
-- [ ] RESUME and RESUME NEXT (which need the location of the error), and ERL
+- [x] Graphics features that the samples don't use: STEP coordinates (every point becomes the last point referenced, as in MSBASIC), POINT, DRAW's A, TA, P, and X commands (A uses MSBASIC's integer arithmetic, so it draws the same pixels), PLAY's X command and semicolons, and GET/PUT with double arrays (in MSBASIC's raw byte format)
+- [x] MORTGAGE.BAS, one of the PC DOS 1.00 samples, with its PRINT USING statements changed to PRINTF USING (see [How to replace PRINT USING](docs/bdman/cmd/device/screen/#how-to-replace-print-using))
+- [ ] The rest of the PC DOS 1.00 samples: MUSIC.BAS needs CHAIN MERGE (for its songs), CALENDAR.BAS needs LPRINT and the MID$ statement, COMM.BAS needs KEY *n*,*string*, the SCRN: device, INPUT$, and the MID$ statement, and the samples return to SAMPLES.BAS (their menu) with CHAIN *file*,*line*, whose line number BASIC-DOS ignores; SPACE.BAS's delay loops are too fast to see its flying saucers
+- [x] Later BASICA and GW-BASIC graphics: VIEW, WINDOW (world coordinates, which POINT, PMAP, STEP, and CIRCLE's radius use, too), PMAP, and PAINT with tile patterns
+- [ ] PCOPY (which needs SCREEN's active and visual pages first)
+- [ ] RESUME and RESUME NEXT (which need the location of the error); ERL works
 - [ ] Keeping other sessions on the same adapter from writing to the screen while it's in another mode; also, the CON driver restores the BIOS's video data after every INT 10h call, so programs that read the BIOS's video mode (0:449h) may see a stale value
 
 ### Build, Tests, and Documentation
@@ -215,24 +233,28 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] CMDS: command tests (pipes, redirection, TYPE, DEL, TIME /D, HELP, SOUND, remarks, and hex constants)
 - [x] `tools/tests/chkdsk.sh` runs MS-DOS 3.20 CHKDSK on a diskette image saved by a test session (see `QUIT /S` in `pc.js`)
 - [x] BENCH.BAS and MICRO.BAS benchmarks, which run unchanged in BASIC-DOS, BASICA, and GW-BASIC (see the [results](preview/part6/)); `tools/tests/bench.sh` runs BENCH.BAS in all six configurations (each with and without an 8087) and prints the results in seconds
-- [x] HELP for commands, functions, and constants (eg, `HELP MID$`), found by searching HELP.TXT, so new entries need no other changes
+- [x] HELP for commands, functions, and constants (eg, `HELP MID$`), found by searching HELP.TXT, so new entries need no other changes; each entry is tagged with a category, so HELP ALL, BASIC, DISK, EXT, FUNC, and SYS list the keywords of one category (HELP alone explains them)
 - [x] [Demos](demos/) for the IBM PC, PC XT, PC AT, and COMPAQ DeskPro 386, with one page per demo and machine
 - [x] [BASIC-DOS Manual](docs/bdman/): using BASIC-DOS, all commands and functions, programming, and configuration
 - [x] [BASIC-DOS Technical Reference](docs/bdtech/): architecture, DOS functions, utility functions, device drivers, the FPU$ interface, and internal structures
-- [ ] More tests (eg, BASIC language and CMD command tests)
+- [ ] More tests (eg, BASIC language and COMMAND.COM tests)
 
 ## Non-features
 
-BASIC-DOS uses BASIC for batch files, so reproducing PC DOS batch syntax is not a project goal.
+These aren't project goals:
 
-- PC DOS batch features: replaceable parameters (`%1`-`%9`), environment variables (SET), `ECHO message`, IF EXIST, FOR ... IN ... DO, SHIFT, and PAUSE.  BASIC-DOS provides command-line arguments through [ARG$](docs/bdman/cmd/basic/func/#arg), BASIC variables, PRINT, expressions, and control flow instead.  See [Batch Files](docs/bdman/lang/#batch-files) for the differences and equivalents; this does not imply that every PC DOS batch operation already has a direct equivalent.
+- PC DOS batch syntax, since BASIC-DOS uses BASIC for batch files: replaceable parameters (`%1`-`%9`), environment variables (SET), `ECHO message`, IF EXIST, FOR ... IN ... DO, SHIFT, and PAUSE.  BASIC-DOS provides command-line arguments through [ARG$](docs/bdman/cmd/basic/func/#arg), BASIC variables, PRINT, expressions, and control flow instead.  See [Batch Files](docs/bdman/lang/#batch-files) for the differences and equivalents; this does not imply that every PC DOS batch operation already has a direct equivalent.
+- PRINT USING and LPRINT USING, since PRINTF USING covers the same needs with C-style `%` specifiers; see [How to replace PRINT USING](docs/bdman/cmd/device/screen/#how-to-replace-print-using) for the equivalents of its template formats (eg, `###.##` is `%6.2f`).  The MORTGAGE.BAS sample on BASIC-DOS disks uses PRINTF USING instead.
+- LOAD inside a running BAS or BAT file (it's an error, "Not allowed in a program", since it would replace the running file's own text); programs that run other programs use RUN *file* or CHAIN instead.
 
 ## Roadmap
 
 These are the next steps, roughly in priority order:
 
-1. Remaining string and input/output features (the MID$ statement and comma print zones)
-2. The rest of runtime error handling (RESUME, RESUME NEXT, and ERL)
+1. RUN *file*, which BASICA programs use to run another program
+2. Remaining string and input/output features (the MID$ statement and comma print zones)
+3. The rest of runtime error handling (RESUME and RESUME NEXT, and messages for numeric errors)
+4. Common BASICA features that BASIC-DOS lacks: BEEP, TIMER, INPUT$, LPRINT, and CHAIN MERGE
 
 ## License
 
@@ -268,7 +290,7 @@ Now you're ready to build BASIC-DOS, using the `mkdos.sh` script, which runs `pc
 
     D:\>QUIT
 
-Any files that the build modifies are written back to the `software/src` directory.  A successful build runs QUIT automatically, after which `mkdos.sh` updates the demo disks (if `PCJS` is set); if a build fails and you don't want the demo disks updated, use `pc.js`'s "abort" command instead.
+Any files that the build modifies are written back to the `software/src` directory.  A successful build runs QUIT automatically, after which `mkdos.sh` updates the disk images (if `PCJS` is set); if a build fails and you don't want the disk images updated, use `pc.js`'s "abort" command instead.  Which disk images a build updates depends on `config.release`: while it's `debug`, a DEBUG build updates every disk image except the release diskette (BASICDOS-360K) and the 64K demo diskette (BASICDOS-360K-M64), and a FINAL build (eg, `mkdos.sh final` or `mk.sh final`) updates only those two; once it's `final`, a FINAL build updates them all, and a DEBUG build (eg, `mkdos.sh debug`) updates all but those two.
 
 Once `mkdos.sh` has built the system files, `mk.sh` (usage is `mk.sh [FINAL or DEBUG] [CLEAN]`, like MK.BAT, with the same package.json defaults as `mkdos.sh`) builds BASIC-DOS on BASIC-DOS itself, with the same build tools (see [software/src](software/src/README.md) for details).
 

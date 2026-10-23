@@ -73,7 +73,43 @@ Prints the values using the C-style specifiers in *format*, as a simpler alterna
 	PRINTF USING "%-6s|%5d|%.2f"; "abc", 42, 3.14159
 	abc   |   42|3.14
 
-Comma print zones aren't supported yet (commas currently print a tab), and neither is PRINT USING.
+Comma print zones aren't supported yet (commas currently print a tab).  PRINT USING isn't supported, and won't be, since PRINTF USING covers the same needs (see below).
+
+#### How to replace PRINT USING
+
+The PRINT USING (and LPRINT USING) statement of other BASICs formats values with templates, such as `"###.##"`.  To convert one to PRINTF USING, replace each field of the template with the corresponding specifier:
+
+| PRINT USING | PRINTF USING | Notes |
+|-------------|--------------|-------|
+| `!` | `%.1s` or `%c` | The first character of a string |
+| `\  \` | `%-4.4s` | The first *n* characters of a string (here, 4), padded with spaces to *n* |
+| `&` | `%s` | The entire string |
+| `###` | `%3d` or `%3.0f` | A number, right-justified in a field as wide as the `#`s; `%d` for an integer, `%f` for a double |
+| `###.##` | `%6.2f` | A double, with as many decimal places as `#`s after the point (the width includes the point) |
+| `+###` or `###-` | None | PRINTF has no `+` flag; `%#d` prints a space before a positive integer, as PRINT does |
+| `**###.##` | None | PRINTF can't fill with asterisks; `%06.2f` fills with zeros instead |
+| `$$###.##` | `$%.2f` | A dollar sign right before the number (but without a fixed width); `$%7.2f` puts it at the start of the field instead |
+| `#,###.##` | None | PRINTF doesn't insert thousands separators |
+| `##.##^^^^` | `%f` | PRINTF has no exponential format, but `%f` without a precision prints very large or small numbers in exponential form (eg, `1E+20`), as PRINT does |
+| `_` | Omit it | `_` prints the next character literally, which PRINTF does anyway (except `%`, which must be `%%`) |
+| Other characters | Same | Literal text |
+
+The other differences to watch for:
+
+- **Repeating fields**: PRINT USING reuses its template for each value, but PRINTF USING uses each specifier once (and ignores extra values), so repeat the specifiers instead (eg, `PRINT USING "###";A;B;C` becomes `PRINTF USING "%3d%3d%3d";A;B;C`).
+- **Types**: `%d` requires an integer and `%f` requires a double, and a value of the wrong type prints its specifier as-is.  Variables without a suffix are doubles in BAS files but integers in BAT files, and constants without a decimal point or exponent (eg, `42`) are integers (see [Variables and Types](../../../lang/#variables-and-types)), so use CINT or CDBL to convert a value when necessary (eg, `PRINTF USING "%3d";CINT(I)`).
+- **Overflow**: when a number doesn't fit in its field, PRINT USING prints a `%` before it, but PRINTF simply widens the field.
+- **Rounding**: PRINTF rounds a number that's exactly halfway to the nearest even digit (eg, `%.0f` prints 2.5 as 2), whereas PRINT USING rounds it up.
+
+For example, the MORTGAGE.BAS sample (in the SAMPLES directory) printed its amortization table with:
+
+	2730 PRINT USING "### ";I;
+	2740 PRINT USING "  ######.##";PF-AMORT(I,2);AMORT(I,2);AMORT(I,1)
+
+and now prints it with:
+
+	2730 PRINTF USING "%3.0f ";I;
+	2740 PRINTF USING "  %9.2f  %9.2f  %9.2f";PF-AMORT(I,2);AMORT(I,2);AMORT(I,1)
 
 ### SCREEN
 

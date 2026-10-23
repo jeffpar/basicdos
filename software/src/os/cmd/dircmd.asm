@@ -253,9 +253,13 @@ dl1:	push	bx
 dl4:	push	cx
 	push	dx
 	call	splitName		; AX = name length, SI, DI
+	mov	dx,' '			; (a hidden file gets '*' instead)
+	test	ds:[PSP_DTA].FFB_ATTR,02h ; DIRATTR_HIDDEN?
+	jz	dl5
+	mov	dl,'*'
+dl5:	PRINTF	<"%-8.*s %-3s%c">,ax,si,di,dx
 	mov	dx,ds:[PSP_DTA].FFB_DATE
 	mov	cx,ds:[PSP_DTA].FFB_TIME
-	PRINTF	<"%-8.*s %-3s ">,ax,si,di
 	test	ds:[PSP_DTA].FFB_ATTR,10h ; DIRATTR_SUBDIR?
 	jnz	dl6a
 	PRINTF	<"%7ld">,ds:[PSP_DTA].FFB_SIZE,:2

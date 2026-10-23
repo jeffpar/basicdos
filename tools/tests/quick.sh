@@ -7,7 +7,7 @@
 # and then quits; it then boots a test floppy
 # on a machine with an 8087 (like ./boot.sh fpu), and runs FPUTESTS, VARS, and STRFUN.
 # Finally, it boots a hard disk with both floppy drives empty (like ./boot.sh hd),
-# and runs HARDERR from C:\TESTS\MISC to check hard disk data and metadata recovery.
+# and runs HARDERR from C:\TESTS\REGRESS to check hard disk data and metadata recovery.
 # IOERR checks BASIC file errors and VI save failures on both disk types.
 # It's a very quick (and dirty) set of confidence tests.
 # The exit code is non-zero if any test failed.
@@ -31,13 +31,13 @@ log=$(mktemp)
 ok='IF ERRORLEVEL = 0 THEN PRINT "EXITOK" ELSE PRINT "EXITBAD"'
 abort='IF ERRORLEVEL = 255 THEN PRINT "ABORTOK" ELSE PRINT "ABORTBAD"'
 #
-# The tests in TESTS\MISC aren't on PATH$, so they're run by path (commands containing backslashes must be
+# The tests in TESTS\REGRESS aren't on PATH$, so they're run by path (commands containing backslashes must be
 # separated with semicolons).
 #
-m='\TESTS\MISC\'
+m='\TESTS\REGRESS\'
 tools/pc/pc.js ibm5160 software/src/configs/console/serial/fpe "VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;SLEEP 1;QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync | tee "$log"
 tools/pc/pc.js ibm5160 software/src/configs/console/serial/fpu "VER;MEM;${m}FPUTESTS;$ok;${m}VARS;${m}STRFUN;SLEEP 1;QUIT" --fpu --system=bd --version=2 --floppy --serial --normalize --nosync | tee -a "$log"
-tools/pc/pc.js ibm5160 software/src/configs/console/serial/hd "VER;CD TESTS\MISC;HARDERR;$abort;IOERR.COM;$ok;SLEEP 1;QUIT" --system=bd --version=2 --target=10M --serial --normalize --nosync | tee -a "$log"
+tools/pc/pc.js ibm5160 software/src/configs/console/serial/hd "VER;CD TESTS\REGRESS;HARDERR;$abort;IOERR.COM;$ok;SLEEP 1;QUIT" --system=bd --version=2 --target=10M --serial --normalize --nosync | tee -a "$log"
 if grep -q "Floating-point .*installed" "$log" || grep -q "failed" "$log" || grep -q "EXITBAD" "$log" || [ "$(grep -c "EXITOK" "$log")" -lt 7 ] ||
    [ "$(grep -c "STRFUN passed" "$log")" -lt 2 ] || ! grep -q "STRPOOL passed" "$log" ||
    ! grep -q "ARRAYS passed" "$log" || ! grep -q "FLOW passed" "$log" || ! grep -q "EXPRERR passed" "$log" || ! grep -q "CMDS passed" "$log" ||

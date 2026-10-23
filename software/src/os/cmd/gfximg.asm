@@ -8,8 +8,8 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 ; Runtime functions for GET and PUT (see gengfx.asm), which copy rectangles
-; of CGA video memory to and from integer arrays (see arr.inc); the rest of
-; the graphics runtime functions are in gfx.asm.
+; of CGA video memory to and from integer or double arrays (see arr.inc); the
+; rest of the graphics runtime functions are in gfx.asm.
 ;
 	include	cmd.inc
 	include	arr.inc
@@ -31,10 +31,11 @@ PUT_AND		equ	4
 ; gfxGet
 ;
 ; Used by "GET (x1,y1)-(x2,y2),array", which stores the rectangle's pixels in
-; an integer array, in MSBASIC's format: the width in bits, the height, and
-; then the pixels, packed MSB first into rows of bytes.  Every element holds
-; 16 bits (sign-extended), so that the array contains the same values that it
-; would in MSBASIC.
+; an array, in MSBASIC's format: the width in bits, the height, and then the
+; pixels, packed MSB first into rows of bytes.  Every element of an integer
+; array holds 16 bits (sign-extended), so that the array contains the same
+; values that it would in MSBASIC, while a double array holds the format's
+; raw bytes, as MSBASIC's single-precision arrays do (see getArray).
 ;
 ; Each row is copied a byte at a time, shifting the screen bytes left to align
 ; the rectangle's left edge, and masking the unused bits of the last byte.
@@ -57,6 +58,7 @@ DEFPROC	gfxGet,FAR
 	LOCVAR	gtShift,byte		; bit offset of the left edge
 	LOCVAR	gtMask,byte		; mask for the last byte of each row
 	LOCVAR	gtOdd,byte		; toggled for every byte stored
+	LOCVAR	gtRaw,byte		; non-zero for a double array
 	LOCVAR	gtBytes,word		; bytes per row
 	LOCVAR	gtRows,word		; rows remaining
 	LOCVAR	gtByte0,word		; offset of the left edge within a row
@@ -73,10 +75,9 @@ DEFPROC	gfxGet,FAR
 	mov	[gtRows],si
 	push	cx
 	lds	di,[gtArray]
-	call	getImage		; DS:DI -> 1st element (checks size)
+	call	getImage		; DS:DI -> 1st byte of pixels
+	mov	[gtRaw],ah
 	pop	ax			; AX = left
-	mov	si,[di]			; SI = width in bits
-	add	di,8			; DS:DI -> 3rd element
 	call	bitPos			; CL = shift, AX = byte offset
 	mov	[gtShift],cl
 	mov	[gtByte0],ax
@@ -114,13 +115,19 @@ ENDPROC	gfxGet
 ;
 ; gtPut (gfxGet internal function, using its frame)
 ;
-; Stores the byte in AL in the next element (low byte first).
+; Stores the byte in AL in the next element (low byte first), or for a double
+; array, in the next byte.
 ;
 ; Modifies:
 ;	AX, DI
 ;
 DEFPROC	gtPut
-	not	[gtOdd]
+	cmp	[gtRaw],0		; double array?
+	je	gtp0			; no
+	mov	[di],al
+	inc	di
+	ret
+gtp0:	not	[gtOdd]
 	cmp	[gtOdd],0
 	je	gtp1
 	mov	ah,0
@@ -150,7 +157,7 @@ ENDPROC	gtPut
 ; registers:
 ;
 ;	AL = next screen byte, BL = previous image byte, BH = toggle for
-;	loading image bytes (2 per element), CL = shift, CH = # screen bytes
+;	loading image bytes (2 per value), CL = shift, CH = # screen bytes
 ;	left in the row, DL = mask, DH = # image bytes left in the row,
 ;	DS:SI -> image, and ES:DI -> screen
 ;
@@ -176,7 +183,8 @@ DEFPROC	gfxPut,FAR
 	LOCVAR	puOp,word		; function for the action (see putOps)
 	LOCVAR	puRows,word		; rows remaining
 	LOCVAR	puRow,word		; offset of the current row
-	LOCVAR	puCount,word		; # elements in the array
+	LOCVAR	puCount,word		; # of 16-bit values in the array
+	LOCVAR	puSkip,word		; offset of the next 16-bit value
 	ENTER
 	call	gfxInit
 	lea	si,[puX]
@@ -185,14 +193,19 @@ DEFPROC	gfxPut,FAR
 	push	cx
 	push	dx
 	lds	di,[puArray]
-	call	getArray		; DS:DI -> 1st element, AX = # elements
+	call	getArray		; DS:DI -> 1st element, AX = # values
 	pop	dx
 	pop	cx
 	mov	[puCount],ax
-	cmp	ax,2
+	mov	ax,4			; (each value is 4 bytes from the next,
+	jnc	pu0a			; or 2 in a double array)
+	mov	ax,2
+pu0a:	mov	[puSkip],ax
+	cmp	[puCount],2
 	jb	puErr
 	mov	si,[di]			; SI = width in bits
-	mov	ax,[di+4]		; AX = height
+	add	di,ax
+	mov	ax,[di]			; AX = height
 	mov	[puRows],ax
 	test	ax,ax
 	jz	pu0
@@ -257,7 +270,8 @@ puOK:	mov	ax,cx
 	add	bx,bx
 	mov	ax,cs:PUT_OPS[bx]
 	mov	[puOp],ax
-	lea	si,[di+8]		; DS:SI -> 3rd element
+	mov	si,di
+	add	si,[puSkip]		; DS:SI -> 3rd value
 	mov	bh,0			; BH = 0 (load the low byte next)
 	mov	cl,[puShift]
 
@@ -273,7 +287,7 @@ pu2:	mov	al,0
 	mov	al,[si]
 	jnz	pu4
 	mov	al,[si+1]
-	add	si,4
+	add	si,[puSkip]
 pu4:	mov	ah,bl			; AX = previous:current
 	mov	bl,al
 	shr	ax,cl			; AL = next screen byte
@@ -355,9 +369,11 @@ ENDPROC	opAnd
 ;
 ; Outputs:
 ;	DS:DI -> 1st element
-;	AX = # of elements
-;	(an "Illegal function call" error occurs if the array isn't an
-;	integer array that has been dimensioned)
+;	AX = # of 16-bit values that the array can hold: 1 per element of an
+;	integer array, or 4 per element of a double array, which holds them as
+;	raw bytes (carry set), as MSBASIC's single-precision arrays do
+;	(an "Illegal function call" error occurs if the array isn't a numeric
+;	array that has been dimensioned)
 ;
 ; Modifies:
 ;	AX, DI, DS
@@ -367,14 +383,18 @@ DEFPROC	getArray
 	test	ax,ax
 	jz	ga9
 	mov	ds,ax
-	cmp	byte ptr ds:[ABLK_TYPE],VAR_LONG
-	jne	ga9
 	mov	di,ds:[ABLK_DATA]
 	mov	ax,ds:[BLK_FREE]
 	sub	ax,di
-	shr	ax,1
-	shr	ax,1
-	ret
+	shr	ax,1			; AX = # of 16-bit values
+	cmp	byte ptr ds:[ABLK_TYPE],VAR_DOUBLE
+	stc
+	je	ga8			; a double array (carry set)
+	cmp	byte ptr ds:[ABLK_TYPE],VAR_LONG
+	jne	ga9
+	shr	ax,1			; AX = # of elements
+	clc
+ga8:	ret
 ga9:	jmp	strIllegal
 ENDPROC	getArray
 
@@ -382,7 +402,8 @@ ENDPROC	getArray
 ;
 ; getImage
 ;
-; Verifies that an integer array is large enough for an image.
+; Verifies that an array is large enough for an image, and stores the image's
+; width and height (see gfxGet).
 ;
 ; Inputs:
 ;	AX = width (in pixels), SI = height
@@ -390,13 +411,12 @@ ENDPROC	getArray
 ;	BH = mode (see gfxInit)
 ;
 ; Outputs:
-;	DS:DI -> 1st element, which is set to the width in bits, and the
-;	2nd element is set to the height (an "Illegal function call" error
-;	occurs if the array is too small)
-;	AL = bits per pixel
+;	DS:DI -> where the image's pixels go, and SI = width in bits (an
+;	"Illegal function call" error occurs if the array is too small)
+;	AH = 0 for an integer array, or -1 for a double array
 ;
 ; Modifies:
-;	AX, CX, DI, DS
+;	AX, CX, SI, DI, DS
 ;
 DEFPROC	getImage
 	push	dx
@@ -411,19 +431,27 @@ DEFPROC	getImage
 	mul	si			; AX = total bytes
 	inc	ax
 	shr	ax,1
-	add	ax,2			; AX = total elements required
+	add	ax,2			; AX = total values required
 	push	ax
-	call	getArray		; AX = # elements available
+	call	getArray		; AX = # values available
+	sbb	dx,dx			; DX = -1 for a double array
 	pop	cx
 	cmp	ax,cx
 	jb	ga9
-	pop	ax
-	mov	[di],ax			; 1st element = width in bits
-	mov	word ptr [di+2],0
-	mov	[di+4],si		; 2nd element = height
-	mov	word ptr [di+6],0
-	mov	al,2
-	sub	al,bh			; AL = bits per pixel
+	pop	ax			; AX = width in bits
+	mov	[di],ax			; 1st value = width in bits
+	test	dx,dx			; double array?
+	jz	gim1			; no
+	mov	[di+2],si		; 2nd value = height
+	add	di,4
+	jmp	short gim2
+gim1:	sub	cx,cx
+	mov	[di+2],cx
+	mov	[di+4],si		; 2nd value = height
+	mov	[di+6],cx
+	add	di,8
+gim2:	xchg	si,ax			; SI = width in bits
+	mov	ah,dl			; AH = 0 or -1
 	pop	dx
 	ret
 ENDPROC	getImage

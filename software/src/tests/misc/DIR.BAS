@@ -1,15 +1,23 @@
 	' DIR.BAS: displays a directory listing like DIR, using DIR$
 	'
-	'   DIR.BAS [filespec]
+	'   DIR.BAS [filespec] [/A]
 	'
 	' Each DIR$ result contains a file's attributes (1 byte), time (2), date
-	' (2), and size (4), followed by its name.  Unlike DIR, the total is the
-	' sum of the file sizes (not of the clusters they occupy), there's no free
-	' space line, and the directory's path is shown as given (eg, .. isn't
-	' resolved), after the current directory if it's relative to it.
+	' (2), and size (4), followed by its name.  As with DIR, hidden files are
+	' listed only with /A, with a "*" after the name.  Unlike DIR, the total
+	' is the sum of the file sizes (not of the clusters they occupy), there's
+	' no free space line, and the directory's path is shown as given (eg, ..
+	' isn't resolved), after the current directory if it's relative to it.
 	'
 	DEFINT A-Z
-	S$ = UCASE$(ARG$(1)) : C$ = MID$(CURDIR$, 3, 1) : D$ = LEFT$(CURDIR$, 2)
+	' The attributes (A) include system files and directories, and with /A,
+	' hidden files
+	S$ = "" : A = &H14
+	FOR I = 1 TO 2
+	X$ = UCASE$(ARG$(I))
+	IF X$ = "/A" OR X$ = "-A" THEN A = &H16 ELSE IF X$ <> "" THEN S$ = X$
+	NEXT
+	C$ = MID$(CURDIR$, 3, 1) : D$ = LEFT$(CURDIR$, 2)
 	IF MID$(S$, 2, 1) = ":" THEN D$ = LEFT$(S$, 2)
 	' A filespec that ends with ":" or the path char, or that names a
 	' directory (without wildcards), lists all the files in the directory
@@ -17,7 +25,7 @@
 	IF S$ = "" OR R$ = ":" OR R$ = C$ THEN S$ = S$ + "*.*" : GOTO 10
 	F$ = DIR$(S$, 16) : IF F$ = "" THEN GOTO 10
 	IF ASC(F$) AND 16 AND INSTR(S$, "*") = 0 AND INSTR(S$, "?") = 0 THEN S$ = S$ + C$ + "*.*"
-10	F$ = DIR$(S$, 16)
+10	F$ = DIR$(S$, A)
 	IF F$ = "" THEN PRINT "Unable to find "; S$ : END
 	' Display the volume label and the directory, which is the filespec's
 	' path (up to its last path char), relative to the current directory
@@ -34,9 +42,10 @@
 	P$ = Q$ + P$
 20	PRINT " Directory of "; D$; P$ : PRINT
 	' List each match, with its size (or <DIR>), date, and time
-	F$ = DIR$(S$, 16) : N = 0 : T = 0
+	F$ = DIR$(S$, A) : N = 0 : T = 0
 	WHILE F$ <> ""
-	GOSUB 50 : PRINTF USING "%-8s %-3s "; N$, E$;
+	K$ = " " : IF ASC(F$) AND 2 THEN K$ = "*"
+	GOSUB 50 : PRINTF USING "%-8s %-3s%s"; N$, E$, K$;
 	L = CVL(MID$(F$, 6, 4))
 	IF ASC(F$) AND 16 THEN PRINT "  <DIR>"; ELSE PRINTF USING "%7d"; L;
 	X = CVI(MID$(F$, 2, 2)) : IF X < 0 THEN X = X + 65536

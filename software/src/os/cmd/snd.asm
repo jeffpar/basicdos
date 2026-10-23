@@ -10,7 +10,7 @@
 ; Runtime functions for PLAY and SOUND, their generators (which live here
 ; rather than in gensys.asm, because this module isn't part of COMMAND's core;
 ; see genPlay), and the PLAY parsing functions that DRAW shares (playChar and
-; playNum; see gfx.asm).
+; playNum; see gfx.asm, and for PLAY and DRAW variables, strvar.asm).
 ;
 	DOSFUNC equ 1
 	include	cmd.inc
@@ -19,7 +19,8 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<releaseStr,strIllegal,getStrVar,genStr,genLongs,genCallCS>
+	EXTNEAR	<releaseStr,strIllegal,genStr,genLongs,genCallCS,getStrVar>
+	EXTNEAR	<execStr>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
@@ -91,6 +92,10 @@ SND_BUSY	equ	PLAY_STATE+6	; non-zero if SND_END is valid (byte)
 ;				default 120)
 ;	MN, ML, MS		normal (7/8), legato (full), or staccato (3/4)
 ;	MF, MB			ignored (music always plays in the foreground)
+;	Xvariable;		play the commands in a string variable
+;
+; Any number can be "=variable;" instead (see playNum), and semicolons can
+; separate commands.
 ;
 ; The octave, length, tempo, and mode persist from one PLAY to the next, in
 ; the first 4 bytes of PLAY_STATE: the octave XOR 4, length XOR 4, tempo XOR
@@ -109,7 +114,9 @@ SND_BUSY	equ	PLAY_STATE+6	; non-zero if SND_END is valid (byte)
 ;
 DEFPROC	doPlay,FAR
 	ARGVAR	pPlayStr,dword
+	LOCVAR	plDepth,byte		; # of X commands in progress
 	ENTER
+	mov	[plDepth],0
 	call	sndWait			; let any SOUND finish first
 	push	ds
 	lds	si,[pPlayStr]
@@ -121,7 +128,14 @@ DEFPROC	doPlay,FAR
 	mov	bx,ss:[PSP_HEAP]
 	jmp	short dp1
 
-dp8:	les	di,[pPlayStr]
+dp8:	cmp	[plDepth],0		; end of an X command's string?
+	je	dp8a			; no
+	dec	[plDepth]
+	pop	cx
+	pop	si
+	pop	ds			; yes, so resume the string that had it
+	jmp	short dp1
+dp8a:	les	di,[pPlayStr]
 	call	releaseStr
 dp9:	pop	ds
 	LEAVE
@@ -225,7 +239,7 @@ dp7a:	cmp	al,'T'
 	jmp	dp1
 
 dp7b:	cmp	al,'M'
-	jne	dpX
+	jne	dp7d
 	call	playChar
 	jc	dpX
 	mov	ah,0
@@ -244,6 +258,17 @@ dp7b:	cmp	al,'M'
 	jmp	short dpX
 dp7c:	mov	byte ptr ss:[bx].PLAY_STATE+3,ah
 	jmp	dp1
+
+dp7d:	cmp	al,';'			; a separator?
+	je	dp7e			; yes
+	cmp	al,'X'
+	jne	dp7f
+	lea	di,[plDepth]
+	call	execStr			; DS:SI -> the X command's string
+	jnc	dp7e
+	jmp	dp8			; (it's empty)
+dp7e:	jmp	dp1
+dp7f:	jmp	dpX
 
 ENDPROC	doPlay
 

@@ -243,7 +243,7 @@ The time and date are in PC DOS directory format (add 65536 to a negative value 
     F$ = DIR$("*.BAS")
     WHILE F$ <> "" : PRINT MID$(F$,10), CVL(MID$(F$,6)) : F$ = DIR$ : WEND
 
-Commands that search for files (eg, DIR, or COPY, DEL, and TYPE with wildcards) start searches of their own, so call DIR$ with a *filespec* again after using one.  The TESTS folder's DIR.BAS displays a listing like DIR's, using DIR$.
+Commands that search for files (eg, DIR, or COPY, DEL, and TYPE with wildcards) start searches of their own, so call DIR$ with a *filespec* again after using one.  The DEMOS folder's DIR.BAS displays a listing like DIR's, using DIR$.
 
 #### EOF {#eof}
 
@@ -361,7 +361,7 @@ Returns the next mouse button event (*n* = 0), the position of that event (1 and
 > PATH$
 > PATH$ = *string*
 
-Returns (or sets) the directories, separated by semicolons, that are searched for a program (or a file to [LOAD](../../disk/#load)) that isn't in the current directory (eg, `PATH$ = "A:\;A:\BIN;A:\DEMOS;A:\SAMPLES"`); see [Running Programs](../../../intro/#running-programs).  Unlike other variables, PATH$ keeps its value when variables are cleared (eg, by [NEW](../../system/#new) or [CLEAR](../#clear)), and each session has its own.  It's usually set on a [SHELL](../../../cfg/#shell) line in CONFIG.SYS, and it's limited to 120 characters.
+Returns (or sets) the directories, separated by semicolons, that are searched for a program (or a file to [LOAD](../../disk/#load)) that isn't in the current directory (eg, `PATH$ = "A:\;A:\EXT;A:\DEMOS;A:\SAMPLES"`); see [Running Programs](../../../intro/#running-programs).  Unlike other variables, PATH$ keeps its value when variables are cleared (eg, by [NEW](../../system/#new) or [CLEAR](../#clear)), and each session has its own.  It's usually set on a [SHELL](../../../cfg/#shell) line in CONFIG.SYS, and it's limited to 120 characters.
 
 #### PEEK {#peek}
 

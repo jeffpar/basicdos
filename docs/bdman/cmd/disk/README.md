@@ -23,7 +23,7 @@ File names follow PC DOS conventions: an optional drive letter and colon (eg, `B
 
 A file name can also be preceded by a path of directory names, each followed by the path character (`\` by default, or `/` when [PATHCHAR](../../cfg/#pathchar) is `/`).  A path that begins with the path character starts at the root directory (eg, `TYPE \SUBDIR\INSIDE.TXT`); otherwise, it starts at the drive's current directory (see [CD](#cd)), which the prompt displays (eg, `C:\SUBDIR>`).  A directory name of `.` refers to the same directory, and `..` refers to the parent directory (eg, `TYPE ..\HELLO.TXT`).  Each session has its own current directory for every drive.
 
-DOS commands and external programs can use paths at the prompt and in BAT or BAS files (eg, `DIR \BIN` or `\BIN\SLEEP 1`), including after a colon that separates commands.  In BASIC file statements such as OPEN, supply a path as a quoted string or string variable.
+DOS commands and external programs can use paths at the prompt and in BAT or BAS files (eg, `DIR \EXT` or `\EXT\SLEEP 1`), including after a colon that separates commands.  In BASIC file statements such as OPEN, supply a path as a quoted string or string variable.
 
 Device names (eg, CON, PRN, AUX, COM1, LPT1, and NUL) can be used in place of file names (eg, `COPY TEST.TXT NUL` or `DIR > NUL`).
 
@@ -49,9 +49,9 @@ Changes the current directory of *drive* (or the current drive) to *path*.  If n
 
 > COPY *input* [*output*]
 
-Copies the contents of the input file or device to the output file or device.  The output file is created, or truncated if it already exists.  If the output is a drive or directory (or is omitted, which means the current directory), the input's filename (without any drive or path) is used.  With wildcards (? and *), every matching file is copied, and its name is displayed; the output must then be a drive or directory (or omitted).  A file cannot be copied onto itself, or onto a file that another session has open.  If the disk fills up, COPY reports "Insufficient disk space".  COPY stops at the first file it can't copy.
+Copies the contents of the input file or device to the output file or device.  The output file is created, or truncated if it already exists, and like PC DOS, it gets the input file's date and time.  If the output is a drive or directory (or is omitted, which means the current directory), the input's filename (without any drive or path) is used.  With wildcards (? and *), every matching file is copied, and its name is displayed; the output must then be a drive or directory (or omitted).  A file cannot be copied onto itself, or onto a file that another session has open.  If the disk fills up, COPY reports "Insufficient disk space".  COPY stops at the first file it can't copy.
 
-Input files separated by `+` are combined (concatenated) into the output file, which must be specified (eg, `COPY A.BIN+B.BIN C.BIN`).  Files are always copied as binary data; to copy a text file only up to its first CTRL-Z, use [TYPE](#type) with redirection instead (eg, `TYPE A.TXT > B.TXT`).
+Input files separated by `+` are combined (concatenated) into the output file, which must be specified (eg, `COPY A.BIN+B.BIN C.BIN`), and which gets the current date and time.  Files are always copied as binary data; to copy a text file only up to its first CTRL-Z, use [TYPE](#type) with redirection instead (eg, `TYPE A.TXT > B.TXT`).
 
 	COPY PRIMES.BAS B:
 	COPY B:\*.BAS
@@ -69,7 +69,7 @@ Deletes the specified file.  With the wildcards `?` and `*` (as in [DIR](#dir)),
 
 Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).  As in DOS 2.x, the listing begins with a blank line, the drive's volume label (eg, ` Volume in drive A is BD-S80`, or ` Volume in drive A has no label`), the full path of the directory (eg, ` Directory of A:\SAMPLES`), and another blank line.  The *filespec* can contain the wildcards `?` (any character) and `*` (any characters to the end of the name or extension).  Subdirectories are listed with `<DIR>` in place of a size, and if *filespec* is a directory (eg, `DIR SUBDIR` or `DIR /`), the files in that directory are listed.  Use `DIR | MORE` to pause after each screenful of output.
 
-Files with the hidden attribute (eg, BASDEV.COM and BASDOS.COM) are listed only with `/A`.  Unlike PC DOS, DIR lists system files that aren't hidden (eg, COMMAND.COM); see [ATTRIB](../external/#attrib).  `/S` lists the matching files in every subdirectory, too (in hidden subdirectories only with `/A`): each directory with matches gets its own ` Directory of` line and totals, and the bytes free are displayed at the end.
+Files with the hidden attribute (eg, BASDEV.COM and BASDOS.COM) are listed only with `/A`, with an asterisk after the name (eg, `BASDEV   COM*`).  Unlike PC DOS, DIR lists system files that aren't hidden (eg, COMMAND.COM); see [ATTRIB](../external/#attrib).  `/S` lists the matching files in every subdirectory, too (in hidden subdirectories only with `/A`): each directory with matches gets its own ` Directory of` line and totals, and the bytes free are displayed at the end.
 
 	DIR *.BAS
 	DIR /S *.BAS

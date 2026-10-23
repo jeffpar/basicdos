@@ -233,24 +233,66 @@ CMD_NOECHO	equ	01h		; set if ECHO turned off
 CMD_SINGLE	equ	02h		; set if /C (exit after the command)
 
 ;
-; Graphics and mouse state (see GFX_DATA in CMDHEAP)
+; Graphics and mouse state (see GFX_DATA in CMDHEAP), which only the modules
+; that define GFXDEFS need (since structure fields are costly in MASM's
+; symbol space)
 ;
+GFXDATA_LEN	equ	1Ah		; size of GFXDATA
+
+	IFDEF	GFXDEFS
 GFXDATA		struc
 GFX_LPX		dw	?		; 00h: last point referenced (X)
 GFX_LPY		dw	?		; 02h: last point referenced (Y)
 GFX_SCALE	db	?		; 04h: DRAW scale XOR 4
-GFX_COLOR	db	?		; 05h: DRAW color + 1, or 0 for default
+GFX_FLAGS	db	?		; 05h: GF_* bits (VIEW and WINDOW)
 GFX_MODE	db	?		; 06h: video mode + 1, or 0 if unknown
 GFX_SAVED	db	?		; 07h: saved video mode + 1 (see saveMode)
 MOUSE_X		dw	?		; 08h: position of the last MOUSE(0) event
 MOUSE_Y		dw	?		; 0Ah
 MOUSE_STATE	db	?		; 0Ch: MS_* bits
-		db	?		; 0Dh: (unused)
+GFX_COLOR	db	?		; 0Dh: DRAW color + 1, or 0 for default
 GFX_COLORS	dw	?		; 0Eh: colors saved with GFX_SAVED
+GFX_ANGLE	dw	?		; 10h: DRAW angle (0-359 degrees)
+GFX_VX1		dw	?		; 12h: the viewport (or screen)
+GFX_VY1		dw	?		; 14h: that drawing is clipped to
+GFX_VX2		dw	?		; 16h: (see gfxInit and gfxView)
+GFX_VY2		dw	?		; 18h
 GFXDATA		ends
+	ASSERT	<SIZE GFXDATA>,EQ,GFXDATA_LEN
 
+GFX_MARK	equ	8000h		; high word of a converted coordinate
+					; (see mapPt)
 MS_ON		equ	01h		; set by MOUSE ON
 MS_GFX		equ	02h		; pointer hidden (see mouseGfx)
+
+GF_VIEW		equ	01h		; VIEW defined a viewport
+GF_VREL		equ	02h		; and coordinates are relative to it
+GF_WINDOW	equ	04h		; WINDOW defined world coordinates
+GF_WSCRN	equ	08h		; and y increases downward (SCREEN)
+	ENDIF	; GFXDEFS
+
+;
+; The WINDOW state (see GFX_WORLD in CMDHEAP), which only the modules that
+; define WINDEFS need: one GFXAXIS for x, followed by one for y.  A world
+; coordinate w maps to the screen coordinate WIN_B + (w - WIN_W1) * WIN_S,
+; and the last point referenced (see GFX_LPX and GFX_LPY) has the world
+; coordinate WIN_L if it's still at WIN_LP (see worldLP).
+;
+GFXAXIS_LEN	equ	2Ch		; size of GFXAXIS
+GFXWORLD_LEN	equ	GFXAXIS_LEN*2	; size of GFX_WORLD
+
+	IFDEF	WINDEFS
+GFXAXIS		struc
+WIN_W1		dq	?		; 00h: smaller world coordinate
+WIN_W2		dq	?		; 08h: larger world coordinate
+WIN_S		dq	?		; 10h: scale
+WIN_L		dq	?		; 18h: last point (world coordinate)
+WIN_T		dq	?		; 20h: temporary
+WIN_B		dw	?		; 28h: screen coordinate of WIN_W1
+WIN_LP		dw	?		; 2Ah: last point (screen coordinate)
+GFXAXIS		ends
+	ASSERT	<SIZE GFXAXIS>,EQ,GFXAXIS_LEN
+	ENDIF	; WINDEFS
 
 ;
 ; The next DATA item for READ (see DATA_STATE in CMDHEAP, and readData)
@@ -325,17 +367,18 @@ ERR_NUM		dw	?		; 4A2h: last error # (HI set if active)
 ERR_ADDR	dd	?		; 4A4h: ON ERROR handler (0 if none)
 ERR_LINE	dw	?		; 4A8h: line # of last error (see ERL)
 PLAY_STATE	dw    4 dup (?)		; 4AAh: PLAY/SOUND state (see doPlay)
-GFX_DATA	db	size GFXDATA dup (?)	; 4B2h: graphics and mouse state
-CODE_CACHE	dw	?		; 4C2h: cached code (see keepCode)
-EDIT_STATE	dw    2 dup (?)		; 4C4h: line to edit (see edit.asm)
-DATA_STATE	db	size DATASTATE dup (?)	; 4C8h: next DATA item (see sys.asm)
-PATH_CHAR	db	?		; 4D0h: path char (fixed at boot)
-SWITCH_CHAR	db	?		; 4D1h: switch char (fixed at boot)
-FILE_DATA	db   44 dup (?)		; 4D2h: OPEN files (see fileio.inc)
-PIPE_SCB	dd	?		; 4FEh: pipeline sessions (see endPipes)
-PATH_BUF	db  128 dup (?)		; 502h: PATH$ (length, 0-120 chars, null)
-ENV_DATA	db  176 dup (?)		; 582h: environment (see initEnv)
-DOS_REGS	dw    4 dup (?)		; 632h: AX-DX from DOS (see dosCall)
+GFX_DATA	db GFXDATA_LEN dup (?)	; 4B2h: graphics and mouse state
+GFX_WORLD	db GFXWORLD_LEN dup (?)	; 4CCh: WINDOW state
+CODE_CACHE	dw	?		; 524h: cached code (see keepCode)
+EDIT_STATE	dw    2 dup (?)		; 526h: line to edit (see edit.asm)
+DATA_STATE	db	size DATASTATE dup (?)	; 52Ah: next DATA item (see sys.asm)
+PATH_CHAR	db	?		; 532h: path char (fixed at boot)
+SWITCH_CHAR	db	?		; 533h: switch char (fixed at boot)
+FILE_DATA	db   44 dup (?)		; 534h: OPEN files (see fileio.inc)
+PIPE_SCB	dd	?		; 560h: pipeline sessions (see endPipes)
+PATH_BUF	db  128 dup (?)		; 564h: PATH$ (length, 0-120 chars, null)
+ENV_DATA	db  176 dup (?)		; 5E4h: environment (see initEnv)
+DOS_REGS	dw    4 dup (?)		; 694h: AX-DX from DOS (see dosCall)
 ;
 ; The BASIC-DOS loader always set the stack pointer for a COM file to the top
 ; of the segment, which means we must declare our stack at the end of CMDHEAP.
@@ -346,7 +389,7 @@ DOS_REGS	dw    4 dup (?)		; 632h: AX-DX from DOS (see dosCall)
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-STACK		dw 1019 dup (?)		; 63Ah
+STACK		dw  970 dup (?)		; 69Ch
 CMDHEAP		ends			 ; E30h
 SIG_CMD		equ	'H'
 

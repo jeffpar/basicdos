@@ -27,12 +27,12 @@ CODE    SEGMENT
 	EXTNEAR	<allocText,freeCache,memError,writeStrCRLF>
 	EXTNEAR	<getToken,getFileName,chkExt,addString,openOutput,findProgram>
 	EXTNEAR	<writeOutput,writeError,openError,noFile,listVars>
-	EXTNEAR	<listSessions,freeAllText,openInput,readInput,closeInput>
+	EXTNEAR	<freeAllText,openInput,readInput,closeInput>
 	IF DETOK
 	EXTNEAR	<loadTokens>
 	ENDIF
 	EXTWORD	<OPTION_TOKENS>
-	EXTABS	<TOK_SESSIONS,TOK_VARS>
+	EXTABS	<TOK_VARS>
 	EXTSTR	<BAS_EXT,BAT_EXT>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -283,11 +283,8 @@ DEFPROC	cmdList
 	jc	ls0
 	jmp	syntaxError
 ls0:	cmp	ax,TOK_VARS
-	jne	ls0a
-	jmp	listVars
-ls0a:	cmp	ax,TOK_SESSIONS
 	jne	ls0b
-	jmp	listSessions
+	jmp	listVars
 ls0b:	jmp	syntaxError		; (eg, LIST SYSTEM)
 ls1:	mov	al,'-'
 	call	getRange		; AX = 1st line #, DX = last line #

@@ -54,14 +54,18 @@ function checkOutput(task, outputFile)
 }
 
 /*
- * The files on every BASIC-DOS disk come from software/manifest.txt, which lists the files for each folder (ROOT, BIN,
- * SAMPLES, DEMOS, and TESTS).  Every demo diskette gets ROOT (the system files, its own CONFIG.SYS and AUTOEXEC.BAT,
- * if any, and HELP.TXT), followed by BIN, SAMPLES, and DEMOS, so each demo diskette differs only in its CONFIG.SYS,
- * which sets PATH$ on each SHELL line (eg, SHELL=COMMAND.COM PATH$="A:/;A:/BIN;A:/SAMPLES;A:/DEMOS").
+ * The files on every BASIC-DOS disk come from software/manifest.txt, which lists the files for each folder (ROOT, EXT,
+ * DEMOS, SAMPLES, and TESTS).  Every demo diskette gets ROOT (the system files, its own CONFIG.SYS and AUTOEXEC.BAT,
+ * if any, and HELP.TXT), followed by EXT, DEMOS, and SAMPLES, so each demo diskette differs only in its CONFIG.SYS,
+ * which sets PATH$ on each SHELL line (eg, SHELL=COMMAND.COM PATH$="A:/;A:/EXT;A:/DEMOS;A:/SAMPLES").
  *
- * The TESTS files (with the test programs in TESTS/MISC) and the TOOLS files (eg, SYMDEB and MSBASIC) are on a separate
- * data diskette (marked "data"), BASICDOS-360K-TESTS; it isn't bootable, so it has no root files, and it can be loaded
- * in drive B: of any demo.
+ * The release diskette, BASICDOS-360K, is the same, but its build also writes a raw image of it (marked "img"),
+ * BASICDOS-360K.img, which the home page offers for download, and its title includes the version (eg, "BASIC-DOS 2.01
+ * (Release)"), which also lists it first.
+ *
+ * The TESTS files (with the regression tests in TESTS/REGRESS and other test programs in TESTS/MISC) and the TOOLS
+ * files (eg, SYMDEB and MSBASIC) are on a separate data diskette (marked "data"), BASICDOS-360K-TESTS; it isn't
+ * bootable, so it has no root files, and it can be loaded in drive B: of any demo.
  *
  * A hard disk image (a demo with no diskettes) is marked "hd", and pc.js builds it (with --sys=bd:2, so it's bootable,
  * and pc.js adds the system files and HELP.TXT itself).  A disk can list its own "folders" instead of the diskette
@@ -80,12 +84,23 @@ function checkOutput(task, outputFile)
  * A ZIP file in a list of files (eg, PUBLIC.zip) is extracted into the folder itself, preserving the original
  * timestamps of its files.
  *
- * A disk marked "final" is updated only when the binaries are FINAL (the mode of the last mkdos.sh or mk.sh build,
- * which tools/pc/disks/mkmode records), since its demo doesn't have room for DEBUG binaries (see BASICDOS-360K-M64).
+ * Which disks a build updates depends on the mode of its binaries (the mode of the last mkdos.sh or mk.sh build, which
+ * tools/pc/disks/mkmode records) and package.json's config.release: a disk marked "final" (the release diskette, and
+ * the 64K demo, which doesn't have room for DEBUG binaries) is updated only with FINAL binaries, and every other disk
+ * is updated with any binaries, except FINAL binaries while config.release is "debug".  So while config.release is
+ * "debug", a DEBUG build updates all but the "final" disks, and a FINAL build updates only the "final" disks; once
+ * it's "final", a FINAL build updates them all, and a DEBUG build updates all but the "final" disks.
  */
 const SRC = "./software/src";
+/*
+ * The BASIC-DOS version comes from package.json's version (see tools/release.sh): its major number, and its minor
+ * number as two digits (eg, "2.1.0" is BASIC-DOS 2.01).
+ */
+const VERSION = JSON.parse(fs.readFileSync("./package.json", "utf8")).version.replace(/^(\d+)\.(\d+).*$/,
+    (match, major, minor) => major + "." + minor.padStart(2, "0"));
 const MKMODE = "./tools/pc/disks/mkmode";
 const FINAL = fs.existsSync(MKMODE) && fs.readFileSync(MKMODE, "utf8").trim() == "FINAL";
+const RELEASE = JSON.parse(fs.readFileSync("./package.json", "utf8")).config?.release == "final";
 /*
  * On every bootable disk, BASDEV.COM and BASDOS.COM are read-only hidden system files, and COMMAND.COM is a
  * read-only system file (which DIR lists, since in BASIC-DOS, only the hidden attribute keeps a file out of DIR);
@@ -103,7 +118,7 @@ for (let line of fs.readFileSync("./software/manifest.txt", "utf8").split(/\r?\n
         manifest[section].push(line);
     }
 }
-const diskFolders = { BIN: manifest.BIN, SAMPLES: manifest.SAMPLES, DEMOS: manifest.DEMOS };
+const diskFolders = { EXT: manifest.EXT, DEMOS: manifest.DEMOS, SAMPLES: manifest.SAMPLES };
 /**
  * diskFiles(diskName, fileSpecs)
  *
@@ -126,7 +141,13 @@ function diskFiles(diskName, fileSpecs)
 }
 
 let disks = {
-    "BASICDOS": { config: "./demos/s80/CONFIG.SYS", label: "BASIC-DOS" },
+    "BASICDOS-360K": {
+        config: "./download/CONFIG.SYS",
+        label: "BASIC-DOS",
+        title: "BASIC-DOS " + VERSION + " (Release)",
+        img: true,
+        final: true
+    },
     "BASICDOS-360K-S80": { config: "./demos/s80/CONFIG.SYS", title: "BASIC-DOS 80-Column Demo" },
     "BASICDOS-360K-D40": { config: "./demos/d40/CONFIG.SYS", title: "BASIC-DOS 40-Column Demo" },
     "BASICDOS-360K-D80": { config: "./demos/d80/CONFIG.SYS", title: "BASIC-DOS 80-Column Split Demo" },
@@ -140,21 +161,27 @@ let disks = {
     "BASICDOS-360K-TESTS": {
         title: "BASIC-DOS Tests",
         data: true,
-        folders: { TESTS: manifest.TESTS, "TESTS/MISC": manifest["TESTS/MISC"], TOOLS: manifest.TOOLS }
+        folders: {
+            TESTS: manifest.TESTS,
+            "TESTS/REGRESS": manifest["TESTS/REGRESS"],
+            "TESTS/MISC": manifest["TESTS/MISC"],
+            TOOLS: manifest.TOOLS
+        }
     },
     "BASICDOS-10MB": {
         hd: true,
         config: "./demos/hd/CONFIG.SYS",
         folders: {
-            BIN: manifest.BIN,
-            SAMPLES: manifest.SAMPLES,
+            EXT: manifest.EXT,
             //
             // WOLF3D.BAT runs the game in DEMOS/WOLF3D, so only this disk gets it, and PUBLIC.zip has JIVE.EXE
             //
             DEMOS: manifest.DEMOS.concat([ "./demos/wolf3d/WOLF3D.BAT", "./software/tests/PUBLIC.zip" ]),
             "DEMOS/WOLF3D": manifest["DEMOS/WOLF3D"],
+            SAMPLES: manifest.SAMPLES,
             SRC: SRC + "/os",           // the BASIC-DOS source (with an MK.BAT that builds it on BASIC-DOS)
             TESTS: manifest.TESTS,
+            "TESTS/REGRESS": manifest["TESTS/REGRESS"],
             "TESTS/MISC": manifest["TESTS/MISC"],
             //
             // The MASM 4.00 files come from the MS-DOS 3.20 build disk, but the build tools in software/src/tools
@@ -276,6 +303,10 @@ function buildDisk(diskName, diskImage)
                   (disks[diskName].data? "" : " --boot " + SRC + "/os/boot/obj/BOOT1.COM --attr=" + SYSATTRS) +
                   " --output " + diskImage +
                   " --label=" + label + " --normalize --writable --target=360 --overwrite";
+            if (disks[diskName].img) {
+                cmd += " && node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" --disk=" + diskImage +
+                       " --output=" + diskImage.replace(/\.json$/, ".img") + " --writable --overwrite";
+            }
         }
         run(cmd)(done);
     };
@@ -304,7 +335,7 @@ gulp.task("diskettes", writeDiskettes);
 
 let demoTasks = ["diskettes"];
 for (let diskName in disks) {
-    if (disks[diskName].final && !FINAL) continue;
+    if (disks[diskName].final? !FINAL : FINAL && !RELEASE) continue;
     let buildTask = "BUILD-" + diskName;
     let diskImage = "./software/disks/" + diskName + ".json";
     gulp.task(buildTask, checkOutput(buildDisk(diskName, diskImage), diskImage));

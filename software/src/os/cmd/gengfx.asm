@@ -18,8 +18,10 @@
 ;	PAINT				(genPaint)
 ;	PSET and PRESET			(genPset and genPreset)
 ;	PUT				(genPut)
+;	VIEW				(genView)
+;	WINDOW				(genWindow)
 ;
-; Coordinates must be absolute (ie, STEP isn't supported yet).
+; Coordinates can be absolute or relative (STEP); see genPoint.
 ;
 ; See gencmd.asm for an overview of all the gen*.asm files.  Like gencmd.asm,
 ; these functions are called while generating code, with DS:BX -> TOKLETs and
@@ -34,14 +36,17 @@
 ;
 	include	cmd.inc
 	include	gen.inc
+	include	fpu.inc
 
 CODE    SEGMENT
 
 	EXTNEAR	<genLong,genStr,genArrayVar,getNextToken,getNextSymbol>
 	EXTNEAR	<peekNextSymbol,genCallCS,genPushImmLong,genExpr,genCvtType>
 	EXTNEAR	<gfxDraw,gfxGet,gfxLastPt,gfxLine,gfxPaint,gfxPset,gfxPut>
-	EXTNEAR	<gfxCircle,skipToken,mouseOn,mouseOff>
-	EXTABS	<TOK_PSET,TOK_PRESET,TOK_ON,TOK_OFF>
+	EXTNEAR	<gfxCircle,skipToken,mouseOn,mouseOff,peekNextToken>
+	EXTNEAR	<gfxPt,gfxStep,gfxPtD,gfxStepD,genCallFPUDst,compError>
+	EXTNEAR	<gfxView,gfxViewOff,gfxWindow,gfxWindowOff,gfxRadD>
+	EXTABS	<TOK_PSET,TOK_PRESET,TOK_ON,TOK_OFF,TOK_STEP,TOK_SCREEN>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -63,12 +68,22 @@ CODE    SEGMENT
 ;	Any
 ;
 DEFPROC	genCircle
+	mov	al,0
 	call	genPoint
 	jc	gci9
 	mov	ah,','
 	call	genSymbol
 	jc	gci9
-	call	genLong			; radius
+	call	genExpr			; radius
+	jbe	gci8
+	push	ax
+	cmp	dl,VAR_DOUBLE		; a double?
+	jne	gci0			; no
+	GENCALL	gfxRadD			; yes, so convert it (see getRadius)
+	jmp	short gci0a
+gci0:	mov	al,VAR_LONG
+	call	genCvtType
+gci0a:	pop	ax
 	jc	gci9
 	mov	cx,-1
 	mov	dl,VAR_LONG
@@ -83,6 +98,8 @@ gci1:	push	cx
 	jc	gci9
 	loop	gci1
 	GENCALL	gfxCircle
+	ret
+gci8:	stc
 gci9:	ret
 ENDPROC	genCircle
 
@@ -127,11 +144,13 @@ ENDPROC	genDraw
 ;	Any
 ;
 DEFPROC	genGetGfx
+	mov	al,1			; (the 2nd point may be relative to it)
 	call	genPoint
 	jc	gg9
 	mov	ah,'-'
 	call	genSymbol
 	jc	gg9
+	mov	al,0
 	call	genPoint
 	jc	gg9
 	mov	ah,','
@@ -167,11 +186,13 @@ DEFPROC	genLineGfx
 	jne	gln1			; no
 	GENCALL	gfxLastPt		; yes, use the last point
 	jmp	short gln2
-gln1:	call	genPoint
+gln1:	mov	al,1			; (the 2nd point may be relative to it)
+	call	genPoint
 	jc	gln9
 gln2:	mov	ah,'-'
 	call	genSymbol
 	jc	gln9
+	mov	al,0
 	call	genPoint
 	jc	gln9
 	mov	cx,-1
@@ -215,7 +236,9 @@ ENDPROC	genLineGfx
 ;
 ; genPaint
 ;
-; Generate code for "PAINT (x,y)[,[paint][,border]]"
+; Generate code for "PAINT (x,y)[,[paint][,[border][,background]]]", where
+; paint is a color or a tile string, and background (a string) is allowed
+; only with a tile; for a color, -1 is pushed in its place (see gfxPaint).
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs
@@ -228,19 +251,56 @@ ENDPROC	genLineGfx
 ;	Any
 ;
 DEFPROC	genPaint
+	mov	al,0
 	call	genPoint
 	jc	gpa9
-	mov	cx,-1
-	call	genOptLong		; paint color
+	call	peekNextSymbol
+	jbe	gpa1			; no paint argument
+	cmp	al,','
+	jne	gpa1
+	call	skipToken		; consume the comma
+	call	peekNextSymbol
+	jz	gpa1			; nothing follows
+	jc	gpa2			; not a symbol, so it's an expression
+	cmp	al,','
+	je	gpa1			; another comma
+	cmp	al,':'
+	je	gpa1			; end of the statement
+gpa2:	call	genExpr			; paint
+	jbe	gpa8
+	mov	si,-1			; SI = -1 (no tile)
+	cmp	dl,VAR_STR		; a tile?
+	jne	gpa3			; no
+	inc	si			; SI = 0 (tile)
+	jmp	short gpa4
+gpa3:	push	ax
+	push	si
+	mov	al,VAR_LONG
+	call	genCvtType
+	pop	si
+	pop	ax
 	jc	gpa9
-	cmp	al,','			; did it consume another comma?
-	jne	gpa1			; no
-	call	genLong			; yes, so a border color must follow
-	jmp	short gpa2
-gpa1:	mov	cx,-1
-	call	genOptLong		; border color
-gpa2:	jc	gpa9
-	GENCALL	gfxPaint
+	jmp	short gpa4
+gpa1:	GENPUSH	-1,-1			; the default paint color
+	mov	si,-1			; SI = -1 (no tile)
+	mov	al,0
+gpa4:	push	si
+	mov	cx,-1
+	mov	dl,VAR_LONG
+	call	genOptArg		; border (AL = ',' if paint had one)
+	pop	si
+	jc	gpa9
+	test	si,si			; a tile?
+	jnz	gpa6			; no
+	sub	cx,cx
+	mov	dl,VAR_CHAR
+	call	genOptArg		; background (the default is CHR$(0))
+	jc	gpa9
+	jmp	short gpa7
+gpa6:	GENPUSH	-1,-1			; no background
+gpa7:	GENCALL	gfxPaint
+	ret
+gpa8:	stc
 gpa9:	ret
 ENDPROC	genPaint
 
@@ -285,6 +345,7 @@ ENDPROC	genPreset
 DEFPROC	genPset
 	mov	cx,-1
 gps1:	push	cx
+	mov	al,0
 	call	genPoint
 	pop	cx
 	jc	gps9
@@ -313,6 +374,7 @@ ENDPROC	genPset
 ;	Any
 ;
 DEFPROC	genPutGfx
+	mov	al,0
 	call	genPoint
 	jc	gpu9
 	mov	ah,','
@@ -354,6 +416,165 @@ gpu7:	sub	dx,dx
 gpu8:	stc
 gpu9:	ret
 ENDPROC	genPutGfx
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genView
+;
+; Generate code for "VIEW [[SCREEN] (x1,y1)-(x2,y2)[,[fill][,border]]]"
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genView
+	mov	cl,VAR_LONG
+	mov	si,offset gfxViewOff
+	call	genVW
+	jc	gvw9
+	mov	cx,-1
+	call	genOptLong		; fill
+	jc	gvw9
+	mov	cx,-1
+	mov	dl,VAR_LONG
+	call	genOptArg		; border (AL = ',' if fill had one)
+	jc	gvw9
+	GENCALL	gfxView
+gvw9:	ret
+ENDPROC	genView
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genWindow
+;
+; Generate code for "WINDOW [[SCREEN] (x1,y1)-(x2,y2)]", whose coordinates
+; are doubles (so the FPU$ driver is required).
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genWindow
+	mov	cl,VAR_DOUBLE
+	mov	si,offset gfxWindowOff
+	call	genVW
+	jc	gwn9
+	GENCALL	gfxWindow
+gwn9:	ret
+ENDPROC	genWindow
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genVW
+;
+; Generate code for the "[SCREEN] (x1,y1)-(x2,y2)" of VIEW and WINDOW, which
+; pushes 1 if SCREEN (0 if not) and the coordinates.  If neither SCREEN nor a
+; point follows, we generate a call to the function at SI instead, and return
+; to our caller's caller.
+;
+; Inputs:
+;	CL = type of the coordinates (VAR_LONG or VAR_DOUBLE)
+;	SI = function to call if there are no coordinates
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genVW
+	push	cx
+	sub	dx,dx			; DX = 0 (no SCREEN)
+	mov	al,CLS_KEYWORD
+	call	peekNextToken
+	jbe	gvw1
+	cmp	al,TOK_SCREEN		; SCREEN?
+	jne	gvw1			; no
+	call	skipToken
+	inc	dx			; DX = 1 (SCREEN)
+	jmp	short gvw2
+gvw1:	call	peekNextSymbol
+	jbe	gvw0			; no symbol follows
+	cmp	al,'('			; a point?
+	je	gvw2			; yes
+gvw0:	pop	cx
+	pop	cx			; discard our return address
+	mov	cx,si
+	GENCALL	cx
+	clc
+	ret
+gvw2:	xchg	cx,dx
+	sub	dx,dx
+	GENPUSH	dx,cx
+	pop	cx
+	push	cx
+	call	genCoords		; (x1,y1)
+	jc	gvw8
+	mov	ah,'-'
+	call	genSymbol
+	jc	gvw8
+	pop	cx
+	jmp	short genCoords		; (x2,y2)
+gvw8:	pop	cx
+	ret
+ENDPROC	genVW
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genCoords
+;
+; Generate code for "(x,y)", where x and y are converted to the type in CL.
+;
+; Inputs:
+;	CL = type of the coordinates (VAR_LONG or VAR_DOUBLE)
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genCoords
+	push	cx
+	mov	ah,'('
+	call	genSymbol
+	pop	cx
+	jc	gco9
+	mov	ch,','
+gco1:	push	cx
+	call	genExpr
+	pop	cx
+	jbe	gco8
+	cmp	al,ch			; followed by the expected symbol?
+	jne	gco8			; no
+	push	cx
+	mov	al,cl
+	call	genCvtType
+	pop	cx
+	jc	gco9
+	cmp	ch,')'			; was it y?
+	mov	ch,')'
+	jne	gco1			; no
+	ret
+gco8:	stc
+gco9:	ret
+ENDPROC	genCoords
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -444,9 +665,17 @@ ENDPROC	genOptArg
 ;
 ; genPoint
 ;
-; Generate code for "(x,y)", which pushes x and y (as longs).
+; Generate code for "[STEP] (x,y)", which pushes x and y as longs, or if
+; either is a double, as doubles (converting the other).  As in MSBASIC, a
+; STEP point is relative to the last point referenced, and every point becomes
+; the last point referenced.  gfxPt (or gfxStep, gfxPtD, or gfxStepD) does
+; that for a STEP point, a double point, or any point if AL is 1 (eg, LINE's
+; 1st point, which a STEP 2nd point is relative to), and replaces x and y with
+; screen coordinates; for any other point, the runtime function does it (see
+; getPoint).
 ;
 ; Inputs:
+;	AL = 1 to convert the point (as described above), 0 if not
 ;	DS:BX -> TOKLETs
 ;	ES:DI -> code block
 ;
@@ -457,20 +686,69 @@ ENDPROC	genOptArg
 ;	Any
 ;
 DEFPROC	genPoint
-	mov	ah,'('
+	push	ax			; AL bit 0 = convert
+	mov	al,CLS_KEYWORD
+	call	peekNextToken
+	jbe	gpt1
+	cmp	al,TOK_STEP		; STEP?
+	jne	gpt1			; no
+	call	skipToken
+	pop	ax
+	or	al,2			; AL bit 1 = STEP
+	push	ax
+gpt1:	mov	ah,'('
 	call	genSymbol
-	jc	gpt9
-	call	genLong			; x
-	jc	gpt9
+	jc	gpt8
+	call	genExpr			; x
+	jbe	gpt8
 	cmp	al,','
 	jne	gpt8
-	call	genLong			; y
-	jc	gpt9
+	push	dx			; DL = type of x
+	call	genExpr			; y
+	pop	cx			; CL = type of x
+	jbe	gpt8
 	cmp	al,')'
-	je	gpt9			; (carry is clear)
-gpt8:	stc
+	jne	gpt8
+	mov	al,VAR_DOUBLE
+	cmp	cl,al			; is x a double?
+	je	gpt3			; yes, so y must be one, too
+	cmp	cl,VAR_LONG		; is x a long?
+	jne	gpt7			; no, so it's a type mismatch
+	cmp	dl,al			; is y a double?
+	je	gpt2			; yes, so convert x
+	mov	al,VAR_LONG		; no, so y must be a long
+	call	genCvtType		; (which generates no code)
+	pop	ax			; AL = flags
+	jc	gpt9
+	jmp	short gpt4
+gpt2:	mov	cx,FPU_CVTL2D
+	call	genCallFPUDst		; convert x to a double
+	jmp	short gpt3a
+gpt3:	call	genCvtType		; convert y to a double
+	jc	gpt8
+gpt3a:	pop	ax
+	or	al,4			; AL bit 2 = doubles
+;
+; Use AL bits 1 and 2 (STEP and doubles) to select gfxPt, gfxStep, gfxPtD,
+; or gfxStepD, if a call is required (ie, if any bit is set).
+;
+gpt4:	test	al,al			; is a call required?
+	jz	gpt9			; no (carry is clear)
+	shr	al,1
+	cbw
+	xchg	si,ax
+	add	si,si
+	mov	cx,cs:GFX_CVT[si]
+	GENCALL	cx
+	ret
+gpt7:	mov	al,13			; "Type mismatch"
+	call	compError
+gpt8:	pop	ax
+	stc
 gpt9:	ret
 ENDPROC	genPoint
+
+GFX_CVT	dw	gfxPt, gfxStep, gfxPtD, gfxStepD
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
