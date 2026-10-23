@@ -14,7 +14,7 @@ Read the [Blog](blog/), check out the [Preview](preview/), see a few of the orig
 
 The first BASIC-DOS release diskette is a bootable 360K diskette with BASIC-DOS, a "basic" set of utilities, a collection of BASIC samples (all from PC DOS 1.00), and a few demo programs.  See it running on the [BASIC-DOS Release](download/) page, or download [BASICDOS-360K](software/disks/BASICDOS-360K.img), a diskette image that most PC emulators can boot, or which can be written to a genuine 360K diskette.
 
-When we say that BASIC-DOS comes with a "basic" set of utilities, we mean that both figuratively and literally, because while some are written in assembly language, most are in fact written in BASIC, including [CHKDSK](docs/bdman/cmd/external/#chkdsk), [FORMAT](docs/bdman/cmd/external/#format), [MODE](docs/bdman/cmd/external/#mode), and more.  BASIC-DOS takes it commitment to BASIC integration, performance, and eas-of-use very seriously.
+When we say that BASIC-DOS comes with a "basic" set of utilities, we mean that both figuratively and literally, because while some are written in assembly language, most are in fact written in BASIC, including [CHKDSK](docs/bdman/cmd/external/#chkdsk), [FORMAT](docs/bdman/cmd/external/#format), [MODE](docs/bdman/cmd/external/#mode), and more.  BASIC-DOS takes it commitment to BASIC integration, performance, and ease-of-use very seriously.
 
 ## Project Status
 
@@ -149,11 +149,12 @@ Utilities live in the EXT directory of every BASIC-DOS disk.  The filters, SLEEP
 - [x] Specific error messages for compile-time errors: "NEXT without FOR", "FOR without NEXT", "WHILE without WEND", "WEND without WHILE", and "Type mismatch" (formerly all reported as syntax errors), with the line of the FOR or WHILE for an unclosed loop, and no "in line 0" for commands typed at the prompt
 - [ ] Runtime error messages for numeric errors
 - [ ] STOP's "Break" message (STOP is currently the same as END)
-- [ ] The MID$ statement (ie, `MID$(A$,N[,M]) = B$`)
+- [x] The MID$ statement (ie, `MID$(A$,N[,M]) = B$`), with string variables or array elements
 - [ ] Comma print zones in PRINT (commas currently print a tab)
 - [ ] RUN *file* (eg, `RUN "MENU"`, which BASICA programs use to run another program; currently, RUN in a program ignores the name and runs the program itself again, and at the prompt, it runs the loaded program, if any)
 - [ ] BEEP, TIMER, and INPUT$(*n*[,#*f*]) (reading characters without ENTER)
-- [ ] LPRINT, LLIST, and LPOS (PRINT #*n* to an OPEN "LPT1:" works now)
+- [x] LPRINT, through PRN, which forwards to LPT1, which prints with the BIOS (a missing or failed printer is a "Device I/O error")
+- [x] LLIST and LPOS, and printer errors ("Device timeout", "Out of paper", and "Device fault") for LPRINT, LLIST, and PRINT # to a printer
 - [ ] TRON and TROFF (line tracing), and CONT (continuing after STOP or CTRL-C)
 - [ ] Event trapping: ON TIMER(*n*), ON KEY(*n*), ON STRIG(*n*), ON PLAY(*n*), and ON COM(*n*) GOSUB, with TIMER, KEY(*n*), STRIG(*n*), PLAY, and COM(*n*) ON, OFF, and STOP
 - [ ] BLOAD and BSAVE (eg, saving and loading screen images with DEF SEG)
@@ -211,7 +212,8 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [ ] More performance: text output in graphics modes goes through the CON driver and the BIOS
 - [x] Graphics features that the samples don't use: STEP coordinates (every point becomes the last point referenced, as in MSBASIC), POINT, DRAW's A, TA, P, and X commands (A uses MSBASIC's integer arithmetic, so it draws the same pixels), PLAY's X command and semicolons, and GET/PUT with double arrays (in MSBASIC's raw byte format)
 - [x] MORTGAGE.BAS, one of the PC DOS 1.00 samples, with its PRINT USING statements changed to PRINTF USING (see [How to replace PRINT USING](docs/bdman/cmd/device/screen/#how-to-replace-print-using))
-- [ ] The rest of the PC DOS 1.00 samples: MUSIC.BAS needs CHAIN MERGE (for its songs), CALENDAR.BAS needs LPRINT and the MID$ statement, COMM.BAS needs KEY *n*,*string*, the SCRN: device, INPUT$, and the MID$ statement, and the samples return to SAMPLES.BAS (their menu) with CHAIN *file*,*line*, whose line number BASIC-DOS ignores; SPACE.BAS's delay loops are too fast to see its flying saucers
+- [x] CALENDAR.BAS, one of the PC DOS 1.00 samples, which builds each month with the MID$ statement and prints the year with LPRINT (its February always has 28 days, as in BASICA, since it compares its year index, 1-9, with 1984 and 1988)
+- [ ] The rest of the PC DOS 1.00 samples: MUSIC.BAS needs CHAIN MERGE (for its songs), COMM.BAS needs KEY *n*,*string*, the SCRN: device, and INPUT$, and the samples return to SAMPLES.BAS (their menu) with CHAIN *file*,*line*, whose line number BASIC-DOS ignores; SPACE.BAS's delay loops are too fast to see its flying saucers
 - [x] Later BASICA and GW-BASIC graphics: VIEW, WINDOW (world coordinates, which POINT, PMAP, STEP, and CIRCLE's radius use, too), PMAP, and PAINT with tile patterns
 - [ ] PCOPY (which needs SCREEN's active and visual pages first)
 - [ ] RESUME and RESUME NEXT (which need the location of the error); ERL works
@@ -245,6 +247,7 @@ These aren't project goals:
 
 - PC DOS batch syntax, since BASIC-DOS uses BASIC for batch files: replaceable parameters (`%1`-`%9`), environment variables (SET), `ECHO message`, IF EXIST, FOR ... IN ... DO, SHIFT, and PAUSE.  BASIC-DOS provides command-line arguments through [ARG$](docs/bdman/cmd/basic/func/#arg), BASIC variables, PRINT, expressions, and control flow instead.  See [Batch Files](docs/bdman/lang/#batch-files) for the differences and equivalents; this does not imply that every PC DOS batch operation already has a direct equivalent.
 - PRINT USING and LPRINT USING, since PRINTF USING covers the same needs with C-style `%` specifiers; see [How to replace PRINT USING](docs/bdman/cmd/device/screen/#how-to-replace-print-using) for the equivalents of its template formats (eg, `###.##` is `%6.2f`).  The MORTGAGE.BAS sample on BASIC-DOS disks uses PRINTF USING instead.
+- CTTY (introduced in PC DOS 2.0), since BASIC-DOS already provides the ability to define multiple terminal-based sessions on serial ports using [CONSOLE=](docs/bdman/cfg/#console) in CONFIG.SYS; allowing a session change its "personality" on the fly would cause more problems than it would solve, and would probably work about as well as CTTY did (ie, poorly).
 - LOAD inside a running BAS or BAT file (it's an error, "Not allowed in a program", since it would replace the running file's own text); programs that run other programs use RUN *file* or CHAIN instead.
 
 ## Roadmap
@@ -252,7 +255,7 @@ These aren't project goals:
 These are the next steps, roughly in priority order:
 
 1. RUN *file*, which BASICA programs use to run another program
-2. Remaining string and input/output features (the MID$ statement and comma print zones)
+2. Remaining string and input/output features (comma print zones)
 3. The rest of runtime error handling (RESUME and RESUME NEXT, and messages for numeric errors)
 4. Common BASICA features that BASIC-DOS lacks: BEEP, TIMER, INPUT$, LPRINT, and CHAIN MERGE
 

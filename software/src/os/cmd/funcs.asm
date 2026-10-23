@@ -21,7 +21,7 @@ CODE    SEGMENT
 	EXTNEAR	<strArg,strAsc,strChr,strDate,strFre,strHex,strInkey,strInstr>
 	EXTNEAR	<strLCase,strLeft,strLen,strMid,strOct,strRight,strSpace>
 	EXTNEAR	<strStr,strString,strTime,strUCase,strVal,strCurDir,strPath>
-	EXTNEAR	<getExists,strDir,getDos,gfxPoint,gfxPmap>
+	EXTNEAR	<getExists,strDir,getDos,gfxPoint,gfxPmap,getLpos>
 
 	DEFLBL	PREDEF_VARS,byte
 ;
@@ -148,7 +148,12 @@ CODE    SEGMENT
 	db	VAR_LONG,1
 	db	VAR_LONG,PARM_REQUIRED
 	dw	offset fileLof,0
+	db	VAR_FUNC + 4,"LPOS"
+	db	VAR_LONG,1
+	db	VAR_LONG,PARM_OPT_ZERO
+	dw	offset getLpos,0
 	db	VAR_FUNC + 3,"MID"
+	DEFLBL	MID_DATA,byte		; (see genLet)
 	db	VAR_STR,3
 	db	VAR_STR,PARM_REQUIRED
 	db	VAR_LONG,PARM_REQUIRED

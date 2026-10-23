@@ -281,6 +281,9 @@ Lists all lines (or the specified range of lines) of the currently loaded BAS or
 LIST VARS lists preserved strings (including PATH$), then ordinary variable values with type suffixes and quoted strings, and array bounds without their elements.  Function definitions are omitted.  Use LIST VARS | MORE to page the listing.
 To add a line to the program (or replace the line with the same number), type the line with its line number at the prompt.
 
+[b+]LLIST [*line*][-[*line*]]
+Lists all lines (or the specified range of lines) like LIST, but to the printer (PRN, which is LPT1).
+
 [b]LOAD *file*
 Loads the specified BAT or BAS file (searching PATH$ if necessary), which can be a text file or a tokenized BAS file saved by BASICA or GW-BASIC.  LOAD can't be used inside a BAS or BAT file (yet).
 
@@ -297,6 +300,12 @@ Returns the size of file *n*, in bytes.
 [f]LOG(*x*)
 Returns the natural logarithm of *x*, which must be greater than zero.
 
+[f+]LPOS(*n*)
+Returns the printer's current column, starting at 1 (*n* is ignored).
+
+[b+]LPRINT [*expression*][;|,][*expression*]...
+Prints like PRINT, but to the printer (PRN, which is LPT1).  Without a printer, a "Device timeout" error occurs (a printer can also report "Out of paper" or "Device fault"), as it does for PRINT # to a printer.
+
 [b+]LSET *variable$*=*string*
 Sets the variable to *string*, left-justified and padded with spaces (or truncated) to the variable's FIELD width (or if it isn't a FIELD variable, its current length).  RSET is the same, but right-justified.
 
@@ -311,6 +320,7 @@ Displays total memory, memory available for executables, and memory available fo
 
 [f]MID$(*string*,*start*[,*n*])
 Returns *n* characters of *string*, beginning at position *start* (or the rest of *string* if *n* is omitted).
+The statement MID$(*variable$*,*start*[,*n*])=*string* replaces characters of the variable, beginning at position *start*, with as many characters of *string* as fit (no more than *n*), without changing its length (not available on low memory systems).
 
 [f+]MKD$(*x*)
 Returns an 8-byte string containing the double *x* (see CVD), for a random access file.
@@ -543,7 +553,7 @@ Returns the numeric value of *string*, ignoring any blanks.  If *string* does no
 Displays the BASIC-DOS version number.
 
 [e]VI [~WS] [*file*]
-Edits *file* full-screen, using a subset of the commands of the UNIX *vi* editor (see the BASIC-DOS manual).  Press i to insert text and ESC to stop, then type :wq to save and exit, or :q! to exit without saving.  ~WS adds WordStar keys (eg, CTRL-E, CTRL-X, CTRL-S, and CTRL-D move the cursor, and CTRL-V switches insert mode on and off).
+Edits *file* full-screen, using a subset of the commands of the UNIX *vi* editor (see the BASIC-DOS manual).  Press i to insert text and ESC to stop, then type :wq to save and exit, or :q! to exit without saving.  ~WS adds WordStar support (eg, CTRL-E, CTRL-X, CTRL-S, and CTRL-D move the cursor, and CTRL-V switches insert mode on and off).
 
 [b+]VIEW [[SCREEN] (*x1*,*y1*)-(*x2*,*y2*)[,[*fill*][,*border*]]]
 Limits drawing in a graphics mode to a viewport, after filling it with the *fill* color and drawing a *border* around it, if specified.  Points are relative to the viewport, unless SCREEN is specified.  VIEW alone ends the viewport.

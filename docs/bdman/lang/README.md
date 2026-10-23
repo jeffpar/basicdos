@@ -178,7 +178,7 @@ On a machine with too little memory for all of COMMAND.COM (eg, 64K), BASIC-DOS 
 - The graphics commands: CIRCLE, DRAW, PAINT, PRESET, PSET, VIEW, WINDOW, and the graphics forms of GET, LINE, and PUT, and the PMAP and POINT functions
 - The MOUSE command and function
 - The sound commands: PLAY and SOUND
-- PRINTF
+- PRINTF, LPRINT, LLIST, the LPOS function, and the MID$ statement
 - The program editing commands AUTO, DELETE, and EDIT (lines can still be entered and deleted by number)
 - The file statements (OPEN, CLOSE, FIELD, GET, PUT, LSET, RSET, RESET, IOCTL, and the # forms of INPUT, LINE INPUT, PRINT, and WRITE) and file functions (CVD, CVI, CVL, EOF, IOCTL$, LOC, LOF, MKD$, MKI$, and MKL$)
 - The DOS statement and function

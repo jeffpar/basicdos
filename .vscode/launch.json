@@ -35,7 +35,7 @@
     {
       "type": "chrome",
       "request": "launch",
-      "name": "BASIC-DOS with a Serial Display",
+      "name": "BASIC-DOS with a Serial Port",
       "url": "http://localhost:4040/demos/serial/",
       "webRoot": "${workspaceFolder}"
     },

@@ -64,16 +64,74 @@ DEFPROC	tty_write,DOS
 	jmp	write_char
 ENDPROC	tty_write
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; aux_read (REG_AH = 03h)
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	AL = character from STDAUX
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
 DEFPROC	aux_read,DOS
-	ret
+	mov	bx,STDAUX
+	call	sfb_get			; BX -> SFB
+	jc	pw9
+	push	ss
+	pop	es
+	lea	dx,[bp].REG_AL		; ES:DX -> REG_AL
+	mov	cx,1
+	mov	al,IO_COOKED
+	jmp	sfb_read
 ENDPROC	aux_read
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; aux_write (REG_AH = 04h)
+;
+; Inputs:
+;	REG_DL = character to write
+;
+; Outputs:
+;	Writes character to STDAUX
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
 DEFPROC	aux_write,DOS
-	ret
+	mov	bx,STDAUX
+	jmp	short pw1
 ENDPROC	aux_write
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; prn_write (REG_AH = 05h)
+;
+; Inputs:
+;	REG_DL = character to write
+;
+; Outputs:
+;	Writes character to STDPRN
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
 DEFPROC	prn_write,DOS
-	ret
+	mov	bx,STDPRN
+pw1:	call	sfb_get			; BX -> SFB
+	jc	pw9
+	push	ss
+	pop	ds
+	ASSUME	DS:NOTHING
+	lea	si,[bp].REG_DL		; DS:SI -> REG_DL
+	mov	cx,1
+	mov	al,IO_COOKED
+	jmp	sfb_write
+pw9:	ret
 ENDPROC	prn_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

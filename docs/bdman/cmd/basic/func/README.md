@@ -11,7 +11,7 @@ Functions can be used in any expression, in BASIC programs or at the prompt (eg,
 - Numeric functions: [ABS](#abs), [ATN](#atn), [CDBL](#cdbl), [CINT](#cint), [COS](#cos), [CSNG](#cdbl), [EXP](#exp), [FIX](#fix), [INT](#int), [LOG](#log), [RND](#rnd), [RND%](#rnd-int), [SGN](#sgn), [SIN](#sin), [SQR](#sqr), [TAN](#tan)
 - String functions: [ASC](#asc), [CHR$](#chr), [HEX$](#hex), [INSTR](#instr), [LCASE$](#lcase), [LEFT$](#left), [LEN](#len), [MID$](#mid), [OCT$](#oct), [RIGHT$](#right), [SPACE$](#space), [SPC](#space), [STR$](#str), [STRING$](#string), [TAB](#tab), [UCASE$](#ucase), [VAL](#val)
 - File functions: [CVD](#cvi), [CVI](#cvi), [CVL](#cvi), [DIR$](#dir), [EOF](#eof), [EXISTS](#exists), [LOC](#loc), [LOF](#lof), [MKD$](#mki), [MKI$](#mki), [MKL$](#mki)
-- System functions: [ARG$](#arg), [CSRLIN](#csrlin), [CURDIR$](#curdir), [DATE$](#date), [DOS](#dos), [ERL](#erl), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PATH$](#path), [PEEK](#peek), [POS](#pos), [SCREEN](#screen), [TIME$](#time)
+- System functions: [ARG$](#arg), [CSRLIN](#csrlin), [CURDIR$](#curdir), [DATE$](#date), [DOS](#dos), [ERL](#erl), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PATH$](#path), [LPOS](#lpos), [PEEK](#peek), [POS](#pos), [SCREEN](#screen), [TIME$](#time)
 - Predefined constants: [ERRORLEVEL](#errorlevel), [MAXINT](#maxint)
 
 You can also define your own functions with [DEF](../def/).
@@ -161,7 +161,11 @@ Returns the number of characters in *string* (0-255).
 
 > MID$(*string*,*start*[,*n*])
 
-Returns *n* characters of *string*, beginning at position *start* (or the rest of *string* if *n* is omitted).  The MID$ statement (eg, `MID$(A$,2) = "X"`) isn't supported yet.
+Returns *n* characters of *string*, beginning at position *start* (or the rest of *string* if *n* is omitted).
+
+> MID$(*variable$*,*start*[,*n*]) = *string*
+
+The MID$ statement replaces characters of a string variable (or array element), beginning at position *start*, with the characters of *string*, but never more than *n* characters (if specified) or more than fit, since the variable's length doesn't change (eg, after `A$ = "HELLO WORLD" : MID$(A$,7) = "THERE"`, A$ is "HELLO THERE").  As in Microsoft BASIC, *start* must be 1 to 255 and no greater than the variable's length, and *n* must be 0 to 255, or an "Illegal function call" occurs.  The MID$ statement isn't available on low memory systems (see [Low Memory](../../../lang/#low-memory)).
 
 #### OCT$ {#oct}
 
@@ -362,6 +366,12 @@ Returns the next mouse button event (*n* = 0), the position of that event (1 and
 > PATH$ = *string*
 
 Returns (or sets) the directories, separated by semicolons, that are searched for a program (or a file to [LOAD](../../disk/#load)) that isn't in the current directory (eg, `PATH$ = "A:\;A:\EXT;A:\DEMOS;A:\SAMPLES"`); see [Running Programs](../../../intro/#running-programs).  Unlike other variables, PATH$ keeps its value when variables are cleared (eg, by [NEW](../../system/#new) or [CLEAR](../#clear)), and each session has its own.  It's usually set on a [SHELL](../../../cfg/#shell) line in CONFIG.SYS, and it's limited to 120 characters.
+
+#### LPOS {#lpos}
+
+> LPOS(*n*)
+
+Returns the printer's current column, starting at 1 (*n* is ignored), as PRN (LPT1) tracks it: a carriage return returns it to 1, a backspace backs it up, and other control characters don't move it (see [LPRINT](../../device/screen/#lprint)).  Without a printer, LPOS returns 1.  LPOS isn't available on low memory systems.
 
 #### PEEK {#peek}
 

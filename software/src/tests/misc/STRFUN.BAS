@@ -48,4 +48,7 @@
 443 X = FRE(0) : IF S1$ <> "TWO" OR S2$ <> "ONE" THEN PRINT "SWAP owners failed" : FAILS = FAILS + 1
 444 IF SPC(3) <> "   " OR LEN(SPC(0)) <> 0 THEN PRINT "SPC failed" : FAILS = FAILS + 1
 445 IF MID$(CURDIR$,2,1) <> ":" OR LEN(CURDIR$) < 3 THEN PRINT "CURDIR$ failed" : FAILS = FAILS + 1
+446 MS$ = "HELLO WORLD" : MID$(MS$,7) = "THERE" : MID$(MS$,1,2) = "xyz" : IF MS$ <> "xyLLO THERE" THEN PRINT "MID$ statement failed" : FAILS = FAILS + 1
+447 MID$(MS$,11) = "ABC" : MID$(MS$,3,0) = "QQ" : DIM MA$(2) : MA$(1) = "ABCDE" : MID$(MA$(1),2,2) = "xyz" : IF MS$ <> "xyLLO THERA" OR MA$(1) <> "AxyDE" THEN PRINT "MID$ statement edge failed" : FAILS = FAILS + 1
+448 FOR I = 1 TO 2 : ML$ = "LIT" : MC = MC + (ML$ <> "LIT") : MID$(ML$,1) = "B" : NEXT : IF MC OR ML$ <> "BIT" THEN PRINT "MID$ statement literal failed" : FAILS = FAILS + 1
 450 IF FAILS THEN PRINT "STRFUN failed" ELSE PRINT "STRFUN passed"

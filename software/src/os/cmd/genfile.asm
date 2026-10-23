@@ -15,7 +15,9 @@
 ;					and genPut)
 ;	INPUT #, LINE INPUT #		(genInputFile, via genInput)
 ;	IOCTL #				(genIoctl)
+;	LPRINT				(genLprint)
 ;	LSET, RSET			(genLset, genRset)
+;	MID$ statement			(genMidSet, via genLet)
 ;	OPEN				(genOpen)
 ;	PRINT #				(genPrintFile, via genPrint)
 ;	PRINTF #			(genPrintfFile, via genPrintf)
@@ -42,7 +44,7 @@ CODE    SEGMENT
 	EXTNEAR	<skipToken,genReadVars,genPrintArgs,genPrintfArgs,genWriteEnd>
 	EXTNEAR	<openFile,closeFile,fileOut,selectInput,fileItem,genWriteArgs>
 	EXTNEAR	<fieldVar,setField,fileRecord,lsetStr,genVarRef,fileIoctl>
-	EXTNEAR	<dosCall>
+	EXTNEAR	<dosCall,prnOut,midSet,genLong>
 	EXTNEAR	<genGetGfx,genPutGfx,compError>
 
 	EXTABS	<TOK_FOR,TOK_INPUT,TOK_AS,TOK_OUTPUT,TOK_APPEND,TOK_RANDOM>
@@ -197,6 +199,39 @@ DEFPROC	genPrintFile
 	jmp	genWriteEnd
 gpf9:	ret
 ENDPROC	genPrintFile
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genLprint
+;
+; Generate code for "LPRINT", which prints like PRINT, with PRN as STDOUT
+; (see prnOut) until the end of the statement, when redirEnd also reports any
+; printer error.
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genLprint
+	mov	ax,(2 SHL 8) OR OP_JMPS	; JMP over the redirection word
+	stosw
+	mov	cx,di			; CX = offset of redirection word
+	sub	ax,ax
+	stosw
+	mov	dx,es			; DX:CX -> redirection word
+	push	dx
+	push	cx
+	GENPUSH	dx,cx			; push pointer to redirection word
+	GENCALL	prnOut
+	call	genPrintArgs		; generate the rest of PRINT
+	jmp	genWriteEnd
+ENDPROC	genLprint
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -432,6 +467,64 @@ gls8:	pop	dx
 	stc
 	ret
 ENDPROC	genLset
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genMidSet
+;
+; Generate code for "MID$(var$,start[,length]) = string" (see midSet); genLet
+; comes here, via genUpper, after MID$.
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genMidSet
+	mov	al,CLS_SYM
+	call	getNextToken
+	jbe	gms8
+	cmp	al,'('
+	jne	gms8
+	call	genStrVar		; push the pointer to the variable
+	jc	gms9
+	mov	al,CLS_SYM
+	call	getNextToken
+	jbe	gms8
+	cmp	al,','
+	jne	gms8
+	call	genLong			; start
+	jc	gms9
+	cmp	al,')'			; is the length omitted?
+	je	gms2			; yes
+	cmp	al,','
+	jne	gms8
+	call	genLong			; length
+	jc	gms9
+	cmp	al,')'
+	jne	gms8
+	jmp	short gms3
+gms2:	GENPUSH	0,255			; the default length
+gms3:	mov	al,CLS_SYM
+	call	getNextToken
+	jbe	gms8
+	cmp	al,'='
+	jne	gms8
+	call	genExpr			; push the string
+	jbe	gms8
+	mov	al,VAR_STR
+	call	genCvtType
+	jc	gms9
+	GENCALL	midSet
+	ret
+gms8:	stc
+gms9:	ret
+ENDPROC	genMidSet
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

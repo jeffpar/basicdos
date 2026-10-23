@@ -7,9 +7,9 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; AUTO, DELETE, and EDIT, and editPrompt, which the main loop calls when AUTO
-; or EDIT has set a line to edit (see EDIT_STATE).  The program's text blocks
-; and the other editing functions are in edit.asm.
+; AUTO, DELETE, EDIT, and LLIST, and editPrompt, which the main loop calls
+; when AUTO or EDIT has set a line to edit (see EDIT_STATE).  The program's
+; text blocks and the other editing functions (eg, LIST) are in edit.asm.
 ;
 ; This module is not part of COMMAND's core (see CMD.LRF and HEAP.ASM): when
 ; only the core is loaded, cmdDOS refuses these commands with "Not enough
@@ -22,13 +22,48 @@
 CODE    SEGMENT
 
 	EXTNEAR	<chkProgram,getRange,syntaxError,freeCache,walkLines,delLine>
-	EXTNEAR	<findLine,putNum,parseLine,storeLine,printCRLF>
+	EXTNEAR	<findLine,putNum,parseLine,storeLine,printCRLF,listLine>
+	EXTNEAR	<chkOut>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
 EDIT_LINE	equ	EDIT_STATE+0	; line # to edit at the next prompt
 EDIT_INC	equ	EDIT_STATE+2	; AUTO increment (0 if not AUTO)
 MAX_LINE	equ	65529		; largest line # (see edit.asm)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdLlist
+;
+; Process "LLIST [line][-[line]]", which lists lines like LIST, but to the
+; printer (PRN), reporting any printer error afterward (see chkOut).  The
+; range is parsed before PRN becomes STDOUT, so that errors aren't printed.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	DI -> TOKENBUF
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdLlist
+	mov	al,'-'
+	call	getRange		; AX = 1st line #, DX = last line #
+	jc	ll9
+	mov	cl,ds:[PSP_PFT][STDPRN]
+	xchg	cl,ds:[PSP_PFT][STDOUT]	; make PRN STDOUT
+	push	cx
+	mov	si,offset listLine
+	call	walkLines
+	pop	cx
+	mov	ds:[PSP_PFT][STDOUT],cl	; and restore STDOUT
+	mov	bx,STDPRN
+	jmp	chkOut
+ll9:	ret
+ENDPROC	cmdLlist
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

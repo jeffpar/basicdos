@@ -1,8 +1,8 @@
-/* Keep the 80x24 serial terminal aligned with the responsive monitor canvas. */
+/* Keep the 80x24 serial terminal (or printer) pane aligned with the responsive monitor canvas. */
 (() => {
     const machine = document.getElementById("ibm5160");
     const monitor = machine?.querySelector(".pcjs-video canvas");
-    const terminal = machine?.querySelector(".pcjs-serial textarea");
+    const terminal = machine?.querySelector(".pcjs-serial textarea, .pcjs-parallel textarea");
     if (!monitor || !terminal) return;
 
     const measure = document.createElement("canvas").getContext("2d");

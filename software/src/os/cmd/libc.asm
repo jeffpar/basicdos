@@ -14,7 +14,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<parseDOS,splitCmd,releaseStr,strIllegal,ctrlc,openName>
-	EXTNEAR	<chkStrVar,noFile,mouseCall,mouseReset,allocStr>
+	EXTNEAR	<chkStrVar,noFile,mouseCall,mouseReset,allocStr,rtError>
 	EXTSTR	<STR_ON,STR_OFF>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -165,8 +165,9 @@ ENDPROC	redirOut
 ; End a redirection started by redirOut (at the end of the line), restoring
 ; STDOUT and closing the file.  If control left the line some other way (eg,
 ; GOTO), cleanUp eventually restores STDOUT and closes the file instead.
-; PRINT # and WRITE # use this, too (see fileOut), but their handle is 0FFh,
-; so the close fails harmlessly and the file stays open.
+; PRINT #, WRITE #, and LPRINT use this, too (see fileOut and prnOut), but
+; their handle has bit 7 set, so the file stays open, and instead, we report
+; any printer error (see chkOut), since writes to STDOUT ignore errors.
 ;
 ; Inputs:
 ;	[pRedirW] -> redirection word (in the code block)
@@ -191,12 +192,52 @@ DEFPROC	redirEnd,FAR
 	mov	ds:[PSP_PFT][STDOUT],al	; restore STDOUT
 	mov	bl,ah
 	mov	bh,0			; BX = handle
+	test	bl,bl			; is the file staying open?
+	js	re8			; yes
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
+	jmp	short re9
+re8:	and	bl,7Fh
+	call	chkOut
 re9:	pop	ds
 	LEAVE
 	RETURN
 ENDPROC	redirEnd
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chkOut
+;
+; Reports the last error that a printer (eg, PRN) had writing, if any: only
+; printer drivers (see lptdev.asm) report errors for IOCTL_OUTSTATUS, while
+; other devices (and files) report "unknown command" (22) or nothing.
+;
+; Inputs:
+;	BX = handle
+;
+; Outputs:
+;	None (an error occurs instead, if there was one)
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	chkOut
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_OUTSTATUS
+	int	21h			; did a printer report an error?
+	jnc	co9			; no
+	mov	dl,24			; "Device timeout"
+	cmp	al,ERR_NOTREADY		; (from a time-out)
+	je	co8
+	mov	dl,27			; "Out of paper"
+	cmp	al,28			; (printer out of paper)
+	je	co8
+	mov	dl,25			; "Device fault"
+	cmp	al,29			; (write fault)
+	jne	co9			; anything else isn't a printer error
+co8:	xchg	ax,dx
+	jmp	rtError
+co9:	ret
+ENDPROC	chkOut
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

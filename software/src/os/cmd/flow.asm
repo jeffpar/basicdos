@@ -400,7 +400,10 @@ ERR_MSGS label byte
 	db	13,"Type mismatch",0
 	db	14,"Out of string space",0
 	db	15,"String too long",0
+	db	24,"Device timeout",0
+	db	25,"Device fault",0
 	db	26,"FOR without NEXT",0
+	db	27,"Out of paper",0
 	db	29,"WHILE without WEND",0
 	db	30,"WEND without WHILE",0
 	db	50,"FIELD overflow",0

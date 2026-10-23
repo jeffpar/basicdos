@@ -24,7 +24,7 @@ ok:
 	endm
 
 CODE	segment
-	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:CODE
+	ASSUME	CS:CODE, DS:CODE, ES:CODE, SS:CODE
 	org	100h
 
 DEFPROC	main
@@ -38,6 +38,7 @@ DEFPROC	main
 ;
 	mov	ax,0B800h
 	mov	es,ax
+	ASSUME	ES:NOTHING
 	mov	ax,0ED7h
 	push	ax
 	popf

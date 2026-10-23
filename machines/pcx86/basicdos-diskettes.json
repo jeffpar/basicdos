@@ -6,7 +6,7 @@
   "/software/disks/BASICDOS-360K-P80.json": "BASIC-DOS Multi-Page Demo",
   "/software/disks/BASICDOS-360K-DUAL.json": "BASIC-DOS Dual Monitor Demo",
   "/software/disks/BASICDOS-360K-MULTI.json": "BASIC-DOS Multi-Session Demo",
-  "/software/disks/BASICDOS-360K-SERIAL.json": "BASIC-DOS HD Serial Display Demo",
+  "/software/disks/BASICDOS-360K-SERIAL.json": "BASIC-DOS HD Serial Port Demo",
   "/software/disks/BASICDOS-360K-VT100.json": "BASIC-DOS HD VT100 Demo",
   "/software/disks/BASICDOS-360K-DEBUG.json": "BASIC-DOS Serial Debugger Demo",
   "/software/disks/BASICDOS-360K-M64.json": "BASIC-DOS Monochrome Demo",

@@ -112,6 +112,11 @@
       "adapter": 2
     }
   ],
+  "parallel": {
+    "id": "lpt1",
+    "adapter": 2,
+    "binding": "console"
+  },
   "debugger": {
     "id": "debugger",
     "name": "",

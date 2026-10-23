@@ -14,7 +14,7 @@
 
 CODE	SEGMENT word public 'CODE'
 
-	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:CODE
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:CODE	; ES = text segment
 
 	EXTNEAR	<beginChange,classAt,clearAll,colToOff,copyOut,countLines>
 	EXTNEAR	<cutText,decB,dispCol,downN,findRow,firstNonBlank,getc>

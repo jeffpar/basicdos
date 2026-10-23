@@ -187,10 +187,16 @@ ENDPROC	ddcom_cmd
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcom_read
 	push	cx
+	xchg	ax,cx			; AX = context, if any
 	mov	cx,es:[di].DDPRW_LENGTH
 	jcxz	dcr9
-
-	mov	ax,es:[di].DDP_CONTEXT
+;
+; Use the port's context (and record it in the packet, for wake_reader), even
+; if the handle has none, because a handle opened before the port's context
+; existed (eg, the STDAUX handle that DOS opens at boot) would otherwise use
+; the BIOS, which clears OUT2 and therefore disables the port's interrupts.
+;
+	mov	es:[di].DDP_CONTEXT,ax
 	test	ax,ax
 	jnz	dcr1a
 
@@ -256,12 +262,13 @@ ENDPROC	ddcom_read
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcom_write
 	push	cx
+	xchg	ax,cx			; AX = context, if any
 	mov	cx,es:[di].DDPRW_LENGTH
 	jcxz	dcw9
 
 	lds	si,es:[di].DDPRW_ADDR
 	ASSUME	DS:NOTHING
-	mov	ax,es:[di].DDP_CONTEXT
+	mov	es:[di].DDP_CONTEXT,ax	; use the port's context (see ddcom_read)
 	test	ax,ax
 	jnz	dcw1a
 
@@ -1039,13 +1046,14 @@ dco0:	jmp	dco8
 dco1:	lds	si,es:[di].DDP_PTR
 	ASSUME	DS:NOTHING
 ;
-; We know that DDP_PTR must point to a string containing "COMn" at the
-; very least, so we skip those 4 bytes.
+; DDP_PTR points to the device name (eg, "COM1", or "AUX" when AUX forwards
+; the request), so any parms follow the first colon.
 ;
-	add	si,4			; DS:SI -> parms
-	cmp	[si],cl			; any parms?
-	je	dco0			; no
-	inc	si			; skip the colon separator
+dco1c:	lodsb
+	cmp	al,cl			; end of the name (CL is zero)?
+	je	dco0			; yes, so there are no parms
+	cmp	al,':'			; colon separator?
+	jne	dco1c			; no, so keep looking
 
 	push	di
 	push	es

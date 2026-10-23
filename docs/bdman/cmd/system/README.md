@@ -15,6 +15,7 @@ BASIC-DOS system commands include:
 - [HELP](#help)
 - [KEYS](#keys)
 - [LIST](#list)
+- [LLIST](#llist)
 - [MEM](#mem)
 - [NEW](#new)
 - [RESTART](#restart)
@@ -71,6 +72,12 @@ Displays a summary of the special keys that can be used when typing commands (se
 Lists all lines of the currently loaded BAS or BAT program, or the specified range of lines (eg, `LIST 100`, `LIST 100-200`, `LIST 100-`, or `LIST -200`).  Lines without line numbers are listed with the numbered line that precedes them.
 
 `LIST VARS` lists preserved string variables such as `PATH$` first, followed by the current session's ordinary variables and their values in allocation order.  Names include `%`, `#`, or `$` to identify their types, and string values are quoted.  Arrays show each dimension's lower and upper bounds (eg, `A%(0 TO 2, 0 TO 3)`), without listing their elements.  Function definitions are omitted.  The listing can be redirected (eg, `LIST VARS > VARS.TXT` at the prompt) or paged with `LIST VARS | MORE`.
+
+### LLIST
+
+> LLIST [*line*][-[*line*]]
+
+Lists all lines (or the specified range of lines) like [LIST](#list), but to the printer (PRN, which is LPT1; see [LPRINT](../device/screen/#lprint)).  Without a printer, a "Device timeout" error occurs.  LLIST isn't available on low memory systems.
 
 ### MEM
 

@@ -8,9 +8,9 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 ; Runtime functions for CLOSE, DOS, FIELD, GET #, INPUT #, IOCTL #, LINE
-; INPUT #, LSET, OPEN, PRINT #, PUT #, RSET, and WRITE # (see genfile.asm),
-; and for the CVD, CVI, CVL, DOS, EOF, IOCTL$, LOC, LOF, MKD$, MKI$, and MKL$
-; functions.
+; INPUT #, LPRINT, LSET, the MID$ statement, OPEN, PRINT #, PUT #, RSET, and
+; WRITE # (see genfile.asm), and for the CVD, CVI, CVL, DOS, EOF, IOCTL$, LOC,
+; LOF, LPOS, MKD$, MKI$, and MKL$ functions.
 ; Like genfile.asm, this is outside COMMAND's core (see CMD.LRF), unlike the
 ; INPUT, LINE INPUT, and WRITE functions that files share with the keyboard
 ; and screen (see input.asm).
@@ -28,7 +28,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<rtError,allocStr,releaseStr,openMode,setStr>
+	EXTNEAR	<rtError,allocStr,releaseStr,openMode,setStr,strIllegal>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
@@ -189,9 +189,9 @@ ENDPROC	closeSlot
 ; fileOut
 ;
 ; Used by "PRINT #n" and "WRITE #n" to make file n STDOUT (like redirOut,
-; which does the same for ":>"), until redirEnd restores STDOUT; the handle
-; that we record for redirEnd to close is 0FFh, which isn't a valid handle,
-; so the file stays open.
+; which does the same for ":>"), until redirEnd restores STDOUT; we record the
+; file's handle for redirEnd with bit 7 set, so that it leaves the file open
+; and checks for a printer error instead (see chkOut).
 ;
 ; Inputs:
 ;	32-bit file number (popped)
@@ -214,12 +214,41 @@ DEFPROC	fileOut,FAR
 	mov	bh,0
 	mov	al,ss:[PSP_PFT][bx]	; AL = SFH of the file
 	xchg	al,ss:[PSP_PFT][STDOUT]	; AL = previous STDOUT SFH
-	mov	ah,0FFh			; AH = handle for redirEnd
+	mov	ah,bl
+	or	ah,80h			; AH = handle for redirEnd (see above)
 	les	di,[pOutW]
 	stosw				; record the redirection
 	LEAVE
 	RETURN
 ENDPROC	fileOut
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; prnOut
+;
+; Used by "LPRINT" to make PRN (the process's STDPRN) STDOUT, like fileOut,
+; until redirEnd restores STDOUT (and checks for a printer error).
+;
+; Inputs:
+;	[pPrnW] -> redirection word (in the code block)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, DI, ES
+;
+DEFPROC	prnOut,FAR
+	ARGVAR	pPrnW,dword
+	ENTER
+	mov	al,ss:[PSP_PFT][STDPRN]	; AL = SFH of PRN
+	xchg	al,ss:[PSP_PFT][STDOUT]	; AL = previous STDOUT SFH
+	mov	ah,STDPRN OR 80h	; AH = handle (see fileOut)
+	les	di,[pPrnW]
+	stosw				; record the redirection
+	LEAVE
+	RETURN
+ENDPROC	prnOut
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1102,6 +1131,111 @@ ls8:	push	dx
 	LEAVE
 	RETURN
 ENDPROC	lsetStr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getLpos (LPOS)
+;
+; Returns the printer's current column (starting at 1), which PRN (LPT1)
+; reports like the console's cursor position (see IOCTL_GETPOS); 1 if there's
+; no printer.  As in early versions of BASICA, the argument is ignored.
+;
+; Inputs:
+;	32-bit return value
+;	32-bit arg (popped)
+;
+; Outputs:
+;	32-bit return value updated
+;
+; Modifies:
+;	AX, BX, DX
+;
+DEFPROC	getLpos,FAR
+	RETVAR	retLpos,dword
+	ARGVAR	lLpos,dword
+	ENTER
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETPOS
+	mov	bx,STDPRN
+	int	21h			; DL = column (if there's a printer)
+	jnc	glp1
+	sub	dx,dx
+glp1:	mov	al,dl
+	mov	ah,0
+	inc	ax
+	mov	[retLpos].LOW,ax
+	mov	[retLpos].HIW,0
+	LEAVE
+	RETURN
+ENDPROC	getLpos
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; midSet
+;
+; Used by "MID$(var$,start[,length]) = string", which replaces characters of
+; the variable, beginning at start, with as many characters of the string as
+; fit (but no more than length), without changing the variable's length.  As
+; in MSBASIC, start must be 1 to 255 and no more than the variable's length,
+; and length must be 0 to 255 (the default is 255).  A variable's string is
+; never shared (see setStr), so we can replace its characters in place.
+;
+; Inputs:
+;	far pointer to variable (popped)
+;	32-bit start and length (popped)
+;	string value (popped)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, CX, DX, SI, DI, ES
+;
+DEFPROC	midSet,FAR
+	ARGVAR	pMsVar,dword
+	ARGVAR	lMsStart,dword
+	ARGVAR	lMsLen,dword
+	ARGVAR	pMsStr,dword
+	ENTER
+	mov	ax,[lMsStart].LOW
+	dec	ax			; AX = offset of start
+	mov	cx,[lMsLen].LOW		; CX = length
+	mov	dx,[lMsStart].HIW
+	or	dx,[lMsLen].HIW		; are both less than 64K?
+	jnz	ms9			; no
+	cmp	ax,254			; is start 1 to 255?
+	ja	ms9			; no
+	cmp	cx,255			; is length 0 to 255?
+	ja	ms9			; no
+	push	ds
+	lds	si,[pMsVar]
+	les	di,[si]			; ES:DI -> variable's string
+	test	di,di			; is it empty?
+	jz	ms8			; yes, so start is past the end
+	mov	dl,es:[di]		; DX = its length
+	sub	dx,ax			; DX = # characters from start on
+	jbe	ms8			; start is past the end
+	cmp	cx,dx
+	jbe	ms1
+	mov	cx,dx			; CX = # characters to replace
+ms1:	add	di,ax
+	inc	di			; ES:DI -> start
+	lds	si,[pMsStr]
+	test	si,si			; is the string empty?
+	jz	ms7			; yes
+	lodsb
+	mov	ah,0			; AX = its length
+	cmp	cx,ax
+	jbe	ms2
+	xchg	cx,ax			; (it's shorter)
+ms2:	rep	movsb
+ms7:	pop	ds
+	les	di,[pMsStr]
+	call	releaseStr
+	LEAVE
+	RETURN
+ms8:	pop	ds
+ms9:	jmp	strIllegal
+ENDPROC	midSet
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

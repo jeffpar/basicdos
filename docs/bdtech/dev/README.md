@@ -209,9 +209,9 @@ The MBR code (mbr_code in hdcdev.asm) is modeled on the pc.js MBR (tools/pc/mbr.
 | Device | Type | Description |
 |--------|------|-------------|
 | CON | Character | Console: keyboard and screen, with a separate context for each session (see [CONSOLE=](../../bdman/cfg/#console)); interrupt-driven input, direct video output (or BIOS output), and INT 29h fast output |
-| AUX | Character | Logical serial device |
-| PRN | Character | Logical parallel (printer) device |
-| LPT1-LPT3 | Character | Parallel ports |
+| AUX | Character | Logical serial device: forwards every request to COM1 (if there's no COM1, writes fail with "not ready") |
+| PRN | Character | Logical parallel (printer) device: forwards every request to LPT1 (if there's no LPT1, writes and IOCTLs fail with "not ready") |
+| LPT1-LPT3 | Character | Parallel ports (one for each port the BIOS found): writes print with INT 17h, a failed write's error is also reported by the next IOCTL_OUTSTATUS (see LPRINT), and IOCTL_GETPOS returns the column (see LPOS) |
 | COM1-COM4 | Character | Serial ports, with interrupt-driven, asynchronous I/O |
 | NUL | Character | Null device |
 | CLOCK$ | Character | Timer interrupt, date and time, delays, and sound |

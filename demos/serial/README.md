@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS with a Serial Display
+title: BASIC-DOS with a Serial Port
 permalink: /demos/serial/
 machines:
   - id: ibm5160
@@ -8,12 +8,12 @@ machines:
     config: /machines/pcx86/ibm/ibm-5160-cga-serial-640kb.json
     debugger: available
     autoMount:
-      A: "BASIC-DOS HD Serial Display Demo"
+      A: "BASIC-DOS HD Serial Port Demo"
 ---
 
-This IBM PC XT boots the BASIC-DOS HD Serial Display Demo diskette and runs two independent sessions: an 80x25 console on the Color Display and a serial console on COM1 at 9600 baud, with no parity, eight data bits, and one stop bit.  The serial console uses the GENERIC terminal mode for this text pane.
+This IBM PC XT boots the BASIC-DOS HD Serial Port Demo diskette and runs two independent sessions: an 80x25 console on the Color Display and a serial console on COM1 at 9600 baud, with no parity, eight data bits, and one stop bit.  The serial console uses the GENERIC terminal mode for this text pane.
 
-Click the **Serial Display** pane to the right of the machine and type a command, such as `DIR` or `PRINT "Hello from COM1"`.  Click the Color Display to use the local session.  Both sessions share the same hard disk.
+Click the **Serial Display** pane to the right of the machine and type a command, such as `DIR` or `PRINT "Hello from COM1"`.  Click the Color Display to use the local session, and try commands such as `DIR > COM1` or `DIR > AUX`.  Both sessions share the same hard disk.
 
 <style>
 #ibm5160 .pcjs-chassis { display: flow-root; }
@@ -34,7 +34,7 @@ Click the **Serial Display** pane to the right of the machine and type a command
 
 Press any key at the boot prompt (or wait 2 seconds) to start the diskette.  Its CONFIG.SYS creates both consoles and launches `C:COMMAND.COM` for each.  Each session starts on the drive named in its SHELL line, so both sessions start on C:.  The [hard disk](../hd/xt/) supplies programs and files.
 
-### CONFIG.SYS from the BASIC-DOS HD Serial Display Demo diskette
+### CONFIG.SYS from the BASIC-DOS HD Serial Port Demo diskette
 
 ```
 {% include_relative CONFIG.SYS %}

@@ -21,9 +21,9 @@ The `DOS_*` names are defined in dosapi.inc (define DOSFUNC before including it)
 |----|------|--------|---------|
 | 01h | DOS_TTY_ECHO | | AL = character read from CON and echoed; checks CTRL-C |
 | 02h | DOS_TTY_WRITE | DL = character | Writes DL to CON; checks CTRL-C |
-| 03h | DOS_AUX_READ | | AL = character read from AUX |
-| 04h | DOS_AUX_WRITE | DL = character | Writes DL to AUX |
-| 05h | DOS_PRN_WRITE | DL = character | Writes DL to PRN |
+| 03h | DOS_AUX_READ | | AL = character read from AUX; checks CTRL-C |
+| 04h | DOS_AUX_WRITE | DL = character | Writes DL to AUX; checks CTRL-C |
+| 05h | DOS_PRN_WRITE | DL = character | Writes DL to PRN; checks CTRL-C |
 | 06h | DOS_TTY_IO | DL = character, or FFh to read | If DL = FFh: ZF clear and AL = character if one is available; no CTRL-C checks |
 | 07h | DOS_TTY_IN | | AL = character read from CON; no CTRL-C checks |
 | 08h | DOS_TTY_READ | | AL = character read from CON; checks CTRL-C |

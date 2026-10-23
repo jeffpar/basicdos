@@ -258,9 +258,11 @@ KEYWORDS	macro	PASS
 	PASS	LET,    50, genLet
 	PASS	LINE,   76, genLine
 	PASS	LIST,    4, cmdList
+	PASS	LLIST,  19, cmdLlist
 	PASS	LOAD,   22, cmdLoad
 	PASS	LOCATE, 64, genLocate
 	PASS	LOG,   107
+	PASS	LPRINT,113, genLprint
 	PASS	LSET,   92, genLset
 	PASS	MD,     17, cmdMkdir
 	PASS	MEM,     5, cmdMem

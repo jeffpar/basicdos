@@ -2,7 +2,7 @@ The BASIC-DOS HD VT100 Demo diskette's **CONFIG.SYS** creates two independent se
 
 The VT100 console uses the COM driver's VT100 terminal type, so commands like `CLS` and `LOCATE` use VT100 escape sequences, the VT100's DELETE key erases the previous character (like the PC's BACKSPACE key), and XON/XOFF flow control is enabled, which the VT100 relies on whenever it falls behind (eg, while smooth scrolling).
 
-There's also a [Serial Display](../../serial/) demo, which uses a simple text pane on COM1 instead of a terminal.
+There's also a [Serial Port](../../serial/) demo, which uses a simple text pane on COM1 instead of a terminal.
 
 ### **CONFIG.SYS** from the BASIC-DOS HD VT100 Demo Diskette
 

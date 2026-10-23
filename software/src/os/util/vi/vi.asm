@@ -44,7 +44,7 @@ CODE	SEGMENT word public 'CODE'
 
 	org	100h
 
-        ASSUME  CS:CODE, DS:CODE, ES:NOTHING, SS:CODE
+	ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 DEFPROC	main
 	mov	bp,ds:[PSP_HEAP]	; BP -> VIVARS
 	mov	di,bp
@@ -79,6 +79,7 @@ m2:	cmp	dh,4			; too few rows?
 	mov	[bp].V_RLIM,ax
 
 	call	loadFile
+	ASSUME	ES:NOTHING
 	jc	m8
 
 	mov	dx,offset ctrlC
@@ -125,12 +126,12 @@ ENDPROC	writeErr
 ; INT 23h handler: DOS has echoed the CTRLC, so the screen must be redrawn,
 ; and returning with IRET continues the interrupted DOS call.
 ;
-	ASSUME	DS:NOTHING
+	ASSUME	DS:NOTHING, ES:NOTHING
 DEFPROC	ctrlC,FAR
 	mov	cs:[fCtrlC],1
 	iret
 ENDPROC	ctrlC
-	ASSUME	DS:CODE
+	ASSUME	DS:CODE, ES:CODE
 
 	DEFBYTE	fCtrlC,0
 
@@ -184,7 +185,7 @@ ENDPROC	getName
 ; every CR and anything after CTRLZ, and makes sure the text ends with LF.
 ;
 ; Outputs:
-;	If carry set, SI -> error message
+;	If carry clear, ES = text segment; otherwise, SI -> error message
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI
@@ -243,6 +244,7 @@ lf3:	add	ax,15
 	jc	lf7
 	mov	[bp].V_TSEG,ax
 	mov	es,ax
+	ASSUME	ES:NOTHING
 	jcxz	lf5			; no file to read
 ;
 ; Read the file into the start of the segment, and then remove the CRs.
