@@ -16,7 +16,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<chkString,chkDir,fileError>
+	EXTNEAR	<chkString,chkDir,fileError,printCRLF>
 	EXTSTR	<DIR_DEF,PERIOD>
 	EXTBYTE	<VERB_FIND>
 
@@ -30,7 +30,8 @@ CODE    SEGMENT
 ; listed only with /A (in BASIC-DOS, only the hidden attribute keeps a file
 ; out of a listing, so system files are listed, too), and with /S, the
 ; matching files in every subdirectory are listed as well, each directory with
-; its own header and totals (see dirTree).
+; its own header and totals (see dirTree).  /W lists only the names, in as
+; many 16-character columns as the console has room for (eg, 5 in 80).
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -52,6 +53,8 @@ DEFPROC	cmdDir
 	LOCVAR	dirDrive,word		; drive letter
 	LOCVAR	dirAttr,byte		; search attributes
 	LOCVAR	dirFlags,byte		; DIRF_* flags
+	LOCVAR	dirWide,byte		; /W columns per row (0 without /W)
+	LOCVAR	dirCol,byte		; /W columns left in the current row
 	LOCVAR	dirPat,byte,14		; last component of the filespec
 	ENTER
 	mov	di,si
@@ -93,6 +96,12 @@ di2:	mov	[dirAttr],al
 	jz	di3			; no
 	inc	ax			; AL = DIRF_SUBS
 di3:	mov	[dirFlags],al
+	TESTSW	<'W'>			; /W?
+	jz	di4			; no (AH = 0)
+	mov	ah,[bx].CON_COLS
+	mov	cl,4
+	shr	ah,cl			; AH = # of 16-character columns
+di4:	mov	[dirWide],ah
 	call	dirTree
 	jc	di8
 	test	[dirFlags],DIRF_LISTED	; did anything match?
@@ -244,6 +253,8 @@ DEFPROC	dirList
 dl1:	push	bx
 	push	di
 	mov	bx,[dirClus]		; BX = bytes per cluster
+	mov	al,[dirWide]
+	mov	[dirCol],al		; (for /W, a new row)
 ;
 ; Use DX to maintain the total number of clusters, and CX to maintain
 ; the total number of files.
@@ -258,7 +269,17 @@ dl4:	push	cx
 	jz	dl5
 	mov	dl,'*'
 dl5:	PRINTF	<"%-8.*s %-3s%c">,ax,si,di,dx
-	mov	dx,ds:[PSP_DTA].FFB_DATE
+	mov	al,[dirWide]
+	test	al,al			; /W?
+	jz	dl6			; no
+	dec	[dirCol]		; any more columns in this row?
+	jnz	dl5a			; yes
+	mov	[dirCol],al		; no, so start a new row
+	call	printCRLF
+	jmp	short dl6c
+dl5a:	PRINTF	<"   ">		; (the rest of a 16-character column)
+	jmp	short dl6c
+dl6:	mov	dx,ds:[PSP_DTA].FFB_DATE
 	mov	cx,ds:[PSP_DTA].FFB_TIME
 	test	ds:[PSP_DTA].FFB_ATTR,10h ; DIRATTR_SUBDIR?
 	jnz	dl6a
@@ -269,7 +290,7 @@ dl6b:	PRINTF	<" %2M-%02D-%02X %2G:%02N%A",13,10>,dx,dx,dx,cx,cx,cx
 ;
 ; Update our totals
 ;
-	mov	ax,ds:[PSP_DTA].FFB_SIZE.LOW
+dl6c:	mov	ax,ds:[PSP_DTA].FFB_SIZE.LOW
 	mov	dx,ds:[PSP_DTA].FFB_SIZE.HIW
 	lea	cx,[bx-1]
 	add	ax,cx			; add cluster size - 1 to file size
@@ -285,7 +306,11 @@ dl6b:	PRINTF	<" %2M-%02D-%02X %2G:%02N%A",13,10>,dx,dx,dx,cx,cx,cx
 	jc	dl7
 	jmp	dl4
 
-dl7:	xchg	ax,dx			; AX = total # of clusters used
+dl7:	mov	al,[dirCol]
+	cmp	al,[dirWide]		; is a /W row unfinished?
+	je	dl7a			; no
+	call	printCRLF		; yes
+dl7a:	xchg	ax,dx			; AX = total # of clusters used
 	mul	bx			; DX:AX = total # bytes
 	PRINTF	<"%8d file(s) %8ld bytes",13,10>,cx,ax,dx
 	pop	di

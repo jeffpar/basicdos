@@ -128,7 +128,7 @@ The output of one command can also be sent to the input of another command, usin
 
 	DIR | TR a-z A-Z
 
-Each command after the first runs in its own background session, so all commands in a pipeline run at the same time.  The output of a pipeline can also be redirected (eg, `DIR | SORT > TEST`).  BASIC-DOS includes several filters for use with pipes: FIND, MORE, SORT, TEE, TR, and WC (see [Filters](../cmd/external/#filters)).
+Each command after the first runs in its own background session, so all commands in a pipeline run at the same time.  The first command can also be a BAT or BAS file (eg, `LS | SORT`), which, like a built-in command, runs once the other commands have started; a BAT or BAS file can't come after a `|` yet.  The output of a pipeline can also be redirected (eg, `DIR | SORT > TEST`).  BASIC-DOS includes several filters for use with pipes: FIND, MORE, SORT, TEE, TR, and WC (see [Filters](../cmd/external/#filters)).
 
 At the prompt, a line of BASIC statements can end with a pipe, too, which sends the output of every statement on the line to the commands after the `|` (eg, `FOR I=1 TO 100:PRINT 3.14^I:NEXT | MORE`).  The pipe must come after the line's last statement (a `|` inside quotes doesn't count), and the statements run once the other commands have started.  This isn't available in BAT and BAS files, or on low memory systems.
 

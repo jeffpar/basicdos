@@ -49,6 +49,20 @@ IF VAL(L$) <> 1 THEN PRINT "redirection string failed" : FAILS = FAILS + 1
 KILL "T1.TMP" + F$
 IF ERRORLEVEL = 0 THEN PRINT "KILL expression failed" : FAILS = FAILS + 1
 DEL T?.TMP
+DIR /W \EXT\T*.COM > T.TMP
+OPEN "T.TMP" FOR INPUT AS #1
+FOR I = 1 TO 5 : LINE INPUT #1, L$ : NEXT : CLOSE #1
+IF LEFT$(L$, 28) <> "TEE      COM    TR       COM" THEN PRINT "DIR /W failed" : FAILS = FAILS + 1
+LS -rF \EXT\T*.COM > T.TMP
+OPEN "T.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
+IF L$ <> "\EXT\TR.COM*" THEN PRINT "LS failed" : FAILS = FAILS + 1
+REM A BAS file writing more than a pipe holds must not wait for the reader
+LS \EXT | SORT /R > T.TMP
+OPEN "T.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
+IF L$ <> "WC.COM" THEN PRINT "BAS pipe failed" : FAILS = FAILS + 1
+TYPE NOFILE.TMP | SORT
+IF ERRORLEVEL = 0 THEN PRINT "deferred error failed" : FAILS = FAILS + 1
+DEL T.TMP
 P$ = "paths":\EXT\SLEEP.COM 0
 IF ERRORLEVEL THEN PRINT "absolute command failed" : FAILS = FAILS + 1
 \EXT\SLEEP.COM 0

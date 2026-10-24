@@ -47,6 +47,7 @@ software/src/os/util/bas/COMP.BAS
 software/src/os/util/bas/DISKCOPY.BAS
 software/src/os/util/bas/FORMAT.BAS
 software/src/os/util/bas/LABEL.BAS
+software/src/os/util/bas/LS.BAS
 software/src/os/util/bas/MODE.BAS
 software/src/os/util/bas/SYS.BAS
 software/src/os/util/bas/TREE.BAS

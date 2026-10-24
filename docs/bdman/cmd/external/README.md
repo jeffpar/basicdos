@@ -46,6 +46,7 @@ In the **EXT** directory (see [Running Programs](../../intro/#running-programs) 
 - DISKCOPY.BAS: copies a diskette (see [DISKCOPY](#diskcopy) below)
 - FORMAT.BAS: formats a diskette or hard disk volume (see [FORMAT](#format) below)
 - LABEL.BAS and VOL.BAS: change or display a volume label (see [LABEL and VOL](#label) below)
+- LS.BAS: lists files and directories like the UNIX `ls` command (see [LS](#ls) below)
 - MODE.BAS: sets the display, a serial port, or a printer (see [MODE](#mode) below)
 - SYS.BAS: makes a disk bootable (see [SYS](#sys) below)
 - TREE.BAS: displays a directory tree (see [TREE](#tree) below)
@@ -193,6 +194,42 @@ LABEL gives drive *d* (or the current drive) a volume label of up to 11 characte
 	LABEL A:SAVED FILES
 
 Source: [LABEL.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/LABEL.BAS) and [VOL.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/VOL.BAS)
+
+### LS
+
+	LS [-1aFlRrSt] [filespec]...
+
+Lists files and directories like the UNIX `ls` command.  Each *filespec* that's a directory (eg, `LS \EXT`, `LS ..`, or `LS A:`) lists the files in that directory, and without one, the current directory is listed.  Any other *filespec* lists the files that match it (and with wildcards, the directories that match it, too), with the *filespec*'s drive and path in front of each name, as a UNIX shell would expand them (eg, `LS \EXT\T*.COM` lists `\EXT\TEE.COM  \EXT\TR.COM`); those files are listed first, all together, and then each directory, after a line with its name and a colon if more than one *filespec* was given.  A *filespec* that matches nothing is reported (eg, `Unable to find X.BAS`).
+
+Names are sorted, and listed in columns down the screen, each column 2 characters wider than the longest name, with as many columns as fit the console's width.  When the output isn't the console (eg, `LS > FILES.TXT`), names are listed one per line, as UNIX does.  Hidden files, and the `.` and `..` entries of a subdirectory, are listed only with `-a`.
+
+Options start with `-` (regardless of [SWITCHAR](../../cfg/#switchar)), are case-sensitive, and can be combined (eg, `LS -ltr` is the same as `LS -l -t -r`):
+
+- `-1` lists one name per line
+- `-a` lists all files, including hidden files and the `.` and `..` entries
+- `-F` adds the path character (eg, `\`) after the name of each directory, and `*` after each program (COM, EXE, BAT, and BAS files)
+- `-l` lists each file's mode, link count (always 1), size, date, and name, after a `total` line with the directory's size in K (the sum of each file's size rounded up to a whole K); the mode is `d` for a directory (or `-`), followed by `rwxr-xr-x` for a directory or program, or `rw-r--r--` for any other file, without the `w` for a read-only file.  The date shows the time if it's within the last 6 months, or else the year.  Since files have no owners, there are no owner or group columns.
+- `-R` lists the subdirectories of each directory listed, too, after a line with each one's path (eg, `.\TESTS:`)
+- `-r` reverses the order
+- `-S` sorts by size, largest first
+- `-t` sorts by date and time, newest first (and `-tr`, oldest first)
+
+Files with the same size or time are sorted by name.  A listing can have up to 512 names (more is a "Subscript out of range" error).
+
+	LS \EXT
+	ATTRIB.BAS    DISKCOPY.BAS  LS.BAS        SORT.COM      TREE.BAS
+	CHKDSK.BAS    FIND.COM      MODE.BAS      SYS.BAS       VI.COM
+	COMP.BAS      FORMAT.BAS    MORE.COM      TEE.COM       VOL.BAS
+	DEBUG.COM     LABEL.BAS     SLEEP.COM     TR.COM        WC.COM
+	LS -F \
+	AUTOEXEC.BAT*  CONFIG.SYS     HELP.TXT       TOOLS\
+	COMMAND.COM*   EXT\           TESTS\
+	LS -lt \EXT\T*.*
+	-rwxr-xr-x 1  533 Oct 24 11:22 \EXT\TEE.COM
+	-rwxr-xr-x 1  579 Oct 24 11:22 \EXT\TR.COM
+	-rwxr-xr-x 1 2978 Oct 23 12:17 \EXT\TREE.BAS
+
+Source: [LS.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/LS.BAS)
 
 ### MODE
 

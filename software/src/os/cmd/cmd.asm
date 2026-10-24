@@ -797,32 +797,52 @@ pd9e:	mov	ax,[bp].CMD_DEFER[0]
 	mov	si,[bp].CMD_DEFER[8]	; SI = pipe handle
 	mov	dl,ds:[PSP_PFT][si]	; get its SFH
 	mov	ds:[PSP_PFT][STDOUT],dl	; and then replace the STDOUT SFH
-
+;
+; pd6a restored the symbol that ends the command, so end the command there
+; again while it runs, as it was before it was deferred (eg, so that a BAS
+; file's ARG$ doesn't include the rest of the pipeline); the command is the
+; first one, so the first symbol in TOKENBUF is its own.
+;
+	sub	bx,bx
+pd9f:	add	bx,size TOKLET
+	cmp	[di].TOK_DATA[bx].TOKLET_CLS,CLS_SYM
+	jne	pd9f
+	mov	bx,[di].TOK_DATA[bx].TOKLET_OFF
+	mov	dl,0
+	xchg	[bx],dl			; DL = symbol (0 if it's still a '<')
+	push	bx
+	push	dx
 	mov	dx,[bp].CMD_DEFER[2]
 	mov	si,[bp].CMD_DEFER[4]
 	mov	cx,[bp].CMD_DEFER[6]
 	mov	[bp].CMD_ARG,0
 	mov	bx,bp
 	call	cmdDOS			; invoke deferred internal command
+	pop	dx
+	pop	bx
+	mov	[bx],dl			; restore the symbol
 	jmp	short pd9b
 
 pd9a:	call	cmdExec			; invoke deferred external command
-
+	clc				; (its return code is its result)
 ;
 ; Use the deferred command's pipe handle, not HDL_INPIPE, which will have been
 ; zeroed if another symbol followed the last command (eg, "DIR | SORT > TEST").
+; The deferred command's carry is saved, so that a failure sets ERRORLEVEL.
 ;
-pd9b:	sub	cx,cx			; CX = 0 for "truncating" write
-	pop	bx			; BX = deferred command's pipe handle
+pd9b:	pop	bx			; BX = deferred command's pipe handle
+	pop	[bp].PIPE_SCB.LOW
+	pop	[bp].PIPE_SCB.HIW
+	pushf
+	sub	cx,cx			; CX = 0 for "truncating" write
 	mov	ah,DOS_HDL_WRITE
 	int	21h			; issue final write
 	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the pipe
 	mov	al,0
 	mov	bx,bp
-	pop	[bx].PIPE_SCB.LOW
-	pop	[bx].PIPE_SCB.HIW
-	call	endPipes		; (carry is clear)
+	call	endPipes
+	popf				; carry set if the command failed
 
 pd9c:	pop	cx			; discard end of TOKLETs
 	pop	dx			; DX = handles to leave open
@@ -1099,8 +1119,32 @@ cf4x:	jmp	cf5
 ; which the file's genCode changes, and restore it when the file finishes.
 ;
 GEN_WORDS	equ	(DEFVARS + 26 - DEF_PARMS) / 2
+;
+; A BAT or BAS file runs in this session, so when it's the first command of a
+; pipeline, it must wait until the other commands are running, or it could
+; fill the pipe with nothing reading it; so we defer it, as parseDOS defers an
+; internal command, and parseDOS calls us again once they're running.
+;
+cf4b:	mov	ax,[bp].HDL_OUTPIPE
+	test	ax,ax			; is the file's output a pipe?
+	jz	cf4i			; no
+	cmp	[bp].CMD_ARG,0		; is it the first command?
+	jne	cf4i			; no
+	push	ax
+	lea	di,[bp].CMD_DEFER
+	mov	ax,1			; AX = any ID below KEYWORD_FILE
+	stosw
+	mov	ax,offset cmdFile
+	stosw
+	mov	ax,[bp].CMD_ARGPTR
+	stosw
+	mov	ax,[bp].CMD_ARGLEN
+	stosw
+	pop	ax
+	stosw				; and the pipe handle
+	jmp	cf9
 
-cf4b:	sub	sp,GEN_WORDS * 2
+cf4i:	sub	sp,GEN_WORDS * 2
 	push	cx
 	push	si
 	lea	si,[bp].DEF_PARMS
