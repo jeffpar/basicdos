@@ -216,7 +216,7 @@ The MBR code (mbr_code in hdcdev.asm) is modeled on the pc.js MBR (tools/pc/mbr.
 | COM1-COM4 | Character | Serial ports, with interrupt-driven, asynchronous I/O |
 | NUL | Character | Null device |
 | CLOCK$ | Character | Timer interrupt, date and time, delays, and sound |
-| PIPE$ | Character | Pipes between sessions (used by the command shell's `|` operator) |
+| PIPE$ | Character | Pipes between sessions (used by the command shell's `|` operator), with a 128-byte buffer; as on UNIX, a read waits only until some data is available, and then returns what's there (up to the requested length), while a write waits until all its data fits |
 | FPU$ | Character | Floating-point functions, using an 8087 if present, or software emulation otherwise |
 | MOUSE$ | Character | Serial mouse, with an INT 33h interface (see [MOUSE$](#mouse)); loaded only if a mouse responds on a COM port |
 | FDC$ | Block | Diskette drives (A: and B:) |

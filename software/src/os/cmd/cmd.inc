@@ -205,10 +205,6 @@ OPEVAL_IMP	equ	22
 ; mark open FOR and WHILE statements (see genFor and genWhile), and CTL_DONE
 ; marks closed ones.
 ;
-; In a program that uses RESUME or RESUME NEXT, a CTL_STMT entry (plus the
-; statement's IF depth, 0-2) marks the start of each statement, and the end
-; of each THEN block that's followed by ELSE (see addStmt and findStmt).
-;
 LBLREF		struc
 LBL_NUM		dw	?		; label number
 LBL_IP		dw	?		; instruction pointer for label
@@ -217,7 +213,6 @@ LBL_RESOLVE	equ	8000h
 CTL_FOR		equ	0FFFFh
 CTL_WHILE	equ	0FFFEh
 CTL_DONE	equ	0FFFDh
-CTL_STMT	equ	0FFFAh		; (line numbers end at 65529)
 
 ;
 ; Code generation flags
@@ -228,8 +223,6 @@ GEN_BATCH	equ	04h		; BAT file
 GEN_ECHO	equ	08h		; initially set if GEN_BATCH
 GEN_DEF		equ	10h		; DEF function in progress
 GEN_DONE	equ	20h		; all code generated (see genMore)
-GEN_STMT	equ	0C0h		; IF depth + 1 if marking statements
-GEN_STMT1	equ	40h		; (see addStmt and scanResume)
 
 ;
 ; Global command flags.  We rely on the entire heap being zeroed

@@ -120,9 +120,13 @@ A system restart always requires `SYSTEM`.
 
 ### RUN
 
-> RUN
+> RUN [*file*]
 
 Runs the currently loaded BAS or BAT program.  If the whole program was compiled when it last ran, and neither the program nor its variables have changed since, its compiled code is reused instead of being compiled again.  Programs can also be run without the RUN command, by typing their names.
+
+In a program, RUN restarts the program at its first line, as in Microsoft BASIC: its variables are cleared, any open files are closed, [READ](../basic/#read) starts over at the first DATA item, and any GOSUBs, FOR and WHILE loops, and [ON ERROR](../basic/#on-error) handler in progress are ended.  A BAT file restarts as a BAT file.
+
+With *file*, RUN runs that BAS file, as in Microsoft BASIC.  If the file isn't in the current directory, and its name doesn't include a drive or directory, the directories listed in [PATH$](../basic/func/#path) are searched, and if the name has no extension, .BAS is added.  At the prompt, RUN loads the file (replacing any loaded program) and runs it, so it remains loaded when it ends.  In a program, RUN replaces the program, as [CHAIN](../basic/#chain) *file* does, except that any open files are closed first; a program run by name instead (eg, `MENU`) returns to the program that ran it.  *file* can be written as is, quoted, or as a string variable (see [Command Arguments](../../lang/#command-arguments)), and an empty string variable is the same as no file.  If the file can't be found, RUN fails like any other command, so the program continues, with ERRORLEVEL set to 1.  RUN *line* and the R option (which keeps files open) aren't supported, and RUN *file* and RUN in a program aren't available on low memory systems.
 
 ### VER
 

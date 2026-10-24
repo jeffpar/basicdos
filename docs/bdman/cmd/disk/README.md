@@ -28,7 +28,7 @@ DOS commands and external programs can use paths at the prompt and in BAT or BAS
 
 Device names (eg, CON, PRN, AUX, COM1, LPT1, and NUL) can be used in place of file names (eg, `COPY TEST.TXT NUL` or `DIR > NUL`).
 
-A string variable can also be used in place of any file name (or path, or filespec), in which case its value is used (eg, `F$ = "PRIMES.BAS"` and then `TYPE F$`, or `COPY CON NAME$`).  This works in BAS and BAT files, and at the prompt, where variables set with LET remain until the next program runs.  Any name that looks like a string variable (a letter, followed by letters or digits, ending with `$`) is a variable; one that doesn't exist is empty, as in BASIC, and an empty string variable is the same as no file name (eg, `DIR E$` lists all files when `E$` is empty).  To use a file name that looks like a string variable, put it in quotes (eg, `TYPE "TEST$"`); any quoted file name works the same as an unquoted one.
+A file name (or path, or filespec) can also be quoted or a string variable, whose value is used (eg, `F$ = "PRIMES.BAS"` and then `TYPE F$`, or `COPY CON NAME$`), but not an expression.  An empty string variable is the same as no file name (eg, `DIR E$` lists all files when `E$` is empty), and a file name that looks like a string variable must be quoted (eg, `TYPE "TEST$"`).  See [Command Arguments](../../lang/#command-arguments) for the details, and for how BASIC file statements (eg, OPEN) and external commands differ.
 
 REN (or RENAME or MV) renames or moves a file or directory on the same drive.
 
@@ -62,7 +62,7 @@ Input files separated by `+` are combined (concatenated) into the output file, w
 > DEL *file*  
 > ERASE *file*
 
-Deletes the specified file.  With the wildcards `?` and `*` (as in [DIR](#dir)), every matching file is deleted (eg, `DEL *.TMP` or `DEL SUBDIR/T?.TXT`); hidden and system files and directories never match.  It's an error if no file matches.  Like PC DOS, a file name of `*.*` (eg, `DEL *.*` or `DEL SUBDIR/*.*`) first asks `Are you sure (Y/N)?`, and asks again until **Y** or **N** is entered.  An empty string variable is the same as no file name, so `DEL E$` reports `Missing filename` when `E$` is empty.  ERASE is the same as DEL, unless it's erasing arrays (see [ERASE](../basic/#erase)), and KILL is the same as DEL.
+Deletes the specified file.  With the wildcards `?` and `*` (as in [DIR](#dir)), every matching file is deleted (eg, `DEL *.TMP` or `DEL SUBDIR/T?.TXT`); hidden and system files and directories never match.  It's an error if no file matches.  Like PC DOS, a file name of `*.*` (eg, `DEL *.*` or `DEL SUBDIR/*.*`) first asks `Are you sure (Y/N)?`, and asks again until **Y** or **N** is entered.  An empty string variable is the same as no file name, so `DEL E$` reports `Missing filename` when `E$` is empty.  Only one file name can be given, and anything after it is a syntax error, so a Microsoft BASIC expression like `KILL "TEMP" + N$` must be assigned to a variable first (eg, `F$ = "TEMP" + N$ : KILL F$`).  ERASE is the same as DEL, unless it's erasing arrays (see [ERASE](../basic/#erase)), and KILL is the same as DEL.
 
 ### DIR
 

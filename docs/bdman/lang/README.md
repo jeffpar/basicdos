@@ -10,6 +10,7 @@ The BASIC-DOS programming language is based on the BASIC language of the IBM PC 
 
 - [Programs](#programs)
 - [Batch Files](#batch-files)
+- [Command Arguments](#command-arguments)
 - [Variables and Types](#variables-and-types)
 - [Constants](#constants)
 - [Arrays](#arrays)
@@ -71,6 +72,16 @@ For example, this batch file runs a program up to three times, stopping if the p
 	PRINT "SLEEP ran"; N - 1; "times"
 
 Unlike a BAS file, a BAT file doesn't remain loaded when it ends.
+
+### Command Arguments
+
+There are three kinds of commands, and each kind takes its arguments differently:
+
+- **DOS commands** (built-in commands like DIR, COPY, DEL, KILL, LOAD, RUN, and SAVE; see [Disk Commands](../cmd/disk/) and [System Commands](../cmd/system/)) take PC DOS-style arguments, separated by spaces, and use them as typed.  A file name (or path, or filespec) can be written as is (eg, `TYPE PRIMES.BAS`), in quotes (`TYPE "PRIMES.BAS"`), or as a string variable (`TYPE F$`), whose value is used, and so can a redirection file name (eg, `DIR > F$`; see [Pipes and Redirection](../intro/#pipes-and-redirection)).  Expressions aren't evaluated, so assign one to a variable first (eg, `F$ = "TEMP" + N$ : KILL F$`).  Other arguments, such as line numbers (`LIST 10-20`), keywords (`HELP MID$`), and dates (`DATE 10-24-26`), are always used as typed.
+- **BASIC statements and functions** (eg, OPEN, CHAIN, DIR$, and EXISTS) take expressions, so a file name must be a string: a quoted name, a string variable, or any string expression (eg, `OPEN "DATA" + N$ FOR INPUT AS #1`).  For example, the DOS command `MERGE PART2` works, but the CHAIN MERGE statement needs `CHAIN MERGE "PART2"`.
+- **External commands** (programs such as FORMAT and VI; see [External Commands](../cmd/external/)) receive their arguments as typed, so a string variable isn't replaced by its value (eg, `FORMAT D$` doesn't format the drive in D$), and there's currently no way to pass a variable's value to one.  BAS and BAT programs read their arguments with [ARG$](../cmd/basic/func/#arg), which removes any quotes; other programs may not.
+
+A DOS command treats any file name that looks like a string variable (a letter, followed by letters or digits, ending with `$`) as a variable, in BAS and BAT files and at the prompt, where variables remain until the next program runs.  A variable that doesn't exist is empty, as in BASIC, and an empty string variable is the same as no file name (eg, `DIR E$` lists all files when `E$` is empty).  Only a whole argument is replaced, so `B:F$` and `F$(1)` are file names, not variables.  To use a file name that looks like a string variable, put it in quotes (eg, `TYPE "TEST$"`).
 
 ### Variables and Types
 
@@ -183,8 +194,8 @@ On a machine with too little memory for all of COMMAND.COM (eg, 64K), BASIC-DOS 
 - PRINTF, LPRINT, LLIST, the LPOS function, the MID$ statement, KEY *n*,*string*, and WIDTH *device*,*width*
 - The program editing commands AUTO, DELETE, and EDIT (lines can still be entered and deleted by number)
 - The file statements (OPEN, CLOSE, FIELD, GET, PUT, LSET, RSET, RESET, IOCTL, and the # forms of INPUT, LINE INPUT, PRINT, and WRITE) and file functions (CVD, CVI, CVL, EOF, INPUT$, IOCTL$, LOC, LOF, MKD$, MKI$, and MKL$)
-- RESUME without a label (or with 0) and RESUME NEXT (RESUME *label* is still available)
 - The DOS statement and function
+- CHAIN, MERGE, RUN *file*, and RUN in a program
 - LOAD of tokenized BAS files (eg, those saved by BASICA or GW-BASIC)
 
 Everything else, including INPUT and LINE INPUT from the keyboard and WRITE to the screen, is still available.  `HELP CORE` lists the same keywords (HELP.TXT marks each one with a "+" after its category tag).
@@ -200,8 +211,10 @@ BASIC-DOS runs many IBM PC BASIC programs unchanged (eg, DONKEY.BAS, from the or
 - PRINT commas print a tab instead of advancing to the next print zone
 - Up to 4 files can be open at once, random access records are limited to 255 bytes, MKD$ and CVD use IEEE doubles (not MBF), MKS$, CVS, and the OPEN "mode",#n,file form aren't supported
 - INPUT doesn't display "Redo from start"; missing items are empty (or zero), and extra items are ignored
+- KILL, LOAD, MERGE, RUN, and SAVE are DOS commands, so their file names don't need quotes, but can't be expressions (eg, `KILL "TEMP" + N$` is a syntax error; see [Command Arguments](#command-arguments))
 - RANDOMIZE without a seed uses the BIOS tick count instead of prompting for a seed
-- Not supported yet: PCOPY
+- Not supported yet: PCOPY, RUN *line*, and RUN's R option (which keeps files open)
+- RESUME requires a label: RESUME without one (or with 0) and RESUME NEXT aren't supported (see [RESUME](../cmd/basic/#resume))
 - KEY *n*,*string* is accepted, but the function keys always return their key codes (as after KEY *n*,""), and WIDTH *device*,*width* is accepted, but output to a device is never broken into lines
 - PRINT USING isn't supported (and won't be); use PRINTF USING instead (see [How to replace PRINT USING](../cmd/device/screen/#how-to-replace-print-using))
 

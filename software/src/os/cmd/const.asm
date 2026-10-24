@@ -116,6 +116,8 @@ CODE    SEGMENT
 ; TODO: Determine what parser change impacted the ability to use '~' and '|'
 ; as alternative operators, because they no longer work (and, for example, a
 ; command such as "PRINT 1~4" now prints "1" instead of generating an error).
+; However, at the prompt, a '|' outside quotes now pipes the output of the
+; line's statements (eg, "PRINT X | MORE"; see cmdPipe).
 ;
 ; TODO: Speaking of hex and octal constants, maybe someday we'll also allow
 ; "0x" and "0o" prefixes, and maybe even a C-inspired version of PRINT USING
@@ -271,7 +273,7 @@ KEYWORDS	macro	PASS
 	PASS	MOUSE,  86, genMouse,PUB
 	PASS	MV,     26, cmdRen
 	PASS	NEW,     6, cmdNew
-	PASS	NEXT,   60, genNext,PUB
+	PASS	NEXT,   60, genNext
 	PASS	OFF,   202,,PUB
 	PASS	ON,    203, genOn,PUB
 	PASS	OPEN,   87, genOpen

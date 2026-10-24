@@ -42,6 +42,12 @@ IF ERRORLEVEL = 0 THEN PRINT "missing input failed" : FAILS = FAILS + 1
 DEL T?.TMP
 PRINT 1 :> T1.TMP
 PRINT 2 :> T2.TMP
+F$ = "T1.TMP"
+TR a-z A-Z < F$ > "T2.TMP"
+OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
+IF VAL(L$) <> 1 THEN PRINT "redirection string failed" : FAILS = FAILS + 1
+KILL "T1.TMP" + F$
+IF ERRORLEVEL = 0 THEN PRINT "KILL expression failed" : FAILS = FAILS + 1
 DEL T?.TMP
 P$ = "paths":\EXT\SLEEP.COM 0
 IF ERRORLEVEL THEN PRINT "absolute command failed" : FAILS = FAILS + 1

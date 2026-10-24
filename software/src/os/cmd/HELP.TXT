@@ -258,7 +258,7 @@ ESCAPE  Erase Line
 CTRL-ALT-DEL is reserved for terminating programs. Use RESTART to restart the system.
 
 [d]KILL *file*
-Same as DEL.
+Same as DEL.  *file* can be quoted or a string variable, but not an expression (eg, F$ = "TEMP" + N$ : KILL F$, not KILL "TEMP" + N$).
 
 [e]LABEL [*d*:][*label*]
 Gives drive *d* (or the current drive) a volume label (up to 11 characters), or without a *label*, displays the current label and asks for a new one (or ENTER to delete it).
@@ -403,7 +403,7 @@ Returns the cursor's column, starting at 1 (*n* is ignored).  See also CSRLIN.
 Same as PSET, except that the default color is the background color.
 
 [b]PRINT [#*n*,]
-Prints a comma or semi-colon separated series of values (or with #*n*, writes them to file *n*).  To send the output of a line to a file instead, end the line with :> *file* (or :>> *file* to append).  For formatted output, use PRINTF USING (PRINT USING isn't supported).
+Prints a comma or semi-colon separated series of values (or with #*n*, writes them to file *n*).  To send the output of a line to a file instead, end the line with :> *file* (or :>> *file* to append).  At the prompt, a line can also end with a pipe to other commands (eg, | MORE), except on low memory systems.  For formatted output, use PRINTF USING (PRINT USING isn't supported).
 
 [b+]PRINTF [#*n*,] USING *format*;[*value*[,*value*]...]
 Prints the values with the C-style *format* (or with #*n*, writes them to file *n*): %d prints a number (%x in hex), %f a double, %s a string, and %c a character, with an optional width and precision (eg, "%5d", "%-8.3s", "%.2f"); %% prints a percent sign.  A trailing ; or , suppresses the newline.
@@ -442,8 +442,8 @@ RESTART alone lists every session's number, console, and program (or "Unused" if
 [b]RESTORE [*line*]
 Makes the first DATA item (or the first DATA item at or after *line*) the next item for READ.
 
-[b]RESUME [*label*|0|NEXT]
-Ends the handling of a runtime error (see ON ERROR) and continues at the specified label, or without a label (or with 0), at the statement with the error, or with NEXT, at the statement after it (RESUME and RESUME NEXT aren't available on low memory systems).  Any GOSUBs that were active when the error occurred are still active.
+[b]RESUME *label*
+Ends the handling of a runtime error (see ON ERROR) and continues at the specified label.  Any GOSUBs that were active when the error occurred are still active.  RESUME without a label (or with 0) and RESUME NEXT aren't supported; resume at a label instead (ERL returns the line of the error).
 
 [b]RETURN [*expression*]
 Returns from a GOSUB subroutine, or ends a function block and returns the specified *expression*.
@@ -463,8 +463,8 @@ Returns a random integer between 0 and MAXINT, inclusive.  If *n* is negative, i
 [b+]RSET *variable$*=*string*
 Same as LSET, but right-justified.
 
-[b]RUN
-Runs the currently loaded BAS or BAT file.
+[b]RUN [*file*]
+Runs the currently loaded BAS or BAT file, or loads BAS *file* (searching PATH$ if necessary) and runs it.  In a program, RUN restarts the program, or with *file*, replaces it, as CHAIN does; either way, its variables are cleared and any open files are closed.  RUN *file* and RUN in a program aren't available on low memory systems.
 Program files can also be run without the RUN command.
 If no file extension is specified, files with COM, EXE, BAT, and BAS extensions are checked, in that order.
 

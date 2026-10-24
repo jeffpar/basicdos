@@ -384,30 +384,14 @@
 3710 IF SGN(Z#) <> 0 OR SGN(-Z#) <> 0 THEN PRINT "SGN signed zero failed" : FAILS = FAILS + 1
 3720 RETURN
 3750 DATA 32768, 65535, 98304, 2147483647
-3800 REM RESUME [0] and RESUME NEXT: at, and after, the statement with the error
-3810 ON ERROR GOTO 3990 : M = 0
-3820 N = 0 : T = 0 : ERROR 11 : T = T + 1
-3830 IF N <> 1 OR T <> 1 THEN PRINT "RESUME NEXT failed:"; N; T : FAILS = FAILS + 1
-3840 N = 0 : P = 0 : M = 1 : A$ = MID$("ABC", P) : T = 2
-3850 IF N <> 1 OR A$ <> "ABC" OR T <> 2 THEN PRINT "RESUME 0 failed:"; N; A$; T : FAILS = FAILS + 1
-3860 N = 0 : T = 0 : IF 1 THEN ERROR 11 : T = 1 ELSE T = 9
-3870 IF N <> 1 OR T <> 1 THEN PRINT "RESUME NEXT in THEN failed:"; N; T : FAILS = FAILS + 1
-3880 N = 0 : T = 0 : IF 1 THEN T = 1 : ERROR 11 ELSE T = 9 : T = 8
-3890 IF N <> 1 OR T <> 1 THEN PRINT "RESUME NEXT before ELSE failed:"; N; T : FAILS = FAILS + 1
-3900 N = 0 : T = 0 : P = 0 : IF MID$("ABC", P) = "" THEN T = 9 ELSE T = 8
-3910 IF N <> 1 OR T <> 0 THEN PRINT "RESUME NEXT past IF failed:"; N; T : FAILS = FAILS + 1
-3920 N = 0 : T = 0 : IF 1 THEN IF MID$("ABC", P) = "" THEN T = 9 ELSE T = 8
-3930 IF N <> 1 OR T <> 0 THEN PRINT "RESUME NEXT past nested IF failed:"; N; T : FAILS = FAILS + 1
-3940 N = 0 : T = 0 : GOSUB 3980 : T = T + 1
-3950 IF N <> 1 OR T <> 2 THEN PRINT "RESUME NEXT in GOSUB failed:"; N; T : FAILS = FAILS + 1
-3960 N = 0 : T = 0 : M = 2 : GOSUB 3985 : T = T + 1
-3965 IF N <> 1 OR T <> 2 THEN PRINT "RESUME line in GOSUB failed:"; N; T : FAILS = FAILS + 1
-3970 N = 0 : E = 0 : RESUME NEXT : E = ERR
-3975 IF N <> 1 OR E <> 20 THEN PRINT "RESUME without error failed:"; N; E : FAILS = FAILS + 1
-3977 ON ERROR GOTO 0 : RETURN
-3980 ERROR 11 : T = T + 1 : RETURN
+3800 REM RESUME line: in a GOSUB, and without an error
+3810 ON ERROR GOTO 3990
+3820 N = 0 : T = 0 : GOSUB 3985 : T = T + 1
+3830 IF N <> 1 OR T <> 2 THEN PRINT "RESUME line in GOSUB failed:"; N; T : FAILS = FAILS + 1
+3840 N = 0 : E = 0 : RESUME 3850
+3850 IF N <> 1 OR E <> 20 THEN PRINT "RESUME without error failed:"; N; E : FAILS = FAILS + 1
+3860 ON ERROR GOTO 0 : RETURN
 3985 ERROR 11 : T = 9 : RETURN
 3987 T = T + 1 : RETURN
-3990 N = N + 1 : IF M = 1 THEN M = 0 : P = 1 : RESUME 0
-3995 IF M = 2 THEN M = 0 : RESUME 3987
-3999 RESUME NEXT
+3990 N = N + 1 : E = ERR : IF E = 11 THEN RESUME 3987
+3995 RESUME 3850

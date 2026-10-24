@@ -59,7 +59,7 @@ CODE    SEGMENT
 	EXTNEAR	<memError,strPath,setPath,callDOS,rtError,findMsg>
 	EXTNEAR	<genExpr,genCvtType,genCallCS,genPushImmLong>
 	EXTNEAR	<getNextLine,getNextSymbol,getNextToken,peekNextToken>
-	EXTNEAR	<getLineNum,genMidSet,addStmt,scanResume>
+	EXTNEAR	<getLineNum,genMidSet>
 	EXTBYTE	<MID_DATA>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -211,11 +211,7 @@ gi2:	push	ds
 	jz	gi3
 	mov	al,VAR_LONG		; implied DEFINT A-Z
 gi3:	rep	stosb			; (and CX is zero again)
-	mov	si,offset scanResume
-	cmp	si,ds:[PSP_CODESIZE]	; is it loaded (see genUpper)?
-	jae	gi3a			; no
-	call	si			; mark statements if RESUME is used
-gi3a:	mov	si,size TBLK
+	mov	si,size TBLK
 gi4:	mov	[bx].LINE_PTR.OFF,si
 	mov	[bx].LINE_PTR.SEG,dx
 	mov	[bx].LINE_LEN,cx	; CX = previous length (0)
@@ -428,8 +424,7 @@ DEFPROC	genCommands
 gcs8:	sub	bx,size TOKLET		; (this clears carry, too)
 gcr9:	ret
 
-gcInit:	call	addStmt			; mark the statement (for RESUME)
-	mov	dx,bx			; DX -> TOKLETs (for implicit LET)
+gcInit:	mov	dx,bx			; DX -> TOKLETs (for implicit LET)
 	mov	al,CLS_KEYWORD
 	call	getNextToken
 	jb	gcs0

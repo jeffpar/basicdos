@@ -19,8 +19,8 @@ CODE    SEGMENT
 	EXTNEAR	<pipeStages>
 	ENDIF
 	EXTNEAR	<freeAllText,genCode,freeAllCode,freeAllVars,cmdLoad>
-	EXTNEAR	<freeIdleVars,resetVars,findVar>
-	EXTNEAR	<enterLine,editPrompt,genUpper>
+	EXTNEAR	<freeIdleVars,resetVars,findVar,cmdPipe,runLine>
+	EXTNEAR	<enterLine,editPrompt,genUpper,runFile>
 	EXTNEAR	<saveChains,restoreChains,compactStrs>
 	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resSum,resParas>
 	EXTNEAR	<initEnv,buildEnv>
@@ -304,7 +304,23 @@ ENDPROC	cleanUp
 ;	Any
 ;
 DEFPROC	ctrlc,FAR
-	call	cleanUp
+;
+; If STDOUT is a device, write zero bytes to it, which tells a pipe that its
+; input has ended (see pd9b), so that the commands reading it can finish (and
+; endPipes doesn't wait forever) when a runtime error ends the statements
+; writing to it (eg, "FOR I=1 TO 9:ERROR 5:NEXT | MORE"; see runLine).  Other
+; devices ignore it.
+;
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETDATA
+	mov	bx,STDOUT
+	int	21h			; DL bit 7 is set for a device
+	jc	ctc
+	test	dl,dl			; device?
+	jns	ctc			; no
+	sub	cx,cx
+	mov	ah,DOS_HDL_WRITE
+	int	21h
+ctc:	call	cleanUp
 	call	restoreMode		; restore the video mode, if necessary
 ;
 ; If any BAT or BAS files were running other BAT or BAS files, free all the
@@ -366,11 +382,17 @@ pc1:	mov	dx,cs:[si].CTD_FUNC
 	jb	pc2			; yes, no code generation required
 ;
 ; The token is for a BASIC keyword (or the line contains another command; see
-; pc2), so code generation is required.
+; pc2), so code generation is required.  If cmdPipe is loaded (see genUpper),
+; it runs the line instead, in case the line ends with a pipeline (eg, "FOR
+; I=1 TO 9:PRINT I:NEXT | MORE"); otherwise, a pipe is a syntax error.
 ;
 pc1a:	mov	al,GEN_IMM
 	mov	si,[bx].INPUT_BUF
-	call	genCode
+	mov	dx,offset cmdPipe
+	cmp	dx,ds:[PSP_CODESIZE]	; is cmdPipe loaded?
+	jb	pc1h			; yes
+	mov	dx,offset genCode
+pc1h:	call	dx
 	call	cleanUp
 	jmp	short pc9
 ;
@@ -674,7 +696,18 @@ pd5:	jcxz	pd8			; no valid initial token
 	push	dx			; save the symbol and its offset
 
 	push	si
-	lea	dx,[KEYWORD_TOKENS]
+;
+; If cmdPipe marked the first token as BASIC statements (eg, "FOR I=1 TO 9:
+; PRINT I:NEXT | MORE"), they're deferred like an internal command, which
+; runLine runs; we clear the mark, so that no other command can match it.
+;
+	mov	ax,1			; AX = any ID below KEYWORD_FILE
+	mov	dx,offset runLine	; (see cmdDOS)
+	cmp	[di].TOK_DATA[0].TOKLET_CLS,CLS_KEYWORD
+	jne	pd5c
+	mov	[di].TOK_DATA[0].TOKLET_CLS,CLS_STR
+	jmp	short pd5a		; (carry is clear)
+pd5c:	lea	dx,[KEYWORD_TOKENS]
 	DOSUTIL	TOKID			; CS:DX -> TOKTBL; identify token
 	jc	pd5a
 	mov	dx,cs:[si].CTD_FUNC
@@ -751,7 +784,15 @@ pd9:	jnc	pd9e
 pd9e:	mov	ax,[bp].CMD_DEFER[0]
 	test	ax,ax			; is there a deferred command?
 	jz	pd9c			; no
-	js	pd9a			; yes, but it's external (-1)
+;
+; The deferred command may run commands of its own (eg, the BASIC statements
+; that runLine runs), which call parseDOS again, so save the pipe handle and
+; the pipeline's sessions, which parseDOS resets.
+;
+	push	[bp].PIPE_SCB.HIW
+	push	[bp].PIPE_SCB.LOW
+	push	[bp].CMD_DEFER[8]
+	js	pd9a			; the deferred command is external (-1)
 
 	mov	si,[bp].CMD_DEFER[8]	; SI = pipe handle
 	mov	dl,ds:[PSP_PFT][si]	; get its SFH
@@ -772,13 +813,15 @@ pd9a:	call	cmdExec			; invoke deferred external command
 ; zeroed if another symbol followed the last command (eg, "DIR | SORT > TEST").
 ;
 pd9b:	sub	cx,cx			; CX = 0 for "truncating" write
-	mov	bx,[bp].CMD_DEFER[8]	; BX = deferred command's pipe handle
+	pop	bx			; BX = deferred command's pipe handle
 	mov	ah,DOS_HDL_WRITE
 	int	21h			; issue final write
 	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the pipe
 	mov	al,0
 	mov	bx,bp
+	pop	[bx].PIPE_SCB.LOW
+	pop	[bx].PIPE_SCB.HIW
 	call	endPipes		; (carry is clear)
 
 pd9c:	pop	cx			; discard end of TOKLETs
@@ -1594,6 +1637,10 @@ ENDPROC	cmdNew
 ; a similar predefined string array (eg, _ENV$) from an existing environment
 ; block would make the most sense.
 ;
+; RUN with a file (eg, RUN "MENU"), or RUN in a program (which restarts it),
+; is handled by runFile, which isn't part of COMMAND's core, so it's reached
+; through genUpper.
+;
 ; Inputs:
 ;	BX -> CMDHEAP
 ;	DI -> TOKENBUF
@@ -1606,7 +1653,14 @@ ENDPROC	cmdNew
 ;	Any
 ;
 DEFPROC	cmdRun
+	mov	dl,[bx].CMD_ARG
+	call	getToken		; was a file specified?
+	jnc	ru1			; yes
+	cmp	[bx].CBLKDEF.BDEF_NEXT,0; no, but is a program running?
 	mov	al,GEN_BASIC		; RUN implies GEN_BASIC behavior
+	je	cmdRunFlags		; no
+ru1:	mov	dx,offset runFile
+	jmp	genUpper		; (see runFile)
 	DEFLBL	cmdRunFlags,near
 	sub	si,si
 	ASSERT	STRUCT,[bx],CMD

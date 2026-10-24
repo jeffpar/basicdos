@@ -342,17 +342,19 @@ Makes the first [DATA](#data) item the next item that [READ](#read) assigns, or 
 
 ### RESUME
 
-> RESUME [*label*|0|NEXT]
+> RESUME *label*
 
-Ends the handling of a runtime error (see [ON ERROR](#on-error)) and continues at the specified label, or without a label (or with 0), at the start of the statement with the error, which runs again (eg, after the handler has fixed the cause of the error), or with NEXT, at the statement after it.  The handler can use [ERR](func/#err) and [ERL](func/#erl) to find out which error occurred, and where.  RESUME when no error is being handled is a "RESUME without error" error (20).
+Ends the handling of a runtime error (see [ON ERROR](#on-error)) and continues at the specified label.  The handler can use [ERR](func/#err) and [ERL](func/#erl) to find out which error occurred, and where.  RESUME when no error is being handled is a "RESUME without error" error (20).
 
-The statement after a statement inside an IF's THEN or ELSE block is the next statement in that block, or the statement after the IF; RESUME NEXT after an error in the IF's condition skips the entire IF.  An error in a [DEF](def/) function resumes at (or after) the statement that called the function.  RESUME without a label and RESUME NEXT aren't available on low memory systems (see [Low Memory](../../lang/#low-memory)).
+Unlike [GOTO](goto/), RESUME ends the handling of the error, so that the handler can catch the next one.  After a GOTO out of the handler, the program is still handling the error, so another error ends the program.
+
+Microsoft BASIC's RESUME without a label (or with 0) and RESUME NEXT, which continue at the start of the statement with the error or at the statement after it, aren't supported.  BASIC-DOS compiles programs (see [BASIC Compilation](../external/command/#basic-compilation)), so when an error occurs, all it knows is where in a statement's compiled code the error occurred, not where that statement (or the next one) begins, and recording that for every statement would make every such program larger.  RESUME without a label is a syntax error.  Instead, give the line to continue at a label, and RESUME to it; a handler for errors in more than one place can use ERL to choose the label (eg, `IF ERL = 20 THEN RESUME 30`).
 
 	ON ERROR GOTO 100
 	OPEN "DATA.TXT" FOR INPUT AS #1
-	IF E THEN PRINT "No DATA.TXT" : END
+	10 IF E THEN PRINT "No DATA.TXT" : END
 	...
-	100 E = ERR : RESUME NEXT
+	100 E = ERR : RESUME 10
 
 ### RETURN
 

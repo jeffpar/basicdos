@@ -71,7 +71,7 @@ REN (RENAME) and MV share the same file and directory rename and move command; s
 The following commands, statements, and functions from PC DOS and IBM PC BASIC aren't supported yet:
 
 - PC DOS commands: DISKCOMP and PRINT (background printing); the other PC DOS 1.00 utilities (eg, CHKDSK, DISKCOPY, FORMAT, and SYS) are BASIC programs in the EXT directory (see [External Commands](external/))
-- BASIC statements: BEEP, BLOAD, BSAVE, CALL, CHAIN's DELETE option, COMMON, CONT, DEF USR, OUT, PCOPY, RUN *file*, TRON, TROFF, WAIT, WIDTH LPRINT, and event trapping (eg, ON TIMER(*n*) GOSUB)
+- BASIC statements: BEEP, BLOAD, BSAVE, CALL, CHAIN's DELETE option, COMMON, CONT, DEF USR, OUT, PCOPY, RUN *line* (and RUN's R option), TRON, TROFF, WAIT, WIDTH LPRINT, and event trapping (eg, ON TIMER(*n*) GOSUB)
 - BASIC functions: INP, STICK, STRIG, TIMER, USR, VARPTR, and VARPTR$
 
 Some features of PC DOS and IBM PC BASIC aren't planned at all, such as PAUSE and the rest of PC DOS's batch file syntax (BAT files are BASIC programs; see [Batch Files](../lang/#batch-files)), CTTY (see [CONSOLE=](../cfg/#console)), and PRINT USING (see [How to replace PRINT USING](device/screen/#how-to-replace-print-using)).

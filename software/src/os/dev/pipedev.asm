@@ -221,12 +221,18 @@ ENDPROC	ddpipe_none
 ;
 ; pull_data
 ;
+; Like a pipe read on UNIX, a read waits only until some data is available,
+; and then returns as much as the request can hold; otherwise, a reader such
+; as MORE, which requests a buffer at a time, would display nothing until the
+; writer had filled that entire buffer.
+;
 ; Inputs:
 ;	ES:DI -> DDPRW
+;	CX = original request length
 ;	DS = device context
 ;
 ; Outputs:
-;	Returns after request has been satisfied
+;	Returns after some data has been read, or the pipe has been truncated
 ;
 ; Modifies:
 ;	AX, BX, DX
@@ -238,8 +244,11 @@ pl0:	mov	bx,ds:[CT_HEAD]
 	cmp	bx,ds:[CT_TAIL]
 	jne	pl1
 ;
-; There's no data, so issue WAIT and try again when it returns.
+; There's no data, so if we've already read some, return it; otherwise,
+; issue WAIT and try again when it returns.
 ;
+	cmp	cx,es:[di].DDPRW_LENGTH	; have we read anything yet?
+	ja	pl8			; yes (and carry is clear)
 	test	ds:[CT_STATUS],CTSTAT_TRUNC
 	jnz	pl9
 	ASSERT	Z,<test ds:[CT_STATUS],CTSTAT_EWAIT OR CTSTAT_FWAIT>
@@ -253,7 +262,7 @@ pl0:	mov	bx,ds:[CT_HEAD]
 	and	ds:[CT_STATUS],NOT CTSTAT_EWAIT
 	popf
 	jnc	pl0
-	sti
+pl8:	sti
 	ret
 
 pl1:	mov	al,ds:[CT_DATA][bx]	; AL = data byte

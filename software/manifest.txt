@@ -87,6 +87,7 @@ software/src/tests/misc/FLOW.BAS
 software/src/tests/misc/IOERR.BAS
 software/src/tests/misc/MOVES.BAS
 software/src/tests/misc/PRTUSING.BAS
+software/src/tests/misc/RUNFILE.BAS
 software/src/tests/misc/STRFUN.BAS
 software/src/tests/misc/STRPOOL.BAS
 software/src/tests/misc/VARS.BAS

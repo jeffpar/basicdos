@@ -13,8 +13,8 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<parseDOS,splitCmd,releaseStr,strIllegal,ctrlc,openName>
-	EXTNEAR	<chkStrVar,noFile,mouseCall,mouseReset,allocStr,rtError>
+	EXTNEAR	<parseDOS,splitCmd,releaseStr,strIllegal,ctrlc,openVar>
+	EXTNEAR	<mouseCall,mouseReset,allocStr,rtError>
 	EXTSTR	<STR_ON,STR_OFF>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -127,26 +127,16 @@ DEFPROC	redirOut,FAR
 	rep	movsb
 ;
 ; As with any other filename, the filename can be a string variable (eg,
-; "PRINT X :> F$") or quoted (see chkStrVar).
+; "PRINT X :> F$") or quoted (see openVar).
 ;
 	push	ss
 	pop	ds
 	mov	si,dx			; DS:SI -> filename in LINEBUF
 	mov	cx,[cbName]
-	call	chkStrVar		; DS:SI -> filename (eg, F$'s value)
-	jc	ro8			; the filename is empty
-	mov	di,dx			; ES:DI -> LINEBUF
-	rep	movsb
-	xchg	ax,cx
-	stosb				; null-terminate the filename
-	push	ss
-	pop	ds			; DS:DX -> filename
 	mov	ax,[idMode]
-	call	openName		; AX = handle
+	call	openVar			; AX = handle
 	jnc	ro1
-ro7:	jmp	ctrlc			; an error ends the program
-ro8:	call	noFile			; report a missing filename
-	jmp	ro7
+	jmp	ctrlc			; an error ends the program
 ro1:	xchg	bx,ax			; BX = handle
 	mov	al,ds:[PSP_PFT][bx]	; AL = SFH of the file
 	xchg	al,ds:[PSP_PFT][STDOUT]	; AL = previous STDOUT SFH

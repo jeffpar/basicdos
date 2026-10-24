@@ -120,6 +120,8 @@ The output of a command can be sent to a file instead of the screen:
 - `DIR > FILES.TXT` creates (or truncates) FILES.TXT and writes the output to it
 - `DIR >> FILES.TXT` appends the output to FILES.TXT
 
+As with other file names, a redirection file name can be quoted or a string variable (eg, `DIR > F$`; see [Command Arguments](../lang/#command-arguments)).
+
 Since `>` is also BASIC's "greater than" operator, BASIC statements use `:>` (or `:>>`) at the end of a line instead, which redirects the output of every statement on the line (eg, `PRINT "hello world" :> TEST` or `FOR I=1 TO 3:PRINT I:NEXT :>> TEST`).  `:>` works with any command, at the prompt and in BAT and BAS files, and its file name can be a string variable (eg, `PRINT X :> F$`), but it must come last on the line; for DOS commands, put a space before it (eg, `DIR :> FILES.TXT`), since `A:>FILE` still means drive A:.
 
 The output of one command can also be sent to the input of another command, using a pipe (`|`):
@@ -127,6 +129,8 @@ The output of one command can also be sent to the input of another command, usin
 	DIR | TR a-z A-Z
 
 Each command after the first runs in its own background session, so all commands in a pipeline run at the same time.  The output of a pipeline can also be redirected (eg, `DIR | SORT > TEST`).  BASIC-DOS includes several filters for use with pipes: FIND, MORE, SORT, TEE, TR, and WC (see [Filters](../cmd/external/#filters)).
+
+At the prompt, a line of BASIC statements can end with a pipe, too, which sends the output of every statement on the line to the commands after the `|` (eg, `FOR I=1 TO 100:PRINT 3.14^I:NEXT | MORE`).  The pipe must come after the line's last statement (a `|` inside quotes doesn't count), and the statements run once the other commands have started.  This isn't available in BAT and BAS files, or on low memory systems.
 
 The input of a command can also come from a file instead of the keyboard (eg, `SORT < NAMES.TXT`).  Input redirection applies to the first command on the line, so `<` must come after all of that command's arguments and before any `|` or `>` (eg, `SORT /R < NAMES.TXT > SORTED.TXT` or `SORT < NAMES.TXT | MORE`).  The input filename must be followed by the end of the line, a pipe, or output redirection.
 

@@ -9,15 +9,14 @@
 ;
 ; CHAIN replaces the running program with another, or with MERGE, merges
 ; another file's lines into it, and keeps running, like MSBASIC; the MERGE
-; command merges a file's lines into the loaded program at the prompt.
-; RESUME and RESUME NEXT, which resume at (or after) the statement with an
-; error, are here too (see genResumeAt), since they also change the program's
-; course from outside the program's own code.
+; command merges a file's lines into the loaded program at the prompt, and
+; RUN file runs a file (replacing the running program, if any), while RUN in
+; a program restarts it.
 ;
 ; This module is not part of COMMAND's core (see CMD.LRF and HEAP.ASM): when
-; only the core is loaded, genCommands refuses CHAIN, and cmdDOS refuses
-; MERGE, with "Not enough memory" (see genUpper), as genResume does RESUME
-; and RESUME NEXT; genInit then skips scanResume.
+; only the core is loaded, genCommands refuses CHAIN, cmdDOS refuses MERGE,
+; and cmdRun refuses RUN file (and RUN in a program), with "Not enough memory"
+; (see genUpper).
 ;
 	DOSFUNC equ 1
 	include	cmd.inc
@@ -31,14 +30,15 @@ CODE    SEGMENT
 	EXTNEAR	<genInit,genMore,findLabel,genJmp5,rtError,ctrlc>
 	EXTNEAR	<releaseStr,findProgram,openError,freeAllCode,freeAllVars>
 	EXTNEAR	<chkProgram,cmdLoad,storeLine,nextLine,freeAllBlocks>
-	EXTNEAR	<endErr>
+	EXTNEAR	<getFileName,cmdRunFlags,closeFile>
 	EXTSTR	<BAS_EXT>
-	EXTABS	<TOK_MERGE,TOK_NEXT>
+	EXTABS	<TOK_MERGE>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
 CH_MERGE	equ	01h		; CHAIN MERGE
 CH_ALL		equ	02h		; CHAIN ...,ALL
+CH_RUN		equ	04h		; RUN (restart; see runFile)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -183,11 +183,13 @@ dc3:	mov	[di],cl			; null-terminate the name
 dc8:	jmp	rtError
 ;
 ; We've found the file, so the current program is done: discard its stack
-; and its code, and its variables too, unless ALL was given.
+; and its code, and its variables too, unless ALL was given.  runFile also
+; enters here (at dc4a), with BX -> CMDHEAP, CX = CH_* flags, DX = line #,
+; and the file's name in LINEBUF (unless CH_RUN keeps the program's text).
 ;
 dc4:	mov	cx,[chFlags]
 	mov	dx,[lineNum].LOW
-	mov	sp,[bx].ERR_SP
+dc4a:	mov	sp,[bx].ERR_SP
 	push	dx
 	push	cx
 	call	freeAllCode
@@ -195,17 +197,23 @@ dc4:	mov	cx,[chFlags]
 	test	al,CH_ALL		; keeping the variables?
 	jnz	dc5			; yes
 	call	freeAllVars
-dc5:	lea	si,[bx].LINEBUF		; DS:SI -> the file's name
+dc5:	test	al,CH_RUN		; restarting the program?
+	jnz	dc5a			; yes
+	lea	si,[bx].LINEBUF		; DS:SI -> the file's name
 	test	al,CH_MERGE
 	jnz	dc6
 	mov	dx,offset BAS_EXT
 	call	cmdLoad			; replace the program's text
 	jmp	short dc6a
+dc5a:	mov	al,[bx].GEN_FLAGS	; keep the program's text, and
+	and	al,GEN_BATCH		; restart a BAT file as one
+	jnz	dc6c
+	jmp	short dc6b
 dc6:	call	mergeFile		; or merge the file's lines into it
 dc6a:	jc	dc9			; error (and a message was printed)
 	mov	bx,ds:[PSP_HEAP]
-	mov	al,GEN_BASIC
-	sub	si,si
+dc6b:	mov	al,GEN_BASIC
+dc6c:	sub	si,si
 	call	genInit			; ES:DI -> the program's new code
 	jbe	dc9			; (or there's nothing to run)
 	ASSUME	ES:NOTHING
@@ -270,6 +278,64 @@ DEFPROC	cmdMerge
 	jmp	openError		; report error (AX) opening file (SI)
 cm9:	ret
 ENDPROC	cmdMerge
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; runFile
+;
+; Process "RUN [file]" when a file is given or a program is running (see
+; cmdRun), as in MSBASIC.  The file is a BAS file, found the same way MERGE
+; finds it (see findProgram), and if it isn't found, RUN fails like any other
+; command (see cmdDOS).  At the prompt, RUN file is LOAD file followed by RUN.
+; In a program, RUN file replaces the program, as CHAIN file does (see
+; doChain), and RUN alone restarts the program (as a BAT file, if it is one),
+; and either way, all open files are closed first.  An empty string variable
+; (eg, RUN E$) is the same as RUN alone.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	DI -> TOKENBUF
+;
+; Outputs:
+;	Carry set if the file couldn't be found or loaded; otherwise, whatever
+;	RUN returns (in a program, it doesn't return)
+;
+; Modifies:
+;	Any
+;
+DEFPROC	runFile
+	mov	dl,[bx].CMD_ARG
+	sub	cx,cx			; (no default)
+	call	getFileName		; DS:SI -> filename, CX = length
+	mov	al,CH_RUN		; AL = CH_* flags (if there's no file)
+	jc	rf1			; there's no file (or it's empty)
+	mov	dx,offset BAS_EXT
+	call	findProgram		; find the file
+	jc	rf8
+	mov	al,0			; AL = CH_* flags (none)
+rf1:	cmp	[bx].CBLKDEF.BDEF_NEXT,0; is a program running?
+	jne	rf3			; yes
+	test	al,al			; is there a file?
+	jnz	rf2			; no
+	mov	dx,offset BAS_EXT
+	call	cmdLoad			; yes, so load it
+	jc	rf9
+rf2:	mov	al,GEN_BASIC
+	jmp	cmdRunFlags		; and run it
+rf3:	push	ax
+	push	bx
+	sub	ax,ax
+	push	ax
+	push	ax			; push 0 (all files)
+	push	cs
+	call	closeFile		; close them (a FAR function)
+	pop	bx
+	pop	cx			; CX = CH_* flags
+	sub	dx,dx			; DX = line # (none)
+	jmp	dc4a			; replace or restart the program
+rf8:	jmp	openError		; report error (AX) opening file (SI)
+rf9:	ret
+ENDPROC	runFile
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -341,282 +407,6 @@ mf8:	mov	si,sp			; SI -> the file's text
 	pop	ax
 	ret
 ENDPROC	mergeFile
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genResumeAt
-;
-; Generate code for "RESUME [0]" or "RESUME NEXT" (genResume comes here, via
-; genUpper), which pushes 0 for RESUME or 1 for RESUME NEXT for resumeStmt.
-;
-; Inputs:
-;	DS:BX -> TOKLETs
-;	ES:DI -> code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
-;
-; Modifies:
-;	Any
-;
-DEFPROC	genResumeAt
-	mov	al,CLS_DEC
-	call	getNextToken		; skip the 0, if any
-	mov	al,CLS_KEYWORD
-	call	peekNextToken
-	mov	dl,0			; DL = 0 for RESUME
-	jbe	gra1			; no keyword
-	cmp	al,TOK_NEXT
-	jne	gra1			; not NEXT (eg, ELSE)
-	mov	si,ds:[PSP_HEAP]
-	mov	bx,[si].TOKLET_NEXT	; consume NEXT
-	inc	dx			; DL = 1 for RESUME NEXT
-gra1:	xchg	ax,dx
-	GENPUSHB al			; push the flag
-	GENCALL	resumeStmt
-	clc
-	ret
-ENDPROC	genResumeAt
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; resumeStmt
-;
-; Used by "RESUME [0]" and "RESUME NEXT", to end error handling (see endErr)
-; and resume at the start of the statement with the error, or at the code
-; that follows it (see findStmt), with the stack as it was at the start of
-; that statement, so that, as in MSBASIC, any GOSUBs it was in are still
-; active.
-;
-; Inputs:
-;	16-bit flag (AL = 0 for RESUME, 1 for RESUME NEXT)
-;
-; Outputs:
-;	None (does not return)
-;
-DEFPROC	resumeStmt,FAR
-	mov	bx,sp
-	mov	cx,ss:[bx+4]		; CL = flag
-	call	endErr			; SI = SP of the statement
-	les	di,ss:[si-4]		; ES:DI -> return address (see rtError)
-	mov	sp,si
-	xchg	ax,cx
-	call	findStmt		; DX:AX -> where to resume
-	jc	rsm9
-	mov	bp,ss:[bx].ERR_SP	; reset BP and DS (see rtError)
-	mov	ds,ss:[bx].VBLKDEF.BLK_NEXT
-	push	dx
-	push	ax
-	ret				; (a RETF, since this is a FAR proc)
-;
-; If the statement can't be found (eg, it was generated before CHAIN MERGE
-; added the RESUME), it's still an error in the error handler, which ends the
-; program.
-;
-rsm9:	inc	byte ptr ss:[bx].ERR_NUM.HIB
-	mov	al,20			; "RESUME without error"
-	jmp	rtError
-ENDPROC	resumeStmt
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; findStmt
-;
-; Finds the statement whose code contains the return address of a failed
-; call (or for RESUME NEXT, the code that follows that statement), using the
-; CTL_STMT entries that mark every statement (see addStmt) in a program that
-; uses RESUME or RESUME NEXT (see scanResume).
-;
-; The statement is the last one marked before the return address, in the
-; order that the code was generated (ie, in block order, and then in IP order,
-; which is the reverse of an LBLREF table's order, since its newest entries
-; come first).  The code that follows it is at the next mark whose IF depth
-; isn't deeper, which skips any THEN or ELSE blocks of the statement (or of
-; the IF whose THEN block it ends); if there isn't one, the code that follows
-; is at the end of the code generated so far, where genMore is called (or the
-; final RETF is).
-;
-; Inputs:
-;	AL = 0 for the statement, 1 for the code that follows it
-;	ES:DI -> return address
-;	SS:BX -> heap
-;
-; Outputs:
-;	If carry clear, DX:AX -> address
-;
-; Modifies:
-;	AX, CX, DX, SI, BP, ES
-;
-DEFPROC	findStmt
-	mov	dx,es			; DX:DI -> return address
-	test	dx,dx			; is there one?
-	jnz	fs0			; yes
-fs8:	stc
-	ret
-fs0:	push	ax			; save the flag
-	sub	cx,cx			; CX = block of the statement (none yet)
-	mov	ax,ss:[bx].CBLKDEF.BDEF_NEXT
-fs1:	mov	es,ax
-	mov	si,es:[CBLK_REFS]
-fs2:	cmp	si,es:[BLK_SIZE]	; end of this LBLREF table?
-	jae	fs4			; yes
-	call	isStmt			; is it a mark?
-	jc	fs3			; no
-	mov	ax,es
-	cmp	ax,dx			; the block with the return address?
-	jne	fs2a			; no
-	cmp	es:[si].LBL_IP,di	; before the return address?
-	jae	fs3			; no
-fs2a:	mov	cx,es			; CX:BP -> the statement's mark
-	mov	bp,si
-	jmp	short fs4		; (the rest of the block is older)
-fs3:	add	si,size LBLREF
-	jmp	fs2
-fs4:	mov	ax,es
-	cmp	ax,dx			; was it the block with the return address?
-	je	fs5			; yes
-	mov	ax,es:[BLK_NEXT]
-	test	ax,ax
-	jnz	fs1
-fs5:	pop	ax			; AL = flag
-	jcxz	fs8			; no statement
-	mov	es,cx
-	mov	dx,es:[bp].LBL_NUM	; DX = CTL_STMT + IF depth
-	test	al,al			; the code that follows?
-	jnz	fs6			; yes
-	mov	ax,es:[bp].LBL_IP	; no, the statement itself
-	jmp	short fs7
-;
-; Look for the next mark that isn't deeper, starting with the next newest
-; entry in the statement's block, and then in each following block, from its
-; oldest entry to its newest.
-;
-fs6:	mov	si,bp
-fs6a:	sub	si,size LBLREF
-	cmp	si,es:[CBLK_REFS]	; any newer entries in this block?
-	jb	fs6b			; no
-	call	isStmt			; is it a mark?
-	jc	fs6a			; no
-	cmp	es:[si].LBL_NUM,dx	; is it deeper?
-	ja	fs6a			; yes
-	mov	ax,es:[si].LBL_IP
-	jmp	short fs7
-fs6b:	mov	ax,es:[BLK_NEXT]
-	test	ax,ax			; is there another block?
-	jz	fs6c			; no
-	mov	es,ax
-	mov	si,es:[BLK_SIZE]
-	jmp	fs6a
-fs6c:	mov	ax,es:[BLK_FREE]	; the end of the code generated so far
-	sub	ax,5			; (a far CALL to genMore)
-	test	ss:[bx].GEN_FLAGS,GEN_DONE
-	jz	fs7
-	add	ax,4			; (or the final RETF)
-fs7:	mov	dx,es			; DX:AX -> address
-	clc
-	ret
-ENDPROC	findStmt
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; isStmt
-;
-; Inputs:
-;	ES:SI -> LBLREF
-;
-; Outputs:
-;	Carry clear if it's a mark (ie, CTL_STMT + an IF depth from 0 to 2)
-;
-; Modifies:
-;	AX
-;
-DEFPROC	isStmt
-	mov	ax,es:[si].LBL_NUM
-	sub	ax,CTL_STMT
-	cmp	ax,3			; CTL_STMT through CTL_STMT + 2?
-	cmc				; (carry set if not)
-	ret
-ENDPROC	isStmt
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; scanResume
-;
-; Called by genInit before a program's code is generated, to see whether the
-; program uses RESUME or RESUME NEXT (ie, RESUME not followed by a line number
-; other than 0), in which case every statement must be marked (see addStmt).
-; The marks take room in the code blocks, so other programs don't get them.
-; We look for "RESUME" (in any case) anywhere in a line, so the word in a
-; string or a remark is a false alarm, which costs only room.
-;
-; Inputs:
-;	DS:BX -> heap
-;	DX = first text block
-;
-; Outputs:
-;	GEN_STMT1 set in GEN_FLAGS if statements must be marked
-;
-; Modifies:
-;	AX, SI, DI
-;
-DEFPROC	scanResume
-	push	cx
-	push	dx
-	push	bp
-	push	ds
-sr1:	mov	ds,dx
-	ASSUME	DS:NOTHING
-	mov	si,size TBLK
-sr2:	cmp	si,ds:[BLK_FREE]	; any more lines in this text block?
-	jae	sr8			; no
-	lodsw				; skip the line's label #
-	lodsb
-	mov	ah,0
-	mov	bp,si
-	add	bp,ax			; BP = end of the line
-sr3:	lea	ax,[si+6]
-	cmp	ax,bp			; is there room for "RESUME"?
-	ja	sr7			; no
-	lodsb
-	and	al,0DFh
-	cmp	al,'R'
-	jne	sr3
-	push	si
-	mov	di,offset ESUME
-	mov	cx,5
-sr4:	lodsb
-	and	al,0DFh
-	cmp	al,cs:[di]
-	jne	sr6
-	inc	di
-	loop	sr4
-sr5:	cmp	si,bp			; end of the line?
-	jae	sr9			; yes
-	lodsb
-	cmp	al,' '
-	je	sr5
-	sub	al,'1'
-	cmp	al,9			; a line number (other than 0)?
-	jae	sr9			; no, so it's RESUME, RESUME 0, or NEXT
-sr6:	pop	si
-	jmp	sr3
-sr7:	mov	si,bp			; on to the next line
-	jmp	sr2
-sr8:	mov	dx,ds:[BLK_NEXT]
-	test	dx,dx			; is there another text block?
-	jnz	sr1			; yes
-	jmp	short sr10
-sr9:	pop	si
-	or	ss:[bx].GEN_FLAGS,GEN_STMT1
-sr10:	pop	ds
-	ASSUME	DS:DATA
-	pop	bp
-	pop	dx
-	pop	cx
-	ret
-ENDPROC	scanResume
-
-ESUME	db	"ESUME"			; (see scanResume)
 
 CODE	ENDS
 

@@ -457,6 +457,13 @@ DEFPROC	cmdDel
 de1:	pop	si			; (if so, cmdDOS replaced it with *.*)
 	pop	ds
 	jc	de7			; no filename
+;
+; Like REN, DEL rejects extra arguments, so that an MSBASIC-style expression
+; (eg, KILL "TEMP" + N$) is an error, rather than deleting the wrong file.
+;
+	inc	dx
+	call	getToken		; any other argument?
+	jnc	rn8			; yes (see cmdRen)
 	call	scanSpec		; any wildcards?
 	mov	dx,offset delFile
 	test	ah,ah
@@ -1695,17 +1702,19 @@ ENDPROC	writeOutput
 ; Open a handle for redirection.  An input handle requires an existing file
 ; (or device), whereas an output handle creates the file if it doesn't exist
 ; (or truncates it if it does).  An append handle opens an existing file and
-; seeks to the end, or creates the file if it can't be opened.
+; seeks to the end, or creates the file if it can't be opened.  As with any
+; other filename, the name can be quoted or a string variable (see openVar).
 ;
 ; Inputs:
 ;	AL = 0 for input (read-only), 1 for output (create/truncate),
 ;	or 2 for append
 ;	DI -> TOKENBUF
 ;	BX = token offset
+;	BP -> CMDHEAP
 ;
 ; Outputs:
 ;	BX = next token offset
-;	If carry clear, AX is new handle; otherwise, AX is error
+;	If carry clear, AX is new handle; otherwise, the error was reported
 ;
 ; Modifies:
 ;	AX, BX
@@ -1714,15 +1723,14 @@ DEFPROC	openHandle
 	push	cx
 	push	dx
 	push	si
+	push	di
 	sub	cx,cx
 	add	bx,size TOKLET
 	mov	si,[di].TOK_DATA[bx].TOKLET_OFF
 	mov	cl,[di].TOK_DATA[bx].TOKLET_LEN
-	mov	dx,si
-	add	si,cx
-	xchg	[si],ch			; null-terminate the token
-	call	openName		; AX = handle (or error)
-	mov	[si],ch			; restore the token separator
+	lea	dx,[bp].LINEBUF		; DX -> buffer for the name
+	call	openVar			; AX = handle (or error)
+	pop	di
 	pop	si
 	pop	dx
 	pop	cx
@@ -1731,10 +1739,45 @@ ENDPROC	openHandle
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; openVar
+;
+; Open a file (or device) for redirection (see openName), using a name that
+; can be quoted or a string variable (see chkStrVar), such as the name after
+; ">" (see openHandle) or ":>" (see redirOut).
+;
+; Inputs:
+;	AL = 0 for input, 1 for output, or 2 for append (see openHandle)
+;	SS:SI -> name, CX = length
+;	SS:DX -> buffer for the null-terminated name (eg, LINEBUF)
+;	DS = SS
+;
+; Outputs:
+;	If carry clear, AX is new handle; otherwise, the error was reported
+;
+; Modifies:
+;	AX, CX, SI, DI, ES
+;
+DEFPROC	openVar
+	push	ax
+	call	chkStrVar		; DS:SI -> name (eg, F$'s value)
+	pop	ax
+	jnc	ov1
+	jmp	noFile			; report a missing name
+ov1:	push	ss
+	pop	es
+	mov	di,dx
+	rep	movsb
+	mov	es:[di],cl		; null-terminate the name (CX is zero)
+	push	ss
+	pop	ds			; DS:DX -> name (fall into openName)
+ENDPROC	openVar
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; openName
 ;
 ; Open a file (or device) for redirection, as described for openHandle;
-; redirOut uses this, too.  openMode (for OPEN; see openFile) does the same,
+; openVar uses this, too.  openMode (for OPEN; see openFile) does the same,
 ; without reporting an error.  Like MSBASIC (whose FCB opens are read-only
 ; for a read-only file), random access opens a read-only file for reading.
 ;

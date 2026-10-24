@@ -10,11 +10,13 @@
 ; AUTO, DELETE, EDIT, and LLIST, and editPrompt, which the main loop calls
 ; when AUTO or EDIT has set a line to edit (see EDIT_STATE).  The program's
 ; text blocks and the other editing functions (eg, LIST) are in edit.asm.
+; cmdPipe and runLine, which pipe the output of BASIC statements typed at the
+; prompt, are here, too.
 ;
 ; This module is not part of COMMAND's core (see CMD.LRF and HEAP.ASM): when
 ; only the core is loaded, cmdDOS refuses these commands with "Not enough
 ; memory" (see genUpper), so EDIT_STATE stays zero and the main loop never
-; calls editPrompt.
+; calls editPrompt, and parseCmd calls genCode instead of cmdPipe.
 ;
 	DOSFUNC equ 1
 	include	cmd.inc
@@ -23,7 +25,7 @@ CODE    SEGMENT
 
 	EXTNEAR	<chkProgram,getRange,syntaxError,freeCache,walkLines,delLine>
 	EXTNEAR	<findLine,putNum,parseLine,storeLine,printCRLF,listLine>
-	EXTNEAR	<chkOut>
+	EXTNEAR	<chkOut,chkColon,genCode,parseDOS>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -257,6 +259,128 @@ ep9:	push	ss
 	pop	es
 	ret
 ENDPROC	editPrompt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdPipe
+;
+; Runs a line typed at the prompt that genCode would run (see parseCmd).  If
+; a pipe symbol (outside quotes) follows the line's last command-ending colon
+; (see chkColon), as in "FOR I=1 TO 9:PRINT I:NEXT | MORE", then parseDOS runs
+; the line as a pipeline whose first command is everything before the pipe
+; symbol, which it defers until the rest of the pipeline is running (see
+; runLine); otherwise, genCode runs the line as usual.
+;
+; TOKENBUF has the line's DOS tokens (where '<' and '>' are symbols, too), so
+; we replace all the tokens before the pipe symbol with one token, which we
+; mark CLS_KEYWORD for parseDOS.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	SI -> input buffer (see INPUT_BUF)
+;	DI -> TOKENBUF
+;
+; Outputs:
+;	Same as genCode (or parseDOS)
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdPipe
+	push	bx
+	mov	cl,[si].INP_CNT		; CL = # chars in the line
+	mov	ch,0			; CH = quote flag
+	lea	bx,[si].INP_DATA
+	mov	dx,bx			; DX -> start of the line
+	sub	si,si			; SI -> pipe symbol (none yet)
+cp1:	mov	al,[bx]
+	cmp	al,'"'
+	jne	cp2
+	not	ch
+cp2:	test	ch,ch			; inside quotes?
+	jnz	cp4			; yes
+	cmp	al,'|'			; pipe symbol?
+	jne	cp3			; no
+	test	si,si			; the first since the last colon?
+	jnz	cp4			; no
+	mov	si,bx			; yes
+cp3:	cmp	al,':'
+	jne	cp4
+	call	chkColon		; does the colon end a command?
+	jc	cp4			; no
+	sub	si,si			; yes, so forget any pipe symbol
+cp4:	inc	bx
+	dec	cl
+	jnz	cp1
+	xchg	ax,si			; AX -> pipe symbol, if any
+	pop	bx
+	test	ax,ax
+	jz	cp9			; no pipe symbol
+;
+; Find the pipe symbol's TOKLET, and move it (and the rest) after the first
+; TOKLET, which becomes everything before the pipe symbol.  The pipe symbol
+; must be within TOK_MAX tokens of the line's start; if not, it remains a
+; syntax error.
+;
+	mov	cl,[di].TOK_CNT
+	mov	ch,0
+	lea	si,[di].TOK_DATA
+cp5:	cmp	[si].TOKLET_OFF,ax	; the pipe symbol's TOKLET?
+	je	cp6			; yes
+	add	si,size TOKLET
+	loop	cp5
+	jmp	short cp9		; not found
+cp6:	push	di
+	inc	cx
+	mov	[di].TOK_CNT,cl		; CL = # TOKLETs that remain
+	dec	cx
+	add	cx,cx			; CX = # words to move
+	lea	di,[di].TOK_DATA[size TOKLET]
+	rep	movsw
+	pop	di
+	sub	ax,[di].TOK_DATA[0].TOKLET_OFF
+	mov	[di].TOK_DATA[0].TOKLET_LEN,al
+	mov	[di].TOK_DATA[0].TOKLET_CLS,CLS_KEYWORD
+	jmp	parseDOS		; (AH is zero, as parseDOS requires)
+cp9:	mov	al,GEN_IMM
+	mov	si,[bx].INPUT_BUF
+	jmp	genCode
+ENDPROC	cmdPipe
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; runLine
+;
+; Runs the BASIC statements before the pipe symbol of a line that cmdPipe
+; gave to parseDOS, which calls us like a deferred internal command (see
+; pd9e), once the rest of the pipeline is running and STDOUT is the pipe.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	SI -> statements (ie, the first token; see cmdPipe)
+;	CX = length of statements
+;
+; Outputs:
+;	Same as genCode
+;
+; Modifies:
+;	Any
+;
+DEFPROC	runLine
+	add	cx,si			; CX -> pipe symbol
+	mov	si,[bx].INPUT_BUF
+	lea	ax,[si].INP_DATA
+	sub	cx,ax			; CL = # chars before the pipe symbol
+	xchg	cl,[si].INP_CNT		; end the line there (for now)
+	push	cx
+	push	si
+	mov	al,GEN_IMM
+	call	genCode
+	pop	si
+	pop	cx
+	mov	[si].INP_CNT,cl		; restore the line's length
+	ret
+ENDPROC	runLine
 
 CODE	ENDS
 
