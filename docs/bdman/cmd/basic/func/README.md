@@ -10,7 +10,7 @@ Functions can be used in any expression, in BASIC programs or at the prompt (eg,
 
 - Numeric functions: [ABS](#abs), [ATN](#atn), [CDBL](#cdbl), [CINT](#cint), [COS](#cos), [CSNG](#cdbl), [EXP](#exp), [FIX](#fix), [INT](#int), [LOG](#log), [RND](#rnd), [RND%](#rnd-int), [SGN](#sgn), [SIN](#sin), [SQR](#sqr), [TAN](#tan)
 - String functions: [ASC](#asc), [CHR$](#chr), [HEX$](#hex), [INSTR](#instr), [LCASE$](#lcase), [LEFT$](#left), [LEN](#len), [MID$](#mid), [OCT$](#oct), [RIGHT$](#right), [SPACE$](#space), [SPC](#space), [STR$](#str), [STRING$](#string), [TAB](#tab), [UCASE$](#ucase), [VAL](#val)
-- File functions: [CVD](#cvi), [CVI](#cvi), [CVL](#cvi), [DIR$](#dir), [EOF](#eof), [EXISTS](#exists), [LOC](#loc), [LOF](#lof), [MKD$](#mki), [MKI$](#mki), [MKL$](#mki)
+- File functions: [CVD](#cvi), [CVI](#cvi), [CVL](#cvi), [DIR$](#dir), [EOF](#eof), [EXISTS](#exists), [INPUT$](#input), [LOC](#loc), [LOF](#lof), [MKD$](#mki), [MKI$](#mki), [MKL$](#mki)
 - System functions: [ARG$](#arg), [CSRLIN](#csrlin), [CURDIR$](#curdir), [DATE$](#date), [DOS](#dos), [ERL](#erl), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PATH$](#path), [LPOS](#lpos), [PEEK](#peek), [POS](#pos), [SCREEN](#screen), [TIME$](#time)
 - Predefined constants: [ERRORLEVEL](#errorlevel), [MAXINT](#maxint)
 
@@ -253,7 +253,7 @@ Commands that search for files (eg, DIR, or COPY, DEL, and TYPE with wildcards) 
 
 > EOF(*n*)
 
-Returns -1 (true) if file *n*, which must be open for INPUT or RANDOM (see [OPEN](../#open)), is at its end (or at a CTRL-Z), or 0 (false) if not (eg, `WHILE NOT EOF(1)`).
+Returns -1 (true) if file *n*, which must be open for INPUT or RANDOM (see [OPEN](../#open)), is at its end (or at a CTRL-Z), or 0 (false) if not (eg, `WHILE NOT EOF(1)`).  For a serial port opened without FOR (eg, `OPEN "COM1:" AS #1`), it's true if no characters are waiting to be read, as in Microsoft BASIC.
 
 #### EXISTS {#exists}
 
@@ -265,6 +265,15 @@ Returns -1 (true) if a file or directory matching *filespec* exists, or 0 (false
 
 PC DOS batch files use `IF EXIST` (and `IF NOT EXIST`) for the same purpose.
 
+#### INPUT$ {#input}
+
+> INPUT$(*n*[,[#]*f*])
+
+Returns *n* characters (1-255) read from file *f*, which must be open for INPUT or be a device opened without FOR (see [OPEN](../#open)), or if *f* is omitted, from the keyboard.  Unlike [INPUT](../#input), keys aren't displayed, and every key is a character (eg, ENTER is CHR$(13)); an extended key is two characters, a null and the key's scan code, as with [INKEY$](#inkey).  INPUT$ waits until all *n* characters have been read (from the keyboard, or from a serial port; use [LOC](#loc) to find out how many are waiting).  Reading past the end of a file is an "Input past end" error (62).
+
+	PRINT "Continue (Y/N)?";
+	K$ = INPUT$(1) : PRINT K$
+
 #### IOCTL$ {#ioctl}
 
 > IOCTL$(*n*,*code*[,*value*])
@@ -275,7 +284,7 @@ Sends an IOCTL request with the specified *code* (and *value* in DX) to the devi
 
 > LOC(*n*)
 
-Returns the last record number used by [GET #](../#get) or [PUT #](../#put) for file *n*, or for a sequential file, its position divided by 128.
+Returns the last record number used by [GET #](../#get) or [PUT #](../#put) for file *n*, or for a sequential file, its position divided by 128.  For a serial port opened without FOR (eg, `OPEN "COM1:" AS #1`), it returns the number of characters waiting to be read (up to 255), as in Microsoft BASIC, so `A$ = INPUT$(LOC(1),#1)` reads them all.
 
 #### LOF {#lof}
 

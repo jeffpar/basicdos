@@ -113,13 +113,19 @@ DEFPROC	waitKey
 	mov	dx,offset MORE_MSG
 	mov	cx,MORE_LEN
 	call	writeOut
-	push	ax
+wk1:	push	ax
 	mov	dx,sp
 	mov	cx,1
 	mov	bx,STDERR
 	mov	ah,DOS_HDL_READ
 	int	21h
-	pop	ax
+	pop	dx			; DL = the byte (if any)
+	jc	wk2
+	dec	ax			; was a byte read?
+	jnz	wk2			; no
+	test	dl,dl			; non-ASCII key (null + scan code)?
+	jz	wk1			; yes, so read its scan code, too
+wk2:
 	mov	dx,offset ERASE_MSG
 	mov	cx,ERASE_LEN
 	jmp	writeOut

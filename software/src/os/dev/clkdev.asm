@@ -395,7 +395,7 @@ dci7:	mov	dl,cl			; start with hours (5 bits)
 	jnc	dci7a
 	add	cx,182
 dci7a:	or	dl,al
-	xchg	ax,cx			; AL = # ticks remaining (< 364)
+	xchg	ax,cx			; AX = # ticks remaining (< 364)
 ;
 ; At this point, the packed result is ready, but we'd also like to convert
 ; the remaining ticks in AX to hundredths (< 200).  AX/364 = N/200.  We return
@@ -408,10 +408,14 @@ dci7a:	or	dl,al
 	mov	cx,364
 	div	cx			; AX = (AX * 200) / 364
 	pop	dx
+;
+; dev_request returns AX = the # bytes "transferred" (the original length less
+; the remaining length), so that's how we return the hundredths.
+;
+	sub	es:[di].DDPRW_LENGTH,ax
 
 dci8:	mov	es:[di].DDP_CONTEXT,dx	; return value goes in context field
-	mov	ah,DDSTAT_DONE SHR 8
-	mov	es:[di].DDP_STATUS,ax	; return AL in DDP_STATUS, too
+	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 dci9:	ret
 ENDPROC	ddclk_ctlin
 

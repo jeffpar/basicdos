@@ -50,22 +50,6 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFLBL	SGL_BORDER,word
 	dw	0DABFh,0B3B3h,0C0D9h,0C4C4h
 
-	DEFLBL	SCAN_MAP,byte
-	db	SCAN_F1,         CHR_CTRLD
-	db	SCAN_F3,         CHR_CTRLL
-	db	SCAN_HOME,       CHR_CTRLW
-	db	SCAN_UP,         CHR_CTRLE
-	db	SCAN_LEFT,       CHR_CTRLS
-	db	SCAN_RIGHT,      CHR_CTRLD
-	db	SCAN_END,        CHR_CTRLR
-	db	SCAN_DOWN,       CHR_CTRLX
-	db	SCAN_INS,        CHR_CTRLV
-	db	SCAN_DEL,        CHR_DEL
-	db	SCAN_CTRL_LEFT,  CHR_CTRLA
-	db	SCAN_CTRL_RIGHT, CHR_CTRLF
-	db	SCAN_CTRL_END,   CHR_CTRLK
-	db	0
-
 	DEFWORD	ct_head,0	; head of context chain
 	DEFWORD	ct_focus,0	; segment of context with focus
 	DEFWORD	mode_ctx,0	; context not in its original mode
@@ -144,7 +128,7 @@ CTSTAT_ADAPTER	equ	02h	; context is using alternate adapter
 CTSTAT_SKIPMODE	equ	04h	; set to skip the mode set for the adapter
 CTSTAT_ABORT	equ	08h	; ABORT condition detected
 CTSTAT_INT10	equ	10h	; context writes characters using INT 10h
-CTSTAT_RAWKEYS	equ	20h	; context returns raw keys (see IOCTL_SETKEYS)
+CTSTAT_RAWKEYS	equ	20h	; hotkeys are just keys (see IOCTL_SETKEYS)
 CTSTAT_INPUT	equ	40h	; context is waiting for input
 CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
 
@@ -375,8 +359,9 @@ ENDPROC	ddcon_getchar
 ;
 ; ddcon_setkeys (IOCTL_SETKEYS)
 ;
-; In raw keys mode, non-ASCII keys (eg, cursor keys) are returned as a zero
-; followed by the key's scan code, instead of being mapped to control keys.
+; In raw keys mode, CTRLC, CTRLS, and CTRLP are just keys, rather than hotkeys
+; (see check_hotkey); non-ASCII keys (eg, cursor keys) are always returned as
+; a zero followed by the key's scan code (see pull_kbd).
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
@@ -459,7 +444,7 @@ dgl3a:	dec	al
 dgl4:	cmp	al,CHR_SPACE		; CONTROL character?
 	mov	al,1			; AL = # output chars
 	jae	dgl4a			; no
-	inc	ax			; add 1 more to output for presumed "^"
+	inc	ax			; add 1 for the "^" (see con_out)
 dgl4a:	inc	bl			; advance the column
 	inc	dl			; advance the length
 	cmp	bl,ah			; column still below limit?
@@ -2197,8 +2182,9 @@ DEFPROC	pull_kbd
 	push	bx
 	push	ds
 ;
-; In raw keys mode, a non-ASCII key is returned as a zero followed by its
-; scan code (as on PC DOS), so the scan code is held in CT_SCAN until then.
+; A non-ASCII key (eg, a cursor key) is returned as a zero followed by its
+; scan code, as on PC DOS, so the scan code is held in CT_SCAN until then;
+; the DOS line editor maps those keys to its editing keys (see read_line).
 ;
 pl1:	mov	ds,es:[di].DDP_CONTEXT
 	sub	ax,ax
@@ -2228,28 +2214,9 @@ pl3:	sti
 	jz	pl4			; yes, must be a special-function key
 	cmp	al,0E0h			; ditto for E0h, which future keyboards
 	jne	pl7			; may generate....
-;
-; Perform our own non-ASCII special-function key to control-character mappings
-; now, using the scan code in AH.  If there's no mapping, we end up returning
-; a zero ASCII code.
-;
-; In raw keys mode, there's no mapping (see above).
-;
 pl4:	mov	ds,es:[di].DDP_CONTEXT
-	test	ds:[CT_STATUS],CTSTAT_RAWKEYS
-	jz	pl4a
 	mov	ds:[CT_SCAN],ah		; return the scan code next
 	mov	al,0
-	jmp	short pl7
-pl4a:	push	si
-	mov	si,offset SCAN_MAP
-pl5:	lods	byte ptr cs:[si]
-	test	al,al			; end of SCAN_MAP?
-	jz	pl6			; yes
-	cmp	ah,al			; scan code match?
-	lods	byte ptr cs:[si]
-	jne	pl5			; no
-pl6:	pop	si
 
 pl7:	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
 	ASSUME	DS:NOTHING
@@ -3079,19 +3046,16 @@ wc1:	cmp	al,CHR_LINEFEED		; LINEFEED?
 
 	cmp	al,CHR_TAB		; TAB?
 	je	wc4			; yes
-
-	cmp	al,CHR_BACKSPACE	; BACKSPACE?
-	je	wc7			; yes
-
-	cmp	al,CHR_SPACE		; CONTROL character?
-	jae	wc7			; no
-
-	push	cx			; yes
-	mov	cl,'^'
-	call	draw_char
-	pop	cx
-	add	cl,'A'-1
-	jmp	short wc7
+;
+; Like the PC BIOS, we draw any other CONTROL character (eg, CHR$(14)) as a
+; glyph, except BELL, which the BIOS beeps instead (and BACKSPACE, which
+; draw_char handles).  CONTROL characters typed at a DOS buffered input
+; prompt are still displayed as "^" + char, since DOS does that (see con_out).
+;
+	cmp	al,CHR_CTRLG		; BELL?
+	jne	wc7			; no
+	call	write_char		; yes, so let the BIOS beep
+	jmp	short wc9
 
 wc4:	mov	bl,dl			; emulate a (horizontal) TAB
 	sub	bl,ds:[CT_CURMIN].LOB

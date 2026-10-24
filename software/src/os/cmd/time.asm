@@ -81,7 +81,8 @@ ENDPROC	cmdDate
 ;
 ; Set a new system time (eg, "HH:MM:SS.DD")  Any portion of the time string
 ; that's omitted defaults to zero.  TIME /P prompts for a new time, and TIME /D
-; displays the difference between the current time and the previous time.
+; displays only the time elapsed since PREV_TIME, the last time that TIME
+; displayed (or since midnight, if TIME hasn't been used yet).
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -97,15 +98,8 @@ DEFPROC	cmdTime
 	TESTSW	<'D'>			; /D present?
 	jz	tm3			; no
 
-	sub	ax,ax			; set ZF
 	DOSUTIL	GETTIME
 	push	cx			; CX:DX = current time
-	push	dx
-	call	printTime
-	pop	dx
-	pop	cx
-
-	push	cx
 	push	dx
 	push	bx
 	sub	dl,[bx].PREV_TIME.LOW.LOB

@@ -114,7 +114,7 @@ Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-
 
 ### Parsing
 
-**DOS_UTL_TOKEN1 (0Ch)** and **DOS_UTL_TOKEN2 (0Dh)**: CL = string length, DS:SI -> string, ES:DI -> token buffer (TOKBUF; see parser.inc).  TOKEN1 returns only tokens separated by whitespace (or the switch character), while TOKEN2 parses BASIC syntax and returns all tokens, including whitespace.  Returns carry clear and AX = # of tokens if any were found.
+**DOS_UTL_TOKEN1 (0Ch)** and **DOS_UTL_TOKEN2 (0Dh)**: CL = string length, DS:SI -> string, ES:DI -> token buffer (TOKBUF; see parser.inc).  TOKEN1 returns only tokens separated by whitespace (or the switch character), while TOKEN2 parses BASIC syntax and returns all tokens, including whitespace.  For TOKEN2, a type suffix (`%`, `$`, `!`, or `#`) is part of a name's token, except that a `#` followed by a digit starts a new token, since it begins a file number (eg, `PRINT#1` is PRINT, #, 1).  Returns carry clear and AX = # of tokens if any were found.
 
 **DOS_UTL_TOKID (0Eh)**: CX = token length, DS:SI -> token, CS:DX -> token table (TOKTBL, followed by TOKDEFs sorted by name).  Returns carry clear, AX = token ID, and SI -> the TOKDEF if found; otherwise, carry set and AX = 0.
 

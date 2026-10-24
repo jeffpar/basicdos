@@ -8,3 +8,33 @@
   font-size: smaller;
   margin: 4px 0 10px;
 }
+
+/* side-by-side code and memory dumps (eg, the "Generation" blog post) */
+.codegen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0 0 20px;
+
+  > div {
+    max-width: 100%;
+  }
+
+  .cg-title {
+    font-size: 11px;
+    color: #9a9a9a;
+    margin: 0 0 2px;
+  }
+
+  pre {
+    margin: 0;
+    font-family: Monaco, Bitstream Vera Sans Mono, Lucida Console, Terminal, monospace;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .cg-hl {
+    color: #ffcc00;
+  }
+}

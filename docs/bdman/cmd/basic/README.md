@@ -20,9 +20,19 @@ BASIC programs can use any BASIC-DOS [command](../) in combination with the BASI
 
 ### CHAIN
 
-> CHAIN *file*[,*line*]
+> CHAIN [MERGE] *file*[,[*line*][,ALL]]
 
-Runs the specified BAS file and then ends the program.  The *line* is currently ignored, and other CHAIN options (eg, ALL and MERGE) are not supported.
+Replaces the running program with the specified BAS file and runs it, as in Microsoft BASIC.  If the file isn't in the current directory, and its name doesn't include a drive or directory, the directories listed in [PATH$](func/#path) are searched, and if the name has no extension, .BAS is added (trailing spaces are ignored, so `CHAIN "MARCH "` loads MARCH.BAS).
+
+The new program starts at *line* if one is given, otherwise at its first line.  Its variables start out cleared, unless ALL is given, in which case all the variables (and arrays) of the old program are kept.  Any GOSUBs, FOR and WHILE loops, and [ON ERROR](#on-error) handler in progress are ended, and [READ](#read) starts over at the first DATA item.  Files that are open remain open.
+
+With MERGE, the file's numbered lines are added to the program instead of replacing it, and any line with the same number is replaced (as if typed at the prompt; see [MERGE](../disk/#merge)), so a program can load data or subroutines from other files.  For example, the MUSIC.BAS sample loads each song (a file of DATA statements numbered 3000 and up) and then plays it with:
+
+	1770 PRINT " ";CMD$;"-";S$:CHAIN MERGE S$,1780,ALL
+
+If the file can't be found, the error is "File not found" (53), which an [ON ERROR](#on-error) handler can catch.  Any other error loading the file (eg, an unnumbered line in a MERGE file) ends the program.  When the program ends, the chained program remains loaded (eg, for [LIST](../system/#list) or [RUN](../system/#run)).
+
+COMMON and CHAIN's DELETE option are not supported.
 
 ### CLEAR
 
@@ -230,7 +240,9 @@ Transfers program control to (or calls) the Nth label, where N is the value of t
 > ON ERROR GOTO *label*  
 > ON ERROR GOTO 0
 
-Transfers program control to the label when a runtime error occurs, where the [ERR](func/#err) function returns the error number, and [RESUME](#resume) continues the program.  ON ERROR GOTO 0 disables error handling.
+Transfers program control to the label when a runtime error occurs, where the [ERR](func/#err) function returns the error number, and [RESUME](#resume) continues the program.  ON ERROR GOTO 0 disables error handling.  An error that occurs while the handler is running (ie, before RESUME) ends the program.
+
+The handler starts with the stack as it was at the start of the statement with the error, so any GOSUBs that were active are still active, and after RESUME, [RETURN](return/) returns from them as usual.
 
 Error numbers are the same as Microsoft BASIC's (eg, 5 for "Illegal function call", 7 for "Out of memory", and 9 for "Subscript out of range").
 
@@ -245,11 +257,13 @@ Error numbers are the same as Microsoft BASIC's (eg, 5 for "Illegal function cal
 
 > OPEN *file* [FOR INPUT|OUTPUT|APPEND|RANDOM] AS [#]*n* [LEN=*reclen*]
 
-Opens *file* as file number *n* (1-4): FOR INPUT reads an existing file, FOR OUTPUT creates the file (or truncates it if it exists), and FOR APPEND adds to the end of the file (creating it if necessary).  FOR RANDOM (or no FOR at all) opens the file for random access (creating it if necessary), with records of *reclen* bytes (1-255; the default is 128), using [FIELD](#field), [GET #](#get), and [PUT #](#put).  A read-only file (see [ATTRIB](../external/#attrib)) can't be opened FOR OUTPUT or APPEND ("Path/File access error"), but FOR RANDOM opens it for reading only, as MSBASIC does, so a PUT # to it is a "Permission denied" error (70).  Files that a program leaves open are closed when it ends.  A file can be open for INPUT more than once, but a file open for OUTPUT or APPEND can't be opened again, in this session or any other ("File already open").
+Opens *file* as file number *n* (1-4): FOR INPUT reads an existing file, FOR OUTPUT creates the file (or truncates it if it exists), and FOR APPEND adds to the end of the file (creating it if necessary).  FOR RANDOM (or no FOR at all) opens the file for random access (creating it if necessary), with records of *reclen* bytes (1-255; the default is 128), using [FIELD](#field), [GET #](#get), and [PUT #](#put); a device opened without FOR (see below) can be both read and written instead.  A read-only file (see [ATTRIB](../external/#attrib)) can't be opened FOR OUTPUT or APPEND ("Path/File access error"), but FOR RANDOM opens it for reading only, as MSBASIC does, so a PUT # to it is a "Permission denied" error (70).  Files that a program leaves open are closed when it ends.  A file can be open for INPUT more than once, but a file open for OUTPUT or APPEND can't be opened again, in this session or any other ("File already open").
 
 A *file* that is only a drive letter and colon (eg, `"C:"`) opens the drive's entire volume, so that its sectors can be read (and written, FOR RANDOM) as records: with a record length of 128, for example, sector *n* begins at record *n* * 4 + 1.  FOR OUTPUT opens the volume for writing as a stream, starting with its first sector (nothing is truncated), which is how FORMAT.BAS writes a new diskette's boot sector, FATs, and root directory.  A volume can be opened FOR INPUT only if no file on it is open for writing, and for writing only if no file on it is open at all; while the volume is open, conflicting opens, as well as creating, deleting, or renaming files and directories on it, fail.  Since record numbers range from 1 to 65535, only the first 65535 records of a volume are accessible.  A volume whose media is unknown (eg, an unformatted diskette) can still be opened (without a critical error prompt), with a size of zero until the driver is given its parameters (see [IOCTL #](#ioctl)).
 
-Errors are runtime errors that [ON ERROR](#on-error) can handle: "FIELD overflow" (50), "Bad file number" (52) for a number other than 1-4 or a file that isn't open, "File not found" (53), "Bad file mode" (54) for using a file in a way its mode doesn't allow (eg, reading a file opened for output), "File already open" (55), "Input past end" (62), "Bad record number" (63), and "Path/File access error" (75).  An invalid record length is an "Illegal function call" (5).
+A *file* can also be a device (eg, `"LPT1:"` or `"CON"`).  As in Microsoft BASIC, `"SCRN:"` is the screen (the session's console, CON), and a serial port's name can be followed by its settings, *baud*[,*parity*[,*data*[,*stop*]]], which are set when the port is opened (eg, `OPEN "COM1:300,E,7,1" AS #1`; see [MODE](../external/#mode)).  A device opened without FOR can be used for both input and output: [PRINT #](#print), [WRITE #](#write), [INPUT #](#input), [LINE INPUT #](#line-input), and the [INPUT$](func/#input) function, and for a serial port, [EOF](func/#eof) is true if no characters are waiting, and [LOC](func/#loc) returns how many are waiting (up to 255).  A device name (four letters and a colon, eg, `"COM2:"`) that can't be opened, because there's no such device, is a "Device unavailable" error (68).
+
+Errors are runtime errors that [ON ERROR](#on-error) can handle: "FIELD overflow" (50), "Bad file number" (52) for a number other than 1-4 or a file that isn't open, "File not found" (53), "Bad file mode" (54) for using a file in a way its mode doesn't allow (eg, reading a file opened for output), "File already open" (55), "Input past end" (62), "Bad record number" (63), "Device unavailable" (68), and "Path/File access error" (75).  An invalid record length is an "Illegal function call" (5).
 
 	OPEN "SCORES.DAT" FOR OUTPUT AS #1
 	PRINT #1, "Alice"; 90
@@ -277,7 +291,7 @@ Stores *value* (0-255) at *offset* in the segment set by [DEF SEG](#def-seg).
 
 > PRINT #*n*,[*expression*][;|,][*expression*]...
 
-Writes values to file *n* (which must be open for OUTPUT or APPEND) exactly as [PRINT](../device/screen/#print) would display them.
+Writes values to file *n* (which must be open for OUTPUT or APPEND, or be a device opened without FOR) exactly as [PRINT](../device/screen/#print) would display them.  As in Microsoft BASIC, the space before the `#` is optional (eg, `PRINT#1,X`), here and in the other file statements.
 
 ### PRINTF # {#printf}
 
@@ -328,9 +342,17 @@ Makes the first [DATA](#data) item the next item that [READ](#read) assigns, or 
 
 ### RESUME
 
-> RESUME *label*
+> RESUME [*label*|0|NEXT]
 
-Ends the handling of a runtime error (see [ON ERROR](#on-error)) and continues at the specified label.  RESUME without a label and RESUME NEXT aren't supported yet.  The handler can use [ERR](func/#err) and [ERL](func/#erl) to find out which error occurred, and where.
+Ends the handling of a runtime error (see [ON ERROR](#on-error)) and continues at the specified label, or without a label (or with 0), at the start of the statement with the error, which runs again (eg, after the handler has fixed the cause of the error), or with NEXT, at the statement after it.  The handler can use [ERR](func/#err) and [ERL](func/#erl) to find out which error occurred, and where.  RESUME when no error is being handled is a "RESUME without error" error (20).
+
+The statement after a statement inside an IF's THEN or ELSE block is the next statement in that block, or the statement after the IF; RESUME NEXT after an error in the IF's condition skips the entire IF.  An error in a [DEF](def/) function resumes at (or after) the statement that called the function.  RESUME without a label and RESUME NEXT aren't available on low memory systems (see [Low Memory](../../lang/#low-memory)).
+
+	ON ERROR GOTO 100
+	OPEN "DATA.TXT" FOR INPUT AS #1
+	IF E THEN PRINT "No DATA.TXT" : END
+	...
+	100 E = ERR : RESUME NEXT
 
 ### RETURN
 

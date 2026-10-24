@@ -42,7 +42,7 @@ BAT files differ from BAS files in two ways: BAT files can [ECHO](../cmd/device/
 
 ### Batch Files
 
-A BAT file is a BASIC-DOS program too, so it can contain any BASIC-DOS command or BASIC statement, and it's compiled the same way.  This makes BASIC-DOS batch files more powerful than PC DOS batch files, but some PC DOS batch file features work differently:
+A BAT file is a BASIC-DOS program too, so it can contain any BASIC-DOS command or BASIC statement, and it's compiled the same way.  This makes BASIC-DOS batch files more powerful than PC DOS batch files.  Apart from ECHO and the `@` prefix, PC DOS batch language features aren't supported, and won't be; use these BASIC features instead:
 
 | PC DOS | BASIC-DOS |
 |--------|-----------|
@@ -50,10 +50,12 @@ A BAT file is a BASIC-DOS program too, so it can contain any BASIC-DOS command o
 | `ECHO message` | `PRINT "message"` (ECHO only accepts ON or OFF) |
 | `IF ERRORLEVEL 1 GOTO FAIL` (true if ERRORLEVEL is 1 or more) | `IF ERRORLEVEL >= 1 THEN GOTO 100` |
 | `SET N=5` and `%N%` (environment variables) | BASIC variables (eg, `N = 5` and `PRINT N`) |
-| `%1` through `%9` (replaceable parameters) | Not supported yet |
-| `IF EXIST file`, `IF "%1"=="x"` | Not supported yet (but any BASIC expression can be used, eg, `IF A$ = "X" THEN ...`) |
+| `%1` through `%9` (replaceable parameters) | [ARG$](../cmd/basic/func/#arg)`(1)` through `ARG$(9)` |
+| `IF EXIST file`, `IF "%1"=="x"` | `IF EXISTS("file") THEN ...` (see [EXISTS](../cmd/basic/func/#exists)), `IF ARG$(1) = "x" THEN ...` (any BASIC expression can be used) |
 | `CALL OTHER` (to run another batch file and then continue) | `OTHER` (a batch file always continues after running another one) |
-| `FOR %%F IN (*.TXT) DO ...`, `SHIFT`, and `PAUSE` | Not supported yet (FOR ... NEXT loops can be used for counting) |
+| `FOR %%F IN (*.TXT) DO ...` | [DIR$](../cmd/basic/func/#dir)`("*.TXT")` and then `DIR$` in a loop, until it returns an empty string |
+| `SHIFT` | `ARG$(N)`, with a variable *N* |
+| `PAUSE` | `PRINT "Press any key" : K$ = INPUT$(1)` (see [INPUT$](../cmd/basic/func/#input)) |
 
 ECHO and the `@` prefix work as they do in PC DOS, except that every BAT file starts with ECHO OFF, and echoed lines are displayed with a `@` in front instead of a prompt (see [ECHO](../cmd/device/screen/#echo)).  Output redirection works for BASIC statements, too, using `:>` (or `:>>`) at the end of a line (eg, `PRINT "done" :>> LOG.TXT`); see [Pipes and Redirection](../intro/#pipes-and-redirection).  REM (or an apostrophe) starts a remark.
 
@@ -151,7 +153,7 @@ Function names don't need to begin with FN.
 - [GOTO](../cmd/basic/goto/) *label* and [ON](../cmd/basic/#on) *expression* GOTO *labels*
 - [GOSUB](../cmd/basic/#gosub) *label* and [RETURN](../cmd/basic/return/), and ON *expression* GOSUB *labels*
 - [FOR](../cmd/basic/#for) ... [NEXT](../cmd/basic/#for) and [WHILE](../cmd/basic/#while) ... [WEND](../cmd/basic/#while)
-- [END](../cmd/basic/#end) (or STOP), and [CHAIN](../cmd/basic/#chain) to run another BAS file
+- [END](../cmd/basic/#end) (or STOP), and [CHAIN](../cmd/basic/#chain) to replace the program with another BAS file (or merge one into it)
 
 Press **Ctrl-C** to stop a running program.
 
@@ -161,7 +163,7 @@ When a runtime error occurs (eg, "Illegal function call" or "Subscript out of ra
 
 Other errors are found when a line is compiled, just before it first runs (see [BASIC Compilation](../cmd/external/command/#basic-compilation)): "Syntax error", "Type mismatch" (eg, `A$ = 5` or `PRINT "A" + 1`), "NEXT without FOR", and "WEND without WHILE".  When compiling reaches the end of the program (eg, when the program runs past its last line, or a loop is skipped), a FOR or WHILE that was never closed is a "FOR without NEXT" or "WHILE without WEND" error, reported with the line of the FOR or WHILE, and a missing label is an "Undefined line number" error.  A compile-time error ends the program, even if an ON ERROR handler is active, and its message includes the line number (eg, "NEXT without FOR in line 120"): the line's label, if it has one, or else its position in the file.
 
-When a command fails, it displays an error message, and as in PC DOS, the program (including a BAT file) continues with its next command.  A command fails if it can't do what was asked: for example, a program that can't be found ("Unable to find") or opened ("Unable to open"), a file that can't be found, copied, or deleted, a directory that can't be changed to, created, or removed, an invalid date or time, or a BAS or BAT file that ends with a syntax error.  A failed command sets [ERRORLEVEL](../cmd/basic/func/#errorlevel) to 1, and a successful one sets it to 0, so a program can check whether a command worked (eg, `IF ERRORLEVEL THEN END`).  A program that runs and then returns a non-zero exit code hasn't failed; ERRORLEVEL is its exit code.  ON ERROR doesn't apply to failed commands, and a failed CHAIN still ends the program.
+When a command fails, it displays an error message, and as in PC DOS, the program (including a BAT file) continues with its next command.  A command fails if it can't do what was asked: for example, a program that can't be found ("Unable to find") or opened ("Unable to open"), a file that can't be found, copied, or deleted, a directory that can't be changed to, created, or removed, an invalid date or time, or a BAS or BAT file that ends with a syntax error.  A failed command sets [ERRORLEVEL](../cmd/basic/func/#errorlevel) to 1, and a successful one sets it to 0, so a program can check whether a command worked (eg, `IF ERRORLEVEL THEN END`).  A program that runs and then returns a non-zero exit code hasn't failed; ERRORLEVEL is its exit code.  ON ERROR doesn't apply to failed commands, and a CHAIN that can't load its file still ends the program (although a missing file is the runtime error "File not found", which ON ERROR can handle).
 
 ### Graphics and Sound
 
@@ -178,9 +180,10 @@ On a machine with too little memory for all of COMMAND.COM (eg, 64K), BASIC-DOS 
 - The graphics commands: CIRCLE, DRAW, PAINT, PRESET, PSET, VIEW, WINDOW, and the graphics forms of GET, LINE, and PUT, and the PMAP and POINT functions
 - The MOUSE command and function
 - The sound commands: PLAY and SOUND
-- PRINTF, LPRINT, LLIST, the LPOS function, and the MID$ statement
+- PRINTF, LPRINT, LLIST, the LPOS function, the MID$ statement, KEY *n*,*string*, and WIDTH *device*,*width*
 - The program editing commands AUTO, DELETE, and EDIT (lines can still be entered and deleted by number)
-- The file statements (OPEN, CLOSE, FIELD, GET, PUT, LSET, RSET, RESET, IOCTL, and the # forms of INPUT, LINE INPUT, PRINT, and WRITE) and file functions (CVD, CVI, CVL, EOF, IOCTL$, LOC, LOF, MKD$, MKI$, and MKL$)
+- The file statements (OPEN, CLOSE, FIELD, GET, PUT, LSET, RSET, RESET, IOCTL, and the # forms of INPUT, LINE INPUT, PRINT, and WRITE) and file functions (CVD, CVI, CVL, EOF, INPUT$, IOCTL$, LOC, LOF, MKD$, MKI$, and MKL$)
+- RESUME without a label (or with 0) and RESUME NEXT (RESUME *label* is still available)
 - The DOS statement and function
 - LOAD of tokenized BAS files (eg, those saved by BASICA or GW-BASIC)
 
@@ -195,10 +198,11 @@ BASIC-DOS runs many IBM PC BASIC programs unchanged (eg, DONKEY.BAS, from the or
 - Single-precision values are double-precision (DEFSNG is the same as DEFDBL), and integers are 32-bit, not 16-bit
 - Function names don't need to begin with FN, and functions can have multiple lines
 - PRINT commas print a tab instead of advancing to the next print zone
-- Up to 4 files can be open at once, random access records are limited to 255 bytes, MKD$ and CVD use IEEE doubles (not MBF), MKS$, CVS, and the OPEN "mode",#n,file form aren't supported, and file statements need a space before the # (eg, PRINT #1, not PRINT#1)
+- Up to 4 files can be open at once, random access records are limited to 255 bytes, MKD$ and CVD use IEEE doubles (not MBF), MKS$, CVS, and the OPEN "mode",#n,file form aren't supported
 - INPUT doesn't display "Redo from start"; missing items are empty (or zero), and extra items are ignored
 - RANDOMIZE without a seed uses the BIOS tick count instead of prompting for a seed
-- Not supported yet: the MID$ statement, RESUME without a label, RESUME NEXT, and PCOPY
+- Not supported yet: PCOPY
+- KEY *n*,*string* is accepted, but the function keys always return their key codes (as after KEY *n*,""), and WIDTH *device*,*width* is accepted, but output to a device is never broken into lines
 - PRINT USING isn't supported (and won't be); use PRINTF USING instead (see [How to replace PRINT USING](../cmd/device/screen/#how-to-replace-print-using))
 
 {% include footer.html prev="System Commands:../cmd/system/" next="Configuring BASIC-DOS:../cfg/" %}

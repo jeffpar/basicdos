@@ -127,7 +127,7 @@ CT_SIG		db	?	; 0Bh
 CT_COL		db	?	; 0Ch: current output column (see update_col)
 CT_TERM		db	?	; 0Dh: terminal type (TERM_*)
 CT_LLEN		db	?	; 0Eh: # of columns in CT_LINE
-CT_ESC		db	?	; 0Fh: VT100 escape state (see vt100_input)
+CT_ESC		db	?	; 0Fh: escape state (see raw_input)
 CT_COLOR	dw	?	; 10h: fill (LO) and border (HI) attributes
 CT_LINE		db	LINE_MAX dup (?); 12h: copy of the current output line
 CT_INPUT	db	size RINGBUF dup (?)
@@ -142,7 +142,7 @@ CTSTAT_RCVOVFL	equ	02h	; receiver buffer overflow
 CTSTAT_XON	equ	04h	; XON/XOFF flow control enabled (XON option)
 CTSTAT_RTS	equ	08h	; RTS/CTS flow control enabled (RTS option)
 CTSTAT_CTSOFF	equ	10h	; output held because CTS is low (RTS option)
-CTSTAT_RAWKEYS	equ	20h	; return raw keys (see IOCTL_SETKEYS)
+CTSTAT_RAWKEYS	equ	20h	; hotkeys are just keys (see IOCTL_SETKEYS)
 CTSTAT_INPUT	equ	40h	; context is waiting for input
 CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
 
@@ -348,6 +348,8 @@ DEFPROC	ddcom_ioctl
 	mov	al,es:[di].DDP_CODE	; AL = IOCTL code
 	mov	cx,es:[di].DDPRW_LENGTH	; CX = IOCTL input value
 	mov	dx,es:[di].DDPRW_LBA	; DX = IOCTL input value
+	cmp	al,IOCTL_INSTATUS
+	je	dio0g
 	cmp	al,IOCTL_GETDIM
 	je	dio0
 	cmp	al,IOCTL_GETPOS
@@ -369,54 +371,27 @@ DEFPROC	ddcom_ioctl
 	cmp	al,IOCTL_SETKEYS
 	je	dio0e
 	cmp	al,IOCTL_COMDEBUG
-	je	dio0c
+	jne	dio8a
+	jmp	dio0c			; (see below)
 dio8a:	pop	cx
 dio8:	jmp	ddcom_none		; unsupported IOCTL
 dio0d:	jmp	dio10
 dio0e:	jmp	dio11
 ;
-; IOCTL_COMDEBUG: the kernel has verified that the caller's handle has
-; exclusive access (MODE_DENY_RW), so it's the only reference to this context;
-; disable the UART's interrupts (for polling) and return the port plus any
-; COMDBG_* bits.  The caller does all its own I/O, so free the context, too;
-; the open handle still reserves the port (see chk_devopen), and with no
-; context, our interrupt handler won't touch the port.
-;
-; First, wait for our interrupt handler to transmit anything still buffered
-; (eg, the VT100_WRAP sequence that ddcom_open queued); otherwise, the rest of
-; a partially sent sequence would be lost, and the caller's first output
-; would complete it.
-;
-dio0c:	sti
-	mov	si,offset CT_OUTPUT
-dio0f:	call	peek_buffer		; anything left to transmit?
-	jnz	dio0f			; yes
-	mov	dx,ds:[CT_PORT]
-	inc	dx			; DX -> REG_IER (DLAB is clear)
-	sub	al,al
-	out	dx,al
-	dec	dx
-	mov	al,ds:[CT_STATUS]
-	and	al,CTSTAT_XON OR CTSTAT_RTS
-	ASSERT	<COMDBG_XON SHL 1>,EQ,<CTSTAT_XON>
-	ASSERT	<COMDBG_RTS SHL 1>,EQ,<CTSTAT_RTS>
-	shr	al,1
-	or	dl,al
-	call	end_esc
-	push	es
-	push	ds
-	pop	es			; ES = context
-	mov	ah,DOS_MEM_FREE
-	int	INT_DOSFUNC
-	pop	es
-	pop	ax			; replace the saved context (CX)
-	sub	ax,ax			; with zero (no context)
-	push	ax
-	jmp	short dio7
-;
 ; IOCTL_GETDIM: return the (assumed) terminal dimensions.
 ;
 dio0:	mov	dx,(TERM_ROWS SHL 8) OR TERM_COLS
+	jmp	short dio7
+;
+; IOCTL_INSTATUS: return the number of bytes waiting in CT_INPUT (zero if
+; none), which BASIC's EOF, LOC, and INPUT$ use for a COM file.
+;
+dio0g:	mov	si,offset CT_INPUT
+	mov	dx,[si].BUFTAIL
+	sub	dx,[si].BUFHEAD		; DX = tail - head
+	jae	dio7			; (unless the input wrapped around)
+	add	dx,[si].BUFEND
+	sub	dx,[si].BUFOFF		; plus the size of the buffer
 	jmp	short dio7
 ;
 ; IOCTL_GETCOLOR: return the fill (DL) and border (DH) attributes.
@@ -486,8 +461,8 @@ dio10:	cmp	ds:[CT_TERM],TERM_GENERIC
 	jmp	dio4
 dio10a:	jmp	dio8a
 ;
-; IOCTL_SETKEYS: in raw keys mode, non-ASCII keys are returned as a zero
-; followed by a scan code (see raw_input).
+; IOCTL_SETKEYS: in raw keys mode, CTRLC and CTRLS are just keys, rather than
+; hotkeys, and an ANSI terminal's keys are translated, too (see push_input).
 ;
 dio11:	and	ds:[CT_STATUS],NOT CTSTAT_RAWKEYS
 	call	end_esc			; discard any partial escape sequence
@@ -495,6 +470,45 @@ dio11:	and	ds:[CT_STATUS],NOT CTSTAT_RAWKEYS
 	jz	dio11a			; no
 	or	ds:[CT_STATUS],CTSTAT_RAWKEYS
 dio11a:	jmp	dio4
+;
+; IOCTL_COMDEBUG: the kernel has verified that the caller's handle has
+; exclusive access (MODE_DENY_RW), so it's the only reference to this context;
+; disable the UART's interrupts (for polling) and return the port plus any
+; COMDBG_* bits.  The caller does all its own I/O, so free the context, too;
+; the open handle still reserves the port (see chk_devopen), and with no
+; context, our interrupt handler won't touch the port.
+;
+; First, wait for our interrupt handler to transmit anything still buffered
+; (eg, the VT100_WRAP sequence that ddcom_open queued); otherwise, the rest of
+; a partially sent sequence would be lost, and the caller's first output
+; would complete it.
+;
+dio0c:	sti
+	mov	si,offset CT_OUTPUT
+dio0f:	call	peek_buffer		; anything left to transmit?
+	jnz	dio0f			; yes
+	mov	dx,ds:[CT_PORT]
+	inc	dx			; DX -> REG_IER (DLAB is clear)
+	sub	al,al
+	out	dx,al
+	dec	dx
+	mov	al,ds:[CT_STATUS]
+	and	al,CTSTAT_XON OR CTSTAT_RTS
+	ASSERT	<COMDBG_XON SHL 1>,EQ,<CTSTAT_XON>
+	ASSERT	<COMDBG_RTS SHL 1>,EQ,<CTSTAT_RTS>
+	shr	al,1
+	or	dl,al
+	call	end_esc
+	push	es
+	push	ds
+	pop	es			; ES = context
+	mov	ah,DOS_MEM_FREE
+	int	INT_DOSFUNC
+	pop	es
+	pop	ax			; replace the saved context (CX)
+	sub	ax,ax			; with zero (no context)
+	push	ax
+	jmp	dio7
 ENDPROC	ddcom_ioctl
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1639,6 +1653,7 @@ DEFPROC	get_parms
 	DOSUTIL	ATOI16			; updates SI, DI, and AX
 	xchg	cx,ax			; CX = baud rate
 	lodsb
+	and	al,0DFh			; (upper-case, eg, "COM1:300,e,7")
 	mov	bh,al			; BH = parity indicator ('N', 'O', 'E')
 	lodsb
 	DOSUTIL	ATOI16
@@ -1959,14 +1974,17 @@ psi2:	test	ds:[CT_STATUS],CTSTAT_PAUSED
 	and	ds:[CT_STATUS],NOT CTSTAT_PAUSED
 	jmp	short psi5
 
+;
+; A VT100's keys are always translated (eg, its cursor keys become the PC's;
+; see raw_input), as are an ANSI terminal's keys in raw keys mode, but not
+; otherwise, since an ANSI port may be a program's data port (eg, COM1 in
+; COMM.BAS), where escape sequences are data.
+;
 psi3:	test	ds:[CT_STATUS],CTSTAT_RAWKEYS
-	jz	psi3a
-	call	raw_input		; translate raw keys
-	jc	psi9			; nothing to buffer (yet)
-	jmp	short psi3b
-psi3a:	cmp	ds:[CT_TERM],TERM_VT100	; VT100 terminal?
+	jnz	psi3a
+	cmp	ds:[CT_TERM],TERM_VT100	; VT100 terminal?
 	jne	psi3b			; no
-	call	vt100_input		; yes, translate its input
+psi3a:	call	raw_input		; translate its keys
 	jc	psi9			; nothing to buffer (yet)
 psi3b:	mov	si,offset CT_INPUT
 	call	push_buffer
@@ -2001,110 +2019,15 @@ ENDPROC	push_input
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; vt100_input
-;
-; Translates a byte from a VT100 into what the PC's keyboard would produce:
-;
-; DELETE (7Fh) is the key that erases the previous character, while BACKSPACE
-; (08h) is a separate key, so we swap them, giving them the same meanings as
-; the PC's BACKSPACE and DEL keys.
-;
-; The cursor keys send ESC [ A-D (or ESC O A-D), which become the cursor key
-; aliases (CTRLE, CTRLX, CTRLD, and CTRLS) used by the PC's keyboard.  Since a
-; sequence can't be distinguished from an ESC key until the next byte arrives,
-; an ESC is held until then; ESC ESC produces a single ESC, an ESC followed by
-; any other byte produces both, and other ESC [ and ESC O sequences (eg, the
-; PF keys) are discarded.
-;
-; Inputs:
-;	AL = byte
-;	DS = context
-;
-; Outputs:
-;	If carry clear, AL = byte to buffer; carry set if nothing to buffer
-;
-; Modifies:
-;	AX, BX, SI
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	vt100_input
-	ASSERT	STRUCT,ds:[0],CT
-	mov	ah,ds:[CT_ESC]		; AH = escape state
-	test	ah,ah			; in a sequence?
-	jnz	vi3			; yes
-	cmp	al,CHR_ESCAPE		; ESC?
-	jne	vi1			; no
-	inc	ds:[CT_ESC]		; yes, hold it (state 1)
-	stc
-	ret
-
-vi1:	cmp	al,CHR_DEL		; DELETE?
-	jne	vi2			; no
-	mov	al,CHR_BACKSPACE	; yes, it erases the previous character
-	ret				; (carry clear)
-vi2:	cmp	al,CHR_BACKSPACE	; BACKSPACE?
-	clc
-	jne	vi9			; no
-	mov	al,CHR_DEL		; yes, it deletes the cursor character
-	ret
-;
-; State 1 (ESC received): '[' or 'O' begins a sequence (state 2).
-;
-vi3:	mov	ds:[CT_ESC],0
-	dec	ah			; state 1?
-	jnz	vi5			; no, state 2
-	cmp	al,CHR_ESCAPE		; ESC ESC?
-	je	vi9			; yes, buffer one ESC (carry clear)
-	cmp	al,'['
-	je	vi4
-	cmp	al,'O'
-	je	vi4
-	push	ax			; not a sequence, so buffer the ESC
-	mov	al,CHR_ESCAPE		; and then process the byte normally
-	mov	si,offset CT_INPUT
-	call	push_buffer
-	jc	vi3a
-	mov	[bx],al
-vi3a:	pop	ax
-	jmp	vi1
-vi4:	mov	ds:[CT_ESC],2		; sequence begun (state 2)
-	stc
-	ret
-;
-; State 2 (ESC [ or ESC O received): digits and ';' are parameters, and the
-; next byte ends the sequence; A-D are the cursor keys.
-;
-vi5:	cmp	al,';'
-	je	vi5a
-	cmp	al,'0'
-	jb	vi6
-	cmp	al,'9'
-	ja	vi6
-vi5a:	mov	ds:[CT_ESC],2		; still in the sequence
-	stc
-	ret
-vi6:	sub	al,'A'
-	cmp	al,4			; cursor key?
-	cmc
-	jc	vi9			; no, discard the sequence
-	mov	bl,al
-	mov	bh,0
-	mov	al,cs:VT100_KEYS[bx]	; AL = cursor key alias
-vi9:	ret
-ENDPROC	vt100_input
-
-	DEFLBL	VT100_KEYS,byte
-	db	CHR_CTRLE,CHR_CTRLX,CHR_CTRLD,CHR_CTRLS	; up, down, right, left
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; raw_input
 ;
 ; Translates a byte from an ANSI or VT100 terminal into what the CON driver
-; returns in raw keys mode (see IOCTL_SETKEYS): non-ASCII keys are a zero
-; followed by the PC scan code.  The cursor keys send ESC [ A-D (or ESC O A-D),
-; Home and End send ESC [ H and F (or ESC [ 1 ~ and 4 ~), Insert, Delete, PgUp,
-; and PgDn send ESC [ 2-3 ~ and 5-6 ~, and F1-F10 send ESC O P-S and ESC [ 15 ~
-; through 21 ~; other sequences are discarded.
+; returns (see pull_kbd): non-ASCII keys are a zero followed by the PC scan
+; code, which the DOS line editor maps to its editing keys (see read_line).
+; The cursor keys send ESC [ A-D (or ESC O A-D), Home and End send ESC [ H
+; and F (or ESC [ 1 ~ and 4 ~), Insert, Delete, PgUp, and PgDn send ESC [ 2-3 ~
+; and 5-6 ~, and F1-F10 send ESC O P-S and ESC [ 15 ~ through 21 ~; other
+; sequences are discarded.
 ;
 ; An ESC is held until the next byte arrives, or until ESC_MS pass without
 ; one, in which case it's just an ESC (see esc_timeout).  For VT100 terminals,

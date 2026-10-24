@@ -137,7 +137,8 @@ ENDPROC	strLCase
 ; strInkey (INKEY$)
 ;
 ; Returns the next key (if any) without waiting; extended keys (eg, cursor
-; keys) are returned as two characters: a null and the scan code.
+; keys and function keys) are returned as two characters: a null and the
+; scan code.
 ;
 ; Inputs:
 ;	32-bit return value

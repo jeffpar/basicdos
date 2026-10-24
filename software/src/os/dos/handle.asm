@@ -860,32 +860,33 @@ sr8:	push	ds
 	ASSUME	DS:NOTHING		; DS:SI -> data buffer (from ES:DX)
 	mov	bl,al			; BL = I/O mode
 	call	dev_request		; issue the DDC_READ request
-	jnc	sr8b
+	sbb	cx,cx			; CX = -1 if the read failed
 ;
-; If the read failed because its wait was interrupted by a CTRLC (eg, from a
-; COM driver serving as the console, which delivers CTRLC as a HOTKEY rather
-; than as data), then signal it now.  We use msc_sigctrlc rather than
-; msc_readctrlc, because the latter may try to read CTRLC from STDIN, and if
-; that read also failed, we would end up back here.
+; If a CTRLC is pending (eg, from a COM driver serving as the console, which
+; buffers CTRLC and also delivers it as a HOTKEY), then signal it now, whether
+; the read failed because the HOTKEY interrupted its wait, or succeeded anyway
+; (eg, the driver satisfied the read with that CTRLC), so that the caller
+; (eg, read_line) never sees the CTRLC as data.  We use msc_sigctrlc rather
+; than msc_readctrlc, because the latter may try to read CTRLC from STDIN, and
+; if that read also failed, we would end up back here.
 ;
+	ASSERT	IO_RAW,EQ,0
 	test	bl,bl			; IO_RAW (or IO_DIRECT) request?
-	jle	sr8c			; yes
+	jle	sr8b			; yes
 	mov	bx,cs:[scb_active]
-	cmp	cs:[bx].SCB_CTRLC_ACT,0
-	jne	sr7			; signal CTRLC (does not return)
-sr8c:	stc				; otherwise, return the read error
+	cmp	cs:[bx].SCB_CTRLC_ACT,0	; CTRLC pending?
+	jne	sr7			; yes (does not return)
+	jcxz	sr8c			; the read succeeded
+sr8b:	shr	cx,1			; carry set if the read failed
 	jmp	short sr8a
 ;
-; If the driver is a STDIN device, and the I/O request was not "raw", then
-; we need to check the returned data for CTRLC and signal it appropriately.
+; If the driver is a STDIN device, then we also check the returned data for
+; CTRLC and signal it appropriately.
 ;
-sr8b:	test	ax,ax			; any bytes returned?
+sr8c:	test	ax,ax			; any bytes returned?
 	jz	sr8a			; no
 	test	es:[di].DDH_ATTR,DDATTR_STDIN
 	jz	sr8a
-	ASSERT	IO_RAW,EQ,0
-	test	bl,bl			; IO_RAW (or IO_DIRECT) request?
-	jle	sr8a			; yes
 	cmp	byte ptr [si],CHR_CTRLC
 	je	sr7
 	clc

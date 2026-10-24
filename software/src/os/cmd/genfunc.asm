@@ -105,7 +105,7 @@ gfe1:	dec	[nFuncParms]		; more parameters?
 	jl	gfe6			; no
 	jcxz	gfe3			; yes, but no (more) have been supplied
 
-	call	genExpr			; process parameter expression
+	call	genParm			; process parameter expression
 	jbe	gfe2x			; no value supplied (or an error)
 
 	push	ax			; save last symbol from genExpr
@@ -225,6 +225,32 @@ gfeLong:
 	mov	al,VAR_LONG
 gfl9:	ret
 ENDPROC	genFuncExpr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genParm
+;
+; Generate code for a parameter expression (see genExpr), which may begin with
+; a file number's '#' (eg, INPUT$(1,#1)).
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Same as genExpr
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genParm
+	call	peekNextSymbol
+	jbe	gpm1			; not a symbol
+	cmp	al,'#'			; a file number's '#'?
+	jne	gpm1			; no
+	call	getNextSymbol		; yes, so skip it
+gpm1:	jmp	genExpr
+ENDPROC	genParm
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

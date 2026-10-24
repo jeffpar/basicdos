@@ -14,7 +14,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<memError,genCode,clearVars,compactStrs>
+	EXTNEAR	<memError,clearVars,compactStrs>
 	EXTBYTE	<PREDEF_VARS>
 
 	EXTNEAR	<listDims,writeStr,printCRLF>
@@ -622,9 +622,10 @@ ENDPROC	freeCache
 ; keepCode
 ;
 ; Called by genCode when the generated code has finished running: if the code
-; was generated for the loaded program (as opposed to a command line) and it
-; ran without error, we keep it (in CODE_CACHE) so that RUN can simply run it
-; again (see runCache); otherwise, it's freed.
+; was generated for the loaded program (as opposed to a command line), it ran
+; without error, and all of it was generated (unlike, say, a program that
+; ended before reaching its last line), we keep it (in CODE_CACHE) so that RUN
+; can simply run it again (see genInit); otherwise, it's freed.
 ;
 ; Inputs:
 ;	Carry set if the code failed (eg, a syntax error)
@@ -635,6 +636,8 @@ ENDPROC	freeCache
 DEFPROC	keepCode
 	jc	kc8
 	mov	si,ds:[PSP_HEAP]
+	test	[si].GEN_FLAGS,GEN_DONE	; was all the code generated?
+	jz	kc8			; no
 	mov	ax,ss
 	cmp	[si].LINE_PTR.SEG,ax	; did we run the loaded program?
 	je	kc8			; no
@@ -674,73 +677,6 @@ rsv1:	push	ax
 	pop	ax
 	ret
 ENDPROC	resetVars
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; runCode
-;
-; Used by RUN: if the loaded program's code was kept (see keepCode), we run it
-; again, the same way genCode runs it (see the ON ERROR setup there);
-; otherwise, genCode generates (and runs) it.
-;
-; Inputs:
-;	AL = GEN flags
-;	BX -> CMDHEAP
-;	SI = 0
-;
-; Outputs:
-;	Carry clear if successful
-;
-; Modifies:
-;	Any
-;
-DEFPROC	runCode
-	cmp	[bx].CODE_CACHE,0	; is the program's code still around?
-	jne	rcd1			; yes
-	jmp	genCode
-rcd1:	mov	[bx].GEN_FLAGS,al
-	mov	word ptr [bx].GFX_DATA.GFX_FLAGS,0	; (and GFX_MODE)
-	mov	ax,[bx].TBLKDEF.BLK_NEXT
-	mov	[bx].LINE_PTR.SEG,ax	; (see keepCode)
-	sub	ax,ax
-	mov	[bx].DATA_STATE.DATA_SEG,ax	; start READ at the first DATA item
-	xchg	ax,[bx].CODE_CACHE
-	mov	[bx].CBLKDEF.BDEF_NEXT,ax; the code is running again
-	push	ax
-	mov	ax,size CBLK
-	push	ax
-	mov	di,sp			; SS:DI -> the code
-	push	[bx].ERR_SP
-	push	[bx].ERR_NUM
-	push	[bx].ERR_ADDR.OFF
-	push	[bx].ERR_ADDR.SEG
-	sub	ax,ax
-	mov	[bx].ERR_NUM,ax
-	mov	[bx].ERR_ADDR.SEG,ax
-	mov	cx,[bx].VBLKDEF.BDEF_NEXT
-	push	bp
-	push	ds
-	mov	ax,sp
-	sub	ax,4			; (the CALL below pushes 4 bytes)
-	mov	[bx].ERR_SP,ax
-	mov	ds,cx
-	ASSUME	DS:NOTHING
-	call	dword ptr ss:[di]	; execute the code
-	pop	ds
-	ASSUME	DS:DATA
-	pop	bp
-	mov	si,ds:[PSP_HEAP]
-	pop	[si].ERR_ADDR.SEG
-	pop	[si].ERR_ADDR.OFF
-	pop	[si].ERR_NUM
-	pop	[si].ERR_SP
-	add	sp,4
-	clc
-	call	keepCode		; keep the code again
-	call	compactStrs		; free any leftover temp strings
-	clc
-	ret
-ENDPROC	runCode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

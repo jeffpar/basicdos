@@ -59,7 +59,7 @@ CODE    SEGMENT
 	EXTNEAR	<memError,strPath,setPath,callDOS,rtError,findMsg>
 	EXTNEAR	<genExpr,genCvtType,genCallCS,genPushImmLong>
 	EXTNEAR	<getNextLine,getNextSymbol,getNextToken,peekNextToken>
-	EXTNEAR	<getLineNum,genMidSet>
+	EXTNEAR	<getLineNum,genMidSet,addStmt,scanResume>
 	EXTBYTE	<MID_DATA>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -71,7 +71,8 @@ CODE    SEGMENT
 ; Rather than generating all the code for a program before running it, which
 ; delays the start of a large program, we generate only a "cap" (a call to
 ; genMore) and run that; genMore then generates the code for each line as the
-; program reaches it (see genMore).
+; program reaches it (see genMore).  If the loaded program's code was kept
+; when it last ran, we simply run that code again (see genInit).
 ;
 ; Inputs:
 ;	AL = GEN flags (eg, GEN_BATCH)
@@ -79,7 +80,7 @@ CODE    SEGMENT
 ;	DS:SI -> INPUTBUF (for single line) or null (for TBLKs)
 ;
 ; Outputs:
-;	None
+;	Carry clear if successful
 ;
 ; Modifies:
 ;	Any
@@ -87,63 +88,11 @@ CODE    SEGMENT
 DEFPROC	genCode
 	LOCVAR	pCode,dword		; original start of generated code
 	ENTER
-
-	test	al,GEN_BATCH
-	jz	gc1
-	or	al,GEN_ECHO
-gc1:	mov	[bx].GEN_FLAGS,al
-
-	sub	cx,cx
-	mov	[bx].ERR_CODE,cl
-	mov	[bx].LINE_NUM,cx
-	mov	[bx].LINE_LBL,cx
-	mov	[bx].LBL_DATA[0],cx	; (see addLabel)
-	mov	byte ptr [bx].GFX_DATA.GFX_MODE,cl	; see gfxInit
-	mov	dx,ds
-	test	si,si
-	jnz	gc2
-	mov	dx,[bx].TBLKDEF.BLK_NEXT
-	test	dx,dx			; anything to run?
-	jnz	gc1a			; yes
-	jmp	gc9			; no (TODO: display a message?)
-gce:	call	memError
-	jmp	gc9
-;
-; Like MSBASIC (see CLEARC), a program starts with the default types for all
-; variables (ie, any DEFINT, DEFDBL, or DEFSTR from before is forgotten).
-; However, a BAT file starts with an implied DEFINT A-Z, since batch files
-; rarely need floating-point variables.
-;
-; TODO: Since DEFVARS isn't reset when a program ends, a BAT file's types
-; (implied or not) remain in effect at the prompt afterward; revisit whether
-; the prompt should start over with the default types.
-;
-gc1a:	push	ds
-	pop	es
-	lea	di,[bx].DEFVARS
-	mov	cl,26
-	mov	al,ch
-	test	[bx].GEN_FLAGS,GEN_BATCH
-	jz	gc1b
-	mov	al,VAR_LONG		; implied DEFINT A-Z
-gc1b:	rep	stosb			; (and CX is zero again)
-	mov	si,size TBLK
-	mov	[bx].DATA_STATE.DATA_SEG,cx	; start READ at the first DATA item
-	mov	[bx].GFX_DATA.GFX_FLAGS,cl	; and end any VIEW and WINDOW
-gc2:	mov	[bx].LINE_PTR.OFF,si
-	mov	[bx].LINE_PTR.SEG,dx
-	mov	[bx].LINE_LEN,cx	; CX = previous length (0)
-
-	call	allocCode
-	jc	gce
-	ASSUME	ES:NOTHING		; ES:DI -> code block
+	call	genInit			; ES:DI -> code to run
+	jbe	gc9			; (carry set only if there was an error)
+	ASSUME	ES:NOTHING
 	mov	[pCode].OFF,di
 	mov	[pCode].SEG,es
-
-	mov	ax,OP_MOV_BP_SP		; make it easy for endProgram
-	stosw				; to reset the stack and return
-	GENCALL	genMore			; and cap the code
-	mov	es:[BLK_FREE],di
 ;
 ; The memory model for the generated code is simple: CS is the current
 ; code block, SS is the heap, DS is the first var block (if any; see addVar),
@@ -151,7 +100,8 @@ gc2:	mov	[bx].LINE_PTR.OFF,si
 ;
 ; Since a BAS file can run another BAS file, we save the caller's ON ERROR
 ; state (see rtError), and then record the SP that the code will start with
-; (which genMore also uses to end the program if it finds an error).
+; (which genMore also uses to end the program if it finds an error, and which
+; CHAIN uses to replace the program; see doChain).
 ;
 	mov	si,ds:[PSP_HEAP]
 	push	[si].ERR_SP
@@ -178,17 +128,8 @@ gc5:	pop	ds			; (genMore arrives here with carry set)
 	pop	[si].ERR_ADDR.OFF
 	pop	[si].ERR_NUM
 	pop	[si].ERR_SP
-;
-; If the program ended before all its code was generated (eg, END), then we
-; can't keep the code (see keepCode), since there's no more code to run if
-; it's run again.
-;
 	pushf
-	jc	gc7			; error, so free the code
-	test	[si].GEN_FLAGS,GEN_DONE	; was all the code generated?
-	jnz	gc7			; yes (and carry is clear)
-	stc				; no, so free the code
-gc7:	call	keepCode		; free (or keep) the code
+	call	keepCode		; free (or keep) the code
 	call	compactStrs		; free any leftover temp strings
 	popf
 	jnc	gc9
@@ -200,6 +141,97 @@ gc9:	mov	bx,ss:[PSP_HEAP]
 	LEAVE
 	ret
 ENDPROC	genCode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genInit
+;
+; Resets the code generator and prepares the code for genCode to run: a new
+; code block containing only "mov bp,sp" and a cap (see genMore), or, if the
+; loaded program's code was kept when it last ran (see keepCode), that code,
+; which is complete.  CHAIN uses this, too, once it has replaced the program
+; (see doChain).
+;
+; Inputs:
+;	AL = GEN flags (eg, GEN_BATCH)
+;	DS:BX -> heap
+;	DS:SI -> INPUTBUF (for single line) or null (for TBLKs)
+;
+; Outputs:
+;	If carry and ZF clear, ES:DI -> code to run; otherwise, ZF is set if
+;	there's nothing to run, or carry if there wasn't enough memory (which
+;	was reported)
+;
+; Modifies:
+;	AX, CX, DX, SI, DI, ES
+;
+DEFPROC	genInit
+	test	al,GEN_BATCH
+	jz	gi1
+	or	al,GEN_ECHO
+gi1:	mov	[bx].GEN_FLAGS,al
+	sub	cx,cx
+	mov	[bx].ERR_CODE,cl
+	mov	[bx].LINE_NUM,cx
+	mov	[bx].LINE_LBL,cx
+	mov	[bx].LBL_DATA[0],cx	; (see addLabel)
+	mov	byte ptr [bx].GFX_DATA.GFX_MODE,cl	; see gfxInit
+	mov	dx,ds
+	test	si,si
+	jnz	gi4
+	mov	[bx].DATA_STATE.DATA_SEG,cx	; start READ at the first DATA item
+	mov	[bx].GFX_DATA.GFX_FLAGS,cl	; and end any VIEW and WINDOW
+	mov	dx,[bx].TBLKDEF.BLK_NEXT
+	test	dx,dx			; anything to run?
+	jz	gi9			; no (TODO: display a message?)
+	xchg	cx,[bx].CODE_CACHE
+	jcxz	gi2			; the program's code wasn't kept
+	or	[bx].GEN_FLAGS,GEN_DONE	; it was, and it's complete
+	mov	[bx].LINE_PTR.SEG,dx	; (see keepCode)
+	mov	[bx].CBLKDEF.BDEF_NEXT,cx; the code is running again
+	mov	es,cx
+	mov	di,size CBLK		; ES:DI -> the code (carry and ZF clear)
+	ret
+;
+; Like MSBASIC (see CLEARC), a program starts with the default types for all
+; variables (ie, any DEFINT, DEFDBL, or DEFSTR from before is forgotten).
+; However, a BAT file starts with an implied DEFINT A-Z, since batch files
+; rarely need floating-point variables.
+;
+; TODO: Since DEFVARS isn't reset when a program ends, a BAT file's types
+; (implied or not) remain in effect at the prompt afterward; revisit whether
+; the prompt should start over with the default types.
+;
+gi2:	push	ds
+	pop	es
+	lea	di,[bx].DEFVARS
+	mov	cl,26
+	test	al,GEN_BATCH
+	mov	al,ch
+	jz	gi3
+	mov	al,VAR_LONG		; implied DEFINT A-Z
+gi3:	rep	stosb			; (and CX is zero again)
+	mov	si,offset scanResume
+	cmp	si,ds:[PSP_CODESIZE]	; is it loaded (see genUpper)?
+	jae	gi3a			; no
+	call	si			; mark statements if RESUME is used
+gi3a:	mov	si,size TBLK
+gi4:	mov	[bx].LINE_PTR.OFF,si
+	mov	[bx].LINE_PTR.SEG,dx
+	mov	[bx].LINE_LEN,cx	; CX = previous length (0)
+	call	allocCode
+	jc	gi8
+	ASSUME	ES:NOTHING		; ES:DI -> code block
+	push	di
+	mov	ax,OP_MOV_BP_SP		; make it easy for endProgram
+	stosw				; to reset the stack and return
+	GENCALL	genMore			; and cap the code
+	mov	es:[BLK_FREE],di
+	pop	di
+	test	di,di			; (carry and ZF clear)
+gi9:	ret
+gi8:	jmp	memError
+ENDPROC	genInit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -396,7 +428,8 @@ DEFPROC	genCommands
 gcs8:	sub	bx,size TOKLET		; (this clears carry, too)
 gcr9:	ret
 
-gcInit:	mov	dx,bx			; DX -> TOKLETs (for implicit LET)
+gcInit:	call	addStmt			; mark the statement (for RESUME)
+	mov	dx,bx			; DX -> TOKLETs (for implicit LET)
 	mov	al,CLS_KEYWORD
 	call	getNextToken
 	jb	gcs0
@@ -936,8 +969,8 @@ ENDPROC	genPushVarLong
 ; chkVarSeg
 ;
 ; Checks whether DX is the first var block, which the generated code can
-; access through DS (see genCode and runCode).  The first block doesn't exist
-; until the first var is added (see addVar), so we check the chain itself.
+; access through DS (see genCode).  The first block doesn't exist until the
+; first var is added (see addVar), so we check the chain itself.
 ; While a DEF with parameters is being generated, the first block is a temp
 ; block for the parameters (see allocTempVars), so globals don't match, and
 ; the generated code loads their segment instead, which is slower but still

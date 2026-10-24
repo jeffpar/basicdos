@@ -41,7 +41,8 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] CLOCK$ starts with the BIOS time of day and, on a PC AT, the real-time clock's date
 - [x] Loadable character drivers via `DEVICE=` in CONFIG.SYS, including [DEBUG.COM on a serial port](demos/debug/at/), with an 8086 disassembler, single-stepping, 9 breakpoints, SYMDEB-style memory dumps, memory and register editing, and exclusive ownership of its COM port
 - [x] MOUSE$, a serial mouse driver (loaded only if a Microsoft-compatible mouse responds on a COM port at boot), with a minimal INT 33h interface (functions 00h-04h, 07h, 08h, and a BASIC-DOS function that returns queued button events), and a pointer drawn in MDA and CGA modes that preserves anything drawn over it
-- [x] Interrupt-driven, asynchronous I/O for CON and COM
+- [x] Interrupt-driven, asynchronous I/O for CON and COM (COM ports also report how many bytes are waiting, with IOCTL_INSTATUS, for BASIC's EOF, LOC, and INPUT$)
+- [x] Non-ASCII keys (eg, cursor and function keys) are returned as a zero followed by the key's scan code, as in PC DOS (for CON, and for VT100 terminals on COM ports), so INKEY$ sees them as BASICA programs expect (eg, F10 in COMM.BAS); the DOS line editor maps the keys it uses to its editing keys, and raw keys mode only turns hotkeys like CTRL-C into ordinary keys
 - [x] Floppy disk reads, including multi-track requests and requests that cross 64K boundaries
 - [x] Floppy disk writes
 - [x] Media check and BPB rebuilds (reads PC DOS 1.x and 2.x diskettes)
@@ -145,20 +146,24 @@ Utilities live in the EXT directory of every BASIC-DOS disk.  The filters, SLEEP
 - [x] Random access file I/O: OPEN FOR RANDOM with LEN, FIELD, LSET, RSET, GET #, PUT #, and binary conversion functions (CVI, CVL, CVD, MKI$, MKL$, and MKD$)
 - [x] IOCTL #: sends an IOCTL request (with a numeric value in CX and DX, or a string's data) to the device or volume open as a file, with driver errors reported as runtime errors (eg, "Permission denied" for a write-protected diskette); IOCTL$ returns the data (up to 255 bytes) a driver stores in response to a request
 - [x] DOS *ax*[,*bx*[,*cx*[,*dx*|*string*]]]: calls DOS (INT 21h) with those registers (a string is passed as DS:DX, null-terminated), with DOS errors reported as runtime errors (eg, "File not found"); DOS(*n*) returns the registers that DOS returned (eg, attributes from function 43h); used by ATTRIB.BAS and FORMAT.BAS
-- [x] *partial*: Error handling (ON ERROR GOTO, RESUME *line*, ERROR, ERR, and ERL; see the DONKEY.BAS checklist)
+- [x] Error handling (ON ERROR GOTO, ERROR, ERR, and ERL, and RESUME *line*, RESUME [0], and RESUME NEXT, which resume at or after the statement with the error, with any active GOSUBs intact; see the DONKEY.BAS checklist)
 - [x] Specific error messages for compile-time errors: "NEXT without FOR", "FOR without NEXT", "WHILE without WEND", "WEND without WHILE", and "Type mismatch" (formerly all reported as syntax errors), with the line of the FOR or WHILE for an unclosed loop, and no "in line 0" for commands typed at the prompt
 - [ ] Runtime error messages for numeric errors
 - [ ] STOP's "Break" message (STOP is currently the same as END)
 - [x] The MID$ statement (ie, `MID$(A$,N[,M]) = B$`), with string variables or array elements
 - [ ] Comma print zones in PRINT (commas currently print a tab)
 - [ ] RUN *file* (eg, `RUN "MENU"`, which BASICA programs use to run another program; currently, RUN in a program ignores the name and runs the program itself again, and at the prompt, it runs the loaded program, if any)
-- [ ] BEEP, TIMER, and INPUT$(*n*[,#*f*]) (reading characters without ENTER)
+- [x] INPUT$(*n*[,[#]*f*]) (reading characters from the keyboard without ENTER, or from a file or serial port)
+- [x] Devices in OPEN, as in MSBASIC: "SCRN:", serial port settings (eg, "COM1:300,E,7,1"), a device opened without FOR for both input and output (with EOF and LOC reporting a serial port's waiting input), and "Device unavailable" for a missing device; and file statements without a space before the # (eg, PRINT#1)
+- [x] KEY *n*,*string* and WIDTH *device*,*width* are accepted (function keys always return their key codes, and device output is never broken into lines)
+- [ ] BEEP and TIMER
 - [x] LPRINT, through PRN, which forwards to LPT1, which prints with the BIOS (a missing or failed printer is a "Device I/O error")
 - [x] LLIST and LPOS, and printer errors ("Device timeout", "Out of paper", and "Device fault") for LPRINT, LLIST, and PRINT # to a printer
 - [ ] TRON and TROFF (line tracing), and CONT (continuing after STOP or CTRL-C)
 - [ ] Event trapping: ON TIMER(*n*), ON KEY(*n*), ON STRIG(*n*), ON PLAY(*n*), and ON COM(*n*) GOSUB, with TIMER, KEY(*n*), STRIG(*n*), PLAY, and COM(*n*) ON, OFF, and STOP
 - [ ] BLOAD and BSAVE (eg, saving and loading screen images with DEF SEG)
-- [ ] MERGE, and CHAIN MERGE and COMMON (CHAIN currently passes no variables)
+- [x] CHAIN replaces the running program, as in MSBASIC, with CHAIN MERGE, a starting line number, and ALL (keeping all variables), and MERGE merges a file's lines at the prompt
+- [ ] COMMON (passing selected variables to a CHAINed program) and CHAIN's DELETE option
 - [ ] Low-level features: INP, OUT, WAIT, VARPTR, VARPTR$, CALL, USR, and DEF USR (machine language routines), and STICK and STRIG (joysticks)
 - [ ] Limitations of BASIC-DOS-specific features: multi-line DEF functions must fit in a single code block, function blocks end at the first RETURN (ie, RETURN can't be conditional), and each array requires a single block (64K max)
 
@@ -197,7 +202,7 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] ON ERROR GOTO (and GOTO 0), RESUME *line*, ERROR, and ERR, with MSBASIC's error numbers for runtime errors
 - [x] PLAY (notes, N, O, <, >, L, P, T, MN/ML/MS, X, dots, and semicolons; MF/MB are ignored, since music always plays in the foreground)
 - [x] SOUND *frequency*,*duration*
-- [x] CHAIN *file* (runs the BAS file, then ends the program; the line number is ignored)
+- [x] CHAIN *file* (now replaces the running program; see CHAIN MERGE below)
 - [x] PSET, PRESET, LINE (including `LINE -(x,y)`, B, BF, and an omitted color), PAINT, and DRAW (U, D, L, R, E, F, G, H, M, B, N, C, and S), drawing directly into CGA memory in modes 4-6
 - [x] GET and PUT (PSET, PRESET, XOR, OR, and AND), using integer arrays (passed by name) in BASICA's image format, with one 16-bit word per element, so programs that build images by hand (like DONKEY.BAS's `B%`) work
 - [x] Syntax errors report the program's line number (eg, "Syntax error in line 1160") instead of the line's position in the file
@@ -208,15 +213,16 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] PAINT fills through pixels that already have the paint color (like MSBASIC), so it draws the same pixels as MSBASIC; it scans rows a byte at a time (using tables of each byte's boundary and paint-colored pixels), and its seeds remember their direction and parent span, so it never rescans the row it came from, making it faster than MSBASIC's
 - [x] A BASIC keyword typed alone that isn't a valid statement (eg, CIRCLE) runs the program with that name (eg, CIRCLE.BAS)
 - [x] LINE (and DRAW and CIRCLE's lines to the center) use MSBASIC's line algorithm, so they draw the same pixels as MSBASIC, but lines whose endpoints are on the screen are drawn by stepping the video address and pixel mask directly (about 4 times faster than before)
-- [x] When a BAS program ends (or is aborted), its video mode is restored (undoing any SCREEN or WIDTH), and when a console returns to its original mode, its original geometry (eg, its border) is restored, too
+- [x] When a BAS program that used a graphics mode ends (or is aborted), its video mode is restored (undoing any SCREEN or WIDTH, as DONKEY.BAS needs), while text-mode changes alone (eg, WIDTH 40) persist, as in MSBASIC (and as MODE.BAS needs), and when a console returns to its original mode, its original geometry (eg, its border) is restored, too
 - [ ] More performance: text output in graphics modes goes through the CON driver and the BIOS
 - [x] Graphics features that the samples don't use: STEP coordinates (every point becomes the last point referenced, as in MSBASIC), POINT, DRAW's A, TA, P, and X commands (A uses MSBASIC's integer arithmetic, so it draws the same pixels), PLAY's X command and semicolons, and GET/PUT with double arrays (in MSBASIC's raw byte format)
 - [x] MORTGAGE.BAS, one of the PC DOS 1.00 samples, with its PRINT USING statements changed to PRINTF USING (see [How to replace PRINT USING](docs/bdman/cmd/device/screen/#how-to-replace-print-using))
 - [x] CALENDAR.BAS, one of the PC DOS 1.00 samples, which builds each month with the MID$ statement and prints the year with LPRINT (its February always has 28 days, as in BASICA, since it compares its year index, 1-9, with 1984 and 1988)
-- [ ] The rest of the PC DOS 1.00 samples: MUSIC.BAS needs CHAIN MERGE (for its songs), COMM.BAS needs KEY *n*,*string*, the SCRN: device, and INPUT$, and the samples return to SAMPLES.BAS (their menu) with CHAIN *file*,*line*, whose line number BASIC-DOS ignores; SPACE.BAS's delay loops are too fast to see its flying saucers
+- [x] MUSIC.BAS, one of the PC DOS 1.00 samples, which loads each song with CHAIN MERGE, and the samples' CHAIN *file*,*line* back to SAMPLES.BAS (their menu)
+- [x] COMM.BAS, one of the PC DOS 1.00 samples, a terminal program for a serial port (using KEY *n*,"", WIDTH "COM1:",255, OPEN "COM1:..." and "SCRN:", PRINT#, EOF, LOC, INPUT$, and RESUME)
+- [ ] The rest of the PC DOS 1.00 samples: SPACE.BAS's delay loops are too fast to see its flying saucers
 - [x] Later BASICA and GW-BASIC graphics: VIEW, WINDOW (world coordinates, which POINT, PMAP, STEP, and CIRCLE's radius use, too), PMAP, and PAINT with tile patterns
 - [ ] PCOPY (which needs SCREEN's active and visual pages first)
-- [ ] RESUME and RESUME NEXT (which need the location of the error); ERL works
 - [ ] Keeping other sessions on the same adapter from writing to the screen while it's in another mode; also, the CON driver restores the BIOS's video data after every INT 10h call, so programs that read the BIOS's video mode (0:449h) may see a stale value
 
 ### Build, Tests, and Documentation
@@ -246,6 +252,7 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 These aren't project goals:
 
 - PC DOS batch syntax, since BASIC-DOS uses BASIC for batch files: replaceable parameters (`%1`-`%9`), environment variables (SET), `ECHO message`, IF EXIST, FOR ... IN ... DO, SHIFT, and PAUSE.  BASIC-DOS provides command-line arguments through [ARG$](docs/bdman/cmd/basic/func/#arg), BASIC variables, PRINT, expressions, and control flow instead.  See [Batch Files](docs/bdman/lang/#batch-files) for the differences and equivalents; this does not imply that every PC DOS batch operation already has a direct equivalent.
+- INT 25h and INT 26h (absolute disk reads and writes), since opening a volume (eg, `C:`) as a file gives the same access to its sectors; see [File Handles](docs/bdtech/dos/#handles).
 - PRINT USING and LPRINT USING, since PRINTF USING covers the same needs with C-style `%` specifiers; see [How to replace PRINT USING](docs/bdman/cmd/device/screen/#how-to-replace-print-using) for the equivalents of its template formats (eg, `###.##` is `%6.2f`).  The MORTGAGE.BAS sample on BASIC-DOS disks uses PRINTF USING instead.
 - CTTY (introduced in PC DOS 2.0), since BASIC-DOS already provides the ability to define multiple terminal-based sessions on serial ports using [CONSOLE=](docs/bdman/cfg/#console) in CONFIG.SYS; allowing a session change its "personality" on the fly would cause more problems than it would solve, and would probably work about as well as CTTY did (ie, poorly).
 - LOAD inside a running BAS or BAT file (it's an error, "Not allowed in a program", since it would replace the running file's own text); programs that run other programs use RUN *file* or CHAIN instead.
@@ -256,8 +263,8 @@ These are the next steps, roughly in priority order:
 
 1. RUN *file*, which BASICA programs use to run another program
 2. Remaining string and input/output features (comma print zones)
-3. The rest of runtime error handling (RESUME and RESUME NEXT, and messages for numeric errors)
-4. Common BASICA features that BASIC-DOS lacks: BEEP, TIMER, INPUT$, LPRINT, and CHAIN MERGE
+3. The rest of runtime error handling (messages for numeric errors)
+4. Common BASICA features that BASIC-DOS lacks: BEEP, TIMER, and COMMON
 
 ## License
 

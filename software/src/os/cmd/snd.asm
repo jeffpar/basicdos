@@ -114,7 +114,8 @@ SND_BUSY	equ	PLAY_STATE+6	; non-zero if SND_END is valid (byte)
 ;
 DEFPROC	doPlay,FAR
 	ARGVAR	pPlayStr,dword
-	LOCVAR	plDepth,byte		; # of X commands in progress
+	LOCVAR	plDepth,word		; # of X commands in progress (a word,
+					; so that SP stays even; see ENTER)
 	ENTER
 	mov	[plDepth],0
 	call	sndWait			; let any SOUND finish first

@@ -7,9 +7,11 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	BIOSKEY equ 1
 	DOSFUNC equ 1
 	include	macros.inc
 	include	8086.inc
+	include	bios.inc
 	include	devapi.inc
 	include	dos.inc
 	include	dosapi.inc
@@ -384,7 +386,7 @@ DEFPROC	con_clear
 	call	con_end
 	pop	cx
 	mov	al,CHR_BACKSPACE
-ccl1:	call	con_out			; AL = char to display
+ccl1:	call	write_char
 	loop	ccl1
 	pop	bx			; position prior to con_end
 	mov	dh,bl			; set displayed characters to BL
@@ -473,7 +475,7 @@ DEFPROC	con_erase
 	mov	ch,0
 	jcxz	cer9
 	mov	al,CHR_BACKSPACE
-cer1:	call	con_out			; AL = char to display
+cer1:	call	write_char
 	loop	cer1
 cer9:	sub	dh,bl			; reduce displayed characters by BL
 	sub	bx,bx			; and reset BX
@@ -660,8 +662,10 @@ ENDPROC	con_next
 ;
 ; con_out
 ;
-; Displays all non-special characters, using write_char.  Used by con_modify
-; ensure consistent output (eg, displaying LINEFEED as "^J").
+; Displays a character of the input buffer, using write_char.  As in PC DOS,
+; CONTROL characters other than TAB are displayed as "^" + char (eg, LINEFEED
+; as "^J"), since the console displays them as glyphs otherwise, and the
+; buffer's display length (see IOCTL_GETLEN) counts them as two characters.
 ;
 ; Inputs:
 ;	AL = character
@@ -673,13 +677,16 @@ ENDPROC	con_next
 ;	AX
 ;
 DEFPROC	con_out
-	cmp	al,CHR_LINEFEED
-	jne	co9
-	mov	al,'^'			; for purposes of buffered input,
-	call	write_char		; LINEFEED should be displayed as "^J"
-	mov	al,'J'
-co9:	call	write_char
-	ret
+	cmp	al,CHR_SPACE		; CONTROL character?
+	jae	co9			; no
+	cmp	al,CHR_TAB		; TAB?
+	je	co9			; yes (the console expands it)
+	push	ax
+	mov	al,'^'
+	call	write_char
+	pop	ax
+	add	al,'@'
+co9:	jmp	write_char
 ENDPROC	con_out
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1157,8 +1164,29 @@ DEFPROC	read_line,DOS
 rl1:	call	tty_read
 	jnc	rl2
 rlx:	jmp	rl9
+;
+; A non-ASCII key (eg, a cursor key) is a null followed by its scan code (see
+; pull_kbd in the CON driver), which we map to the control character that
+; edits the line the same way (see SCAN_MAP), ignoring any other such key.
+;
+rl2:	test	al,al			; non-ASCII key?
+	jnz	rl2b			; no
+	call	tty_read		; AL = its scan code
+	jc	rlx
+	xchg	ah,al			; AH = scan code
+	push	si
+	mov	si,offset SCAN_MAP
+rl2c:	lods	byte ptr cs:[si]
+	test	al,al			; end of SCAN_MAP?
+	jz	rl2d			; yes (AL = 0)
+	cmp	ah,al			; scan code match?
+	lods	byte ptr cs:[si]	; AL = its control character
+	jne	rl2c			; no
+rl2d:	pop	si
+	test	al,al			; was there a match?
+	jz	rl1			; no, so ignore the key
 
-rl2:	cmp	al,CHR_DEL
+rl2b:	cmp	al,CHR_DEL
 	je	rl2a
 	cmp	al,CHR_CTRLG		; alias for DEL
 	jne	rl3
@@ -1252,7 +1280,7 @@ rl8:	push	ax
 	pop	ax
 	mov	bl,dh			; return all displayed chars
 	mov	es:[di].INP_DATA[bx],al	; store the final character (RETURN)
-	call	con_out			; AL = char to display
+	call	write_char		; and display it
 
 	mov	cx,[bp].TMP_DX		; restore original insert mode
 	mov	al,IOCTL_SETINS
@@ -1265,6 +1293,22 @@ rl10:	cbw
 	mov	[bp].REG_AX,ax
 	ret
 ENDPROC	read_line
+
+	DEFLBL	SCAN_MAP,byte		; non-ASCII keys that edit (see rl2)
+	db	SCAN_F1,         CHR_CTRLD
+	db	SCAN_F3,         CHR_CTRLL
+	db	SCAN_HOME,       CHR_CTRLW
+	db	SCAN_UP,         CHR_CTRLE
+	db	SCAN_LEFT,       CHR_CTRLS
+	db	SCAN_RIGHT,      CHR_CTRLD
+	db	SCAN_END,        CHR_CTRLR
+	db	SCAN_DOWN,       CHR_CTRLX
+	db	SCAN_INS,        CHR_CTRLV
+	db	SCAN_DEL,        CHR_DEL
+	db	SCAN_CTRL_LEFT,  CHR_CTRLA
+	db	SCAN_CTRL_RIGHT, CHR_CTRLF
+	db	SCAN_CTRL_END,   CHR_CTRLK
+	db	0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

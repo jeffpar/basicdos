@@ -38,5 +38,7 @@ DEFPROC	main
 	int	21h
 ENDPROC	main
 
+	COMHEAP	0		; COMHEAP (heap size) must be the last item
+
 CODE	ends
 	end	main

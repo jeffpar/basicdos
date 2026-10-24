@@ -347,7 +347,7 @@ ENDPROC	dos_default
 ;
 ; disk_read (INT 25h)
 ;
-; TODO
+; Not supported; a program can open the volume as a file (eg, "C:") instead.
 ;
 DEFPROC	disk_read,DOSFAR
 	iret
@@ -357,7 +357,7 @@ ENDPROC	disk_read
 ;
 ; disk_write (INT 26h)
 ;
-; TODO
+; Not supported; a program can open the volume as a file (eg, "C:") instead.
 ;
 DEFPROC	disk_write,DOSFAR
 	iret

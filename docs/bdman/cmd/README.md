@@ -27,41 +27,41 @@ As in MS-DOS, a DOS command typed as one word with a path (eg, `CD\`, `CD\EXT`, 
 | [CHAIN](basic/#chain) | BASIC | [LOCATE](device/screen/#locate) | Screen |
 | [CIRCLE](device/graphics/#circle) | Graphics | [LPRINT](device/screen/#lprint) | Screen |
 | [CLEAR](basic/#clear) | BASIC | [MEM](system/#mem) | System |
-| [CLS](device/screen/#cls) | Screen | [MOUSE](device/mouse/#mouse) | Mouse |
-| [COLOR](device/screen/#color) | Screen | [MV](disk/#ren) | Disk |
-| [COPY](disk/#copy) | Disk | [NEW](system/#new) | System |
-| [DATA](basic/#data) | BASIC | [NEXT](basic/#for) | BASIC |
-| [DATE](device/clock/#date) | Clock | [ON](basic/#on) | BASIC |
-| [DEF](basic/def/) | BASIC | [OPTION BASE](basic/#option-base) | BASIC |
-| [DEF SEG](basic/#def-seg) | BASIC | [PAINT](device/graphics/#paint) | Graphics |
-| [DEFDBL](basic/#defdbl) | BASIC | [PLAY](device/sound/#play) | Sound |
-| [DEFINT](basic/#defint) | BASIC | [POKE](basic/#poke) | BASIC |
-| [DEFSNG](basic/#defsng) | BASIC | [PRESET](device/graphics/#preset) | Graphics |
-| [DEFSTR](basic/#defstr) | BASIC | [PRINT](device/screen/#print) | Screen |
-| [DEL](disk/#del) | Disk | [PSET](device/graphics/#pset) | Graphics |
-| [DELETE](system/#delete) | System | [PUT](device/graphics/#put) | Graphics |
-| [DIM](basic/#dim) | BASIC | [READ](basic/#read) | BASIC |
-| [DIR](disk/#dir) | Disk | [REM](basic/#rem) | BASIC |
-| [DRAW](device/graphics/#draw) | Graphics | [REN](disk/#ren) | Disk |
-| [ECHO](device/screen/#echo) | Screen | [RENAME](disk/#ren) | Disk |
-| [EDIT](system/#edit) | System | [RESTART](system/#restart) | System |
-| [END](basic/#end) | BASIC | [RESTORE](basic/#restore) | BASIC |
-| [ERASE](basic/#erase) | BASIC | [RESUME](basic/#resume) | BASIC |
-| [ERROR](basic/#error) | BASIC | [RETURN](basic/return/) | BASIC |
-| [EXIT](system/#exit) | System | [RUN](system/#run) | System |
-| [FOR](basic/#for) | BASIC | [SAVE](disk/#save) | Disk |
-| [GET](device/graphics/#get) | Graphics | [SCREEN](device/screen/#screen) | Screen |
-| [GOSUB](basic/#gosub) | BASIC | [SOUND](device/sound/#sound) | Sound |
-| [GOTO](basic/goto/) | BASIC | [STOP](basic/#end) | BASIC |
-| [HELP](system/#help) | System | [TIME](device/clock/#time) | Clock |
-| [IF](basic/if/) | BASIC | [TYPE](disk/#type) | Disk |
-| [IOCTL](basic/#ioctl) | BASIC | [VER](system/#ver) | System |
-| [KEY](device/keyboard/#key) | Keyboard | [VIEW](device/graphics/#view) | Graphics |
-| [KEYS](system/#keys) | System | [WEND](basic/#while) | BASIC |
-| [LET](basic/let/) | BASIC | [WHILE](basic/#while) | BASIC |
-| [LINE](device/graphics/#line) | Graphics | [WIDTH](device/screen/#width) | Screen |
-| [LIST](system/#list) | System | [WINDOW](device/graphics/#window) | Graphics |
-| [LLIST](system/#llist) | System |  |  |
+| [CLS](device/screen/#cls) | Screen | [MERGE](disk/#merge) | Disk |
+| [COLOR](device/screen/#color) | Screen | [MOUSE](device/mouse/#mouse) | Mouse |
+| [COPY](disk/#copy) | Disk | [MV](disk/#ren) | Disk |
+| [DATA](basic/#data) | BASIC | [NEW](system/#new) | System |
+| [DATE](device/clock/#date) | Clock | [NEXT](basic/#for) | BASIC |
+| [DEF](basic/def/) | BASIC | [ON](basic/#on) | BASIC |
+| [DEF SEG](basic/#def-seg) | BASIC | [OPTION BASE](basic/#option-base) | BASIC |
+| [DEFDBL](basic/#defdbl) | BASIC | [PAINT](device/graphics/#paint) | Graphics |
+| [DEFINT](basic/#defint) | BASIC | [PLAY](device/sound/#play) | Sound |
+| [DEFSNG](basic/#defsng) | BASIC | [POKE](basic/#poke) | BASIC |
+| [DEFSTR](basic/#defstr) | BASIC | [PRESET](device/graphics/#preset) | Graphics |
+| [DEL](disk/#del) | Disk | [PRINT](device/screen/#print) | Screen |
+| [DELETE](system/#delete) | System | [PSET](device/graphics/#pset) | Graphics |
+| [DIM](basic/#dim) | BASIC | [PUT](device/graphics/#put) | Graphics |
+| [DIR](disk/#dir) | Disk | [READ](basic/#read) | BASIC |
+| [DRAW](device/graphics/#draw) | Graphics | [REM](basic/#rem) | BASIC |
+| [ECHO](device/screen/#echo) | Screen | [REN](disk/#ren) | Disk |
+| [EDIT](system/#edit) | System | [RENAME](disk/#ren) | Disk |
+| [END](basic/#end) | BASIC | [RESTART](system/#restart) | System |
+| [ERASE](basic/#erase) | BASIC | [RESTORE](basic/#restore) | BASIC |
+| [ERROR](basic/#error) | BASIC | [RESUME](basic/#resume) | BASIC |
+| [EXIT](system/#exit) | System | [RETURN](basic/return/) | BASIC |
+| [FOR](basic/#for) | BASIC | [RUN](system/#run) | System |
+| [GET](device/graphics/#get) | Graphics | [SAVE](disk/#save) | Disk |
+| [GOSUB](basic/#gosub) | BASIC | [SCREEN](device/screen/#screen) | Screen |
+| [GOTO](basic/goto/) | BASIC | [SOUND](device/sound/#sound) | Sound |
+| [HELP](system/#help) | System | [STOP](basic/#end) | BASIC |
+| [IF](basic/if/) | BASIC | [TIME](device/clock/#time) | Clock |
+| [IOCTL](basic/#ioctl) | BASIC | [TYPE](disk/#type) | Disk |
+| [KEY](device/keyboard/#key) | Keyboard | [VER](system/#ver) | System |
+| [KEYS](system/#keys) | System | [VIEW](device/graphics/#view) | Graphics |
+| [LET](basic/let/) | BASIC | [WEND](basic/#while) | BASIC |
+| [LINE](device/graphics/#line) | Graphics | [WHILE](basic/#while) | BASIC |
+| [LIST](system/#list) | System | [WIDTH](device/screen/#width) | Screen |
+| [LLIST](system/#llist) | System | [WINDOW](device/graphics/#window) | Graphics |
 See [BASIC Functions](basic/func/) for the list of functions and predefined constants.
 
 REN (RENAME) and MV share the same file and directory rename and move command; see [REN](disk/#ren).
@@ -71,8 +71,8 @@ REN (RENAME) and MV share the same file and directory rename and move command; s
 The following commands, statements, and functions from PC DOS and IBM PC BASIC aren't supported yet:
 
 - PC DOS commands: DISKCOMP and PRINT (background printing); the other PC DOS 1.00 utilities (eg, CHKDSK, DISKCOPY, FORMAT, and SYS) are BASIC programs in the EXT directory (see [External Commands](external/))
-- BASIC statements: BEEP, BLOAD, BSAVE, CALL, CHAIN MERGE, COMMON, CONT, DEF USR, KEY *n*,*string*, MERGE, OUT, PCOPY, RESUME without a line number, RESUME NEXT, RUN *file*, TRON, TROFF, WAIT, WIDTH LPRINT, and event trapping (eg, ON TIMER(*n*) GOSUB)
-- BASIC functions: INP, INPUT$, STICK, STRIG, TIMER, USR, VARPTR, and VARPTR$
+- BASIC statements: BEEP, BLOAD, BSAVE, CALL, CHAIN's DELETE option, COMMON, CONT, DEF USR, OUT, PCOPY, RUN *file*, TRON, TROFF, WAIT, WIDTH LPRINT, and event trapping (eg, ON TIMER(*n*) GOSUB)
+- BASIC functions: INP, STICK, STRIG, TIMER, USR, VARPTR, and VARPTR$
 
 Some features of PC DOS and IBM PC BASIC aren't planned at all, such as PAUSE and the rest of PC DOS's batch file syntax (BAT files are BASIC programs; see [Batch Files](../lang/#batch-files)), CTTY (see [CONSOLE=](../cfg/#console)), and PRINT USING (see [How to replace PRINT USING](device/screen/#how-to-replace-print-using)).
 

@@ -310,10 +310,13 @@ ENDPROC	doReturn
 ; rtError
 ;
 ; Reports a runtime error, using MSBASIC's error numbers.  If an ON ERROR
-; handler is set (and we're not already in it), we reset the stack and DS to
-; their state at the start of the program (see genCode) and jump to the
-; handler; otherwise, we display the error message and abort the program, by
-; way of our CTRLC handler (which also frees any blocks saved by callers; see
+; handler is set (and we're not already in it), we reset the stack to its
+; state at the start of the statement with the error (see findStmtSP), push
+; the return address of the failed call from that statement's code (0:0 if
+; there isn't one), for RESUME (see endErr), reset BP and DS to their state
+; at the start of the program (see genCode), and jump to the handler;
+; otherwise, we display the error message and abort the program, by way of
+; our CTRLC handler (which also frees any blocks saved by callers; see
 ; restoreChains).
 ;
 ; Inputs:
@@ -334,8 +337,17 @@ DEFPROC	rtError
 	jnz	re1			; yes
 	cmp	ss:[bx].ERR_ADDR.SEG,0	; is there a handler?
 	je	re1			; no
-	mov	sp,ss:[bx].ERR_SP
-	mov	bp,sp
+	mov	si,sp
+	mov	ah,SIG_CBLK
+	call	findRet			; DX:DI -> return address
+	jnc	re0
+	sub	dx,dx
+	mov	di,dx
+re0:	call	findStmtSP		; SI = SP of the statement
+	mov	sp,si
+	push	dx
+	push	di
+	mov	bp,ss:[bx].ERR_SP
 	mov	ds,ss:[bx].VBLKDEF.BLK_NEXT
 	jmp	dword ptr ss:[bx].ERR_ADDR
 
@@ -400,6 +412,7 @@ ERR_MSGS label byte
 	db	13,"Type mismatch",0
 	db	14,"Out of string space",0
 	db	15,"String too long",0
+	db	20,"RESUME without error",0
 	db	24,"Device timeout",0
 	db	25,"Device fault",0
 	db	26,"FOR without NEXT",0
@@ -415,6 +428,7 @@ ERR_MSGS label byte
 	db	61,"Disk full",0
 	db	62,"Input past end",0
 	db	63,"Bad record number",0
+	db	68,"Device unavailable",0
 	db	70,"Permission denied",0
 	db	71,"Disk not ready",0
 	db	72,"Disk media error",0
@@ -475,7 +489,9 @@ ENDPROC	offError
 ;
 ; resumeErr
 ;
-; Used by "RESUME line" (before the JMP to the line), to end error handling.
+; Used by "RESUME line" (before the JMP to the line), to end error handling
+; and restore the stack to the start of the statement with the error (see
+; endErr), so that, as in MSBASIC, any GOSUBs it was in are still active.
 ;
 ; Inputs:
 ;	None
@@ -484,13 +500,71 @@ ENDPROC	offError
 ;	None
 ;
 ; Modifies:
-;	BX
+;	AL, BX, CX, DX, SI
 ;
 DEFPROC	resumeErr,FAR
-	mov	bx,ss:[PSP_HEAP]
-	mov	byte ptr ss:[bx].ERR_NUM.HIB,0
+	call	endErr			; SI = SP of the statement
+	pop	cx
+	pop	dx			; DX:CX = return address
+	mov	sp,si
+	push	dx
+	push	cx
 	ret
 ENDPROC	resumeErr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; endErr
+;
+; Ends the handling of an error, for RESUME, and returns the SP at the start
+; of the statement with the error, below which rtError saved the return
+; address of the failed call (see resumeStmt).  It's a "RESUME without error"
+; error if no error is being handled.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	SS:BX -> heap, SI = SP (see findStmtSP)
+;
+; Modifies:
+;	AL, BX, SI
+;
+DEFPROC	endErr
+	mov	bx,ss:[PSP_HEAP]
+	mov	al,20			; "RESUME without error"
+	cmp	byte ptr ss:[bx].ERR_NUM.HIB,0
+	je	ee9			; no error is being handled
+	mov	byte ptr ss:[bx].ERR_NUM.HIB,0
+	jmp	short findStmtSP
+ee9:	jmp	rtError
+ENDPROC	endErr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; findStmtSP
+;
+; Returns the SP at the start of the statement with the error: the program's
+; SP (see ERR_SP in genCode), less any GOSUBs that were active (see doGosub),
+; since nothing else remains on the stack from one statement to the next.
+;
+; Inputs:
+;	SS:BX -> heap
+;
+; Outputs:
+;	SI = SP
+;
+; Modifies:
+;	SI
+;
+DEFPROC	findStmtSP
+	mov	si,ss:[bx].ERR_SP
+fss1:	cmp	word ptr ss:[si-2],GOSUB_SIG
+	jne	fss9			; no (more) GOSUBs
+	sub	si,6			; skip GOSUB_SIG and its return address
+	jmp	fss1
+fss9:	ret
+ENDPROC	findStmtSP
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -549,8 +623,7 @@ ENDPROC	getErr
 ;
 ; Finds the line # of a runtime error (for ERL): we look for the far return
 ; address of the call from the generated code to the runtime function that
-; failed, by scanning the stack for a pointer into a code (or function) block
-; that follows a far CALL, and then find the last line label in the code
+; failed (see findRet), and then find the last line label in the code
 ; before that address (or if there isn't one in that block, the last line
 ; label in the preceding block, since a line can span blocks).  A program
 ; without line numbers has no line labels, so ERL is zero.
@@ -566,29 +639,12 @@ ENDPROC	getErr
 ;
 DEFPROC	findErl
 	mov	si,sp
-	mov	bp,ss:[PSP_HEAP]
-	lea	bp,[bp].STACK + size STACK
-fe1:	cmp	si,bp			; reached the top of the stack?
-	jae	fe8			; yes
-	les	di,ss:[si]		; ES:DI = possible return address
-	mov	al,es:[BLK_SIG]
-	cmp	al,SIG_CBLK
-	je	fe2
-	cmp	al,SIG_FBLK
-	jne	fe3
-fe2:	cmp	di,es:[BLK_FREE]
-	ja	fe3
-	cmp	di,size CBLK + 5
-	jb	fe3
-	cmp	byte ptr es:[di-5],9Ah	; (OP_CALLF)
-	je	fe4
-fe3:	inc	si
-	inc	si
-	jmp	fe1
-fe8:	sub	ax,ax
+	mov	ah,SIG_FBLK
+	call	findRet			; DX:DI -> error
+	jnc	fe4
+	sub	ax,ax
 	ret
-fe4:	mov	dx,es			; DX:DI -> error
-	call	firstBlock		; AX = first block
+fe4:	call	firstBlock		; AX = first block
 	sub	cx,cx			; CX = line # (none yet)
 fe5:	mov	es,ax
 	sub	bp,bp			; BP = offset of best label in block
@@ -598,7 +654,7 @@ fe6:	cmp	si,es:[BLK_SIZE]	; end of this LBLREF table?
 	mov	ax,es:[si].LBL_IP
 	test	ax,LBL_RESOLVE		; reference?
 	jnz	fe6a			; yes
-	cmp	es:[si].LBL_NUM,CTL_DONE; FOR, WHILE, or resolved?
+	cmp	es:[si].LBL_NUM,CTL_STMT; FOR, WHILE, statement, or resolved?
 	jae	fe6a			; yes
 	mov	bx,es
 	cmp	bx,dx			; the block with the error?
@@ -620,6 +676,49 @@ fe7:	mov	ax,es
 fe9:	xchg	ax,cx			; AX = line #
 	ret
 ENDPROC	findErl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; findRet
+;
+; Scans the stack, upward from SS:SI, for the far return address of a call
+; from the generated code: a pointer into a code block (or, if AH is SIG_FBLK,
+; a function block) that follows a far CALL.
+;
+; Inputs:
+;	AH = SIG_FBLK to include function blocks (otherwise, SIG_CBLK)
+;	SS:SI -> stack
+;
+; Outputs:
+;	If carry clear, DX:DI -> return address
+;
+; Modifies:
+;	AL, DX, SI, DI, BP, ES
+;
+DEFPROC	findRet
+	mov	bp,ss:[PSP_HEAP]
+	lea	bp,[bp].STACK + size STACK
+fr1:	cmp	si,bp			; reached the top of the stack?
+	jae	fr8			; yes
+	les	di,ss:[si]		; ES:DI = possible return address
+	inc	si
+	inc	si
+	mov	al,es:[BLK_SIG]
+	cmp	al,SIG_CBLK
+	je	fr2
+	cmp	al,ah
+	jne	fr1
+fr2:	cmp	di,es:[BLK_FREE]
+	ja	fr1
+	cmp	di,size CBLK + 5
+	jb	fr1
+	cmp	byte ptr es:[di-5],9Ah	; (OP_CALLF)
+	jne	fr1
+	mov	dx,es			; (and carry is clear)
+	ret
+fr8:	stc
+	ret
+ENDPROC	findRet
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

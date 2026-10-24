@@ -194,7 +194,8 @@ DEFPROC	msc_gettime,DOS
 ;	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
 ;
 ; where H = hours (0-23), m = minutes (0-59), and S = seconds / 2 (0-29);
-; additionally, AL contains hundredths (< 200).
+; additionally, AX contains hundredths (< 200), which the driver returns as
+; the request's byte count.
 ;
 	mov	bx,dx
 	mov	cl,11

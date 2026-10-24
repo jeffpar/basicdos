@@ -15,6 +15,7 @@
 ;					and genPut)
 ;	INPUT #, LINE INPUT #		(genInputFile, via genInput)
 ;	IOCTL #				(genIoctl)
+;	KEY n,string			(genKeyDef, via genKey)
 ;	LPRINT				(genLprint)
 ;	LSET, RSET			(genLset, genRset)
 ;	MID$ statement			(genMidSet, via genLet)
@@ -22,6 +23,7 @@
 ;	PRINT #				(genPrintFile, via genPrint)
 ;	PRINTF #			(genPrintfFile, via genPrintf)
 ;	GET, PUT			(file or graphics generators)
+;	WIDTH device,width		(genWidthDev, via genWidth)
 ;	WRITE #				(genWriteFile, via genWrite)
 ;
 ; This module is outside COMMAND's core (see CMD.LRF), so the core reaches it
@@ -44,7 +46,7 @@ CODE    SEGMENT
 	EXTNEAR	<skipToken,genReadVars,genPrintArgs,genPrintfArgs,genWriteEnd>
 	EXTNEAR	<openFile,closeFile,fileOut,selectInput,fileItem,genWriteArgs>
 	EXTNEAR	<fieldVar,setField,fileRecord,lsetStr,genVarRef,fileIoctl>
-	EXTNEAR	<dosCall,prnOut,midSet,genLong>
+	EXTNEAR	<dosCall,prnOut,midSet,genLong,genStr,keyDef,widthDev>
 	EXTNEAR	<genGetGfx,genPutGfx,compError>
 
 	EXTABS	<TOK_FOR,TOK_INPUT,TOK_AS,TOK_OUTPUT,TOK_APPEND,TOK_RANDOM>
@@ -525,6 +527,64 @@ gms3:	mov	al,CLS_SYM
 gms8:	stc
 gms9:	ret
 ENDPROC	genMidSet
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genKeyDef
+;
+; Generate code for "KEY n,string" (see keyDef); genKey comes here, via
+; genUpper, when KEY isn't followed by ON or OFF.
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genKeyDef
+	call	genLong			; the key number
+	jc	gkd9
+	cmp	al,','
+	jne	gkd8
+	call	genStr			; the string
+	jc	gkd9
+	GENCALL	keyDef
+	ret
+gkd8:	stc
+gkd9:	ret
+ENDPROC	genKeyDef
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genWidthDev
+;
+; Generate code for "WIDTH device,width" (see widthDev); genWidth comes here,
+; via genUpper, when WIDTH is followed by a string.
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genWidthDev
+	call	genStr			; the device name
+	jc	gkd9
+	cmp	al,','
+	jne	gkd8
+	call	genLong			; the width
+	jc	gkd9
+	GENCALL	widthDev
+	ret
+ENDPROC	genWidthDev
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

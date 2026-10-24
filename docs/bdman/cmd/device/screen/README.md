@@ -64,6 +64,8 @@ Prints a series of values, separated by semicolons or commas.  A semicolon print
 	PRINT "A"; 1; "B", 2
 	A 1 B	 2
 
+On the PC's display, as in PC DOS, control characters other than BELL (7, which beeps), BACKSPACE (8), TAB (9), LINEFEED (10), and RETURN (13) are displayed as the PC's graphic characters (eg, `PRINT CHR$(14)` displays a musical note); unlike IBM PC BASIC, characters such as CHR$(12) and CHR$(28)-CHR$(31) don't clear the screen or move the cursor.  On a serial console, they're sent to the terminal as they are.
+
 ### PRINTF
 
 > PRINTF USING *format*;[*value*][,|;][*value*]...
@@ -135,8 +137,11 @@ While a session is in any mode other than its original mode (eg, a graphics mode
 
 ### WIDTH
 
-> WIDTH 40|80
+> WIDTH 40|80  
+> WIDTH *device*,*width*
 
 Sets the number of columns in text mode (which clears the screen).  In SCREEN 1, WIDTH 80 selects SCREEN 2, and in SCREEN 2, WIDTH 40 selects SCREEN 1.
+
+With a *device* name (a string), `WIDTH "SCRN:",`*width* is the same as WIDTH *width*.  For any other device (eg, `WIDTH "COM1:",255`), Microsoft BASIC sets the line width of the device's output (where 255 means lines are never broken), but BASIC-DOS never breaks a device's output into lines, so the *width* (1-255) is only checked, for compatibility.  WIDTH *device* isn't available on low memory systems (see [Low Memory](../../../lang/#low-memory)).
 
 {% include footer.html prev="Mouse Commands:../mouse/" next="Graphics Commands:../graphics/" %}

@@ -896,6 +896,7 @@ childconok db 0
 childfcb db 0,"FCBOWN  DAT",(size FCBF)-12 dup(0)
 childnul db 0,"NUL        ",(size FCBF)-12 dup(0)
 childcon db 0,"CON        ",(size FCBF)-12 dup(0)
+	COMDATA	<0,0,0,0,SIG_BASICDOS>	; (MINHEAP; COMHEAP is for our image)
 childend label byte
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -993,9 +994,13 @@ fcbtest	db	size FCBF dup(0)
 findfcb	db	size FCBF dup(0)
 fcbtwo	db	size FCBF dup(0)
 xfcb	db	0FFh,6 dup(0),size FCBF dup(0)
-expect	db	FILELEN dup(0)
-actual	db	FILELEN dup(0)
-	db	512 dup(0)
-stktop	label	word
+;
+; The two FILELEN-byte buffers and the stack are in the heap that BASIC-DOS
+; allocates after the image (see COMHEAP), so they take no room on disk.
+;
+	COMHEAP	<FILELEN*2+512>	; COMHEAP (heap size) must be the last item
+expect	equ	$
+actual	equ	expect+FILELEN
+stktop	equ	actual+FILELEN+512
 CODE	ends
 	end	main

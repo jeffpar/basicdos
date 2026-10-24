@@ -14,6 +14,7 @@ BASIC-DOS disk commands include:
 - [DIR](#dir)
 - [LOAD](#load)
 - [MD](#md) (or MKDIR)
+- [MERGE](#merge)
 - [RD](#rd) (or RMDIR)
 - [REN](#ren) (or RENAME or MV)
 - [SAVE](#save)
@@ -88,6 +89,15 @@ Loads the specified BAS or BAT file without running it, so that it can be [LIST]
 Creates a new directory, which initially contains only the `.` and `..` entries.  A directory grows as needed when files are added to it (unlike the root directory, which has a fixed size).
 
 	MD GAMES
+
+### MERGE
+
+> MERGE *file*
+
+Adds the numbered lines of the specified BAS file to the loaded program, replacing any lines with the same numbers, as if they had been typed at the prompt.  If no extension is specified, .BAS is used, and the file is found the same way [LOAD](#load) finds it.  Every line in the file must be numbered (blank lines are ignored).  MERGE can't be used inside a BAS or BAT file; use [CHAIN MERGE](../basic/#chain) instead.
+
+	LOAD MUSIC
+	MERGE MARCH
 
 ### RD
 

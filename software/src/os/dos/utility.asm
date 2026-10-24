@@ -536,7 +536,19 @@ tf3c:	cmp	al,'!'
 	jmp	short tf3e
 tf3d:	cmp	al,'#'
 	jne	tf6a
-	mov	ah,CLS_VAR_DOUBLE
+;
+; A '#' followed by a digit isn't a type suffix, since a variable can't be
+; followed by a number; as in MSBASIC, it begins a file number instead (eg,
+; "PRINT#1").
+;
+	cmp	word ptr [bp].TMP_CX,0	; does anything follow the '#'?
+	jle	tf3f			; no
+	mov	ah,[si]
+	sub	ah,'0'
+	cmp	ah,10			; is it a digit?
+	mov	ah,CLS_SYM
+	jb	tf6a			; yes, so the '#' starts a new token
+tf3f:	mov	ah,CLS_VAR_DOUBLE
 tf3e:	mov	ch,ah			; change previous classification, too
 
 tf5:	cmp	ah,ch			; any change to classification?

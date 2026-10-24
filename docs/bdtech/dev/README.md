@@ -126,6 +126,7 @@ DOS_HDL_IOCTL (INT 21h, AH = 44h) sends IOCTL requests to drivers: AL is passed 
 
 | AL | Name | Description |
 |----|------|-------------|
+| 06h | IOCTL_INSTATUS | Returns the number of bytes waiting in the port's input buffer in DX (zero if none), which BASIC's [EOF](../../bdman/cmd/basic/func/#eof), [LOC](../../bdman/cmd/basic/func/#loc), and [INPUT$](../../bdman/cmd/basic/func/#input) functions use for a COM file. |
 | B1h | IOCTL_COMDEBUG | Disables the port's UART interrupts, so that the caller can poll it, and returns the UART's base port in DX, OR'ed with COMDBG_XON (02h) and/or COMDBG_RTS (04h) if the port uses XON/XOFF or RTS/CTS flow control.  The handle must have been opened with MODE_DENY_RW (see [Device Sharing](#device-sharing)); otherwise, the error is ERR_ACCDENIED. |
 
 #### CLOCK$ {#clock}
@@ -145,7 +146,7 @@ DOS_HDL_IOCTL (INT 21h, AH = 44h) sends IOCTL requests to drivers: AL is passed 
 |----|------|-------------|
 | D1h | IOCTL_GETDIM | Gets the context's dimensions |
 | D2h | IOCTL_GETPOS | Gets the cursor position |
-| D3h | IOCTL_GETLEN | Gets the displayed length of data (eg, with tabs expanded) |
+| D3h | IOCTL_GETLEN | Gets the displayed length of data (eg, with tabs expanded, and other control characters counted as two, since the DOS line editor displays them as "^" + char) |
 | D4h | IOCTL_MOVCUR | Moves the cursor by DDPRW_LENGTH positions |
 | D5h | IOCTL_SETINS | Sets INSERT mode on (CL = 1) or off (CL = 0) |
 | D6h | IOCTL_SCROLL | Scrolls the interior of the context up (CX > 0) or down (CX < 0) by CX lines, or clears it (CX = 0) |
@@ -165,7 +166,7 @@ The COM driver also supports IOCTL_GETDIM (it assumes an 80x24 terminal), IOCTL_
 
 #### Raw Keys {#raw-keys}
 
-Normally, both console drivers return non-ASCII keys as the control characters that the DOS line editor uses (eg, CTRL-E for the up-arrow key, and CTRL-S for the left-arrow key), so a program can't tell those keys apart.  In raw keys mode (IOCTL_SETKEYS with CL = 1), both drivers return every non-ASCII key as a zero followed by the key's PC scan code (the SCAN_* values in bios.inc), as PC DOS does, so programs don't need to know which driver they're using:
+Both console drivers return every non-ASCII key as a zero followed by the key's PC scan code (the SCAN_* values in bios.inc), as PC DOS does, so programs (eg, BASIC's INKEY$) don't need to know which driver they're using.  The DOS line editor (DOS_TTY_INPUT) maps the keys it uses for editing to the control characters that also edit (eg, the up-arrow key to CTRL-E, and the left-arrow key to CTRL-S), and ignores the others.  The COM driver translates the keys of a VT100 terminal (and in raw keys mode, an ANSI terminal) from these escape sequences:
 
 | Key | Scan code | ANSI/VT100 sequences |
 |-----|-----------|----------------------|
@@ -176,9 +177,9 @@ Normally, both console drivers return non-ASCII keys as the control characters t
 | F1-F4 | 3Bh-3Eh | ESC O P-S (the VT100's PF1-PF4), or ESC [ P-S |
 | F5-F10 | 3Fh-44h | ESC [ 15 ~, ESC [ 17 ~ through ESC [ 21 ~ |
 
-The COM driver translates the escape sequences of ANSI and VT100 terminals: modifier parameters (eg, the 5 in ESC [ 1 ; 5 A) are ignored, and other sequences are discarded.  Since an ESC key can't be distinguished from the start of a sequence until the next byte arrives, the driver holds an ESC until then, or for about 110ms (using a [CLOCK$ timer](#clock-timers)), after which it's returned as an ESC.  For VT100 terminals, the key that erases the previous character (DELETE, 7Fh) returns BACKSPACE (08h), and BACKSPACE returns the Delete key (00h, 53h), like the PC's keys; for ANSI terminals, both are returned as they are.  GENERIC terminals return bytes as they are.
+Modifier parameters (eg, the 5 in ESC [ 1 ; 5 A) are ignored, and other sequences are discarded.  Since an ESC key can't be distinguished from the start of a sequence until the next byte arrives, the driver holds an ESC until then, or for about 110ms (using a [CLOCK$ timer](#clock-timers)), after which it's returned as an ESC.  For VT100 terminals, the key that erases the previous character (DELETE, 7Fh) returns BACKSPACE (08h), and BACKSPACE returns the Delete key (00h, 53h), like the PC's keys; for ANSI terminals, both are returned as they are.  GENERIC terminals return bytes as they are.
 
-All other keys are returned as their ASCII codes, including control characters (eg, CTRL-D and CTRL-S are no longer cursor keys).  CTRL-C, CTRL-S, and CTRL-P are ordinary keys too: they aren't reported to DOS (so DOS doesn't echo ^C or call INT 23h), and they don't pause or resume output.  CTRL-BREAK still aborts the program on the CON console, SHIFT-TAB still switches focus, and a COM console with XON flow control still uses CTRL-S and CTRL-Q for flow control.  A program that sets raw keys mode should turn it off before it exits; if it doesn't (eg, if it's aborted), DOS turns it off for the session's console when the program ends (DOS records the last IOCTL_SETKEYS setting in the program's PSP, at PSP_RAWKEYS).
+All other keys are returned as their ASCII codes, including control characters.  In raw keys mode (IOCTL_SETKEYS with CL = 1), CTRL-C, CTRL-S, and CTRL-P are ordinary keys, too: they aren't reported to DOS (so DOS doesn't echo ^C or call INT 23h), and they don't pause or resume output; an ANSI terminal's escape sequences are translated, too (otherwise, they're left alone, since an ANSI port may be a program's data port, eg, COM1 in COMM.BAS).  CTRL-BREAK still aborts the program on the CON console, SHIFT-TAB still switches focus, and a COM console with XON flow control still uses CTRL-S and CTRL-Q for flow control.  A program that sets raw keys mode should turn it off before it exits; if it doesn't (eg, if it's aborted), DOS turns it off for the session's console when the program ends (DOS records the last IOCTL_SETKEYS setting in the program's PSP, at PSP_RAWKEYS).
 
 #### FPU$ {#fpu}
 

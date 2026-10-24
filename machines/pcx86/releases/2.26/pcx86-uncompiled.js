@@ -71556,7 +71556,7 @@ class FDC extends Component {
         let fIRQ = false;
         this.regDataIndex = 0;
         let bCmd = this.popCmd();
-        let drive, bDrive, bHead, c, h, r, n;
+        let drive, bDrive, bHead, c, h, r, n, sector;
 
         /**
          * NOTE: We currently ignore the FDC.REG_DATA.CMD.SK, FDC.REG_DATA.CMD.MF and FDC.REG_DATA.CMD.MT bits of every command.
@@ -71606,11 +71606,6 @@ class FDC extends Component {
             drive.bHead = bHead;
             c = drive.bCylinder = this.popCmd(FDC.TERMS.C); // C
             h = this.popCmd(FDC.TERMS.H);                   // H
-            /**
-             * Controller docs say that H should always match HD, so I assert that, but what if someone
-             * made a mistake and didn't program them identically -- what would happen?  Which should we honor?
-             */
-
             r = drive.bSector = this.popCmd(FDC.TERMS.R);   // R
             n = this.popCmd(FDC.TERMS.N);                   // N
             drive.nBytes = 128 << n;                        // 0 => 128, 1 => 256, 2 => 512, 3 => 1024
@@ -71638,6 +71633,16 @@ class FDC extends Component {
                  * TYPE_VERIFY instead of TYPE_READ or TYPE_WRITE.
                  */
                 drive.resCode = FDC.REG_DATA.RES.INCOMPLETE | FDC.REG_DATA.RES.NO_DATA;
+                fIRQ = true;
+            } else if (h != bHead && drive.disk && (!(sector = drive.disk.seek(c, bHead, r)) || sector[Disk.SECTOR.HEAD] != h)) {
+                /**
+                 * The controller reads the track under the head selected by HD (in the Drive Select byte), looking for
+                 * a sector whose ID matches C, H, and R.  H normally matches HD, but when it doesn't (eg, when a program
+                 * that probes for more heads asks INT 13h for head 2, which the BIOS programs as HD 0 and H 2), the sector
+                 * isn't found, unless its ID really contains H (as on an unusual disk image), so the command fails with
+                 * NO_DATA, as it does on a real controller, instead of reading the sector under the selected head.
+                 */
+                drive.resCode = FDC.REG_DATA.RES.NO_DATA | FDC.REG_DATA.RES.INCOMPLETE;
                 fIRQ = true;
             } else {
                 if (bCmdMasked != FDC.REG_DATA.CMD.WRITE_DATA) {

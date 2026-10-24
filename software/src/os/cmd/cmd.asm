@@ -19,7 +19,7 @@ CODE    SEGMENT
 	EXTNEAR	<pipeStages>
 	ENDIF
 	EXTNEAR	<freeAllText,genCode,freeAllCode,freeAllVars,cmdLoad>
-	EXTNEAR	<freeIdleVars,resetVars,runCode,findVar>
+	EXTNEAR	<freeIdleVars,resetVars,findVar>
 	EXTNEAR	<enterLine,editPrompt,genUpper>
 	EXTNEAR	<saveChains,restoreChains,compactStrs>
 	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resSum,resParas>
@@ -1623,7 +1623,7 @@ DEFPROC	cmdRun
 	pop	ax
 	push	dx
 	sub	si,si
-	call	runCode			; (see runCache)
+	call	genCode			; (see genInit)
 	pop	dx
 	pushf
 	test	dx,dx			; did we save the mode?

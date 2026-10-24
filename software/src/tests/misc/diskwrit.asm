@@ -168,7 +168,7 @@ m20:	mov	al,[maxSN]
 	mul	cx		; DX:AX = total bytes to read
 	xchg	cx,ax		; CX = total bytes
 	mov	bx,[hFile]
-	mov	dx,offset sector
+	mov	dx,[buffer]
 	mov	ah,DOS_HDL_READ
 	int	21h
 	jc	m50
@@ -179,7 +179,7 @@ m31:	call	pr_parms	; print all the parameters
 	mov	ax,word ptr [maxSN]
 	mov	cx,word ptr [curSN]
 	mov	dx,word ptr [curDR]
-	mov	bx,offset sector; ES:BX -> sector buffer
+	mov	bx,[buffer]	; ES:BX -> sector buffer
 	int	13h
 	jnc	m40		; presumably worked
 
@@ -391,8 +391,14 @@ memerr	db	"insufficient memory",0Dh,0Ah,'$'
 filerr	db	"error creating output file"
 crlf	db	0Dh,0Ah,'$'
 
+;
+; The sector buffer (MAX_BUFFER bytes, which start MAX_BUFFER bytes later if
+; they would cross a 64K boundary) and the stack are in the heap that BASIC-DOS
+; allocates after the image (see COMHEAP).
+;
 	even
-sector	label	byte
+	COMHEAP	<2*MAX_BUFFER+512>	; (must be the last item)
+sector	equ	$
 
 CODE	ENDS
 

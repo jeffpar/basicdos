@@ -28,7 +28,7 @@ The date must be entered as M-D-Y or M/D/Y, where M is 1-12, D is 1-31, and Y is
 
 > TIME [*time*] [/D] [/P]
 
-Sets the system time (or prompts for a time if /P is specified) and then displays the time.  /D displays the elapsed time.
+Sets the system time (or prompts for a time if /P is specified) and then displays the time.  /D displays only the time elapsed since TIME last displayed the time (or since midnight, if TIME hasn't been used).
 
 The time must be entered as H:M:S.D, where H is 0-23, M is 0-59, S is 0-59, and D is 0-99 (hundredths of a second).  If M, S, or D are omitted, zeros are assumed.
 

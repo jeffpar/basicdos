@@ -195,8 +195,10 @@ ENDPROC	runTransient
 DEFPROC	resPrompt
 	mov	ah,DOS_TTY_PRINT
 	int	21h
-	mov	ah,DOS_TTY_IN
+rp1:	mov	ah,DOS_TTY_IN
 	int	21h
+	test	al,al			; non-ASCII key (null + scan code)?
+	jz	rp1			; yes, so read its scan code, too
 	ret
 ENDPROC	resPrompt
 

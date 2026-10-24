@@ -266,11 +266,12 @@ KEYWORDS	macro	PASS
 	PASS	LSET,   92, genLset
 	PASS	MD,     17, cmdMkdir
 	PASS	MEM,     5, cmdMem
+	PASS	MERGE,  27, cmdMerge,PUB
 	PASS	MKDIR,  17, cmdMkdir
 	PASS	MOUSE,  86, genMouse,PUB
 	PASS	MV,     26, cmdRen
 	PASS	NEW,     6, cmdNew
-	PASS	NEXT,   60, genNext
+	PASS	NEXT,   60, genNext,PUB
 	PASS	OFF,   202,,PUB
 	PASS	ON,    203, genOn,PUB
 	PASS	OPEN,   87, genOpen

@@ -7,10 +7,10 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Runtime functions for CLOSE, DOS, FIELD, GET #, INPUT #, IOCTL #, LINE
-; INPUT #, LPRINT, LSET, the MID$ statement, OPEN, PRINT #, PUT #, RSET, and
-; WRITE # (see genfile.asm), and for the CVD, CVI, CVL, DOS, EOF, IOCTL$, LOC,
-; LOF, LPOS, MKD$, MKI$, and MKL$ functions.
+; Runtime functions for CLOSE, DOS, FIELD, GET #, INPUT #, IOCTL #, KEY n,
+; LINE INPUT #, LPRINT, LSET, the MID$ statement, OPEN, PRINT #, PUT #, RSET,
+; WIDTH device, and WRITE # (see genfile.asm), and for the CVD, CVI, CVL, DOS,
+; EOF, INPUT$, IOCTL$, LOC, LOF, LPOS, MKD$, MKI$, and MKL$ functions.
 ; Like genfile.asm, this is outside COMMAND's core (see CMD.LRF), unlike the
 ; INPUT, LINE INPUT, and WRITE functions that files share with the keyboard
 ; and screen (see input.asm).
@@ -29,6 +29,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<rtError,allocStr,releaseStr,openMode,setStr,strIllegal>
+	EXTNEAR	<getByteArg,newStr,setWidth>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
@@ -36,6 +37,7 @@ FM_INPUT	equ	01h		; masks for getFile (1 SHL mode)
 FM_OUTPUT	equ	02h
 FM_APPEND	equ	04h
 FM_RANDOM	equ	08h
+FM_DEVICE	equ	10h		; a device opened without FOR, eg COM1
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -45,6 +47,11 @@ FM_RANDOM	equ	08h
 ; As in MSBASIC, an error is a runtime error (eg, "File not found"), which
 ; ON ERROR can handle.  A random access file's record length must be from 1
 ; to 255 (since GET # and PUT # build records in LINEBUF).
+;
+; Also as in MSBASIC, "SCRN:" is the screen (ie, the session's console, CON),
+; a device opened without FOR (eg, "COM1:300,E,7,2"; see ddcom_open) can be
+; used for both input and output (mode 4; see FM_DEVICE), and if a device's
+; name (eg, "COM1:") can't be opened, it's a "Device unavailable" error.
 ;
 ; Inputs:
 ;	string value (popped)
@@ -76,8 +83,9 @@ DEFPROC	openFile,FAR
 	or	ax,[lRecLen].HIW
 	cmp	ax,255			; is the record length 1-255?
 	mov	al,5			; "Illegal function call"
-	jae	of9			; no
-	push	ss
+	jb	of0b			; yes
+of9:	jmp	rtError
+of0b:	push	ss
 	pop	es
 	mov	di,ss:[PSP_HEAP]
 	lea	di,[di].LINEBUF
@@ -86,9 +94,19 @@ DEFPROC	openFile,FAR
 	sub	cx,cx
 	test	si,si			; empty string?
 	jz	of1			; yes
-	lodsb
+	call	chkScrn			; "SCRN:"?
+	jne	of0			; no
+	push	cs
+	pop	ds
+	mov	si,offset CON_NAME	; DS:SI -> "CON" instead
+of0:	lodsb
 	mov	cl,al
-	rep	movsb			; copy the filename to LINEBUF
+	cmp	cl,5			; long enough for a device name?
+	jb	of0a			; no
+	cmp	byte ptr [si+4],':'	; a device name (eg, "COM1:")?
+	jne	of0a			; no
+	mov	byte ptr [wMode+1],68	; yes (for "Device unavailable")
+of0a:	rep	movsb			; copy the filename to LINEBUF
 of1:	xchg	ax,cx
 	stosb				; and null-terminate it
 	les	di,[pName]
@@ -98,9 +116,22 @@ of1:	xchg	ax,cx
 	mov	ax,[wMode]
 	push	ax
 	call	openMode		; AX = handle
-	pop	cx			; CL = mode
+	pop	cx			; CL = mode (and CH = 68 for a device)
 	jc	of8
-	mov	ah,cl
+	cmp	cl,3			; random access?
+	jne	of2			; no
+	push	ax
+	push	bx
+	xchg	bx,ax			; BX = handle
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETDATA
+	int	21h			; DL bit 7 is set for a device
+	pop	bx
+	pop	ax
+	jc	of2
+	test	dl,80h			; a device?
+	jz	of2			; no
+	inc	cx			; yes, so it's mode 4 (FM_DEVICE)
+of2:	mov	ah,cl
 	mov	word ptr ss:[bx].FILE_DATA,ax	; record the handle and mode
 	mov	ax,[lRecLen].LOW
 	mov	word ptr ss:[bx].FS_RLEN,ax	; record length
@@ -110,7 +141,10 @@ of1:	xchg	ax,cx
 	pop	ds
 	LEAVE
 	RETURN
-of8:	mov	cl,55			; "File already open" (elsewhere)
+of8:	mov	cl,ch			; CL = 68 for a device name
+	test	cl,cl			; a device name?
+	jnz	of8a			; yes ("Device unavailable")
+	mov	cl,55			; "File already open" (elsewhere)
 	cmp	al,ERR_SHARE
 	je	of8a
 	mov	cl,53			; "File not found"
@@ -118,7 +152,7 @@ of8:	mov	cl,55			; "File already open" (elsewhere)
 	je	of8a
 	mov	cl,75			; "Path/File access error"
 of8a:	xchg	ax,cx
-of9:	jmp	rtError
+	jmp	rtError
 ENDPROC	openFile
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -208,7 +242,7 @@ DEFPROC	fileOut,FAR
 	ARGVAR	pOutW,dword
 	ENTER
 	mov	ax,[lOutNum].LOW
-	mov	dl,FM_OUTPUT OR FM_APPEND
+	mov	dl,FM_OUTPUT OR FM_APPEND OR FM_DEVICE
 	call	getFile			; AL = handle
 	mov	bl,al
 	mov	bh,0
@@ -271,7 +305,7 @@ DEFPROC	selectInput,FAR
 	ARGVAR	wInLine,word
 	ENTER
 	mov	ax,[lInNum].LOW
-	mov	dl,FM_INPUT
+	mov	dl,FM_INPUT OR FM_DEVICE
 	call	getFile			; AL = handle
 	mov	cx,[wInLine]
 	mov	ah,cl
@@ -286,7 +320,8 @@ ENDPROC	selectInput
 ; fileEof (EOF)
 ;
 ; Returns -1 (true) if file n (open for INPUT) is at its end (or at a CTRLZ),
-; or 0 (false) if not.
+; or 0 (false) if not.  For a device that reports how many bytes are waiting
+; (eg, COM1; see inCount), it's true if none are, as in MSBASIC.
 ;
 ; Inputs:
 ;	32-bit return value
@@ -304,11 +339,16 @@ DEFPROC	fileEof,FAR
 	ENTER
 	push	ds
 	mov	ax,[lEofNum].LOW
-	mov	dl,FM_INPUT OR FM_RANDOM
+	mov	dl,FM_INPUT OR FM_RANDOM OR FM_DEVICE
 	call	getFile			; AL = handle
 	mov	bl,al
 	mov	bh,0			; BX = handle
-	push	ss
+	call	inCount			; AX = # bytes waiting (eg, for COM1)
+	jc	fe0			; not a device that reports it
+	cmp	ax,1			; carry set if none
+	sbb	dx,dx			; DX = -1 (true) if none
+	jmp	short fe9
+fe0:	push	ss
 	pop	ds
 	push	ax			; (room for one byte)
 	mov	dx,sp			; DS:DX -> room
@@ -379,7 +419,9 @@ ENDPROC	fileLof
 ; fileLoc (LOC)
 ;
 ; Returns the last record # used by GET # or PUT # for a random access file,
-; or for any other file, the position divided by 128 (as in MSBASIC).
+; or for any other file, the position divided by 128 (as in MSBASIC), except
+; for a device that reports how many bytes are waiting (eg, COM1; see
+; inCount), which returns that number (at most 255), as MSBASIC does.
 ;
 ; Inputs:
 ;	32-bit return value
@@ -389,7 +431,7 @@ ENDPROC	fileLof
 ;	32-bit return value updated
 ;
 ; Modifies:
-;	AX, BX, CX, DX
+;	AX, BX, CX, DX, DI
 ;
 DEFPROC	fileLoc,FAR
 	RETVAR	retLoc,dword
@@ -397,6 +439,15 @@ DEFPROC	fileLoc,FAR
 	ENTER
 	mov	ax,[lLocNum].LOW
 	call	seekCur			; DX:AX = position (CL = mode)
+	xchg	di,ax			; DX:DI = position
+	call	inCount			; AX = # bytes waiting (eg, for COM1)
+	jc	fl0			; not a device that reports it
+	sub	dx,dx
+	cmp	ax,255			; more than 255?
+	jbe	fl9			; no
+	mov	ax,255
+	jmp	short fl9
+fl0:	xchg	ax,di			; DX:AX = position
 	cmp	cl,3			; random access?
 	jne	fl1			; no
 	mov	bx,si
@@ -427,7 +478,7 @@ ENDPROC	fileLoc
 ;	AX, BX, CX, DX, SI
 ;
 DEFPROC	seekCur
-	mov	dl,FM_INPUT OR FM_OUTPUT OR FM_APPEND OR FM_RANDOM
+	mov	dl,FM_INPUT OR FM_OUTPUT OR FM_APPEND OR FM_RANDOM OR FM_DEVICE
 	call	getFile			; AL = handle, AH = mode
 	mov	si,bx
 	mov	bl,al
@@ -441,6 +492,232 @@ DEFPROC	seekCur
 	mov	cl,ch			; CL = mode
 	ret
 ENDPROC	seekCur
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; inCount
+;
+; Returns the number of bytes waiting to be read from a device that reports
+; it with IOCTL_INSTATUS (eg, COM1; see ddcom_ioctl).
+;
+; Inputs:
+;	BX = handle
+;
+; Outputs:
+;	If carry clear, AX = # bytes
+;
+; Modifies:
+;	AX
+;
+DEFPROC	inCount
+	push	dx
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETDATA
+	int	21h			; DL bit 7 is set for a device
+	jc	ic9
+	shl	dl,1			; is it a device?
+	cmc
+	jc	ic9			; no
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_INSTATUS
+	int	21h			; DX = # bytes (if the driver has it)
+	xchg	ax,dx
+ic9:	pop	dx
+	ret
+ENDPROC	inCount
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; strInput (INPUT$)
+;
+; Returns a string of n characters (1-255) read from file f (opened for INPUT,
+; or a device opened without FOR, eg, COM1), or if f is 0 (or omitted), from
+; the keyboard, without displaying them; as in MSBASIC, every key counts (eg,
+; ENTER), and an extended key is a zero followed by its scan code.  Reading
+; past the end of a file is an "Input past end" error.
+;
+; Inputs:
+;	32-bit return value
+;	32-bit count (popped)
+;	32-bit file number (popped)
+;
+; Outputs:
+;	32-bit return value updated
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	strInput,FAR
+	RETVAR	retInput,dword
+	ARGVAR	lInCount,dword
+	ARGVAR	lInFile,dword
+	ENTER
+	push	ds
+	mov	ax,[lInCount].LOW
+	mov	dx,[lInCount].HIW
+	call	getByteArg		; AX = count (0-255)
+	xchg	cx,ax			; CX = count
+	jcxz	snX			; (it must be 1-255)
+	push	ss
+	pop	ds
+	mov	si,ds:[PSP_HEAP]
+	lea	dx,[si].LINEBUF		; DS:DX -> LINEBUF
+	mov	ax,[lInFile].LOW
+	test	ax,ax			; from the keyboard?
+	jnz	sn2			; no
+	mov	di,dx
+	push	cx
+sn1:	mov	ah,DOS_TTY_READ
+	int	21h			; AL = next key (not displayed)
+	mov	[di],al
+	inc	di
+	loop	sn1
+	pop	cx
+	jmp	short sn8
+sn2:	push	dx
+	mov	dl,FM_INPUT OR FM_DEVICE
+	call	getFile			; AL = handle
+	pop	dx
+	mov	bl,al
+	mov	bh,0			; BX = handle
+	mov	ah,DOS_HDL_READ
+	int	21h			; AX = # bytes read
+	jc	sn9
+	cmp	ax,cx			; were there enough?
+	jb	sn9			; no
+sn8:	mov	si,dx			; SS:SI -> characters
+	call	newStr			; DX:AX = string
+	mov	[retInput].OFF,ax
+	mov	[retInput].SEG,dx
+	pop	ds
+	LEAVE
+	RETURN
+sn9:	mov	al,62			; "Input past end"
+	jmp	rtError
+snX:	jmp	strIllegal
+ENDPROC	strInput
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; keyDef
+;
+; Used by "KEY n,string", which in MSBASIC makes function key n (1-10) type
+; the string.  BASIC-DOS doesn't assign strings to the function keys (they
+; always return their key codes, as they do after KEY n,"" in MSBASIC), so we
+; only check the key number.
+;
+; Inputs:
+;	32-bit key number (popped)
+;	string value (popped)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, DI, ES
+;
+DEFPROC	keyDef,FAR
+	ARGVAR	lKeyNum,dword
+	ARGVAR	pKeyStr,dword
+	ENTER
+	les	di,[pKeyStr]
+	call	releaseStr
+	mov	ax,[lKeyNum].LOW
+	mov	dx,[lKeyNum].HIW
+	call	getByteArg		; AX = key number (0-255)
+	dec	ax
+	cmp	ax,10			; is it 1-10?
+	jae	kdX			; no
+	LEAVE
+	RETURN
+kdX:	jmp	strIllegal
+ENDPROC	keyDef
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; widthDev
+;
+; Used by "WIDTH device,width", where device is a string (eg, "COM1:"): for
+; "SCRN:", it's the same as WIDTH width (see setWidth); BASIC-DOS doesn't
+; insert line breaks in any other device's output, so for any other device,
+; we only check that the width is 1-255 (where 255, as in MSBASIC, means that
+; lines are never broken).
+;
+; Inputs:
+;	string value (popped)
+;	32-bit width (popped)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	widthDev,FAR
+	ARGVAR	pDev,dword
+	ARGVAR	lDevWidth,dword
+	ENTER
+	push	ds
+	sub	cx,cx
+	lds	si,[pDev]		; DS:SI -> device name
+	test	si,si			; empty string?
+	jz	wd1			; yes
+	call	chkScrn			; "SCRN:"?
+	jne	wd1			; no
+	inc	cx			; CX = 1 for "SCRN:"
+wd1:	les	di,[pDev]
+	call	releaseStr
+	pop	ds
+	jcxz	wd2
+	push	[lDevWidth].HIW
+	push	[lDevWidth].LOW
+	push	cx			; (1 argument; see getArgs)
+	push	cs
+	call	near ptr setWidth	; WIDTH "SCRN:",n is WIDTH n
+	jmp	short wd9
+wd2:	mov	ax,[lDevWidth].LOW
+	mov	dx,[lDevWidth].HIW
+	call	getByteArg		; AX = width (0-255)
+	test	ax,ax			; is it 1-255?
+	jz	kdX			; no
+wd9:	LEAVE
+	RETURN
+ENDPROC	widthDev
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chkScrn
+;
+; Inputs:
+;	DS:SI -> string (at its length byte)
+;
+; Outputs:
+;	ZF set if the string is "SCRN:" (in any case)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	chkScrn
+	push	cx
+	push	si
+	push	di
+	mov	di,offset SCRN_NAME
+	mov	cx,6			; (the length byte, too)
+cks1:	lodsb
+	and	al,0DFh			; (see SCRN_NAME)
+	inc	di
+	cmp	al,cs:[di-1]
+	loope	cks1			; (ZF stays set if every byte matches)
+	pop	di
+	pop	si
+	pop	cx
+	ret
+ENDPROC	chkScrn
+
+;
+; SCRN_NAME is "SCRN:" (with its length), with each byte ANDed with 0DFh, as
+; chkScrn does to every byte of the name (which upper-cases the letters).
+;
+SCRN_NAME	db	5,"SCRN",':' AND 0DFh
+CON_NAME	db	3,"CON"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -667,7 +944,7 @@ DEFPROC	fileIoctl,FAR
 	ENTER
 	push	ds
 	mov	ax,[lIoNum].LOW
-	mov	dl,FM_INPUT OR FM_OUTPUT OR FM_APPEND OR FM_RANDOM
+	mov	dl,FM_INPUT OR FM_OUTPUT OR FM_APPEND OR FM_RANDOM OR FM_DEVICE
 	call	getFile			; AL = handle
 	mov	bl,al
 	mov	bh,0			; BX = handle
@@ -767,7 +1044,7 @@ DEFPROC	fileIoctlStr,FAR
 	ENTER
 	push	ds
 	mov	ax,[lIsNum].LOW
-	mov	dl,FM_INPUT OR FM_OUTPUT OR FM_APPEND OR FM_RANDOM
+	mov	dl,FM_INPUT OR FM_OUTPUT OR FM_APPEND OR FM_RANDOM OR FM_DEVICE
 	call	getFile			; AL = handle
 	mov	bl,al
 	mov	bh,0			; BX = handle

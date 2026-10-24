@@ -7,10 +7,11 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Runtime functions for CHAIN, DEF SEG, PEEK, and POKE (see gensys.asm), and
-; for READ and RESTORE (see gendef.asm); PLAY and SOUND are in snd.asm.  The
-; MOUSE runtime functions are in gfx.asm, except for mouseReset and mouseCall,
-; which stay in COMMAND's core for SCREEN and restoreMode (see libc.asm).
+; Runtime functions for DEF SEG, PEEK, and POKE (see gensys.asm), and for
+; READ and RESTORE (see gendef.asm); CHAIN is in chain.asm, and PLAY and SOUND
+; are in snd.asm.  The MOUSE runtime functions are in gfx.asm, except for
+; mouseReset and mouseCall, which stay in COMMAND's core for SCREEN and
+; restoreMode (see libc.asm).
 ;
 	DOSFUNC equ 1
 	GFXDEFS equ 1
@@ -18,52 +19,10 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<callDOS,releaseStr,strIllegal,allocStr,rtError>
-	EXTNEAR	<ctrlc>
+	EXTNEAR	<releaseStr,strIllegal,allocStr,rtError>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; doChain
-;
-; Used by "CHAIN file", which runs the file like any other command.
-;
-; Inputs:
-;	string value (popped)
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	Any
-;
-DEFPROC	doChain,FAR
-	ARGVAR	pChainStr,dword
-	ENTER
-	les	di,[pChainStr]
-	mov	ax,es
-	test	ax,ax			; empty string?
-	jz	dcX			; yes
-	sub	ax,ax
-	push	ax			; no handler
-	push	ax			; no keyword ID
-	mov	al,es:[di]
-	push	ax			; length of command line
-	push	es
-	inc	di
-	push	di			; pointer to command line
-	dec	di
-	call	releaseStr		; (callDOS copies it before using it)
-	push	cs
-	call	callDOS
-	jc	dcY			; CHAIN failed, so end the program
-	LEAVE
-	RETURN
-dcX:	jmp	strIllegal
-dcY:	jmp	ctrlc
-ENDPROC	doChain
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -222,10 +181,10 @@ ENDPROC	getSeg
 ; Used by "READ var[,var]...", which calls us for each var, to get the next
 ; DATA item as a string.  Rather than collecting DATA items when the program
 ; is generated, we scan the program's text for them as needed, keeping track
-; of where we are in DATA_STATE (see genCode, runCode, and freeCache, which
-; reset it).  A quoted item may contain commas and colons (but not quotes),
-; and an unquoted item ends at a comma, colon, or the end of the line, with
-; leading and trailing whitespace removed.
+; of where we are in DATA_STATE (see genInit and freeCache, which reset it).
+; A quoted item may contain commas and colons (but not quotes), and an
+; unquoted item ends at a comma, colon, or the end of the line, with leading
+; and trailing whitespace removed.
 ;
 ; Inputs:
 ;	32-bit return value

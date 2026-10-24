@@ -1622,9 +1622,19 @@ ENDPROC	show_flags
 ;
 DEFPROC	get_line
 	sub	bx,bx
-	mov	cl,bl			; CL = 1 inside quotes
+	sub	cx,cx			; CL = 1 inside quotes, CH = 1 to skip
 gl1:	call	get_char		; (dbgdev_init changes this)
-	cmp	al,CHR_RETURN
+;
+; A non-ASCII key (eg, a cursor key) is a null followed by its scan code,
+; which must be skipped, too.
+;
+	shr	ch,1			; skipping a scan code?
+	jc	gl1			; yes
+	test	al,al			; non-ASCII key?
+	jnz	gl1a			; no
+	inc	ch			; yes, so skip its scan code next
+	jmp	gl1
+gl1a:	cmp	al,CHR_RETURN
 	je	gl9
 	cmp	al,CHR_BACKSPACE
 	je	gl3

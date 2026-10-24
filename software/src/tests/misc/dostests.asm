@@ -825,6 +825,10 @@ loadhandle	dw		-1
 loadrefs	dd		0
 loadspb		SPB		<0,0,0FFh,0FFh,0FFh,0FFh,0FFh>
 loadchild	db		"LOADTEST.COM",0
+;
+; LOADTEST.COM deliberately has no COMDATA (unlike our other COM programs),
+; so the loader's path for other COM files is tested, too (see load_program).
+;
 loadimage	db		0CDh,20h
 
 reservetest	db		"EXEC reservation test $"

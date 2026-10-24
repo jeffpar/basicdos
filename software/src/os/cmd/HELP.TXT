@@ -22,8 +22,8 @@ Changes the current directory of *drive* (or the current drive) to *path*, where
 [f]CDBL(*x*)
 Returns *x* as a double.  CSNG is the same, since all floating-point values are double-precision.
 
-[b]CHAIN *file*[,*line*]
-Runs the specified BAS file and then ends the program.  The *line* is currently ignored, and other CHAIN options are not supported.
+[b+]CHAIN [MERGE] *file*[,[*line*][,ALL]]
+Replaces the running program with the specified BAS file (searching PATH$ if necessary) and runs it, starting at *line* if given.  Variables are cleared unless ALL is given.  With MERGE, the file's numbered lines are added to the program instead, replacing any lines with the same numbers.  Any GOSUBs, FOR and WHILE loops, and ON ERROR handler in progress are ended.  COMMON and the DELETE option are not supported.
 
 [d]CHDIR [*drive*:][*path*]
 Same as CD.
@@ -155,7 +155,7 @@ Displays the specified program line for editing.  Press ENTER to store the edite
 Ends the program.  STOP and SYSTEM are the same.
 
 [f+]EOF(*n*)
-Returns -1 (true) if file *n*, which must be open for INPUT, is at its end, or 0 (false) if not (eg, WHILE NOT EOF(1)).
+Returns -1 (true) if file *n*, which must be open for INPUT, is at its end, or 0 (false) if not (eg, WHILE NOT EOF(1)).  For a serial port opened without FOR (eg, COM1), it's true if no characters are waiting.
 
 [b]ERASE *array*[,*array*]...
 Erases the specified arrays, so that they can be dimensioned again.  If the first name is not an array, ERASE is the same as DEL.
@@ -226,6 +226,9 @@ Returns the next key pressed, without waiting (an empty string if no key was pre
 [b]INPUT [*prompt*;|,]*variable*[,*variable*]... or INPUT #*n*,*variable*[,*variable*]...
 Reads a line from the keyboard (after displaying the prompt, followed by "? " unless a comma follows the prompt), or with #*n*, from file *n*, and assigns the next item to each variable.  Leading spaces and line breaks are skipped, and an item ends at a comma or line break (or for a number, a space).  A quoted item can contain commas.  Missing keyboard items are empty (or zero).
 
+[f+]INPUT$(*n*[,[#]*f*])
+Returns *n* (1-255) characters read from file *f*, or if *f* is omitted, from the keyboard, waiting for each key without displaying it (an extended key is a null and the key's scan code).  Reading past the end of a file is an "Input past end" error.
+
 [f]INSTR([*start*,]*string1*,*string2*)
 Returns the position of *string2* within *string1*, searching from position *start* (default 1), or 0 if not found.
 
@@ -238,8 +241,8 @@ Sends an IOCTL request with the specified *code* to the device or volume open as
 [f+]IOCTL$(*n*,*code*[,*value*])
 Sends an IOCTL request with the specified *code* (and *value* in DX) to the device or volume open as file *n*, and returns the data (up to 255 bytes) that the driver stored in response (eg, a hard disk's partition table, with the diskette driver's &HF3 request); an empty string if the driver stored nothing.
 
-[b]KEY ON|OFF
-Accepted for compatibility with MSBASIC, but does nothing, since BASIC-DOS doesn't display function keys.
+[b]KEY ON|OFF or KEY *n*,*string*
+Accepted for compatibility with MSBASIC, but does nothing, since BASIC-DOS doesn't display function keys.  KEY *n*,*string* (*n* is 1-10) is accepted, too, but the function keys always return their key codes, as they do after KEY *n*,"" in MSBASIC (not available on low memory systems).
 
 [s]KEYS
 CTRL-E  Up         CTRL-X  Down\
@@ -288,7 +291,7 @@ Lists all lines (or the specified range of lines) like LIST, but to the printer 
 Loads the specified BAT or BAS file (searching PATH$ if necessary), which can be a text file or a tokenized BAS file saved by BASICA or GW-BASIC.  LOAD can't be used inside a BAS or BAT file (yet).
 
 [f+]LOC(*n*)
-Returns the last record number used by GET # or PUT # for file *n* (or for a sequential file, its position divided by 128).
+Returns the last record number used by GET # or PUT # for file *n* (or for a sequential file, its position divided by 128, or for a serial port opened without FOR, eg, COM1, the number of characters waiting, up to 255).
 
 [b]LOCATE [*row*][,[*col*][,*cursor*]]
 Moves the cursor to the specified *row* and *col* (starting at 1,1), and hides (0) or shows (1) the cursor.
@@ -317,6 +320,9 @@ Creates a new directory.  MKDIR is the same as MD.
 
 [s]MEM
 Displays total memory, memory available for executables, and memory available for BASIC programs, and notes anything unavailable (eg, floating-point when the FPU$ driver isn't loaded, or the functions outside COMMAND.COM's core when there wasn't enough memory for all of it, as HELP CORE explains).
+
+[b+]MERGE *file*
+Adds the numbered lines of the specified BAS file (searching PATH$ if necessary) to the loaded program, replacing any lines with the same numbers.  MERGE can't be used inside a BAS or BAT file; use CHAIN MERGE instead.
 
 [f]MID$(*string*,*start*[,*n*])
 Returns *n* characters of *string*, beginning at position *start* (or the rest of *string* if *n* is omitted).
@@ -364,7 +370,7 @@ If N is zero or greater than the number of labels, the program continues with th
 ON ERROR GOTO *label* transfers program control to the label when a runtime error occurs (see ERR and RESUME), and ON ERROR GOTO 0 disables it.
 
 [b+]OPEN *file* [FOR INPUT|OUTPUT|APPEND|RANDOM] AS [#]*n* [LEN=*reclen*]
-Opens *file* as file number *n* (1-4) for reading (INPUT), for writing (OUTPUT, which creates or truncates the file), for adding to the end (APPEND), or without FOR, for random access to records of *reclen* (1-255, default 128) bytes.  See also CLOSE, EOF, INPUT #, LINE INPUT #, PRINT #, and WRITE, and for random access, FIELD, GET #, PUT #, LSET, and RSET.
+Opens *file* as file number *n* (1-4) for reading (INPUT), for writing (OUTPUT, which creates or truncates the file), for adding to the end (APPEND), or without FOR, for random access to records of *reclen* (1-255, default 128) bytes.  *file* can be a device: "SCRN:" is the screen, and a serial port can include its settings (eg, "COM1:9600,N,8,1"; see MODE).  A device opened without FOR can be both read and written (eg, with PRINT #, EOF, LOC, and INPUT$), and a device that can't be opened is a "Device unavailable" error.  See also CLOSE, EOF, INPUT #, LINE INPUT #, PRINT #, and WRITE, and for random access, FIELD, GET #, PUT #, LSET, and RSET.
 
 [b]OPTION BASE 0|1
 Sets the smallest subscript (0 or 1) of arrays dimensioned afterward.  The default is 0.
@@ -436,8 +442,8 @@ RESTART alone lists every session's number, console, and program (or "Unused" if
 [b]RESTORE [*line*]
 Makes the first DATA item (or the first DATA item at or after *line*) the next item for READ.
 
-[b]RESUME *label*
-Ends the handling of a runtime error (see ON ERROR) and continues at the specified label.
+[b]RESUME [*label*|0|NEXT]
+Ends the handling of a runtime error (see ON ERROR) and continues at the specified label, or without a label (or with 0), at the statement with the error, or with NEXT, at the statement after it (RESUME and RESUME NEXT aren't available on low memory systems).  Any GOSUBs that were active when the error occurred are still active.
 
 [b]RETURN [*expression*]
 Returns from a GOSUB subroutine, or ends a function block and returns the specified *expression*.
@@ -526,9 +532,9 @@ Copies input to output and to *file* (eg, DIR | TEE DIR.TXT | MORE), replacing *
 ERRORLEVEL is set to 0, or 2 if *file* couldn't be opened or written.
 
 [s]TIME [*time*] [~D] [~P]
-Sets the system time (or prompts for a time if ~P) and then displays the time. ~D displays elapsed time.
-The time must be entered as H:M:S.D, where where H is 0-23, M is 0-59, S is 0-59, and D is 0-99.
-If M, S, or D are omitted, zeros are assumed.
+Sets the system time (or prompts for a time if ~P) and then displays the time.
+The time must be entered as H:M:S.D, where H is 0-23, M is 0-59, S is 0-59, and D is 0-99.  If M, S, or D are omitted, zeros are assumed.
+~D displays only the time elapsed since TIME last displayed the time (or since midnight, if TIME hasn't been used).
 
 [f]TIME$
 Returns the current time as a string in the form HH:MM:SS.
@@ -571,9 +577,10 @@ Ends a WHILE loop.
 [b]WHILE *expression*
 Executes the lines up to the matching WEND repeatedly, as long as the *expression* is TRUE (non-zero).
 
-[b]WIDTH 40|80
+[b]WIDTH 40|80 or WIDTH *device*,*width*
 Sets the number of columns in text mode (which clears the screen).
 In SCREEN 1, WIDTH 80 selects SCREEN 2, and in SCREEN 2, WIDTH 40 selects SCREEN 1.
+WIDTH "SCRN:",*width* is the same as WIDTH *width*; for any other device (eg, WIDTH "COM1:",255), the *width* (1-255) is accepted for compatibility with MSBASIC, but output to a device is never broken into lines (not available on low memory systems).
 
 [b+]WINDOW [[SCREEN] (*x1*,*y1*)-(*x2*,*y2*)]
 Defines the world coordinates of the viewport (or screen) for graphics commands, where x increases to the right and y increases upward (or with SCREEN, downward).  Requires floating-point (see MEM).  WINDOW alone ends world coordinates.

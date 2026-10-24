@@ -21,7 +21,7 @@ CODE    SEGMENT
 	EXTNEAR	<strArg,strAsc,strChr,strDate,strFre,strHex,strInkey,strInstr>
 	EXTNEAR	<strLCase,strLeft,strLen,strMid,strOct,strRight,strSpace>
 	EXTNEAR	<strStr,strString,strTime,strUCase,strVal,strCurDir,strPath>
-	EXTNEAR	<getExists,strDir,getDos,gfxPoint,gfxPmap,getLpos>
+	EXTNEAR	<getExists,strDir,getDos,gfxPoint,gfxPmap,getLpos,strInput>
 
 	DEFLBL	PREDEF_VARS,byte
 ;
@@ -113,6 +113,11 @@ CODE    SEGMENT
 	db	VAR_FUNC + 5,"INKEY"
 	db	VAR_STR,0
 	dw	offset strInkey,0
+	db	VAR_FUNC + 5,"INPUT"	; (INPUT$; INPUT is a keyword)
+	db	VAR_STR,2
+	db	VAR_LONG,PARM_REQUIRED
+	db	VAR_LONG,PARM_OPT_ZERO	; (the keyboard)
+	dw	offset strInput,0
 	db	VAR_FUNC + 5,"IOCTL"
 	db	VAR_STR,3
 	db	VAR_LONG,PARM_REQUIRED

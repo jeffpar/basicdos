@@ -109,5 +109,7 @@ ENDPROC	check_port
 PORT_NAME	db	"COM2",0
 PORT_PARMS	db	"COM2:9600,N,8,1",0
 
+	COMHEAP	0		; COMHEAP (heap size) must be the last item
+
 CODE	ends
 	end	main
