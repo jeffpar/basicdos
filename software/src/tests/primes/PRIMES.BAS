@@ -1,7 +1,8 @@
 10 defint a-z
 11 let limit=val(arg$(1))
-13 if limit=0 then let limit=1000
-14 let maxdivisor=2:let maxsquared=4:let advsquared=5:let primes=0:let printed=0:let dividend=2
+12 if limit=0 then let limit=1000
+13 let maxdivisor=2:let maxsquared=4:let advsquared=5
+14 let primes=0:let printed=0:let dividend=2
 15 let divisor=3
 20 if divisor >= maxdivisor then goto 30
 21 if dividend mod divisor = 0 then goto 40
