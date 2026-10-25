@@ -27,3 +27,34 @@ if ! grep -q "^VERSION_MAJOR	equ	$major	" $inc || ! grep -q "^VERSION_MINOR	equ	
         mv $inc.tmp $inc || exit 1
     echo "BASIC-DOS version set to $major.$(printf %02d $minor)"
 fi
+#
+# setMode mode
+#
+# Records the build mode in tools/pc/disks/mkmode (which gulpfile.js also reads), and keeps each mode's build outputs
+# (the OBJ folders, and tests/BIN) separately, so that switching modes doesn't rebuild everything: when the mode
+# changes, each output folder is moved to tools/pc/disks/objs/<old mode>, and the new mode's folder is moved back from
+# tools/pc/disks/objs/<new mode>, so MAKE sees that mode's last outputs (with their original timestamps) and rebuilds
+# only what's changed since.  If the new mode has no saved folder yet, the old mode's outputs are copied instead (and
+# left in place, so mk.sh can still boot them), and the folder's INCS file (which every module in the makefiles depends
+# on) is deleted, so MAKE rebuilds everything in it (without touching any sources, which would make the other mode's
+# saved outputs look out of date, too); if the last mode is unknown, its outputs aren't saved.
+#
+setMode() {
+    local mode=$1 last dir src=software/src saved=tools/pc/disks/objs
+    last=$(cat tools/pc/disks/mkmode 2>/dev/null)
+    [ "$last" = "$mode" ] && return
+    for dir in $(cd $src && find os tests msb -type d \( -iname obj -o -iname bin \) -prune); do
+        if [ "$last" = FINAL ] || [ "$last" = DEBUG ]; then
+            rm -rf "$saved/$last/$dir"
+            mkdir -p "$saved/$last/$(dirname "$dir")" || exit 1
+            if [ -d "$saved/$mode/$dir" ]; then
+                mv "$src/$dir" "$saved/$last/$dir" && mv "$saved/$mode/$dir" "$src/$dir" || exit 1
+                continue
+            fi
+            cp -Rp "$src/$dir" "$saved/$last/$dir" || exit 1
+        fi
+        find "$src/$dir" -maxdepth 1 -iname INCS -delete
+    done
+    mkdir -p tools/pc/disks
+    echo "$mode" > tools/pc/disks/mkmode
+}

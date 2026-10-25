@@ -16,7 +16,19 @@ AFLAGS=/MX /R /D$(REL) /I..\..\INC
 #
 LST=NUL
 
-OBJ\DEBUG.COM: DBGDEV.ASM ..\..\INC\BIOS.INC ..\..\INC\DEV.INC ..\..\INC\UART.INC ..\..\INC\VERSION.INC
+#
+# Every module depends on OBJ\INCS, an empty file that's re-created whenever
+# any include file changes, so that every module is rebuilt then, too (MAKE
+# has no pseudo-targets, and MS-DOS's COPY would keep the old file's time).
+#
+OBJ\INCS: ..\..\INC\8086.INC ..\..\INC\BIOS.INC ..\..\INC\DEV.INC \
+	..\..\INC\DEVAPI.INC ..\..\INC\DISK.INC ..\..\INC\DOS.INC \
+	..\..\INC\DOSAPI.INC ..\..\INC\FPU.INC ..\..\INC\MACROS.INC \
+	..\..\INC\PARSER.INC ..\..\INC\UART.INC ..\..\INC\UTIL.INC \
+	..\..\INC\VERSION.INC
+	TYPE NUL > OBJ\INCS
+
+OBJ\DEBUG.COM: DBGDEV.ASM OBJ\INCS
 	$(ASM) $(AFLAGS) DBGDEV.ASM,OBJ\DBGDEV.OBJ,$(LST);
 	$(LINK) OBJ\DBGDEV.OBJ,OBJ\DBGDEV.EXE,OBJ\DBGDEV.MAP/MAP;
 	$(EXE2BIN) OBJ\DBGDEV.EXE $@

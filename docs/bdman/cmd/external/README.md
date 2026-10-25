@@ -116,7 +116,7 @@ Displays the number of lines, words, and bytes of input (or of each *file*, or w
 
 Source: [wc.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/wc.asm)
 
-Filters can be chained (eg, `TYPE FILE | SORT | MORE`), but every command after the first needs its own session, so a pipeline can't have more commands than [SESSIONS=](../../cfg/#sessions) allows.  If any command of a pipeline fails (eg, it can't be found, or there's no session for it), the error is displayed, the commands already running are ended, and ERRORLEVEL is set to 1.  And if a command stops reading its input early (eg, FIND can't open its file), the command writing to it gets a write error instead of waiting forever; the filters stop when that happens.
+Filters can be chained (eg, `TYPE FILE | SORT | MORE`), but every command after the first needs its own session, so a pipeline can't have more commands than [SESSIONS=](../../cfg/#sessions) allows, and a BAT or BAS file (which runs in the current session) can only be the first command (eg, `LS | MORE`, but not `DIR | TEST.BAS`, which reports `Unable to open TEST.BAS`).  If any command of a pipeline fails (eg, it can't be found, or there's no session for it), the error is displayed, the commands already running are ended, and ERRORLEVEL is set to 1.  And if a command stops reading its input early (eg, FIND can't open its file), the command writing to it gets a write error instead of waiting forever; the filters stop when that happens.
 
 ### ATTRIB
 

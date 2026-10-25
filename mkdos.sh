@@ -39,9 +39,10 @@
 # always runs MKDOS without arguments, so for a FINAL build, we create an
 # MKFINAL file in the source directory (D:\), which tells MKDOS.BAT to build
 # FINAL binaries instead, and we remove it when pc.js exits.  And since MAKE
-# can't tell that the mode has changed, we touch all the assembly sources
-# whenever it does, so that every binary is rebuilt in the new mode (the last
-# mode is recorded in tools/pc/disks/mkmode, which git ignores).
+# can't tell that the mode has changed, each mode keeps its own build outputs
+# (see setMode in tools/release.sh, which records the last mode in
+# tools/pc/disks/mkmode, and saves the other mode's outputs alongside it), so
+# switching modes rebuilds only what's changed since that mode's last build.
 #
 # Use "mkdos.sh final clean" (or "mkdos.sh debug clean") for a clean build:
 # we create a CLEAN file in the source directory, which tells MKDOS.BAT to run
@@ -60,12 +61,7 @@ case "$(echo "$2" | tr a-z A-Z)" in
     *) usage ;;
 esac
 src=software/src
-last=$(cat tools/pc/disks/mkmode 2>/dev/null)
-if [ "$last" != "$mode" ]; then
-    find $src/os $src/tests $src/msb -iname "*.asm" -exec touch {} +
-    mkdir -p tools/pc/disks
-    echo $mode > tools/pc/disks/mkmode
-fi
+setMode $mode
 rm -f $src/MKFINAL $src/CLEAN
 trap 'rm -f '$src'/MKFINAL '$src'/CLEAN' EXIT
 if [ $mode = FINAL ]; then

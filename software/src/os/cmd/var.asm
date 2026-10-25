@@ -1045,22 +1045,14 @@ DEFPROC	findVar
 	push	cs
 	pop	es
 	mov	di,offset PREDEF_VARS
-	jmp	short fv1
-
-fv0:	inc	bh
-	mov	di,ds:[PSP_HEAP]
-	mov	ax,[di].VBLKDEF.BDEF_NEXT
-	jmp	short fv1a		; (zero if no var block yet; see addVar)
 
 fv1:	mov	al,es:[di]
 	inc	di
 	cmp	al,VAR_DEAD		; end of variables in the block?
 	je	fv1			; no, dead byte
 	ja	fv2			; no, existing variable
-	mov	ax,cs			; TODO: integrate PREDEF_VARS and
-	mov	dx,es			; and the rest of the var blocks better
-	cmp	ax,dx
-	je	fv0
+	test	bh,bh			; end of PREDEF_VARS?
+	jz	fv0			; yes
 	mov	ax,es:[BLK_NEXT]	; is there another var block?
 fv1a:	test	ax,ax
 	stc
@@ -1070,10 +1062,32 @@ fv1a:	test	ax,ax
 	mov	di,size VBLK		; ES:DI -> first var in next block
 	jmp	fv1
 
+fv8:	mov	si,dx
+	mov	dx,es			; DX:SI -> var data
+	clc
+
+fv9:	pop	bx
+	pop	di
+	pop	es
+	ret
+;
+; After PREDEF_VARS (or a longer name in it; see fv5b), search the program's
+; var blocks.  (fv0 and fv8 are here to keep every jump short.)
+;
+fv0:	inc	bh
+	mov	di,ds:[PSP_HEAP]
+	mov	ax,[di].VBLKDEF.BDEF_NEXT
+	jmp	short fv1a		; (zero if no var block yet; see addVar)
+
 fv2:	mov	ah,al
 	and	ah,VAR_TYPE
 	and	al,VAR_NAMELEN
 	cmp	al,cl			; do the name lengths match?
+	jb	fv6			; no
+	ja	fv5b			; no, and this name is longer
+	mov	dl,[si]
+	and	dl,0DFh			; (names begin with a letter)
+	cmp	dl,es:[di]		; does the first character match?
 	jne	fv6			; no
 
 	push	ax
@@ -1121,6 +1135,13 @@ fv7:	cmp	ah,bl			; do the types match?
 	cmp	es:[si],bl		; does the parameter type match?
 	xchg	dx,si
 	je	fv8			; yes
+;
+; PREDEF_VARS is in order of name length, so once a predefined name is longer,
+; none of the rest can match, and we move on to the program's variables (fv7
+; only checks the program's variables, so it can fall through this test).
+;
+fv5b:	test	bh,bh			; predefined var?
+	jz	fv0			; yes
 
 fv6:	mov	dl,al
 	mov	dh,0
@@ -1128,15 +1149,6 @@ fv6:	mov	dl,al
 	call	getVarLen
 	add	di,ax
 	jmp	fv1			; keep looking
-
-fv8:	mov	si,dx
-	mov	dx,es			; DX:SI -> var data
-	clc
-
-fv9:	pop	bx
-	pop	di
-	pop	es
-	ret
 ENDPROC	findVar
 
 
@@ -1315,27 +1327,23 @@ ENDPROC	getVar
 ;	AX
 ;
 DEFPROC	getVarLen
-	push	cx
-	sub	cx,cx
-	cmp	ah,VAR_PARM
-	jb	gvl9
-	mov	cx,2
-	je	gvl9			; VAR_PARM is always 2 bytes
 	cmp	ah,VAR_FUNC
 	je	gvl1
-	add	cx,2			; other values are 4 bytes
+	mov	al,0
+	cmp	ah,VAR_PARM
+	jb	gvl9
+	mov	al,2
+	je	gvl9			; VAR_PARM is always 2 bytes
+	mov	al,4			; other values are 4 bytes
 	cmp	ah,VAR_DOUBLE		; (including VAR_ARRAY)
 	jne	gvl9
-	add	cx,4			; VAR_DOUBLE is 8 bytes
+	mov	al,8			; VAR_DOUBLE is 8 bytes
 	jmp	short gvl9
-gvl1:	add	cx,4			; VAR_FUNC also has 4-byte addr
-	mov	al,es:[di+1]		; AL = VAR_FUNC parm count
-	cbw
-	add	ax,ax
-	add	cx,ax
-gvl9:	xchg	ax,cx			; AX = length of var data
-	pop	cx
-	ret
+gvl1:	mov	al,es:[di+1]		; AL = VAR_FUNC parm count
+	add	al,3
+	add	al,al			; 2 bytes per parm, plus 6 (the return
+gvl9:	mov	ah,0			; type, parm count, and 4-byte addr)
+	ret				; AX = length of var data
 ENDPROC	getVarLen
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

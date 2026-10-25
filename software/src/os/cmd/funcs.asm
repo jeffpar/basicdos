@@ -8,7 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 ; The table of predefined functions (PREDEF_VARS), which findVar searches
-; (see var.asm) before any of a program's variables.
+; (see var.asm) before any of a program's variables, in order of name length.
 ;
 	include	cmd.inc
 
@@ -31,6 +31,10 @@ CODE    SEGMENT
 ; all predefined vars, they match any type, so (for example) "LEFT$" and "LEFT"
 ; are the same.  A default of 0FEh (-2) for MID$ means "the rest".
 ;
+; The table must stay in order of name length (shortest first), since findVar
+; stops searching it at the first longer name (so a name shorter than any here,
+; which most variable names are, never searches it at all).
+;
 	db	VAR_FUNC + 3,"ARG"
 	db	VAR_STR,1
 	db	VAR_LONG,0FEh		; (a negative default means all args)
@@ -43,24 +47,6 @@ CODE    SEGMENT
 	db	VAR_STR,1
 	db	VAR_LONG,PARM_REQUIRED
 	dw	offset strChr,0
-	db	VAR_FUNC + 4,"CDBL"
-	db	VAR_DOUBLE,1
-	db	VAR_DOUBLE,PARM_REQUIRED
-	dw	offset cvtDbl,0
-	db	VAR_FUNC + 4,"CINT"
-	db	VAR_LONG,1
-	db	VAR_LONG,PARM_REQUIRED
-	dw	offset cvtLong,0
-	db	VAR_FUNC + 4,"CSNG"
-	db	VAR_DOUBLE,1
-	db	VAR_DOUBLE,PARM_REQUIRED
-	dw	offset cvtDbl,0
-	db	VAR_FUNC + 6,"CSRLIN"
-	db	VAR_LONG,0
-	dw	offset getCsrlin,0
-	db	VAR_FUNC + 6,"CURDIR"
-	db	VAR_STR,0
-	dw	offset strCurDir,0
 	db	VAR_FUNC + 3,"CVD"
 	db	VAR_DOUBLE,1
 	db	VAR_STR,PARM_REQUIRED
@@ -73,9 +59,6 @@ CODE    SEGMENT
 	db	VAR_LONG,1
 	db	VAR_STR,PARM_REQUIRED
 	dw	offset fileCvl,0
-	db	VAR_FUNC + 4,"DATE"
-	db	VAR_STR,0
-	dw	offset strDate,0
 	db	VAR_FUNC + 3,"DIR"
 	db	VAR_STR,2
 	db	VAR_STR,PARM_OPT_ZERO	; (an empty filespec means the next match)
@@ -95,13 +78,6 @@ CODE    SEGMENT
 	db	VAR_FUNC + 3,"ERR"
 	db	VAR_LONG,0
 	dw	offset getErr,0
-	db	VAR_FUNC + 10,"ERRORLEVEL"
-	db	VAR_LONG,0		; returns VAR_LONG with 0 parameters
-	dw	offset getErrorLevel,0	; 0 implies our own CODE segment
-	db	VAR_FUNC + 6,"EXISTS"
-	db	VAR_LONG,1
-	db	VAR_STR,PARM_REQUIRED
-	dw	offset getExists,0
 	db	VAR_FUNC + 3,"FRE"
 	db	VAR_LONG,1
 	db	VAR_CHAR,PARM_OPT_ZERO
@@ -110,6 +86,114 @@ CODE    SEGMENT
 	db	VAR_STR,1
 	db	VAR_LONG,PARM_REQUIRED
 	dw	offset strHex,0
+	db	VAR_FUNC + 3,"LEN"
+	db	VAR_LONG,1
+	db	VAR_STR,PARM_REQUIRED
+	dw	offset strLen,0
+	db	VAR_FUNC + 3,"LOC"
+	db	VAR_LONG,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset fileLoc,0
+	db	VAR_FUNC + 3,"LOF"
+	db	VAR_LONG,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset fileLof,0
+	db	VAR_FUNC + 3,"MID"
+	DEFLBL	MID_DATA,byte		; (see genLet)
+	db	VAR_STR,3
+	db	VAR_STR,PARM_REQUIRED
+	db	VAR_LONG,PARM_REQUIRED
+	db	VAR_LONG,0FEh
+	dw	offset strMid,0
+	db	VAR_FUNC + 3,"MKD"
+	db	VAR_STR,1
+	db	VAR_DOUBLE,PARM_REQUIRED
+	dw	offset fileMkd,0
+	db	VAR_FUNC + 3,"MKI"
+	db	VAR_STR,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset fileMki,0
+	db	VAR_FUNC + 3,"MKL"
+	db	VAR_STR,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset fileMkl,0
+	db	VAR_FUNC + 3,"OCT"
+	db	VAR_STR,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset strOct,0
+	db	VAR_FUNC + 3,"POS"
+	db	VAR_LONG,1
+	db	VAR_LONG,PARM_OPT_ZERO
+	dw	offset getPos,0
+	db	VAR_FUNC + 3,"RND"
+	db	VAR_DOUBLE,1		; RND returns VAR_DOUBLE (see findVar)
+	db	VAR_LONG,PARM_OPT_ONE
+	dw	offset getRnd,0
+	db	VAR_FUNC + 3,"RND"
+	db	VAR_LONG,1		; RND% returns VAR_LONG with 1 parameter
+	db	VAR_LONG,PARM_OPT_ONE	; 1st parameter: VAR_LONG, optional
+	dw	offset getRndLong,0
+	db	VAR_FUNC + 3,"SGN"
+	db	VAR_LONG,1
+	db	VAR_DOUBLE,PARM_REQUIRED
+	dw	offset getSgn,0
+	db	VAR_FUNC + 3,"STR"
+	DEFLBL	STR_DATA,byte		; (see genFuncExpr)
+	db	VAR_STR,1
+	db	VAR_DOUBLE,PARM_REQUIRED
+	dw	offset strStr,0
+	db	VAR_FUNC + 3,"SPC"
+	db	VAR_STR,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset strSpace,0
+	db	VAR_FUNC + 3,"TAB"
+	db	VAR_STR,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset strTab,0
+	db	VAR_FUNC + 3,"VAL"
+	DEFLBL	VAL_DATA,byte		; (see genFuncExpr)
+	db	VAR_DOUBLE,1
+	db	VAR_STR,PARM_REQUIRED
+	dw	offset strVal,0
+	db	VAR_FUNC + 4,"CDBL"
+	db	VAR_DOUBLE,1
+	db	VAR_DOUBLE,PARM_REQUIRED
+	dw	offset cvtDbl,0
+	db	VAR_FUNC + 4,"CINT"
+	db	VAR_LONG,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset cvtLong,0
+	db	VAR_FUNC + 4,"CSNG"
+	db	VAR_DOUBLE,1
+	db	VAR_DOUBLE,PARM_REQUIRED
+	dw	offset cvtDbl,0
+	db	VAR_FUNC + 4,"DATE"
+	db	VAR_STR,0
+	dw	offset strDate,0
+	db	VAR_FUNC + 4,"LEFT"
+	db	VAR_STR,2
+	db	VAR_STR,PARM_REQUIRED
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset strLeft,0
+	db	VAR_FUNC + 4,"LPOS"
+	db	VAR_LONG,1
+	db	VAR_LONG,PARM_OPT_ZERO
+	dw	offset getLpos,0
+	db	VAR_FUNC + 4,"PEEK"
+	db	VAR_LONG,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset peekByte,0
+	db	VAR_FUNC + 4,"PATH"
+	db	VAR_STR,0
+	dw	offset strPath,0
+	db	VAR_FUNC + 4,"PMAP"
+	db	VAR_DOUBLE,2
+	db	VAR_DOUBLE,PARM_REQUIRED
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset gfxPmap,0
+	db	VAR_FUNC + 4,"TIME"
+	db	VAR_STR,0
+	dw	offset strTime,0
 	db	VAR_FUNC + 5,"INKEY"
 	db	VAR_STR,0
 	dw	offset strInkey,0
@@ -134,134 +218,54 @@ CODE    SEGMENT
 	db	VAR_STR,1
 	db	VAR_STR,PARM_REQUIRED
 	dw	offset strLCase,0
-	db	VAR_FUNC + 4,"LEFT"
-	db	VAR_STR,2
-	db	VAR_STR,PARM_REQUIRED
-	db	VAR_LONG,PARM_REQUIRED
-	dw	offset strLeft,0
-	db	VAR_FUNC + 3,"LEN"
-	db	VAR_LONG,1
-	db	VAR_STR,PARM_REQUIRED
-	dw	offset strLen,0
-	db	VAR_LONG + 6,"MAXINT"
-	dd	7FFFFFFFh		; largest positive value
-	db	VAR_FUNC + 3,"LOC"
-	db	VAR_LONG,1
-	db	VAR_LONG,PARM_REQUIRED
-	dw	offset fileLoc,0
-	db	VAR_FUNC + 3,"LOF"
-	db	VAR_LONG,1
-	db	VAR_LONG,PARM_REQUIRED
-	dw	offset fileLof,0
-	db	VAR_FUNC + 4,"LPOS"
-	db	VAR_LONG,1
-	db	VAR_LONG,PARM_OPT_ZERO
-	dw	offset getLpos,0
-	db	VAR_FUNC + 3,"MID"
-	DEFLBL	MID_DATA,byte		; (see genLet)
-	db	VAR_STR,3
-	db	VAR_STR,PARM_REQUIRED
-	db	VAR_LONG,PARM_REQUIRED
-	db	VAR_LONG,0FEh
-	dw	offset strMid,0
-	db	VAR_FUNC + 3,"MKD"
-	db	VAR_STR,1
-	db	VAR_DOUBLE,PARM_REQUIRED
-	dw	offset fileMkd,0
-	db	VAR_FUNC + 3,"MKI"
-	db	VAR_STR,1
-	db	VAR_LONG,PARM_REQUIRED
-	dw	offset fileMki,0
-	db	VAR_FUNC + 3,"MKL"
-	db	VAR_STR,1
-	db	VAR_LONG,PARM_REQUIRED
-	dw	offset fileMkl,0
 	db	VAR_FUNC + 5,"MOUSE"	; (see genExpr's TOK_MOUSE check)
 	db	VAR_LONG,1
 	db	VAR_LONG,PARM_REQUIRED
 	dw	offset getMouse,0
-	db	VAR_FUNC + 4,"PEEK"
-	db	VAR_LONG,1
-	db	VAR_LONG,PARM_REQUIRED
-	dw	offset peekByte,0
-	db	VAR_FUNC + 3,"OCT"
-	db	VAR_STR,1
-	db	VAR_LONG,PARM_REQUIRED
-	dw	offset strOct,0
-	db	VAR_FUNC + 4,"PATH"
-	db	VAR_STR,0
-	dw	offset strPath,0
-	db	VAR_FUNC + 4,"PMAP"
-	db	VAR_DOUBLE,2
-	db	VAR_DOUBLE,PARM_REQUIRED
-	db	VAR_LONG,PARM_REQUIRED
-	dw	offset gfxPmap,0
 	db	VAR_FUNC + 5,"POINT"
 	db	VAR_LONG,2
 	db	VAR_LONG,PARM_REQUIRED
 	db	VAR_LONG,80h		; (-128 means POINT(n); see gfxPoint)
 	dw	offset gfxPoint,0
-	db	VAR_FUNC + 3,"POS"
-	db	VAR_LONG,1
-	db	VAR_LONG,PARM_OPT_ZERO
-	dw	offset getPos,0
 	db	VAR_FUNC + 5,"RIGHT"
 	db	VAR_STR,2
 	db	VAR_STR,PARM_REQUIRED
 	db	VAR_LONG,PARM_REQUIRED
 	dw	offset strRight,0
-	db	VAR_FUNC + 3,"RND"
-	db	VAR_DOUBLE,1		; RND returns VAR_DOUBLE (see findVar)
-	db	VAR_LONG,PARM_OPT_ONE
-	dw	offset getRnd,0
-	db	VAR_FUNC + 3,"RND"
-	db	VAR_LONG,1		; RND% returns VAR_LONG with 1 parameter
-	db	VAR_LONG,PARM_OPT_ONE	; 1st parameter: VAR_LONG, optional
-	dw	offset getRndLong,0
+	db	VAR_FUNC + 5,"SPACE"
+	db	VAR_STR,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset strSpace,0
+	db	VAR_FUNC + 5,"UCASE"
+	db	VAR_STR,1
+	db	VAR_STR,PARM_REQUIRED
+	dw	offset strUCase,0
+	db	VAR_FUNC + 6,"CSRLIN"
+	db	VAR_LONG,0
+	dw	offset getCsrlin,0
+	db	VAR_FUNC + 6,"CURDIR"
+	db	VAR_STR,0
+	dw	offset strCurDir,0
+	db	VAR_FUNC + 6,"EXISTS"
+	db	VAR_LONG,1
+	db	VAR_STR,PARM_REQUIRED
+	dw	offset getExists,0
+	db	VAR_LONG + 6,"MAXINT"
+	dd	7FFFFFFFh		; largest positive value
 	db	VAR_FUNC + 6,"SCREEN"	; (see genExpr's TOK_SCREEN check)
 	db	VAR_LONG,3
 	db	VAR_LONG,PARM_REQUIRED
 	db	VAR_LONG,PARM_REQUIRED
 	db	VAR_LONG,PARM_OPT_ZERO
 	dw	offset getScreen,0
-	db	VAR_FUNC + 3,"SGN"
-	db	VAR_LONG,1
-	db	VAR_DOUBLE,PARM_REQUIRED
-	dw	offset getSgn,0
-	db	VAR_FUNC + 5,"SPACE"
-	db	VAR_STR,1
-	db	VAR_LONG,PARM_REQUIRED
-	dw	offset strSpace,0
-	db	VAR_FUNC + 3,"STR"
-	DEFLBL	STR_DATA,byte		; (see genFuncExpr)
-	db	VAR_STR,1
-	db	VAR_DOUBLE,PARM_REQUIRED
-	dw	offset strStr,0
-	db	VAR_FUNC + 3,"SPC"
-	db	VAR_STR,1
-	db	VAR_LONG,PARM_REQUIRED
-	dw	offset strSpace,0
 	db	VAR_FUNC + 6,"STRING"
 	db	VAR_STR,2
 	db	VAR_LONG,PARM_REQUIRED
 	db	VAR_CHAR,PARM_REQUIRED
 	dw	offset strString,0
-	db	VAR_FUNC + 3,"TAB"
-	db	VAR_STR,1
-	db	VAR_LONG,PARM_REQUIRED
-	dw	offset strTab,0
-	db	VAR_FUNC + 4,"TIME"
-	db	VAR_STR,0
-	dw	offset strTime,0
-	db	VAR_FUNC + 5,"UCASE"
-	db	VAR_STR,1
-	db	VAR_STR,PARM_REQUIRED
-	dw	offset strUCase,0
-	db	VAR_FUNC + 3,"VAL"
-	DEFLBL	VAL_DATA,byte		; (see genFuncExpr)
-	db	VAR_DOUBLE,1
-	db	VAR_STR,PARM_REQUIRED
-	dw	offset strVal,0
+	db	VAR_FUNC + 10,"ERRORLEVEL"
+	db	VAR_LONG,0		; returns VAR_LONG with 0 parameters
+	dw	offset getErrorLevel,0	; 0 implies our own CODE segment
 	db	0			; terminator
 
 CODE	ENDS

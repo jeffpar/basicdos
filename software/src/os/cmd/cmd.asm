@@ -801,9 +801,12 @@ pd9e:	mov	ax,[bp].CMD_DEFER[0]
 ; pd6a restored the symbol that ends the command, so end the command there
 ; again while it runs, as it was before it was deferred (eg, so that a BAS
 ; file's ARG$ doesn't include the rest of the pipeline); the command is the
-; first one, so the first symbol in TOKENBUF is its own.
+; first one, so the first symbol in TOKENBUF is its own, and it has no input
+; pipe (HDL_INPIPE is the last command's).
 ;
 	sub	bx,bx
+	mov	[bp].HDL_INPIPE,bx
+	mov	[bp].CMD_ARG,bl
 pd9f:	add	bx,size TOKLET
 	cmp	[di].TOK_DATA[bx].TOKLET_CLS,CLS_SYM
 	jne	pd9f
@@ -815,7 +818,6 @@ pd9f:	add	bx,size TOKLET
 	mov	dx,[bp].CMD_DEFER[2]
 	mov	si,[bp].CMD_DEFER[4]
 	mov	cx,[bp].CMD_DEFER[6]
-	mov	[bp].CMD_ARG,0
 	mov	bx,bp
 	call	cmdDOS			; invoke deferred internal command
 	pop	dx
@@ -1078,7 +1080,7 @@ cf4:	mov	dx,offset COM_EXT
 	call	chkString
 	jnc	cf4b
 	mov	si,di			; filename was none of the above
-	mov	ax,ERR_INVALID		; so report an error
+cf4y:	mov	ax,ERR_INVALID		; so report an error
 cf4a:	jmp	cf8
 cf4x:	jmp	cf5
 ;
@@ -1120,16 +1122,18 @@ cf4x:	jmp	cf5
 ;
 GEN_WORDS	equ	(DEFVARS + 26 - DEF_PARMS) / 2
 ;
-; A BAT or BAS file runs in this session, so when it's the first command of a
-; pipeline, it must wait until the other commands are running, or it could
-; fill the pipe with nothing reading it; so we defer it, as parseDOS defers an
-; internal command, and parseDOS calls us again once they're running.
+; A BAT or BAS file runs in this session, which runs the pipeline's first
+; command, so it can't be the target of a pipe; and when it's the first
+; command, it must wait until the other commands are running, or it could
+; fill the pipe with nothing reading it, so we defer it, as parseDOS defers
+; an internal command, and parseDOS calls us again (with no input pipe) once
+; they're running.
 ;
-cf4b:	mov	ax,[bp].HDL_OUTPIPE
+cf4b:	cmp	[bp].HDL_INPIPE,0	; is the file a pipe's target?
+	jne	cf4y			; yes, so it's an error
+	mov	ax,[bp].HDL_OUTPIPE
 	test	ax,ax			; is the file's output a pipe?
 	jz	cf4i			; no
-	cmp	[bp].CMD_ARG,0		; is it the first command?
-	jne	cf4i			; no
 	push	ax
 	lea	di,[bp].CMD_DEFER
 	mov	ax,1			; AX = any ID below KEYWORD_FILE

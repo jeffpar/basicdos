@@ -17,10 +17,22 @@ AFLAGS=/MX /R /D$(REL) /I. /I..\..\INC
 LST=NUL
 
 #
+# Every module depends on OBJ\INCS, an empty file that's re-created whenever
+# any include file changes, so that every module is rebuilt then, too (MAKE
+# has no pseudo-targets, and MS-DOS's COPY would keep the old file's time).
+#
+OBJ\INCS: VI.INC ..\..\INC\8086.INC ..\..\INC\BIOS.INC ..\..\INC\DEV.INC \
+	..\..\INC\DEVAPI.INC ..\..\INC\DISK.INC ..\..\INC\DOS.INC \
+	..\..\INC\DOSAPI.INC ..\..\INC\FPU.INC ..\..\INC\MACROS.INC \
+	..\..\INC\PARSER.INC ..\..\INC\UART.INC ..\..\INC\UTIL.INC \
+	..\..\INC\VERSION.INC
+	TYPE NUL > OBJ\INCS
+
+#
 # Inference rules in the DOS MAKE utility apparently work only if the files
 # are in the same folder.  So for now, each dependency must copy these rules.
 #
-OBJ\VI.COM: VI.ASM VIBUF.ASM VICMD.ASM VIMOVE.ASM VI.INC
+OBJ\VI.COM: VI.ASM VIBUF.ASM VICMD.ASM VIMOVE.ASM OBJ\INCS
 	$(ASM) $(AFLAGS) VI.ASM,OBJ\VI.OBJ,$(LST);
 	$(ASM) $(AFLAGS) VIBUF.ASM,OBJ\VIBUF.OBJ,$(LST);
 	$(ASM) $(AFLAGS) VICMD.ASM,OBJ\VICMD.OBJ,$(LST);

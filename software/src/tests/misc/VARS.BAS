@@ -21,4 +21,10 @@
 180 IF L$ <> "K$ = " + CHR$(34) + K$ + CHR$(34) THEN PRINT "LIST redirection failed" : FAILS = FAILS + 1
 185 IF PATH$ <> K$ THEN PRINT "LIST preserved value failed" : FAILS = FAILS + 1
 190 DEL VARS.TMP
+191 REM Lookups: predefined names of each length (including MAXINT, a value,
+192 REM and RND%, which follows RND), and names that are lower-case, longer than
+193 REM any predefined name, or that share a first letter or prefix with one
+194 IF LEFT$("ab",1) <> "a" OR MID$("ab",2) <> "b" OR INSTR("ab","b") <> 2 OR STRING$(2,"x") <> "xx" OR MAXINT <> 2147483647 OR ERRORLEVEL < 0 OR RND(1) >= 1 OR RND%(1) < 1 THEN PRINT "predefined lookup failed" : FAILS = FAILS + 1
+195 VERYLONGNAME = 1 : counter = 5 : COUNTER = counter + 1 : LENGTH$ = "x" : LE = 2 : LF = 3
+196 IF VERYLONGNAME + COUNTER <> 7 OR LENGTH$ <> "x" OR LE + LF <> 5 OR LEN(LENGTH$) <> 1 THEN PRINT "variable lookup failed" : FAILS = FAILS + 1
 200 IF FAILS THEN PRINT "VARS failed" ELSE PRINT "VARS passed"

@@ -17,52 +17,64 @@ AFLAGS=/MX /R /D$(REL) /I. /I..\..\INC
 LST=NUL
 
 #
+# Every module depends on OBJ\INCS, an empty file that's re-created whenever
+# any include file changes, so that every module is rebuilt then, too (MAKE
+# has no pseudo-targets, and MS-DOS's COPY would keep the old file's time).
+#
+OBJ\INCS: UTILPROC.INC UTILVARS.INC ..\..\INC\8086.INC ..\..\INC\BIOS.INC \
+	..\..\INC\DEV.INC ..\..\INC\DEVAPI.INC ..\..\INC\DISK.INC ..\..\INC\DOS.INC \
+	..\..\INC\DOSAPI.INC ..\..\INC\FPU.INC ..\..\INC\MACROS.INC \
+	..\..\INC\PARSER.INC ..\..\INC\UART.INC ..\..\INC\UTIL.INC \
+	..\..\INC\VERSION.INC
+	TYPE NUL > OBJ\INCS
+
+#
 # Inference rules in the DOS MAKE utility apparently work only if the files
 # are in the same folder.  So for now, each dependency must copy these rules.
 #
-OBJ\FIND.COM: FIND.ASM UTILVARS.INC UTILPROC.INC ..\..\INC\UTIL.INC
+OBJ\FIND.COM: FIND.ASM OBJ\INCS
 	$(ASM) $(AFLAGS) $*.ASM,OBJ\$*.OBJ,$(LST);
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ
 	DEL OBJ\$*.EXE
 
-OBJ\MORE.COM: MORE.ASM UTILVARS.INC UTILPROC.INC
+OBJ\MORE.COM: MORE.ASM OBJ\INCS
 	$(ASM) $(AFLAGS) $*.ASM,OBJ\$*.OBJ,$(LST);
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ
 	DEL OBJ\$*.EXE
 
-OBJ\SLEEP.COM: SLEEP.ASM
+OBJ\SLEEP.COM: SLEEP.ASM OBJ\INCS
 	$(ASM) $(AFLAGS) $*.ASM,OBJ\$*.OBJ,$(LST);
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ
 	DEL OBJ\$*.EXE
 
-OBJ\SORT.COM: SORT.ASM UTILVARS.INC UTILPROC.INC
+OBJ\SORT.COM: SORT.ASM OBJ\INCS
 	$(ASM) $(AFLAGS) $*.ASM,OBJ\$*.OBJ,$(LST);
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ
 	DEL OBJ\$*.EXE
 
-OBJ\TEE.COM: TEE.ASM UTILVARS.INC UTILPROC.INC
+OBJ\TEE.COM: TEE.ASM OBJ\INCS
 	$(ASM) $(AFLAGS) $*.ASM,OBJ\$*.OBJ,$(LST);
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ
 	DEL OBJ\$*.EXE
 
-OBJ\TR.COM: TR.ASM
+OBJ\TR.COM: TR.ASM OBJ\INCS
 	$(ASM) $(AFLAGS) $*.ASM,OBJ\$*.OBJ,$(LST);
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ
 	DEL OBJ\$*.EXE
 
-OBJ\WC.COM: WC.ASM UTILVARS.INC UTILPROC.INC ..\..\INC\UTIL.INC
+OBJ\WC.COM: WC.ASM OBJ\INCS
 	$(ASM) $(AFLAGS) $*.ASM,OBJ\$*.OBJ,$(LST);
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE;
 	$(EXE2BIN) OBJ\$*.EXE $@

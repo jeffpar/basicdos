@@ -24,8 +24,8 @@
 # Usage: mk.sh [FINAL or DEBUG] [CLEAN] (the same arguments as os/mk.bat, in
 # either case).  DEBUG generates DEBUG binaries.  As in mkdos.sh, the default
 # is package.json's config.release property, its "version" sets the BASIC-DOS
-# version (see tools/release.sh), and all assembly sources are touched when
-# the build mode changes.
+# version, and each mode keeps its own build outputs (see setMode in
+# tools/release.sh), so switching modes rebuilds only what's changed.
 #
 # CLEAN first deletes the build outputs (using os/mk.bat's CLEAN option, and
 # DEL commands for TESTS and MSB), for a clean build.
@@ -43,14 +43,10 @@ case "$(echo "$2" | tr a-z A-Z)" in
     *) usage ;;
 esac
 src=software/src
+setMode $mode
 for f in os/boot/OBJ/BOOT.COM os/dev/OBJ/BASDEV.COM os/dos/OBJ/BASDOS.COM os/cmd/OBJ/COMMAND.COM; do
     if [ ! -f "$src/$f" ]; then echo "error: $src/$f not found (run mkdos.sh first)" >&2; exit 1; fi
 done
-if [ "$(cat tools/pc/disks/mkmode 2>/dev/null)" != "$mode" ]; then
-    find $src/os $src/tests $src/msb -iname "*.asm" -exec touch {} +
-    mkdir -p tools/pc/disks
-    echo "$mode" > tools/pc/disks/mkmode
-fi
 make="MAKE REL=$mode MAKEFILE"
 mk="MK $mode" tests= msb=
 if [ -n "$clean" ]; then
