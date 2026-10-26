@@ -309,8 +309,16 @@ Returns the printer's current column, starting at 1 (*n* is ignored).
 [b+]LPRINT [*expression*][;|,][*expression*]...
 Prints like PRINT, but to the printer (PRN, which is LPT1).  Without a printer, a "Device timeout" error occurs (a printer can also report "Out of paper" or "Device fault"), as it does for PRINT # to a printer.
 
-[e]LS [-1aFlRrSt] [*filespec*]...
-Lists the files matching each *filespec* that isn't a directory, and then the files in each directory (or the current directory), sorted by name, in columns (or one per line, with -1 or when the output is a file or pipe).  -l lists each file's mode, size, and date (and time, if it's from the last 6 months), -a includes hidden files and . and .., -F adds \ after directories and * after programs, -t and -S sort by time and size (newest and largest first), -r reverses the order, and -R lists every subdirectory, too.  A listing can have up to 512 names.
+[e]LS [~1alRrSt] [*filespec*]...
+Lists the files matching each *filespec* that isn't a directory, and then the files in each directory (or the current directory), sorted by name, in columns (or one per line when the output is a file or pipe), with \ after each directory name.  A listing can have up to 512 names.
+Options:\
+	~1  List one name per line\
+	~a  List hidden files\
+	~l  List mode, size, and date\
+	~R  List subdirectories also\
+	~r  Reverse the order\
+	~S  Sort by size, largest first\
+	~t  Sort by time, newest first
 
 [b+]LSET *variable$*=*string*
 Sets the variable to *string*, left-justified and padded with spaces (or truncated) to the variable's FIELD width (or if it isn't a FIELD variable, its current length).  RSET is the same, but right-justified.
@@ -409,7 +417,7 @@ Same as PSET, except that the default color is the background color.
 Prints a comma or semi-colon separated series of values (or with #*n*, writes them to file *n*).  To send the output of a line to a file instead, end the line with :> *file* (or :>> *file* to append).  At the prompt, a line can also end with a pipe to other commands (eg, | MORE), except on low memory systems.  For formatted output, use PRINTF USING (PRINT USING isn't supported).
 
 [b+]PRINTF [#*n*,] USING *format*;[*value*[,*value*]...]
-Prints the values with the C-style *format* (or with #*n*, writes them to file *n*): %d prints a number (%x in hex), %f a double, %s a string, and %c a character, with an optional width and precision (eg, "%5d", "%-8.3s", "%.2f"); %% prints a percent sign.  A trailing ; or , suppresses the newline.
+Prints the values with the C-style *format* (or with #*n*, writes them to file *n*): %d prints a number (%x in hex), %f a double, %s a string, and %c a character, with an optional width and precision (eg, "%5d", "%-8.3s", "%.2f"); %% prints a percent sign.  For a packed date or time (eg, from DIR$), %M, %D, and %Y print the month, day, and year, %F and %W the month and weekday names, and %H, %N, and %S the hour, minute, and second.  A trailing ; or , suppresses the newline.
 
 [b+]PSET (*x*,*y*)[,*color*]
 Draws a point in a graphics mode, using the foreground color if no *color* is specified.

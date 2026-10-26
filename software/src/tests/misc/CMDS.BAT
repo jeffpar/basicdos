@@ -53,9 +53,9 @@ DIR /W \EXT\T*.COM > T.TMP
 OPEN "T.TMP" FOR INPUT AS #1
 FOR I = 1 TO 5 : LINE INPUT #1, L$ : NEXT : CLOSE #1
 IF LEFT$(L$, 28) <> "TEE      COM    TR       COM" THEN PRINT "DIR /W failed" : FAILS = FAILS + 1
-LS -rF \EXT\T*.COM > T.TMP
+LS /r \T*.* > T.TMP
 OPEN "T.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
-IF L$ <> "\EXT\TR.COM*" THEN PRINT "LS failed" : FAILS = FAILS + 1
+IF L$ <> "\TOOLS\" THEN PRINT "LS failed" : FAILS = FAILS + 1
 REM A BAS file writing more than a pipe holds must not wait for the reader
 LS \EXT | SORT /R > T.TMP
 OPEN "T.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1

@@ -134,15 +134,21 @@ m0b:
 ; it's easy enough to specify the name of any desired BAT file on any or all
 ; of the SHELL= lines in CONFIG.SYS.
 ;
-; Our approach is simple (perhaps even too simple): if a tail exists, set
-; INPUT_BUF (which ordinarily points to INPUTBUF) to PSP_CMD_TAIL-1 instead,
-; and then jump into the command-processing code below.
+; If a tail exists, we copy it (with its length byte and CHR_RETURN) into
+; INPUTBUF, and then jump into the command-processing code below.  It isn't
+; processed in place, because PSP_CMDTAIL is also the default DTA, so a
+; command that uses the DTA (eg, TYPE or COPY) would overwrite the rest of it.
 ;
-	mov	[bx].INPUT_BUF,PSP_CMDTAIL - 1
-	mov	word ptr [bx].INPUTBUF.INP_MAX,size INP_DATA - 1
+	lea	di,[bx].INPUTBUF
+	mov	[bx].INPUT_BUF,di
+	mov	al,size INP_DATA - 1
+	stosb				; set INP_MAX
+	mov	si,PSP_CMDTAIL
+	mov	cx,si			; CX = size of PSP_CMDTAIL (80h)
+	rep	movsb			; copy INP_CNT and INP_DATA
 	or	[bx].CMD_FLAGS,CMD_NOECHO
-	cmp	ds:[PSP_CMDTAIL],0
-	jne	m2			; use INPUT_BUF -> PSP_CMDTAIL
+	cmp	[bx].INPUTBUF.INP_CNT,ch ; any startup command (CH is 0)?
+	jne	m2			; yes
 
 ;
 ; Unlike PC DOS, every BAT file (like every BAS file) starts with ECHO OFF,

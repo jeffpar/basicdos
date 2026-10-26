@@ -308,7 +308,14 @@ function buildDisk(diskName, diskImage)
                        " --output=" + diskImage.replace(/\.json$/, ".img") + " --writable --overwrite";
             }
         }
-        run(cmd)(done);
+        /*
+         * The staging directory is needed only to build the disk, so it's removed once the build succeeds (if the
+         * build fails, it's left for inspection).
+         */
+        run(cmd)(function(err) {
+            if (!err) fs.rmSync("./tools/pc/disks/" + diskName, { recursive: true, force: true });
+            done(err);
+        });
     };
 }
 

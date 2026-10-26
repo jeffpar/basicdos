@@ -388,12 +388,10 @@ pf20:	cbw
 	jmp	pf4
 
 pf21:	cmp	al,'F'			; %F (month as a string)?
-	jne	pf22			; no
-	jmp	pfm
-
-pf22:	cmp	al,'W'			; %W (day-of-week as a string)?
+	je	pf22			; yes
+	cmp	al,'W'			; %W (day-of-week as a string)?
 	jne	pf23			; no
-	jmp	pfw
+pf22:	jmp	pfm
 
 pf23:	cmp	al,'M'			; %M (month portion of DATE)?
 	jne	pf24			; no
@@ -427,12 +425,12 @@ pf28:	cmp	al,'H'			; %H (24-hour portion of TIME)?
 
 pf29:	cmp	al,'N'			; %N (minute portion of TIME)?
 	jne	pf30			; no
-	mov	dx,3F05h		; shift TIME right 5, mask with 0Fh
+	mov	dx,3F05h		; shift TIME right 5, mask with 3Fh
 	jmp	short pfa
 
 pf30:	cmp	al,'S'			; %S (second portion of TIME)?
 	jne	pf31			; no
-	mov	dx,1FFFh		; shift TIME left 1, mask with 1Fh
+	mov	dx,3FFFh		; shift TIME left 1, mask with 3Fh
 	jmp	short pfa
 
 pf31:	cmp	al,'A'			; %A (AM or PM portion of TIME)?
@@ -640,14 +638,21 @@ pff9:	pop	ds
 	jmp	pf1
 pferr2:	jmp	pferr
 ;
-; Process %F formatter, which we convert to a "fake" string parameter.
+; Process %F and %W formatters (AL = 'F' or 'W'), which we convert to "fake"
+; string parameters.
 ;
-pfm:	push	ds
+pfm:	xchg	dx,ax			; DL = formatter
+	mov	al,VAR_LONG
+	call	pfarg			; SI -> DATE parameter
+	jc	pferr2			; wrong type
+	push	ds
 	mov	ax,[bp+si]		; get the DATE parameter
 	add	si,2
 	push	si
 	push	cs
 	pop	ds
+	cmp	dl,'W'			; %W?
+	je	pfw			; yes
 	push	cx
 	mov	cl,5
 	shr	ax,cl
@@ -658,20 +663,9 @@ pfm:	push	ds
 	add	ax,offset MONTHS	; AX = month address
 	xchg	si,ax			; DS:SI -> month address
 	mov	si,[si]			; DS:SI -> month string
-	mov	al,0
-	call	strlen			; AX = length
-	jmp	short pfs2a		; jump into the string code now
-;
-; Process %W formatter, which we convert to a "fake" string parameter.
-;
-pfw:	push	ds
-	mov	ax,[bp+si]		; get the DATE parameter
-	add	si,2
-	push	si
-	push	cs
-	pop	ds
-	call	day_of_week		; convert AX from DATE to string ptr
-	mov	al,0
+	jmp	short pfw1
+pfw:	call	day_of_week		; convert AX from DATE to string ptr
+pfw1:	mov	al,0
 	call	strlen			; AX = length
 	jmp	short pfs2a		; jump into the string code now
 ;

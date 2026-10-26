@@ -12,7 +12,7 @@ machines:
     connection: serialPort->ibm5160.com1
   - id: ibm5160
     type: pcx86
-    config: /machines/pcx86/ibm/ibm-5160-cga-640kb.json
+    config: /machines/pcx86/ibm/ibm-5160-ega-640kb.json
     debugger: true
     connection: com1->vt100.serialPort
     autoMount:

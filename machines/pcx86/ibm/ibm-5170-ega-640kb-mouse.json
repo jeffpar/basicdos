@@ -1,9 +1,9 @@
 {
-  "name": "IBM PC XT, 640Kb RAM, 10Mb Hard Disk, CGA, Serial Mouse",
+  "name": "IBM PC AT, 640Kb RAM, 10Mb Hard Disk, EGA, Serial Mouse",
   "defaults": {
     "ram": "640K",
     "fpu": "None",
-    "fdc": "2 diskette drives",
+    "fdc": "2 1.2Mb diskette drives",
     "parallel": "LPT1",
     "serial": "COM1, COM2 (serial mouse)",
     "hdc": "10Mb hard disk"
@@ -16,8 +16,9 @@
   },
   "components": [
     {
-      "id": "pcCGA",
-      "class": "computer"
+      "id": "pcEGA",
+      "class": "computer",
+      "busWidth": 24
     },
     {
       "id": "debugger",
@@ -25,38 +26,31 @@
       "debug": true
     },
     {
-      "id": "romBASIC",
-      "class": "rom",
-      "addr": "0xf6000",
-      "size": "0x08000",
-      "alias": null,
-      "file": "/machines/pcx86/roms/BASIC110.json5"
-    },
-    {
       "id": "romBIOS",
       "class": "rom",
-      "addr": "0xfe000",
-      "size": "0x02000",
-      "file": "/machines/pcx86/roms/XTBIOS-REV1.json5"
+      "addr": "0xf0000",
+      "size": "0x10000",
+      "file": "/machines/pcx86/roms/ATBIOS-REV3.json5",
+      "alias": "0xff0000"
     },
     {
-      "id": "romHDC",
+      "id": "romEGA",
       "class": "rom",
-      "addr": "0xc8000",
-      "size": "0x02000",
-      "file": "/machines/pcx86/roms/IBM-XEBEC-1982.json5"
+      "addr": "0xc0000",
+      "size": "0x4000",
+      "file": "/machines/pcx86/ibm/video/ega/1984-09-13/IBM-EGA.json5",
+      "notify": "videoEGA"
     },
     {
-      "id": "videoCGA",
+      "id": "videoEGA",
       "class": "video",
-      "title": "Color Display",
+      "title": "Enhanced Color Display",
+      "model": "ega",
+      "memory": "0x20000",
+      "switches": "0110",
       "screenWidth": 1280,
-      "screenHeight": 800,
+      "screenHeight": 700,
       "screenColor": "black",
-      "charCols": 80,
-      "charRows": 25,
-      "fontROM": "/machines/pcx86/roms/IBM-CGA.json5",
-      "flicker": 0,
       "overlay": true,
       "controls": [
         {
@@ -210,9 +204,9 @@
       ]
     },
     {
-      "id": "cpu8088",
+      "id": "cpu286",
       "class": "cpu",
-      "model": 8088,
+      "model": 80286,
       "autoStart": true,
       "controls": [
         {
@@ -228,7 +222,7 @@
         {
           "id": "setSpeed",
           "type": "button",
-          "label": "4.77Mhz",
+          "label": "6Mhz",
           "style": {
             "padding-right": "8px",
             "padding-bottom": "8px",
@@ -238,13 +232,13 @@
       ]
     },
     {
-      "id": "hdcXT",
+      "id": "hdcAT",
       "class": "hdc",
-      "type": "XT",
+      "type": "AT",
       "drives": [
         {
           "name": "BASICDOS-10MB",
-          "type": 3,
+          "type": 1,
           "path": "/software/disks/BASICDOS-10MB.json"
         }
       ],
@@ -266,13 +260,11 @@
     {
       "id": "chipset",
       "class": "chipset",
-      "model": 5160,
+      "model": 5170,
       "scaleTimers": false,
-      "sw1": "01001001",
-      "@note": "The above switch settings indicate '256K (on the system board), No FPU, Color Monitor, 2 Floppy Drives'; ramLow sets the total (640K).",
       "sound": true,
-      "floppies": "",
-      "monitor": "",
+      "floppies": "[1200,1440]",
+      "monitor": "ega",
       "dateRTC": ""
     },
     {

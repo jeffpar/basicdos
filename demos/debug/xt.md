@@ -12,7 +12,7 @@ machines:
     connection: serialPort->ibm5160.com2
   - id: ibm5160
     type: pcx86
-    config: /machines/pcx86/ibm/ibm-5160-cga-640kb.json
+    config: /machines/pcx86/ibm/ibm-5160-ega-640kb.json
     debugger: available
     connection: com2->vt100.serialPort
     autoMount:
@@ -20,7 +20,7 @@ machines:
       B: "BASIC-DOS Tests"
 ---
 
-The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memory, a Color Display, two diskette drives, and a 10Mb hard disk.  It boots the BASIC-DOS Serial Debugger Demo diskette with a local console and a debugger on a DEC VT100 connected to COM2 at 9600 baud.  Wait for the debugger's startup message on the VT100, then click its screen and press **Ctrl-C** to stop the machine; type `?` for help, or `G` to resume.  Since the machine has a hard disk, the boot sector first displays `Press a key to start...`; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.
+The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memory, an Enhanced Color Display, two diskette drives, and a 10Mb hard disk.  It boots the BASIC-DOS Serial Debugger Demo diskette with a local console and a debugger on a DEC VT100 connected to COM2 at 9600 baud.  Wait for the debugger's startup message on the VT100, then click its screen and press **Ctrl-C** to stop the machine; type `?` for help, or `G` to resume.  Since the machine has a hard disk, the boot sector first displays `Press a key to start...`; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.
 
 {% include vt100-demo.html id="ibm5160" %}
 

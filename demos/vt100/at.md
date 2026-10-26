@@ -12,18 +12,18 @@ machines:
     connection: serialPort->ibm5170.com1
   - id: ibm5170
     type: pcx86
-    config: /machines/pcx86/ibm/ibm-5170-cga-640kb.json
+    config: /machines/pcx86/ibm/ibm-5170-ega-640kb.json
     debugger: available
     connection: com1->vt100.serialPort
     autoMount:
       A: "BASIC-DOS HD VT100 Demo"
 ---
 
-The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of memory, a Color Display, a 1.2Mb and a 1.44Mb diskette drive, and a 10Mb hard disk.  It boots the BASIC-DOS HD VT100 Demo diskette and runs two independent sessions: an 80x25 console on the Color Display, and a console on a DEC VT100 terminal connected to COM1.  Unlike the PC and PC XT, the PC AT has a battery-powered real-time clock, so BASIC-DOS starts with the current date and time (type `DATE` or `TIME` to see them).
+The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of memory, an Enhanced Color Display, a 1.2Mb and a 1.44Mb diskette drive, and a 10Mb hard disk.  It boots the BASIC-DOS HD VT100 Demo diskette and runs two independent sessions: an 80x25 console on the Enhanced Color Display, and a console on a DEC VT100 terminal connected to COM1.  Unlike the PC and PC XT, the PC AT has a battery-powered real-time clock, so BASIC-DOS starts with the current date and time (type `DATE` or `TIME` to see them).
 
 {% include vt100-demo.html id="ibm5170" %}
 
-Press any key on the Color Display at the boot prompt (or wait 2 seconds) to start the diskette.  Then click the VT100 screen and type a command, such as `DIR` or `PRINT "Hello from the VT100"`; click the Color Display to use the local session.  Changes to the hard disk are lost when you leave the page.
+Press any key on the Enhanced Color Display at the boot prompt (or wait 2 seconds) to start the diskette.  Then click the VT100 screen and type a command, such as `DIR` or `PRINT "Hello from the VT100"`; click the Enhanced Color Display to use the local session.  Changes to the hard disk are lost when you leave the page.
 
 This demo is also available on an [IBM PC XT](../xt/) and a [COMPAQ DeskPro 386](../386/).
 

@@ -617,7 +617,12 @@ ps5:	dec	si
 	DEFLBL	skipSpace,near
 	call	printEOL
 ps7:	lodsb
-	cmp	al,CHR_CTRLZ		; end of text?
+	cmp	al,CHR_TAB		; tab at the start of a line?
+	jne	ps7a			; no
+	call	printChar		; yes, so indent the line
+	sub	dl,8			; (by 8 chars)
+	jmp	ps7
+ps7a:	cmp	al,CHR_CTRLZ		; end of text?
 	je	ps8			; yes
 	cmp	al,CHR_SPACE		; non-whitespace?
 	ja	ps8			; yes

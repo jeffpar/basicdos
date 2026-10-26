@@ -5,7 +5,7 @@ permalink: /demos/mouse/at/debugger/
 machines:
   - id: ibm5170
     type: pcx86
-    config: /machines/pcx86/ibm/ibm-5170-cga-640kb-mouse.json
+    config: /machines/pcx86/ibm/ibm-5170-ega-640kb-mouse.json
     debugger: true
     autoMount:
       A: "BASIC-DOS 80-Column Demo"

@@ -4,7 +4,7 @@
 # (eg, software/src/configs/console/serial/fpe) before boot.sh (in the repository root) or another script in tools/tests boots it.
 #
 # The files come from software/manifest.txt: HELP.TXT from ROOT (pc.js adds the system files, and each configuration
-# has its own CONFIG.SYS and AUTOEXEC.BAT), utilities from EXT in EXT, the DEMOS and TESTS files together in TESTS,
+# has its own CONFIG.SYS and, if needed, AUTOEXEC.BAT), utilities from EXT in EXT, the DEMOS and TESTS files together in TESTS,
 # the TESTS/REGRESS files (the regression tests) in TESTS\REGRESS, the TESTS/MISC files (other test programs) in
 # TESTS\MISC, and the TOOLS files (except MSBASIC) in TOOLS.  A test configuration's CONFIG.SYS sets PATH$ to all of
 # them except the TESTS subfolders (eg, "A:\;A:\EXT;A:\TESTS;A:\TOOLS"); the tests in TESTS\REGRESS are run by

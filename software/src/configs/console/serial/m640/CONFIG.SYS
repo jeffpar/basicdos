@@ -1,6 +1,0 @@
-REM Serial-only 640K configuration (no CON or FPU$) for evaluating memory usage
-SKIP=CON,FPU$
-BUFFERS=4
-SESSIONS=3
-CONSOLE=COM1:9600,N,8,1
-SHELL=COMMAND.COM PATH$="A:\;A:\EXT;A:\TESTS;A:\TOOLS":AUTOEXEC.BAT

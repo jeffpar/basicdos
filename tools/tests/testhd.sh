@@ -28,19 +28,26 @@ if [ ! -d "$hdir" ]; then
 fi
 tools/tests/prep.sh "$cfg" || exit 1
 #
-# Build the diskette from a copy of the config folder, and save it with "QUIT /S"; since pc.js appends our
-# commands to AUTOEXEC.BAT, they first restore the original AUTOEXEC.BAT (from AUTOEXEC.HD).
+# Build the diskette from a copy of the config folder, and save it with "QUIT /S"; since pc.js adds our
+# commands to CONFIG.SYS's SHELL line (or, if they don't fit, to AUTOEXEC.BAT), they first restore the
+# original CONFIG.SYS (from CONFIG.HD) and any AUTOEXEC.BAT (from AUTOEXEC.HD).
 #
 fdir=tools/pc/disks/bdhd
 rm -rf $fdir tools/pc/disks/BDHD.IMG
 mkdir -p $fdir || exit 1
 cp -R "$cfg"/. $fdir/ || exit 1
-cp $fdir/AUTOEXEC.BAT $fdir/AUTOEXEC.HD || exit 1
+cp $fdir/CONFIG.SYS $fdir/CONFIG.HD || exit 1
+restore="COPY CONFIG.HD CONFIG.SYS;DEL CONFIG.HD"
+if [ -f $fdir/AUTOEXEC.BAT ]; then
+    cp $fdir/AUTOEXEC.BAT $fdir/AUTOEXEC.HD || exit 1
+    restore="$restore;COPY AUTOEXEC.HD AUTOEXEC.BAT;DEL AUTOEXEC.HD"
+fi
 echo "Building BASIC-DOS diskette..."
-tools/pc/pc.js ibm5160 $fdir "VER;COPY AUTOEXEC.HD AUTOEXEC.BAT;DEL AUTOEXEC.HD;QUIT /S BDHD.IMG" \
+tools/pc/pc.js ibm5160 $fdir "VER;$restore;QUIT /S BDHD.IMG" \
     --system=bd --version=2 --floppy --normalize --nosync > /dev/null
 if [ ! -f tools/pc/disks/BDHD.IMG ]; then
     echo "error: unable to build tools/pc/disks/BDHD.IMG" >&2
     exit 1
 fi
+rm -rf $fdir
 tools/pc/pc.js ibm5160 --diskette=tools/pc/disks/BDHD.IMG --boot=A --dir="$hdir" --target=10M --sys=msdos:3.20 --nosync

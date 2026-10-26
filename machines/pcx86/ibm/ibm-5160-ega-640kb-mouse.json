@@ -1,0 +1,298 @@
+{
+  "name": "IBM PC XT, 640Kb RAM, 10Mb Hard Disk, EGA, Serial Mouse",
+  "defaults": {
+    "ram": "640K",
+    "fpu": "None",
+    "fdc": "2 diskette drives",
+    "parallel": "LPT1",
+    "serial": "COM1, COM2 (serial mouse)",
+    "hdc": "10Mb hard disk"
+  },
+  "machine": {
+    "type": "pcx86",
+    "name": "PCx86",
+    "version": "2.26",
+    "factory": "embedPCx86"
+  },
+  "components": [
+    {
+      "id": "pcEGA",
+      "class": "computer"
+    },
+    {
+      "id": "debugger",
+      "class": "debugger",
+      "debug": true
+    },
+    {
+      "id": "romBASIC",
+      "class": "rom",
+      "addr": "0xf6000",
+      "size": "0x08000",
+      "alias": null,
+      "file": "/machines/pcx86/roms/BASIC110.json5"
+    },
+    {
+      "id": "romBIOS",
+      "class": "rom",
+      "addr": "0xfe000",
+      "size": "0x02000",
+      "file": "/machines/pcx86/roms/XTBIOS-REV1.json5"
+    },
+    {
+      "id": "romHDC",
+      "class": "rom",
+      "addr": "0xc8000",
+      "size": "0x02000",
+      "file": "/machines/pcx86/roms/IBM-XEBEC-1982.json5"
+    },
+    {
+      "id": "romEGA",
+      "class": "rom",
+      "addr": "0xc0000",
+      "size": "0x4000",
+      "file": "/machines/pcx86/ibm/video/ega/1984-09-13/IBM-EGA.json5",
+      "notify": "videoEGA"
+    },
+    {
+      "id": "videoEGA",
+      "class": "video",
+      "title": "Enhanced Color Display",
+      "model": "ega",
+      "memory": "0x20000",
+      "switches": "0110",
+      "screenWidth": 1280,
+      "screenHeight": 700,
+      "screenColor": "black",
+      "overlay": true,
+      "controls": [
+        {
+          "type": "group",
+          "style": {
+            "float": "right"
+          }
+        },
+        {
+          "id": "caps-lock",
+          "type": "led",
+          "title": "Caps",
+          "style": {
+            "padding-left": "8px"
+          }
+        },
+        {
+          "id": "num-lock",
+          "type": "led",
+          "title": "Num",
+          "style": {
+            "padding-left": "8px"
+          }
+        },
+        {
+          "id": "scroll-lock",
+          "type": "led",
+          "title": "Scroll",
+          "style": {
+            "padding-left": "8px"
+          }
+        },
+        {
+          "id": "fullScreen",
+          "type": "button",
+          "label": "Full Screen",
+          "style": {
+            "padding-left": "8px",
+            "line-height": "1em"
+          }
+        }
+      ]
+    },
+    {
+      "id": "com1",
+      "class": "serial",
+      "adapter": 1
+    },
+    {
+      "id": "com2",
+      "class": "serial",
+      "adapter": 2
+    },
+    {
+      "id": "fdcNEC",
+      "class": "fdc",
+      "diskettes": "",
+      "server": "",
+      "style": {
+        "float": "left",
+        "padding-right": "8px",
+        "padding-bottom": "8px"
+      },
+      "controls": [
+        {
+          "type": "group"
+        },
+        {
+          "id": "listDrives",
+          "type": "list"
+        },
+        {
+          "id": "listDisks",
+          "type": "list",
+          "options": {
+            "": "None",
+            "/software/disks/PCDOS100.json": "PC DOS 1.00",
+            "/software/disks/PCDOS110.json": "PC DOS 1.10",
+            "/software/disks/PCDOS200-DISK1.json": "PC DOS 2.00 (Disk 1)",
+            "/software/disks/PCDOS200-DISK2.json": "PC DOS 2.00 (Disk 2)"
+          }
+        },
+        {
+          "id": "loadDisk",
+          "type": "button",
+          "label": "Load"
+        },
+        {
+          "id": "saveDisk",
+          "type": "button",
+          "label": "Save",
+          "style": {
+            "padding-right": "8px"
+          }
+        },
+        {
+          "id": "descDisk",
+          "type": "description",
+          "style": {
+            "padding-right": "8px"
+          }
+        },
+        {
+          "id": "mountDisk",
+          "type": "file",
+          "label": "Mount"
+        }
+      ]
+    },
+    {
+      "id": "ramLow",
+      "class": "ram",
+      "size": 655360,
+      "test": "false",
+      "controls": [
+        {
+          "id": "listSizes",
+          "type": "list",
+          "options": {
+            "0": "Default",
+            "16384": "16K",
+            "32768": "32K",
+            "49152": "48K",
+            "65536": "64K",
+            "98304": "96K",
+            "131072": "128K",
+            "163840": "160K",
+            "196608": "192K",
+            "229376": "224K",
+            "262144": "256K",
+            "294912": "288K",
+            "327680": "320K",
+            "360448": "352K",
+            "393216": "384K",
+            "425984": "416K",
+            "458752": "448K",
+            "491520": "480K",
+            "524288": "512K",
+            "557056": "544K",
+            "589824": "576K",
+            "622592": "608K",
+            "655360": "640K"
+          },
+          "style": {
+            "clear": "both",
+            "padding-right": "8px",
+            "padding-bottom": "8px",
+            "height": "22px"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cpu8088",
+      "class": "cpu",
+      "model": 8088,
+      "autoStart": true,
+      "controls": [
+        {
+          "id": "reset",
+          "type": "button",
+          "label": "Reset",
+          "style": {
+            "padding-right": "8px",
+            "padding-bottom": "8px",
+            "height": "22px"
+          }
+        },
+        {
+          "id": "setSpeed",
+          "type": "button",
+          "label": "4.77Mhz",
+          "style": {
+            "padding-right": "8px",
+            "padding-bottom": "8px",
+            "height": "22px"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hdcXT",
+      "class": "hdc",
+      "type": "XT",
+      "drives": [
+        {
+          "name": "BASICDOS-10MB",
+          "type": 3,
+          "path": "/software/disks/BASICDOS-10MB.json"
+        }
+      ],
+      "controls": [
+        {
+          "id": "saveHD0",
+          "type": "button",
+          "label": "Save HD",
+          "style": {
+            "padding-right": "8px",
+            "padding-bottom": "8px",
+            "height": "22px"
+          }
+        }
+      ]
+    },
+    "/machines/pcx86/ibm/keys.json",
+    "/machines/pcx86/ibm/panel.json",
+    {
+      "id": "chipset",
+      "class": "chipset",
+      "model": 5160,
+      "scaleTimers": false,
+      "sw1": "01001101",
+      "@note": "The above switch settings indicate '256K (on the system board), No FPU, Enhanced Color Monitor, 2 Floppy Drives'; ramLow sets the total (640K).",
+      "sound": true,
+      "floppies": "",
+      "monitor": "",
+      "dateRTC": ""
+    },
+    {
+      "id": "lpt1",
+      "class": "parallel",
+      "adapter": 2,
+      "binding": "print"
+    },
+    {
+      "id": "mouse",
+      "class": "mouse",
+      "serial": "com2",
+      "scaleMouse": 0.5
+    }
+  ]
+}
