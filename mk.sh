@@ -56,7 +56,7 @@ if [ -n "$clean" ]; then
     msb=$(del 'OBJ\*.OBJ' 'OBJ\*.EXE' 'OBJ\*.MAP' 'OBJ\*.SYM' 'OBJ\*.LST')
 fi
 tools/pc/pc.js compaq386 $src "CD OS;$mk;CD ..\TESTS$tests;$make;CD ..\MSB$msb;$make;QUIT" \
-    --sys=bd:2 --target=30M --fat=16:2048:512 --ram=640K --speed=128 --serial --normalize
+    --sys=bd:2 --target=30M --fat=16:2048:512 --ram=640K --speed=8 --serial --normalize
 code=$?
 if [ $code -eq 0 ] && [ -n "$PCJS" ]; then
     if ! npx gulp demos --silent > /dev/null; then

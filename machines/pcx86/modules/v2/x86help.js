@@ -710,8 +710,9 @@ X86.helpTrap = function(nIDT, nBytes, nCycles)
  * @param {number|null} [nError] (if omitted, no error code will be pushed)
  * @param {number} [nCycles] cycle count to pass through to helpINT(), if any
  * @param {boolean} [fHalt] (true to halt the CPU, false to not, undefined if "it depends")
+ * @param {boolean} [fReturn] (true to return after dispatching the fault instead of throwing an exception)
  */
-X86.helpFault = function(nFault, nError, nCycles, fHalt)
+X86.helpFault = function(nFault, nError, nCycles, fHalt, fReturn)
 {
     let fDispatch = false;
 
@@ -843,8 +844,12 @@ X86.helpFault = function(nFault, nError, nCycles, fHalt)
          *
          * Fortunately, we now throw an exception that terminates the current instruction, so the above hack
          * should no longer be necessary.
+         *
+         * The exception is also what terminates the current burst (see runCPU()), which is not cheap, so callers
+         * that have nothing left to do after dispatching the fault (eg, opARPL() in V86-mode, which Windows uses
+         * as a trap thousands of times per second) can set fReturn to simply return instead.
          */
-        throw nFault;
+        if (!fReturn) throw nFault;
     }
 };
 

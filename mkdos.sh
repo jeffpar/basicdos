@@ -20,6 +20,10 @@
 # MS-DOS 3.20 apparently doesn't honor (it reads the volume as if the root
 # directory had 512 entries, so all files appear to be corrupted).
 #
+# --speed=8 runs the CPU at up to 8 times the DeskPro 386's 16Mhz (pc.js
+# simply runs flat out when the host can't keep up, which as of 2026-10-25
+# happens at about 8x); mk.sh uses the same multiplier.
+#
 # After building, if pc.js exits normally (ie, via QUIT, which a successful
 # build runs automatically), update the BASIC-DOS disk images with the new
 # binaries (which requires PCJS; see gulpfile.js): while package.json's
@@ -70,7 +74,7 @@ fi
 if [ -n "$clean" ]; then
     touch $src/CLEAN
 fi
-tools/pc/pc.js --disk=software/disks/MSDOS320-C400.json --dir=$src --normalize --speed=4 --target=30M --fat=16:2048:512
+tools/pc/pc.js --disk=software/disks/MSDOS320-C400.json --dir=$src --normalize --speed=8 --target=30M --fat=16:2048:512
 code=$?
 if [ $code -eq 0 ] && [ -n "$PCJS" ]; then
     if ! npx gulp demos --silent > /dev/null; then
