@@ -1,7 +1,8 @@
 {%- comment -%}
 Lays out a PC machine (include.id) and its DEC VT100 terminal (id "vt100") side by side; see demos/vt100 and demos/debug.
+With headless=true (a PC with no video; see demos/term), the terminal spans the page, above the PC's controls.
 {%- endcomment %}
-<div class="vt100-demo">
+<div class="vt100-demo{% if include.headless %} vt100-demo-headless{% endif %}">
 <div class="vt100-demo-pc">
 {% include machine.html id=include.id %}
 </div>
@@ -13,6 +14,8 @@ Lays out a PC machine (include.id) and its DEC VT100 terminal (id "vt100") side 
 <style>
 .vt100-demo { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
 .vt100-demo > div { flex: 1 1 484px; min-width: 0; }
+.vt100-demo-headless > div { flex-basis: 100%; }
+.vt100-demo-headless > .vt100-demo-terminal { order: -1; }
 .pcjs-vt100-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 4px; }
 .pcjs-vt100-header .pcjs-title { float: none; padding-bottom: 0; }
 .pcjs-vt100-buttons { display: flex; gap: 8px; }

@@ -18,7 +18,7 @@ CODE    SEGMENT
 	EXTNEAR	<openHandle,syncFiles,openPipe,addPipe,endPipes,doHelp>
 	EXTNEAR	<pipeStages>
 	ENDIF
-	EXTNEAR	<freeAllText,genCode,freeAllCode,freeAllVars,cmdLoad>
+	EXTNEAR	<freeAllText,genCode,keepCode,freeAllVars,cmdLoad>
 	EXTNEAR	<freeIdleVars,resetVars,findVar,cmdPipe,runLine>
 	EXTNEAR	<enterLine,editPrompt,genUpper,runFile>
 	EXTNEAR	<saveChains,restoreChains,compactStrs>
@@ -297,7 +297,8 @@ ENDPROC	cleanUp
 ; ctrlc
 ;
 ; CTRLC handler to clean up the last operation, reset the program stack,
-; free any active code buffer, and then jump to our start address.
+; free any active code buffer (or keep it for RUN; see keepCode), and then
+; jump to our start address.
 ;
 ; Inputs:
 ;	None
@@ -340,6 +341,7 @@ ctc0:	mov	di,[bx].CMD_CHAINS
 	call	restoreChains
 	jmp	ctc0
 ctc0a:	lea	sp,[bx].STACK + size STACK
+	call	keepCode		; free (or keep) the code (carry clear)
 	call	compactStrs		; free any leftover temp strings
 ;
 ; If a pipeline was running (eg, "DIR | SORT"), wait for its sessions to end
@@ -348,7 +350,6 @@ ctc0a:	lea	sp,[bx].STACK + size STACK
 ;
 	mov	al,0
 	call	endPipes
-	call	freeAllCode
 	jmp	m1
 ENDPROC	ctrlc
 

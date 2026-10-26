@@ -87846,6 +87846,9 @@ class Computer extends Component {
     /**
      * getMachineComponent(sType, componentPrev)
      *
+     * A missing component is reported on the console rather than with an alert, since a machine may legitimately
+     * omit one (eg, an IBM PC with no video adapter); a componentPrev of false skips the message.
+     *
      * @this {Computer}
      * @param {string} sType
      * @param {Component|boolean|null} [componentPrev] of previously returned component, if any
@@ -87863,8 +87866,8 @@ class Computer extends Component {
             }
             if (component.type == sType) return component;
         }
-        if (!componentLast && DEBUG && componentPrev !== false) {
-            this.printf(MESSAGE.WARNING, "Machine component type \"%s\" not found\n", sType);
+        if (!componentLast && componentPrev !== false) {
+            Component.printf(MESSAGE.LOG, "Machine component type \"%s\" not found\n", sType);
         }
         return null;
     }

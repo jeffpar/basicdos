@@ -86,7 +86,7 @@ function checkOutput(task, outputFile)
  *
  * Which disks a build updates depends on the mode of its binaries (the mode of the last mkdos.sh or mk.sh build, which
  * tools/pc/disks/mkmode records) and package.json's config.release: a disk marked "final" (the release diskette, and
- * the 64K demo, which doesn't have room for DEBUG binaries) is updated only with FINAL binaries, and every other disk
+ * the 64K demos, which don't have room for DEBUG binaries) is updated only with FINAL binaries, and every other disk
  * is updated with any binaries, except FINAL binaries while config.release is "debug".  So while config.release is
  * "debug", a DEBUG build updates all but the "final" disks, and a FINAL build updates only the "final" disks; once
  * it's "final", a FINAL build updates them all, and a DEBUG build updates all but the "final" disks.
@@ -158,6 +158,7 @@ let disks = {
     "BASICDOS-360K-VT100": { config: "./demos/vt100/CONFIG.SYS", title: "BASIC-DOS HD VT100 Demo" },
     "BASICDOS-360K-DEBUG": { config: "./demos/debug/CONFIG.SYS", title: "BASIC-DOS Serial Debugger Demo" },
     "BASICDOS-360K-M64": { config: "./demos/m64/CONFIG.SYS", title: "BASIC-DOS Monochrome Demo", final: true },
+    "BASICDOS-360K-TERM": { config: "./demos/term/CONFIG.SYS", title: "BASIC-DOS Terminal Only Demo", final: true },
     "BASICDOS-360K-TESTS": {
         title: "BASIC-DOS Tests",
         data: true,

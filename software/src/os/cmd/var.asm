@@ -621,11 +621,16 @@ ENDPROC	freeCache
 ;
 ; keepCode
 ;
-; Called by genCode when the generated code has finished running: if the code
-; was generated for the loaded program (as opposed to a command line), it ran
-; without error, and all of it was generated (unlike, say, a program that
-; ended before reaching its last line), we keep it (in CODE_CACHE) so that RUN
-; can simply run it again (see genInit); otherwise, it's freed.
+; Called by genCode when the generated code has finished running, and by
+; ctrlc when it was stopped: if the code was generated for the loaded program
+; (as opposed to a command line), it didn't fail, and all of it was generated
+; (unlike, say, a program that ended before reaching its last line), we keep
+; it (in CODE_CACHE) so that RUN can simply run it again (see genInit);
+; otherwise, it's freed.
+;
+; Either way, we clear GEN_DONE, so that it's set only while complete code is
+; running; otherwise, a CTRLC that arrived while cmdFile was restoring its
+; caller's code (which may be incomplete) would find the file's GEN_DONE.
 ;
 ; Inputs:
 ;	Carry set if the code failed (eg, a syntax error)
@@ -634,8 +639,8 @@ ENDPROC	freeCache
 ;	AX, CX, SI
 ;
 DEFPROC	keepCode
+	mov	si,ds:[PSP_HEAP]	; (preserves carry)
 	jc	kc8
-	mov	si,ds:[PSP_HEAP]
 	test	[si].GEN_FLAGS,GEN_DONE	; was all the code generated?
 	jz	kc8			; no
 	mov	ax,ss
@@ -645,9 +650,9 @@ DEFPROC	keepCode
 	mov	si,ds:[PSP_HEAP]
 	sub	ax,ax
 	xchg	ax,[si].CBLKDEF.BDEF_NEXT
-	mov	[si].CODE_CACHE,ax
-	ret
-kc8:	jmp	freeAllCode
+	mov	[si].CODE_CACHE,ax	; (leaving no code to free)
+kc8:	and	[si].GEN_FLAGS,NOT GEN_DONE
+	jmp	freeAllCode
 ENDPROC	keepCode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

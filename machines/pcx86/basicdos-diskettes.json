@@ -10,5 +10,6 @@
   "/software/disks/BASICDOS-360K-VT100.json": "BASIC-DOS HD VT100 Demo",
   "/software/disks/BASICDOS-360K-DEBUG.json": "BASIC-DOS Serial Debugger Demo",
   "/software/disks/BASICDOS-360K-M64.json": "BASIC-DOS Monochrome Demo",
+  "/software/disks/BASICDOS-360K-TERM.json": "BASIC-DOS Terminal Only Demo",
   "/software/disks/BASICDOS-360K-TESTS.json": "BASIC-DOS Tests"
 }

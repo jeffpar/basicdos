@@ -28,10 +28,10 @@
 # build runs automatically), update the BASIC-DOS disk images with the new
 # binaries (which requires PCJS; see gulpfile.js): while package.json's
 # config.release is "debug", a DEBUG build updates every disk except the
-# release diskette (BASICDOS-360K) and the 64K demo disk (BASICDOS-360K-M64,
-# which has room only for FINAL binaries), and a FINAL build updates only
-# those two; once config.release is "final", a FINAL build updates them all,
-# and a DEBUG build updates all but those two.
+# release diskette (BASICDOS-360K) and the 64K demo disks (BASICDOS-360K-M64
+# and BASICDOS-360K-TERM, which have room only for FINAL binaries), and a
+# FINAL build updates only those three; once config.release is "final", a
+# FINAL build updates them all, and a DEBUG build updates all but those three.
 # If a build fails and you don't want the disks updated, use pc.js's "abort"
 # command.
 #

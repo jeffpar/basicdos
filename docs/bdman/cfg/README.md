@@ -177,4 +177,6 @@ This CONFIG.SYS runs a single session on a terminal connected to COM1, without l
 	CONSOLE=COM1:9600,N,8,1
 	SHELL=COMMAND.COM AUTOEXEC.BAT
 
+The [Terminal Only](/demos/term/pc/) demo uses a similar configuration on a 64K IBM PC with no video adapter, where a VT100 on COM1 is the only console.
+
 {% include footer.html prev="BASIC-DOS Programming:../lang/" next="Technical Reference:/docs/bdtech/" %}

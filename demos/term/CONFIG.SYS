@@ -1,0 +1,8 @@
+REM 64K demonstration with no video: one session on a VT100 connected to COM1
+REM Drivers for missing hardware (eg, other COM ports) are automatically skipped
+SKIP=CON,FPU$,PIPE$
+BUFFERS=2
+FILES=8
+SESSIONS=1
+CONSOLE=COM1:9600,N,8,1,VT100
+SHELL=COMMAND.COM PATH$="A:\;A:\EXT;A:\DEMOS;A:\SAMPLES"
