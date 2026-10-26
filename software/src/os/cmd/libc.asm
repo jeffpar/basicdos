@@ -200,7 +200,9 @@ ENDPROC	redirEnd
 ;
 ; Reports the last error that a printer (eg, PRN) had writing, if any: only
 ; printer drivers (see lptdev.asm) report errors for IOCTL_OUTSTATUS, while
-; other devices (and files) report "unknown command" (22) or nothing.
+; other devices (and files) report "unknown command" (22) or nothing.  The
+; handle itself is invalid only if it's PRN and there's no PRN device (eg, no
+; LPT1), so that's "Device unavailable".
 ;
 ; Inputs:
 ;	BX = handle
@@ -223,6 +225,9 @@ DEFPROC	chkOut
 	je	co8
 	mov	dl,25			; "Device fault"
 	cmp	al,29			; (write fault)
+	je	co8
+	mov	dl,68			; "Device unavailable"
+	cmp	al,ERR_BADHANDLE	; (no PRN device)
 	jne	co9			; anything else isn't a printer error
 co8:	xchg	ax,dx
 	jmp	rtError

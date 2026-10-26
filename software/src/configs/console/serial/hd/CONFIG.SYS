@@ -1,6 +1,6 @@
 REM Demonstration of a single-session hard disk configuration
-SKIP=CON
+SKIP=VKD$
 BUFFERS=8
 SESSIONS=3
-CONSOLE=COM1:9600,N,8,1
+CON=COM1:9600,N,8,1
 SHELL=COMMAND.COM PATH$="C:\;C:\EXT;C:\TESTS;C:\TOOLS"

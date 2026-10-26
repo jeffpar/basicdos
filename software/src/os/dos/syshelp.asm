@@ -276,20 +276,54 @@ ENDPROC	cache_int21
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; console_warning (and open_error, which halts; moved here from SYSINIT
+; open_dev
+;
+; Opens the device in a CONFIG.SYS setting (eg, "PRN=LPT2"), or if there's
+; no such setting, the default device.  If the device can't be opened, the
+; session has no such device (SFH_NODEV), which is reported for a setting
+; but not for a default (eg, LPT1 on a machine without a parallel port).
+;
+; Inputs:
+;	SI -> setting (eg, CFG_PRN)
+;	DX -> default device (eg, "LPT1")
+;
+; Outputs:
+;	AL = SFH, or SFH_NODEV
+;
+; Modifies:
+;	AX, DX, SI, DI
+;
+DEFPROC	open_dev
+	call	find_cfg		; look for the setting
+	jc	od1			; not found
+	mov	dx,di			; DX -> setting
+od1:	sbb	si,si			; SI = -1 if not found, 0 if found
+	mov	ax,DOS_HDL_OPENRW
+	int	21h
+	jnc	od9
+	inc	si			; was the device from a setting?
+	jz	od8			; no
+	call	open_warning
+od8:	mov	al,SFH_NODEV
+od9:	ret
+ENDPROC	open_dev
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; open_warning (and open_error, which halts; moved here from SYSINIT
 ; to save symbol space there)
 ;
 ; Inputs:
 ;	AX = error code
-;	DX -> CONSOLE setting
+;	DX -> device setting (eg, "COM2:9600,N,8,1")
 ;
 ; Modifies:
 ;	AX
 ;
-DEFPROC	console_warning
-	EPRINTF	<"Warning: unable to open console %s">,<13,10>,ax,dx
+DEFPROC	open_warning
+	EPRINTF	<"Warning: unable to open %s">,<13,10>,ax,dx
 	ret
-ENDPROC	console_warning
+ENDPROC	open_warning
 
 
 	DEFLBL	open_error,near

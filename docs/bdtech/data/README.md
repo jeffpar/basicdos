@@ -109,7 +109,7 @@ The Session Control Block is internal to DOS; there's one for each session (see 
 | 01h | SCB_NUM | Session number |
 | 02h | SCB_SFHIN - SCB_SFHPRN | System file handles for STDIN, STDOUT, STDERR, STDAUX, and STDPRN |
 | 08h | SCB_ENVSEG | Environment segment |
-| 0Ah | SCB_CONTEXT | Console context (from the CON driver) |
+| 0Ah | SCB_CONTEXT | Console context (from the console's driver) |
 | 0Ch | SCB_OWNER | PSP of the owner, if any |
 | 0Eh | SCB_PSP | Current PSP in this session |
 | 10h | SCB_WAITID | Wait ID if waiting, 0 if runnable |

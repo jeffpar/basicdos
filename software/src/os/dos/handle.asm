@@ -19,7 +19,7 @@
 DOS	segment word public 'CODE'
 
 	EXTNEAR	<dev_request,scb_release>
-	EXTNEAR	<chk_devname,chk_console,chk_filename>
+	EXTNEAR	<chk_devname,chk_filename>
 	EXTNEAR	<get_bpb,get_psp,find_cln,new_bpb>
 	EXTNEAR	<merge_clns,advance_cln,file_request>
 	EXTNEAR	<flush_buffers>
@@ -384,23 +384,26 @@ so9a:	mov	ax,ERR_NOFILE
 so9b:	stc
 	jmp	so9
 ;
-; If the device is the session's console (ie, "CON" without a context
-; descriptor), then share the session's console SFB, which may be for another
-; device (eg, COM1).
+; If the name is CON, AUX, or PRN, then share the session's SFB for that
+; device (see chk_devname), which may be any device (eg, COM1 for CON).
 ;
-so0:	call	chk_devopen		; can it be opened in this mode?
+so0:	jcxz	so0a			; not one of the session's devices
+	inc	cx			; does the session have the device?
+	jz	so9a			; no
+	dec	cx
+	xchg	bx,cx			; BX -> session's SFB
+	inc	cs:[bx].SFB_REFS	; add a reference
+	mov	dx,cs:[bx].SFB_CONTEXT	; DX = context (and carry is clear)
+	jmp	so9
+
+so0a:	call	chk_devopen		; can it be opened in this mode?
 	jc	so9b			; no (AX = error code)
 	cmp	ah,10h			; FCB?
-	jne	so0a			; no
+	jne	so1			; no
 	mov	si,cs:[scb_active]
 	lea	si,[si].SCB_FILENAME + 1
 	push	cs
 	pop	ds			; DS:SI -> ASCIIZ name (see chk_devname)
-so0a:	call	chk_console		; BX -> session's console SFB?
-	jc	so1			; no
-	inc	cs:[bx].SFB_REFS	; yes, add a reference
-	mov	dx,cs:[bx].SFB_CONTEXT	; DX = context (and carry is clear)
-	jmp	so9
 
 so1:	mov	ax,DDC_OPEN SHL 8	; ES:DI -> driver
 	sub	dx,dx			; no initial context

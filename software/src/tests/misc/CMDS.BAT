@@ -27,6 +27,19 @@ IF L$ <> "hello, world" THEN PRINT "TR squeeze failed" : FAILS = FAILS + 1
 TYPE T.TMP | TR /C /D a-z\r\n > T2.TMP
 OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
 IF L$ <> "helloworld" THEN PRINT "TR complement failed" : FAILS = FAILS + 1
+SED "s/\(l*\)o/[\1]/g" T.TMP > T2.TMP
+OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
+IF L$ <> "he[ll],  w[]rld" THEN PRINT "SED groups failed" : FAILS = FAILS + 1
+TYPE T.TMP | SED p | SED /N "$=;/^h/s/  */ /gp" > T2.TMP
+OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : LINE INPUT #1, M$ : CLOSE #1
+IF L$ + M$ <> "hello, world2" THEN PRINT "SED addresses failed" : FAILS = FAILS + 1
+TYPE T.TMP | SED p | UNIQ /C > T2.TMP
+OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
+IF L$ <> "      2 hello,  world" THEN PRINT "UNIQ failed" : FAILS = FAILS + 1
+FIND /R /I "^H[a-z]*,  *W.*D$" T.TMP > T2.TMP
+IF ERRORLEVEL THEN PRINT "FIND /R failed" : FAILS = FAILS + 1
+SED "s/[a/b/" T.TMP
+IF ERRORLEVEL = 0 THEN PRINT "SED error failed" : FAILS = FAILS + 1
 TR a-z A-Z < T.TMP > T2.TMP
 OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
 IF L$ <> "HELLO,  WORLD" THEN PRINT "input redirection failed" : FAILS = FAILS + 1

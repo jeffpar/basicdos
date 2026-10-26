@@ -34,8 +34,10 @@ Sysinit then:
 
 - Processes PATHCHAR= and MEMSIZE=, and records the boot key
 - Allocates the Session Control Block table (SESSIONS=) and the System File Block table (FILES=), along with the BPBs, the current directory table, and any extra disk buffers (BUFFERS=)
-- Opens a CON context for each CONSOLE= line (or a single default context), and opens AUX and PRN
+- Opens the first session's console (CON=, or VKD$:80,25 by default)
 - Processes SWITCHAR= or a `-` boot key (after the first console is open, so that a conflict with PATHCHAR= can be reported)
+- Loads any DEVICE= drivers, and then opens AUX and PRN (AUX= and PRN=, or COM1 and LPT1 by default), which every session shares
+- Opens the console for each additional CON= line
 - Opens the DEBUG$ device (the [DEBUG.COM](../dev/) driver), if installed, for DPRINTF messages, and obtains the FPU$ function table (FPUTBL), if the FPU$ driver is present
 - Revectors the DDINT_ENTER, DDINT_LEAVE, and DDINT_UTIL entry points (530h-53Fh) used by driver interrupt handlers
 - Prints the startup banner, and for each SHELL= line (or the default, COMMAND.COM), loads the program into the next session with DOS_UTL_LOAD and starts it with DOS_UTL_START
@@ -82,7 +84,7 @@ Sessions are scheduled preemptively: hardware interrupt handlers (eg, the CLOCK$
 
 Code that must not be interrupted by a session switch can use DOS_UTL_LOCK and DOS_UTL_UNLOCK; a switch requested while the session is locked is deferred until it's unlocked.
 
-Each session has its own console context (if it was given one by a CONSOLE= line), and keyboard input goes to the context with focus (Shift-Tab switches the focus).  Sessions without a console of their own (eg, the sessions that run the commands of a pipeline) use the handles supplied in their Session Parameter Block (see [SPB](../data/#spb)).  A zero-length write to a pipe marks the end of its data (a reader then gets 0 bytes once the pipe is empty); the command shell does this after the first command of a pipeline, and when a session ends, DOS does the same to its output handle if it's a character device, so every command of a pipeline sees the end of its input.  Similarly, a zero-length read from a pipe means that its reader is done, and when a session ends, DOS does that to its input handle if it's a character device; from then on, writes to the pipe fail (with a write fault) instead of waiting for room.
+Each session has its own console context (if it was given one by a CON= line), and keyboard input goes to the context with focus (Shift-Tab switches the focus).  Sessions without a console of their own (eg, the sessions that run the commands of a pipeline) use the handles supplied in their Session Parameter Block (see [SPB](../data/#spb)).  A zero-length write to a pipe marks the end of its data (a reader then gets 0 bytes once the pipe is empty); the command shell does this after the first command of a pipeline, and when a session ends, DOS does the same to its output handle if it's a character device, so every command of a pipeline sees the end of its input.  Similarly, a zero-length read from a pipe means that its reader is done, and when a session ends, DOS does that to its input handle if it's a character device; from then on, writes to the pipe fail (with a write fault) instead of waiting for room.
 
 ### Interrupt Vectors
 
@@ -98,7 +100,7 @@ Each session has its own console context (if it was given one by a CONSOLE= line
 | 25h, 26h | Absolute disk read and write (not supported; open the volume as a file instead, as described in [File Handles](../dos/#handles)) |
 | 27h | Terminate and stay resident (not implemented yet) |
 | 28h | Idle notification (default handler only) |
-| 29h | Fast console output (installed by the CON driver) |
+| 29h | Fast console output (installed by the VKD$ driver) |
 | 2Ah-2Fh | Reserved (default handlers only) |
 | 30h | CALL 5 far jump (overlaps vector 31h) |
 | 32h | BASIC-DOS utility functions (see [Utility Functions](../util/)) |

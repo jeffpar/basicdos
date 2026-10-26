@@ -27,7 +27,7 @@ DOS	segment word public 'CODE'
 	EXTLONG	<bpb_table,scb_table,sfb_table,cdir_table,clk_ptr,fpu_table>
 	EXTLONG	<dev_head>
 	EXTNEAR	<find_cfg,init_table,set_bpbtime,load_devices,sysinit_end>
-	EXTNEAR	<console_warning,open_error>
+	EXTNEAR	<open_dev,open_warning,open_error>
 	EXTERNS	<cache_int21>,far
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>
 	EXTNEAR	<dos_term,dos_func,dos_exit,dos_ctrlc,dos_error,dos_default>
@@ -167,7 +167,7 @@ si2c:
 ;
 ; "Revector" DDINT_UTIL to int_util as soon as INT_DOSUTIL is available,
 ; since drivers use it in place of some DOSUTIL functions (eg, LOCK, which
-; CON's INT 10h handler uses).
+; VKD$'s INT 10h handler uses).
 ;
 	cli
 	mov	di,offset DDINT_UTIL
@@ -275,7 +275,8 @@ si5a:	mov	dx,size SCB
 	call	init_table		; initialize table, update ES
 ;
 ; Initialize all the SCBs, by assigning them unique SCB_NUM values and
-; setting their default CON/AUX/PRN system file handles to SFH_NONE (-1).
+; setting their default console, AUX, and PRN system file handles to
+; SFH_NONE (-1).
 ;
 	mov	ax,SFH_NONE SHL 8	; AL = 0, AH = SFH_NONE
 	cwd				; DL = SFH_NONE, DH = SFH_NONE
@@ -560,32 +561,32 @@ sb3:
 	mov	es:[mcb_head],bx
 ;
 ; Before we create any sessions (and our first PSPs), we need to open all the
-; devices required for the 5 STD handles.  And we open AUX first, purely for
-; historical reasons (by opening AUX first, CON second, and PRN third, the SFHs
-; for the first five handles will always be 1, 1, 1, 0, and 2).
+; devices required for the 5 STD handles: the console (CON) first, so that
+; errors can be reported, and then AUX and PRN (after any DEVICE= drivers).
 ;
 ; Since no PSP exists yet, DOS_HDL_OPEN will return system file handles, not
 ; process file handles.  Which is exactly what we want, because we're going to
 ; store each SFH in the SCB, so that every time a new program is loaded in the
 ; SCB, its PSP will receive the same SFHs.
 ;
-	mov	dx,offset AUX_DEVICE
-	mov	ax,DOS_HDL_OPENRW
-	int	21h
-	jnc	$+5
-	jmp	open_error
-	mov	bx,es:[scb_active]	; BX -> SCB
-	mov	es:[bx].SCB_SFHAUX,al
-	mov	cl,al			; CL = SFH for AUX
+; Until a PSP exists, STDOUT is SFH 1 (see utl_printf), so the console must be
+; SFH 1.  NUL holds SFH 0 until just before AUX is opened, so that AUX (if it
+; exists) is SFH 0, as in PC DOS.  If NUL was skipped, the console is SFH 0,
+; and messages are lost until the first session starts.
 ;
-; Next, open CON, with optional context.  If there's a "CONSOLE=" setting in
+	mov	dx,offset NUL_DEVICE
+	mov	ax,DOS_HDL_OPENRW
+	int	21h			; AX = SFH 0 (if successful)
+;
+; Open the console, with optional context.  If there's a "CON=" setting in
 ; CFG_FILE, use that; otherwise, use CON_DEVICE.  If the setting can't be
 ; opened (eg, its adapter or serial port doesn't exist), fall back to
 ; CON_DEVICE, and report the failure once the console is open.
 ;
-si8:	mov	si,offset CFG_CONSOLE
+	mov	bx,es:[scb_active]	; BX -> SCB
+si8:	mov	si,offset CFG_CON
 	mov	dx,offset CON_DEVICE
-	call	find_cfg		; look for "CONSOLE="
+	call	find_cfg		; look for "CON="
 	jc	si9			; not found
 	mov	dx,di
 si9:	sub	si,si			; SI = 0 (no error yet)
@@ -606,18 +607,8 @@ si9a:	mov	es:[bx].SCB_SFHIN,al	; AL = SFH (not PFH)
 	jz	si9b			; no
 	xchg	ax,si			; AX = error code
 	mov	dx,di			; DX -> failed setting
-	call	console_warning
+	call	open_warning
 si9b:
-;
-; Last but not least, open PRN.
-;
-	mov	dx,offset PRN_DEVICE
-	mov	ax,DOS_HDL_OPENRW
-	int	21h
-	jnc	$+5
-	jmp	open_error
-	mov	es:[bx].SCB_SFHPRN,al	; AL = SFH
-	mov	ch,al			; CH = SFH for PRN
 ;
 ; SWITCHAR=- (or /) changes the switch character, unless it's the same as
 ; the path character (eg, SWITCHAR=/ with PATHCHAR=/), in which case we
@@ -654,14 +645,36 @@ si9e:
 	mov	es:[bx].SCB_PATHCHAR,al
 	call	load_devices
 ;
-; See if there are any more CONSOLE contexts defined; if so, then for each
-; one, open an CON handle, and record it in the next available SCB.  If there
-; aren't enough SCBs or SFBs, then we've got a configuration error.  If one
-; can't be opened, we report it, reuse its SCB for the next one, and record
-; its bit in con_fails, so that its SHELL is skipped.
+; Next, open AUX and PRN, after the DEVICE= drivers, so that they don't take
+; a port that a driver needs for itself (eg, DEBUG$).  Every session shares
+; the same AUX and PRN devices.  Closing NUL first frees SFH 0 for AUX.
 ;
-si10:	mov	si,offset CFG_CONSOLE
-	call	find_cfg		; look for another "CONSOLE="
+	cmp	es:[bx].SCB_SFHOUT,0	; is the console SFH 0 (ie, no NUL)?
+	je	si9f			; yes, so leave it open
+	push	bx
+	sub	bx,bx			; BX = SFH 0 (NUL)
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	pop	bx
+si9f:	mov	si,offset CFG_AUX
+	mov	dx,offset AUX_DEVICE
+	call	open_dev
+	xchg	cx,ax			; CL = SFH for AUX
+	mov	si,offset CFG_PRN
+	mov	dx,offset PRN_DEVICE
+	call	open_dev
+	mov	ch,al			; CH = SFH for PRN
+	mov	word ptr es:[bx].SCB_SFHAUX,cx
+	ASSERT	<SCB_SFHAUX + 1>,EQ,<SCB_SFHPRN>
+;
+; See if there are any more CON settings; if so, then for each one, open the
+; console, and record it in the next available SCB.  If there aren't enough
+; SCBs or SFBs, then we've got a configuration error.  If one can't be opened,
+; we report it, reuse its SCB for the next one, and record its bit in
+; con_fails, so that its SHELL is skipped.
+;
+si10:	mov	si,offset CFG_CON
+	call	find_cfg		; look for another "CON="
 	jnc	si10a
 	jmp	si12			; no more
 si10a:	shl	[con_bit].OFF,1
@@ -678,7 +691,7 @@ si11:	mov	es:[scb_active],bx	; make the next SCB active
 	jnc	si11a
 	sub	bx,size SCB		; reuse this SCB
 	mov	es:[scb_active],bx
-	call	console_warning
+	call	open_warning
 	mov	ax,[con_bit].OFF
 	or	[con_fails].OFF,ax
 	mov	ax,[con_bit].SEG
@@ -1110,12 +1123,17 @@ ENDPROC	last_mcb
 	dw	-1			; end of tables (should end at INT 30h)
 	DEFLBL	INT_TABLES_END
 
-CFG_CONSOLE	db	8,"CONSOLE="
-CON_DEVICE	db	"CON:80,25",0	; default CONSOLE configuration
+CFG_CON		db	4,"CON="
+CON_DEVICE	db	"VKD$:80,25",0	; default CON configuration
+CFG_AUX		db	4,"AUX="
+CFG_PRN		db	4,"PRN="
 CFG_BUFFERS	db	8,"BUFFERS="
 		dw	2,2,32
+;
+; FILES can't exceed 254, since SFH 0FEh is SFH_NODEV.
+;
 CFG_FILES	db	6,"FILES="
-		dw	20,8,255
+		dw	20,8,254
 CFG_MEMSIZE	db	8,"MEMSIZE="
 		dw	640,16,640
 CFG_SESSIONS	db	9,"SESSIONS="
@@ -1124,8 +1142,9 @@ CFG_SHELL	db	6,"SHELL="
 CFG_PATHCHAR	db	9,"PATHCHAR="
 CFG_SWITCHAR	db	9,"SWITCHAR="
 
-AUX_DEVICE	db	"AUX",0
-PRN_DEVICE	db	"PRN",0
+NUL_DEVICE	db	"NUL",0
+AUX_DEVICE	db	"COM1",0	; default AUX device
+PRN_DEVICE	db	"LPT1",0	; default PRN device
 CLK_DEVICE	db	"CLOCK$",0
 FPU_DEVICE	db	"FPU$",0
 DBG_DEVICE	db	"DEBUG$",0
@@ -1137,7 +1156,7 @@ SYS_MSG		db	"BASIC-DOS "
 		db	"Copyright (c) PCJS.ORG 1981-2026",13,10,13,10,'$'
 
 SYSERR		db	"System initialization error$"
-CONERR		db	"More CONSOLES than SESSIONS$"
+CONERR		db	"More consoles than SESSIONS$"
 HALTED		db	13,10,"System halted",13,10,'$'
 
 

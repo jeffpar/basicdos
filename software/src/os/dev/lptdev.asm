@@ -10,7 +10,8 @@
 ; There's one driver instance (LPT1, LPT2, and LPT3) for each parallel port
 ; that the BIOS found (see PRINTER_BASE), and all their requests go to the
 ; same command handler (ddlpt_cmd), which writes with the BIOS (INT 17h);
-; every other request does nothing.  PRN forwards its requests to LPT1.
+; every other request does nothing.  PRN is LPT1 unless CONFIG.SYS has a
+; PRN= setting.
 ;
 	include	macros.inc
 	include	bios.inc

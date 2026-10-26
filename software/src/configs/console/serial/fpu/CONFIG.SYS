@@ -1,6 +1,6 @@
 REM Demonstration of a single-session configuration
-SKIP=CON
+SKIP=VKD$
 BUFFERS=4
 SESSIONS=3
-CONSOLE=COM1:9600,N,8,1
+CON=COM1:9600,N,8,1
 SHELL=COMMAND.COM PATH$="A:\;A:\EXT;A:\TESTS;A:\TOOLS"

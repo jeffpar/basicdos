@@ -49,7 +49,7 @@ The [DOS](os/dos/) directory contains the BASIC-DOS "kernel" (`BASDOS.COM`), inc
 
 The [CMD](os/cmd/) directory contains the code for the BASIC-DOS Command Shell (`COMMAND.COM`) and help text (`HELP.TXT`).
 
-The [UTIL](os/util/) directory contains the external utilities: [MISC](os/util/misc/) contains the single-file utilities (the filters `FIND.COM`, `MORE.COM`, `SORT.COM`, `TEE.COM`, `TR.COM`, and `WC.COM`, along with `SLEEP.COM`), and each larger utility has its own directory, such as [VI](os/util/vi/) (the `VI.COM` text editor).
+The [UTIL](os/util/) directory contains the external utilities: [MISC](os/util/misc/) contains the single-file utilities (the filters `FIND.COM`, `MORE.COM`, `SED.COM`, `SORT.COM`, `TEE.COM`, `TR.COM`, `UNIQ.COM`, and `WC.COM`, along with `SLEEP.COM`), and each larger utility has its own directory, such as [VI](os/util/vi/) (the `VI.COM` text editor).
 
 The [MSB](msb/) directory contains a buildable copy of Microsoft BASIC ("GW-BASIC"), using the open-source files from [GitHub](https://github.com/microsoft/GW-BASIC) and a reverse-engineered OEM source file courtesy of the [OS/2 Museum](msb/OEM.ASM).
 

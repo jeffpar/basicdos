@@ -180,6 +180,7 @@ SFBF_DTSET	equ	08h	; time and date set (see hdl_time)
 MODE_CREATE	equ	08h
 
 SFH_NONE	equ	0FFh	; if this SFH is in a PFT entry, it's unused
+SFH_NODEV	equ	0FEh	; AUX/PRN with no device (entry stays in use)
 
 ;
 ; The CONIO functions need a way of telling dev_request whether or not

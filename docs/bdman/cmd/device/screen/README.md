@@ -117,7 +117,7 @@ and now prints it with:
 
 > LPRINT [*expression*][;|,][*expression*]...
 
-Prints like [PRINT](#print), but to the printer (PRN, which is the first parallel port, LPT1).  If there's no printer (eg, the machine has no parallel port), a "Device timeout" error occurs after the statement, and a printer can also report "Out of paper" or "Device fault"; [PRINT #](../../basic/#print) to a printer (eg, a file opened as "PRN" or "LPT2") reports the same errors.  See also [LLIST](../../system/#llist) and [LPOS](../../basic/func/#lpos).  LPRINT USING isn't supported; to format output for the printer, open PRN as a file and use PRINTF #*n* (see [How to replace PRINT USING](#how-to-replace-print-using)).  LPRINT isn't available on low memory systems.
+Prints like [PRINT](#print), but to the printer (PRN, which is the first parallel port, LPT1, unless [PRN=](../../../cfg/#prn) in CONFIG.SYS chooses another device).  If there's no PRN device (eg, the machine has no parallel port), a "Device unavailable" error occurs after the statement, and a printer can report "Device timeout" (eg, if it's offline), "Out of paper", or "Device fault"; [PRINT #](../../basic/#print) to a printer (eg, a file opened as "PRN" or "LPT2") reports the same errors.  See also [LLIST](../../system/#llist) and [LPOS](../../basic/func/#lpos).  LPRINT USING isn't supported; to format output for the printer, open PRN as a file and use PRINTF #*n* (see [How to replace PRINT USING](#how-to-replace-print-using)).  LPRINT isn't available on low memory systems.
 
 	LPRINT "Total:"; T
 

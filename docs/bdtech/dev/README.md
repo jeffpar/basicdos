@@ -64,7 +64,7 @@ DOS calls the REQUEST entry point with a far call, with ES:BX -> request packet.
 | 03h | DDP_STATUS | Status (DDSTAT_*) |
 | 05h | DDP_CODE | IOCTL code, if an IOCTL request |
 | 06h | DDP_CONTEXT | Device context, if any (eg, the console context of the session making the request) |
-| 08h | DDP_PTR | Driver-specific pointer (eg, for DDC_OPEN, the device name and parameters, such as "CON:40,25") |
+| 08h | DDP_PTR | Driver-specific pointer (eg, for DDC_OPEN, the device name and parameters, such as "VKD$:40,25") |
 | 0Ch | DDP_SIG | Signature byte (DEBUG builds only) |
 
 PC DOS defined only the first 5 bytes of the header; BASIC-DOS uses the rest to pass context information.  For example, DDC_OPEN returns a new context in DDP_CONTEXT, which DOS stores in the open file's SFB and passes back with every later request for that handle.
@@ -112,9 +112,9 @@ Commands:
 
 On return, DDP_STATUS contains DDSTAT_DONE (0100h), plus DDSTAT_ERROR (8000h) and an error code in the low byte if the request failed.  Disk error codes are the BIOS (INT 13h) error codes (eg, 03h for write-protect, 80h for drive not ready), and the other codes use values the BIOS doesn't (eg, DDERR_UNKCMD, 06h, for an unknown command); see dev.inc for the complete list.  DOS reports a block device error to the session's critical error handler (see [Critical Errors](../dos/#critical-errors)), and if the response is RETRY, it reissues the same packet after clearing DDP_STATUS, so a driver that advances DDPRW_LBA, DDPRW_ADDR, and DDPRW_LENGTH as it goes (as FDC$ does) resumes at the failing sector.
 
-Console drivers (CON and COM) handle CTRL-C the same way, and only report it: they leave it in their input like any other character, and notify DOS with DOS_UTL_HOTKEY (except in [raw keys](#raw-keys) mode, where CTRL-C is just a key).  When DOS acts on a CTRL-C, it sends DDC_INFLUSH to the session's console, which discards its type-ahead (including the CTRL-C), and DDC_OUTFLUSH, which ends any CTRL-S pause (the COM driver also discards any output it has buffered, but an XOFF pause or a CTS hold still ends only when the terminal allows it).  DOS_TTY_FLUSH (INT 21h, AH = 0Ch) also sends DDC_INFLUSH, to STDIN.
+Console drivers (VKD$ and COM) handle CTRL-C the same way, and only report it: they leave it in their input like any other character, and notify DOS with DOS_UTL_HOTKEY (except in [raw keys](#raw-keys) mode, where CTRL-C is just a key).  When DOS acts on a CTRL-C, it sends DDC_INFLUSH to the session's console, which discards its type-ahead (including the CTRL-C), and DDC_OUTFLUSH, which ends any CTRL-S pause (the COM driver also discards any output it has buffered, but an XOFF pause or a CTS hold still ends only when the terminal allows it).  DOS_TTY_FLUSH (INT 21h, AH = 0Ch) also sends DDC_INFLUSH, to STDIN.
 
-To stop a program that never calls DOS, console drivers report an ABORT instead (DOS_UTL_HOTKEY with CTRL-D): the CON driver does so for CTRL-ALT-DEL and CTRL-BREAK, and the COM driver does so when it receives a BREAK (a line status interrupt with LSR BI set).
+To stop a program that never calls DOS, console drivers report an ABORT instead (DOS_UTL_HOTKEY with CTRL-D): the VKD$ driver does so for CTRL-ALT-DEL and CTRL-BREAK, and the COM driver does so when it receives a BREAK (a line status interrupt with LSR BI set).
 
 A request that must wait (eg, a keyboard read with no key available) calls DOS_UTL_WAIT with the packet address as the wait ID, which lets other sessions run; the driver's interrupt handler later calls DOS_UTL_ENDWAIT with the same ID.  Interrupt handlers should begin with a far call to DDINT_ENTER (0:530h) and end with a far jump to DDINT_LEAVE (0:535h), which lets DOS switch sessions when the interrupt ends.
 
@@ -140,7 +140,7 @@ DOS_HDL_IOCTL (INT 21h, AH = 44h) sends IOCTL requests to drivers: AL is passed 
 | C5h | IOCTL_GETTIME | Gets the time |
 | C6h | IOCTL_SOUND | Plays a sound (DX = PIT divisor) for CX ticks |
 
-#### CON {#con}
+#### VKD$ {#vkd}
 
 | AL | Name | Description |
 |----|------|-------------|
@@ -179,7 +179,7 @@ Both console drivers return every non-ASCII key as a zero followed by the key's 
 
 Modifier parameters (eg, the 5 in ESC [ 1 ; 5 A) are ignored, and other sequences are discarded.  Since an ESC key can't be distinguished from the start of a sequence until the next byte arrives, the driver holds an ESC until then, or for about 110ms (using a [CLOCK$ timer](#clock-timers)), after which it's returned as an ESC.  For VT100 terminals, the key that erases the previous character (DELETE, 7Fh) returns BACKSPACE (08h), and BACKSPACE returns the Delete key (00h, 53h), like the PC's keys; for ANSI terminals, both are returned as they are.  GENERIC terminals return bytes as they are.
 
-All other keys are returned as their ASCII codes, including control characters.  In raw keys mode (IOCTL_SETKEYS with CL = 1), CTRL-C, CTRL-S, and CTRL-P are ordinary keys, too: they aren't reported to DOS (so DOS doesn't echo ^C or call INT 23h), and they don't pause or resume output; an ANSI terminal's escape sequences are translated, too (otherwise, they're left alone, since an ANSI port may be a program's data port, eg, COM1 in COMM.BAS).  CTRL-BREAK still aborts the program on the CON console, SHIFT-TAB still switches focus, and a COM console with XON flow control still uses CTRL-S and CTRL-Q for flow control.  A program that sets raw keys mode should turn it off before it exits; if it doesn't (eg, if it's aborted), DOS turns it off for the session's console when the program ends (DOS records the last IOCTL_SETKEYS setting in the program's PSP, at PSP_RAWKEYS).
+All other keys are returned as their ASCII codes, including control characters.  In raw keys mode (IOCTL_SETKEYS with CL = 1), CTRL-C, CTRL-S, and CTRL-P are ordinary keys, too: they aren't reported to DOS (so DOS doesn't echo ^C or call INT 23h), and they don't pause or resume output; an ANSI terminal's escape sequences are translated, too (otherwise, they're left alone, since an ANSI port may be a program's data port, eg, COM1 in COMM.BAS).  CTRL-BREAK still aborts the program on a VKD$ console, SHIFT-TAB still switches focus, and a COM console with XON flow control still uses CTRL-S and CTRL-Q for flow control.  A program that sets raw keys mode should turn it off before it exits; if it doesn't (eg, if it's aborted), DOS turns it off for the session's console when the program ends (DOS records the last IOCTL_SETKEYS setting in the program's PSP, at PSP_RAWKEYS).
 
 #### FPU$ {#fpu}
 
@@ -209,9 +209,7 @@ The MBR code (mbr_code in hdcdev.asm) is modeled on the pc.js MBR (tools/pc/mbr.
 
 | Device | Type | Description |
 |--------|------|-------------|
-| CON | Character | Console: keyboard and screen, with a separate context for each session (see [CONSOLE=](../../bdman/cfg/#console)); interrupt-driven input, direct video output (or BIOS output), and INT 29h fast output |
-| AUX | Character | Logical serial device: forwards every request to COM1 (if there's no COM1, writes fail with "not ready") |
-| PRN | Character | Logical parallel (printer) device: forwards every request to LPT1 (if there's no LPT1, writes and IOCTLs fail with "not ready") |
+| VKD$ | Character | Video and keyboard driver: a console with a separate context for each session (see [CON=](../../bdman/cfg/#con)); interrupt-driven input, direct video output (or BIOS output), and INT 29h fast output |
 | LPT1-LPT3 | Character | Parallel ports (one for each port the BIOS found): writes print with INT 17h, a failed write's error is also reported by the next IOCTL_OUTSTATUS (see LPRINT), and IOCTL_GETPOS returns the column (see LPOS) |
 | COM1-COM4 | Character | Serial ports, with interrupt-driven, asynchronous I/O |
 | NUL | Character | Null device |
@@ -222,7 +220,9 @@ The MBR code (mbr_code in hdcdev.asm) is modeled on the pc.js MBR (tools/pc/mbr.
 | FDC$ | Block | Diskette drives (A: and B:) |
 | HDC$ | Block | Hard disks: FAT12 and FAT16 primary partitions of up to two BIOS hard disks (C:, D:, etc.), and a disk with no FAT partitions (eg, a new disk) as a single unit with unknown media, so that FORMAT can partition it; reads and writes are done by FDC$, so FDC$ must also be loaded |
 
-Drivers that aren't needed (eg, CON in a configuration that uses only serial consoles) can be omitted with [SKIP=](../../bdman/cfg/#skip).
+Drivers that aren't needed (eg, VKD$ in a configuration that uses only serial consoles) can be omitted with [SKIP=](../../bdman/cfg/#skip).
+
+CON, AUX, and PRN aren't drivers, but names that DOS gives the active session's console, AUX, and PRN devices (see [CON=](../../bdman/cfg/#con), [AUX=](../../bdman/cfg/#aux), and [PRN=](../../bdman/cfg/#prn)); opening one of those names (with or without a colon) shares the session's handle for that device (see [Files](../dos/#files)).
 
 ### CLOCK$ Timers {#clock-timers}
 

@@ -1,5 +1,5 @@
 ;
-; BASIC-DOS Logical (CON) I/O Device Driver
+; BASIC-DOS Video and Keyboard (VKD$) Device Driver
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
 ; @copyright (c) 2020-2026 Jeff Parsons
@@ -20,8 +20,8 @@ DEV	group	CODE,DATA
 
 CODE	segment para public 'CODE'
 
-	public	CON
-CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_CHAR,offset ddcon_init,-1,20202020204E4F43h>
+	public	VKD
+VKD	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_CHAR,offset ddcon_init,-1,2020202024444B56h>
 
 	DEFLBL	CMDTBL,word
 	dw	ddcon_none,   ddcon_none,   ddcon_none,   ddcon_ioctl	; 00-03
@@ -251,7 +251,7 @@ DEFPROC	ddcon_getdd
 ; This is enough to make PC DOS 2.00 BASICA start successfully on BASIC-DOS.
 ; I haven't checked but it's probably verifying STDIN/STDOUT wasn't redirected.
 ;
-	; mov	dx,[CON].DDH_ATTR	; TODO: PC DOS 2.00 returns 80D3h
+	; mov	dx,[VKD].DDH_ATTR	; TODO: PC DOS 2.00 returns 80D3h
 	mov	dx,80D3h
 	ret
 ENDPROC	ddcon_getdd
@@ -879,7 +879,7 @@ ENDPROC	ddcon_write
 ;
 ;	[device]:[cols],[rows],[border],[adapter]
 ;
-; where [device] is "CON" (otherwise you wouldn't be here), [cols] is number
+; where [device] is "VKD$" (otherwise you wouldn't be here), [cols] is number
 ; of columns (up to 80), [rows] is number of rows (up to 25), [border] is 1 for
 ; a border or 0 for none, and [adapter] is the adapter #, in case there is more
 ; than one video adapter (adapter 0 is the default).
@@ -888,7 +888,7 @@ ENDPROC	ddcon_write
 ; of its first page and filling the page downward, then rightward, and then
 ; the next page, until the adapter has no pages left (see con_place).
 ;
-; Alternatively, BIOS (or just B) can follow [rows] (eg, "CON:80,25,BIOS"),
+; Alternatively, BIOS (or just B) can follow [rows] (eg, "VKD$:80,25,BIOS"),
 ; in which case the remaining values are defaulted, and characters are written
 ; using INT 10h instead of directly to the screen (see write_curpos).
 ;
@@ -898,7 +898,7 @@ ENDPROC	ddcon_write
 ;
 ; Inputs:
 ;	ES:DI -> DDP
-;	[DDP].DDP_PTR -> context descriptor (eg, "CON:80,25")
+;	[DDP].DDP_PTR -> context descriptor (eg, "VKD$:80,25")
 ;
 ; Outputs:
 ;	[DDP].DDP_CONTEXT set with
@@ -916,10 +916,10 @@ DEFPROC	ddcon_open
 	lds	si,es:[di].DDP_PTR
 	ASSUME	DS:NOTHING
 ;
-; We know that DDP_PTR must point to a string containing "CON" at the
-; very least, so we skip those 3 bytes.
+; We know that DDP_PTR must point to a string containing "VKD$" at the
+; very least, so we skip those 4 bytes.
 ;
-	add	si,3			; DS:SI -> descriptor, if any
+	add	si,4			; DS:SI -> descriptor, if any
 	lodsb				; AL = 1st character of descriptor
 	cmp	al,':'			; is it a colon?
 	jne	dco0			; no
@@ -940,7 +940,7 @@ dco0a:	push	ax
 	cmp	ax,1			; set carry if no context (AX is zero)
 	jmp	dco7
 ;
-; The device name consists of "CON:...."  We're not sure what "...." is yet,
+; The device name consists of "VKD$:...."  We're not sure what "...." is yet,
 ; but hopefully it conforms to the context descriptor format described above.
 ;
 dco1:	push	cs
@@ -953,7 +953,7 @@ dco1:	push	cs
 	mov	ch,al			; CH = rows
 	mov	al,[si]
 	or	al,20h			; fold to lower case
-	cmp	al,'b'			; BIOS option (eg, "CON:80,25,BIOS")?
+	cmp	al,'b'			; BIOS option (eg, "VKD$:80,25,BIOS")?
 	pushf				; save the result (ZF) for later
 	DOSUTIL	ATOI16
 	mov	bh,al			; BH = border (0 for none)
@@ -1313,7 +1313,7 @@ ENDPROC	ddcon_inflush
 ;
 ; ddcon_outflush
 ;
-; Ends the context's pause (see check_hotkey), if any; CON output isn't
+; Ends the context's pause (see check_hotkey), if any; VKD$ output isn't
 ; buffered, so there's nothing to discard.
 ;
 ; Inputs:
@@ -2620,8 +2620,8 @@ ENDPROC	release_mode
 ; chk_context
 ;
 ; Verify that a context (eg, the active session's context returned by
-; DOSUTIL LOCK) is one of our contexts, since a session's CONSOLE may be
-; another device (eg, CONSOLE=COM1 in CONFIG.SYS).
+; DOSUTIL LOCK) is one of our contexts, since a session's console may be
+; another device (eg, CON=COM1:9600,N,8,1 in CONFIG.SYS).
 ;
 ; Inputs:
 ;	AX = context segment (zero if none)
@@ -2726,7 +2726,7 @@ ENDPROC	update_biosdata
 ; This is update_context for video mode changes, whether they come from
 ; IOCTL_SETMODE or from anyone else calling INT 10h directly.
 ;
-; The CON driver writes directly to the screen only in the text mode that a
+; The VKD$ driver writes directly to the screen only in the text mode that a
 ; context was created in, and a mode change affects the entire screen anyway,
 ; so in any other mode, the context becomes a full-screen context with no
 ; border that uses INT 10h passthrough (CTSTAT_INT10).  This also allows text
@@ -3130,7 +3130,7 @@ wcp3:	mov	al,cl
 	pop	bx
 	ret
 ;
-; The context is using INT 10h passthrough (eg, "CON:80,25,BIOS"), so
+; The context is using INT 10h passthrough (eg, "VKD$:80,25,BIOS"), so
 ; position the BIOS cursor and write the character and attributes using INT 10h
 ; instead of writing to the screen directly, allowing an emulator like pc.js to
 ; capture all console output by monitoring INT 10h.

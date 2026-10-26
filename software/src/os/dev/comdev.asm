@@ -322,9 +322,9 @@ ENDPROC	ddcom_write
 ;
 ; ddcom_ioctl
 ;
-; When a serial context is serving as a console (eg, "CONSOLE=COM1:9600,N,8,1"
+; When a serial context is serving as a console (eg, "CON=COM1:9600,N,8,1"
 ; in CONFIG.SYS), the DOS line editor (see read_line in conio.asm) relies on
-; the same IOCTLs that the CON driver provides, in order to redisplay and
+; the same IOCTLs that the VKD$ driver provides, in order to redisplay and
 ; reposition the cursor as characters are inserted, deleted, etc.  We support
 ; them by tracking the terminal's current column (CT_COL) as data is written,
 ; so that the editor sees consistent cursor positions and display lengths.
@@ -412,7 +412,7 @@ dio1:	mov	dl,ds:[CT_COL]
 	jmp	short dio7
 ;
 ; IOCTL_GETLEN: return the display length of CL bytes at DDPRW_ADDR, starting
-; at column DL, using the same display rules as the CON driver (and update_col).
+; at column DL, using the same display rules as VKD$ (and update_col).
 ;
 dio2:	call	get_len
 	jmp	short dio7
@@ -928,7 +928,7 @@ ENDPROC	ioctl_out
 ;
 ; Updates the context's current column (CT_COL) and copy of the current line
 ; (CT_LINE) for a byte just written, using the same display rules as get_len
-; (and the CON driver).  CR resets the column, BACKSPACE (which is destructive;
+; (and VKD$).  CR resets the column, BACKSPACE (which is destructive;
 ; see write_context) erases the previous column, LINEFEED starts a new (empty)
 ; line without changing the column, and BELL changes nothing.
 ;
@@ -1060,8 +1060,8 @@ dco0:	jmp	dco8
 dco1:	lds	si,es:[di].DDP_PTR
 	ASSUME	DS:NOTHING
 ;
-; DDP_PTR points to the device name (eg, "COM1", or "AUX" when AUX forwards
-; the request), so any parms follow the first colon.
+; DDP_PTR points to the device name (eg, "COM1"), so any parms follow the
+; first colon.
 ;
 dco1c:	lodsb
 	cmp	al,cl			; end of the name (CL is zero)?
@@ -1123,7 +1123,7 @@ dco1a:	mov	es,ax
 	sub	ax,ax
 	stosw				; set CT_LLEN and CT_ESC
 	mov	ax,0707h
-	stosw				; set CT_COLOR (same default as CON)
+	stosw				; set CT_COLOR (same default as VKD$)
 	add	di,LINE_MAX		; skip CT_LINE
 
 	mov	ax,size CONTEXT
@@ -1434,7 +1434,7 @@ ddi3b:	call	read_lsr		; line status (reading LSR clears it)
 	test	al,LSR_BI		; BREAK received?
 	jz	ddi1a			; no
 ;
-; A BREAK (eg, from a VT100's BREAK key) is treated like the CON driver's
+; A BREAK (eg, from a VT100's BREAK key) is treated like the VKD$ driver's
 ; CTRL-BREAK and CTRL-ALT-DEL: it's reported to DOS as an ABORT, which (unlike
 ; CTRLC) also stops a program that never calls DOS (eg, a BASIC loop).
 ;
@@ -1918,8 +1918,8 @@ ENDPROC	pull_input
 ; then set CTSTAT_RCVOVFL.
 ;
 ; This is also where we check for hotkeys, similar to check_hotkey in the
-; CON driver, since a serial context may be serving as a console (eg, when
-; CONFIG.SYS contains "CONSOLE=COM1:9600,N,8,1").
+; VKD$ driver, since a serial context may be serving as a console (eg, when
+; CONFIG.SYS contains "CON=COM1:9600,N,8,1").
 ;
 ; CTRLS toggles the context's PAUSED state (unless the context is waiting for
 ; input, in which case CTRLS is passed through, because the CONIO buffered
@@ -1933,7 +1933,7 @@ ENDPROC	pull_input
 ; data.
 ;
 ; CTRLC is buffered like any other byte, and is also reported to DOS as a
-; HOTKEY, which is all the CON driver does as well; it's up to DOS to discard
+; HOTKEY, which is all the VKD$ driver does as well; it's up to DOS to discard
 ; any type-ahead or end any pause (see DDC_INFLUSH and DDC_OUTFLUSH).
 ;
 ; Inputs:
@@ -2021,7 +2021,7 @@ ENDPROC	push_input
 ;
 ; raw_input
 ;
-; Translates a byte from an ANSI or VT100 terminal into what the CON driver
+; Translates a byte from an ANSI or VT100 terminal into what the VKD$ driver
 ; returns (see pull_kbd): non-ASCII keys are a zero followed by the PC scan
 ; code, which the DOS line editor maps to its editing keys (see read_line).
 ; The cursor keys send ESC [ A-D (or ESC O A-D), Home and End send ESC [ H
@@ -2699,7 +2699,7 @@ wct1:	pop	ds
 	pop	bx
 	ret
 ;
-; Like the CON driver, we treat a BACKSPACE written as data as "destructive"
+; Like the VKD$ driver, we treat a BACKSPACE written as data as "destructive"
 ; (the DOS line editor relies on that to erase characters; see con_erase), so
 ; it's sent as BACKSPACE, SPACE, BACKSPACE.  To avoid sending a partial sequence
 ; (which would be repeated when the write is retried), we don't start unless

@@ -336,7 +336,7 @@ ENDPROC	devinit
 ;
 ; chk_skip
 ;
-; Checks the driver's name against the "SKIP=" list (eg, "SKIP=CON,FPU$"),
+; Checks the driver's name against the "SKIP=" list (eg, "SKIP=VKD$,FPU$"),
 ; which is a list of driver names separated by commas.
 ;
 ; Inputs:

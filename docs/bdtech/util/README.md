@@ -51,7 +51,7 @@ Device drivers can also call DOS_UTL_WAIT, DOS_UTL_ENDWAIT, DOS_UTL_HOTKEY, DOS_
 | 19h | [DOS_UTL_SLEEP](#scheduling) | Sleeps for a number of milliseconds |
 | 1Ah | [DOS_UTL_WAIT](#scheduling) | Waits on an ID |
 | 1Bh | [DOS_UTL_ENDWAIT](#scheduling) | Ends a wait on an ID |
-| 1Ch | [DOS_UTL_HOTKEY](#scheduling) | Notifies DOS of a hotkey (used by the CON driver) |
+| 1Ch | [DOS_UTL_HOTKEY](#scheduling) | Notifies DOS of a hotkey (used by the console drivers) |
 | 1Dh | [DOS_UTL_LOCK](#scheduling) | Locks the current session (disables session switches) |
 | 1Eh | [DOS_UTL_UNLOCK](#scheduling) | Unlocks the current session |
 | 1Fh | [DOS_UTL_QRYMEM](#memory) | Returns information about a memory block |
@@ -122,7 +122,7 @@ Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-
 
 ### Devices
 
-**DOS_UTL_GETDEV (10h)**: DS:DX -> device name.  Returns ES:DI -> device driver header, or carry set if not found.
+**DOS_UTL_GETDEV (10h)**: DS:DX -> device name.  Returns ES:DI -> device driver header, or carry set if not found.  For CON, AUX, or PRN, it's the driver of the session's device (carry set if the session has no such device).
 
 ### Sessions
 
@@ -150,7 +150,7 @@ Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-
 
 **DOS_UTL_ENDWAIT (1Bh)**: DX:DI = wait ID.  Makes any session waiting on the ID runnable again; carry is set if no session was waiting.
 
-**DOS_UTL_HOTKEY (1Ch)**: CX = console context, DL = character code, DH = scan code.  Used by the console drivers (CON and COM) to notify DOS of CTRL-C, CTRL-P, and CTRL-ALT-DEL; a CTRL-C is also left in the driver's input, for DOS to discard (see [Device Drivers](../dev/)).
+**DOS_UTL_HOTKEY (1Ch)**: CX = console context, DL = character code, DH = scan code.  Used by the console drivers (VKD$ and COM) to notify DOS of CTRL-C, CTRL-P, and CTRL-ALT-DEL; a CTRL-C is also left in the driver's input, for DOS to discard (see [Device Drivers](../dev/)).
 
 **DOS_UTL_LOCK (1Dh)**: Locks the current session, so that no session switch occurs until DOS_UTL_UNLOCK is called.  Returns AX = the console context of the current session (0 if none).
 

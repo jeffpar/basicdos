@@ -1166,7 +1166,7 @@ rl1:	call	tty_read
 rlx:	jmp	rl9
 ;
 ; A non-ASCII key (eg, a cursor key) is a null followed by its scan code (see
-; pull_kbd in the CON driver), which we map to the control character that
+; pull_kbd in the VKD$ driver), which we map to the control character that
 ; edits the line the same way (see SCAN_MAP), ignoring any other such key.
 ;
 rl2:	test	al,al			; non-ASCII key?

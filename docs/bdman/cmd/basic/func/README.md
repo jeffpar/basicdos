@@ -380,7 +380,7 @@ Returns (or sets) the directories, separated by semicolons, that are searched fo
 
 > LPOS(*n*)
 
-Returns the printer's current column, starting at 1 (*n* is ignored), as PRN (LPT1) tracks it: a carriage return returns it to 1, a backspace backs it up, and other control characters don't move it (see [LPRINT](../../device/screen/#lprint)).  Without a printer, LPOS returns 1.  LPOS isn't available on low memory systems.
+Returns the printer's current column, starting at 1 (*n* is ignored), as PRN (normally LPT1) tracks it: a carriage return returns it to 1, a backspace backs it up, and other control characters don't move it (see [LPRINT](../../device/screen/#lprint)).  Without a printer, LPOS returns 1.  LPOS isn't available on low memory systems.
 
 #### PEEK {#peek}
 

@@ -27,7 +27,7 @@ INT_DISKREAD	equ	25h	; absolute disk read
 INT_DISKWRITE	equ	26h	; absolute disk write
 INT_DOSTSR	equ	27h	; terminate-and-stay-resident
 INT_DOSIDLE	equ	28h	; idle notification
-INT_FASTCON	equ	29h	; fast console I/O (installed by CON driver)
+INT_FASTCON	equ	29h	; fast console I/O (installed by VKD$ driver)
 INT_DOSNET	equ	2Ah	; network check
 INT_DOSRES1	equ	2Bh	; reserved
 INT_DOSRES2	equ	2Ch	; reserved

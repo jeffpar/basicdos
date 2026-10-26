@@ -32,12 +32,18 @@ DOS	segment word public 'CODE'
 ; space (if any), so that a padded FCB name (eg, "CON        ") becomes an
 ; ASCIIZ name that can also be passed to the device's driver (see sfb_open).
 ;
+; CON, AUX, and PRN aren't drivers, but names for the active session's
+; devices (see "CON=", "AUX=", and "PRN=" in sysinit), so for those names,
+; CX returns the session's SFB for the device.
+;
 ; Inputs:
 ;	AH = 10h if DS:SI -> FCB (whose name follows its drive byte)
 ;	DS:SI -> name
 ;
 ; Outputs:
-;	On success, ES:DI -> device driver header (DDH)
+;	On success, ES:DI -> device driver header (DDH), and CX -> session SFB
+;	(CX is zero for any other device, and -1 if the session has no such
+;	device, in which case ES:DI is undefined)
 ;	On failure, carry set
 ;
 ; Modifies:
@@ -69,8 +75,30 @@ cd0a:	mov	di,[scb_active]
 	repne	scasb			; does the copy contain a space?
 	jne	cd0			; no
 	mov	byte ptr [di-1],0	; yes, so end the copy there
+;
+; Check for CON, AUX, or PRN, which can be followed by a colon but nothing
+; else (eg, "PRN:", but not "CON:80,25").
+;
+cd0:	mov	ax,[si+3]		; AL = 4th character, AH = 5th
+	cmp	al,':'			; is the 4th a colon?
+	jne	cd0b			; no
+	xchg	al,ah			; then the 5th must end the name
+cd0b:	test	al,al			; does the name end here?
+	jnz	cd0e			; no
+	mov	di,offset DEV_ALIASES	; ES:DI -> DEV_ALIASES
+	mov	ax,[si]			; AX = 1st 2 characters
+	mov	cl,[si+2]		; CL = 3rd character
+	mov	ch,3			; CH = # of names
+cd0c:	scasw				; do the 1st 2 characters match?
+	jne	cd0d			; no
+	cmp	cl,[di]			; does the 3rd?
+	je	cd7			; yes
+cd0d:	inc	di			; skip the 3rd character
+	inc	di			; and the SCB offset
+	dec	ch
+	jnz	cd0c
 
-cd0:	sub	di,di
+cd0e:	sub	di,di
 	mov	es,di
 	ASSUME	ES:BIOS
 	les	di,[DD_LIST]
@@ -95,61 +123,36 @@ cd1:	cmp	di,-1			; end of device list?
 cd2:	cmp	byte ptr es:[di-1],' '
 cd3:	pop	di
 	pop	si
-	je	cd9			; jump if all our compares succeeded
+	je	cd8			; jump if all our compares succeeded
 	les	di,es:[di]		; otherwise, on to the next device
 	jmp	cd1
+;
+; The name is one of the session's devices (DI -> its 3rd character in
+; DEV_ALIASES, followed by the SCB offset of the device's SFH).
+;
+cd7:	push	bx
+	mov	al,[di+1]
+	cbw				; AX = SCB offset of the SFH
+	mov	bx,[scb_active]
+	add	bx,ax
+	mov	bl,[bx]			; BL = session's SFH for the device
+	call	sfb_from_sfh		; BX -> SFB
+	mov	cx,-1
+	jc	cd7a			; the session has no such device
+	mov	cx,bx			; CX -> SFB
+	les	di,[bx].SFB_DEVICE	; ES:DI -> its driver
+cd7a:	pop	bx
+	clc
+	jmp	short cd9
 
+cd8:	sub	cx,cx			; CX = 0 (not one of the session's)
 cd9:	pop	ds
 	pop	si
 	pop	ax
 	ret
 ENDPROC	chk_devname
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; chk_console
-;
-; Checks for a request to open the CON device without a context descriptor
-; (ie, "CON" or "CON:", as opposed to "CON:80,25"), which refers to the active
-; session's console.  Since a session's console may be another device (eg,
-; CONSOLE=COM1 in CONFIG.SYS), we return the session's console SFB, so that
-; all operations on "CON" use the session's console device.
-;
-; Inputs:
-;	DS:SI -> name
-;	ES:DI -> device driver header (DDH) (from chk_devname)
-;
-; Outputs:
-;	If carry clear, BX -> SFB of the active session's console
-;	If carry set, this is not a request for the session's console
-;
-; Modifies:
-;	AX, BX
-;
-DEFPROC	chk_console,DOS
-	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
-	cmp	word ptr es:[di].DDH_NAME,4F43h	; "CO"?
-	jne	cc8
-	cmp	word ptr es:[di].DDH_NAME+2,204Eh	; "N "?
-	jne	cc8
-	mov	al,[si+3]		; AL = character following "CON"
-	test	al,al			; end of name?
-	jz	cc1			; yes
-	cmp	al,':'			; colon?
-	jne	cc8			; no
-	cmp	byte ptr [si+4],0	; anything after the colon?
-	jne	cc8			; yes, so it's a context descriptor
-cc1:	mov	bx,[scb_active]
-	test	bx,bx			; is there an active session?
-	jz	cc8			; no
-	ASSERT	STRUCT,cs:[bx],SCB
-	mov	bl,cs:[bx].SCB_SFHOUT	; BL = session console SFH
-	cmp	bl,SFH_NONE		; has the console been opened yet?
-	je	cc8			; no
-	jmp	sfb_from_sfh		; BX -> SFB (carry set if invalid)
-cc8:	stc
-	ret
-ENDPROC	chk_console
+DEV_ALIASES	db	"CON",SCB_SFHOUT,"AUX",SCB_SFHAUX,"PRN",SCB_SFHPRN
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

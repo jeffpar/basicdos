@@ -38,7 +38,7 @@ DDC_SETLOGDEV	equ	24	; Set Logical Device
 ; Strangely, PC DOS defined only the first 5 bytes (through DDP_STATUS),
 ; leaving one to wonder what the other 8 bytes were used for.  BASIC-DOS
 ; puts them to good use, however.  For example, the DDP_CONTEXT field
-; provides critical context (ie, session) information to our CONSOLE driver.
+; provides critical context (ie, session) information to our console drivers.
 ;
 DDP		struc
 DDP_LEN		db	?	; 00h: length of packet

@@ -37,7 +37,7 @@ In the root directory:
 
 In the **EXT** directory (see [Running Programs](../../intro/#running-programs) for the layout of a BASIC-DOS disk):
 
-- FIND.COM, MORE.COM, SORT.COM, TEE.COM, TR.COM, and WC.COM: filters (see below)
+- FIND.COM, MORE.COM, SED.COM, SORT.COM, TEE.COM, TR.COM, UNIQ.COM, and WC.COM: filters (see below)
 - SLEEP.COM: waits the specified number of seconds (eg, `SLEEP 5`); CTRL-C stops it early (source: [sleep.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/sleep.asm))
 - VI.COM: a full-screen text editor (see [VI](#vi) below)
 - ATTRIB.BAS: displays or changes the attributes of files (see [ATTRIB](#attrib) below)
@@ -55,20 +55,21 @@ Utilities that don't need the speed of assembly language are BASIC programs, wri
 
 ### Filters
 
-A filter reads lines of input, which normally come from a pipe (eg, `DIR | SORT`) or a file (eg, `SORT < NAMES.TXT`), and writes the results to its output.  FIND, MORE, SORT, and WC also accept file names instead.  Input ends when the pipe is closed, at the end of the file, or at a CTRL-Z.  Switches start with the switch character (`/`, or `-` if [SWITCHAR](../../cfg/#switchar) is `-` or [PATHCHAR](../../cfg/#pathchar) is `/`).
+A filter reads lines of input, which normally come from a pipe (eg, `DIR | SORT`) or a file (eg, `SORT < NAMES.TXT`), and writes the results to its output.  FIND, MORE, SED, SORT, UNIQ, and WC also accept file names instead.  Input ends when the pipe is closed, at the end of the file, or at a CTRL-Z.  Switches start with the switch character (`/`, or `-` if [SWITCHAR](../../cfg/#switchar) is `-` or [PATHCHAR](../../cfg/#pathchar) is `/`).
 
 #### FIND
 
-	FIND [/C] [/I] [/N] [/V] "string" [file...]
+	FIND [/C] [/I] [/N] [/R] [/V] "string" [file...]
 
 Displays the lines of input (or of each *file*, or with wildcards (`?` and `*`), every matching file) that contain *string* (eg, `DIR | FIND "BAS"`).  When files are specified, the lines from each file follow a line containing its name.
 
 - `/C` displays only the number of lines
 - `/I` ignores case
 - `/N` puts each line's number in front of it (eg, `[3]`)
+- `/R` treats *string* as a [regular expression](#regular-expressions) (eg, `DIR | FIND /R "^[A-M]"` displays the lines that start with A through M)
 - `/V` displays the lines that do *not* contain *string*
 
-ERRORLEVEL is set to 0 if any lines were displayed (or counted), 1 if none, and 2 if a file couldn't be opened.
+ERRORLEVEL is set to 0 if any lines were displayed (or counted), 1 if none, and 2 if a file couldn't be opened or the regular expression is invalid (`Invalid expression`).
 
 Source: [find.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/find.asm)
 
@@ -79,6 +80,56 @@ Source: [find.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os
 Displays input (or *file*) one screen at a time (eg, `TYPE README.TXT | MORE`).  After each screen, it displays `-- More --` and waits for a key (read from STDERR, since STDIN is the pipe or file); press CTRL-C to stop.
 
 Source: [more.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/more.asm)
+
+#### SED
+
+	SED [/I] [/N] "script" [file]
+
+Runs the commands in *script* on each line of input (or *file*), and then displays the line, unless `/N` is given, like a simple version of the UNIX `sed` command (eg, `DIR | SED "s/BAS/BAK/"`).  The commands are separated by semicolons, and each has the form:
+
+	[address[,address]][!]command
+
+A command with no address applies to every line, a command with one address applies to each line that the address selects, and a command with two applies to each range of lines, from a line that the first address selects through the next line that the second selects (or just the one line, if the second address is a line number that's already been reached).  A `!` applies the command to the lines that *aren't* selected instead.  An address is:
+
+- *n*: line *n* (the first line is 1)
+- `$`: the last line
+- `/regex/`: each line that the [regular expression](#regular-expressions) *regex* matches
+
+The commands are:
+
+- `s/regex/text/[g][p]`: replaces the first match of *regex* with *text*, or with `g`, every match (eg, `s/  */ /g` changes each run of spaces to one space); in *text*, `&` is the match, `\1` through `\9` are the parts of the match that `\(` and `\)` marked in *regex*, and `\` makes any other character ordinary (eg, `\&` or `\\`).  With `p`, the line is displayed if anything was replaced.  Any character can be used instead of `/` (eg, `s,/,\\,g` replaces each `/` with `\`).
+- `d`: deletes the line (skipping the rest of the commands)
+- `p`: displays the line
+- `q`: quits, after displaying the line (unless `/N` was given)
+- `=`: displays the line number
+
+For example:
+
+	SED 10q README.TXT                   displays the first 10 lines
+	SED /N "$=" README.TXT               displays the number of lines
+	SED /N "/BASIC/p" README.TXT         displays the lines containing "BASIC"
+	SED "/^$/d" README.TXT               removes empty lines
+	SED "s/\(.*\)=\(.*\)/\2=\1/" X.TXT   swaps the two sides of each "="
+	SED "1,/^$/d" MAIL.TXT               removes the lines through the first empty one
+
+Quote the script if it contains spaces or other characters that BASIC-DOS treats specially (eg, `|`, `>`, `:`, or `'`), or starts with the switch character; it can't contain a double quote.  `/I` ignores case when matching.  As in every filter, a line longer than 254 characters is split, and if an `s` command would make a line longer than that, the extra characters are dropped.  ERRORLEVEL is set to 0, or 2 if *script* is missing (`Missing script`) or invalid (`Invalid script`), or *file* couldn't be opened.
+
+Source: [sed.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/sed.asm)
+
+#### Regular Expressions
+
+SED's addresses and `s` command, and FIND's `/R` switch, use the regular expressions of the UNIX `ed` and `sed` commands of the 1970s and 1980s:
+
+- an ordinary character matches itself, and `\` before any character makes it ordinary (eg, `\.`, `\*`, `\[`, or `\/` for SED's delimiter)
+- `.` matches any character
+- `[chars]` matches any one of the *chars*, which can include ranges (eg, `[A-Za-z0-9]`), and `[^chars]` matches any character that *isn't* one of them; a `]` first (eg, `[]x]`) or a `-` first or last is ordinary, and so is `\`
+- `*` after a character, `.`, or `[chars]` matches it zero or more times, as many as possible (eg, `[0-9][0-9]*` matches a number)
+- `^` at the start matches the start of the line, and `$` at the end matches its end (elsewhere, they're ordinary)
+- `\(` and `\)` mark a group (up to 9), which the text of a SED `s` command can refer to
+
+An empty regular expression in SED (eg, `//` or `s//text/`) reuses the previous one.  The newer `+`, `?`, `|`, and `\{m,n\}` aren't supported.
+
+Source: the `UTILRE` section of [utilproc.inc](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/utilproc.inc)
 
 #### SORT
 
@@ -107,6 +158,21 @@ Copies input to output, replacing each character in *set1* with the matching cha
 	DIR | TR /S " "
 
 Source: [tr.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/tr.asm)
+
+#### UNIQ
+
+	UNIQ [/C] [/D] [/I] [/U] [file]
+
+Displays input (or *file*), with each run of identical lines displayed only once, like the UNIX `uniq` command.  Only adjacent lines are compared, so input is usually sorted first (eg, `SORT NAMES.TXT | UNIQ`, or since SORT ignores case, `SORT NAMES.TXT | UNIQ /I`).
+
+- `/C` puts the number of times each line occurred in front of it
+- `/D` displays only the lines that were repeated
+- `/U` displays only the lines that weren't repeated
+- `/I` ignores case (displaying the first line of each run)
+
+ERRORLEVEL is set to 0, or 2 if *file* couldn't be opened.
+
+Source: [uniq.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/uniq.asm)
 
 #### WC
 
@@ -216,10 +282,11 @@ Options start with the switch character (`/`, unless [SWITCHAR](../../cfg/#switc
 Files with the same size or time are sorted by name.  A listing can have up to 512 names (more is a "Subscript out of range" error).
 
 	LS \EXT
-	ATTRIB.BAS    DISKCOPY.BAS  LS.BAS        SORT.COM      TREE.BAS
-	CHKDSK.BAS    FIND.COM      MODE.BAS      SYS.BAS       VI.COM
-	COMP.BAS      FORMAT.BAS    MORE.COM      TEE.COM       VOL.BAS
-	DEBUG.COM     LABEL.BAS     SLEEP.COM     TR.COM        WC.COM
+	ATTRIB.BAS    FIND.COM      MORE.COM      TEE.COM       VOL.BAS
+	CHKDSK.BAS    FORMAT.BAS    SED.COM       TR.COM        WC.COM
+	COMP.BAS      LABEL.BAS     SLEEP.COM     TREE.BAS
+	DEBUG.COM     LS.BAS        SORT.COM      UNIQ.COM
+	DISKCOPY.BAS  MODE.BAS      SYS.BAS       VI.COM
 	LS \
 	AUTOEXEC.BAT  CONFIG.SYS    HELP.TXT      TOOLS\
 	COMMAND.COM   EXT\          TESTS\
@@ -274,7 +341,7 @@ Source: [TREE.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os
 
 	VI [/WS] [file]
 
-A full-screen text editor with a subset of the commands of the UNIX *vi* editor.  It works on the CON console and on serial consoles with ANSI or VT100 terminals (but not GENERIC terminals), and it can edit files of up to 64K, using only as much memory as the file needs.  Files are saved with CR/LF at the end of every line.
+A full-screen text editor with a subset of the commands of the UNIX *vi* editor.  It works on VKD$ consoles and on serial consoles with ANSI or VT100 terminals (but not GENERIC terminals), and it can edit files of up to 64K, using only as much memory as the file needs.  Files are saved with CR/LF at the end of every line.
 
 VI starts in command mode, where keys are commands; most commands can be preceded by a count (eg, `3dd` deletes 3 lines).  The cursor keys, Home, End, PgUp, PgDn, Insert, and Delete work as you'd expect, in insert mode too.  The last row of the screen displays messages and the commands that start with `:`, `/`, and `?`.
 
@@ -305,7 +372,7 @@ VI starts in command mode, where keys are commands; most commands can be precede
 | CTRL-L | Redraw the screen |
 | `ZZ` | Save the file (if modified) and exit |
 
-In insert mode, typed characters are inserted, ENTER starts a new line, BACKSPACE erases what was just typed, and ESC (or CTRL-C or Insert) returns to command mode.  On the CON console, insert mode displays a block cursor.
+In insert mode, typed characters are inserted, ENTER starts a new line, BACKSPACE erases what was just typed, and ESC (or CTRL-C or Insert) returns to command mode.  On a VKD$ console, insert mode displays a block cursor.
 
 | Command | Description |
 |---------|-------------|

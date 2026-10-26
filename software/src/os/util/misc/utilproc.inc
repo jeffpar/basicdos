@@ -180,6 +180,364 @@ df9:	clc
 ENDPROC	doFile
 	ENDIF	; UTILWALK
 
+	IFDEF	UTILRE
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; reCompile
+;
+; Compiles a regular expression (RE) in the style of UNIX ed and sed: a
+; character matches itself (unless it's preceded by '\', which makes any
+; character an ordinary one), '.' matches any character, [chars] matches any
+; of the chars or ranges (eg, a-z) in brackets, and [^chars] any character NOT
+; in them ("]" can be the first char, and "-" the first or last), '*' after
+; any of those matches it zero or more times, '^' at the start matches the
+; beginning of the line and '$' at the end its end, and \( and \) mark the
+; groups (up to 9) that SED's replacements can refer to.  The nodes are
+; bracketed by group 0's marks (the match itself).
+;
+; The worst case (4 bytes per ordinary character) can't exceed RE_MAX for
+; the REs of a single command tail.
+;
+; Inputs:
+;	SI -> RE
+;	DL = delimiter that ends the RE (0 if it's null-terminated)
+;	DI -> buffer for the compiled RE
+;
+; Outputs:
+;	If carry clear, SI -> character after the delimiter, DI -> end of RE
+;	If carry set, the RE is invalid
+;
+; Modifies:
+;	AX, BX, CX, SI, DI
+;
+DEFPROC	reCompile
+	push	bp
+	mov	bp,sp			; BP = stack to restore on an error
+	sub	cx,cx			; CL = # groups, CH = # groups open
+	mov	ax,RE_GRP		; AH = 0 (start of group 0)
+	stosw
+	lea	bx,[di-2]		; BX -> last node ('*' repeats a class)
+	cmp	byte ptr [si],'^'	; does the RE start with '^'?
+	jne	rc1			; no
+	inc	si
+	mov	al,RE_BOL
+	stosb
+rc1:	lodsb
+	cmp	al,dl			; end of the RE?
+	je	rc8			; yes
+	cmp	al,'*'
+	jne	rc2
+	cmp	byte ptr [bx],RE_NCCL	; does '*' follow a class?
+	jb	rc2			; no, so it's an ordinary character
+	or	byte ptr [bx],RE_STAR
+	jmp	rc1
+rc2:	mov	bx,di			; BX -> this node
+	test	al,al			; end of the string?
+	jz	rc9			; yes, so the delimiter is missing
+	cmp	al,'.'
+	je	rc5
+	cmp	al,'['
+	je	rk0
+	cmp	al,'$'
+	jne	rc3
+	cmp	[si],dl			; is '$' at the end of the RE?
+	jne	rc4			; no
+	mov	al,RE_EOL
+	stosb
+	jmp	rc1
+rc3:	cmp	al,'\'
+	jne	rc4
+	lodsb
+	cmp	al,'('
+	je	rc6
+	cmp	al,')'
+	je	rc7
+	test	al,al			; is '\' at the end of the string?
+	jnz	rc4			; no
+rc9:	mov	sp,bp			; (an error)
+	pop	bp
+	stc
+	ret
+
+rc8:	test	ch,ch			; any group still open?
+	jnz	rc9			; yes
+	mov	ax,RE_GRP OR (2 SHL 8)	; end of group 0
+	stosw
+	mov	al,RE_END
+	stosb
+	pop	bp
+	ret
+
+rk0:	mov	ax,RE_CCL		; AH = 0 (no pairs yet)
+	cmp	byte ptr [si],'^'	; negated?
+	jne	rk1			; no
+	inc	si
+	dec	ax			; AL = RE_NCCL
+rk1:	stosw
+	lodsb				; a ']' here is an ordinary character
+	jmp	short rk3
+rk2:	lodsb
+	cmp	al,']'			; end of the class?
+	je	rc1			; yes
+rk3:	test	al,al			; end of the string?
+	jz	rc9			; yes
+	mov	ah,al			; AH = last character of the pair
+	cmp	byte ptr [si],'-'	; a range?
+	jne	rk4			; no
+	cmp	byte ptr [si+1],']'	; unless the '-' ends the class
+	je	rk4
+	inc	si
+	lodsb
+	xchg	al,ah			; AH = last character of the range
+	test	ah,ah			; end of the string?
+	jz	rc9			; yes
+rk4:	stosw
+	inc	byte ptr [bx+1]		; count the pair
+	jmp	rk2
+
+rc4:	push	ax
+	mov	ax,RE_CCL OR (1 SHL 8)	; a class with one pair
+	stosw
+	pop	ax
+	mov	ah,al			; (the character twice)
+	stosw
+	jmp	rc1
+
+rc5:	mov	ax,RE_NCCL		; a negated class with no pairs
+	stosw
+	jmp	rc1
+
+rc6:	inc	cx			; CL = group #
+	cmp	cl,9
+	ja	rc9
+	mov	al,cl
+	add	al,al
+	add	al,al			; AL = offset of the group's start
+	push	ax
+	inc	ch
+	jmp	short rc7a
+rc7:	dec	ch			; any group open?
+	js	rc9			; no
+	pop	ax
+	or	al,2			; AL = offset of the group's end
+rc7a:	mov	ah,al
+	mov	al,RE_GRP
+	stosw
+	jmp	rc1
+ENDPROC	reCompile
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; setLine
+;
+; Sets the line that reSearch matches, without its CR/LF (or LF).
+;
+; Inputs:
+;	BP -> UTILVARS
+;	DX -> line (which ends with LF)
+;	CX = length
+;
+; Outputs:
+;	UV_LBEG and UV_LEND set, and SI -> line
+;
+; Modifies:
+;	SI
+;
+DEFPROC	setLine
+	mov	[bp].UV_LBEG,dx
+	mov	si,dx
+	add	si,cx
+	dec	si			; SI -> LF
+	cmp	si,dx			; anything before it?
+	je	sn9			; no
+	cmp	byte ptr [si-1],CHR_RETURN
+	jne	sn9
+	dec	si			; SI -> CR
+sn9:	mov	[bp].UV_LEND,si
+	mov	si,dx
+	ret
+ENDPROC	setLine
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; reSearch
+;
+; Finds the first match of a compiled RE in the line (see setLine) at or after
+; the specified position.  With -I, letters match either case.
+;
+; Inputs:
+;	BP -> UTILVARS
+;	BX -> compiled RE
+;	SI -> position in the line
+;
+; Outputs:
+;	If carry clear, UV_GRPS contains the match (and the groups)
+;	If carry set, there's no match
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+DEFPROC	reSearch
+rs1:	push	si
+	push	bx
+	mov	di,bx
+	call	advance
+	pop	bx
+	pop	si
+	jnc	rs9
+	inc	si
+	cmp	[bp].UV_LEND,si		; carry set if past the end
+	jae	rs1
+rs9:	ret
+ENDPROC	reSearch
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; advance
+;
+; Matches the rest of a compiled RE at the specified position.  A repeated
+; class matches as many characters as it can, and then gives them back one at
+; a time until the rest of the RE matches (calling advance recursively, which
+; uses 8 bytes of stack for each repeat in progress), as ed and sed did.
+;
+; Inputs:
+;	BP -> UTILVARS
+;	DI -> compiled RE
+;	SI -> position in the line
+;
+; Outputs:
+;	Carry clear if the rest matched
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+DEFPROC	advance
+ad1:	mov	ah,[di]			; AH = opcode
+	inc	di
+	cmp	ah,RE_GRP
+	ja	ad4			; a class
+	je	ad3			; a group mark
+	test	ah,ah			; end of the RE?
+	jz	ad9			; yes (with carry clear)
+	mov	bx,[bp].UV_LBEG
+	dec	ah			; RE_BOL?
+	jz	ad2			; yes
+	mov	bx,[bp].UV_LEND
+ad2:	cmp	si,bx			; at the beginning (or end)?
+	je	ad1			; yes
+	stc
+ad9:	ret
+ad3:	mov	bl,[di]
+	inc	di
+	mov	bh,0
+	add	bx,bp
+	mov	[bx].UV_GRPS,si		; record the group's start (or end)
+	jmp	ad1
+ad4:	test	ah,RE_STAR		; repeated?
+	jnz	ad5			; yes
+	call	matchOne
+	jnc	ad1
+	ret
+ad5:	push	si			; save the first position
+	mov	dx,di			; DX -> class
+ad6:	mov	di,dx
+	call	matchOne		; match as many as possible
+	jnc	ad6
+	pop	cx			; CX = first position
+ad7:	push	si
+	push	cx
+	push	di
+	call	advance			; does the rest match here?
+	pop	di
+	pop	cx
+	pop	si
+	jnc	ad9			; yes
+	dec	si			; no, so give one back
+	cmp	si,cx			; carry set if none left
+	jnb	ad7
+	ret
+ENDPROC	advance
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; matchOne
+;
+; Inputs:
+;	BP -> UTILVARS
+;	AH = class opcode (RE_CCL or RE_NCCL, and RE_STAR)
+;	DI -> class (# pairs, and the pairs)
+;	SI -> position in the line
+;
+; Outputs:
+;	DI -> next node
+;	If carry clear, the character at SI matched, and SI is advanced
+;
+; Modifies:
+;	AL, BX, CX, SI, DI
+;
+DEFPROC	matchOne
+	mov	cl,[di]
+	mov	ch,0			; CX = # pairs
+	inc	di
+	mov	bx,di			; BX -> pairs
+	add	di,cx
+	add	di,cx			; DI -> next node
+	cmp	si,[bp].UV_LEND		; any characters left?
+	cmc
+	jc	mo9			; no
+	lodsb
+	call	inClass			; carry set if AL is in the class
+	jc	mo8
+	CHKSW	'I'			; ignoring case?
+	jz	mo8			; no (and carry is clear)
+	or	al,20h
+	sub	al,'a'
+	cmp	al,26			; a letter?
+	jae	mo8			; no (and carry is clear)
+	add	al,'a'			; AL = lower-case letter
+	call	inClass
+	jc	mo8
+	sub	al,20h			; AL = upper-case letter
+	call	inClass
+mo8:	sbb	al,al			; AL = -1 if in the class, 0 if not
+	xor	al,ah			; RE_CCL inverts that (RE_NCCL doesn't)
+	shr	al,1			; carry clear if the character matched
+	jnc	mo9
+	dec	si
+mo9:	ret
+ENDPROC	matchOne
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; inClass
+;
+; Inputs:
+;	AL = character
+;	BX -> pairs
+;	CX = # pairs
+;
+; Outputs:
+;	Carry set if the character is in one of the pairs (ranges)
+;
+DEFPROC	inClass
+	push	bx
+	push	cx
+	jcxz	ic8
+ic1:	cmp	al,[bx]			; below the range?
+	jb	ic2			; yes
+	cmp	[bx+1],al		; carry set if above the range
+	cmc
+	jc	ic9			; it's in the range
+ic2:	inc	bx
+	inc	bx
+	loop	ic1
+ic8:	clc
+ic9:	pop	cx
+	pop	bx
+	ret
+ENDPROC	inClass
+	ENDIF	; UTILRE
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; openFile

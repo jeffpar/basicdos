@@ -74,6 +74,6 @@ The following commands, statements, and functions from PC DOS and IBM PC BASIC a
 - BASIC statements: BEEP, BLOAD, BSAVE, CALL, CHAIN's DELETE option, COMMON, CONT, DEF USR, OUT, PCOPY, RUN *line* (and RUN's R option), TRON, TROFF, WAIT, WIDTH LPRINT, and event trapping (eg, ON TIMER(*n*) GOSUB)
 - BASIC functions: INP, STICK, STRIG, TIMER, USR, VARPTR, and VARPTR$
 
-Some features of PC DOS and IBM PC BASIC aren't planned at all, such as PAUSE and the rest of PC DOS's batch file syntax (BAT files are BASIC programs; see [Batch Files](../lang/#batch-files)), CTTY (see [CONSOLE=](../cfg/#console)), and PRINT USING (see [How to replace PRINT USING](device/screen/#how-to-replace-print-using)).
+Some features of PC DOS and IBM PC BASIC aren't planned at all, such as PAUSE and the rest of PC DOS's batch file syntax (BAT files are BASIC programs; see [Batch Files](../lang/#batch-files)), CTTY (see [CON=](../cfg/#con)), and PRINT USING (see [How to replace PRINT USING](device/screen/#how-to-replace-print-using)).
 
 {% include footer.html prev="Contents:../" next="BASIC Commands:basic/" %}

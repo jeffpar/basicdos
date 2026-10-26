@@ -184,9 +184,9 @@ Returns e (2.71828...) raised to the power of *x*.
 [b+]FIELD [#]*n*,*width* AS *variable$*[,*width* AS *variable$*]...
 Divides each record of random access file *n* into fields (up to 16): GET # sets each variable to its field, and PUT # writes each variable to its field (see LSET and RSET).
 
-[e]FIND [~C] [~I] [~N] [~V] "*string*" [*file*...]
-Displays the lines of input (or of each *file*, or with wildcards (? and *), every matching file) that contain *string* (eg, DIR | FIND "BAS").  ~C displays only the number of lines, ~I ignores case, ~N adds line numbers, and ~V displays the lines that do NOT contain *string*.
-ERRORLEVEL is set to 0 if any lines were displayed (or counted), 1 if none, and 2 if a *file* couldn't be opened.
+[e]FIND [~C] [~I] [~N] [~R] [~V] "*string*" [*file*...]
+Displays the lines of input (or of each *file*, or with wildcards (? and *), every matching file) that contain *string* (eg, DIR | FIND "BAS").  ~C displays only the number of lines, ~I ignores case, ~N adds line numbers, ~R treats *string* as a regular expression (see SED; eg, DIR | FIND ~R "^[A-M]"), and ~V displays the lines that do NOT contain *string*.
+ERRORLEVEL is set to 0 if any lines were displayed (or counted), 1 if none, and 2 if a *file* couldn't be opened or the expression is invalid.
 
 [f]FIX(*x*)
 Returns *x* truncated to an integer (eg, FIX(-2.5) is -2).  See also INT.
@@ -285,7 +285,7 @@ LIST VARS lists preserved strings (including PATH$), then ordinary variable valu
 To add a line to the program (or replace the line with the same number), type the line with its line number at the prompt.
 
 [b+]LLIST [*line*][-[*line*]]
-Lists all lines (or the specified range of lines) like LIST, but to the printer (PRN, which is LPT1).
+Lists all lines (or the specified range of lines) like LIST, but to the printer (PRN, normally LPT1).  Without a PRN device, a "Device unavailable" error occurs.
 
 [b]LOAD *file*
 Loads the specified BAT or BAS file (searching PATH$ if necessary), which can be a text file or a tokenized BAS file saved by BASICA or GW-BASIC.  LOAD can't be used inside a BAS or BAT file (yet).
@@ -307,7 +307,7 @@ Returns the natural logarithm of *x*, which must be greater than zero.
 Returns the printer's current column, starting at 1 (*n* is ignored).
 
 [b+]LPRINT [*expression*][;|,][*expression*]...
-Prints like PRINT, but to the printer (PRN, which is LPT1).  Without a printer, a "Device timeout" error occurs (a printer can also report "Out of paper" or "Device fault"), as it does for PRINT # to a printer.
+Prints like PRINT, but to the printer (PRN, normally LPT1).  Without a PRN device (eg, no parallel port), a "Device unavailable" error occurs, and a printer can report "Device timeout", "Out of paper", or "Device fault", as it does for PRINT # to a printer.
 
 [e]LS [~1alRrSt] [*filespec*]...
 Lists the files matching each *filespec* that isn't a directory, and then the files in each directory (or the current directory), sorted by name, in columns (or one per line when the output is a file or pipe), with \ after each directory name.  A listing can have up to 512 names.
@@ -489,6 +489,11 @@ Changing the mode clears the screen and removes the session's border, if any.
 SCREEN(*row*,*col*[,*z*])
 Returns the character code at *row* and *col*, or its attributes if *z* is non-zero.
 
+[e]SED [~I] [~N] "*script*" [*file*]
+Runs the commands in *script* (separated by ;) on each line of input (or *file*), and then displays the line, unless ~N is given (eg, DIR | SED "s/BAS/BAK/").  A command can start with an address (a line number, $ for the last line, or /*regex*/ for each line that *regex* matches), or with two addresses separated by a comma, for each range of lines from one that the first selects to one that the second selects; a ! after the addresses selects the other lines instead.  The commands are: s/*regex*/*text*/ replaces the first match of *regex* with *text* (or every match, with g after the last /), in which & is the match and \1 to \9 are the parts of *regex* marked by \( and \) (and p after the last / displays the result); d deletes the line and skips the rest of the commands, p displays the line, q quits (after displaying the line, unless ~N), and = displays the line number.
+In a *regex*, . matches any character, [*chars*] any of the *chars* or ranges (eg, [a-z0-9]), and [^*chars*] any other character; * after any of those matches it zero or more times, ^ at the start matches the start of the line and $ at the end its end, and \ makes the next character ordinary (eg, \. or \/).  An empty *regex* reuses the previous one, and ~I ignores case.
+ERRORLEVEL is set to 0, or 2 if *script* is missing or invalid, or *file* couldn't be opened.
+
 [f]SGN(*x*)
 Returns -1 if *x* is negative, 0 if *x* is zero, or 1 if *x* is positive.
 
@@ -562,6 +567,10 @@ Displays the contents of the specified file, or with wildcards (? and *), the na
 
 [f]UCASE$(*string*)
 Returns *string* with all lower-case letters converted to upper-case.
+
+[e]UNIQ [~C] [~D] [~I] [~U] [*file*]
+Displays input (or *file*) with each run of identical lines displayed only once, so input is usually sorted first (eg, SORT NAMES.TXT | UNIQ).  ~C displays the number of times each line occurred in front of it, ~D displays only the lines that were repeated, ~U only the lines that weren't, and ~I ignores case.
+ERRORLEVEL is set to 0, or 2 if *file* couldn't be opened.
 
 [f]VAL(*string*)
 Returns the numeric value of *string*, ignoring any blanks.  If *string* does not begin with a number, the result is 0.  The &H (hex) and &O (octal) prefixes are allowed (eg, VAL("&HFF") is 255).  Without floating-point (see MEM), the result is an integer (eg, VAL("3.9") is 3).

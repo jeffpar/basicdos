@@ -483,7 +483,7 @@ ENDPROC	int_leave
 ; ENDWAIT, HOTKEY, LOCK, and UNLOCK), which avoids the overhead (and stack
 ; usage) of a complete REG_FRAME; those calls are typically made from within
 ; other DOS calls (eg, a READ request), from hardware interrupt handlers, or
-; from BIOS hooks (eg, CON's INT 10h handler), when the caller's stack may not
+; from BIOS hooks (eg, VKD$'s INT 10h handler), when the caller's stack may not
 ; have much to spare.
 ;
 ; Only these functions are supported, because they take their inputs in

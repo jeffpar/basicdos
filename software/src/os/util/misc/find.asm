@@ -7,16 +7,23 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Usage: FIND [-C] [-I] [-N] [-V] "string" [files...]
+; Usage: FIND [-C] [-I] [-N] [-R] [-V] "string" [files...]
 ;
 ; Displays every line of input (or of the specified files, which may include
 ; wildcards) that contains "string".  -C displays only the number of lines, -I
-; ignores case, -N adds line numbers, and -V selects lines that do NOT contain
+; ignores case, -N adds line numbers, -R treats "string" as a regular
+; expression (see reCompile), and -V selects lines that do NOT contain
 ; "string".  The exit code is 0 if any lines were selected, 1 if none, and 2 if
 ; an error occurred.
 ;
 	UTILWALK equ 1
+	UTILRE equ 1
 	include	utilvars.inc
+
+FINDVARS	struc
+FV_UV		db	size UTILVARS dup (?)
+FV_RE		db	RE_MAX dup (?)	; -R: the compiled RE
+FINDVARS	ends
 
 CODE    SEGMENT
 
@@ -24,12 +31,23 @@ CODE    SEGMENT
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 DEFPROC	main
-	mov	bp,ds:[PSP_HEAP]	; BP -> UTILVARS
+	mov	bp,ds:[PSP_HEAP]	; BP -> FINDVARS
 	call	getArgs
 	mov	si,offset NO_STRING
 	cmp	[bp].UV_STR,0		; was a string specified?
 	je	m8			; no
-	inc	[bp].UV_ERR		; assume no lines will be selected
+	CHKSW	'R'			; is it a regular expression?
+	jz	m0			; no
+	mov	si,[bp].UV_STR
+	mov	bx,si
+	add	bx,[bp].UV_STRLEN
+	mov	byte ptr [bx],0		; null-terminate it
+	mov	dl,0
+	lea	di,[bp].FV_RE
+	call	reCompile
+	mov	si,offset BAD_RE
+	jc	m8
+m0:	inc	[bp].UV_ERR		; assume no lines will be selected
 	mov	[bp].UV_PREFIX,offset COLON+2
 	cmp	[bp].UV_NFILES,0	; any files?
 	jne	m1			; yes
@@ -118,13 +136,25 @@ ENDPROC	findLines
 ;	CX = length
 ;
 ; Outputs:
-;	AL = 1 if the line contains the string, 0 if not
+;	AL = 1 if the line contains the string (or matches the RE), 0 if not
 ;
 ; Modifies:
 ;	AX, BX, SI, DI
 ;
 DEFPROC	matchLine
+	CHKSW	'R'			; matching a regular expression?
+	jz	ml0			; no
 	push	cx
+	push	dx
+	call	setLine			; SI -> line
+	lea	bx,[bp].FV_RE
+	call	reSearch		; carry clear if it matches
+	pop	dx
+	pop	cx
+	sbb	al,al
+	inc	ax			; AL = 1 if it matches, 0 if not
+	ret
+ml0:	push	cx
 	mov	di,dx
 	mov	bx,[bp].UV_STRLEN
 	sub	cx,bx			; CX = # positions to check, minus 1
@@ -163,9 +193,10 @@ ENDPROC	matchLine
 	include	utilproc.inc
 
 NO_STRING	db	"Missing quoted string",13,10,0
+BAD_RE		db	"Invalid expression",13,10,0
 COLON		db	": ",0
 
-	COMHEAP	<size UTILVARS + STACK_LEN>
+	COMHEAP	<size FINDVARS + STACK_LEN>
 
 CODE	ENDS
 

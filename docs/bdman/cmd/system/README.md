@@ -77,7 +77,7 @@ Lists all lines of the currently loaded BAS or BAT program, or the specified ran
 
 > LLIST [*line*][-[*line*]]
 
-Lists all lines (or the specified range of lines) like [LIST](#list), but to the printer (PRN, which is LPT1; see [LPRINT](../device/screen/#lprint)).  Without a printer, a "Device timeout" error occurs.  LLIST isn't available on low memory systems.
+Lists all lines (or the specified range of lines) like [LIST](#list), but to the printer (PRN, normally LPT1; see [LPRINT](../device/screen/#lprint)).  Without a PRN device, a "Device unavailable" error occurs.  LLIST isn't available on low memory systems.
 
 ### MEM
 
@@ -107,7 +107,7 @@ Erases the loaded program, functions, and variables.
 `RESTART` alone lists every session: its number, its console, and its program, or `Unused` if it has none (the number of sessions comes from `SESSIONS=` in CONFIG.SYS, which defaults to 4), with `*` marking the current session:
 
 	C:\>RESTART
-	* 1 CON      COMMAND
+	* 1 VKD$     COMMAND
 	  2 COM1     COMMAND
 	  3          Unused
 	  4          Unused

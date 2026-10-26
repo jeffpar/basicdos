@@ -1366,7 +1366,7 @@ ENDPROC	get_pos
 ;
 ; get_mode
 ;
-; Determines the video mode (using INT 10h function 0Fh, which the CON
+; Determines the video mode (using INT 10h function 0Fh, which the VKD$
 ; driver answers for the caller's session), and the corresponding pointer
 ; type, video memory segment, and text column width.
 ;

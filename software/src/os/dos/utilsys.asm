@@ -49,6 +49,8 @@ DEFPROC	utl_getdev,DOS
 	mov	ah,0			; the name isn't an FCB (see chk_devname)
 	call	chk_devname		; DS:SI -> device name
 	jc	gd9
+	add	cx,1			; carry set if CX is -1 (ie, the session
+	jc	gd9			; has no such device; see chk_devname)
 	mov	[bp].REG_DI,di
 	mov	[bp].REG_ES,es
 gd9:	ret
