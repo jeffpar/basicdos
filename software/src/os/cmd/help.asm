@@ -29,6 +29,9 @@ CODE    SEGMENT
 ; the keywords that aren't in COMMAND's core; otherwise, display help for
 ; HELP, which describes the categories.
 ;
+; Names passed to findHelp must be in DS (eg, a token), and HELP_CATS must be
+; read with CS, since only the copy that owns the shared code has DS = CS.
+;
 ; Inputs:
 ;	BX -> CMDHEAP
 ;	DI -> TOKENBUF
@@ -45,26 +48,26 @@ DEFPROC	cmdHelp
 	mov	dl,[bx].CMD_ARG		; is there a non-switch argument?
 	call	getToken
 	jnc	hp0			; yes
-	mov	si,offset HELP_FILE	; no, so use "HELP" (the first 4
-	mov	cx,4			; characters of HELP_FILE)
+	mov	dl,0			; no, so use the command's own name
+	call	getToken		; (ie, "HELP")
 	jmp	short doHelp
 ;
 ; If the argument is a category, list the entries tagged with the category's
 ; first letter in lower case (eg, "b" for BASIC), or for ALL, every entry.
 ;
 hp0:	mov	di,offset HELP_CATS
-hpc1:	mov	ah,[di]			; AH = 1st letter of the next category
+hpc1:	mov	ah,cs:[di]		; AH = 1st letter of the next category
 	test	ah,ah			; any more?
 	jz	doHelp			; no
 	push	cx
 	push	si
 hpc2:	lodsb
 	and	al,0DFh			; (upper-case the argument)
-	cmp	al,[di]
+	cmp	al,cs:[di]
 	jne	hpc4
 	inc	di
 	loop	hpc2
-	cmp	[di],cl			; does the category end here, too?
+	cmp	cs:[di],cl		; does the category end here, too?
 	jne	hpc4			; no
 	pop	si
 	pop	cx
@@ -78,16 +81,15 @@ hpc3:	mov	ch,ah
 	jne	doHelp			; no
 	push	bx
 	push	cx
-	mov	si,offset HELP_CORE	; yes, so display help for CORE first
-	mov	cx,4
-	call	doHelp
+	mov	cx,4			; yes, so display help for CORE (the
+	call	doHelp			; argument at SI) first
 	pop	cx
 	pop	bx
 	jmp	short doHelp
 hpc4:	pop	si
 	pop	cx
 hpc5:	inc	di
-	cmp	byte ptr [di-1],0	; skip the rest of the category
+	cmp	byte ptr cs:[di-1],0	; skip the rest of the category
 	jne	hpc5
 	jmp	hpc1
 ;
@@ -182,8 +184,8 @@ ENDPROC	cmdHelp
 ; HELP_CATS contains the categories (see cmdHelp), whose first letters (in
 ; lower case) are the tags in HELP.TXT, except for CORE (see findHelp).
 ;
-HELP_CATS	db	"ALL",0,"BASIC",0
-HELP_CORE	db	"CORE",0,"DISK",0,"EXT",0,"FUNC",0,"SYS",0,0
+HELP_CATS	db	"ALL",0,"BASIC",0,"CORE",0,"DISK",0,"EXT",0,"FUNC",0
+		db	"SYS",0,0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

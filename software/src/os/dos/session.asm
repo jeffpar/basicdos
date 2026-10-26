@@ -335,6 +335,21 @@ DEFPROC	scb_close,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	call	get_scb
  	jc	sud9
+	call	scb_endio		; AX = 0
+	and	[bx].SCB_STATUS,NOT (SCSTAT_LOAD OR SCSTAT_START)
+;
+; In case another session was waiting for this session to close, call endwait.
+;
+	mov	di,bx
+	mov	dx,ds			; DX:DI = SCB address (the wait ID)
+	call	scb_endwait
+	clc
+sud9:	ret
+ENDPROC	scb_close
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scb_endio
 ;
 ; If the session's input is a character device, read zero bytes from it,
 ; which tells a pipe that its reader is done, so that the command writing to
@@ -343,8 +358,23 @@ DEFPROC	scb_close,DOS
 ; device, write zero bytes to it, which tells a pipe that its input has ended,
 ; just as COMMAND does after the first command of a pipeline (otherwise, in
 ; "TYPE FILE | SORT | MORE", MORE would wait forever).  Other character
-; devices ignore both.
+; devices ignore both.  Then close the session's system handles.
 ;
+; Since this I/O can switch sessions, psp_term calls this before it frees the
+; memory (and stack) of a session's last program; when scb_close calls it
+; again, the handles are already closed, so it does nothing.
+;
+; Inputs:
+;	BX -> SCB
+;
+; Outputs:
+;	AX = 0
+;
+; Modifies:
+;	AX, CX, DX, SI, DI, ES
+;
+DEFPROC	scb_endio,DOS
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	push	bx
 	mov	dx,offset sfb_read
 	mov	bl,[bx].SCB_SFHIN
@@ -358,23 +388,15 @@ DEFPROC	scb_close,DOS
 	mov	cx,5			; close this session's system handles
 	push	bx
 	lea	si,[bx].SCB_SFHIN
-sud1:	mov	bl,SFH_NONE
+sei1:	mov	bl,SFH_NONE
 	xchg	bl,[si]
 	call	sfh_close
 	inc	si
-	loop	sud1
+	loop	sei1
 	pop	bx
 	xchg	ax,cx			; make sure AX is zero
-	and	[bx].SCB_STATUS,NOT (SCSTAT_LOAD OR SCSTAT_START)
-;
-; In case another session was waiting for this session to close, call endwait.
-;
-	mov	di,bx
-	mov	dx,ds			; DX:DI = SCB address (the wait ID)
-	call	scb_endwait
-	clc
-sud9:	ret
-ENDPROC	scb_close
+	ret
+ENDPROC	scb_endio
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -535,18 +557,25 @@ ENDPROC	scb_query
 ;	BX, DX
 ;
 DEFPROC	scb_yield,DOS
-	sti
 	mov	bx,ax
 	test	ax,ax			; is this yield due to a WAIT?
 	jnz	sy1			; no
 	mov	bx,[scb_active]		; yes, spin until we find an SCB
-sy1:	add	bx,size SCB
+;
+; Interrupts are enabled between SCBs, but not from testing an SCB until we
+; switch to it; otherwise, an interrupt could reschedule in between, and when
+; this session resumed, it would switch to the SCB without testing it again
+; (eg, after its session had ended).
+;
+sy1:	sti
+	add	bx,size SCB
 	cmp	bx,[scb_table].SEG
 	jb	sy2
 	mov	bx,[scb_table].OFF
 sy2:	ASSERT	STRUCT,[bx],SCB
 	cmp	bx,ax			; have we returned to active SCB?
 	je	scb_test		; yes (go check for ABORT)
+	cli
 	test	[bx].SCB_STATUS,SCSTAT_START
 	jz	sy1			; ignore this SCB, hasn't started
 	mov	dx,[bx].SCB_WAITID.OFF
@@ -558,6 +587,7 @@ sy2:	ASSERT	STRUCT,[bx],SCB
 	jz	sy8			; no
 	mov	[scb_stoked],offset scb_stoke
 sy8:	dec	[scb_locked]
+	sti
 sy9:	ASSERT	NC
 	ret
 ENDPROC	scb_yield

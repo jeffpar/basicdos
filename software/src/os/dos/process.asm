@@ -21,7 +21,7 @@ DOS	segment word public 'CODE'
 	EXTWORD	<mcb_head,mcb_limit,scb_active,load_reserve>
 	EXTLONG	<scb_table,sfb_table>
 	EXTNEAR	<sfh_add_ref,pfh_close,sfh_close,sfb_close,reset_keys>
-	EXTNEAR	<mcb_getsize,mcb_free_all>
+	EXTNEAR	<mcb_getsize,mcb_free_all,scb_endio>
 	EXTNEAR	<dos_check,dos_leave,dos_leave2,dos_ctrlc,dos_error>
 	EXTNEAR	<mcb_setname,scb_getnum,scb_release,scb_close,scb_yield>
 	EXTNEAR	<msc_sigctrlc,msc_retctrlc>
@@ -112,6 +112,18 @@ pt1a:	call	psp_close		; close all the process file handles
 	mov	al,es:[PSP_SCB]		; save SCB #
 	push	ax
 	push	si			; save PSP of parent
+;
+; We're still using the program's stack, so once its memory is freed, we
+; must not switch sessions (another session could reuse that memory) until
+; we're done with it; and since ending a session's I/O can switch sessions,
+; a parent-less program's session I/O must be ended first (see scb_endio).
+;
+	test	si,si			; parent-less program?
+	jnz	pt1b			; no
+	push	es
+	call	scb_endio		; BX -> SCB
+	pop	es
+pt1b:	LOCK_SCB
 	mov	ax,es
 	call	mcb_free_all		; free all blocks owned by PSP in AX
 	pop	ax			; restore PSP of parent
@@ -123,6 +135,7 @@ pt1a:	call	psp_close		; close all the process file handles
 	test	ax,ax
 	jnz	pt8
 	call	scb_close		; close SCB # CL
+	dec	[scb_locked]		; (carry unchanged)
 	jc	pt7
 	jmp	scb_yield		; and call scb_yield with AX = zero
 	ASSERT	NEVER
@@ -137,6 +150,7 @@ pt8:	mov	es,ax			; ES = PSP of parent
 	cli
 	mov	ss,es:[PSP_STACK].SEG
 	mov	sp,es:[PSP_STACK].OFF
+	dec	[scb_locked]		; (interrupts are off until dos_leave2)
 ;
 ; When a program (eg, SYMDEB.EXE) loads another program using DOS_PSP_EXEC1,
 ; it will necessarily be exec'ing the program itself, which means we can't be
