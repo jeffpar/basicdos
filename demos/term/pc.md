@@ -23,7 +23,7 @@ The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 64K of memory, 
 
 {% include vt100-demo.html id="ibm5150" headless=true %}
 
-Wait a few seconds for the BASIC-DOS banner to appear on the VT100, then click its screen and type a command, such as `DIR` or `PRINT "Hello from the VT100"`.  Use the **MEM** command to display current memory usage.  The PC has no screen of its own, so its diskette drive and Reset controls are below the VT100.
+Wait a few seconds for the BASIC-DOS banner to appear on the VT100, then type a command, such as `DIR` or `PRINT "Hello from the VT100"` (the VT100 has keyboard focus when the page loads; click its screen to give it focus again).  Use the **MEM** command to display current memory usage.  The PC has no screen of its own, so its diskette drive and Reset controls are below the VT100.
 
 With only 64K of memory, there isn't room for all of COMMAND.COM, so BASIC-DOS loads only its *core*: the graphics statements (CIRCLE, DRAW, GET, LINE, PAINT, PRESET, PSET, and PUT), the sound statements (PLAY and SOUND), the file statements (eg, OPEN and CLOSE), and LOAD's support for tokenized BAS files are left out, and using one of them reports `Not enough memory`.  There is no floating-point either: numbers are 32-bit integers, and numeric functions like SQR are unavailable.
 

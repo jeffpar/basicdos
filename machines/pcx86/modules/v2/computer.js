@@ -1741,6 +1741,16 @@ export default class Computer extends Component {
                 globals.window.scrollTo(x, y);
             }
         }
+        else if (globals.browser) {
+            /**
+             * A machine with no video (eg, a PC whose only console is a terminal on a serial port) gives focus
+             * to whatever its serial ports are connected to instead.
+             */
+            let serial = null;
+            while ((serial = /** @type {SerialPort} */ (this.getMachineComponent("SerialPort", serial || false)))) {
+                serial.setFocus(fScroll);
+            }
+        }
     }
 
     /**
