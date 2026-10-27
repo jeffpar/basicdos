@@ -31,6 +31,10 @@ BOOT	segment word public 'CODE'
 	org	BOOT_SECTOR_LO
         ASSUME	CS:BOOT, DS:NOTHING, ES:NOTHING, SS:NOTHING
 ;
+; The boot code runs entirely in segment 0, so it adds BIOS_DATA to the
+; offsets of everything in the BIOS segment (40h).
+;
+;
 ; All we assume on entry is:
 ;
 ;	CS = 0
@@ -203,16 +207,15 @@ ENDPROC	printp
 
 	push	cs
 	pop	es
-	ASSUME	ES:BIOS
 	lds	si,dword ptr es:[INT_DPT*4]
 	mov	cx,size DPT		; DS:SI -> original table (in ROM)
-	mov	di,offset DPT_ACTIVE	; ES:DI -> DPT_ACTIVE
+	mov	di,offset DPT_ACTIVE + BIOS_DATA
+					; ES:DI -> DPT_ACTIVE
 	push	di
 	rep	movsb
 	pop	si
 	push	cs
 	pop	ds
-	ASSUME	DS:BIOS
 	mov	[si].DP_SPECIFY1,0DFh	; change step rate to 6ms
 	mov	[si].DP_HEADSETTLE,cl	; and change head settle time to 0ms
 	mov	ds:[INT_DPT*4],si
@@ -237,7 +240,8 @@ ENDPROC	printp
 DEFPROC	main,far			; now at BOOT_SECTOR_LO
 	mov	ds:[mybpb].BPB_DRIVE,dl	; save boot drive (DL) in BPB
 	IFDEF	MAXDEBUG
-	cmp	ds:[BOOT_KEY].LOB,cl	; boot key zero?
+	cmp	ds:[BOOT_KEY+BIOS_DATA].LOB,cl
+					; boot key zero?
 	jne	m0			; no, force a boot prompt
 	ENDIF
 	test	dl,dl			; hard drive?
@@ -260,18 +264,20 @@ m0:	mov	si,offset product
 ; be shorter.
 ;
 	mov	dl,TWAIT * 182 / 10
-	add	dl,byte ptr [TIMER_LOW]	; DL = target tick count (low byte)
+	add	dl,byte ptr ds:[TIMER_LOW+BIOS_DATA]
+					; DL = target tick count (low byte)
 m8:	mov	ah,KBD_CHECK
 	int	INT_KBD
 	jnz	m9			; a key is available
-	cmp	dl,byte ptr [TIMER_LOW]	; target tick count reached?
+	cmp	dl,byte ptr ds:[TIMER_LOW+BIOS_DATA]
+					; target tick count reached?
 	jne	m8			; no
 	jmp	short m10		; yes, continue booting from this disk
 m9:	mov	ah,KBD_READ
 	int	INT_KBD			; AL = char code, AH = scan code
 	cmp	al,CHR_ESCAPE		; escape key?
 	je	hard			; yes, boot from the hard disk
-	mov	[BOOT_KEY],ax		; save boot key
+	mov	ds:[BOOT_KEY+BIOS_DATA],ax ; save boot key
 m10:	mov	si,offset crlf
 	call	print
 ;
@@ -280,7 +286,7 @@ m10:	mov	si,offset crlf
 find:	mov	si,offset mybpb		; SI -> BPB
 	mov	dx,[si].BPB_LBAROOT	; DX = root dir LBA
 m1:	mov	ax,dx			; AX = LBA
-	mov	di,offset DIR_SECTOR	; DI = dir sector
+	mov	di,offset DIR_SECTOR + BIOS_DATA
 	call	read_sector		; read it
 	jc	boot_error		; jump if error
 m2:	mov	cx,3			; CX = # files left to find
@@ -315,7 +321,7 @@ hltmsg:	call	print
 ;
 ; There's a hard disk and no response, so boot from hard disk instead.
 ;
-hard:	mov	al,[CRT_MODE]
+hard:	mov	al,ds:[CRT_MODE+BIOS_DATA]
 	cbw				; AH = 00h (SET MODE)
 	int	INT_VIDEO
 	mov	ax,0201h		; AH = 02h (READ), AL = 1 sector
@@ -340,8 +346,8 @@ read:	mov	ax,word ptr [DEV_FILE+2]; AX = CLN
 ;
 move:	mov	ax,[si].BPB_SECBYTES
 	mov	si,offset PART2_COPY
-	mov	di,offset BIOS_END
-	mov	cx,offset DIR_SECTOR
+	mov	di,offset BIOS_END + BIOS_DATA
+	mov	cx,offset DIR_SECTOR + BIOS_DATA
 	add	cx,ax
 	sub	cx,si
 	rep	movsb			; move first bit of DEV_FILE
@@ -451,8 +457,8 @@ DEFPROC	part2,far
 	mov	cx,offset PART1_COPY_END - offset PART1_COPY
 	rep	movsb
 
-	mov	di,offset FAT_BUFHDR
-	mov	cx,offset DIR_SECTOR
+	mov	di,offset FAT_BUFHDR + BIOS_DATA
+	mov	cx,offset DIR_SECTOR + BIOS_DATA
 	sub	cx,di		; now we can zero the area
 	rep	stosb		; from FAT_BUFHDR to DIR_SECTOR
 	pop	di		; restore DEV_FILE read address
@@ -475,7 +481,8 @@ DEFPROC	part2,far
 ; the DEV_FILE init code's job), we do this by simply "hopping" over all
 ; the headers.
 ;
-	mov	di,offset BIOS_END; BIOS's end is DEV_FILE's beginning
+	mov	di,offset BIOS_END + BIOS_DATA
+				; BIOS's end is DEV_FILE's beginning
 	mov	cx,100		; put a limit on this loop
 i1:	mov	ax,[di]		; AX = current driver's total size
 	cmp	ax,-1		; have we reached end of drivers?
@@ -486,7 +493,8 @@ i2:	jmp	load_error
 ;
 ; Prepare to "call" the DEV_FILE entry point, with DI -> end of drivers.
 ;
-i3:	mov	[DD_LIST].OFF,ax; initialize driver list head (to -1)
+i3:	mov	ds:[DD_LIST+BIOS_DATA].OFF,ax
+				; initialize driver list head (to -1)
 	mov	ax,di
 	push	cs
 	mov	cx,offset part3
@@ -600,10 +608,8 @@ read_error label near
 rd5:	mov	ax,[bx+2]	; AX = CLN
 	push	es
 	mov	es,dx		; relies on DX still being zero
-	ASSUME	ES:BIOS
 	call	read_fat	; DX = next CLN
 	pop	es
-	ASSUME	ES:NOTHING
 	mov	[bx+2],dx	; update CLN
 
 read_file label near
@@ -649,10 +655,10 @@ rf16:	mov	al,ah
 	mov	bh,0
 	shl	bx,1
 rf0:	add	ax,[si].BPB_RESSECS
-	mov	di,offset FAT_SECTOR
-	cmp	ax,[FAT_BUFHDR].BUF_LBA
+	mov	di,offset FAT_SECTOR + BIOS_DATA
+	cmp	ax,ds:[FAT_BUFHDR+BIOS_DATA].BUF_LBA
 	je	rf1
-	mov	[FAT_BUFHDR].BUF_LBA,ax
+	mov	ds:[FAT_BUFHDR+BIOS_DATA].BUF_LBA,ax
 	call	read_sector2
 	jc	read_error
 
@@ -661,8 +667,8 @@ rf1:
 	inc	bx
 	cmp	bx,512		; at the sector boundary?
 	jb	rf2		; no
-	inc	[FAT_BUFHDR].BUF_LBA
-	mov	ax,[FAT_BUFHDR].BUF_LBA
+	inc	ds:[FAT_BUFHDR+BIOS_DATA].BUF_LBA
+	mov	ax,ds:[FAT_BUFHDR+BIOS_DATA].BUF_LBA
 	call	read_sector2	; read next FAT LBA
 	jc	read_error
 	sub	bx,bx

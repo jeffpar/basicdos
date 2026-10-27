@@ -39,7 +39,7 @@ CPU$ is the first driver in BASDEV.COM (ahead of NUL), so it's initialized befor
 
 It stores the result in CPU_TYPE (0:512h), as one of the CPUTYPE_* values in cpu.inc (0 = 8086/8088, 1 = 80186/80188, 2 = 80286, 3 = 80386 or later), which DEVINIT sets to zero beforehand in case CPU$ is skipped (`SKIP=CPU$`).  A `CPU=8088` line in CONFIG.SYS makes CPU$ store 0 (8086/8088) and unload itself, as it does on an 8088, without enabling A20.
 
-CPU$ unloads itself (taking no memory) unless the processor is an 80286 or later, the BIOS reports at least 64K of extended memory (INT 15h function 88h), A20 can be enabled (with the 8042 keyboard controller, as on a PC AT), and a switch to protected mode and back succeeds.  Otherwise, it stays loaded, enables A20 permanently, builds the arena and descriptor tables described below, and makes its functions available through DDINT_CPU (0:513h), a 5-byte far jump in low memory like the other DDINT entry points.  DEVINIT initializes DDINT_CPU to `STC`, `RETF`, so a call fails (with carry set) whenever CPU$ isn't loaded.
+CPU$ unloads itself (taking no memory) unless the processor is an 80286 or later, the BIOS reports at least 64K of extended memory (INT 15h function 88h), A20 can be enabled (with the 8042 keyboard controller, as on a PC AT), and a switch to protected mode and back succeeds.  Otherwise, it stays loaded, enables A20 permanently, builds the arena and descriptor tables described below, and makes its functions available through DDINT_CPU (53Fh), a 5-byte far jump in low memory like the other DDINT entry points.  DEVINIT initializes DDINT_CPU to `STC`, `RETF`, so a call fails (with carry set) whenever CPU$ isn't loaded.
 
 When it stays loaded, CPU$ takes 1K of conventional memory (its initialization code is discarded), plus the 64K system area in extended memory.
 
@@ -72,8 +72,8 @@ Physical memory on the baseline 2Mb PC AT:
 |---------|--------|----------|----------|
 | 000000h | 1K | DOS | Real-mode interrupt vector table |
 | 000400h | 256 | DOS | ROM BIOS data area |
-| 000500h | 1120 | DOS | BASIC-DOS low memory: CPU_TYPE (512h), DDINT_CPU (513h), DPT, DDINT entry points, disk buffers |
-| 000960h | | DOS | Drivers: CPU$ (first, if loaded), NUL, VKD$, ..., then BASDOS.COM, its tables, and the MCB chain |
+| 000500h | 1136 | DOS | BASIC-DOS low memory: CPU_TYPE (512h), DPT, DDINT entry points (530h, including DDINT_CPU at 53Fh), disk buffers |
+| 000970h | | DOS | Drivers: CPU$ (first, if loaded), NUL, VKD$, ..., then BASDOS.COM, its tables, and the MCB chain |
 | 0A0000h | 384K | RSVD | Video memory, adapter ROMs, and the system ROM (not RAM) |
 | 100000h | 64K | SYS | CPU$ system area (the HMA; see below) |
 | 110000h | 1344K | FREE | Extended memory available to CPU_ALLOC |
@@ -94,10 +94,10 @@ CPU$ keeps everything it owns, other than its code, in the first 64K of extended
 | 0A00h | 1009F0h | IDT (256 gates) |
 | 1200h | 1011F0h | GDT (256 descriptors) |
 | 1A00h | 1019F0h | LDT (1024 descriptors) |
-| 3A00h | 1039F0h | Probe only: PROBELOG, with up to 120 events (see [the probe](#probe)) |
-| 3E00h | 103DF0h | Probe only: TSS |
-| 3F00h | 103EF0h | Probe only: IDT (256 gates) |
-| 4700h | 1046F0h | Probe only: ring 0 stack (4K) |
+| 3A00h | 1039F0h | PROBE builds only: PROBELOG, with up to 120 events (see [the probe](#probe)) |
+| 3E00h | 103DF0h | PROBE builds only: TSS |
+| 3F00h | 103EF0h | PROBE builds only: IDT (256 gates) |
+| 4700h | 1046F0h | PROBE builds only: ring 0 stack (4K) |
 | 5700h | 1056F0h | Unused (about 42K; eg, for CPU$ code or kernel code that only runs on an 80286 or later) |
 
 A PSP's CALL 5 (a far call to F01D:FEF0h, for example) reaches 0:00C0h (INT_DOSCALL5) only by wrapping around at 1Mb, so with A20 enabled, it lands at 1000C0h instead; like DOS 5 with DOS=HIGH, CPU$ puts a far jump to 0:00C0h there.
@@ -154,7 +154,7 @@ The CPU$ self-test (`pm_test`) checks that PE is set and writes and reads back a
 
 ### The Protected-Mode Probe {#probe}
 
-The plan is to stay in protected mode after CPU$ initializes, run sysinit and sessions at ring 3, and switch to ring 0 to call the kernel, the drivers, and the BIOS.  That raises a question that's easiest to answer by trying it: can the ROM BIOS run in protected mode at all, given the right selectors?  So CPU$ has an experimental probe, which runs only if CONFIG.SYS has a `CPU=PROBE` line (DEVINIT passes the CONFIG.SYS text to every built-in driver's INIT in DDP_PTR).
+The plan is to stay in protected mode after CPU$ initializes, run sysinit and sessions at ring 3, and switch to ring 0 to call the kernel, the drivers, and the BIOS.  That raises a question that's easiest to answer by trying it: can the ROM BIOS run in protected mode at all, given the right selectors?  So CPU$ has an experimental probe, which is assembled only if PROBE is defined (eg, by adding `/DPROBE` to AFLAGS in software/src/os/dev/makefile); a PROBE build of CPU$ always runs it, unless CONFIG.SYS has a `CPU=8088` line.
 
 After its self-test, CPU$ switches to protected mode, sets up the environment below, and "returns" to a short routine (`probe3`) at ring 3, which calls the BIOS:
 
@@ -166,7 +166,7 @@ Then it calls back to ring 0, and CPU$ restores everything, returns to real mode
 
 	tools/tests/pmprobe.sh [ibm5170 or compaq386] [pc.js arguments...]
 
-builds a boot floppy with that CONFIG.SYS (in tools/pc/disks/pmprobe), lists breakpoint addresses for the probe's entry points (from CPUDEV.MAP), and boots it on the baseline 2Mb PC AT (or a 2Mb DeskPro 386), with BASIC-DOS's console on COM1 (ie, the terminal).
+checks that CPU$ was built with PROBE defined, builds a boot floppy without a `CPU=8088` line (in tools/pc/disks/pmprobe), lists breakpoint addresses for the probe's entry points (from CPUDEV.MAP), and boots it on the baseline 2Mb PC AT (or a 2Mb DeskPro 386), with BASIC-DOS's console on COM1 (ie, the terminal).
 
 #### The Probe's Environment
 
@@ -222,14 +222,14 @@ For example:
 	>> bc *
 	>> t 40
 
-Linear breakpoints (`%`) work in either mode, and once the probe has started, `r` shows each selector with its base and limit (eg, `CS=0007[000960,FFFF]` at ring 3, `CS=0018[000960,FFFF]` in `sw_int`, and `CS=F000[0F0000,FFFF]` in the BIOS), along with the GDTR, IDTR, LDTR, and TR.  Clear a breakpoint (`bc *`) before tracing from it, or the trace stops there again.  Tracing from `probe3` goes through its `INT 10h` to `sw_int` at ring 0 (on the ring 0 stack, SS = 0008h), through the `CALL FAR` to the BIOS's INT 10h entry (F000:F065h), and then to `CALL DDS`, which loads DS with 0040h, the BIOS data's identity selector.  When the machine is running, CTRL-D enters the debugger, and after the probe, `db %1039F0 l400` dumps PROBELOG.
+Linear breakpoints (`%`) work in either mode, and once the probe has started, `r` shows each selector with its base and limit (eg, `CS=0007[000970,FFFF]` at ring 3, `CS=0018[000970,FFFF]` in `sw_int`, and `CS=F000[0F0000,FFFF]` in the BIOS), along with the GDTR, IDTR, LDTR, and TR.  Clear a breakpoint (`bc *`) before tracing from it, or the trace stops there again.  Tracing from `probe3` goes through its `INT 10h` to `sw_int` at ring 0 (on the ring 0 stack, SS = 0008h), through the `CALL FAR` to the BIOS's INT 10h entry (F000:F065h), and then to `CALL DDS`, which loads DS with 0040h, the BIOS data's identity selector.  When the machine is running, CTRL-D enters the debugger, and after the probe, `db %1039F0 l400` dumps PROBELOG.
 
 #### What the Probe Shows {#feasibility}
 
 1. **The ROM BIOS can run at ring 0 in protected mode**, on both machines and for every function tried, with three mechanisms: identity selectors (so the BIOS's fixed segments, and its segment arithmetic, including DMA addresses, still work), the fix for a null DS or ES, and reflection of software and hardware interrupts to the real-mode vector table.  Ring 3 code, with its own selectors, can call it through interrupt gates.  Nothing has needed replacing yet.
 2. **What the BIOS can't do in protected mode**: functions that switch modes themselves (INT 15h functions 87h, block move, and 89h, switch to protected mode), and DMA to or from a buffer above 1Mb (the BIOS's DMA address is ES * 16 + BX).  CPU$ would provide the former (eg, a CPU_MOVE function), and disk drivers would copy through a buffer below 1Mb for the latter.  Not tried yet: the hard disk BIOS (which uses PIO through ES:BX, so identity selectors should work), diskette writes, INT 10h mode sets (which, like GET_PARM, load DS with 0), INT 14h, INT 17h, and INT 1Ah's clock functions.
 3. **BASIC-DOS's own code can't run in protected mode unchanged**, at either ring, for reasons that don't apply to the BIOS:
-   - **Segments that aren't multiples of 8**: the drivers, the kernel, and programs are loaded at any paragraph (CPU$ itself is at 0096h), and only multiples of 8 have identity selectors (a selector's low 3 bits are its table and privilege bits, so 0096h is LDT entry 12h with RPL 2).  Each such segment needs its own alias, or must be loaded at a 128-byte boundary.
+   - **Segments that aren't multiples of 8**: the drivers, the kernel, and programs are loaded at any paragraph (CPU$ itself is at 0097h), and only multiples of 8 have identity selectors (a selector's low 3 bits are its table and privilege bits, so 0097h is LDT entry 12h with RPL 3).  Each such segment needs its own alias, or must be loaded at a 128-byte boundary.
    - **Writes through CS**: protected-mode code segments are never writable, and the drivers write through CS about 63 times (the kernel about 18, COMMAND about 5, and DEBUG about 15).  Each needs a data alias (another selector for the same memory) instead.
    - **Segment 0**: the drivers and the kernel reach the BIOS data and BASIC-DOS's low memory with DS or ES set to 0 (in about 54 places).  The probe's fix handles that at ring 0 (with a fault for every load), but not at ring 3 (SEL_LOW is DPL 0), and loading SEL_LOW directly would be faster.
    - **Ring 3 selectors**: CS and SS selectors must have RPL 3 at ring 3, so an identity selector there is the segment plus 3, and any arithmetic on CS or SS (eg, `mov ax,cs` followed by `add`) is off by 3 paragraphs.
@@ -256,14 +256,14 @@ Staying in protected mode after CPU$ initializes is the goal, but the rest of BA
 
 The first step toward staying in protected mode is to change the drivers and the kernel (everything that will run at ring 0) so that the same code runs in either mode, by using only segment values that are also valid selectors, and by never writing to a code segment.  The rules, *in progress*:
 
-1. **BIOS data through segment 40h**: the ROM BIOS data area is addressed as segment 40h (offsets 00h-FFh), as the BIOS itself does, instead of segment 0.  In protected mode, 40h is an identity selector.
-2. **BASIC-DOS low memory through segment 50h**: CPU_TYPE, the DDINT entry points, the DPT, the disk buffers, and the rest of BASIC-DOS's data at 500h-95Fh are addressed as segment 50h.
-3. **Interrupt vectors through CPU$**: segment 0 is the null selector, so vectors will be read and written with CPU$ functions (eg, CPU_GETVEC and CPU_SETVEC), which in protected mode can also maintain the IDT.  So CPU$ must stay loaded on every processor, keeping just a small core (DDINT_CPU, CPU_GETINFO, and the vector functions) on an 8088 or with `CPU=8088`, and CPU$ can no longer be skipped.
+1. **Low memory through segment 40h** (*done*): bios.inc's BIOS segment is now `at 40h`, as the ROM BIOS itself addresses its data, instead of 0, and it covers both the ROM BIOS data area (offsets 00h-FFh) and BASIC-DOS's low memory (500h-96Fh, at offsets 100h-56Fh): CPU_TYPE, the DDINT entry points, the DPT, and the two disk buffers.  In protected mode, 40h is an identity selector.  BIOS_DATA (400h) is the segment's linear address, for the few places that need a linear address or paragraph (eg, the disk buffer chain's paragraphs, and DEVINIT, which addresses the drivers it relocates through segment 0).
+2. **Interrupt vectors through DDINT entry points**: segment 0 is the null selector, and the general protection fault fix for it should only ever be needed by the ROM BIOS, so vectors will be read and written through DDINT entry points (eg, DDINT_GETVEC and DDINT_SETVEC, in the room left after DDINT_CPU, or DDINT_UTIL functions), whose implementations could also maintain the IDT in protected mode.  The kernel would provide them, since they're needed on every processor, whether or not CPU$ is loaded; but drivers hook their vectors in INIT, before the kernel is loaded, so DEVINIT would provide them until sysinit points them at the kernel (as sysinit does for DDINT_ENTER, DDINT_LEAVE, and DDINT_UTIL).  For now, the code that accesses vectors still uses segment 0.
+3. **DDINT entry points in protected mode**: a far call to a DDINT entry point (0040:xxxxh) needs an executable selector, and the identity selector 40h is a data selector, so the entry points will need another form in protected mode (eg, call gates).
 4. **No writes through CS**: a protected-mode code segment can't be written, so each write with a CS override becomes a write through DS or ES holding the module's own segment, which in protected mode will be a data alias of its code segment (eg, if modules are loaded at 128-byte boundaries, the LDT could hold an execute/read descriptor for each identity data selector in the GDT, so that `CS AND 0FFF8h` would be the data alias in either mode).
 
-The boot sector, which runs at 0:7C00h and then 0:0550h before anything else, keeps using segment 0, as do DEVINIT and sysinit where they load and relocate the drivers and the kernel, since they run only in real mode, at boot.
+The boot sector, which runs at 0:7C00h and then 0:0560h before anything else, keeps using segment 0 (adding BIOS_DATA to every BIOS offset), as does DEVINIT where it relocates the drivers, since both run only in real mode, at boot.
 
-Inventory: about 250 references to the low memory symbols in bios.inc (86 of them in VKD$), interrupt vector accesses in the INIT code of CLOCK$, VKD$, MOUSE$, FDC$, and DEVINIT and in the kernel (DOS functions 25h and 35h, checking vectors when a program ends, and saving vectors when a session is locked), and about 80 writes through CS in the drivers and kernel.
+Remaining inventory: interrupt vector accesses in the INIT code of CLOCK$, VKD$, MOUSE$, FDC$, and DEVINIT and in the kernel (DOS functions 25h and 35h, checking vectors when a program ends, and saving vectors when a session is locked), and about 80 writes through CS in the drivers and kernel.
 
 #### Phases {#phases}
 

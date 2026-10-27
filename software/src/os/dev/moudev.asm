@@ -545,7 +545,7 @@ DEFPROC	chk_cell
 	push	ax
 	push	dx
 	push	ds
-	sub	ax,ax
+	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
 	mov	dx,[CURSOR_POSN]	; DL = column, DH = row
@@ -1428,7 +1428,7 @@ ENDPROC	get_mode
 DEFPROC	ddmou_init,far
 	push	bx
 	push	es
-	sub	ax,ax
+	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
 	sti
@@ -1449,6 +1449,9 @@ in3:	mov	cs:[port_base],dx
 	je	in4			; yes
 	mov	bx,(0F7h SHL 8) OR (INT_HW_COM2 * 4)
 in4:	cli
+	sub	ax,ax
+	mov	ds,ax			; DS = 0 for the vectors
+	ASSUME	DS:NOTHING
 	mov	di,bx
 	and	di,00FFh
 	mov	[di].OFF,offset ddmou_irq

@@ -30,7 +30,8 @@ DEV	segment para public 'CODE'
 ; Device driver initialization
 ;
 ; Entry:
-;	DI = end of drivers (start is BIOS_END)
+;	DS = ES = 0
+;	DI = end of drivers (which start at BIOS_END)
 ;	DS:SI -> boot BPB, followed by DEV_FILE, DOS_FILE, and CFG_FILE info
 ;	far return address on stack -> boot code's part3
 ;
@@ -40,7 +41,7 @@ DEV	segment para public 'CODE'
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, BP
 ;
-        ASSUME	CS:DEV, DS:BIOS, ES:BIOS, SS:NOTHING
+        ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 DEFPROC	devinit,far
 ;
@@ -49,8 +50,8 @@ DEFPROC	devinit,far
 ; so install a temporary INT_BP handler; sysinit will initialize it properly.
 ;
 	IFDEF	DEBUG
-	mov	word ptr [IVT+INT_BP*4].OFF,offset devinit - 2
-	mov	word ptr [IVT+INT_BP*4].SEG,cs
+	mov	word ptr ds:[INT_BP*4].OFF,offset devinit - 2
+	mov	word ptr ds:[INT_BP*4].SEG,cs
 	ENDIF	; DEBUG
 ;
 ; Perform some preliminary BIOS data initialization; in particular,
@@ -58,6 +59,10 @@ DEFPROC	devinit,far
 ; the DDINT_UTIL entry point for driver WAIT and ENDWAIT requests, and the
 ; DDINT_CPU entry point, which the CPU$ driver sets if it stays loaded.
 ;
+	push	ds
+	mov	ax,BIOS
+	mov	ds,ax
+	ASSUME	DS:BIOS
 	mov	word ptr [DDINT_ENTER],(OP_RETF SHL 8) OR OP_STC
 	mov	[DDINT_LEAVE],OP_IRET
 	mov	word ptr [DDINT_UTIL],(OP_RETF SHL 8) OR OP_STC
@@ -68,6 +73,8 @@ DEFPROC	devinit,far
 	mov	[FDC_UNITS],al
 	mov	[HDC_UNITS],al		; and no HDC volumes yet
 	mov	[CPU_TYPE],al		; and no CPU type (if CPU$ is skipped)
+	pop	ds
+	ASSUME	DS:NOTHING
 ;
 ; To honor any "SKIP=" line, we need CFG_FILE now, so we load it just beyond
 ; this code, using the boot code's read_file function (which is BOOT_RDFILE
@@ -88,7 +95,7 @@ DEFPROC	devinit,far
 	push	cs
 	mov	ax,offset d1
 	push	ax			; far return address -> d1
-	mov	ax,offset DDINT_ENTER+1
+	mov	ax,offset DDINT_ENTER + 1 + BIOS_DATA
 	push	ax			; near return address -> RETF
 	mov	bp,sp
 	push	ds			; DS = segment of boot code (zero)
@@ -121,11 +128,12 @@ d2:	mov	cs:[buf_off],di		; scratch buffer follows CFG_FILE data
 	pop	di			; DI = end of drivers again
 	push	ds
 	pop	es
-	ASSUME	ES:BIOS
+	ASSUME	ES:NOTHING
 ;
 ; Initialize each device driver.
 ;
-	mov	si,offset BIOS_END; DS:SI -> first driver
+	mov	si,offset BIOS_END + BIOS_DATA
+					; DS:SI -> first driver
 ;
 ; Create a DDPI packet on the stack.
 ;
@@ -183,8 +191,7 @@ i2:	mov	dx,[si]		; DX = original size of this driver
 	pop	ax		; toss DDH_REQUEST address
 
 i2a:	sub	bx,bx
-	mov	es,bx
-	ASSUME	ES:BIOS
+	mov	es,bx			; ES = DS = 0 for the move below
 	mov	bx,[bp].DDPI_END.OFF
 	add	bx,15
 	and	bx,0FFF0h
@@ -227,6 +234,9 @@ i3:	shr	cx,1
 i4:	pop	ax		; recover the driver segment
 	test	dx,dx
 	jz	i8		; jump if driver not required
+	mov	cx,BIOS
+	mov	es,cx
+	ASSUME	ES:BIOS
 	sub	cx,cx		; AX:CX -> driver header
 ;
 ; If this is the FDC driver (ie, the first block device), then we need to
@@ -294,7 +304,8 @@ i9:	add	sp,DDP_MAXSIZE
 ;
 	push	di
 	push	ds
-	pop	es			; ES = DS = BIOS (zero)
+	pop	es			; ES = DS = 0
+	ASSUME	ES:NOTHING
 	mov	si,cs:[cfg_info]	; SI -> CFG_FILE DIR info
 	mov	al,[si-BOOT_CFGFILE].BPB_CLUSSECS
 	mov	ah,0
@@ -330,7 +341,7 @@ i9a:	push	si
 	rep	movsb			; move it up
 	cld
 	pop	ds
-	ASSUME	DS:BIOS
+	ASSUME	DS:NOTHING
 	pop	si
 i9b:	sub	bx,ax			; BX = CFG_FILE offset relative to DOS_FILE
 	mov	[si+2],bx

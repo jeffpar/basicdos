@@ -41,7 +41,6 @@ VKD	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 
 	DEFLBL	CON_PARMS,word
 	dw	80,16,80, 25,4,25
-	DEFLBL	ZERO,word	; since we have all this constant data, use it
 	dw	0,0,1, 0,0,1
 
 	DEFLBL	DBL_BORDER,word
@@ -1083,7 +1082,7 @@ dco2b:	mov	es:[di],ds
 ; Importing the BIOS CURSOR_POSN into CURPOS seemed like a nice idea initially,
 ; but now that we're clearing interior below, it seems best to use a default.
 ;
-	sub	ax,ax
+	mov	ax,BIOS
 	mov	es,ax
 	ASSUME	ES:BIOS
 	; mov	ax,[CURSOR_POSN]
@@ -1296,7 +1295,7 @@ DEFPROC	ddcon_inflush
 	cmp	ax,[ct_focus]		; does the context have focus?
 	jne	dif9			; no
 	push	ds
-	sub	ax,ax
+	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
 	cli
@@ -1367,7 +1366,7 @@ DEFPROC	ddcon_int09,far
 	cmp	al,SCAN_DEL		; DEL key pressed?
 	jne	i09b			; no
 	push	ds
-	sub	ax,ax
+	mov	ax,BIOS
 	mov	ds,ax
 	mov	al,ds:[KB_FLAG]		; CTRL and ALT pressed as well?
 	and	al,CTL_SHIFT OR ALT_SHIFT
@@ -1759,7 +1758,7 @@ ENDPROC	remove_packet
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	check_hotkey
 	push	ds
-	sub	bx,bx
+	mov	bx,BIOS
 	mov	ds,bx
 	ASSUME	DS:BIOS
 
@@ -1767,10 +1766,10 @@ DEFPROC	check_hotkey
 	cmp	bx,[BUFFER_HEAD]
 	je	ch0a			; BIOS buffer empty
 	sub	bx,2			; rewind the tail
-	cmp	bx,offset KB_BUFFER - offset BIOS_DATA
+	cmp	bx,offset KB_BUFFER
 	jae	ch0
 	add	bx,size KB_BUFFER
-ch0:	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
+ch0:	mov	ax,[bx]			; AL = char code, AH = scan code
 ;
 ; Let's take care of internal hotkeys first (in part because it seems
 ; unlikely we would want them to affect things like a console's PAUSE state).
@@ -2192,7 +2191,7 @@ pl1:	mov	ds,es:[di].DDP_CONTEXT
 	test	al,al			; pending scan code?
 	jnz	pl7			; yes
 
-	sub	bx,bx
+	mov	bx,BIOS
 	mov	ds,bx
 	ASSUME	DS:BIOS
 	cli
@@ -2200,9 +2199,9 @@ pl1:	mov	ds,es:[di].DDP_CONTEXT
 	cmp	bx,[BUFFER_TAIL]
 	stc
 	je	pl3			; BIOS buffer empty
-	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
+	mov	ax,[bx]			; AL = char code, AH = scan code
 	add	bx,2
-	cmp	bx,offset KB_BUFFER - offset BIOS_DATA + size KB_BUFFER
+	cmp	bx,offset KB_BUFFER + size KB_BUFFER
 	jne	pl2
 	sub	bx,size KB_BUFFER
 pl2:	mov	[BUFFER_HEAD],bx
@@ -2672,7 +2671,7 @@ ENDPROC	chk_context
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	update_biosdata
 	push	es
-	sub	ax,ax
+	mov	ax,BIOS
 	mov	es,ax
 	ASSUME	ES:BIOS
 	ASSERT	STRUCT,ds:[0],CT
@@ -2904,7 +2903,10 @@ ENDPROC	get_start
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	update_context
 	push	es
-	mov	es,[ZERO]
+	push	ax
+	mov	ax,BIOS
+	mov	es,ax
+	pop	ax
 	ASSUME	ES:BIOS
 	mov	[EQUIP_FLAG],ax
 
@@ -3220,7 +3222,7 @@ ENDPROC	write_crtc8
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_init,far
-	sub	ax,ax
+	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
 
@@ -3271,6 +3273,9 @@ ddn3:	mov	dx,3D4h			; then the CGA
 ; Install an INT 09h hardware interrupt handler, which we'll use to detect
 ; keys added to the BIOS keyboard buffer.
 ;
+	sub	ax,ax
+	mov	ds,ax			; DS = 0 for the vectors
+	ASSUME	DS:NOTHING
 	cli
 	mov	ax,offset ddcon_int09
 	xchg	ds:[INT_HW_KBD * 4].OFF,ax

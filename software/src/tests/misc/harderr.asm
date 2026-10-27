@@ -817,7 +817,7 @@ df0:	jmp	df8
 ; The two original BIOS buffers remain in the circular buffer chain.
 ; Find the fixture's entry in a cached directory sector before deleting it.
 ;
-df0a:	mov	ax,offset FAT_BUFHDR
+df0a:	mov	ax,offset FAT_BUFHDR + BIOS_DATA
 	mov	cl,4
 	shr	ax,cl
 	mov	bp,ax			; BP = first buffer's paragraph

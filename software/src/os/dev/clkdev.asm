@@ -795,7 +795,7 @@ ENDPROC	ddclk_interrupt
 DEFPROC	ddclk_init,far
 	sub	ax,ax
 	mov	ds,ax
-	ASSUME	DS:BIOS
+	ASSUME	DS:NOTHING
 
 	ASSERT	STRUCT,es:[bx],DDP
 

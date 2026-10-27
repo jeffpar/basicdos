@@ -1,5 +1,4 @@
-REM Protected-mode development: no CPU=8088 line, and CPU=PROBE runs the probe
-CPU=PROBE
+REM Protected-mode development: no CPU=8088 line, so CPU$ uses extended memory
 BUFFERS=4
 SESSIONS=3
 SHELL=COMMAND.COM PATH$="A:\;A:\EXT;A:\DEMOS;A:\SAMPLES"

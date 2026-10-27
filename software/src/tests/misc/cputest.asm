@@ -25,7 +25,7 @@ CODE	segment
 	org	100h
 
 DEFPROC	main
-	sub	ax,ax
+	mov	ax,BIOS
 	mov	es,ax
 	ASSUME	ES:BIOS
 	mov	al,[CPU_TYPE]

@@ -26,8 +26,8 @@ Unlike PC DOS, there is no separate BIOS-level file (IO.SYS or IBMBIO.COM); BASI
 
 The boot sector runs in three parts:
 
-1. Part 1 copies the BIOS diskette parameter table (DPT) to low memory (522h) so its values can be tuned, and moves the boot sector to low memory (550h).  If a hard disk is present, it displays "Press a key to start..." and waits for a key (or at most 2 seconds); **Esc** boots from the hard disk instead.  The key pressed is saved in BOOT_KEY (52Dh).  It then finds BASDEV.COM, BASDOS.COM, and CONFIG.SYS in the root directory.
-2. Part 2 loads BASDEV.COM at BIOS_END (960h), hops over its driver headers to find the devinit code that follows them, and calls it.  Devinit reads CONFIG.SYS (to honor any SKIP= line), chains the driver headers together, and sends each driver a DDC_INIT request, starting with CPU$ (which records the processor type; see [Protected Mode](../mmu/)); each driver reports how much memory it needs, so the drivers end up packed together, and skipped drivers take no memory.
+1. Part 1 copies the BIOS diskette parameter table (DPT) to low memory (522h) so its values can be tuned, and moves the boot sector to low memory (560h).  If a hard disk is present, it displays "Press a key to start..." and waits for a key (or at most 2 seconds); **Esc** boots from the hard disk instead.  The key pressed is saved in BOOT_KEY (52Dh).  It then finds BASDEV.COM, BASDOS.COM, and CONFIG.SYS in the root directory.
+2. Part 2 loads BASDEV.COM at BIOS_END (970h), hops over its driver headers to find the devinit code that follows them, and calls it.  Devinit reads CONFIG.SYS (to honor any SKIP= line), chains the driver headers together, and sends each driver a DDC_INIT request, starting with CPU$ (which records the processor type; see [Protected Mode](../mmu/)); each driver reports how much memory it needs, so the drivers end up packed together, and skipped drivers take no memory.
 3. Part 3 loads BASDOS.COM above the drivers and jumps to sysinit, passing it the CONFIG.SYS data.
 
 Sysinit then:
@@ -63,10 +63,10 @@ In DEBUG builds, the [DOS_UTL_DPRINTF](../util/#formatted-output) messages are p
 |---------|----------|
 | 0000h | Interrupt vector table |
 | 0400h | ROM BIOS data area |
-| 0500h | BASIC-DOS low memory data: drive info, device list head (50Ah), CPU_TYPE (512h), DDINT_CPU (513h), DPT (522h), BOOT_KEY (52Dh), DDINT entry points (530h) |
-| 0540h | First disk buffer (16-byte header and 512-byte sector; initially the FAT sector the boot code read) |
-| 0750h | Second disk buffer (header and 512-byte sector) |
-| 0960h | BIOS_END: device drivers (BASDEV.COM), followed by the DOS kernel (BASDOS.COM) |
+| 0500h | BASIC-DOS low memory data: drive info, device list head (50Ah), CPU_TYPE (512h), DPT (522h), BOOT_KEY (52Dh), and the DDINT entry points (530h: DDINT_ENTER, DDINT_LEAVE, DDINT_UTIL, and DDINT_CPU, with room for two more) |
+| 0550h | First disk buffer (16-byte header and 512-byte sector; initially the FAT sector the boot code read) |
+| 0760h | Second disk buffer (header and 512-byte sector) |
+| 0970h | BIOS_END: device drivers (BASDEV.COM), followed by the DOS kernel (BASDOS.COM) |
 | | Resident tables: SCBs, BPBs, current directories, SFBs, and any extra disk buffers (BUFFERS=) |
 | | Memory pool: MCB chain (programs, COMMAND.COM blocks, and free memory) |
 

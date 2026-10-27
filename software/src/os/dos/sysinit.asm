@@ -36,7 +36,7 @@ DOS	segment word public 'CODE'
 
 	DEFLBL	sysinit_start
 
-	ASSUME	CS:DOS, DS:BIOS, ES:DOS, SS:NOTHING
+	ASSUME	CS:DOS, DS:NOTHING, ES:DOS, SS:NOTHING
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -45,11 +45,12 @@ DOS	segment word public 'CODE'
 ; Everything after "sysinit_start" will be recycled.
 ;
 ; Entry:
-;	AX = offset of initial BPB
+;	AX = offset of initial BPB (in segment 0)
 ;	ES:BX -> CFG_FILE data, if any
 ;	DX = size of CFG_FILE data, if any
 ;
 DEFPROC	sysinit,far
+	sub	ax,BIOS_DATA
 	mov	es:[bpb_off],ax		; save boot BPB (BIOS offset)
 	mov	ax,cs
 	mov	es:[dos_seg],ax		; save the resident DOS segment
@@ -81,7 +82,10 @@ si0:	lods	byte ptr es:[si]
 ; Size is in Kb (2^10 units), we need size in paragraphs (2^4 units), so
 ; shift left 6 bits.  Then calculate init code size in paras and subtract.
 ;
-si1:	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
+si1:	mov	ax,BIOS
+	mov	ds,ax
+	ASSUME	DS:BIOS
+	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
 	mov	cl,6
 	shl	ax,cl			; available memory in paras
 	mov	es:[top_seg],ax		; segment of end of memory
@@ -125,7 +129,7 @@ si1:	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
 	mov	sp,offset sysinit_start
 	sti
 	mov	es,cx			; CX is zero from above
-	ASSUME	ES:BIOS
+	ASSUME	ES:NOTHING
 	mov	si,offset INT_TABLES
 si2:	lodsw
 	test	ax,ax			; any more tables?
@@ -170,6 +174,9 @@ si2c:
 ; VKD$'s INT 10h handler uses).
 ;
 	cli
+	mov	ax,BIOS
+	mov	es,ax
+	ASSUME	ES:BIOS
 	mov	di,offset DDINT_UTIL
 	mov	al,OP_JMPF
 	stosb
@@ -299,7 +306,7 @@ si5b	label	near
 ; Diskette drives come first, followed by any hard disk volumes (in which
 ; case, like PC DOS, drives A: and B: are always reserved for diskettes).
 ;
-	sub	ax,ax
+	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
 	mov	al,[FDC_UNITS]		; AL = # diskette drives
@@ -331,10 +338,10 @@ si5c:	mov	[FDC_UNITS],al		; (updated to include reserved drives)
 ; Initialize the buffer chain while DS still points to the BIOS segment.
 ;
 	mov	cl,4
-	mov	ax,offset FAT_BUFHDR
+	mov	ax,offset FAT_BUFHDR + BIOS_DATA
 	shr	ax,cl
 	mov	es:[buf_head],ax
-	mov	dx,offset DIR_BUFHDR
+	mov	dx,offset DIR_BUFHDR + BIOS_DATA
 	shr	dx,cl
 
 	DBGINIT	STRUCT,[FAT_BUFHDR],BUF
@@ -494,10 +501,10 @@ sb1:	sub	ax,2
 	jbe	sb3
 	push	ax			; save # extra buffers
 	mov	cl,4
-	mov	ax,offset DIR_BUFHDR
+	mov	ax,offset DIR_BUFHDR + BIOS_DATA
 	shr	ax,cl
 	xchg	dx,ax			; DX = last buffer in the chain
-	mov	ax,offset FAT_BUFHDR
+	mov	ax,offset FAT_BUFHDR + BIOS_DATA
 	shr	ax,cl
 	xchg	bx,ax			; BX = head
 	pop	cx			; CX = # extra buffers
@@ -920,7 +927,7 @@ si20a:
 ;
 ; "Revector" DDINT_ENTER and DDINT_LEAVE to int_enter and int_leave.
 ;
-	sub	ax,ax
+	mov	ax,BIOS
 	mov	es,ax
 	ASSUME	ES:BIOS
 	cli
@@ -937,6 +944,7 @@ si20a:
 	stosw
 	mov	ax,ds
 	stosw
+	ASSUME	ES:NOTHING
 ;
 ; Now that every SHELL has been loaded, add the memory containing our code and
 ; stack to the MCB chain, by appending it as a new block and then freeing it,
@@ -1078,8 +1086,10 @@ DEFPROC	last_mcb
 	mov	dx,cs
 	add	dx,ax			; DX = 1st para of our stack
 	mov	es,cs:[dos_seg]
+	ASSUME	ES:DOS
 	mov	ax,es:[mcb_head]
 lm1:	mov	es,ax			; find the last MCB
+	ASSUME	ES:NOTHING
 	add	ax,es:[MCB_PARAS]
 	inc	ax
 	cmp	es:[MCB_SIG],MCBSIG_LAST

@@ -816,7 +816,7 @@ DEFPROC	set_dpt
 	push	bx
 	sub	bx,bx
 	mov	ds,bx
-	ASSUME	DS:BIOS
+	ASSUME	DS:NOTHING
 	lds	bx,dword ptr ds:[INT_DPT*4]
 	ASSUME	DS:NOTHING		; DS:BX -> DPT
 	mov	[bx].DP_SPT,al
@@ -1205,7 +1205,7 @@ ENDPROC	fdc_rdbuf
 ;	DDPI's DDPI_UNITS and DDPI_END updated
 ;
 DEFPROC	ddfdc_init,far
-	sub	ax,ax
+	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
 	mov	ax,[EQUIP_FLAG]

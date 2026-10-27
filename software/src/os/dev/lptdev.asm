@@ -227,7 +227,7 @@ INIT	segment para public 'CODE'
 ;
         ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddlpt_init,far
-	sub	ax,ax
+	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
 	mov	si,offset PRINTER_BASE

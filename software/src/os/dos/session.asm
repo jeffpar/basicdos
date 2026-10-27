@@ -189,7 +189,7 @@ DEFPROC	scb_lock,DOS
 	lea	di,[bx].SCB_EXIT	; ES:DI -> SCB vectors
 	sub	si,si
 	mov	ds,si
-	ASSUME	DS:BIOS
+	ASSUME	DS:NOTHING
 	mov	si,INT_DOSEXIT * 4	; DS:SI -> IVT vectors
 	mov	cx,6			; move 3 vectors (6 words)
 	rep	movsw

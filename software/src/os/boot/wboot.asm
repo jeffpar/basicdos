@@ -127,7 +127,7 @@ next:	cmp	word ptr [di+512],-1	; anything past the signature?
 ; Read the 2nd half of the boot code into buffer + 512
 ;
 	mov	ax,DOS_HDL_SEEKBEG	; AH = 42h (SEEK), AL = 0 (FROM START)
-	mov	dx,offset DIR_SECTOR	;
+	mov	dx,DIR_SECTOR_OFF	;
 	sub	cx,cx			; CX:DX = offset
 	int	21h
 	mov	cx,1024			; CX = number of bytes

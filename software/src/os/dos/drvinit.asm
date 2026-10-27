@@ -227,7 +227,7 @@ ld11:	push	ds
 	rep	movsb
 	push	ds
 	pop	es			; ES = driver segment again
-	sub	ax,ax
+	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
 	mov	ax,es

@@ -1091,12 +1091,13 @@ dco1b:	push	ax			; save output buffer length
 dco1a:	mov	es,ax
 	xchg	ax,di			; AX = card #
 	sub	di,di			; ES:DI -> CONTEXT
-	push	ds
-	mov	ds,di
-	ASSUME	DS:BIOS
 	stosw				; set CT_CARD
 	xchg	bx,ax
 	add	bx,bx			; BX = card # * 2
+	push	ds
+	mov	ax,BIOS
+	mov	ds,ax
+	ASSUME	DS:BIOS
 	mov	ax,[RS232_BASE][bx]
 	pop	ds
 	ASSUME	DS:NOTHING
@@ -2253,7 +2254,7 @@ DEFPROC	esc_timer
 	push	di
 	push	es
 	xchg	cx,ax			; CX = milliseconds
-	sub	ax,ax
+	mov	ax,BIOS
 	mov	es,ax
 	ASSUME	ES:BIOS
 	les	bx,[CLOCK_DEVICE]		; ES:BX -> CLOCK$ driver header
@@ -2895,7 +2896,7 @@ INIT	segment para public 'CODE'
 ;
         ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcom_init,far
-	sub	ax,ax
+	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
 	mov	si,offset RS232_BASE
@@ -2934,6 +2935,9 @@ in3:	mov	[ddcom_cmdp].SEG,ax
 	dec	di
 in4:	add	di,di
 	add	di,di
+	sub	ax,ax
+	mov	ds,ax			; DS:DI -> vector
+	ASSUME	DS:NOTHING
 	cli
 	mov	ax,cs:[DDH_INTERRUPT]
 	mov	[di].OFF,ax

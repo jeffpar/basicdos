@@ -16,8 +16,8 @@
 ; unloads itself.  For now, the processor always returns to real mode; see
 ; docs/bdtech/mmu for the design and the plans for the rest of BASIC-DOS.
 ; A "CPU=8088" line in CONFIG.SYS makes CPU$ act as it does on an 8088, and
-; "CPU=PROBE" runs an experimental probe of the ROM BIOS in protected mode
-; (see pm_probe).
+; builds with PROBE defined (eg, /DPROBE in the makefile's AFLAGS) also run
+; an experimental probe of the ROM BIOS in protected mode (see pm_probe).
 ;
 	BIOSAPI equ 1
 	include	macros.inc
@@ -104,6 +104,7 @@ SEL_TMP		equ	30h	; data: scratch (initially 110000h)
 SEL_CPU		equ	38h	; call gate: cpu_entry
 GDT_FIXED	equ	8	; number of fixed GDT entries
 
+	IFDEF	PROBE
 ;
 ; The protected-mode probe (see pm_probe) uses the system area beyond the
 ; tables: SYS_LOG for PROBELOG and its events (PROBEEVT), SYS_TSS for a TSS,
@@ -161,6 +162,7 @@ SEL_R3EXIT	equ	10h+SEL_TI+3	; probe LDT: call gate to probe_exit
 ACC_TSS		equ	81h	; present, DPL 0, available 80286 TSS
 ACC_DPL3	equ	60h	; DPL 3 (added to another ACC_* value)
 FL_RESULTS	equ	FL_CARRY OR FL_ZERO OR FL_SIGN OR FL_OVFL
+	ENDIF	; PROBE
 
 DEV	group	CODE,DATA
 
@@ -825,7 +827,7 @@ DEFPROC	pm_call
 	out	70h,al
 	mov	al,0Ah			; shutdown code: JMP DWORD PTR 40:67h
 	out	71h,al
-	sub	ax,ax
+	mov	ax,BIOS
 	mov	es,ax
 	ASSUME	ES:BIOS
 	mov	[EDGE_CNT],offset pm_resume
@@ -922,9 +924,10 @@ DEFPROC	ddcpu_init,far
 	push	bx
 	mov	di,offset DEV:cfg_8088
 	call	find_cfg		; is there a "CPU=8088" line?
-	mov	ax,0			; (AL = CPUTYPE_8086)
+	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
+	mov	al,CPUTYPE_8086
 	je	di2			; yes, so act as if this is an 8088
 ;
 ; An 8086 or 80186 decrements SP before PUSH SP stores it, whereas an 80286
@@ -977,12 +980,18 @@ di2:	mov	[CPU_TYPE],al
 	mov	ax,SYS_SEG
 	mov	es,ax
 	ASSUME	ES:NOTHING
+	push	ds
+	sub	ax,ax
+	mov	ds,ax
+	ASSUME	DS:NOTHING
 	mov	bx,ds:[SYS_VARS-10h]	; BX = word at the low memory alias
 	mov	ax,bx
 	not	ax
 	mov	es:[SYS_VARS].SV_SIG,ax
 	cmp	ds:[SYS_VARS-10h],ax	; did the alias change?
 	mov	ds:[SYS_VARS-10h],bx	; (restore it, in case it did)
+	pop	ds
+	ASSUME	DS:BIOS
 	jne	di3			; no, so A20 is enabled
 di9:	pop	bx
 	pop	es
@@ -1092,10 +1101,12 @@ di5:	mov	ax,offset DEV:pm_fault
 	sub	ax,ax			; AX = DDPI_END (zero if not staying)
 	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PMOK
 	jz	di8
+	IFDEF	PROBE
 	mov	bp,sp
 	les	bx,dword ptr [bp]	; ES:BX -> DDPI
-	call	probe_init		; run the probe, if requested
-	sub	ax,ax
+	call	probe_init		; run the probe
+	ENDIF	; PROBE
+	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
 	mov	[DDINT_CPU],OP_JMPF
@@ -1203,11 +1214,12 @@ DEFPROC	pm_test
 pt9:	ret
 ENDPROC	pm_test
 
+	IFDEF	PROBE
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Protected-mode probe
+; Protected-mode probe (assembled only if PROBE is defined)
 ;
-; If CONFIG.SYS has a "CPU=PROBE" line, ddcpu_init calls pm_probe (through
+; After the self-test, ddcpu_init calls pm_probe (through
 ; pm_call) to see how far the ROM BIOS gets when it runs in protected mode,
 ; at ring 0, on behalf of code at ring 3.  pm_probe builds:
 ;
@@ -1738,10 +1750,9 @@ ENDPROC	probe3
 DEFPROC	pm_probe
 	mov	ds:[SYS_LOG].PL_R0SP,sp
 	mov	ds:[SYS_LOG].PL_STATUS,PLS_RUN
-	mov	ax,SEL_LOW
-	mov	es,ax
-	ASSUME	ES:BIOS
-	mov	[EDGE_CNT],offset DEV:probe_resume ; where an 80286 resets to
+	mov	ax,SEL_LOW		; point 40:67h at probe_resume, where
+	mov	es,ax			; an 80286 resets to
+	mov	word ptr es:[BIOS_DATA][EDGE_CNT],offset DEV:probe_resume
 	mov	ax,SEL_TMP
 	mov	es,ax
 	ASSUME	ES:NOTHING
@@ -1925,14 +1936,11 @@ pr8:	mov	ah,VIDEO_TTYOUT
 pr9:	ret
 ENDPROC	probe_report
 
-	DEFLBL	probe_cfg,byte
-	db	9,"CPU=PROBE"
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; probe_init
 ;
-; Runs the protected-mode probe if CONFIG.SYS has a "CPU=PROBE" line.
+; Runs the protected-mode probe.
 ;
 ; Inputs:
 ;	ES:BX -> DDPI
@@ -1941,9 +1949,6 @@ ENDPROC	probe_report
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	probe_init
-	mov	di,offset DEV:probe_cfg
-	call	find_cfg		; is there a "CPU=PROBE" line?
-	jne	pi9			; no
 	les	di,es:[bx].DDPI_BUFPTR	; ES:DI -> scratch buffer
 	mov	ax,es
 	mov	dx,ax
@@ -1965,11 +1970,11 @@ DEFPROC	probe_init
 	mov	bx,offset DEV:pm_probe
 	call	pm_call
 	jmp	probe_report
-pi9:	ret
 ENDPROC	probe_init
 
 	ASSERT	<offset irq_common - offset irq_stubs>,EQ,<16 * 5>
 	ASSERT	<offset exc_common - offset exc_stubs>,EQ,<16 * 5>
+	ENDIF	; PROBE
 
 	DEFLBL	gdt_init,byte
 	DESC	<0FFFFh,0FFF0h,0Fh,ACC_DATA,0>		; SEL_SYS (FFFF0h)

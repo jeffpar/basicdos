@@ -179,11 +179,18 @@ SIG_BUF		equ	'B'
 ;
 ; We'll assume that all 256 bytes from 40:00h to 40:FFh are used or reserved.
 ;
-; I've also made the strategic decision to NOT use segment value 40h to access
-; ROM BIOS data, as 00h is more useful.
+; BASIC-DOS accesses this data, and its own low memory data (from 500h), with
+; segment 40h, as the ROM BIOS does, because 40h is also a valid selector in
+; protected mode, whereas segment 00h isn't (see docs/bdtech/mmu).  For now,
+; interrupt vectors are still accessed with segment 00h, but eventually only
+; code that runs before CPU$ (eg, the boot code) should do that; everything
+; else will use DDINT entry points for reading and writing vectors.  The
+; comments below give each field's linear address, not its offset; BIOS_DATA
+; is the linear address of the segment, for code that needs a linear address
+; or paragraph (eg, the boot code, DEVINIT, and the disk buffer chain).
 ;
-BIOS		segment at 0
-IVT		dd    256 DUP(?);
+BIOS_DATA	equ	400h
+BIOS		segment at 40h
 RS232_BASE	dw	4 DUP(?); 400h: ADDRESSES OF RS232 ADAPTERS
 PRINTER_BASE	dw	4 DUP(?); 408h: ADDRESSES OF PRINTERS
 EQUIP_FLAG	dw	?	; 410h: INSTALLED HARDWARE
@@ -308,7 +315,7 @@ EGA_MISC_INFO2	db	?	; 488h: EGA DIP switches and feature bits
 ; Some DOS boot sectors would read the first directory sector into 500h,
 ; which would result in the starting clusters of IO.SYS and MSDOS.SYS residing
 ; in 51Ah and 53Ah, respectively.  Our boot sector does read root directory
-; sectors into low memory, but at 760h, not 500h, and no assumptions are made
+; sectors into low memory, but at 770h, not 500h, and no assumptions are made
 ; about directory entries or starting clusters.
 ;
 ; Other boot sectors would create an 11-byte copy of the BIOS Diskette
@@ -324,35 +331,34 @@ FDC_DEVICE	dd	?		; 506h: FDC driver header
 DD_LIST		dd	?		; 50Ah: head of device driver list
 CLOCK_DEVICE	dd	?		; 50Eh: CLOCK$ driver header
 CPU_TYPE	db	?		; 512h: CPUTYPE_* (see cpu.inc)
-DDINT_CPU	db	5 dup (?)	; 513h: room for a 5-byte far jump
-		db	10 dup (?)	; 518h: reserved
+		db	15 dup (?)	; 513h: reserved
 DPT_ACTIVE	DPT	<>		; 522h: active DPT
 BOOT_KEY	dw	?		; 52Dh: set by boot sector
 		db	1 dup (?)	; 52Fh: paragraph padding
+;
+; The DDINT entry points, which drivers (and the kernel) call far, are 5-byte
+; slots starting at 530h, each holding a far jump to its handler, or a stub
+; (eg, STC and RETF) until one is installed; new ones go after DDINT_CPU.
+;
 DDINT_ENTER	db	5 dup (?)	; 530h: room for a 5-byte far jump
 DDINT_LEAVE	db	5 dup (?)	; 535h: room for a 5-byte far jump
 DDINT_UTIL	db	5 dup (?)	; 53Ah: room for a 5-byte far jump
-		db	1 dup (?)	; 53Fh: paragraph padding
+DDINT_CPU	db	5 dup (?)	; 53Fh: room for a 5-byte far jump
+		db	12 dup (?)	; 544h: reserved for DDINT entry points
 ;
 ; We move the boot sector from BOOT_SECTOR to FAT_SECTOR.
 ;
 BOOT_SECTOR	equ	7C00h
-BOOT_SECTOR_LO	equ	550h
-FAT_BUFHDR	BUFHDR	<>		; 540h
-FAT_SECTOR	db	512 dup (?)	; 550h
+BOOT_SECTOR_LO	equ	560h
+FAT_BUFHDR	BUFHDR	<>		; 550h
+FAT_SECTOR	db	512 dup (?)	; 560h
+	ASSERT	<FAT_SECTOR - RS232_BASE>,EQ,<BOOT_SECTOR_LO - BIOS_DATA>
 
-DIR_BUFHDR	BUFHDR	<>		; 750h
-DIR_SECTOR_OFF	equ	760h
-DIR_SECTOR	db	512 dup (?)	; 760h
-		ASSERT 	<offset IVT + DIR_SECTOR_OFF>,EQ,<offset DIR_SECTOR>
+DIR_BUFHDR	BUFHDR	<>		; 760h
+DIR_SECTOR_OFF	equ	770h
+DIR_SECTOR	db	512 dup (?)	; 770h
+	ASSERT	<DIR_SECTOR - RS232_BASE>,EQ,<DIR_SECTOR_OFF - BIOS_DATA>
 
-BIOS_END	label	byte		; 960h
+BIOS_END	label	byte		; 970h
 
 BIOS		ends
-
-;
-; The ROM stores some BIOS offsets relative to segment 40h (eg, BUFFER_HEAD
-; and BUFFER_TAIL), so if we want to use those offsets within BIOS segment 00h,
-; we must add BIOS_DATA (ie, 400h) to them.
-;
-BIOS_DATA	equ	RS232_BASE

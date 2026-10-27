@@ -535,7 +535,7 @@ DEFPROC	doSound,FAR
 	call	sndWait
 	push	ax
 	push	es
-	sub	ax,ax
+	mov	ax,BIOS
 	mov	es,ax
 	mov	ax,es:[TIMER_LOW]
 	pop	es
@@ -573,7 +573,7 @@ DEFPROC	sndWait
 	mov	bx,ss:[PSP_HEAP]
 	cmp	byte ptr ss:[bx].SND_BUSY,0
 	je	sw9
-	sub	ax,ax
+	mov	ax,BIOS
 	mov	es,ax
 sw1:	mov	ax,es:[TIMER_LOW]
 	sub	ax,ss:[bx].SND_END	; has the end tick been reached?

@@ -98,7 +98,7 @@ cd0d:	inc	di			; skip the 3rd character
 	dec	ch
 	jnz	cd0c
 
-cd0e:	sub	di,di
+cd0e:	mov	di,BIOS
 	mov	es,di
 	ASSUME	ES:BIOS
 	les	di,[DD_LIST]

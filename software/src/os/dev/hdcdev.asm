@@ -782,7 +782,7 @@ DEFPROC	ddhdc_init,far
 	push	es
 	push	bx
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddhdc_req
-	sub	ax,ax
+	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
 ;
