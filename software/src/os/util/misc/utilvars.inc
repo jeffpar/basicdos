@@ -18,10 +18,10 @@
 ; define UTILRE, which adds reCompile and reSearch (see utilproc.inc), and
 ; lets their string be unquoted (see getArgs).
 ;
-	DOSFUNC equ 1
-	DOSPSP equ 1
+	DOSFUNC	equ 1
+	DOSPSP	equ 1
 	IFDEF	UTILWALK
-	DOSFFB equ 1
+	DOSFFB	equ 1
 	ENDIF
 	include	macros.inc
 	include	devapi.inc
