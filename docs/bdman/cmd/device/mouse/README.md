@@ -18,7 +18,7 @@ BASIC-DOS supports a Microsoft-compatible serial mouse on any COM port.  At boot
 
 > MOUSE ON|OFF
 
-MOUSE ON resets the mouse, discards any pending events, and displays the mouse pointer (in the center of the screen).  MOUSE OFF resets the mouse and hides the pointer.  Like MSBASIC's PEN ON, MOUSE ON does nothing if there's no mouse, and the MOUSE function then returns only zeros.
+MOUSE ON resets the mouse, discards any pending events, and displays the mouse pointer (in the center of the screen).  MOUSE OFF resets the mouse and hides the pointer.  Like MSBASIC's PEN ON, MOUSE ON does nothing if there's no mouse, and the MOUSE function returns only zeros unless MOUSE ON has found a mouse (so also before MOUSE ON and after MOUSE OFF).
 
 When a BAS program ends, the mouse is turned off if it was turned on.  SCREEN and WIDTH keep the pointer displayed (in the new mode).
 

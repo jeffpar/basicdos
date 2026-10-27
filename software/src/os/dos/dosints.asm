@@ -73,8 +73,9 @@ ENDPROC	dos_sstep
 ; dos_brkpt (INT 03h)
 ;
 ; If a breakpoint interrupt occurs, and no debugger is currently running,
-; we catch it here and ignore it.  In DEBUG builds, we first report any INT 3
-; that isn't a DBGBRK (which is preceded by a NOP) as an assertion failure.
+; we catch it here and ignore it.  In DEBUG builds, any INT 3 that isn't a
+; DBGBRK (which is preceded by a NOP) is an assertion failure, so we report it
+; and halt, so that the first failure is the one reported.
 ;
 DEFPROC	dos_brkpt,DOSFAR
 	IFDEF	DEBUG
@@ -88,6 +89,17 @@ DEFPROC	dos_brkpt,DOSFAR
 	cmp	byte ptr [si-1],OP_NOP	; DBGBRK?
 	je	bk9			; yes
 	PRINTF	<"Assertion failure @%08lx",13,10>,si,ds
+;
+; Lock the session, so that no other session runs, but leave interrupts on,
+; so that a COM console can finish (as sysinit's fatal_error does).
+;
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
+	LOCK_SCB
+	sti
+	jmp	$			; "halt"
+	ASSUME	DS:NOTHING
 bk9:	pop	ds
 	pop	si
 	pop	ax

@@ -349,7 +349,7 @@ Displays input (or *file*) one screen at a time (eg, TYPE README.TXT | MORE), di
 [b+]MOUSE ON|OFF
 Resets the mouse and shows (ON) or hides (OFF) the mouse pointer.  If there's no mouse, nothing happens.  The pointer is hidden while graphics statements run, until the next MOUSE function.
 MOUSE(*n*)
-Returns the next button event (*n* = 0: 0 if none, 1 = left pressed, 2 = left released, 3 = right pressed, 4 = right released), the x (1) or y (2) of that event, or the current x (3), y (4), or buttons (5: 1 = left, 2 = right).
+Returns the next button event (*n* = 0: 0 if none, 1 = left pressed, 2 = left released, 3 = right pressed, 4 = right released), the x (1) or y (2) of that event, or the current x (3), y (4), or buttons (5: 1 = left, 2 = right); it returns 0 unless MOUSE ON found a mouse.
 Positions are pixels in graphics modes, or a column and row (starting at 1) in text modes.
 
 [b]NEW
@@ -528,6 +528,9 @@ The time must be entered as H:M:S.D, where H is 0-23, M is 0-59, S is 0-59, and 
 
 [f]TIME$
 Returns the current time as a string in the form HH:MM:SS.
+
+[f+]TIMER
+Returns the number of seconds since midnight, with hundredths (eg, 45296.17); without FPU$, only whole seconds.
 
 [e]TR [~C] [~D] [~S] *set1* [*set2*]
 Copies input to output, replacing each character in *set1* with the matching character in *set2* (eg, DIR | TR a-z A-Z converts to upper-case); if *set2* is shorter, its last character repeats.  ~D deletes the characters in *set1* instead, ~C uses every character NOT in *set1*, and ~S squeezes each run of a character in the last set into one (eg, TR ~S " ").  A set can contain ranges (eg, a-z) and the escapes \t, \n, \r, and \ before any other character (eg, \-); quote a set that contains spaces.

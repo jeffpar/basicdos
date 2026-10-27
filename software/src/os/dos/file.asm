@@ -371,9 +371,6 @@ ENDPROC	get_wcln
 ;
 DEFPROC	add_dirent,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
-	sub	ax,ax
-	mov	ds,ax
-	ASSUME	DS:BIOS
 	sub	dx,dx			; DX = relative directory sector #
 	sub	cx,cx			; CX = DIRENT #
 ad1:	call	dir_lba			; AX = LBA

@@ -18,6 +18,9 @@
 ; below handle one axis at a time, with BP pointing to its GFXAXIS (since
 ; FPU$ functions preserve only BP and DS).
 ;
+; The TIMER function is here, too, since it also uses fpuOp.
+;
+	DOSFUNC equ 1
 	GFXDEFS equ 1
 	WINDEFS equ 1
 	include	cmd.inc
@@ -26,6 +29,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<strIllegal,gfxInit,getPixel,clampCoord,getFPUFunc>
+	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
@@ -950,6 +954,74 @@ po4:	mov	[retPoint].LOW,ax
 	RETURN
 po8:	jmp	strIllegal
 ENDPROC	gfxPoint
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getTimer (TIMER)
+;
+; Returns the number of seconds since midnight, with hundredths (from the
+; DOS time, like TIME$), as a double; without the FPU$ driver, there are no
+; doubles, so it returns whole seconds instead (see genFuncExpr).
+;
+; Inputs:
+;	pointer to double result (in a slot), or 32-bit return value if there's
+;	no FPU$ driver
+;
+; Outputs:
+;	double (or 32-bit) result updated
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	getTimer,FAR
+	RETVAR	pTimer,dword
+	LOCVAR	timerBuf,byte,16
+	ENTER
+	mov	ah,DOS_MSC_GETTIME
+	int	21h			; CH,CL,DH,DL = hour,min,sec,1/100s
+	mov	bx,dx			; BH = seconds, BL = hundredths
+	mov	al,60
+	mul	ch
+	mov	ch,0
+	add	ax,cx			; AX = minutes since midnight
+	cmp	word ptr cs:[FPU_TABLE].SEG,0
+	jne	gt1			; FPU$ driver present
+	mov	cx,60
+	mul	cx
+	add	al,bh
+	adc	ah,0
+	adc	dx,0			; DX:AX = seconds since midnight
+	mov	[pTimer].LOW,ax
+	mov	[pTimer].HIW,dx
+	jmp	short gt9
+gt1:	mov	cx,6000
+	mul	cx			; DX:AX = minutes in hundredths
+	xchg	cx,ax
+	mov	al,100
+	mul	bh
+	add	al,bl
+	adc	ah,0
+	add	ax,cx
+	adc	dx,0			; DX:AX = hundredths since midnight
+	push	dx
+	push	ax			; push that long
+	sub	cx,cx
+	push	cx
+	mov	cl,100
+	push	cx			; and 100
+	push	ss
+	pop	es
+	lea	di,[timerBuf]		; ES:DI -> two doubles
+	mov	bx,FPU_CVT2LD
+	call	fpuOp			; convert both longs to doubles
+	les	di,[pTimer]		; ES:DI -> result
+	mov	bx,FPU_DIV
+	call	fpuOp			; and divide them
+	pop	ax
+	pop	ax			; discard the result's far pointer
+gt9:	LEAVE
+	RETURN
+ENDPROC	getTimer
 
 CODE	ENDS
 

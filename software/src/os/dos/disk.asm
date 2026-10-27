@@ -409,9 +409,6 @@ DEFPROC	get_dirent,DOS
 	ASSUMES	<DS,NOTHING>,<ES,DOS>
 	push	dx
 	push	bp
-	sub	dx,dx
-	mov	ds,dx
-	ASSUME	DS:BIOS
 	sub	bp,bp			; BP = 1st relative sector to search
 	sub	cx,cx
 	test	ax,ax

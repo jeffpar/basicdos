@@ -118,7 +118,7 @@ BASIC-DOS includes one installable driver, DEBUG.COM (in the EXT directory), a s
 - E *address* [*list*] to store a list of bytes and quoted strings at *address*; without a list, E displays each byte and prompts for its replacement (an empty line ends)
 - G [*address*] to resume, after setting the breakpoints (and a temporary one at *address*)
 - R to display the registers; R *reg* [*value*] to change a register (it prompts if there's no *value*); R F to display the flags and prompt for new flag names (eg, `CY ZR`)
-- T [*count*] to execute *count* instructions (default 1), displaying the registers after each; like DEBUG, T steps into an INT by simulating it
+- T [*count*] to execute *count* instructions (default 1), displaying the registers after each; like DEBUG, T steps into an INT by simulating it, except that it steps over an INT 3 (or any other INT the debugger handles itself), as if it had returned
 - U [*range*] to disassemble 8086 instructions (32 bytes by default, continuing from the last U, or from CS:IP)
 - ? for help
 

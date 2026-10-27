@@ -31,6 +31,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<cache_int21>,far
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>
 	EXTNEAR	<dos_term,dos_func,dos_exit,dos_ctrlc,dos_error,dos_default>
+	EXTNEAR	<dos_fastcon>
 	EXTNEAR	<disk_read,disk_write,dos_tsr,dos_call5,dos_util,dos_leave>
 	EXTNEAR	<int_enter,int_leave,int_util,int_getvec,int_setvec>
 
@@ -171,19 +172,32 @@ si2b:	sub	ax,ax
 	mov	dx,ds
 	call	far ptr DDINT_SETVEC
 ;
+; Unless a driver (eg, VKD$) has installed an INT 29h handler (ie, one in RAM),
+; point INT 29h at dos_fastcon, so that write_handle's fallback never calls a
+; null vector (or a BIOS stub) when there's no valid handle (eg, here).
+;
+	mov	al,INT_FASTCON
+	call	far ptr DDINT_GETVEC	; DX:CX = INT 29h vector
+	dec	dx
+	cmp	dx,0A000h-1		; is the vector in RAM (1h-9FFFh)?
+	jb	si2c			; yes, so leave it alone
+	mov	cx,offset dos_fastcon
+	mov	dx,ds
+	call	far ptr DDINT_SETVEC
+;
 ; Unless a mouse driver has installed an INT 33h handler (ie, one in RAM;
 ; see ddmou_init), point INT 33h at an IRET, because programs like WOLF3D.EXE
 ; treat any other non-null vector (eg, a BIOS stub) as a mouse driver.
 ;
-	mov	al,INT_MOUSE
+si2c:	mov	al,INT_MOUSE
 	call	far ptr DDINT_GETVEC	; DX:CX = INT 33h vector
 	dec	dx
 	cmp	dx,0A000h-1		; is the vector in RAM (1h-9FFFh)?
-	jb	si2c			; yes, so leave it alone
+	jb	si2d			; yes, so leave it alone
 	mov	cx,offset dos_default
 	mov	dx,ds
 	call	far ptr DDINT_SETVEC
-si2c:	pop	dx			; restore DX (see si4)
+si2d:	pop	dx			; restore DX (see si4)
 ;
 ; "Revector" DDINT_UTIL to int_util as soon as INT_DOSUTIL is available,
 ; since drivers use it in place of some DOSUTIL functions (eg, LOCK, which

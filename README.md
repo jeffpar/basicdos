@@ -167,7 +167,8 @@ Utilities live in the EXT directory of every BASIC-DOS disk.  The filters, SLEEP
 - [x] INPUT$(*n*[,[#]*f*]) (reading characters from the keyboard without ENTER, or from a file or serial port)
 - [x] Devices in OPEN, as in MSBASIC: "SCRN:", serial port settings (eg, "COM1:300,E,7,1"), a device opened without FOR for both input and output (with EOF and LOC reporting a serial port's waiting input), and "Device unavailable" for a missing device; and file statements without a space before the # (eg, PRINT#1)
 - [x] KEY *n*,*string* and WIDTH *device*,*width* are accepted (function keys always return their key codes, and device output is never broken into lines)
-- [ ] BEEP and TIMER
+- [ ] BEEP
+- [x] TIMER (seconds since midnight, with hundredths, or whole seconds without FPU$)
 - [x] LPRINT, through PRN (LPT1 unless CONFIG.SYS has a PRN= line), which prints with the BIOS (no PRN device is a "Device unavailable" error)
 - [x] LLIST and LPOS, and printer errors ("Device timeout", "Out of paper", and "Device fault") for LPRINT, LLIST, and PRINT # to a printer
 - [ ] TRON and TROFF (line tracing), and CONT (continuing after STOP or CTRL-C)
@@ -276,7 +277,7 @@ These are the next steps, roughly in priority order:
 
 1. Remaining string and input/output features (comma print zones)
 2. The rest of runtime error handling (messages for numeric errors)
-3. Common BASICA features that BASIC-DOS lacks: BEEP, TIMER, and COMMON
+3. Common BASICA features that BASIC-DOS lacks: BEEP and COMMON
 4. Protected mode and extended memory on an 80286 or 80386 (the `mmu` branch; see the [design](docs/bdtech/mmu/) for the phases)
 
 ## License

@@ -91,7 +91,7 @@ Each session has its own console context (if it was given one by a CON= line), a
 | Vector | Use |
 |--------|-----|
 | 00h, 04h | Divide error and overflow: the program is terminated (exit types EXTYPE_DVERR and EXTYPE_OVERR) |
-| 01h, 03h | Single-step and breakpoint (used by DEBUG builds) |
+| 01h, 03h | Single-step and breakpoint (used by DEBUG builds, where an INT 3 other than a DBGBRK is an assertion failure, which is reported and halts the system) |
 | 20h | Terminate program |
 | 21h | DOS functions (see [DOS Functions](../dos/)) |
 | 22h | Exit address |
@@ -100,7 +100,7 @@ Each session has its own console context (if it was given one by a CON= line), a
 | 25h, 26h | Absolute disk read and write (not supported; open the volume as a file instead, as described in [File Handles](../dos/#handles)) |
 | 27h | Terminate and stay resident (not implemented yet) |
 | 28h | Idle notification (default handler only) |
-| 29h | Fast console output (installed by the VKD$ driver) |
+| 29h | Fast console output (installed by the VKD$ driver; otherwise, a default handler that writes with the BIOS) |
 | 2Ah-2Fh | Reserved (default handlers only) |
 | 30h | CALL 5 far jump (overlaps vector 31h) |
 | 32h | BASIC-DOS utility functions (see [Utility Functions](../util/)) |

@@ -509,16 +509,13 @@ ENDPROC	merge_clns
 ;	AX, DX
 ;
 DEFPROC	get_cln,DOS
-	ASSUME	ES:NOTHING
+	ASSUME	DS:NOTHING, ES:NOTHING
 	push	bx
 	push	cx
 	push	si
 	push	bp
 	push	ds
 	call	fat_pos			; BX = byte offset, CL = shift, BP = entry mask
-	sub	ax,ax
-	mov	ds,ax
-	ASSUME	DS:BIOS
 	mov	al,cs:[di].BPB_DRIVE
 	mov	si,offset FAT_BUFHDR
 	call	read_buffer

@@ -7,6 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	BIOSAPI equ 1
 	BIOSKEY equ 1
 	DOSFUNC equ 1
 	include	macros.inc
@@ -1413,6 +1414,31 @@ ws7:	pop	es
 ws8:	clc
 	ret
 ENDPROC	write_handle
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dos_fastcon (INT 29h)
+;
+; sysinit installs this default handler unless a driver (eg, VKD$) has
+; installed one, so that write_handle's fallback never calls a null vector.
+; It writes with the BIOS, so its output appears only on a video display.
+;
+; Inputs:
+;	AL = character
+;
+; Modifies:
+;	None
+;
+DEFPROC	dos_fastcon,DOSFAR
+	push	ax
+	push	bx
+	mov	ah,VIDEO_TTYOUT
+	mov	bh,0			; BH = display page
+	int	INT_VIDEO
+	pop	bx
+	pop	ax
+	iret
+ENDPROC	dos_fastcon
 
 DOS	ends
 

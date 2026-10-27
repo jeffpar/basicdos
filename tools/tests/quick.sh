@@ -35,10 +35,48 @@ abort='IF ERRORLEVEL = 255 THEN PRINT "ABORTOK" ELSE PRINT "ABORTBAD"'
 # separated with semicolons).
 #
 m='\TESTS\REGRESS\'
-tools/pc/pc.js ibm5160 software/src/configs/console/serial/fpe "VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;SLEEP 1;QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync | tee "$log"
-tools/pc/pc.js ibm5160 software/src/configs/console/serial/fpu "VER;MEM;${m}FPUTESTS;$ok;${m}VARS;${m}STRFUN;SLEEP 1;QUIT" --fpu --system=bd --version=2 --floppy --serial --normalize --nosync | tee -a "$log"
-tools/pc/pc.js ibm5160 software/src/configs/console/serial/hd "VER;CD TESTS\REGRESS;HARDERR;$abort;IOERR.COM;$ok;SLEEP 1;QUIT" --system=bd --version=2 --target=10M --serial --normalize --nosync | tee -a "$log"
-if grep -q "Floating-point .*installed" "$log" || grep -q "failed" "$log" || grep -q "EXITBAD" "$log" || [ "$(grep -c "EXITOK" "$log")" -lt 7 ] ||
+#
+# run runs pc.js with the given arguments, appending its output to $log (and copying it to the console).  A DEBUG
+# build halts after reporting an assertion failure, and one reported before a session has a console may appear only
+# on a video display, so if this run reports one, or produces no output for 90 seconds, run stops pc.js and notes
+# why in $log, which fails the checks below.
+#
+run() {
+    local start off size idle=0 why pid
+    start=$(($(wc -c < "$log")))
+    off=$start
+    tools/pc/pc.js "$@" <&0 >> "$log" &
+    pid=$!
+    while kill -0 $pid 2>/dev/null; do
+        sleep 1
+        size=$(($(wc -c < "$log")))
+        if [ $size -gt $off ]; then
+            tail -c +$((off + 1)) "$log" | head -c $((size - off))
+            off=$size idle=0
+        else
+            idle=$((idle + 1))
+        fi
+        if tail -c +$((start + 1)) "$log" | grep -q "Assertion failure"; then
+            why="an assertion failure"
+        elif [ $idle -ge 90 ]; then
+            why="90 seconds without output"
+        else
+            continue
+        fi
+        sleep 2
+        kill $pid
+        [ -t 0 ] && stty sane
+        echo "quick.sh: stopped pc.js after $why" >> "$log"
+        break
+    done
+    wait $pid
+    tail -c +$((off + 1)) "$log"
+}
+run ibm5160 software/src/configs/console/serial/fpe "VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;SLEEP 1;QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync
+run ibm5160 software/src/configs/console/serial/fpu "VER;MEM;${m}FPUTESTS;$ok;${m}VARS;${m}STRFUN;SLEEP 1;QUIT" --fpu --system=bd --version=2 --floppy --serial --normalize --nosync
+run ibm5160 software/src/configs/console/serial/hd "VER;CD TESTS\REGRESS;HARDERR;$abort;IOERR.COM;$ok;SLEEP 1;QUIT" --system=bd --version=2 --target=10M --serial --normalize --nosync
+if grep -q "Assertion failure" "$log" || grep -q "quick.sh: stopped" "$log" ||
+   grep -q "Floating-point .*installed" "$log" || grep -q "failed" "$log" || grep -q "EXITBAD" "$log" || [ "$(grep -c "EXITOK" "$log")" -lt 7 ] ||
    [ "$(grep -c "STRFUN passed" "$log")" -lt 2 ] || ! grep -q "STRPOOL passed" "$log" ||
    ! grep -q "ARRAYS passed" "$log" || ! grep -q "FLOW passed" "$log" || ! grep -q "EXPRERR passed" "$log" || ! grep -q "CMDS passed" "$log" ||
    [ "$(grep -c "VARS passed" "$log")" -lt 2 ] ||

@@ -1667,9 +1667,9 @@ DEFPROC	mouseOn,FAR
 	call	mouseReset		; AX = -1 if there's a mouse
 	inc	ax
 	jnz	mn9
+	or	byte ptr ss:[bx].GFX_DATA.MOUSE_STATE,MS_ON
 	inc	ax			; AX = 1 (show the pointer)
 	call	mouseCall
-	or	byte ptr ss:[bx].GFX_DATA.MOUSE_STATE,MS_ON
 mn9:	ret
 ENDPROC	mouseOn
 

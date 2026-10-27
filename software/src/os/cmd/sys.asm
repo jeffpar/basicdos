@@ -488,7 +488,9 @@ ENDPROC	strToLong
 ; mouseReset
 ;
 ; Resets the mouse, if any (which hides the pointer), and clears MOUSE_STATE.
-; restoreMode also calls this when a BAS program ends.
+; restoreMode also calls this when a BAS program ends.  It issues INT 33h
+; directly, since that's how we find a mouse (if there's no mouse driver,
+; DOS points INT 33h at an IRET, which leaves AX zero).
 ;
 ; Inputs:
 ;	None
@@ -502,7 +504,7 @@ ENDPROC	strToLong
 ;
 DEFPROC	mouseReset
 	sub	ax,ax
-	call	mouseCall
+	int	INT_MOUSE
 	mov	bx,ss:[PSP_HEAP]
 	mov	byte ptr ss:[bx].GFX_DATA.MOUSE_STATE,0
 	ret
@@ -512,25 +514,21 @@ ENDPROC	mouseReset
 ;
 ; mouseCall
 ;
-; Issues an INT 33h function, if the MOUSE$ driver (or any other mouse
-; driver) is installed.
+; Issues an INT 33h function, if MOUSE ON found a mouse (see mouseOn).
 ;
 ; Inputs:
 ;	AX = function (and BX, CX, DX as required)
 ;
 ; Outputs:
-;	Same as the function; if there's no mouse, carry is set and AX, BX,
+;	Same as the function; if the mouse isn't on, carry is set and AX, BX,
 ;	CX, and DX are zero
 ;
 DEFPROC	mouseCall
-	push	ds
 	push	bx
-	sub	bx,bx
-	mov	ds,bx
-	cmp	ds:[INT_MOUSE * 4].SEG,bx
+	mov	bx,ss:[PSP_HEAP]
+	test	byte ptr ss:[bx].GFX_DATA.MOUSE_STATE,MS_ON
 	pop	bx
-	pop	ds
-	je	mc8
+	jz	mc8
 	int	INT_MOUSE
 	clc
 	ret

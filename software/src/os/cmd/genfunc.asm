@@ -19,7 +19,7 @@ CODE    SEGMENT
 	EXTNEAR	<genCallCS,genCallFar,genPushImmLong,genPushBPOffset>
 	EXTNEAR	<genPushLong,genPushZeroLong>
 	EXTNEAR	<getNextSymbol,peekNextSymbol,memError>
-	EXTBYTE	<STR_DATA,VAL_DATA>
+	EXTBYTE	<STR_DATA,VAL_DATA,TIMER_DATA>
 	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -58,8 +58,9 @@ DEFPROC	genFuncExpr
 	mov	[pFuncData].SEG,dx
 ;
 ; Without the FPU$ driver, there are no doubles, but VAL and STR$ can still
-; convert between strings and longs (see strVal and strStr), so for them, a
-; VAR_DOUBLE return value or parameter is a VAR_LONG instead (see gfeLong).
+; convert between strings and longs (see strVal and strStr), and TIMER can
+; return whole seconds (see getTimer), so for them, a VAR_DOUBLE return value
+; or parameter is a VAR_LONG instead (see gfeLong).
 ;
 	mov	[fLongs],cx
 	cmp	word ptr cs:[FPU_TABLE].SEG,cx
@@ -68,6 +69,8 @@ DEFPROC	genFuncExpr
 	cmp	dx,ax			; predefined function?
 	jne	gfeA			; no
 	cmp	si,offset VAL_DATA
+	je	gfeL
+	cmp	si,offset TIMER_DATA
 	je	gfeL
 	cmp	si,offset STR_DATA
 	jne	gfeA

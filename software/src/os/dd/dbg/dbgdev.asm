@@ -850,33 +850,38 @@ ct1:	mov	[trace_cnt],ax
 	DEFLBL	do_trace,near
 	dec	[trace_cnt]
 	les	di,dword ptr regs[R_IP]
-	cmp	byte ptr es:[di],0CDh	; INT n?
+	mov	al,es:[di]
+	cmp	al,0CCh			; INT 3 (one byte)?
+	je	ct1b			; yes, so skip it
+	cmp	al,0CDh			; INT n?
 	jne	ct2			; no
-	mov	bl,es:[di+1]
-	mov	bh,0
-	shl	bx,1
-	shl	bx,1
-	sub	ax,ax
-	mov	es,ax
-	les	ax,dword ptr es:[bx]	; ES:AX = vector
-	mov	cx,es
-	mov	dx,cs
-	cmp	cx,dx			; is it one of ours?
-	je	ct2			; yes, so let it run
-	les	bx,dword ptr regs[R_SP]
+	mov	al,es:[di+1]
+	call	far ptr DDINT_GETVEC	; DX:CX = vector
+	mov	ax,cs
+	cmp	dx,ax			; is it one of ours (eg, INT 3)?
+	jne	ct1c			; no
+;
+; Tracing into one of our own handlers would only stop at its first
+; instruction, so skip the INT instead, as if it had just returned.
+;
+	inc	di
+ct1b:	inc	di
+	mov	regs[R_IP],di
+	jmp	short ct1d
+ct1c:	les	bx,dword ptr regs[R_SP]
 	sub	bx,6
 	mov	regs[R_SP],bx
 	inc	di
 	inc	di
 	mov	es:[bx],di		; push the return address
-	mov	dx,regs[R_CS]
-	mov	es:[bx+2],dx
-	mov	dx,regs[R_FL]		; and the flags
-	mov	es:[bx+4],dx
+	mov	ax,regs[R_CS]
+	mov	es:[bx+2],ax
+	mov	ax,regs[R_FL]		; and the flags
+	mov	es:[bx+4],ax
 	and	byte ptr regs[R_FL+1],0FCh	; and clear IF and TF
-	mov	regs[R_IP],ax
-	mov	regs[R_CS],cx
-	pop	ax			; discard our return address
+	mov	regs[R_IP],cx
+	mov	regs[R_CS],dx
+ct1d:	pop	ax			; discard our return address
 	jmp	mon3
 ct2:	mov	al,1
 	DEFLBL	step,near
@@ -2530,6 +2535,7 @@ din1:	push	dx
 	mov	es:[di].DDPI_END.OFF,offset resident_end
 	mov	es:[di].DDPI_END.SEG,cs
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	nop				; (so that INT 3 isn't an assertion)
 din7:	ret				; (switches change this to INT 3)
 	ret
 din8:	mov	ah,DOS_HDL_CLOSE

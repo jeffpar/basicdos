@@ -22,6 +22,7 @@ CODE    SEGMENT
 	EXTNEAR	<strLCase,strLeft,strLen,strMid,strOct,strRight,strSpace>
 	EXTNEAR	<strStr,strString,strTime,strUCase,strVal,strCurDir,strPath>
 	EXTNEAR	<getExists,strDir,getDos,gfxPoint,gfxPmap,getLpos,strInput>
+	EXTNEAR	<getTimer>
 
 	DEFLBL	PREDEF_VARS,byte
 ;
@@ -236,6 +237,10 @@ CODE    SEGMENT
 	db	VAR_STR,1
 	db	VAR_LONG,PARM_REQUIRED
 	dw	offset strSpace,0
+	db	VAR_FUNC + 5,"TIMER"
+	DEFLBL	TIMER_DATA,byte		; (see genFuncExpr)
+	db	VAR_DOUBLE,0
+	dw	offset getTimer,0
 	db	VAR_FUNC + 5,"UCASE"
 	db	VAR_STR,1
 	db	VAR_STR,PARM_REQUIRED

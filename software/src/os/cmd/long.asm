@@ -1259,8 +1259,8 @@ ENDPROC	randomize
 ; getTicks
 ;
 ; Moved here from snd.asm, which isn't part of COMMAND's core (see CMD.LRF).
-; The BIOS data area offsets are written out, since this module doesn't
-; include bios.inc (see TIMER_LOW and TIMER_HIGH there).
+; The BIOS segment and its offsets are written out, since this module doesn't
+; include bios.inc (see BIOS, TIMER_LOW, and TIMER_HIGH there).
 ;
 ; Inputs:
 ;	None
@@ -1273,10 +1273,10 @@ ENDPROC	randomize
 ;
 DEFPROC	getTicks
 	push	ds
-	sub	ax,ax
+	mov	ax,40h			; BIOS
 	mov	ds,ax
-	mov	ax,ds:[46Ch]		; TIMER_LOW
-	mov	dx,ds:[46Eh]		; TIMER_HIGH
+	mov	ax,ds:[6Ch]		; TIMER_LOW
+	mov	dx,ds:[6Eh]		; TIMER_HIGH
 	pop	ds
 	ret
 ENDPROC	getTicks
