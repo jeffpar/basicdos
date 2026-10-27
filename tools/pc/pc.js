@@ -3972,7 +3972,7 @@ export default class PC extends PCJSLib {
 
         stdin.resume();
         stdin.setEncoding("utf8");
-        stdin.setRawMode(true);
+        if (stdin.setRawMode) stdin.setRawMode(true);   // (stdin may not be a TTY)
 
         stdin.on("data", function(data) {
             let machine = pc.machine;
@@ -4071,7 +4071,7 @@ export default class PC extends PCJSLib {
         } else if (this.drives[this.driveBuild].driveManifest) {
             printf("warning: any changes to disk not saved\n");
         }
-        node.process.stdin.setRawMode(false);
+        if (node.process.stdin.setRawMode) node.process.stdin.setRawMode(false);
         if (code) printf("shutting down (%d)\n", code);
         if (this.test) printf("\n");
         node.process.exit(code);

@@ -188,24 +188,27 @@ DEFPROC	cache_int21,FAR
 	push	di
 	push	es
 	mov	si,dx
-	sub	ax,ax
-	mov	[pCacheActive].OFF,ax	; no active cache data yet
 	DOSUTIL	STRLEN			; AX = length of string at DS:SI
 	xchg	cx,ax			; CX = length
 	les	di,[pCacheFile]		; ES:DI -> previous filename, if any
+	sub	ax,ax			; AX = 0 (no active cache data)
 	test	di,di			; is there a previous filename?
 	jz	ci1			; no
 	repe	cmpsb			; does previous filename match current?
 	jne	ci1			; no
 	mov	ax,[pCacheData].OFF	; yes, init active cache data
+ci1:	push	cs
+	pop	es
+	ASSUME	ES:DOS
 	mov	[pCacheActive].OFF,ax
 	mov	ax,[pCacheData].SEG
 	mov	[pCacheActive].SEG,ax
 	mov	ax,[cbCacheData]
 	mov	[cbCacheActive],ax
-ci1:	mov	[pCacheFile].OFF,dx	; in any case, remember this filename
+	mov	[pCacheFile].OFF,dx	; in any case, remember this filename
 	mov	[pCacheFile].SEG,ds
 	pop	es
+	ASSUME	ES:NOTHING
 	pop	di
 	pop	si
 	pop	cx
@@ -221,6 +224,10 @@ ci2:	cmp	ah,DOS_HDL_SEEK
 ; are the only methods load_program uses.
 ;
 	push	bx
+	push	es
+	push	cs
+	pop	es
+	ASSUME	ES:DOS
 	mov	bx,dx			; BX = offset
 	sub	al,SEEK_END
 	cmp	al,1			; carry set if SEEK_END
@@ -235,6 +242,8 @@ ci2:	cmp	ah,DOS_HDL_SEEK
 	mov	[cbCacheActive],ax
 	xchg	ax,bx			; DX:AX = new position
 	sub	dx,dx
+	pop	es
+	ASSUME	ES:NOTHING
 	pop	bx
 	jmp	short ci10		; (carry is clear)
 
@@ -259,9 +268,13 @@ ci4:	cmp	ah,DOS_HDL_READ
 	mov	ax,[cbCacheActive]	; no
 ci3:	mov	cx,ax
 	rep	movsb
+	push	cs
+	pop	es
+	ASSUME	ES:DOS
 	sub	[cbCacheActive],ax
 	add	[pCacheActive].OFF,ax
 	ASSERT	NC
+	ASSUME	ES:NOTHING
 ci8:	pop	es
 	pop	ds
 	pop	di

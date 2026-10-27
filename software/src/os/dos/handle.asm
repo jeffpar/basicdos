@@ -351,10 +351,14 @@ DEFPROC	sfb_open,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	sub	ax,ax			; AH = 0 (filename), AL = attributes
 	DEFLBL	sfb_open_fcb,near
-	LOCK_SCB
 	push	si
 	push	ds
 	push	es
+	push	cs
+	pop	es
+	ASSUME	ES:DOS
+	LOCK_SCB
+	ASSUME	ES:NOTHING
 	call	chk_devname		; is it a device name?
 	jnc	so0			; yes
 	call	chk_volume		; is it a volume name (eg, "C:")?
@@ -392,9 +396,13 @@ so0:	jcxz	so0a			; not one of the session's devices
 	jz	so9a			; no
 	dec	cx
 	xchg	bx,cx			; BX -> session's SFB
-	inc	cs:[bx].SFB_REFS	; add a reference
-	mov	dx,cs:[bx].SFB_CONTEXT	; DX = context (and carry is clear)
+	push	cs
+	pop	ds			; (so9 restores DS)
+	ASSUME	DS:DOS
+	inc	[bx].SFB_REFS		; add a reference
+	mov	dx,[bx].SFB_CONTEXT	; DX = context (and carry is clear)
 	jmp	so9
+	ASSUME	DS:NOTHING
 
 so0a:	call	chk_devopen		; can it be opened in this mode?
 	jc	so9b			; no (AX = error code)
@@ -452,18 +460,17 @@ so5:	add	si,size SFB
 	pop	cx			; CX = DIRENT # (if any)
 	test	bx,bx			; was there a free SFB?
 	jz	so8			; no, tell the driver sorry
-	mov	cs:[bx].SFB_DIRNUM,cx
-	push	si
-	mov	si,cs:[scb_active]
-	mov	cx,cs:[si].SCB_DIRCLN
-	mov	cs:[bx].SFB_DIRCLN,cx
-	pop	si
-
 	push	di
 	push	es
 	push	cs
 	pop	es
 	ASSUME	ES:DOS
+	mov	es:[bx].SFB_DIRNUM,cx
+	push	si
+	mov	si,es:[scb_active]
+	mov	cx,es:[si].SCB_DIRCLN
+	mov	es:[bx].SFB_DIRCLN,cx
+	pop	si
 	mov	di,bx			; ES:DI -> SFB (a superset of DIRENT)
 	test	al,al			; was a DIRENT provided?
 	jl	so5a			; no
@@ -588,6 +595,9 @@ DEFPROC	chk_volume,DOS
 	or	sp,sp			; no (carry clear, ZF clear)
 	ret
 cv1:	mov	dl,[si]
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
 	and	dl,NOT 20h		; DL = upper-case drive letter
 	sub	dl,'A'			; DL = drive #
 	inc	[err_active]		; treat hard errors as FAIL
@@ -603,12 +613,11 @@ cv2:	mov	al,dl			; AL = drive #
 	jc	cv9			; no
 	call	flush_buffers		; write any modified buffers first
 	jc	cv9
-	mov	si,di
-	push	cs
-	pop	ds			; DS:SI -> BPB
-	les	di,cs:[di].BPB_DEVICE	; ES:DI -> driver
+	mov	si,di			; DS:SI -> BPB
+	les	di,[di].BPB_DEVICE	; ES:DI -> driver
 	sub	dx,dx			; DX = 0 (carry clear, ZF set)
 cv9:	ret
+	ASSUME	DS:NOTHING
 ENDPROC	chk_volume
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1334,7 +1343,13 @@ DEFPROC	sfh_add_ref,DOS
 	call	sfb_from_sfh
 	pop	ax
 	jc	sha9
-	add	cs:[bx].SFB_REFS,ah
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
+	add	[bx].SFB_REFS,ah
+	pop	ds
+	ASSUME	DS:NOTHING
 	ASSERT	NC
 sha9:	pop	bx
 	ret

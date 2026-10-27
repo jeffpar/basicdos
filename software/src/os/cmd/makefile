@@ -12,7 +12,7 @@ LINK=LINK
 EXE2BIN=EXE2BIN
 AFLAGS=/MX /R /D$(REL) /I. /I..\INC
 #
-# Listings are off; to create them, set LST=OBJ\$*.LST
+# Use LST=NUL to turn listings off and LST=OBJ\$*.LST to turn them on.
 #
 LST=NUL
 

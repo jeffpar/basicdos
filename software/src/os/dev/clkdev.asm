@@ -553,6 +553,10 @@ ENDPROC	ddclk_none
 DEFPROC	ddclk_timer,far
 	push	ax
 	push	dx
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
 	pushf
 	cli
 	call	tmr_remove
@@ -574,6 +578,8 @@ dt1:	sub	dx,dx
 	xchg	[tmr_list].SEG,ax
 	mov	es:[di].TMR_NEXT.SEG,ax
 dt9:	popf
+	pop	ds
+	ASSUME	DS:NOTHING
 	pop	dx
 	pop	ax
 	ret
@@ -796,7 +802,10 @@ DEFPROC	ddclk_init,far
 	ASSERT	STRUCT,es:[bx],DDP
 
 	mov	es:[bx].DDPI_END.OFF,offset ddclk_init
-	mov	cs:[0].DDH_REQUEST,offset DEV:ddclk_req
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
+	mov	ds:[0].DDH_REQUEST,offset DEV:ddclk_req
 ;
 ; Start with the BIOS time of day (which an AT-class BIOS sets from its
 ; real-time clock) and the real-time clock's date, if any.  A PC or XT BIOS

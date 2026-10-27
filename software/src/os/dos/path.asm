@@ -413,12 +413,12 @@ mv1:	push	ds
 	jc	mv9
 mvf:
 	mov	bx,sp
-	mov	di,cs:[scb_active]
-	mov	ax,ss:[bx+MV_DIR]
-	mov	cs:[di].SCB_DIRCLN,ax
-	lea	di,[di].SCB_FILENAME
 	push	cs
 	pop	es
+	mov	di,cs:[scb_active]
+	mov	ax,ss:[bx+MV_DIR]
+	mov	es:[di].SCB_DIRCLN,ax
+	lea	di,[di].SCB_FILENAME
 	mov	al,ss:[bx+MV_DRV]
 	stosb				; restore source drive and name
 	mov	si,bx

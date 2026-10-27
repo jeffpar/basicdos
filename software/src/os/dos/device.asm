@@ -481,7 +481,6 @@ dev_errs	db	DDERR_WP,19, DDERR_UNKUNIT,20, DDERR_NOTREADY,21
 ;
 DEFPROC	dev_error,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
-	LOCK_SCB
 	push	bx
 	push	cx
 	push	dx
@@ -490,6 +489,10 @@ DEFPROC	dev_error,DOS
 	push	bp
 	push	ds
 	push	es
+	push	cs
+	pop	ds			; DS = DOS (for the handler as well)
+	ASSUME	DS:DOS
+	LOCK_SCB
 	cmp	[err_active],0		; already handling a hard error?
 	je	he0			; no
 	jmp	he7			; yes, so fail this one, too
@@ -512,13 +515,13 @@ he0:	mov	si,di			; SI = DDH offset (for BP:SI)
 he1:	or	cl,CRERR_IGNOREOK OR CRERR_AREA
 	mov	bx,[bp].DDPRW_BPB.OFF	; BX -> BPB (in the DOS segment)
 	mov	dx,[bp].DDPRW_LBA	; DX = LBA of the failing sector
-	cmp	dx,cs:[bx].BPB_LBADATA	; data area?
+	cmp	dx,[bx].BPB_LBADATA	; data area?
 	jae	he2			; yes
 	sub	cl,2			; no, directory?
-	cmp	dx,cs:[bx].BPB_LBAROOT
+	cmp	dx,[bx].BPB_LBAROOT
 	jae	he2			; yes
 	sub	cl,2			; no, FAT?
-	cmp	dx,cs:[bx].BPB_RESSECS
+	cmp	dx,[bx].BPB_RESSECS
 	jae	he2			; yes
 	sub	cl,2			; no, reserved area
 he2:	mov	ah,cl			; AH = flags
@@ -534,8 +537,6 @@ he2:	mov	ah,cl			; AH = flags
 	pop	ss
 	mov	sp,[err_stack]
 	sti
-	push	cs
-	pop	ds			; DS = DOS (for the handler as well)
 	mov	bx,[scb_active]
 	push	dx
 	push	cx			; caller's SS:SP
@@ -575,6 +576,7 @@ he3:	cmp	al,CRERR_ABORT
 he7:	mov	al,CRERR_FAIL
 he8:	pop	es
 	pop	ds
+	ASSUME	DS:NOTHING
 	pop	bp
 	pop	di
 	pop	si

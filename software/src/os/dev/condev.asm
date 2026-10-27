@@ -727,7 +727,13 @@ dsm1:	cmp	cl,6			; CGA modes 0-6 only
 ; but since this context may not be the session's context, we update the
 ; BIOS data ourselves and bypass ddcon_int10 (see set_curtype).
 ;
-dsm2:	inc	[bios_lock]
+dsm2:	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
+	inc	[bios_lock]
+	pop	ds
+	ASSUME	DS:NOTHING
 	mov	ah,DOS_UTL_LOCK
 	call	far ptr DDINT_UTIL	; ensure EQUIP_FLAG remains stable
 	call	update_biosdata		; AX = previous EQUIP_FLAG
@@ -1025,13 +1031,12 @@ dco1a:	push	ax
 	inc	byte ptr con_place[si+2]
 dco1b:	mov	con_place[si],ax
 	pop	ax
-	mov	ds,ax
+	cmp	[ct_focus],0
+	jne	dco1c
+	mov	[ct_focus],ax
+dco1c:	mov	ds,ax
 	ASSUME	DS:NOTHING
 	DBGINIT	STRUCT,ds:[0],CT
-
-	cmp	[ct_focus],0
-	jne	dco2
-	mov	[ct_focus],ax
 ;
 ; Inserting the new context at the head of the chain (ct_head) is the
 ; simplest way to update the chain, but we prefer to chain the contexts
@@ -1538,6 +1543,10 @@ DEFPROC	ddcon_int10,far
 ; function issued its own locks, but locking at this level makes that
 ; unnecessary now.
 ;
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
 	inc	[bios_lock]
 ;
 ; DOSUTIL LOCK has been updated to return the active session's CONSOLE
@@ -1551,7 +1560,9 @@ DEFPROC	ddcon_int10,far
 	je	i10y			; no
 	mov	ax,[bios_ctx]		; yes (see scroll)
 	mov	[bios_ctx],0
-i10y:	call	chk_context		; zero AX if the context isn't ours
+i10y:	pop	ds
+	ASSUME	DS:NOTHING
+	call	chk_context		; zero AX if the context isn't ours
 	push	ax			; save the context segment
 	test	ax,ax			; is it valid?
 	jz	i10a			; no
@@ -1638,12 +1649,18 @@ ENDPROC	ddcon_int29
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	add_packet
 	cli
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
 	mov	ax,di
 	xchg	[wait_ptr].OFF,ax
 	mov	es:[di].DDP_PTR.OFF,ax
 	mov	ax,es
 	xchg	[wait_ptr].SEG,ax
 	mov	es:[di].DDP_PTR.SEG,ax
+	pop	ds
+	ASSUME	DS:NOTHING
 ;
 ; The WAIT condition will be satisfied when enough data is received
 ; (for a READ packet) or when the context is unpaused (for a WRITE packet).
@@ -2285,7 +2302,13 @@ scr3:	mov	ah,bl
 ; tell ddcon_int10 which context to use, with interrupts off until it has.
 ;
 	cli
+	push	es
+	push	cs
+	pop	es
+	ASSUME	ES:CODE
 	mov	[bios_ctx],ds
+	pop	es
+	ASSUME	ES:NOTHING
 	int	INT_VIDEO
 	sti
 	pop	dx
@@ -2412,7 +2435,13 @@ DEFPROC	switch_focus
 ;
 	cmp	[bios_lock],0
 	je	switch_now
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
 	inc	[req_switch]
+	pop	ds
+	ASSUME	DS:NOTHING
 	jmp	short sf9
 
 	DEFLBL	switch_now,near
@@ -2432,7 +2461,11 @@ DEFPROC	switch_focus
 sf1:	mov	cx,[ct_head]
 	cmp	cx,[ct_focus]
 	je	sf8			; nothing to do
-sf2:	xchg	cx,[ct_focus]
+sf2:	push	cs
+	pop	es
+	ASSUME	ES:CODE
+	xchg	cx,[ct_focus]
+	ASSUME	ES:NOTHING
 	mov	ds,cx
 	call	draw_border		; redraw the border and hide
 	call	hide_cursor		; the cursor of the outgoing context
@@ -2469,6 +2502,10 @@ ENDPROC	switch_focus
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	unlock_bios
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
 	dec	[bios_lock]		; BIOS unlocked now?
 	jnz	ub9			; no
 	mov	al,0
@@ -2483,7 +2520,9 @@ DEFPROC	unlock_bios
 	pop	dx
 	pop	cx
 	pop	bx
-ub9:	ret
+ub9:	pop	ds
+	ASSUME	DS:NOTHING
+	ret
 ENDPROC	unlock_bios
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2565,7 +2604,11 @@ ENDPROC	chk_blocked
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	release_mode
+	push	cs
+	pop	es
+	ASSUME	ES:CODE
 	mov	[mode_ctx],0
+	ASSUME	ES:NOTHING
 	push	ds
 	mov	ax,ds:[CT_PORT]		; AX = adapter port
 	mov	cx,[ct_head]
@@ -2786,7 +2829,13 @@ um1:	mov	ds:[CT_PAGE],ah
 	mov	al,ds:[CT_MODE]
 	cmp	al,ds:[CTO_MODE]	; back to the original mode?
 	je	um6			; yes
+	push	es
+	push	cs
+	pop	es
+	ASSUME	ES:CODE
 	mov	[mode_ctx],ds		; no, so block the other contexts
+	pop	es
+	ASSUME	ES:NOTHING
 	jmp	short um7
 um6:	mov	ax,ds
 	cmp	ax,[mode_ctx]		; was this context blocking the others?
@@ -3227,8 +3276,11 @@ DEFPROC	ddcon_init,far
 	ASSUME	DS:BIOS
 
 	mov	ax,[EQUIP_FLAG]		; AX = EQUIP_FLAG
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
 	mov	es:[bx].DDPI_END.OFF,offset ddcon_init
-	mov	cs:[0].DDH_REQUEST,offset DEV:ddcon_req
+	mov	ds:[0].DDH_REQUEST,offset DEV:ddcon_req
 ;
 ; Determine what kind of video console we're dealing with (MONO or COLOR)
 ; and what the frame buffer segment is.
@@ -3241,7 +3293,7 @@ DEFPROC	ddcon_init,far
 	mov	dx,0B800h
 	add	si,4			; SI -> # pages of the alternate adapter
 ddn1:	mov	[frame_seg],dx
-	mov	byte ptr cs:[si],1	; an MDA has only one page
+	mov	byte ptr [si],1		; an MDA has only one page
 ;
 ; Record which adapters are present (see ADAPTER_*), by writing a test value
 ; to each adapter's cursor position (low) register, which is readable, and

@@ -202,8 +202,20 @@ si2c:	pop	dx			; restore DX (see si4)
 ; for our stack, whereas relative to DS, it's the start of DOS table space,
 ; and while the SCBs will be our first table, we have to temporarily set
 ; scb_active to that same region, so that any DOS or DOSUTIL calls we make
-; will not barf due to the lack of an active SCB.
+; will not barf due to the lack of an active SCB.  That region still holds
+; the original copy of this init code, so zero it first (eg, SCB_INDOS must
+; start at zero).
 ;
+	push	es
+	push	ds
+	pop	es
+	ASSUME	ES:DOS
+	mov	di,sp
+	mov	cx,size SCB
+	mov	al,0
+	rep	stosb
+	pop	es
+	ASSUME	ES:BIOS
 	mov	bx,sp
 	DBGINIT	STRUCT,[bx],SCB
 	mov	[scb_active],bx		; set temporary SCB
@@ -254,7 +266,7 @@ si3a:	mov	si,offset CFG_MEMSIZE
 	cmp	ax,[mcb_limit]		; is MEMSIZE too large?
 	jae	si4			; yes
 	mov	[mcb_limit],ax
-	mov	cs:[top_seg],ax
+	mov	ss:[top_seg],ax		; (SS = CS since sysinit_high)
 ;
 ; Now set ES to the first available paragraph for resident DOS tables.
 ;

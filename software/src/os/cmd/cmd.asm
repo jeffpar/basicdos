@@ -45,6 +45,7 @@ DEFPROC	main
 	mov	dx,ds
 	cmp	ax,dx			; do we own the shared code?
 	jne	m0z			; no
+	ASSUME	DS:CODE
 	call	resParas		; BX = paras through end of code
 	mov	ah,DOS_MEM_REALLOC
 	int	21h			; (ES = our PSP)
@@ -58,7 +59,14 @@ DEFPROC	main
 	mov	ax,DOS_MSC_GETPCH
 	int	21h			; DL = path char (fixed at boot)
 	mov	[CMD_PATH+2],dl		; COMMAND.COM is in the root
-m0z:	inc	cs:[CMD_REFS]
+	ASSUME	DS:DATA
+m0z:	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
+	inc	[CMD_REFS]
+	pop	ds
+	ASSUME	DS:DATA
 ;
 ; Get the current session's screen dimensions (AL=cols, AH=rows).
 ;
@@ -207,10 +215,16 @@ m3:	call	enterLine		; is it a numbered program line?
 ; ERRORLEVEL as the exit code (unlike PC DOS, which always returns zero).
 ;
 m9:	mov	al,[bx].EXIT_CODE
-	dec	cs:[CMD_REFS]
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
+	dec	[CMD_REFS]
 	mov	ah,DOS_PSP_RETURN
 	int	21h
-	inc	cs:[CMD_REFS]		; unless it can't (ie, no parent)
+	inc	[CMD_REFS]		; unless it can't (ie, no parent)
+	pop	ds
+	ASSUME	DS:DATA
 	and	[bx].CMD_FLAGS,NOT CMD_SINGLE
 	jmp	m1
 ENDPROC	main
@@ -1675,9 +1689,15 @@ ENDPROC	getToken
 ;	Any
 ;
 DEFPROC	cmdExit
-	dec	cs:[CMD_REFS]
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
+	dec	[CMD_REFS]
 	int	20h			; terminates the current process
-	inc	cs:[CMD_REFS]
+	inc	[CMD_REFS]
+	pop	ds
+	ASSUME	DS:DATA
 	ret				; unless it can't (ie, no parent)
 ENDPROC	cmdExit
 

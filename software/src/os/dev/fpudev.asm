@@ -599,8 +599,6 @@ HWCODE	segment para public 'CODE'
 	DEFPTR	hwComAtoD		; comAtoD (set by ddfpu_init)
 	DEFPTR	hwComDtoA		; comDtoA (set by ddfpu_init)
 
-	DEFWORD	hwStatus,0		; status word (used with interrupts off)
-	DEFWORD	hwTemp,0		; temp word (used with interrupts off)
 	DEFWORD	hwCWNear,CW_NEAR
 	DEFWORD	hwCWDown,CW_DOWN
 	DEFWORD	hwCWChop,CW_CHOP
@@ -724,17 +722,21 @@ ENDPROC	hwMul
 DEFPROC	hwExp,FAR
 	call	hwLoad2			; ST(0) = A, ST(1) = B
 	fxch				; ST(0) = B, ST(1) = A
-	fist	cs:[hwTemp]		; store B as a 16-bit integer
-	ficom	cs:[hwTemp]		; and compare it to B
+;
+; B's pointer on the stack (SS:BX+4) isn't needed now, so it holds B as an
+; integer.
+;
+	fist	word ptr ss:[bx+4]	; store B as a 16-bit integer
+	ficom	word ptr ss:[bx+4]	; and compare it to B
 	call	hwStat
 	jne	he5			; B is not a 16-bit integer
 	fstp	st(0)			; ST(0) = A
-	mov	cx,cs:[hwTemp]
+	mov	cx,ss:[bx+4]
 	test	cx,cx
 	jns	he1
 	neg	cx			; CX = abs(B) (where 8000h is 32768)
 he1:	call	hwPowInt		; ST(0) = A^abs(B)
-	cmp	cs:[hwTemp],0		; was B negative?
+	cmp	word ptr ss:[bx+4],0	; was B negative?
 	jge	he9			; no
 	fdivr	cs:[hwOne]		; yes, so result = 1 / result
 	jmp	short he9
@@ -1240,7 +1242,7 @@ ENDPROC	hwAtoD
 ;	AX, BX, CX, DX
 ;
 DEFPROC	hwToDec,FAR
-	sub	sp,10			; room for BCD
+	sub	sp,12			; room for BCD and a temp word
 	mov	bx,sp			; SS:BX -> BCD
 	mov	ch,0			; CX = N
 	cli
@@ -1258,10 +1260,10 @@ ht1:	fldlg2				; ST(0) = log10(2), ST(1) = x
 	fld	st(1)			; ST(0) = x
 	fyl2x				; ST(0) = log10(x), ST(1) = x
 	fldcw	cs:[hwCWDown]
-	fistp	cs:[hwTemp]		; e = floor(log10(x))
+	fistp	word ptr ss:[bx+10]	; e = floor(log10(x))
 	fldcw	cs:[hwCWNear]
 	fwait
-	mov	dx,cs:[hwTemp]		; DX = e
+	mov	dx,ss:[bx+10]		; DX = e
 	mov	ax,cx
 	dec	ax
 	sub	ax,dx
@@ -1330,7 +1332,7 @@ ht7:	cmp	byte ptr ss:[bx],cl	; when N is zero, did the value round up?
 	inc	ax			; yes, so return 1 digit at e+1
 	inc	cx
 	jmp	ht4
-ht9:	add	sp,10
+ht9:	add	sp,12
 	ret
 ENDPROC	hwToDec
 
@@ -1353,17 +1355,22 @@ ENDPROC	hwToDec
 ;
 DEFPROC	hwFromDec,FAR
 	xchg	dx,ax			; DX = exponent
+	push	bp
+	push	ax			; room for each digit
+	mov	bp,sp
 	cli
 	fldz				; ST(0) = mantissa
 	jcxz	hf2
 hf1:	lodsb
 	sub	al,'0'
 	cbw
-	mov	cs:[hwTemp],ax
+	mov	[bp],ax
 	fmul	cs:[hwTen]
-	fiadd	cs:[hwTemp]		; mantissa = mantissa * 10 + digit
+	fiadd	word ptr [bp]		; mantissa = mantissa * 10 + digit
 	loop	hf1
-hf2:	xchg	ax,dx
+hf2:	pop	ax
+	pop	bp
+	xchg	ax,dx
 	call	hwScale10		; ST(0) = mantissa * 10^exponent
 	test	bl,80h
 	jz	hf3
@@ -1437,9 +1444,13 @@ ENDPROC	hwLoad2
 ;	AX
 ;
 DEFPROC	hwStat
-	fstsw	cs:[hwStatus]
+	push	ax			; room for the status word
+	push	bp
+	mov	bp,sp
+	fstsw	word ptr [bp+2]
 	fwait
-	mov	ax,cs:[hwStatus]
+	pop	bp
+	pop	ax
 	sahf
 	ret
 ENDPROC	hwStat
@@ -4216,7 +4227,10 @@ INIT	segment para public 'CODE'
         ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 DEFPROC	ddfpu_init,far
-	mov	cs:[0].DDH_REQUEST,offset DEV:ddfpu_req
+	push	cs
+	pop	ds
+	ASSUME	DS:DEV
+	mov	ds:[0].DDH_REQUEST,offset DEV:ddfpu_req
 ;
 ; Detect the 8087: after FNINIT, the low byte of its status word must be
 ; zero and its control word must contain the FNINIT default bits (if there's
@@ -4238,7 +4252,7 @@ DEFPROC	ddfpu_init,far
 	mov	dh,FPUTYPE_8087
 ddi1:	pop	ax
 	mov	dl,(size FPUTBL) SHR 1
-	mov	cs:[fpuInfo],dx
+	mov	[fpuInfo],dx
 
 	mov	di,offset DEV:hwTable
 	mov	ax,di
@@ -4246,14 +4260,12 @@ ddi1:	pop	ax
 	shr	ax,cl
 	mov	si,cs
 	add	ax,si
-	mov	cs:[fpuSeg],ax		; FPUTBL is at fpuSeg:0
+	mov	[fpuSeg],ax		; FPUTBL is at fpuSeg:0
 
 	mov	ax,offset DEV:swTable	; AX = end of HWCODE
 	test	dh,dh			; 8087 present?
 	jnz	ddi9			; yes
 	push	es
-	push	cs
-	pop	ds
 	push	cs
 	pop	es
 	mov	si,ax			; DS:SI -> SWCODE
@@ -4268,17 +4280,17 @@ ddi9:	mov	es:[bx].DDPI_END.OFF,ax
 ; pointers that the shared code uses to reach FPU_TODEC and FPU_FROMDEC.
 ;
 	mov	si,offset DEV:hwComAtoD
-	mov	word ptr cs:[si],offset DEV:comAtoD
-	mov	cs:[si+2],cs
-	mov	word ptr cs:[si+4],offset DEV:comDtoA
-	mov	cs:[si+6],cs
-	mov	ax,cs:[fpuSeg]
-	mov	cs:[fpuToDec].SEG,ax
-	mov	cs:[fpuFromDec].SEG,ax
-	mov	ax,word ptr cs:[hwTable+FPU_TODEC]
-	mov	cs:[fpuToDec].OFF,ax
-	mov	ax,word ptr cs:[hwTable+FPU_FROMDEC]
-	mov	cs:[fpuFromDec].OFF,ax
+	mov	word ptr [si],offset DEV:comAtoD
+	mov	[si+2],cs
+	mov	word ptr [si+4],offset DEV:comDtoA
+	mov	[si+6],cs
+	mov	ax,[fpuSeg]
+	mov	[fpuToDec].SEG,ax
+	mov	[fpuFromDec].SEG,ax
+	mov	ax,word ptr [hwTable+FPU_TODEC]
+	mov	[fpuToDec].OFF,ax
+	mov	ax,word ptr [hwTable+FPU_FROMDEC]
+	mov	[fpuFromDec].OFF,ax
 	ret
 ENDPROC	ddfpu_init
 

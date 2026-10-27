@@ -934,9 +934,10 @@ ENDPROC	fcb_ffirst
 ;
 DEFPROC	fcb_fnext,DOS
 	call	fcb_ptr			; DS:SI -> FCB, AL = attributes
-ff0:	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+ff0:	ASSUMES	<DS,NOTHING>,<ES,DOS>
 	LOCK_SCB
 	call	find_fcb		; DS:SI -> DIRENT
+	ASSUME	ES:NOTHING
 	jc	ff8
 	push	ds
 	push	si
@@ -1207,10 +1208,14 @@ DEFPROC	sfb_create,DOS
 	sub	ax,ax			; AH = 0 (filename), AL = 0 (attrs)
 	DEFLBL	sfb_create_fcb,near
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
-	LOCK_SCB
 	push	si
 	push	ds
 	push	es
+	push	cs
+	pop	es
+	ASSUME	ES:DOS
+	LOCK_SCB
+	ASSUME	ES:NOTHING
 	push	ax
 	and	cl,ATTR_CREATE
 	mov	bl,cl			; BL = attributes

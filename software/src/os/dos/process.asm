@@ -691,7 +691,11 @@ DEFPROC	load_program,DOS
 ; 1) it's lengthy and 2) everything it does other than the memory allocations
 ; is session-local, that's the only solution we have available at the moment.
 ;
+	push	cs
+	pop	es
+	ASSUME	ES:DOS
 	LOCK_SCB
+	ASSUME	ES:NOTHING
 	mov	bx,0A000h		; alloc a PSP segment
 	mov	ax,DOS_MEM_ALLOC SHL 8	; with a size that should fail
 	int	21h			; in order to get max paras avail
@@ -1835,9 +1839,15 @@ ENDPROC	get_psp
 DEFPROC	set_psp,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	push	bx
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
 	mov	bx,[scb_active]
-	ASSERT	STRUCT,cs:[bx],SCB
-	mov	cs:[bx].SCB_PSP,ax
+	ASSERT	STRUCT,[bx],SCB
+	mov	[bx].SCB_PSP,ax
+	pop	ds
+	ASSUME	DS:NOTHING
 	pop	bx
 	ret
 ENDPROC	set_psp

@@ -478,8 +478,7 @@ DEFPROC	dbgdev_enter,far
 	DEFLBL	dbg_brk,near
 	push	ax
 	mov	al,0
-de1:	mov	cs:[why],al
-	push	bx
+de1:	push	bx
 	push	cx
 	push	dx
 	push	bp
@@ -489,6 +488,7 @@ de1:	mov	cs:[why],al
 	push	es
 	push	ss
 	mov	bp,sp
+	xchg	dx,ax			; DL = why
 	lea	ax,[bp+REGS_LEN-2]	; AX = SP before the interrupt
 	push	ax
 	mov	si,sp
@@ -503,6 +503,7 @@ de1:	mov	cs:[why],al
 	push	cs
 	pop	ds
 	ASSUME	DS:CODE
+	mov	[why],dl
 	push	cs
 	pop	ss
 	DEFLBL	mon_sp			; (com_main changes this stack)
@@ -2455,7 +2456,11 @@ ENDPROC	put_opnd
 DEFPROC	dbgdev_init,far
 	mov	ax,DOS_MSC_GETSWC
 	int	21h			; DL = switch char
-	mov	cs:[sw_char],dl
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
+	mov	[sw_char],dl
+	ASSUME	DS:NOTHING
 	mov	di,bx			; ES:DI -> DDPI
 	lds	si,es:[di].DDPI_BUFPTR	; DS:SI -> arguments
 	mov	bx,si			; BX -> COM descriptor
@@ -2469,10 +2474,16 @@ din0a:	test	al,al			; end of the arguments?
 	cmp	al,dl			; a switch?
 	jne	din0a			; no
 	call	skip_h
-	mov	cs:[sw_ptr].OFF,si
-	mov	cs:[sw_ptr].SEG,ds
-	mov	word ptr cs:[gl1+1],offset sw_get - offset gl1 - 3
-	mov	byte ptr cs:[din7],0CCh	; INT 3
+	mov	ax,ds
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
+	mov	[sw_ptr].OFF,si
+	mov	[sw_ptr].SEG,ax
+	mov	word ptr [gl1+1],offset sw_get - offset gl1 - 3
+	mov	byte ptr [din7],0CCh	; INT 3
+	mov	ds,ax
+	ASSUME	DS:NOTHING
 din0b:	mov	dx,bx			; DS:DX -> COM descriptor
 	mov	ax,DOS_HDL_OPENRW OR MODE_DENY_RW
 	int	21h			; open the port for exclusive access
@@ -2558,24 +2569,27 @@ sg1:	lds	si,cs:[sw_ptr]
 sg2:	test	al,al			; end of the switches?
 	jnz	sg5			; no
 	dec	si			; (stay at the null)
-	cmp	cs:[sw_halt],al		; was there a /H (or is this our G)?
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
+	cmp	[sw_halt],al		; was there a /H (or is this our G)?
 	jne	sg3			; yes
-	cmp	cs:[sw_last],CHR_RETURN	; at the start of a line?
+	cmp	[sw_last],CHR_RETURN	; at the start of a line?
 	jne	sg4			; no, so end it
-	inc	cs:[sw_halt]		; (so that the G's end restores get_char)
-	mov	cs:[sw_ptr].OFF,offset G_CMD
-	mov	cs:[sw_ptr].SEG,cs
+	inc	[sw_halt]		; (so the G's end restores get_char)
+	mov	[sw_ptr].OFF,offset G_CMD
+	mov	[sw_ptr].SEG,cs
 	jmp	sg1
-sg3:	mov	word ptr cs:[gl1+1],offset get_char - offset gl1 - 3
-	cmp	cs:[sw_last],CHR_RETURN	; at the start of a line?
+sg3:	mov	word ptr [gl1+1],offset get_char - offset gl1 - 3
+	cmp	[sw_last],CHR_RETURN	; at the start of a line?
 	jne	sg4			; no, so end it
 	pop	ds
 	pop	si
 	jmp	get_char
 sg4:	mov	al,CHR_RETURN
-sg5:	mov	cs:[sw_ptr].OFF,si
-	mov	cs:[sw_last],al
-	pop	ds
+sg5:	pop	ds			; DS = CS again (see get_line)
+	mov	[sw_ptr].OFF,si
+	mov	[sw_last],al
 	pop	si
 	ret
 ENDPROC	sw_get
@@ -2604,7 +2618,13 @@ sh1:	mov	al,[si]
 	je	sh2			; yes
 	cmp	al,'H'			; /H?
 	jne	sh9			; no
-	mov	cs:[sw_halt],al		; (nonzero)
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
+	mov	[sw_halt],al		; (nonzero)
+	pop	ds
+	ASSUME	DS:NOTHING
 sh2:	lodsb
 	test	al,al			; end of the arguments?
 	jz	sh8			; yes

@@ -103,10 +103,13 @@ DEFPROC	set_cln,DOS
 	push	si
 	push	bp
 	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
 ;
 ; Invalidate before changing the FAT, including a partially failed update.
 ;
-	mov	cs:[di].BPB_FREECLNS,-1
+	mov	[di].BPB_FREECLNS,-1
 	call	fat_pos			; BX = byte offset, CL = shift, BP = entry mask
 	and	ax,bp			; mask the value to the FAT's entry width
 	shl	ax,cl			; position its bits within the two bytes
@@ -114,12 +117,10 @@ DEFPROC	set_cln,DOS
 	not	bp			; bits belonging to adjacent entries
 	mov	cx,bp			; CX = bits to preserve in each byte
 	mov	bp,ax			; BP = shifted value
-	sub	ax,ax
-	mov	ds,ax
-	ASSUME	DS:BIOS
-	mov	al,cs:[di].BPB_DRIVE
+	mov	al,[di].BPB_DRIVE
 	mov	si,offset FAT_BUFHDR
 	call	read_buffer
+	ASSUME	DS:NOTHING
 	jc	sc9
 	mov	ax,bp
 ;
@@ -183,12 +184,16 @@ DEFPROC	alloc_cln,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	push	bx
 	push	cx
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
 	mov	bx,dx			; BX = previous CLN
-	mov	cx,cs:[di].BPB_CLUSTERS	; CX = # clusters to check
-	mov	dx,cs:[di+BPB_NEXTCLN]	; DX = first CLN to check
+	mov	cx,[di].BPB_CLUSTERS	; CX = # clusters to check
+	mov	dx,[di+BPB_NEXTCLN]	; DX = first CLN to check
 ac1:	mov	ax,dx
 	sub	ax,2
-	cmp	ax,cs:[di].BPB_CLUSTERS	; is DX past the end (or unknown)?
+	cmp	ax,[di].BPB_CLUSTERS	; is DX past the end (or unknown)?
 	jb	ac1a			; no
 	mov	dx,2			; yes, so wrap around to the first
 ac1a:	push	dx
@@ -210,7 +215,7 @@ ac2:	mov	ax,CLN_LAST
 	jc	ac9
 	mov	ax,dx
 	inc	ax
-	mov	cs:[di+BPB_NEXTCLN],ax	; the next search starts after it
+	mov	[di+BPB_NEXTCLN],ax	; the next search starts after it
 	test	bx,bx			; was a previous CLN specified?
 	jz	ac9			; no (and carry is clear)
 	mov	ax,dx			; AX = new CLN
@@ -218,7 +223,9 @@ ac2:	mov	ax,CLN_LAST
 	call	set_cln			; link previous CLN to new CLN
 	xchg	dx,bx			; DX = new CLN
 
-ac9:	pop	cx
+ac9:	pop	ds
+	ASSUME	DS:NOTHING
+	pop	cx
 	pop	bx
 	ret
 ENDPROC	alloc_cln

@@ -94,12 +94,12 @@ DEFPROC	devinit,far
 	push	di
 	mov	di,offset devinit_end	; DI -> CFG_FILE buffer
 	lea	bx,[si+BOOT_CFGFILE]	; BX -> CFG_FILE DIR info
-	mov	cs:[cfg_info],bx
-	cmp	[bx],al			; was CFG_FILE found?
-	jne	d1			; no, so leave it empty
 	push	cs
 	pop	es
-	ASSUME	ES:NOTHING
+	ASSUME	ES:DEV			; (read_file preserves ES)
+	mov	es:[cfg_info],bx
+	cmp	[bx],al			; was CFG_FILE found?
+	jne	d1			; no, so leave it empty
 	push	cs
 	mov	ax,offset d1
 	push	ax			; far return address -> d1
@@ -111,10 +111,10 @@ DEFPROC	devinit,far
 	add	ax,BOOT_RDFILE
 	push	ax
 	db	OP_RETF			; "call" read_file
-d1:	mov	byte ptr cs:[di],0	; null-terminate the CFG_FILE data
+d1:	mov	byte ptr es:[di],0	; null-terminate the CFG_FILE data
 	mov	ax,di
 	sub	ax,offset devinit_end
-	mov	cs:[cfg_size],ax
+	mov	es:[cfg_size],ax
 	inc	di
 	mov	si,offset devinit_end	; look for "SKIP=" at the start of a line
 d1a:	cmp	word ptr cs:[si],'KS'
@@ -124,7 +124,7 @@ d1a:	cmp	word ptr cs:[si],'KS'
 	cmp	byte ptr cs:[si+4],'='
 	jne	d1b
 	add	si,5
-	mov	cs:[skip_list],si	; CS:SI -> list of driver names
+	mov	es:[skip_list],si	; CS:SI -> list of driver names
 	jmp	short d2
 d1b:	lods	byte ptr cs:[si]
 	test	al,al			; end of CFG_FILE data?
@@ -132,7 +132,7 @@ d1b:	lods	byte ptr cs:[si]
 	cmp	al,CHR_LINEFEED
 	jne	d1b
 	jmp	d1a
-d2:	mov	cs:[buf_off],di		; scratch buffer follows CFG_FILE data
+d2:	mov	es:[buf_off],di		; scratch buffer follows CFG_FILE data
 	pop	di			; DI = end of drivers again
 	push	ds
 	pop	es

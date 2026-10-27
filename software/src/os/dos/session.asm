@@ -240,8 +240,16 @@ ENDPROC	scb_unlock
 ; Modifies:
 ;	None
 ;
+; Notes:
+;	The caller's DS stays on the stack until scb_return pops it, so
+;	scb_stoke can write through DS = DOS, too.
+;
 DEFPROC	scb_release,DOS
 	ASSUME	DS:NOTHING, ES:NOTHING
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
 	dec	[scb_locked]
 	jge	scb_return
 	ASSERT	Z,<cmp [scb_locked],-1>
@@ -252,21 +260,23 @@ ENDPROC	scb_release
 ;
 ; scb_stoke
 ;
-; Handler invoked via UNLOCK_SCB_RET to perform a deferred yield request.
+; Handler invoked via scb_release to perform a deferred yield request.
 ;
 ; Inputs:
-;	None
+;	DS = DOS, caller's DS on the stack
 ;
 ; Modifies:
 ;	None
 ;
 DEFPROC	scb_stoke,DOS
-	ASSUME	DS:NOTHING, ES:NOTHING
+	ASSUME	DS:DOS, ES:NOTHING
 	mov	[scb_stoked],offset scb_return
 	push	ax
 	DOSUTIL	YIELD
 	pop	ax
 	DEFLBL	scb_return,near
+	pop	ds
+	ASSUME	DS:NOTHING
 	ret
 ENDPROC	scb_stoke
 

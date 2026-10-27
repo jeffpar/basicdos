@@ -890,14 +890,18 @@ ENDPROC	delete_failure
 DEFPROC	disk_handler,far
 	cmp	dl,cs:[rwdrive]		; only the test file's BIOS drive
 	jne	dh9
-	cmp	cs:[rwlarge],0		; are large volume writes being counted?
+	push	ds
+	push	cs
+	pop	ds			; DS = CS (for the counters below)
+	cmp	[rwlarge],0		; counting large volume writes?
 	je	dh0
 	cmp	ah,3			; leave reads to the real BIOS
-	jne	dh9
+	jne	dh8
 	push	ax
 	xor	ah,ah
-	add	cs:[volsectors],ax
+	add	[volsectors],ax
 	pop	ax
+	pop	ds
 	mov	ah,0			; simulate success without changing the disk
 	push	bp
 	mov	bp,sp
@@ -905,26 +909,28 @@ DEFPROC	disk_handler,far
 	pop	bp
 	iret
 dh0:
-	cmp	ah,cs:[rwcmd]		; only the selected read/write operation
-	jne	dh9
-	cmp	cs:[rwfaults],0		; stop injecting after two failures
-	je	dh9
-	cmp	cs:[rwskip],0		; allow the partial first sector to finish
+	cmp	ah,[rwcmd]		; only the selected read/write
+	jne	dh8
+	cmp	[rwfaults],0		; stop injecting after two failures
+	je	dh8
+	cmp	[rwskip],0		; let the partial first sector finish
 	je	dh1
-	dec	cs:[rwskip]
-	jmp	dh9
+	dec	[rwskip]
+	jmp	short dh8
 dh1:
-	dec	cs:[rwfaults]
-	mov	cs:[faultaddr].OFF,bx
-	mov	cs:[faultaddr].SEG,es
-	mov	cs:[faultcx],cx
-	mov	cs:[faultdx],dx
+	dec	[rwfaults]
+	mov	[faultaddr].OFF,bx
+	mov	[faultaddr].SEG,es
+	mov	[faultcx],cx
+	mov	[faultdx],dx
+	pop	ds
 	push	bp
 	mov	bp,sp
 	or	word ptr [bp+6],FL_CARRY ; return carry in the saved interrupt flags
 	pop	bp
 	mov	ax,8000h
 	iret
+dh8:	pop	ds
 dh9:
 	jmp	cs:[old_disk]
 ENDPROC	disk_handler

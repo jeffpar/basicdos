@@ -648,10 +648,12 @@ stp3:	cmp	byte ptr [si+PART_TYPE],PART_FAT12
 	add	si,16
 	loop	stp3
 	jmp	short stp7		; (carry is clear)
-stp4:	mov	ax,[si+PART_LBA]
-	mov	cs:[bx].VOL_START.LOW,ax
+stp4:	push	cs
+	pop	es
+	mov	ax,[si+PART_LBA]
+	mov	es:[bx].VOL_START.LOW,ax
 	mov	ax,[si+PART_LBA+2]
-	mov	cs:[bx].VOL_START.HIW,ax
+	mov	es:[bx].VOL_START.HIW,ax
 stp7:	sub	dx,dx			; (carry is clear)
 	ret
 stp8:	stc
@@ -781,7 +783,9 @@ ENDPROC	get_vol
 DEFPROC	ddhdc_init,far
 	push	es
 	push	bx
-	mov	cs:[0].DDH_REQUEST,offset DEV:ddhdc_req
+	push	cs
+	pop	ds
+	mov	ds:[0].DDH_REQUEST,offset DEV:ddhdc_req
 	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
@@ -795,15 +799,18 @@ DEFPROC	ddhdc_init,far
 	mov	ax,ds
 	test	ax,ax
 	jz	hi0
+	push	cs
+	pop	es
+	ASSUME	ES:CODE			; (ES:BX -> DDPI is on the stack)
 	mov	ax,[si + size DDH].FDCX_RW
-	mov	cs:[fdc_rw].OFF,ax
+	mov	[fdc_rw].OFF,ax
 	mov	ax,[si + size DDH].FDCX_RDBUF
-	mov	cs:[fdc_rdbuf].OFF,ax
+	mov	[fdc_rdbuf].OFF,ax
 	mov	ax,[si + size DDH].FDCX_MBR
-	mov	cs:[fdc_mbr].OFF,ax
-	mov	cs:[fdc_rw].SEG,ds
-	mov	cs:[fdc_rdbuf].SEG,ds
-	mov	cs:[fdc_mbr].SEG,ds
+	mov	[fdc_mbr].OFF,ax
+	mov	[fdc_rw].SEG,ds
+	mov	[fdc_rdbuf].SEG,ds
+	mov	[fdc_mbr].SEG,ds
 hi0:	pop	ds
 	ASSUME	DS:BIOS
 	jz	hi8
@@ -815,7 +822,10 @@ hi0:	pop	ds
 	cmp	al,2
 	jae	hi1
 	mov	al,2
-hi1:	mov	cs:[hdc_base],al
+hi1:	mov	[hdc_base],al
+	ASSUME	ES:NOTHING
+	mov	bp,sp
+	mov	es,[bp+2]		; ES:BX -> DDPI again
 	les	bp,es:[bx].DDPI_BUFPTR	; ES:BP -> scratch buffer
 	mov	ah,HDC_GETPARMS
 	mov	dl,80h
@@ -828,7 +838,10 @@ hi1:	mov	cs:[hdc_base],al
 	mov	cl,MAX_DRIVES
 hi2:	jcxz	hi8
 	mov	dl,80h			; DL = BIOS drive #
-	mov	di,offset vol_table	; CS:DI -> next VOL
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
+	mov	di,offset vol_table	; DS:DI -> next VOL
 hi3:	push	cx
 	push	dx
 	call	add_vols		; add volumes for drive DL
@@ -860,10 +873,10 @@ ENDPROC	ddhdc_init
 ; Inputs:
 ;	DL = BIOS drive #
 ;	ES:BP -> scratch buffer
-;	CS:DI -> next VOL
+;	DS:DI -> next VOL (DS = CS)
 ;
 ; Outputs:
-;	CS:DI -> next VOL (and hdc_vols updated)
+;	DS:DI -> next VOL (and hdc_vols updated)
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI
@@ -889,7 +902,7 @@ av0:	inc	dh			; DH = # heads
 	adc	ah,0
 	inc	ax			; AX = # cylinders
 	mov	bx,ax
-	mov	cs:[di].VOL_CYLS,ax	; (for a whole-disk unit, if any)
+	mov	ds:[di].VOL_CYLS,ax	; (for a whole-disk unit, if any)
 	push	dx
 	push	cx
 	mov	ax,(FDC_READ SHL 8) OR 1
@@ -902,7 +915,7 @@ av0:	inc	dh			; DH = # heads
 	pop	cx
 	pop	dx
 	jc	av9
-	mov	al,cs:[hdc_vols]	; AL = # volumes before this disk
+	mov	al,ds:[hdc_vols]	; AL = # volumes before this disk
 	cmp	word ptr es:[bp+510],0AA55h
 	jne	av7			; not a valid MBR
 	lea	si,[bp+PART_TABLE]	; ES:SI -> first partition entry
@@ -913,9 +926,9 @@ av1:	cmp	byte ptr es:[si+PART_TYPE],PART_FAT12
 	jne	av8			; skip other partition types
 av2:	push	ax
 	mov	ax,es:[si+PART_LBA]
-	mov	cs:[di].VOL_START.LOW,ax
+	mov	ds:[di].VOL_START.LOW,ax
 	mov	ax,es:[si+PART_LBA+2]
-	mov	cs:[di].VOL_START.HIW,ax
+	mov	ds:[di].VOL_START.HIW,ax
 	call	add_vol			; add a volume for the partition
 	pop	ax
 	jc	av9
@@ -926,11 +939,11 @@ av8:	add	si,16
 ; If the disk has no FAT partitions (eg, no MBR), add a unit for the whole
 ; disk, so that it has a drive letter (and FORMAT can partition it).
 ;
-av7:	cmp	al,cs:[hdc_vols]	; were any volumes added?
+av7:	cmp	al,ds:[hdc_vols]	; were any volumes added?
 	jne	av9			; yes
 	sub	ax,ax
-	mov	cs:[di].VOL_START.LOW,ax
-	mov	cs:[di].VOL_START.HIW,ax
+	mov	ds:[di].VOL_START.LOW,ax
+	mov	ds:[di].VOL_START.HIW,ax
 	call	add_vol
 av9:	ret
 ENDPROC	add_vols
@@ -944,28 +957,28 @@ ENDPROC	add_vols
 ;	CL = sectors per track
 ;	DH = # heads
 ;	DL = BIOS drive #
-;	CS:DI -> VOL (with VOL_START already set)
+;	DS:DI -> VOL (with VOL_START already set; DS = CS)
 ;
 ; Outputs:
-;	Carry clear if added (CS:DI -> next VOL, hdc_vols updated); otherwise,
+;	Carry clear if added (DS:DI -> next VOL, hdc_vols updated); otherwise,
 ;	carry set (there's no room for more)
 ;
 ; Modifies:
 ;	AX, DI
 ;
 DEFPROC	add_vol
-	cmp	cs:[hdc_vols],MAX_VOLS
+	cmp	ds:[hdc_vols],MAX_VOLS
 	cmc
 	jc	avl9
-	mov	cs:[di].VOL_DRIVE,dl
-	mov	cs:[di].VOL_HEADS,dh
-	mov	cs:[di].VOL_TRACKSECS,cl
-	mov	cs:[di].VOL_CYLS,bx
+	mov	ds:[di].VOL_DRIVE,dl
+	mov	ds:[di].VOL_HEADS,dh
+	mov	ds:[di].VOL_TRACKSECS,cl
+	mov	ds:[di].VOL_CYLS,bx
 	mov	al,cl
 	mul	dh
-	mov	cs:[di].VOL_CYLSECS,ax
+	mov	ds:[di].VOL_CYLSECS,ax
 	add	di,size VOL
-	inc	cs:[hdc_vols]		; (carry is clear)
+	inc	ds:[hdc_vols]		; (carry is clear)
 avl9:	ret
 ENDPROC	add_vol
 

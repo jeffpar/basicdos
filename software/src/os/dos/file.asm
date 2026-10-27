@@ -83,24 +83,24 @@ DEFPROC	sfb_commit,DOS
 	jc	scm9
 	ASSUME	DS:BIOS
 	call	get_dtime		; AX = time, DX = date
-	test	cs:[bx].SFB_FLAGS,SFBF_DTSET
+	test	es:[bx].SFB_FLAGS,SFBF_DTSET
 	jz	scm1			; they weren't set
-	mov	ax,cs:[bx].SFB_TIME
-	mov	dx,cs:[bx].SFB_DATE
-scm1:	mov	cs:[bx].SFB_TIME,ax
-	mov	cs:[bx].SFB_DATE,dx
+	mov	ax,es:[bx].SFB_TIME
+	mov	dx,es:[bx].SFB_DATE
+scm1:	mov	es:[bx].SFB_TIME,ax
+	mov	es:[bx].SFB_DATE,dx
 	mov	[si].DIR_TIME,ax
 	mov	[si].DIR_DATE,dx
-	mov	ax,cs:[bx].SFB_CLN
+	mov	ax,es:[bx].SFB_CLN
 	mov	[si].DIR_CLN,ax
-	mov	ax,cs:[bx].SFB_SIZE.LOW
+	mov	ax,es:[bx].SFB_SIZE.LOW
 	mov	[si].DIR_SIZE.LOW,ax
-	mov	ax,cs:[bx].SFB_SIZE.HIW
+	mov	ax,es:[bx].SFB_SIZE.HIW
 	mov	[si].DIR_SIZE.HIW,ax
 	or	[si].DIR_ATTR,DIRATTR_ARCHIVE
 	mov	ds:[BUF_DIRTY],1
-	and	cs:[bx].SFB_FLAGS,NOT SFBF_DIRTY
-	mov	al,cs:[bx].SFB_DRIVE
+	and	es:[bx].SFB_FLAGS,NOT SFBF_DIRTY
+	mov	al,es:[bx].SFB_DRIVE
 	call	flush_buffers		; write the DIRENT (and FAT)
 
 scm9:	pop	es
@@ -136,7 +136,6 @@ ENDPROC	sfb_commit
 ;
 DEFPROC	write_file,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
-	LOCK_SCB
 	push	cx
 	push	si
 	push	ds
@@ -146,6 +145,7 @@ DEFPROC	write_file,DOS
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
+	LOCK_SCB
 	mov	ax,ERR_ACCDENIED
 	test	[bx].SFB_MODE,MODE_ACC_WO OR MODE_ACC_RW
 	jz	wf7			; file was not opened for writing

@@ -121,7 +121,9 @@ rt2:	call	resParas		; BX = paras for the transient, too
 ;
 rt2a:	DOSUTIL	LOCK
 	sub	ax,ax
+	ASSUME	DS:CODE			; (DS = CS, since we own the code)
 	xchg	ax,[TRANS_HI]
+	ASSUME	DS:DATA
 	test	ax,ax			; was a copy made?
 	jz	rt2b			; no
 	mov	es,ax
@@ -313,6 +315,7 @@ ENDPROC	resSum
 ;	AX, BX, CX, DX, SI, DI, ES
 ;
 DEFPROC	resSave
+	ASSUME	DS:CODE			; (DS = CS, since we own the code)
 	mov	[TRANS_HI],0
 	DOSUTIL	LOCK			; keep other sessions from allocating
 	mov	dl,3			; the block until the copy is done
@@ -329,6 +332,7 @@ DEFPROC	resSave
 	add	ax,dx
 	sub	ax,bx			; AX = segment of the copy
 	mov	[TRANS_HI],ax
+	ASSUME	DS:DATA
 	mov	es,ax
 	sub	di,di			; ES:DI -> copy
 	mov	si,offset DGROUP:RES_END; DS:SI -> transient portion

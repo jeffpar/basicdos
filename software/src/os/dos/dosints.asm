@@ -185,8 +185,8 @@ DEFPROC	dos_func,DOSFAR
 	push	bx
 	push	cx
 	push	dx
-	DEFLBL	dos_enter,near
 	push	ds
+	DEFLBL	dos_enter,near		; (int_leave pushes DS itself)
 	push	si
 	push	es
 	push	di
@@ -271,23 +271,26 @@ dc3:	adc	[bp].REG_FL,0
 ; clear the ABORT condition and simulate a DOSUTIL TERM of the type in
 ; SCB_ABTYPE (EXTYPE_ABORT, or EXTYPE_ERROR for a critical error ABORT).
 ;
+	push	cs
+	pop	ds			; (dos_leave2 restores DS)
+	ASSUME	DS:DOS
 	mov	bx,[scb_active]
-	ASSERT	STRUCT,cs:[bx],SCB
-	dec	cs:[bx].SCB_INDOS
+	ASSERT	STRUCT,[bx],SCB
+	dec	[bx].SCB_INDOS
 	ASSERT	GE
 	jnz	dos_leave2
-	test	cs:[bx].SCB_STATUS,SCSTAT_ABORT
+	test	[bx].SCB_STATUS,SCSTAT_ABORT
 	jz	dos_leave2
 	cmp	word ptr [scb_locked],-1; do NOT abort if session or driver
 	jne	dos_leave2		; lock levels are >= 0
-	and	cs:[bx].SCB_STATUS,NOT SCSTAT_ABORT
+	and	[bx].SCB_STATUS,NOT SCSTAT_ABORT
 ;
 ; WARNING: This simulation of DOSUTIL TERM takes a shortcut by not updating
 ; REG_AH or REG_DX in REG_FRAME, but neither utl_term nor psp_termcode rely
 ; on REG_FRAME for their inputs, so while this is not completely kosher, we'll
 ; be fine.  The same is true for the termination code in int_leave.
 ;
-	mov	dh,cs:[bx].SCB_ABTYPE	; DH = exit type
+	mov	dh,[bx].SCB_ABTYPE	; DH = exit type
 	mov	dl,0FFh			; DL = exit code
 	mov	ah,DOS_UTL_TERM + 80h
 	jmp	dc0
@@ -425,7 +428,13 @@ ENDPROC	dos_util
 ; 	Carry clear (DOS interrupt processing enabled)
 ;
 DEFPROC	int_enter,DOSFAR
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
 	inc	[int_level]
+	pop	ds
+	ASSUME	DS:NOTHING
 	clc
 	ret
 ENDPROC	int_enter
@@ -444,7 +453,13 @@ ENDPROC	int_enter
 ;
 DEFPROC	int_leave,DOSFAR
 	cli
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
 	dec	[int_level]
+	pop	ds
+	ASSUME	DS:NOTHING
 	jge	ddl9
 	jnc	ddl9
 ;
@@ -459,17 +474,22 @@ DEFPROC	int_leave,DOSFAR
 	push	bx
 	push	cx
 	push	dx
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
 	mov	ah,DOS_UTL_YIELD + 80h
-	mov	bx,cs:[scb_active]
-	cmp	cs:[bx].SCB_INDOS,0
+	mov	bx,[scb_active]
+	cmp	[bx].SCB_INDOS,0
 	jne	ddl8
-	test	cs:[bx].SCB_STATUS,SCSTAT_ABORT
+	test	[bx].SCB_STATUS,SCSTAT_ABORT
 	jz	ddl8
-	and	cs:[bx].SCB_STATUS,NOT SCSTAT_ABORT
-	mov	dh,cs:[bx].SCB_ABTYPE	; DH = exit type
+	and	[bx].SCB_STATUS,NOT SCSTAT_ABORT
+	mov	dh,[bx].SCB_ABTYPE	; DH = exit type
 	mov	dl,0FFh			; DL = exit code
 	mov	ah,DOS_UTL_TERM + 80h
 ddl8:	jmp	dos_enter
+	ASSUME	DS:NOTHING
 ddl9:	iret
 ENDPROC	int_leave
 

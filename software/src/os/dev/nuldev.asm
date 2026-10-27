@@ -50,7 +50,9 @@ ENDPROC	ddnul_req
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddnul_init,far
 	mov	es:[bx].DDPI_END.OFF,offset ddnul_init
-	mov	cs:[0].DDH_REQUEST,offset DEV:ddnul_req
+	push	cs
+	pop	ds
+	mov	ds:[0].DDH_REQUEST,offset DEV:ddnul_req
 	ret
 ENDPROC	ddnul_init
 

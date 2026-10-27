@@ -158,10 +158,14 @@ rb7:	mov	ds,bx
 	mov	ds:[BUF_PREV],bx
 	mov	ds,ax
 	mov	ds:[BUF_NEXT],bx
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
+	mov	[buf_head],bx		; the buffer is now the head
 	mov	ds,bx
+	ASSUME	DS:NOTHING
 	mov	ds:[BUF_PREV],ax
 	mov	ds:[BUF_NEXT],bp
-	mov	cs:[buf_head],bx	; the buffer is now the head
 	pop	dx
 	pop	ax
 rb8:	mov	si,size BUFHDR		; DS:SI -> data buffer

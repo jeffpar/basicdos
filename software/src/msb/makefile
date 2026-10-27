@@ -11,7 +11,7 @@ ASM=MASM
 LINK=LINK
 AFLAGS=/D$(REL) /I.
 #
-# Listings are off; to create them, set LST=OBJ\$*.LST
+# Use LST=NUL to turn listings off and LST=OBJ\$*.LST to turn them on.
 #
 LST=NUL
 MAPSYM=MAPSYM

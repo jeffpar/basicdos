@@ -165,115 +165,125 @@ DEFPROC	dos_hook,far
 	pop	cx
 	pop	ax
 	je	h0
-	jmp	h_forward		; no
+	jmp	cs:[old_dos]		; no
 h0:
+	push	ds
+	push	cs
+	pop	ds			; DS = CS (for the test state below)
 	cmp	ah,DOS_HDL_IOCTL		; test-only control requests?
 	jne	h1
 	cmp	al,0F0h			; arm a fault on the supplied file handle?
 	jne	h0a
-	mov	cs:[fault_mode],cl
-	mov	cs:[fault_handle],bx
-	inc	cs:[arms]
+	mov	[fault_mode],cl
+	mov	[fault_handle],bx
+	inc	[arms]
 	xor	ax,ax
 	jmp	h_ok
 h0a:
 	cmp	al,0F1h			; report the BASIC test result?
 	jne	h1
-	mov	cs:[basic_result],cl
+	mov	[basic_result],cl
 	xor	ax,ax
 	jmp	h_ok
 h1:
-	cmp	cs:[vi_active],0		; are we running VI?
+	cmp	[vi_active],0		; are we running VI?
 	je	h2
 	cmp	ah,DOS_TTY_IN		; supply the next scripted key?
 	jne	h1a
 	push	si
-	mov	si,cs:[keyptr]
-	mov	al,cs:[si]
+	mov	si,[keyptr]
+	mov	al,[si]
 	inc	si
 	test	al,al			; did VI request input past the script?
 	jnz	h1k
-	mov	cs:[key_overrun],1
+	mov	[key_overrun],1
 	mov	si,offset force_quit
-	lods	byte ptr cs:[si]
+	lodsb
 h1k:
-	mov	cs:[keyptr],si
+	mov	[keyptr],si
 	pop	si
 	jmp	h_ok
 h1a:
 	cmp	ah,DOS_HDL_CREATE	; arm VI's fault after its output file opens
 	jne	h2
+	pop	ds			; DS:DX -> caller's filename
+	push	ds
 	pushf
 	call	cs:[old_dos]
+	push	cs
+	pop	ds
 	jnc	h1b
 	jmp	h_err
 h1b:
-	mov	cs:[fault_handle],ax
-	cmp	cs:[vi_fault],0		; no fault in the successful save case
+	mov	[fault_handle],ax
+	cmp	[vi_fault],0		; no fault in the successful save case
 	jne	h1c
 	jmp	h_ok
 h1c:
 	push	ax
-	mov	al,cs:[vi_fault]
-	mov	cs:[fault_mode],al
+	mov	al,[vi_fault]
+	mov	[fault_mode],al
 	pop	ax
-	inc	cs:[arms]
+	inc	[arms]
 	jmp	h_ok
 h2:
-	cmp	bx,cs:[fault_handle]	; affect only the selected handle
+	cmp	bx,[fault_handle]	; affect only the selected handle
 	je	h2a
 	jmp	h_forward
 h2a:
-	cmp	cs:[fault_mode],1	; failing a seek?
+	cmp	[fault_mode],1		; failing a seek?
 	jne	h3
 	cmp	ah,DOS_HDL_SEEK		; leave other operations alone
 	je	h_fail
 	jmp	short h_forward
 h3:
-	cmp	cs:[fault_mode],2	; failing a read?
+	cmp	[fault_mode],2		; failing a read?
 	jne	h4
 	cmp	ah,DOS_HDL_READ		; leave other operations alone
 	je	h_fail
 	jmp	short h_forward
 h4:
-	cmp	cs:[fault_mode],3	; failing a write?
+	cmp	[fault_mode],3		; failing a write?
 	je	h4a
-	cmp	cs:[fault_mode],4	; or returning a short write?
+	cmp	[fault_mode],4		; or returning a short write?
 	jne	h5
 h4a:
 	cmp	ah,DOS_HDL_WRITE		; leave other operations alone
 	jne	h_forward
-	cmp	cs:[fault_mode],4	; short writes succeed with a smaller count
+	cmp	[fault_mode],4		; short writes succeed (smaller count)
 	jne	h_fail
-	mov	cs:[fault_mode],0
-	inc	cs:[hits]
+	mov	[fault_mode],0
+	inc	[hits]
 	mov	ax,cx
 	dec	ax
 	jmp	short h_ok
 h5:
-	cmp	cs:[fault_mode],5	; failing a close/commit?
+	cmp	[fault_mode],5		; failing a close/commit?
 	jne	h_forward
 	cmp	ah,DOS_HDL_CLOSE		; leave other operations alone
 	jne	h_forward
-	mov	cs:[fault_mode],0
-	inc	cs:[hits]
+	mov	[fault_mode],0
+	inc	[hits]
 	pushf
 	call	cs:[old_dos]
 	jmp	short h_error
 h_fail:
-	mov	cs:[fault_mode],0
-	inc	cs:[hits]
+	mov	[fault_mode],0
+	inc	[hits]
 h_error:
 	mov	ax,ERR_GENFAIL
 h_err:
+	pop	ds
 	push	bp
 	mov	bp,sp
 	or	word ptr [bp+6],FL_CARRY
 	pop	bp
 	iret
 h_forward:
+	pop	ds
 	jmp	cs:[old_dos]
 h_ok:
+	pop	ds
 	push	bp
 	mov	bp,sp
 	and	word ptr [bp+6],NOT FL_CARRY

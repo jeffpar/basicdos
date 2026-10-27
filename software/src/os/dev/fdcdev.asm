@@ -65,8 +65,6 @@ FDC 	DDH	<offset DEV:ddfdc_end+16,,DDATTR_BLOCK+DDATTR_IOCTL,offset ddfdc_init,-
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddfdc_req,far
 	mov	di,bx		; ES:DI -> DDP
-	mov	al,es:[di].DDP_UNIT
-	mov	cs:[rw_drive],al; (diskette units are BIOS drive #s)
 	mov	bl,es:[di].DDP_CMD
 	cmp	bl,CMDTBL_SIZE
 	jb	ddq1
@@ -74,6 +72,8 @@ DEFPROC	ddfdc_req,far
 ddq1:	push	cs
 	pop	ds
 	ASSUME	DS:CODE
+	mov	al,es:[di].DDP_UNIT
+	mov	[rw_drive],al	; (diskette units are BIOS drive #s)
 	mov	bh,0
 	add	bx,bx
 	call	CMDTBL[bx]
@@ -167,12 +167,12 @@ DEFPROC	ddfdc_buildbpb
 ; holds LBA 0 of the drive.
 ;
 	mov	al,[si].BPB_DRIVE
-	mov	cs:[ddbuf_drv],al
-	mov	cs:[ddbuf_lba],dx	; (DX is still LBA 0)
 	push	ds
 	pop	es
 	mov	di,si		; ES:DI -> BPB
 	lds	si,cs:[ddbuf_ptr]
+	mov	ds:[ddbuf_drv],al	; (DS = CS)
+	mov	ds:[ddbuf_lba],dx	; (DX is still LBA 0)
 	add	si,BOOT_BPB	; DS:SI -> BPB in the boot sector
 	call	init_bpb
 
@@ -548,7 +548,13 @@ dcw4:	mov	es:[di].DDPRW_OFFSET,0
 ; Since ddbuf may contain a copy of one of the sectors we just wrote,
 ; invalidate it.
 ;
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
 	mov	[ddbuf_lba],-1
+	pop	ds
+	ASSUME	DS:NOTHING
 dcw4a:	jc	dcw8
 	mov	al,bl
 	cbw
@@ -753,8 +759,8 @@ ft1a:	mov	ah,FDC_SETDASD
 ;
 ; Build the table of sector IDs in ddbuf, which no longer holds a sector.
 ;
-ft2:	mov	cs:[ddbuf_lba],-1
-	les	di,cs:[ddbuf_ptr]	; ES:DI -> ddbuf
+ft2:	les	di,cs:[ddbuf_ptr]	; ES:DI -> ddbuf
+	mov	es:[ddbuf_lba],-1
 	push	di
 	mov	bh,1			; BH = sector ID
 ft3:	mov	al,ch
@@ -861,11 +867,11 @@ rb1:	push	es
 	mov	bx,(FDC_READ SHL 8) OR 1
 	les	bp,[ddbuf_ptr]	; ES:BP -> our own buffer
 	call	readwrite_sectors
-	pop	es
-	jc	rb9		; TODO: can errors damage the buffer contents?
+	jc	rb8		; TODO: can errors damage the buffer contents?
 	mov	al,[si].BPB_DRIVE
-	mov	[ddbuf_drv],al
-	mov	[ddbuf_lba],dx
+	mov	es:[ddbuf_drv],al
+	mov	es:[ddbuf_lba],dx
+rb8:	pop	es
 rb9:	ret
 ENDPROC	read_buffer
 
@@ -889,13 +895,14 @@ DEFPROC	write_buffer
 	mov	bx,(FDC_WRITE SHL 8) OR 1
 	les	bp,[ddbuf_ptr]	; ES:BP -> our own buffer
 	call	readwrite_sectors
-	pop	es
 	jc	wb8
 	mov	al,[si].BPB_DRIVE
-	mov	[ddbuf_drv],al
-	mov	[ddbuf_lba],dx
+	mov	es:[ddbuf_drv],al
+	mov	es:[ddbuf_lba],dx
+	pop	es
 	ret
-wb8:	mov	[ddbuf_lba],-1	; ddbuf no longer matches the disk
+wb8:	mov	es:[ddbuf_lba],-1	; ddbuf no longer matches the disk
+	pop	es
 	ret
 ENDPROC	write_buffer
 
@@ -1030,6 +1037,7 @@ rw4:	mov	al,1			; AL = 1 sector
 	pop	ds
 	mov	si,bp			; DS:SI -> caller's buffer
 	les	di,cs:[ddbuf_ptr]	; ES:DI -> our own buffer
+	mov	es:[ddbuf_lba],-1	; which won't match ddbuf_lba
 	cmp	ah,FDC_READ		; reading?
 	je	rw4a			; yes
 	rep	movsw			; no, so copy the sector to our buffer
@@ -1042,7 +1050,6 @@ rw4a:	pop	cx			; CX = cylinder and sector ID again
 	pop	si
 	pop	bx			; BH = BIOS cmd, BL = 1
 	jc	rw4c
-	mov	cs:[ddbuf_lba],-1	; invalidate our buffer's LBA
 	cmp	bh,FDC_READ		; reading?
 	jne	rw4c			; no (and carry is clear)
 	push	si
@@ -1122,10 +1129,10 @@ ENDPROC	bios_rw
 ;	AX, BX, CX, DX, BP, SI, DS
 ;
 DEFPROC	fdc_rw,far
-	mov	cs:[rw_drive],al
 	push	cs
 	pop	ds
 	ASSUME	DS:CODE
+	mov	[rw_drive],al
 	cmp	es:[di].DDP_CMD,DDC_READ
 	jne	fw1
 	call	ddfdc_read
@@ -1155,8 +1162,8 @@ ENDPROC	fdc_rw
 ;
 DEFPROC	fdc_mbr,far
 	ASSUME	DS:NOTHING
-	mov	cs:[ddbuf_lba],-1	; ddbuf won't hold a volume sector
 	les	bp,cs:[ddbuf_ptr]	; ES:BP -> ddbuf
+	mov	es:[ddbuf_lba],-1	; which won't hold a volume sector
 	test	ah,ah			; any transfer?
 	jz	fm9			; no
 	mov	bx,bp			; ES:BX -> ddbuf
@@ -1194,9 +1201,9 @@ ENDPROC	fdc_mbr
 ;
 DEFPROC	fdc_rdbuf,far
 	ASSUME	DS:NOTHING
-	mov	cs:[rw_drive],al
+	les	bp,cs:[ddbuf_ptr]	; ES:BP -> ddbuf (read_buffer keeps it)
+	mov	es:[rw_drive],al
 	call	read_buffer
-	les	bp,cs:[ddbuf_ptr]
 	ret
 ENDPROC	fdc_rdbuf
 
@@ -1211,29 +1218,31 @@ ENDPROC	fdc_rdbuf
 ;	DDPI's DDPI_UNITS and DDPI_END updated
 ;
 DEFPROC	ddfdc_init,far
-	mov	ax,BIOS
-	mov	ds,ax
-	ASSUME	DS:BIOS
-	mov	ax,[EQUIP_FLAG]
-;
-; We're not keeping any of this code, but we are reserving 512 bytes
-; for an internal sector buffer (ddbuf).
-;
-	mov	es:[bx].DDPI_END.OFF,offset ddfdc_init + 512
-	mov	cs:[0].DDH_REQUEST,offset DEV:ddfdc_req
-	mov	[ddbuf_ptr].SEG,cs
 ;
 ; PC AT-class machines (model byte FCh at F000:FFFEh) have a fixed disk
 ; BIOS that uses programmed I/O, so hard disk transfers aren't subject to
 ; 64K DMA boundaries (see readwrite_sectors).
 ;
-	mov	dx,0F000h
-	mov	ds,dx
+	mov	ax,0F000h
+	mov	ds,ax
 	ASSUME	DS:NOTHING
 	cmp	byte ptr ds:[0FFFEh],0FCh	; PC AT model byte?
-	jne	ddin1				; no
-	mov	cs:[rw_pio],80h
-ddin1:
+	mov	ax,BIOS
+	mov	ds,ax
+	ASSUME	DS:BIOS
+	mov	ax,[EQUIP_FLAG]
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
+	jne	ddin0				; not a PC AT
+	mov	[rw_pio],80h
+;
+; We're not keeping any of this code, but we are reserving 512 bytes
+; for an internal sector buffer (ddbuf).
+;
+ddin0:	mov	es:[bx].DDPI_END.OFF,offset ddfdc_init + 512
+	mov	ds:[0].DDH_REQUEST,offset DEV:ddfdc_req
+	mov	[ddbuf_ptr].SEG,cs
 ;
 ; Determine how many floppy disk drives are in the system.
 ;

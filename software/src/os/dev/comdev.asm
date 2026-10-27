@@ -49,7 +49,11 @@ DEFPROC	ddcom_req,far
 	mov	cx,[ct_seg]
 	mov	dx,[card_num]
 	call	[ddcom_cmdp]
+	push	cs			; (DOS doesn't need DS preserved)
+	pop	ds
+	ASSUME	DS:CODE
 	mov	[ct_seg],cx
+	ASSUME	DS:NOTHING
 	ret
 ENDPROC	ddcom_req
 
@@ -1541,12 +1545,18 @@ ENDPROC	ddcom_int1
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	add_packet
 	cli
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
 	mov	ax,di
 	xchg	[wait_ptr].OFF,ax
 	mov	es:[di].DDP_PTR.OFF,ax
 	mov	ax,es
 	xchg	[wait_ptr].SEG,ax
 	mov	es:[di].DDP_PTR.SEG,ax
+	pop	ds
+	ASSUME	DS:NOTHING
 ;
 ; The WAIT condition will be satisfied when enough data is received
 ; (for a READ packet) or when the context is ready (for a WRITE packet).
@@ -2780,7 +2790,11 @@ DEFPROC	ddcom_req2,far
 	mov	cx,[ct_seg2]
 	mov	dx,[card_num2]
 	call	[ddcom_cmdp2]
+	push	cs			; (DOS doesn't need DS preserved)
+	pop	ds
+	ASSUME	DS:CODE2
 	mov	[ct_seg2],cx
+	ASSUME	DS:NOTHING
 	ret
 ENDPROC	ddcom_req2
 
@@ -2823,7 +2837,11 @@ DEFPROC	ddcom_req3,far
 	mov	cx,[ct_seg3]
 	mov	dx,[card_num3]
 	call	[ddcom_cmdp3]
+	push	cs			; (DOS doesn't need DS preserved)
+	pop	ds
+	ASSUME	DS:CODE3
 	mov	[ct_seg3],cx
+	ASSUME	DS:NOTHING
 	ret
 ENDPROC	ddcom_req3
 
@@ -2866,7 +2884,11 @@ DEFPROC	ddcom_req4,far
 	mov	cx,[ct_seg4]
 	mov	dx,[card_num4]
 	call	[ddcom_cmdp4]
+	push	cs			; (DOS doesn't need DS preserved)
+	pop	ds
+	ASSUME	DS:CODE4
 	mov	[ct_seg4],cx
+	ASSUME	DS:NOTHING
 	ret
 ENDPROC	ddcom_req4
 
@@ -2906,16 +2928,19 @@ DEFPROC	ddcom_init,far
 	and	bx,0003h
 	add	si,bx
 	mov	dx,[si+bx]		; DX = BIOS RS232 port address
+	push	cs
+	pop	ds
+	ASSUME	DS:DEV
 	test	dx,dx			; exists?
 	jz	in9			; no
 	mov	[card_num],bx
-	mov	ax,cs:[DDH_NEXT_OFF]	; yes, copy over the driver length
+	mov	ax,ds:[DDH_NEXT_OFF]	; yes, copy over the driver length
 	cmp	bl,3			; COM4?
 	jne	in1			; no
-	mov	ax,cs:[DDH_REQUEST]	; use the temporary ddcom_req offset
+	mov	ax,ds:[DDH_REQUEST]	; use the temporary ddcom_req offset
 
 in1:	mov	es:[di].DDPI_END.OFF,ax
-	mov	cs:[DDH_REQUEST],offset DEV:ddcom_req
+	mov	ds:[DDH_REQUEST],offset DEV:ddcom_req
 
 	mov	[ddcom_cmdp].OFF,offset DEV:ddcom_cmd
 	mov	[ddcom_intp].OFF,offset DEV:ddcom_int
@@ -2923,7 +2948,7 @@ in2:	mov	ax,0			; this MOV will be modified
 	test	ax,ax			; on the first call to contain the CS
 	jnz	in3			; of the first driver (this is the
 	mov	ax,cs			; easiest way to communicate between
-	mov	word ptr cs:[in2+1],ax	; the otherwise fully insulated drivers)
+	mov	word ptr ds:[in2+1],ax	; the otherwise insulated drivers)
 in3:	mov	[ddcom_cmdp].SEG,ax
 	mov	[ddcom_intp].SEG,ax
 ;
@@ -2933,7 +2958,7 @@ in3:	mov	[ddcom_cmdp].SEG,ax
 	cmp	dh,03h
 	je	in4
 	dec	ax
-in4:	mov	cx,cs:[DDH_INTERRUPT]
+in4:	mov	cx,ds:[DDH_INTERRUPT]
 	mov	dx,cs
 	call	far ptr DDINT_SETVEC
 

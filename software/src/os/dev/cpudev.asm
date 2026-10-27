@@ -919,7 +919,9 @@ ENDPROC	pm_fault
 ;	AX, BX, CX, DX, SI, DI, BP, DS
 ;
 DEFPROC	ddcpu_init,far
-	mov	cs:[0].DDH_REQUEST,offset DEV:ddcpu_req
+	push	cs
+	pop	ds
+	mov	ds:[0].DDH_REQUEST,offset DEV:ddcpu_req
 	push	es
 	push	bx
 	mov	di,offset DEV:cfg_8088

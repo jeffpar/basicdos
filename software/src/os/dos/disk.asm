@@ -355,12 +355,18 @@ gb0:	mov	al,dl			; AL = drive #
 	mov	al,cl			; AL = drive #
 	call	chk_buffers		; any modified buffers for the drive?
 	jnz	gb8			; yes (and carry is clear)
-gb7:	push	bx
+gb7:	push	ds
+	push	bx
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
 	mov	bx,sp
-	mov	bx,ss:[bx+4]		; saved BPB pointer (past BX and ES)
-	mov	cs:[bx].BPB_FREECLNS,-1
-	mov	word ptr cs:[bx+BPB_NEXTCLN],0	; (the media may have changed)
+	mov	bx,ss:[bx+6]		; saved BPB ptr (past BX, DS, and ES)
+	mov	[bx].BPB_FREECLNS,-1
+	mov	word ptr [bx+BPB_NEXTCLN],0	; (the media may have changed)
 	pop	bx
+	pop	ds
+	ASSUME	DS:NOTHING
 	mov	al,cl			; AL = drive #
 	mov	ah,DDC_BUILDBPB		; ask the driver to rebuild our BPB
 	call	dev_request

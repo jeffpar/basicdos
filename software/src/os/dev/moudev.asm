@@ -504,14 +504,20 @@ i10a:	push	ax			; save the function
 	ASSUME	DS:NOTHING
 	add	sp,2
 	iret
-i10c:	dec	[hidden]		; leave the pointer alone
+i10c:	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
+	dec	[hidden]		; leave the pointer alone
+	pop	ds
+	ASSUME	DS:NOTHING
 	pushf
 	call	[int10_ptr]
-	inc	[hidden]
 	push	ds
 	push	cs
 	pop	ds
 	ASSUME	DS:CODE
+	inc	[hidden]
 	call	ptr_move		; and then move it, if necessary
 	pop	ds
 	ASSUME	DS:NOTHING
@@ -1443,7 +1449,10 @@ in1:	lods	word ptr [si]
 in2:	loop	in1
 	jmp	short in9		; no mouse, so DDPI_END stays zero
 
-in3:	mov	cs:[port_base],dx
+in3:	push	cs
+	pop	ds
+	ASSUME	DS:CODE
+	mov	[port_base],dx
 	mov	bx,(0EFh SHL 8) OR INT_HW_COM1
 	cmp	dh,03h			; COM1 or COM3 (IRQ4)?
 	je	in4			; yes
@@ -1462,8 +1471,8 @@ in4:	cli
 	mov	cx,offset ddmou_int10
 	mov	dx,cs
 	call	far ptr DDINT_SETVEC	; DX:CX = previous vector
-	mov	cs:[int10_ptr].OFF,cx
-	mov	cs:[int10_ptr].SEG,dx
+	mov	[int10_ptr].OFF,cx
+	mov	[int10_ptr].SEG,dx
 	pop	dx
 	inc	dx			; DX -> IER
 	mov	al,01h			; enable RBR (data received) interrupts
@@ -1474,14 +1483,11 @@ in4:	cli
 	and	al,bh			; unmask the IRQ
 	out	21h,al
 	sti
-	push	cs
-	pop	ds
-	ASSUME	DS:CODE
 	call	get_mode
 	pop	es
 	pop	bx
 	mov	es:[bx].DDPI_END.OFF,offset ddmou_init
-	mov	cs:[0].DDH_REQUEST,offset DEV:ddmou_req
+	mov	ds:[0].DDH_REQUEST,offset DEV:ddmou_req
 	ret
 
 in9:	pop	es
