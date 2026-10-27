@@ -96,6 +96,7 @@ software/src/tests/misc/VARS.BAS
 
 [TESTS/MISC]
 software/src/tests/bin/ASSERT.COM
+software/src/tests/bin/CPUTEST.COM
 software/src/tests/bin/DBGTEST.COM
 software/src/tests/misc/GFXTEST.BAS
 software/src/tests/misc/MICRO.BAS

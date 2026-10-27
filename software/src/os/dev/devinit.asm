@@ -55,16 +55,19 @@ DEFPROC	devinit,far
 ;
 ; Perform some preliminary BIOS data initialization; in particular,
 ; DDINT_ENTER and DDINT_LEAVE entry points for hardware interrupt handlers,
-; and the DDINT_UTIL entry point for driver WAIT and ENDWAIT requests.
+; the DDINT_UTIL entry point for driver WAIT and ENDWAIT requests, and the
+; DDINT_CPU entry point, which the CPU$ driver sets if it stays loaded.
 ;
 	mov	word ptr [DDINT_ENTER],(OP_RETF SHL 8) OR OP_STC
 	mov	[DDINT_LEAVE],OP_IRET
 	mov	word ptr [DDINT_UTIL],(OP_RETF SHL 8) OR OP_STC
+	mov	word ptr [DDINT_CPU],(OP_RETF SHL 8) OR OP_STC
 	sub	ax,ax
 	mov	[FDC_DEVICE].SEG,ax	; no FDC driver yet
 	mov	[CLOCK_DEVICE].SEG,ax	; and no CLOCK$ driver yet
 	mov	[FDC_UNITS],al
 	mov	[HDC_UNITS],al		; and no HDC volumes yet
+	mov	[CPU_TYPE],al		; and no CPU type (if CPU$ is skipped)
 ;
 ; To honor any "SKIP=" line, we need CFG_FILE now, so we load it just beyond
 ; this code, using the boot code's read_file function (which is BOOT_RDFILE

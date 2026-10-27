@@ -83,6 +83,11 @@ FDCERR_NOTREADY	equ	80h	; aka timeout
 ;
 KBD_READ	equ	00h	; returns char code in AL, scan code in AH
 KBD_CHECK	equ	01h	; returns ZF set if no key
+
+;
+; INT_CASSETTE functions (PC AT and up)
+;
+CAS_GETEXTMEM	equ	88h	; returns AX = Kb of extended memory
 	ENDIF	; BIOSAPI
 
 	IFDEF	BIOSKEY
@@ -317,7 +322,9 @@ FDC_UNITS	db	?		; 505h: # floppy drives
 FDC_DEVICE	dd	?		; 506h: FDC driver header
 DD_LIST		dd	?		; 50Ah: head of device driver list
 CLOCK_DEVICE	dd	?		; 50Eh: CLOCK$ driver header
-		db	16 dup (?)	; 512h: reserved
+CPU_TYPE	db	?		; 512h: CPUTYPE_* (see cpu.inc)
+DDINT_CPU	db	5 dup (?)	; 513h: room for a 5-byte far jump
+		db	10 dup (?)	; 518h: reserved
 DPT_ACTIVE	DPT	<>		; 522h: active DPT
 BOOT_KEY	dw	?		; 52Dh: set by boot sector
 		db	1 dup (?)	; 52Fh: paragraph padding

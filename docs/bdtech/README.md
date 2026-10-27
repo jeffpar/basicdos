@@ -27,6 +27,7 @@ The BASIC-DOS Technical Reference describes BASIC-DOS's internal architecture an
 	- [Built-in Drivers](dev/#built-in-drivers)
 5. [Floating-Point Interface](fpu/) (FPU$)
 6. [Data Structures](data/)
+7. [Protected Mode and Memory Management](mmu/) (CPU$; a design for work in progress)
 
 The definitions referred to throughout are found in the BASIC-DOS source code, primarily in these include files (in `software/src/os/inc`):
 
@@ -35,6 +36,7 @@ The definitions referred to throughout are found in the BASIC-DOS source code, p
 - **dev.inc**: device driver commands, packets, and error codes
 - **dos.inc**: internal structures (SCB, MCB, SFB, and the register frame)
 - **fpu.inc**: the FPU$ function table
+- **cpu.inc**: the CPU$ types, functions, and physical memory blocks (PMBs)
 
 **NOTE**: BASIC-DOS is a work-in-progress, and these interfaces may change.
 

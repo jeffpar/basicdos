@@ -22,10 +22,10 @@ LST=NUL
 # has no pseudo-targets, and MS-DOS's COPY would keep the old file's time).
 #
 OBJ\INCS: UTILPROC.INC UTILVARS.INC ..\..\INC\8086.INC ..\..\INC\BIOS.INC \
-	..\..\INC\DEV.INC ..\..\INC\DEVAPI.INC ..\..\INC\DISK.INC ..\..\INC\DOS.INC \
-	..\..\INC\DOSAPI.INC ..\..\INC\FPU.INC ..\..\INC\MACROS.INC \
-	..\..\INC\PARSER.INC ..\..\INC\UART.INC ..\..\INC\UTIL.INC \
-	..\..\INC\VERSION.INC
+	..\..\INC\CPU.INC ..\..\INC\DEV.INC ..\..\INC\DEVAPI.INC \
+	..\..\INC\DISK.INC ..\..\INC\DOS.INC ..\..\INC\DOSAPI.INC \
+	..\..\INC\FPU.INC ..\..\INC\MACROS.INC ..\..\INC\PARSER.INC \
+	..\..\INC\UART.INC ..\..\INC\UTIL.INC ..\..\INC\VERSION.INC
 	TYPE NUL > OBJ\INCS
 
 #

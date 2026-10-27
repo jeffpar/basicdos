@@ -205,4 +205,4 @@ DOS_MSC_GETVARS returns ES:BX -> DOSVARS.  As in PC DOS, the word before it cont
 | 0Ah | DV_SCB_TABLE | Offset and limit of the SCB table |
 | 0Eh | (none) | Offset and limit of the current directory table (one word per drive for each session) |
 
-{% include footer.html prev="Floating-Point Interface:../fpu/" next="" %}
+{% include footer.html prev="Floating-Point Interface:../fpu/" next="Protected Mode (Design):../mmu/" %}

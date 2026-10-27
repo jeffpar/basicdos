@@ -212,6 +212,7 @@ The MBR code (mbr_code in hdcdev.asm) is modeled on the pc.js MBR (tools/pc/mbr.
 | VKD$ | Character | Video and keyboard driver: a console with a separate context for each session (see [CON=](../../bdman/cfg/#con)); interrupt-driven input, direct video output (or BIOS output), and INT 29h fast output |
 | LPT1-LPT3 | Character | Parallel ports (one for each port the BIOS found): writes print with INT 17h, a failed write's error is also reported by the next IOCTL_OUTSTATUS (see LPRINT), and IOCTL_GETPOS returns the column (see LPOS) |
 | COM1-COM4 | Character | Serial ports, with interrupt-driven, asynchronous I/O |
+| CPU$ | Character | Loaded first: stores the processor type in CPU_TYPE (0:512h), and on an 80286 or later with at least 64K of extended memory, stays loaded to manage extended memory and protected-mode descriptors through DDINT_CPU (see [Protected Mode](../mmu/)); otherwise, it unloads itself |
 | NUL | Character | Null device |
 | CLOCK$ | Character | Timer interrupt, date and time, delays, and sound |
 | PIPE$ | Character | Pipes between sessions (used by the command shell's `|` operator), with a 128-byte buffer; as on UNIX, a read waits only until some data is available, and then returns what's there (up to the requested length), while a write waits until all its data fits |

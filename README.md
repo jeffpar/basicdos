@@ -39,6 +39,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 
 - [x] VKD$ (video and keyboard), with multiple console contexts (one per session)
 - [x] COM, LPT, NUL, CLOCK$, and PIPE$ devices
+- [x] *partial*: CPU$, loaded first: it records the processor type (8086, 80186, 80286, or 80386) in CPU_TYPE, and on an 80286 or later with extended memory, it stays loaded, enables A20, and manages a physical memory arena and protected-mode descriptors (GDT and LDT selectors for allocated or existing memory), but BASIC-DOS itself still runs in real mode (see the [design](docs/bdtech/mmu/))
 - [x] CLOCK$ starts with the BIOS time of day and, on a PC AT, the real-time clock's date
 - [x] Loadable character drivers via `DEVICE=` in CONFIG.SYS, including [DEBUG.COM on a serial port](demos/debug/at/), with an 8086 disassembler, single-stepping, 9 breakpoints, SYMDEB-style memory dumps, memory and register editing, and exclusive ownership of its COM port
 - [x] MOUSE$, a serial mouse driver (loaded only if a Microsoft-compatible mouse responds on a COM port at boot), with a minimal INT 33h interface (functions 00h-04h, 07h, 08h, and a BASIC-DOS function that returns queued button events), and a pointer drawn in MDA and CGA modes that preserves anything drawn over it
@@ -276,6 +277,7 @@ These are the next steps, roughly in priority order:
 1. Remaining string and input/output features (comma print zones)
 2. The rest of runtime error handling (messages for numeric errors)
 3. Common BASICA features that BASIC-DOS lacks: BEEP, TIMER, and COMMON
+4. Protected mode and extended memory on an 80286 or 80386 (the `mmu` branch; see the [design](docs/bdtech/mmu/) for the phases)
 
 ## License
 

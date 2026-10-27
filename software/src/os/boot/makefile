@@ -21,10 +21,10 @@ LST=NUL
 # any include file changes, so that every module is rebuilt then, too (MAKE
 # has no pseudo-targets, and MS-DOS's COPY would keep the old file's time).
 #
-OBJ\INCS: ..\INC\8086.INC ..\INC\BIOS.INC ..\INC\DEV.INC ..\INC\DEVAPI.INC \
-	..\INC\DISK.INC ..\INC\DOS.INC ..\INC\DOSAPI.INC ..\INC\FPU.INC \
-	..\INC\MACROS.INC ..\INC\PARSER.INC ..\INC\UART.INC ..\INC\UTIL.INC \
-	..\INC\VERSION.INC
+OBJ\INCS: ..\INC\8086.INC ..\INC\BIOS.INC ..\INC\CPU.INC ..\INC\DEV.INC \
+	..\INC\DEVAPI.INC ..\INC\DISK.INC ..\INC\DOS.INC ..\INC\DOSAPI.INC \
+	..\INC\FPU.INC ..\INC\MACROS.INC ..\INC\PARSER.INC ..\INC\UART.INC \
+	..\INC\UTIL.INC ..\INC\VERSION.INC
 	TYPE NUL > OBJ\INCS
 
 #

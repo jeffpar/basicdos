@@ -8,7 +8,9 @@
 # line, or if they don't fit, to AUTOEXEC.BAT).  Changes to the boot disk are NOT saved back to the
 # config folder (--nosync).
 #
-# The machine is a 640K IBM PC AT (ibm5170), whose real-time clock sets the date and time.
+# The machine is a 2Mb IBM PC AT (ibm5170 with --ram=2M, which pc.js splits into 640K of conventional memory and 1408K
+# of extended memory; the mmu branch's baseline, unless another --ram is given), whose real-time clock sets the date
+# and time.
 #
 #   fpe     floppy, console on COM1, no FPU (the default)
 #   fpu     floppy, console on COM1, with an 80287
@@ -29,5 +31,7 @@ case "$name" in
     *)      echo "usage: $0 [fpe|fpu|hd|bios|cga] [pc.js arguments...]" >&2; exit 1 ;;
 esac
 cfg=software/src/configs/console/$cfg
+ram=--ram=2M
+case " $* " in *" --ram="*) ram= ;; esac
 tools/tests/prep.sh $cfg || exit 1
-tools/pc/pc.js $machine $cfg "$@" --sys=bd:2 $opts --normalize --nosync
+tools/pc/pc.js $machine $cfg "$@" --sys=bd:2 $opts $ram --normalize --nosync
