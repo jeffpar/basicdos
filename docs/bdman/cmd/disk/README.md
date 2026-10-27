@@ -70,7 +70,7 @@ Displays a directory listing of all files matching the given *filespec* (or all 
 
 Files with the hidden attribute (eg, BASDEV.COM and BASDOS.COM) are listed only with `/A`, with an asterisk after the name (eg, `BASDEV   COM*`).  Unlike PC DOS, DIR lists system files that aren't hidden (eg, COMMAND.COM); see [ATTRIB](../external/#attrib).  `/S` lists the matching files in every subdirectory, too (in hidden subdirectories only with `/A`): each directory with matches gets its own ` Directory of` line and totals, and the bytes free are displayed at the end.
 
-`/W` lists only the names, as PC DOS does, each in a 16-character column, with as many columns as the console has room for (5 on an 80-column screen, or 2 on a 40-column screen); subdirectories are listed without `<DIR>`, but with the path character where a hidden file's asterisk goes (eg, `EXT         \`), even if the subdirectory is hidden.  For a Unix-style listing, see [LS](../external/#ls).
+`/W` lists only the names, each in a 16-character column, with as many columns as the console has room for (5 on an 80-column screen, or 2 on a 40-column screen).  Unlike PC DOS, each name is shown with its period (eg, `HELP.TXT`), and a subdirectory's name is followed by the path character (eg, `EXT\`) instead of `<DIR>`, even if the subdirectory is hidden; a hidden file's name is followed by an asterisk (eg, `BASDOS.COM*`).  For a Unix-style listing, see [LS](../external/#ls).
 
 	DIR *.BAS
 	DIR /S *.BAS

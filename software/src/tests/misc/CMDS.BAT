@@ -65,11 +65,11 @@ DEL T?.TMP
 DIR /W \EXT\T*.COM > T.TMP
 OPEN "T.TMP" FOR INPUT AS #1
 FOR I = 1 TO 5 : LINE INPUT #1, L$ : NEXT : CLOSE #1
-IF LEFT$(L$, 28) <> "TEE      COM    TR       COM" THEN PRINT "DIR /W failed" : FAILS = FAILS + 1
+IF LEFT$(L$, 22) <> "TEE.COM         TR.COM" THEN PRINT "DIR /W failed" : FAILS = FAILS + 1
 DIR /W \TOOLS > T.TMP
 OPEN "T.TMP" FOR INPUT AS #1
 FOR I = 1 TO 5 : LINE INPUT #1, L$ : NEXT : CLOSE #1
-IF LEFT$(L$, 29) <> ".           \   ..          \" THEN PRINT "DIR /W dir failed" : FAILS = FAILS + 1
+IF LEFT$(L$, 19) <> ".\              ..\" THEN PRINT "DIR /W dir failed" : FAILS = FAILS + 1
 LS /r \T*.* > T.TMP
 OPEN "T.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
 IF L$ <> "\TOOLS\" THEN PRINT "LS failed" : FAILS = FAILS + 1

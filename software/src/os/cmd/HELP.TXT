@@ -242,17 +242,15 @@ Sends an IOCTL request with the specified *code* (and *value* in DX) to the devi
 Accepted for compatibility with MSBASIC, but does nothing, since BASIC-DOS doesn't display function keys.  KEY *n*,*string* (*n* is 1-10) is accepted, too, but the function keys always return their key codes, as they do after KEY *n*,"" in MSBASIC (not available on low memory systems).
 
 [s]KEYS
-CTRL-E  Up         CTRL-X  Down\
-CTRL-S  Left       CTRL-D  Right\
-CTRL-W  Home       CTRL-R  End\
-CTRL-A  Left Word  CTRL-F  Right Word\
-CTRL-G  Del Char\
-CTRL-K  Erase to End\
-CTRL-V  Toggle Insert\
-CTRL-C  Abort\
-DELETE  Del Left Char\
-ESCAPE  Erase Line
-CTRL-ALT-DEL is reserved for terminating programs. Use RESTART to restart the system.
+The following keys are available when editing command lines:
+CTRL-E  Up          CTRL-X  Down\
+CTRL-S  Left        CTRL-D  Right\
+CTRL-W  Home        CTRL-R  End\
+CTRL-A  Left Word   CTRL-F  Right Word\
+CTRL-G  Del Char    CTRL-K  Del to End\
+DELETE  Del Left    CTRL-V  Toggle Ins\
+ESCAPE  Cancel      CTRL-C  Abort
+Use CTRL-BREAK or CTRL-ALT-DELETE to terminate programs, and use RESTART to terminate sessions or restart the system.
 
 [e]LABEL [*d*:][*label*]
 Gives drive *d* (or the current drive) a volume label (up to 11 characters), or without a *label*, displays the current label and asks for a new one (or ENTER to delete it).

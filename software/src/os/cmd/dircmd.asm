@@ -174,11 +174,11 @@ dt3:	jc	dt8			; no (more) entries
 	mov	di,[di]			; DI -> end of the directory part
 	lea	si,ds:[PSP_DTA].FFB_NAME
 dt4:	lodsb
-	test	al,al
-	jz	dt5
 	stosb
-	jmp	dt4
-dt5:	mov	al,[bx].PATH_CHAR
+	test	al,al
+	jnz	dt4
+	dec	di
+	mov	al,[bx].PATH_CHAR
 	stosb				; append the subdirectory and path char
 	call	dirTree
 	mov	si,sp
@@ -262,30 +262,38 @@ dl1:	push	di
 	sub	cx,cx
 dl4:	push	cx
 	push	dx
-	call	splitName		; AX = name length, SI, DI
-	mov	dx,' '			; (a hidden file gets '*' instead)
-	test	ds:[PSP_DTA].FFB_ATTR,02h ; DIRATTR_HIDDEN?
+	call	splitName		; AX = name length, CX, SI, DI
+	mov	dl,' '			; (a hidden file gets '*' instead)
+	mov	dh,ds:[PSP_DTA].FFB_ATTR ; DH = attributes (%c ignores it)
+	test	dh,02h			; DIRATTR_HIDDEN?
 	jz	dl4a
 	mov	dl,'*'
-dl4a:	test	ds:[PSP_DTA].FFB_ATTR,10h ; DIRATTR_SUBDIR?
+dl4a:	cmp	[dirWide],ah		; /W (AH = 0)?
+	je	dl6			; no
+;
+; With /W, each entry is its entire name (eg, "HELP.TXT"), followed by the
+; '*' of a hidden file or the path char of a directory, padded to fill its
+; 16-character column (or 13 characters for the last column in a row).
+;
+	test	dh,10h			; DIRATTR_SUBDIR?
 	jz	dl5			; no
-	cmp	[dirWide],ah		; /W (AH = 0)?
-	je	dl5			; no
 	mov	dl,[bx].PATH_CHAR	; yes, so a directory gets a path char
-dl5:	PRINTF	<"%-8.*s %-3s%c">,ax,si,di,dx
+dl5:	mov	al,16			; (AH and CH are zero)
+	dec	[dirCol]		; is this the last column in the row?
+	jnz	dl5a			; no
+	mov	al,13
+dl5a:	sub	al,cl			; AX = width of the char's field
+	PRINTF	<"%s%-*c">,si,ax,dx
+	cmp	[dirCol],ch		; was it the last column?
+	jne	dl6c			; no
 	mov	al,[dirWide]
-	test	al,al			; /W?
-	jz	dl6			; no
-	dec	[dirCol]		; any more columns in this row?
-	jnz	dl5a			; yes
-	mov	[dirCol],al		; no, so start a new row
+	mov	[dirCol],al		; yes, so start a new row
 	call	printCRLF
 	jmp	short dl6c
-dl5a:	PRINTF	<"   ">		; (the rest of a 16-character column)
-	jmp	short dl6c
-dl6:	mov	dx,ds:[PSP_DTA].FFB_DATE
+dl6:	PRINTF	<"%-8.*s %-3s%c">,ax,si,di,dx
+	test	dh,10h			; DIRATTR_SUBDIR? (MOVs don't change
+	mov	dx,ds:[PSP_DTA].FFB_DATE ; the flags)
 	mov	cx,ds:[PSP_DTA].FFB_TIME
-	test	ds:[PSP_DTA].FFB_ATTR,10h ; DIRATTR_SUBDIR?
 	jnz	dl6a
 	PRINTF	<"%7ld">,ds:[PSP_DTA].FFB_SIZE,:2
 	jmp	short dl6b
@@ -355,7 +363,7 @@ DEFPROC	dirHeader
 	pop	dx
 	test	[dirFlags],DIRF_LISTED	; was the volume label printed?
 	jz	dh0			; no
-	PRINTF	<13,10>
+	call	printCRLF
 	jmp	dh4
 dh0:	or	[dirFlags],DIRF_LISTED
 	inc	dx			; DL = 1-based drive #
@@ -426,7 +434,8 @@ ENDPROC	dirHeader
 ;	DTA -> FFB
 ;
 ; Outputs:
-;	AX = name length, SI -> name, DI -> extension (null-terminated)
+;	AX = name length, CX = total length (including any period and
+;	extension), SI -> name, DI -> extension (null-terminated)
 ;
 ; Modifies:
 ;	AX, CX, DX, SI, DI
