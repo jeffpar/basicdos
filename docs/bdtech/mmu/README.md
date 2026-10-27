@@ -7,7 +7,7 @@ permalink: /docs/bdtech/mmu/
 
 {% include header.html %}
 
-**NOTE**: This is a design document for work in progress on the `mmu` branch.  Everything here is tentative, and only [Phase 1](#phases) has been implemented.
+**NOTE**: This is a design document for work in progress on the `mmu` branch.  Everything here is tentative; only [Phase 1](#phases) has been implemented, along with an experimental [protected-mode probe](#probe) that runs the ROM BIOS at ring 0 on behalf of ring 3 code.
 
 ### Goals
 
@@ -88,7 +88,11 @@ CPU$ keeps everything it owns, other than its code, in the first 64K of extended
 | 0A00h | 1009F0h | IDT (256 gates) |
 | 1200h | 1011F0h | GDT (256 descriptors) |
 | 1A00h | 1019F0h | LDT (1024 descriptors) |
-| 3A00h | 1039F0h | Unused (about 50K; eg, for CPU$ code or kernel code that only runs on an 80286 or later) |
+| 3A00h | 1039F0h | Probe only: PROBELOG, with up to 120 events (see [the probe](#probe)) |
+| 3E00h | 103DF0h | Probe only: TSS |
+| 3F00h | 103EF0h | Probe only: IDT (256 gates) |
+| 4700h | 1046F0h | Probe only: ring 0 stack (4K) |
+| 5700h | 1056F0h | Unused (about 42K; eg, for CPU$ code or kernel code that only runs on an 80286 or later) |
 
 A PSP's CALL 5 (a far call to F01D:FEF0h, for example) reaches 0:00C0h (INT_DOSCALL5) only by wrapping around at 1Mb, so with A20 enabled, it lands at 1000C0h instead; like DOS 5 with DOS=HIGH, CPU$ puts a far jump to 0:00C0h there.
 
@@ -142,12 +146,102 @@ An 80386 returns to real mode by clearing PE (`MOV CR0,EAX`, assembled as bytes,
 
 The CPU$ self-test (`pm_test`) checks that PE is set and writes and reads back a word at 110000h (through SEL_TMP), which real mode can't reach; CPU$ stays loaded only if that works.
 
+### The Protected-Mode Probe {#probe}
+
+The plan is to stay in protected mode after CPU$ initializes, run sysinit and sessions at ring 3, and switch to ring 0 to call the kernel, the drivers, and the BIOS.  That raises a question that's easiest to answer by trying it: can the ROM BIOS run in protected mode at all, given the right selectors?  So CPU$ has an experimental probe, which runs only if CONFIG.SYS has a `CPU=PROBE` line (DEVINIT passes the CONFIG.SYS text to every built-in driver's INIT in DDP_PTR).
+
+After its self-test, CPU$ switches to protected mode, sets up the environment below, and "returns" to a short routine (`probe3`) at ring 3, which calls the BIOS:
+
+- INT 10h function 0Eh (writing "CPU$ ring 3"), INT 11h, INT 12h, INT 15h function 88h, and INT 16h function 01h;
+- INT 13h functions 00h and 02h (resetting drive A: and reading its boot sector, by DMA); and
+- INT 1Ah function 00h, until the tick count has gone up by 18 (so IRQ 0 must work).
+
+Then it calls back to ring 0, and CPU$ restores everything, returns to real mode, prints a summary, and BASIC-DOS boots as usual.  The probe's code (about 1.4K) is all part of CPU$'s initialization code, so it's discarded either way.
+
+	tools/tests/pmprobe.sh [ibm5170 or compaq386] [pc.js arguments...]
+
+builds a boot floppy with that CONFIG.SYS (in tools/pc/disks/pmprobe), lists breakpoint addresses for the probe's entry points (from CPUDEV.MAP), and boots it on the baseline 2Mb PC AT (or a 2Mb DeskPro 386), with BASIC-DOS's console on COM1 (ie, the terminal).
+
+#### The Probe's Environment
+
+- **An identity GDT.**  The GDT fills 64K (8192 descriptors, in the memory at 110000h that SEL_TMP maps).  After the fixed selectors (with a TSS at 28h, in place of SEL_STACK), every descriptor's base is its selector times 16, with a 64K limit, so any real-mode segment that's a multiple of 8 can be loaded at ring 0 and addresses the same memory: 0040h (the BIOS data), A000h-B800h (video memory), C000h (adapter ROMs), F000h (the system ROM), and every 128-byte boundary of conventional memory.  Descriptors below C000h are read/write data, and from C000h up, execute/read code (a descriptor can't be both).  All of them are DPL 0.
+- **A TSS**, which gives ring 0 a 4K stack in the system area.
+- **Three LDT entries for ring 3** (DPL 3): 0007h for CPU$'s code, 000Fh for a 2K data and stack segment (in the scratch memory that DEVINIT passes in DDPI_BUFPTR), and 0017h, a call gate back to ring 0 (`probe_exit`).
+- **An IDT**:
+
+| Vectors | Gate DPL | Handler |
+|---------|----------|---------|
+| 00h-02h, 06h-0Fh | 0 | Exceptions (`exc_common`) |
+| 03h-05h, 10h-6Fh, 80h-FFh | 3 | Software interrupts (`sw_int`) |
+| 70h-77h | 0 | IRQ 8-15 (`irq_common`), reflected to vectors 70h-77h |
+| 78h-7Fh | 0 | IRQ 0-7 (the master PIC moves from 08h to 78h), reflected to vectors 08h-0Fh |
+
+**Reflection**: `sw_int` gets the vector from the caller's `INT n` (or `INT3`), and `irq_common` from its IRQ's stub; both call the handler in the real-mode vector table, through its identity selector, at ring 0, as a real-mode INT would (with FLAGS, CS, and IP on the stack, and interrupts disabled).  The handler's segment must be a multiple of 8, and C000h or higher (ie, ROM), or the interrupt isn't reflected (a software interrupt returns with carry set, and an IRQ just gets an EOI).  `sw_int` passes the handler's CF, ZF, SF, and OF back to the caller (eg, the carry from INT 13h, and the zero flag from INT 16h function 01h).
+
+**DMA**: the diskette BIOS calculates its DMA address as ES * 16 + BX, so for INT 13h functions 02h-05h, `sw_int` replaces the caller's ES:BX (whatever its selector) with an identity selector and offset for the same physical address while the BIOS runs, and restores them afterward.  With identity selectors, the logical address (segment * 16 + offset) is the physical address, so the BIOS's DMA calculation is right, as long as the buffer is below 1Mb.
+
+**Exceptions**: vectors 08h-0Fh are also real-mode interrupts, and on the DeskPro 386, the BIOS's IRQ 9 handler issues `INT 0Ah` (to chain to IRQ 2's handler), which lands on the invalid-TSS exception's gate.  So `exc_common` first checks whether the frame (taken as having no error code) returns just past an `INT` for that vector (using VERR and LSL, so that the check itself can't fault), and if so, reflects it.  Then, a general protection fault with a zero error code, at ring 0, while DS or ES holds a null selector, is fixed by loading SEL_LOW (base 0) and retrying the instruction, because the BIOS loads DS with 0 to reach the interrupt vectors, which is a null selector in protected mode.  Any other exception ends the probe, as does a reset (eg, a triple fault), after which an 80286 resumes at `probe_resume`, which moves the master PIC back.
+
+#### The Probe's Results
+
+PROBELOG, at system area offset 3A00h (linear 1039F0h), holds the probe's status (1 running, 2 done, 3 ended by an exception, 4 ended by a reset), the exception that ended it (vector, error code, IP, and CS), counts of reflected interrupts and null selector fixes, the ring 3 results, and the first 120 events, starting at 103A30h (an event that repeats the previous one isn't logged).  Each event is 8 bytes: a kind ('S' software interrupt, 'I' hardware interrupt, 'N' not reflected, 'F' null selector fixed, 'X' exception that ended the probe), the vector, and the caller's AX (or the error code), IP, and CS.
+
+Both machines get through the probe, and BASIC-DOS then boots normally:
+
+| | IBM PC AT (80286, BIOS revision 3, CGA) | COMPAQ DeskPro 386 (VGA) |
+|-|-|-|
+| Software interrupts reflected | About 8,500 (mostly the INT 1Ah loop) | About 24,000 |
+| Hardware interrupts reflected | 21 (IRQ 0 and 6) | 86 (IRQ 0, 6, and 9) |
+| Null selector fixes | 20 | 17 |
+| Diskette read (by DMA) | Succeeded (signature AA55h) | Succeeded |
+| Timer ticks counted | 18 | 18 |
+
+What the event logs show:
+
+- **PC AT**: each INT 10h teletype call makes three nested INT 10h calls (functions 03h, 0Ah, and 02h).  INT 13h goes to the hard disk BIOS first, which passes diskette requests to INT 40h, and the diskette BIOS calls INT 15h functions 90h and 91h around its wait for IRQ 6.  The null selector faults come in pairs, at F000:2994h and F000:2998h: GET_PARM does `LDS SI,[78h]` with DS = 0, and then reads through the DPT pointer's segment, which is also 0 (BASIC-DOS's DPT is at 0:522h).  The timer handler issues INT 1Ch.
+- **DeskPro 386**: INT 10h goes through the VGA BIOS (INT 6Dh, at C000h), which loads DS with 0 for every character (fixed at C000:33FEh).  The diskette code faults at F000:EC69h, D4D0h, and ED38h, and IRQ 9 (about 60 per second) chains to IRQ 2's handler with INT 0Ah.
+
+#### Debugging the Probe
+
+For example:
+
+	tools/tests/pmprobe.sh --halt
+	pm_probe     bp %1295
+	probe3       bp %122B
+	...
+	>> bp %122B
+	>> g
+	bp %122B hit
+	...
+	>> bc *
+	>> t 40
+
+Linear breakpoints (`%`) work in either mode, and once the probe has started, `r` shows each selector with its base and limit (eg, `CS=0007[000960,FFFF]` at ring 3, `CS=0018[000960,FFFF]` in `sw_int`, and `CS=F000[0F0000,FFFF]` in the BIOS), along with the GDTR, IDTR, LDTR, and TR.  Clear a breakpoint (`bc *`) before tracing from it, or the trace stops there again.  Tracing from `probe3` goes through its `INT 10h` to `sw_int` at ring 0 (on the ring 0 stack, SS = 0008h), through the `CALL FAR` to the BIOS's INT 10h entry (F000:F065h), and then to `CALL DDS`, which loads DS with 0040h, the BIOS data's identity selector.  When the machine is running, CTRL-D enters the debugger, and after the probe, `db %1039F0 l400` dumps PROBELOG.
+
+#### What the Probe Shows {#feasibility}
+
+1. **The ROM BIOS can run at ring 0 in protected mode**, on both machines and for every function tried, with three mechanisms: identity selectors (so the BIOS's fixed segments, and its segment arithmetic, including DMA addresses, still work), the fix for a null DS or ES, and reflection of software and hardware interrupts to the real-mode vector table.  Ring 3 code, with its own selectors, can call it through interrupt gates.  Nothing has needed replacing yet.
+2. **What the BIOS can't do in protected mode**: functions that switch modes themselves (INT 15h functions 87h, block move, and 89h, switch to protected mode), and DMA to or from a buffer above 1Mb (the BIOS's DMA address is ES * 16 + BX).  CPU$ would provide the former (eg, a CPU_MOVE function), and disk drivers would copy through a buffer below 1Mb for the latter.  Not tried yet: the hard disk BIOS (which uses PIO through ES:BX, so identity selectors should work), diskette writes, INT 10h mode sets (which, like GET_PARM, load DS with 0), INT 14h, INT 17h, and INT 1Ah's clock functions.
+3. **BASIC-DOS's own code can't run in protected mode unchanged**, at either ring, for reasons that don't apply to the BIOS:
+   - **Segments that aren't multiples of 8**: the drivers, the kernel, and programs are loaded at any paragraph (CPU$ itself is at 0096h), and only multiples of 8 have identity selectors (a selector's low 3 bits are its table and privilege bits, so 0096h is LDT entry 12h with RPL 2).  Each such segment needs its own alias, or must be loaded at a 128-byte boundary.
+   - **Writes through CS**: protected-mode code segments are never writable, and the drivers write through CS about 63 times (the kernel about 18, COMMAND about 5, and DEBUG about 15).  Each needs a data alias (another selector for the same memory) instead.
+   - **Segment 0**: the drivers and the kernel reach the BIOS data and BASIC-DOS's low memory with DS or ES set to 0 (in about 54 places).  The probe's fix handles that at ring 0 (with a fault for every load), but not at ring 3 (SEL_LOW is DPL 0), and loading SEL_LOW directly would be faster.
+   - **Ring 3 selectors**: CS and SS selectors must have RPL 3 at ring 3, so an identity selector there is the segment plus 3, and any arithmetic on CS or SS (eg, `mov ax,cs` followed by `add`) is off by 3 paragraphs.
+   - **Computed segments**: walking MCBs (`inc ax` from an MCB to its block), PSP and environment segments, paragraph rounding, and so on, as noted [below](#plan).
+4. **So sysinit isn't a good first ring 3 candidate**: it relocates the kernel (computing segments from MEMORY_SIZE), writes the interrupt vectors, and builds every table, which is all ring 0 work.  A better order:
+   1. keep the probe's environment (the identity GDT, reflection, and the fixes) as CPU$'s protected-mode foundation;
+   2. make DEVINIT, the drivers, and the kernel protected-mode-safe one change at a time, testing each in real mode first (eg, 128-byte load boundaries, data aliases instead of writes through CS, and a fixed selector for low memory), with the probe's log showing what still faults;
+   3. run the drivers' INIT, and then the kernel, at ring 0, with BIOS calls reflected; and
+   4. move COMMAND.COM's sessions (ie, BASIC code) to ring 3, calling the kernel through INT 21h gates.
+
+   DOS programs would still need real mode (on an 80286) or virtual-8086 mode (on an 80386).
+
 ### Running BASIC-DOS in Protected Mode {#plan}
 
 Staying in protected mode after CPU$ initializes is the goal, but the rest of BASIC-DOS assumes real mode in several ways, and each needs its own solution:
 
-1. **BIOS calls**.  The drivers call the ROM BIOS (INT 10h, 13h, 16h, 17h, and 1Ah), which only runs in real mode.  An 80386 can run it in virtual-8086 mode, but an 80286 can only switch back to real mode, which takes a processor reset (OS/2 1.x did this for its real-mode session).  So on an 80286, each BIOS call from protected mode would cost a reset (and a triple fault is faster than the 8042 reset that the BIOS uses).  The alternatives are drivers that don't use the BIOS in protected mode (the COM driver already doesn't, and disk I/O through the controllers directly would be a large addition), or real-mode drivers that are called through a mode switch.
-2. **Hardware interrupts**.  The master PIC's IRQs 0-7 use vectors 08h-0Fh, which are also processor exceptions (eg, 0Dh is a general protection fault).  CPU$ would reprogram the master PIC (eg, to 50h-57h), and copy vectors 08h-0Fh of the real-mode vector table to 50h-57h for whenever the processor is in real mode.  The slave PIC (70h-77h) can stay where it is.  The IDT would then have protected-mode handlers for each interrupt the drivers handle (CLOCK$, VKD$, COM, MOUSE$, and the disk drivers' BIOS interrupts), or gates that "reflect" interrupts to their real-mode handlers.
+1. **BIOS calls**.  The drivers call the ROM BIOS (INT 10h, 13h, 14h, 17h, and 1Ah).  The [probe](#probe) shows that the BIOS can run at ring 0 in protected mode, with identity selectors, a fix for null selectors, and reflection through the real-mode vector table, so a BIOS call needn't cost a mode switch, which on an 80286 means a processor reset (as in OS/2 1.x's real-mode session).  The remaining BIOS functions the drivers use still need trying, and a few (eg, INT 15h functions 87h and 89h) will need CPU$ replacements.
+2. **Hardware interrupts**.  The master PIC's IRQs 0-7 use vectors 08h-0Fh, which are also processor exceptions (eg, 0Dh is a general protection fault).  The probe moves the master PIC to 78h-7Fh, next to the slave PIC (70h-77h), and its IDT reflects each IRQ to its real-mode handler, which works for the BIOS's handlers; the drivers' handlers (CLOCK$, VKD$, COM, MOUSE$) will need protected-mode-safe code, or protected-mode handlers of their own.  Vectors 08h-0Fh can still be software interrupts (eg, INT 0Ah from a BIOS's IRQ 9 handler), so their gates must tell the two apart.
 3. **Segment arithmetic**.  The kernel and COMMAND.COM compute segments from paragraphs (eg, walking the MCB chain, `mov ax,es` + `inc ax` to get from an MCB to its block, PSP and environment segments, and paragraph rounding), use fixed segments (0 for low memory, 40h, B000h and B800h for video, and F000h for the ROM), and use `push cs` + `pop ds` and then write data (a code segment can't be written in protected mode).  Each case needs a selector: for example, DOS_MEM_ALLOC could return a selector from CPU_MAP for the new block (keeping the MCB in the arena below 640K), the fixed segments would become fixed selectors (SEL_LOW, plus SEL_VIDEO and SEL_ROM), and each module with a code segment would also get a data alias (eg, the next selector).  The first step is an inventory of every such case.
 4. **DOS programs**.  COM and EXE programs are real-mode programs.  On an 80386 they can run in virtual-8086 mode; on an 80286, only in real mode, so a session running a DOS program would switch the processor back to real mode while it runs (much like OS/2's DOS session), and other sessions would wait.
 5. **COMMAND.COM**.  The biggest payoff: BASIC programs, variables, strings, and arrays limited only by memory, with each block in extended memory and addressed by a selector.
@@ -157,15 +251,16 @@ Staying in protected mode after CPU$ initializes is the goal, but the rest of BA
 1. **Done**: CPU$ (processor detection, A20, the arena, GDT, IDT, and LDT, a self-tested switch to protected mode and back, and the CPU_* functions, all called in real mode), CPU_TYPE and DDINT_CPU in low memory, `--ram=2M` in pc.js, and CPUTEST.COM (in TESTS\MISC on test disks), which prints the arena and checks every function.
 2. **Kernel interfaces**: DOS functions for extended memory that record the owner (the PSP), so that a program's blocks are freed when it ends; a CPU_MOVE function (copying between physical addresses through `pm_call`, or on an 80286 perhaps LOADALL, which PCjs supports and which avoids the reset); and MEM showing the arena.
 3. **COMMAND.COM in extended memory, from real mode**: eg, keeping the copy of the transient part, or large arrays, in extended memory with CPU_MOVE.
-4. **Interrupts in protected mode**: PIC remapping and IDT reflection to real-mode handlers, and measuring what a BIOS call through a reset costs on an 80286.
+4. **Interrupts in protected mode**: *started*: the [probe](#probe) remaps the master PIC, reflects software and hardware interrupts to real-mode handlers, and runs the BIOS at ring 0 for ring 3 code.  Next: try the rest of the BIOS functions that the drivers use (eg, with a hard disk), and make the probe's environment a permanent part of CPU$.
 5. **A protected-mode kernel**: the segment-arithmetic inventory and fixes, staying in protected mode after CPU$ initializes, and running DOS programs in real mode (80286) or virtual-8086 mode (80386).
 
 ### Open Questions
 
-- **80286 or 80386 first?**  Every BIOS call or DOS program on an 80286 costs a mode switch through a reset, whereas an 80386 has virtual-8086 mode.  The 80286 baseline keeps the design honest (16-bit descriptors, 64K segments, and no paging), but a protected-mode kernel might be practical only on an 80386, with the 80286 limited to phases 2 and 3.
+- **80286 or 80386 first?**  The probe shows that BIOS calls needn't leave protected mode on either processor, but every DOS program on an 80286 would still cost a mode switch through a reset, whereas an 80386 has virtual-8086 mode.  The 80286 baseline keeps the design honest (16-bit descriptors, 64K segments, and no paging).
 - **The HMA**: putting the system area in the HMA costs no conventional memory and is reachable in both modes, but A20 stays enabled, so besides the CALL 5 trampoline, programs that depend on wrapping at 1Mb could break (eg, EXEPACK-compressed programs loaded in the first 64K report "Packed file is corrupt").
 - **Owners**: should PMB owners be PSPs (freed when a program ends) or sessions?
 - **Privilege levels**: everything is DPL 0 for now; DOS programs and BASIC code could run at ring 3 later, which would need a TSS and DPL 3 selectors.
 - **Table sizes**: 128 PMBs, 256 GDT entries, and 1024 LDT entries are guesses; one LDT per session (or per program) may make more sense than a single LDT.
+- **Identity selectors and allocation**: an identity GDT uses every GDT entry, so CPU_ALLOC and CPU_MAP would have to allocate LDT selectors only, or GDT entries for segments that nothing uses as real-mode segments.  The probe also gives the identity descriptors a fixed type (data below C000h, code from C000h up), so real-mode code in RAM, such as the drivers' interrupt handlers, would need code aliases.
 
 {% include footer.html prev="Data Structures:../data/" next="" %}

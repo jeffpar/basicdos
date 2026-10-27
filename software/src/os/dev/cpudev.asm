@@ -15,6 +15,8 @@
 ; provide the functions listed in cpu.inc through DDINT_CPU; otherwise, it
 ; unloads itself.  For now, the processor always returns to real mode; see
 ; docs/bdtech/mmu for the design and the plans for the rest of BASIC-DOS.
+; A "CPU=PROBE" line in CONFIG.SYS also runs an experimental probe of the
+; ROM BIOS in protected mode (see pm_probe).
 ;
 	BIOSAPI equ 1
 	include	macros.inc
@@ -100,6 +102,64 @@ SEL_STACK	equ	28h	; data: caller's stack (see pm_call)
 SEL_TMP		equ	30h	; data: scratch (initially 110000h)
 SEL_CPU		equ	38h	; call gate: cpu_entry
 GDT_FIXED	equ	8	; number of fixed GDT entries
+
+;
+; The protected-mode probe (see pm_probe) uses the system area beyond the
+; tables: SYS_LOG for PROBELOG and its events (PROBEEVT), SYS_TSS for a TSS,
+; SYS_PIDT for an IDT, and the rest, up to SYS_STK0, for its ring 0 stack.
+; Its GDT is the 64K at SEL_TMP (110000h), and its ring 3 data segment is the
+; scratch buffer at DDPI_BUFPTR.
+;
+SYS_LOG		equ	SYS_END
+SYS_TSS		equ	SYS_LOG + 400h
+SYS_PIDT	equ	SYS_TSS + 100h
+SYS_STK0	equ	SYS_PIDT + IDT_MAX * 8 + 1000h
+PB_SIZE		equ	800h	; size of the ring 3 data segment
+
+PROBELOG	struc
+PL_STATUS	dw	?	; PLS_*
+PL_VEC		dw	?	; the exception that ended the probe, if any
+PL_ERR		dw	?	; its error code (or AX, if none)
+PL_FIP		dw	?	; its IP
+PL_FCS		dw	?	; and its CS
+PL_NINTS	dw	?	; software interrupts reflected
+PL_NIRQS	dw	?	; hardware interrupts reflected
+PL_NFIX		dw	?	; null selectors replaced with SEL_LOW
+PL_NEVENTS	dw	?	; events logged
+PL_TARGET	dd	?	; handler being called (see reflect_prep)
+PL_ES13		dw	?	; caller's ES and BX, while an INT 13h
+PL_BX13		dw	?	; buffer uses an identity selector
+PL_R0SP		dw	?	; pm_call's SP (restored by probe_exit)
+PL_PICMASK	db	?	; master PIC mask
+		db	?
+PL_GDTR		dw	3 dup (?) ; probe GDT limit and base (for LGDT)
+PL_IDTR		dw	3 dup (?) ; probe IDT limit and base (for LIDT)
+PL_BUF		dd	?	; linear address of the ring 3 data segment
+PL_R3		dw	8 dup (?) ; ring 3 registers (PUSHA order)
+		dw	?
+PROBELOG	ends
+
+PLS_RUN		equ	1	; running
+PLS_DONE	equ	2	; ring 3 finished (see PL_R3)
+PLS_FAULT	equ	3	; an exception ended it (see PL_VEC)
+PLS_RESET	equ	4	; a reset (eg, a triple fault) ended it
+
+PROBEEVT	struc
+PE_KIND		db	?	; event kind (see log_event)
+PE_VEC		db	?	; vector
+PE_VAL		dw	?	; caller's AX (or the error code)
+PE_IP		dw	?	; caller's IP
+PE_CS		dw	?	; caller's CS
+PROBEEVT	ends
+PL_MAXEV	equ	(SYS_TSS - SYS_LOG - size PROBELOG) / (size PROBEEVT)
+
+SEL_TSS		equ	SEL_STACK	; probe GDT: TSS (instead of SEL_STACK)
+SEL_R3CODE	equ	00h+SEL_TI+3	; probe LDT: CPU$'s code, DPL 3
+SEL_R3DATA	equ	08h+SEL_TI+3	; probe LDT: ring 3 data and stack
+SEL_R3EXIT	equ	10h+SEL_TI+3	; probe LDT: call gate to probe_exit
+ACC_TSS		equ	81h	; present, DPL 0, available 80286 TSS
+ACC_DPL3	equ	60h	; DPL 3 (added to another ACC_* value)
+FL_RESULTS	equ	FL_CARRY OR FL_ZERO OR FL_SIGN OR FL_OVFL
 
 DEV	group	CODE,DATA
 
@@ -201,8 +261,8 @@ ce8:	mov	ax,ERR_INVALID
 ce9:	pop	di
 	pop	si
 	mov	bp,sp
-	rcr	word ptr [bp+2],1	; replace the carry in the caller's flags
-	rol	word ptr [bp+2],1	; with ours, and restore them
+	rcr	word ptr [bp+2],1	; replace the caller's carry flag
+	rol	word ptr [bp+2],1	; with ours, and restore its flags
 	pop	bx
 	popf
 	pop	bp
@@ -1028,6 +1088,10 @@ di5:	mov	ax,offset DEV:pm_fault
 	sub	ax,ax			; AX = DDPI_END (zero if not staying)
 	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PMOK
 	jz	di8
+	mov	bp,sp
+	les	bx,dword ptr [bp]	; ES:BX -> DDPI
+	call	probe_init		; run the probe, if requested
+	sub	ax,ax
 	mov	ds,ax
 	ASSUME	DS:BIOS
 	mov	[DDINT_CPU],OP_JMPF
@@ -1090,6 +1154,792 @@ DEFPROC	pm_test
 	or	ds:[SYS_VARS].SV_FLAGS,CPUF_PMOK
 pt9:	ret
 ENDPROC	pm_test
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Protected-mode probe
+;
+; If CONFIG.SYS has a "CPU=PROBE" line, ddcpu_init calls pm_probe (through
+; pm_call) to see how far the ROM BIOS gets when it runs in protected mode,
+; at ring 0, on behalf of code at ring 3.  pm_probe builds:
+;
+;   - a GDT (in the 64K at SEL_TMP) whose entries after the fixed ones are
+;     "identity" descriptors, whose bases are their selectors times 16, so
+;     real-mode segment values that are multiples of 8 (eg, 40h, B800h, and
+;     F000h) work unchanged at ring 0, as does arithmetic on such values (eg,
+;     the diskette DMA address, ES * 16 + BX); RAM below C000h gets data
+;     descriptors, and the adapter and system ROMs get code descriptors;
+;   - a TSS, for its ring 0 stack in the system area;
+;   - LDT entries for ring 3: CPU$'s code, a data segment (the scratch buffer
+;     at DDPI_BUFPTR), and a call gate to probe_exit;
+;   - an IDT whose software interrupt gates (DPL 3, so ring 3 can use them)
+;     go to sw_int, whose hardware interrupt gates (the master PIC moves to
+;     78h, next to the slave's 70h) go to irq_stubs, and whose exception gates
+;     go to exc_stubs.
+;
+; sw_int and irq_common "reflect" each interrupt to the real-mode vector's
+; handler, which must have an identity code selector (eg, F000h); exc_common
+; replaces a null DS or ES at ring 0 with SEL_LOW (the BIOS often loads DS
+; with zero) and ends the probe on any other exception.  Every one of these
+; events is logged in PROBELOG (until it's full), which a debugger can dump
+; at 1039F0h, and probe_report prints a summary.
+;
+; pm_probe "returns" to probe3 at ring 3, which makes a series of BIOS calls,
+; including a diskette read, and waits for the timer to tick before calling
+; probe_exit, which restores the GDT, IDT, and PIC and returns to pm_call.
+;
+        ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+;
+; Hardware interrupt stubs for vectors 70h-7Fh; each one loads AL with its
+; IRQ's real-mode vector.
+;
+	DEFLBL	irq_stubs,near
+	IRP	v,<70h,71h,72h,73h,74h,75h,76h,77h,8,9,0Ah,0Bh,0Ch,0Dh,0Eh,0Fh>
+	pusha
+	mov	al,v
+	jmp	short irq_common
+	ENDM
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; irq_common
+;
+; Reflects a hardware interrupt to its real-mode handler; if there's no
+; handler we can call, we simply end the interrupt.
+;
+; Inputs:
+;	AL = real-mode vector
+;	PUSHA frame on the stack
+;
+DEFPROC	irq_common
+	mov	bp,sp
+	push	ds
+	mov	ah,al
+	mov	al,'I'
+	call	reflect_prep
+	jc	ic8
+	inc	ss:[SYS_LOG].PL_NIRQS
+	pop	ds
+	popa
+	pushf
+	call	dword ptr ss:[SYS_LOG].PL_TARGET
+	iret
+ic8:	mov	al,20h			; EOI both PICs
+	out	0A0h,al
+	out	20h,al
+	pop	ds
+	popa
+	iret
+ENDPROC	irq_common
+;
+; Exception stubs for vectors 00h-0Fh (the IDT sends 03h-05h to sw_int
+; instead); each one loads AL with its vector.
+;
+	DEFLBL	exc_stubs,near
+	IRP	v,<0,1,2,3,4,5,6,7,8,9,0Ah,0Bh,0Ch,0Dh,0Eh,0Fh>
+	pusha
+	mov	al,v
+	jmp	short exc_common
+	ENDM
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; exc_common
+;
+; These vectors are also real-mode interrupts, so if the frame (without an
+; error code) returns to an INT for this vector, we reflect it instead (eg,
+; a BIOS's IRQ 9 handler does INT 0Ah).  If a general protection fault with
+; a zero error code occurred at ring 0 while DS (or ES) held a null selector,
+; we load SEL_LOW (whose base is zero) and retry the instruction; any other
+; exception ends the probe.
+;
+; Inputs:
+;	AL = vector
+;	PUSHA frame on the stack, followed by the error code (if any)
+;
+DEFPROC	exc_common
+	mov	bp,sp
+	mov	ah,al			; AH = vector
+	mov	cx,[bp+18]		; CX = CS (if there's no error code)
+	verr	cx			; is it readable?
+	jnz	ex0			; no
+	lsl	dx,cx			; DX = its limit
+	mov	si,[bp+16]		; SI = IP (if there's no error code)
+	cmp	si,2
+	jb	ex0
+	dec	si
+	cmp	si,dx			; is SI within the limit?
+	ja	ex0			; no
+	push	ds
+	mov	ds,cx
+	mov	al,OP_INT
+	cmp	[si-1],ax		; is there an INT for this vector?
+	pop	ds
+	jne	ex0			; no
+	jmp	sw_int1			; yes
+ex0:	lea	si,[bp+14]		; SS:SI -> AX, IP, and CS
+	mov	cl,ah
+	mov	dx,1
+	shl	dx,cl
+	test	dx,3D00h		; error code? (08h and 0Ah-0Dh)
+	jz	ex8
+	inc	si
+	inc	si			; SS:SI -> error code, IP, and CS
+	cmp	ah,0Dh			; general protection fault?
+	jne	ex8			; no
+	cmp	word ptr ss:[si],0	; with a zero error code?
+	jne	ex8			; no
+	test	byte ptr ss:[si+4],3	; at ring 0?
+	jnz	ex8			; no
+	mov	al,'F'
+	mov	cx,SEL_LOW
+	mov	dx,ds
+	cmp	dx,4			; is DS a null selector?
+	jae	ex1			; no
+	mov	ds,cx
+	jmp	short ex2
+ex1:	mov	dx,es
+	cmp	dx,4			; is ES a null selector?
+	jae	ex8			; no
+	mov	es,cx
+ex2:	call	log_event
+	inc	ss:[SYS_LOG].PL_NFIX
+	popa
+	add	sp,2			; discard the error code
+	iret
+ex8:	mov	al,'X'
+	call	log_event
+	push	ss
+	pop	ds
+	push	ss
+	pop	es
+	mov	byte ptr ds:[SYS_LOG].PL_VEC,ah
+	mov	di,SYS_LOG + PL_ERR
+	mov	cx,3
+	rep	movsw			; copy error code (or AX), IP, CS
+	mov	ds:[SYS_LOG].PL_STATUS,PLS_FAULT
+	jmp	probe_end
+ENDPROC	exc_common
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; sw_int
+;
+; Reflects a software interrupt to its real-mode handler, getting the vector
+; from the caller's INT instruction, and returns the handler's result flags
+; (CF, ZF, SF, and OF) to the caller; if there's no handler we can call, the
+; caller gets carry set.  For INT 13h functions with a buffer at ES:BX, ES:BX
+; becomes an identity selector and offset for the same address while the
+; handler runs, so that the BIOS calculates the right DMA address.
+;
+DEFPROC	sw_int
+	pusha
+	DEFLBL	sw_int1,near		; exc_common goes here for an INT
+	mov	bp,sp
+	push	ds
+	lds	si,dword ptr [bp+16]	; DS:SI -> caller's next instruction
+	mov	ax,[si-2]
+	cmp	al,OP_INT		; INT n?
+	je	si1			; yes (AH = n)
+	mov	ah,INT_BP
+	cmp	byte ptr [si-1],OP_INT03; INT3?
+	je	si1			; yes
+	mov	ax,(0FFh SHL 8) OR 'N'	; no, so log an unknown vector
+	lea	si,[bp+14]
+	call	log_event
+si8:	or	byte ptr [bp+20],FL_CARRY
+	pop	ds
+	popa
+	iret
+si1:	mov	al,'S'
+	call	reflect_prep
+	jc	si8
+	inc	ss:[SYS_LOG].PL_NINTS
+	cmp	ah,INT_FDC
+	jne	si3
+	mov	al,[bp+15]		; AL = caller's AH
+	sub	al,FDC_READ
+	cmp	al,FDC_FORMAT - FDC_READ + 1
+	jae	si3			; no buffer at ES:BX
+	mov	ax,es
+	call	sel_base
+	add	ax,[bp+8]
+	adc	dx,0			; DX:AX = address of ES:BX
+	cmp	dx,10h			; below 1Mb?
+	jae	si8			; no
+	mov	cx,ax
+	and	cx,7Fh			; CX = offset from an identity selector
+	shr	ax,4
+	shl	dx,12
+	or	ax,dx
+	and	al,0F8h			; AX = identity selector
+	mov	ss:[SYS_LOG].PL_ES13,es
+	push	word ptr [bp+8]
+	pop	ss:[SYS_LOG].PL_BX13
+	mov	es,ax
+	mov	[bp+8],cx
+si3:	pop	ds
+	popa
+	pushf
+	call	dword ptr ss:[SYS_LOG].PL_TARGET
+	push	bp
+	mov	bp,sp
+	pushf
+	push	ax
+	cmp	ss:[SYS_LOG].PL_ES13,0	; did we replace ES:BX?
+	je	si4			; no
+	mov	es,ss:[SYS_LOG].PL_ES13
+	mov	bx,ss:[SYS_LOG].PL_BX13
+	mov	ss:[SYS_LOG].PL_ES13,0
+si4:	mov	ax,[bp-2]		; AX = handler's flags
+	and	ax,FL_RESULTS
+	and	word ptr [bp+6],NOT FL_RESULTS
+	or	[bp+6],ax		; update the caller's flags
+	pop	ax
+	add	sp,2
+	pop	bp
+	iret
+ENDPROC	sw_int
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; reflect_prep
+;
+; Sets PL_TARGET to the real-mode vector's handler and logs the event.
+;
+; Inputs:
+;	AL = event kind, AH = real-mode vector
+;	BP -> PUSHA frame (followed by the caller's IP and CS)
+;
+; Outputs:
+;	Carry clear if the handler can be called (it has an identity code
+;	selector), set if not (and the event is logged as 'N')
+;
+; Modifies:
+;	BX, CX, SI, DS
+;
+DEFPROC	reflect_prep
+	push	ax
+	mov	bx,SEL_LOW
+	mov	ds,bx
+	mov	bl,ah
+	mov	bh,0
+	shl	bx,2			; DS:BX -> real-mode vector
+	mov	cx,[bx]
+	mov	bx,[bx+2]
+	mov	ss:[SYS_LOG].PL_TARGET.OFF,cx
+	mov	ss:[SYS_LOG].PL_TARGET.SEG,bx
+	test	bl,7			; is the segment an identity selector
+	jnz	rp8
+	cmp	bx,0C000h		; with a code descriptor?
+	jae	rp9			; yes (and carry is clear)
+rp8:	mov	al,'N'
+	stc
+rp9:	lea	si,[bp+14]		; SS:SI -> caller's AX, IP, and CS
+	pushf
+	call	log_event
+	popf
+	pop	ax
+	ret
+ENDPROC	reflect_prep
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; log_event
+;
+; Adds an event to PROBELOG, unless it's full or the event repeats the last
+; one (eg, in a polling loop).  The kinds are 'S' (software interrupt
+; reflected), 'I' (hardware interrupt reflected), 'N' (interrupt not
+; reflected), 'F' (null selector replaced), and 'X' (exception that ended the
+; probe).
+;
+; Inputs:
+;	AL = kind, AH = vector
+;	SS:SI -> caller's AX (or the error code), IP, and CS
+;
+; Modifies:
+;	Flags only
+;
+DEFPROC	log_event
+	push	bx
+	mov	bx,ss:[SYS_LOG].PL_NEVENTS
+	cmp	bx,PL_MAXEV
+	jae	le9
+	shl	bx,3
+	add	bx,SYS_LOG + size PROBELOG
+	cmp	word ptr ss:[bx-(size PROBEEVT)].PE_KIND,ax
+	jne	le1
+	push	ax
+	mov	ax,ss:[si+2]
+	cmp	ss:[bx-(size PROBEEVT)].PE_IP,ax
+	jne	le0
+	mov	ax,ss:[si+4]
+	cmp	ss:[bx-(size PROBEEVT)].PE_CS,ax
+le0:	pop	ax
+	je	le9			; same as the last event
+le1:	inc	ss:[SYS_LOG].PL_NEVENTS
+	mov	word ptr ss:[bx].PE_KIND,ax
+	push	word ptr ss:[si]
+	pop	ss:[bx].PE_VAL
+	push	word ptr ss:[si+2]
+	pop	ss:[bx].PE_IP
+	push	word ptr ss:[si+4]
+	pop	ss:[bx].PE_CS
+le9:	pop	bx
+	ret
+ENDPROC	log_event
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; sel_base
+;
+; Inputs:
+;	AX = selector (in the probe GDT or the LDT)
+;
+; Outputs:
+;	DX:AX = its base address
+;
+; Modifies:
+;	AX, BX, DX, DS
+;
+DEFPROC	sel_base
+	mov	bx,ax
+	and	bx,NOT 7
+	mov	dx,SEL_TMP		; the probe GDT
+	test	al,SEL_TI
+	jz	sb1
+	add	bx,SYS_LDT
+	mov	dx,SEL_SYS
+sb1:	mov	ds,dx
+	mov	ax,[bx].DESC_BASE
+	mov	dl,[bx].DESC_BASE16
+	mov	dh,0
+	ret
+ENDPROC	sel_base
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; pic_init
+;
+; Initializes the master PIC with a new vector base and the PL_PICMASK mask.
+;
+; Inputs:
+;	AH = vector base
+;	DS = system area (SYS_SEG or SEL_SYS)
+;
+; Modifies:
+;	AL
+;
+DEFPROC	pic_init
+	mov	al,11h			; ICW1: edge-triggered, cascade, ICW4
+	out	20h,al
+	mov	al,ah
+	out	21h,al			; ICW2: vector base
+	mov	al,04h
+	out	21h,al			; ICW3: slave on IRQ 2
+	mov	al,01h
+	out	21h,al			; ICW4: 8086 mode
+	mov	al,ds:[SYS_LOG].PL_PICMASK
+	out	21h,al
+	ret
+ENDPROC	pic_init
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; stodesc
+;
+; Inputs:
+;	AX = limit (or gate offset), CX = base (or gate selector)
+;	DL = base bits 23-16 (or zero), DH = access byte
+;	ES:DI -> descriptor
+;
+; Outputs:
+;	ES:DI -> next descriptor
+;
+; Modifies:
+;	AX, CX, DX, DI
+;
+DEFPROC	stodesc
+	stosw
+	xchg	ax,cx
+	stosw
+	xchg	ax,dx
+	stosw
+	sub	ax,ax
+	stosw
+	ret
+ENDPROC	stodesc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; probe_exit (ring 3 calls it through SEL_R3EXIT)
+;
+; Saves ring 3's registers in PL_R3; then, at probe_end (where exc_common
+; also goes), restores the PIC, GDT, IDT, and pm_call's stack, and returns
+; to pm_call.
+;
+DEFPROC	probe_exit
+	cli
+	pusha
+	push	ss
+	pop	ds
+	push	ss
+	pop	es
+	mov	si,sp
+	mov	di,SYS_LOG + PL_R3
+	mov	cx,8
+	rep	movsw
+	mov	ds:[SYS_LOG].PL_STATUS,PLS_DONE
+	DEFLBL	probe_end,near		; DS = ES = SEL_SYS
+	mov	di,SYS_LDT
+	mov	cx,3 * (size DESC) SHR 1
+	sub	ax,ax
+	rep	stosw			; free the ring 3 LDT entries
+	mov	ah,08h
+	call	pic_init		; move the master PIC back to 08h
+	mov	al,20h			; and EOI both PICs, in case an
+	out	0A0h,al			; exception interrupted a handler
+	out	20h,al
+	lgdt	qword ptr ds:[SYS_VARS].SV_GDTR
+	lidt	qword ptr ds:[SYS_VARS].SV_IDTR
+	mov	ax,SEL_STACK
+	mov	ss,ax
+	mov	sp,ds:[SYS_LOG].PL_R0SP
+	ret
+ENDPROC	probe_exit
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; probe3 (runs at ring 3, with SS = SEL_R3DATA)
+;
+; Makes some BIOS calls and waits for a second of timer ticks, and then calls
+; probe_exit with these results:
+;
+;	AX = INT 13h result (reading drive A's first sector into DS:0)
+;	BX = that sector's signature (AA55h if it was read)
+;	CX = timer ticks counted (18 or more if IRQ 0 works)
+;	DX = INT 12h result (Kb of conventional memory)
+;	SI = INT 15h CAS_GETEXTMEM result (Kb of extended memory)
+;	DI = INT 11h result (equipment flags)
+;
+DEFPROC	probe3
+	push	ss
+	pop	ds
+	push	ss
+	pop	es
+	mov	si,offset DEV:probe_msg
+p3a:	lods	byte ptr cs:[si]
+	test	al,al
+	jz	p3b
+	mov	ah,VIDEO_TTYOUT
+	mov	bh,0
+	int	INT_VIDEO
+	jmp	p3a
+p3b:	int	INT_EQUIP
+	push	ax
+	int	INT_MEMORY
+	push	ax
+	mov	ah,CAS_GETEXTMEM
+	int	INT_CASSETTE
+	push	ax
+	mov	ah,KBD_CHECK
+	int	INT_KBD
+	mov	ah,FDC_RESET
+	sub	dx,dx			; DL = drive 0
+	int	INT_FDC
+	mov	ax,(FDC_READ SHL 8) OR 1
+	mov	cx,0001h		; cylinder 0, sector 1
+	sub	dx,dx			; head 0, drive 0
+	sub	bx,bx			; ES:BX -> start of our data segment
+	int	INT_FDC
+	push	ax
+	mov	ah,TIME_GETTICKS
+	int	INT_TIME
+	mov	si,dx
+	sub	di,di
+p3c:	mov	ah,TIME_GETTICKS
+	int	INT_TIME
+	sub	dx,si			; DX = ticks so far
+	cmp	dx,18			; one second?
+	jae	p3d			; yes
+	dec	di
+	jnz	p3c			; keep waiting (for a while)
+p3d:	mov	cx,dx
+	pop	ax
+	mov	bx,ds:[510]
+	pop	si
+	pop	dx
+	pop	di
+	db	OP_CALLF		; call probe_exit
+	dw	0,SEL_R3EXIT
+ENDPROC	probe3
+
+	DEFLBL	probe_msg,byte
+	db	"CPU$ ring 3",13,10,0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; pm_probe (called in protected mode by pm_call)
+;
+; Builds the probe's GDT, TSS, LDT entries, and IDT, moves the master PIC,
+; and "returns" to probe3 at ring 3.
+;
+; Inputs:
+;	DS = ES = SEL_SYS
+;
+DEFPROC	pm_probe
+	mov	ds:[SYS_LOG].PL_R0SP,sp
+	mov	ds:[SYS_LOG].PL_STATUS,PLS_RUN
+	mov	ax,SEL_LOW
+	mov	es,ax
+	ASSUME	ES:BIOS
+	mov	[EDGE_CNT],offset DEV:probe_resume ; where an 80286 resets to
+	mov	ax,SEL_TMP
+	mov	es,ax
+	ASSUME	ES:NOTHING
+	sub	di,di
+	mov	si,SYS_GDT
+	mov	cx,GDT_FIXED * (size DESC) SHR 1
+	rep	movsw			; copy the fixed GDT entries
+	mov	bx,GDT_FIXED		; BX = index of the next entry
+pp1:	mov	cx,bx
+	shl	cx,7			; CX = base bits 15-0 (index * 128)
+	mov	dx,bx
+	shr	dx,9			; DL = base bits 23-16
+	mov	dh,ACC_DATA
+	cmp	bh,0C000h SHR 11	; selector C000h or higher?
+	jb	pp2			; no
+	mov	dh,ACC_CODE
+pp2:	mov	ax,0FFFFh
+	call	stodesc
+	inc	bx
+	cmp	bh,20h			; all 8192 entries (64K) done?
+	jb	pp1			; no
+	mov	di,SEL_TSS
+	mov	ax,2Bh			; TSS limit (44 bytes)
+	mov	cx,SYS_TSS - 10h
+	mov	dx,(ACC_TSS SHL 8) OR SYS_BASE16
+	call	stodesc
+	push	ds
+	pop	es
+	mov	word ptr ds:[SYS_TSS+2],SYS_STK0	; TSS SP0
+	mov	word ptr ds:[SYS_TSS+4],SEL_SYS		; TSS SS0
+	mov	di,SYS_LDT
+	mov	ax,0FFFFh
+	mov	cx,ds:[SYS_GDT+SEL_CPUCODE].DESC_BASE
+	mov	dl,ds:[SYS_GDT+SEL_CPUCODE].DESC_BASE16
+	mov	dh,ACC_CODE + ACC_DPL3
+	call	stodesc			; SEL_R3CODE
+	mov	ax,PB_SIZE - 1
+	mov	cx,ds:[SYS_LOG].PL_BUF.LOW
+	mov	dl,byte ptr ds:[SYS_LOG].PL_BUF.HIW
+	mov	dh,ACC_DATA + ACC_DPL3
+	call	stodesc			; SEL_R3DATA
+	mov	ax,offset DEV:probe_exit
+	mov	cx,SEL_CPUCODE
+	mov	dx,(ACC_CALLGATE + ACC_DPL3) SHL 8
+	call	stodesc			; SEL_R3EXIT
+
+	mov	di,SYS_PIDT
+	sub	bx,bx			; BX = vector
+pp3:	mov	ax,bx
+	mov	dh,ACC_INTGATE		; DPL 0, for exceptions and IRQs
+	sub	al,70h
+	cmp	al,10h			; 70h-7Fh?
+	jae	pp4			; no
+	mov	cx,offset DEV:irq_stubs
+	jmp	short pp5
+pp4:	mov	ax,bx
+	cmp	al,10h			; 00h-0Fh?
+	jae	pp6			; no
+	cmp	al,INT_BP
+	jb	pp4a
+	cmp	al,INT_UD		; 03h-05h are software interrupts
+	jb	pp6
+pp4a:	mov	cx,offset DEV:exc_stubs
+pp5:	mov	ah,5			; each stub is 5 bytes
+	mul	ah
+	add	ax,cx
+	jmp	short pp7
+pp6:	mov	ax,offset DEV:sw_int
+	mov	dh,ACC_INTGATE + ACC_DPL3
+pp7:	mov	cx,SEL_CPUCODE
+	mov	dl,0
+	call	stodesc
+	inc	bl
+	jnz	pp3
+
+	mov	ds:[SYS_LOG].PL_GDTR,0FFFFh
+	mov	byte ptr ds:[SYS_LOG].PL_GDTR+4,11h
+	mov	ds:[SYS_LOG].PL_IDTR,IDT_MAX * (size DESC) - 1
+	mov	ds:[SYS_LOG].PL_IDTR+2,SYS_PIDT - 10h
+	mov	byte ptr ds:[SYS_LOG].PL_IDTR+4,SYS_BASE16
+	lgdt	qword ptr ds:[SYS_LOG].PL_GDTR
+	lidt	qword ptr ds:[SYS_LOG].PL_IDTR
+	mov	ax,SEL_TSS
+	ltr	ax
+	in	al,21h
+	mov	ds:[SYS_LOG].PL_PICMASK,al
+	mov	ah,78h
+	call	pic_init		; move the master PIC to 78h
+	mov	ax,SEL_SYS
+	mov	ss,ax
+	mov	sp,SYS_STK0
+	push	SEL_R3DATA		; ring 3 SS:SP
+	push	PB_SIZE
+	push	FL_INTS			; ring 3 flags (interrupts on, IOPL 0)
+	push	SEL_R3CODE
+	push	offset DEV:probe3
+	iret				; "return" to ring 3
+ENDPROC	pm_probe
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; probe_resume
+;
+; An 80286 resets to here (instead of pm_resume) while the probe is set up;
+; if the probe was still running (eg, a triple fault), we move the master
+; PIC back before going on to pm_resume.
+;
+DEFPROC	probe_resume,far
+	mov	ax,SYS_SEG
+	mov	ds,ax
+	cmp	ds:[SYS_LOG].PL_STATUS,PLS_RUN
+	jne	rs9
+	mov	ds:[SYS_LOG].PL_STATUS,PLS_RESET
+	mov	ss,ds:[SYS_VARS].SV_RMSS
+	mov	sp,ds:[SYS_VARS].SV_RMSP
+	mov	ah,08h
+	call	pic_init
+rs9:	jmp	pm_resume
+ENDPROC	probe_resume
+;
+; probe_report prints each label below, followed by the PROBELOG word
+; at the offset after it.
+;
+	DEFLBL	probe_fields,byte
+	db	"CPU$ probe: status ",0,PL_STATUS
+	db	", ints ",0,PL_NINTS
+	db	", irqs ",0,PL_NIRQS
+	db	", fixes ",0,PL_NFIX
+	db	", events ",0,PL_NEVENTS
+	db	13,10,"fault ",0,PL_VEC
+	db	", error ",0,PL_ERR
+	db	" at ",0,PL_FCS
+	db	":",0,PL_FIP
+	db	13,10,"disk ",0,PL_R3+14
+	db	", sig ",0,PL_R3+8
+	db	", ticks ",0,PL_R3+12
+	db	", mem ",0,PL_R3+10
+	db	", ext ",0,PL_R3+2
+	db	", equip ",0,PL_R3
+	db	13,10,0,-1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; probe_report
+;
+; Prints the probe's results (see probe_fields) with the BIOS.
+;
+; Modifies:
+;	AX, BX, CX, SI, DI, DS
+;
+DEFPROC	probe_report
+	mov	ax,SYS_SEG
+	mov	ds,ax
+	mov	si,offset DEV:probe_fields
+pr1:	lods	byte ptr cs:[si]
+	test	al,al			; end of label?
+	jz	pr2			; yes
+	call	pr8
+	jmp	pr1
+pr2:	lods	byte ptr cs:[si]	; AL = PROBELOG offset
+	cmp	al,-1			; end of fields?
+	je	pr9			; yes
+	cbw
+	xchg	di,ax
+	mov	ax,ds:[SYS_LOG+di]
+	mov	cx,4
+pr3:	rol	ax,4
+	push	ax
+	and	al,0Fh
+	add	al,90h			; convert the low nibble to hex
+	daa
+	adc	al,40h
+	daa
+	call	pr8
+	pop	ax
+	loop	pr3
+	jmp	pr1
+pr8:	mov	ah,VIDEO_TTYOUT
+	mov	bh,0
+	int	INT_VIDEO
+pr9:	ret
+ENDPROC	probe_report
+
+	DEFLBL	probe_cfg,byte
+	db	"CPU=PROBE"
+PROBE_CFGLEN	equ	$ - probe_cfg
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; probe_init
+;
+; Runs the protected-mode probe if CONFIG.SYS has a "CPU=PROBE" line.
+;
+; Inputs:
+;	ES:BX -> DDPI
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
+DEFPROC	probe_init
+	lds	si,es:[bx].DDP_PTR	; DS:SI -> CONFIG.SYS text
+	les	di,es:[bx].DDPI_BUFPTR	; ES:DI -> scratch buffer
+	mov	ax,es
+	mov	dx,ax
+	shl	ax,4
+	shr	dx,12
+	add	ax,di
+	adc	dx,0			; DX:AX = its address
+	push	dx
+	push	ax
+	push	cs
+	pop	es
+	mov	cx,ds
+	or	cx,si			; is there any CONFIG.SYS text?
+	jz	pi8			; no
+pi1:	mov	di,offset DEV:probe_cfg
+	mov	cx,PROBE_CFGLEN
+	push	si
+	repe	cmpsb			; does this line start with CPU=PROBE?
+	pop	si
+	je	pi3			; yes
+pi2:	lodsb
+	test	al,al			; end of CONFIG.SYS?
+	jz	pi8			; yes
+	cmp	al,CHR_LINEFEED
+	jne	pi2
+	jmp	pi1
+pi3:	mov	ax,SYS_SEG
+	mov	ds,ax
+	mov	es,ax
+	mov	di,SYS_LOG
+	mov	cx,(SYS_STK0 - SYS_LOG) SHR 1
+	sub	ax,ax
+	rep	stosw			; clear the probe's system area
+	pop	ds:[SYS_LOG].PL_BUF.LOW
+	pop	ds:[SYS_LOG].PL_BUF.HIW
+	mov	bx,offset DEV:pm_probe
+	call	pm_call
+	jmp	probe_report
+pi8:	pop	ax
+	pop	dx
+	ret
+ENDPROC	probe_init
+
+	ASSERT	<offset irq_common - offset irq_stubs>,EQ,<16 * 5>
+	ASSERT	<offset exc_common - offset exc_stubs>,EQ,<16 * 5>
 
 	DEFLBL	gdt_init,byte
 	DESC	<0FFFFh,0FFF0h,0Fh,ACC_DATA,0>		; SEL_SYS (FFFF0h)

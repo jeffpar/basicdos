@@ -85,9 +85,11 @@ DDERR_NOTREADY	equ	80h	; Drive not ready (aka timeout)
 ;
 ; Device driver packet for the INIT command
 ;
-; For built-in drivers, DDPI_BUFPTR is a scratch buffer; for DEVICE= drivers
-; (single-header .SYS files with a DDH at offset 0), it points to the ASCIIZ
-; arguments, and DDPI_END must be returned in the driver's own segment.
+; For built-in drivers, DDPI_BUFPTR is a scratch buffer, and DDP_PTR points to
+; the CONFIG.SYS text (null-terminated, and empty if there's no CONFIG.SYS);
+; for DEVICE= drivers (single-header .SYS files with a DDH at offset 0),
+; DDPI_BUFPTR points to the ASCIIZ arguments, and DDPI_END must be returned
+; in the driver's own segment.
 ;
 DDPI		struc
 DDPI_HDR	db	size DDP dup(?)

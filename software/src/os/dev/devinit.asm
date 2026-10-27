@@ -73,14 +73,15 @@ DEFPROC	devinit,far
 ; this code, using the boot code's read_file function (which is BOOT_RDFILE
 ; bytes past our return address); when we're done, we move it above where
 ; DOS_FILE will be loaded (see the end of this function), so the boot code
-; doesn't have to read it again.
+; doesn't have to read it again.  Drivers also get the CFG_FILE data (see
+; DDP_PTR below), which is empty if there's no CFG_FILE.
 ;
 	push	di
 	mov	di,offset devinit_end	; DI -> CFG_FILE buffer
 	lea	bx,[si+BOOT_CFGFILE]	; BX -> CFG_FILE DIR info
 	mov	cs:[cfg_info],bx
 	cmp	[bx],al			; was CFG_FILE found?
-	jne	d2			; no
+	jne	d1			; no, so leave it empty
 	push	cs
 	pop	es
 	ASSUME	ES:NOTHING
@@ -134,6 +135,8 @@ d2:	mov	cs:[buf_off],di		; scratch buffer follows CFG_FILE data
 	mov	word ptr [bp].DDP_LEN,size DDP
 	mov	[bp].DDP_CMD,DDC_INIT
 	mov	[bp].DDP_STATUS,0
+	mov	[bp].DDP_PTR.OFF,offset devinit_end
+	mov	[bp].DDP_PTR.SEG,cs	; DDP_PTR -> CFG_FILE data
 
 i1:	cmp	si,di		; reached the end of drivers?
 	jb	i2		; no

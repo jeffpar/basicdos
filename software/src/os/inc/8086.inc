@@ -64,6 +64,7 @@ OP_MOV_DI	equ	0BFh
 OP_RETF_N	equ	0CAh
 OP_RETF		equ	0CBh
 OP_INT03	equ	0CCh		; INT3
+OP_INT		equ	0CDh		; INT n
 OP_IRET		equ	0CFh
 OP_CALL		equ	0E8h		; 16-bit displacement
 OP_JMP		equ	0E9h		; 16-bit displacement

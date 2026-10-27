@@ -59,6 +59,7 @@ MODE_MONO	equ	07h
 ; INT_FDC (Floppy Drive Controller) and INT_HDC (Hard Drive Controller)
 ; functions
 ;
+FDC_RESET	equ	00h	;
 FDC_READ	equ	02h	;
 FDC_WRITE	equ	03h	;
 FDC_VERIFY	equ	04h	;
