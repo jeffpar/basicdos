@@ -568,6 +568,59 @@ ENDPROC	int_util
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; int_getvec and int_setvec
+;
+; DDINT_GETVEC and DDINT_SETVEC are "revectored" here by sysinit (DEVINIT
+; provides its own until then, for drivers' INIT code).  They're the only way
+; that drivers and the kernel read and write interrupt vectors, since the
+; vector table's segment (00h) isn't a valid selector in protected mode.  A
+; vector is passed in DX:CX, not a segment register, since its segment isn't
+; necessarily a valid selector either.
+;
+; Inputs:
+;	AL = vector #
+;	DX:CX = new vector (int_setvec only)
+;
+; Outputs:
+;	DX:CX = vector (for int_setvec, the previous one)
+;
+; Modifies:
+;	CX, DX
+;
+DEFPROC	int_setvec,DOSFAR
+	push	ds
+	push	bx
+	call	int_vecptr		; DS:BX -> vector
+	pushf
+	cli
+	xchg	cx,[bx].OFF
+	xchg	dx,[bx].SEG
+	popf
+	jmp	short iv9
+ENDPROC	int_setvec
+
+DEFPROC	int_getvec,DOSFAR
+	push	ds
+	push	bx
+	call	int_vecptr		; DS:BX -> vector
+	mov	cx,[bx].OFF
+	mov	dx,[bx].SEG
+iv9:	pop	bx
+	pop	ds
+	ret
+ENDPROC	int_getvec
+
+DEFPROC	int_vecptr
+	sub	bx,bx
+	mov	ds,bx
+	mov	bl,al
+	shl	bx,1
+	shl	bx,1
+	ret
+ENDPROC	int_vecptr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; func_none (handler for unimplemented DOS functions)
 ;
 ; Inputs:

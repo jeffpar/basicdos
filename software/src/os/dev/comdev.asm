@@ -2929,20 +2929,13 @@ in3:	mov	[ddcom_cmdp].SEG,ax
 ;
 ; Determine the hardware interrupt vector for port DX
 ;
-	mov	di,INT_HW_COM1
+	mov	al,INT_HW_COM1
 	cmp	dh,03h
 	je	in4
-	dec	di
-in4:	add	di,di
-	add	di,di
-	sub	ax,ax
-	mov	ds,ax			; DS:DI -> vector
-	ASSUME	DS:NOTHING
-	cli
-	mov	ax,cs:[DDH_INTERRUPT]
-	mov	[di].OFF,ax
-	mov	[di].SEG,cs
-	sti
+	dec	ax
+in4:	mov	cx,cs:[DDH_INTERRUPT]
+	mov	dx,cs
+	call	far ptr DDINT_SETVEC
 
 in9:	ret
 ENDPROC	ddcom_init

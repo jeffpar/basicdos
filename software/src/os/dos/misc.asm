@@ -10,6 +10,7 @@
 	DOSFUNC equ 1
 	include	macros.inc
 	include	8086.inc
+	include	bios.inc
 	include	dev.inc
 	include	devapi.inc
 	include	dos.inc
@@ -43,25 +44,26 @@ DOS	segment word public 'CODE'
 ;	None
 ;
 ; Modifies:
-;	AX, DI, ES
+;	AX, CX, DX, DI
 ;
 ; Notes:
 ; 	Too bad this function wasn't defined to also return the original vector.
 ;
 DEFPROC	msc_setvec,DOS
+	mov	cx,[bp].REG_DX
+	mov	dx,[bp].REG_DS		; DX:CX = new vector
+	push	ax
 	call	get_vecoff		; AX = vector offset
+	xchg	di,ax			; DI -> vector, if it's in the SCB
+	pop	ax
 	jnc	msv1
-	sub	di,di
-	mov	es,di
-	ASSUME	ES:NOTHING
-msv1:	xchg	di,ax			; ES:DI -> vector to write
-	cli
-	mov	ax,[bp].REG_DX
-	stosw
-	mov	ax,[bp].REG_DS
-	stosw
+	call	far ptr DDINT_SETVEC	; it's in the IVT
+	jmp	short msv9
+msv1:	cli
+	mov	[di].OFF,cx
+	mov	[di].SEG,dx
 	sti
-	clc
+msv9:	clc
 	ret
 ENDPROC	msc_setvec
 
@@ -499,21 +501,20 @@ ENDPROC	flush_stdin
 ;	REG_ES:REG_BX = address from vector
 ;
 ; Modifies:
-;	AX, SI, DS
+;	AX, CX, DX, SI
 ;
 DEFPROC	msc_getvec,DOS
+	push	ax
 	call	get_vecoff		; AX = vector offset
+	xchg	si,ax			; SI -> vector, if it's in the SCB
+	pop	ax
 	jnc	mgv1
-	sub	si,si
-	mov	ds,si
-	ASSUME	DS:NOTHING
-mgv1:	xchg	si,ax			; DS:SI -> vector to read
-	cli
-	lodsw
-	mov	[bp].REG_BX,ax
-	lodsw
-	mov	[bp].REG_ES,ax
-	sti
+	call	far ptr DDINT_GETVEC	; it's in the IVT
+	jmp	short mgv2
+mgv1:	mov	cx,[si].OFF
+	mov	dx,[si].SEG
+mgv2:	mov	[bp].REG_BX,cx
+	mov	[bp].REG_ES,dx
 	clc
 	ret
 ENDPROC	msc_getvec

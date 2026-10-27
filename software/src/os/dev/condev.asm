@@ -3273,34 +3273,33 @@ ddn3:	mov	dx,3D4h			; then the CGA
 ; Install an INT 09h hardware interrupt handler, which we'll use to detect
 ; keys added to the BIOS keyboard buffer.
 ;
-	sub	ax,ax
-	mov	ds,ax			; DS = 0 for the vectors
-	ASSUME	DS:NOTHING
+	mov	al,INT_HW_KBD
+	mov	cx,offset ddcon_int09
+	mov	dx,cs
 	cli
-	mov	ax,offset ddcon_int09
-	xchg	ds:[INT_HW_KBD * 4].OFF,ax
-	mov	[kbd_int].OFF,ax
-	mov	ax,cs
-	xchg	ds:[INT_HW_KBD * 4].SEG,ax
-	mov	[kbd_int].SEG,ax
+	call	far ptr DDINT_SETVEC	; DX:CX = previous vector
+	mov	[kbd_int].OFF,cx
+	mov	[kbd_int].SEG,dx
 	sti
 ;
 ; Install an INT 10h services handler to reflect context data into BIOS data.
 ;
-	mov	ax,offset ddcon_int10
-	xchg	ds:[INT_VIDEO * 4].OFF,ax
-	mov	[video_int].OFF,ax
-	mov	ax,cs
-	xchg	ds:[INT_VIDEO * 4].SEG,ax
-	mov	[video_int].SEG,ax
+	mov	al,INT_VIDEO
+	mov	cx,offset ddcon_int10
+	mov	dx,cs
+	call	far ptr DDINT_SETVEC	; DX:CX = previous vector
+	mov	[video_int].OFF,cx
+	mov	[video_int].SEG,dx
 ;
 ; Install an INT 29h ("FAST PUTCHAR") handler; I think traditionally DOS
 ; installed its own handler, but that's really our responsibility, especially
 ; if we want all INT 29h I/O to go through the "system console" -- which for
 ; now is nothing more than whichever console was opened first.
 ;
-	mov	ds:[INT_FASTCON * 4].OFF,offset ddcon_int29
-	mov	ds:[INT_FASTCON * 4].SEG,cs
+	mov	al,INT_FASTCON
+	mov	cx,offset ddcon_int29
+	mov	dx,cs
+	call	far ptr DDINT_SETVEC
 	ret
 ENDPROC	ddcon_init
 

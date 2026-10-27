@@ -169,7 +169,7 @@ ENDPROC	scb_load
 ;	On failure, carry set (if SCB invalid or not initialized for use)
 ;
 ; Modifies:
-;	AX, BX, CX, SI, DI
+;	AX, BX, CX, SI
 ;
 DEFPROC	scb_lock,DOS
 	ASSUME	ES:NOTHING
@@ -181,21 +181,19 @@ DEFPROC	scb_lock,DOS
 	ASSERT	STRUCT,[bx],SCB
 	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
 	ASSERT	STRUCT,[bx],SCB
-	push	ds
-	push	es
-	push	ds
-	pop	es
-	ASSUME	ES:DOS
-	lea	di,[bx].SCB_EXIT	; ES:DI -> SCB vectors
-	sub	si,si
-	mov	ds,si
-	ASSUME	DS:NOTHING
-	mov	si,INT_DOSEXIT * 4	; DS:SI -> IVT vectors
-	mov	cx,6			; move 3 vectors (6 words)
-	rep	movsw
-	pop	es
-	pop	ds
-	ASSUME	DS:DOS
+	push	ax
+	push	dx
+	lea	si,[bx].SCB_EXIT	; SI -> SCB vectors
+	mov	al,INT_DOSEXIT
+sk1:	call	far ptr DDINT_GETVEC	; DX:CX = vector
+	mov	[si].OFF,cx
+	mov	[si].SEG,dx
+	add	si,4
+	inc	ax
+	cmp	al,INT_DOSERROR		; copied all 3 vectors?
+	jbe	sk1			; no
+	pop	dx
+	pop	ax
 	ret
 sk9:	dec	[scb_locked]
 	ret

@@ -11,6 +11,7 @@
 	DOSFUNC equ 1
 	include	macros.inc
 	include	8086.inc
+	include	bios.inc
 	include	devapi.inc
 	include	dos.inc
 	include	dosapi.inc
@@ -1699,49 +1700,37 @@ ENDPROC	psp_init
 DEFPROC	psp_restvec,DOS
 	ASSUME	ES:NOTHING
 	push	ax
+	push	bx
 	push	cx
 	push	dx
 	push	si
 	push	di
-	push	es
 	mov	dx,es			; DX = start of the program's memory
 	call	mcb_getsize		; AX = size, in paragraphs
 	jc	prv9
 	add	ax,dx
-	xchg	cx,ax			; CX = end of the program's memory
-	sub	ax,ax
-	mov	es,ax			; ES:0 -> IVT
-	mov	si,offset ivt_save
-	mov	di,01h*4
-	call	prv2			; check vector 01h
-	mov	di,03h*4
-	call	prv2			; check vector 03h
-	mov	di,08h*4
-	call	prv1			; check vectors 08h and 09h
-	mov	di,1Bh*4
-	call	prv1			; check vectors 1Bh and 1Ch
-prv9:	pop	es
-	pop	di
+	xchg	di,ax			; DI = end of the program's memory
+	mov	bx,dx			; BX = start of the program's memory
+	mov	si,offset ivt_save	; SI -> vector #s and saved vectors
+prv1:	lodsb				; AL = vector #
+	test	al,al			; end of the list?
+	jz	prv9			; yes
+	call	far ptr DDINT_GETVEC	; DX:CX = vector
+	cmp	dx,bx			; does it point into the program?
+	jb	prv2			; no
+	cmp	dx,di
+	jae	prv2			; no
+	mov	cx,[si].OFF
+	mov	dx,[si].SEG
+	call	far ptr DDINT_SETVEC	; yes, so restore the saved vector
+prv2:	add	si,4
+	jmp	prv1
+prv9:	pop	di
 	pop	si
 	pop	dx
 	pop	cx
+	pop	bx
 	pop	ax
-	ret
-prv1:	call	prv2			; check two consecutive vectors
-prv2:	mov	ax,es:[di+2]		; AX = vector's segment
-	cmp	ax,dx			; does it point into the program?
-	jb	prv3			; no
-	cmp	ax,cx
-	jae	prv3			; no
-	pushf
-	cli
-	mov	ax,[si]
-	mov	es:[di],ax		; yes, so restore the saved vector
-	mov	ax,[si+2]
-	mov	es:[di+2],ax
-	popf
-prv3:	add	si,4
-	add	di,4
 	ret
 ENDPROC	psp_restvec
 

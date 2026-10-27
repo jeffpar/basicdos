@@ -1444,26 +1444,27 @@ in2:	loop	in1
 	jmp	short in9		; no mouse, so DDPI_END stays zero
 
 in3:	mov	cs:[port_base],dx
-	mov	bx,(0EFh SHL 8) OR (INT_HW_COM1 * 4)
+	mov	bx,(0EFh SHL 8) OR INT_HW_COM1
 	cmp	dh,03h			; COM1 or COM3 (IRQ4)?
 	je	in4			; yes
-	mov	bx,(0F7h SHL 8) OR (INT_HW_COM2 * 4)
+	mov	bx,(0F7h SHL 8) OR INT_HW_COM2
 in4:	cli
-	sub	ax,ax
-	mov	ds,ax			; DS = 0 for the vectors
-	ASSUME	DS:NOTHING
-	mov	di,bx
-	and	di,00FFh
-	mov	[di].OFF,offset ddmou_irq
-	mov	[di].SEG,cs
-	mov	ds:[INT_MOUSE * 4].OFF,offset ddmou_int33
-	mov	ds:[INT_MOUSE * 4].SEG,cs
-	mov	ax,offset ddmou_int10
-	xchg	ds:[INT_VIDEO * 4].OFF,ax
-	mov	cs:[int10_ptr].OFF,ax
-	mov	ax,cs
-	xchg	ds:[INT_VIDEO * 4].SEG,ax
-	mov	cs:[int10_ptr].SEG,ax
+	push	dx
+	mov	al,bl
+	mov	cx,offset ddmou_irq
+	mov	dx,cs
+	call	far ptr DDINT_SETVEC
+	mov	al,INT_MOUSE
+	mov	cx,offset ddmou_int33
+	mov	dx,cs
+	call	far ptr DDINT_SETVEC
+	mov	al,INT_VIDEO
+	mov	cx,offset ddmou_int10
+	mov	dx,cs
+	call	far ptr DDINT_SETVEC	; DX:CX = previous vector
+	mov	cs:[int10_ptr].OFF,cx
+	mov	cs:[int10_ptr].SEG,dx
+	pop	dx
 	inc	dx			; DX -> IER
 	mov	al,01h			; enable RBR (data received) interrupts
 	out	dx,al

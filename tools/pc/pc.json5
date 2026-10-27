@@ -52,8 +52,6 @@
         "v2": {                         // BASIC-DOS 2.x (any 2.* version, eg, --version=2)
           "dir": "%basicdos/software/src",
           "boot": "os/boot/OBJ/BOOT1.COM",  // the boot sector, which WBOOT splits from BOOT.COM
-          "boot1Offset": 0,             // (BOOT.COM would need the offset of its ORG'ed boot code, BOOT_SECTOR_LO)
-          "boot2Offset": 0,             // BASDEV.COM already contains the rest of the boot code (BOOT2.COM)
           "files": [                    // in the order they appear in the root (ahead of AUTOEXEC.BAT)
             "configs/console/serial/fpe/CONFIG.SYS",    // NOTE: this CONFIG.SYS redirects all BASIC-DOS I/O to COM1
             "os/dev/OBJ/BASDEV.COM",

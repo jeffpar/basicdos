@@ -793,10 +793,6 @@ ENDPROC	ddclk_interrupt
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddclk_init,far
-	sub	ax,ax
-	mov	ds,ax
-	ASSUME	DS:NOTHING
-
 	ASSERT	STRUCT,es:[bx],DDP
 
 	mov	es:[bx].DDPI_END.OFF,offset ddclk_init
@@ -835,13 +831,13 @@ ci1:
 ; WAIT requests, and which will also drive the DOS scheduler as soon as DOS has
 ; initialized and revectored DDINT_ENTER/DDINT_LEAVE.
 ;
+	mov	al,INT_HW_TMR
+	mov	cx,offset ddclk_interrupt
+	mov	dx,cs
 	cli
-	mov	ax,offset ddclk_interrupt
-	xchg	ds:[INT_HW_TMR * 4].OFF,ax
-	mov	[tmr_int].OFF,ax
-	mov	ax,cs
-	xchg	ds:[INT_HW_TMR * 4].SEG,ax
-	mov	[tmr_int].SEG,ax
+	call	far ptr DDINT_SETVEC	; DX:CX = previous vector
+	mov	[tmr_int].OFF,cx
+	mov	[tmr_int].SEG,dx
 	sti
 
 	ret

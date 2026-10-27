@@ -116,7 +116,9 @@ Console drivers (VKD$ and COM) handle CTRL-C the same way, and only report it: t
 
 To stop a program that never calls DOS, console drivers report an ABORT instead (DOS_UTL_HOTKEY with CTRL-D): the VKD$ driver does so for CTRL-ALT-DEL and CTRL-BREAK, and the COM driver does so when it receives a BREAK (a line status interrupt with LSR BI set).
 
-A request that must wait (eg, a keyboard read with no key available) calls DOS_UTL_WAIT with the packet address as the wait ID, which lets other sessions run; the driver's interrupt handler later calls DOS_UTL_ENDWAIT with the same ID.  Interrupt handlers should begin with a far call to DDINT_ENTER (0:530h) and end with a far jump to DDINT_LEAVE (0:535h), which lets DOS switch sessions when the interrupt ends.
+A request that must wait (eg, a keyboard read with no key available) calls DOS_UTL_WAIT with the packet address as the wait ID, which lets other sessions run; the driver's interrupt handler later calls DOS_UTL_ENDWAIT with the same ID.  Interrupt handlers should begin with a far call to DDINT_ENTER (530h) and end with a far jump to DDINT_LEAVE (535h), which lets DOS switch sessions when the interrupt ends.
+
+Drivers read and write interrupt vectors with far calls to DDINT_GETVEC (544h) and DDINT_SETVEC (549h), rather than addressing the vector table with segment 0, which isn't a valid selector in protected mode.  Both take the vector number in AL and pass vectors in DX:CX (segment:offset), not in a segment register, since a vector's segment isn't necessarily a valid selector either: DDINT_GETVEC returns the vector in DX:CX, and DDINT_SETVEC sets the vector to DX:CX (with interrupts disabled) and returns the previous one in DX:CX, so hooking a vector takes one call.  They modify only CX and DX.  DEVINIT provides them while drivers initialize, and sysinit then points them at the kernel, which uses them too (eg, for DOS functions 25h and 35h).
 
 ### IOCTL Functions
 

@@ -181,13 +181,13 @@ SIG_BUF		equ	'B'
 ;
 ; BASIC-DOS accesses this data, and its own low memory data (from 500h), with
 ; segment 40h, as the ROM BIOS does, because 40h is also a valid selector in
-; protected mode, whereas segment 00h isn't (see docs/bdtech/mmu).  For now,
-; interrupt vectors are still accessed with segment 00h, but eventually only
-; code that runs before CPU$ (eg, the boot code) should do that; everything
-; else will use DDINT entry points for reading and writing vectors.  The
-; comments below give each field's linear address, not its offset; BIOS_DATA
-; is the linear address of the segment, for code that needs a linear address
-; or paragraph (eg, the boot code, DEVINIT, and the disk buffer chain).
+; protected mode, whereas segment 00h isn't (see docs/bdtech/mmu).  Drivers
+; and the kernel read and write interrupt vectors with DDINT_GETVEC and
+; DDINT_SETVEC (below); the boot code and DEVINIT, which run first, still use
+; segment 00h.  The comments below give each field's linear address, not its
+; offset; BIOS_DATA is the linear address of the segment, for code that needs
+; a linear address or paragraph (eg, the boot code, DEVINIT, and the disk
+; buffer chain).
 ;
 BIOS_DATA	equ	400h
 BIOS		segment at 40h
@@ -338,13 +338,18 @@ BOOT_KEY	dw	?		; 52Dh: set by boot sector
 ;
 ; The DDINT entry points, which drivers (and the kernel) call far, are 5-byte
 ; slots starting at 530h, each holding a far jump to its handler, or a stub
-; (eg, STC and RETF) until one is installed; new ones go after DDINT_CPU.
+; (eg, STC and RETF) until one is installed; new ones go after DDINT_SETVEC.
+; DDINT_GETVEC and DDINT_SETVEC read and write interrupt vectors (see
+; int_getvec in dosints.asm), so that other code needn't address the vector
+; table with segment 00h.
 ;
 DDINT_ENTER	db	5 dup (?)	; 530h: room for a 5-byte far jump
 DDINT_LEAVE	db	5 dup (?)	; 535h: room for a 5-byte far jump
 DDINT_UTIL	db	5 dup (?)	; 53Ah: room for a 5-byte far jump
 DDINT_CPU	db	5 dup (?)	; 53Fh: room for a 5-byte far jump
-		db	12 dup (?)	; 544h: reserved for DDINT entry points
+DDINT_GETVEC	db	5 dup (?)	; 544h: room for a 5-byte far jump
+DDINT_SETVEC	db	5 dup (?)	; 549h: room for a 5-byte far jump
+		db	2 dup (?)	; 54Eh: paragraph padding
 ;
 ; We move the boot sector from BOOT_SECTOR to FAT_SECTOR.
 ;

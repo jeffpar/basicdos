@@ -2497,27 +2497,22 @@ din0b:	mov	dx,bx			; DS:DX -> COM descriptor
 ;
 	call	get_vars
 	call	hook_vecs
-	mov	bx,INT_HW_COM1 * 4
+	mov	al,INT_HW_COM1
 	cmp	dh,03h			; port 3xxh?
 	je	din1			; yes
-	mov	bx,INT_HW_COM2 * 4
-din1:	sub	ax,ax
-	mov	ds,ax
-	ASSUME	DS:NOTHING
+	mov	al,INT_HW_COM2
+din1:	push	dx
+	mov	cx,offset dbgdev_com
+	mov	dx,cs
 	cli
-	mov	ax,offset dbgdev_com
-	xchg	ax,[bx]
-	mov	cs:[old_com].OFF,ax
-	mov	ax,cs
-	xchg	ax,[bx+2]
-	mov	cs:[old_com].SEG,ax
+	call	far ptr DDINT_SETVEC	; DX:CX = previous vector
+	mov	[old_com].OFF,cx
+	mov	[old_com].SEG,dx
+	pop	dx
 	inc	dx			; DX -> REG_IER (DLAB is clear)
 	mov	al,IER_RBR_AVAIL OR IER_DELTA
 	out	dx,al
 	sti
-	push	cs
-	pop	ds
-	ASSUME	DS:CODE
 	cld
 	mov	si,offset BANNER
 	call	put_string
@@ -2666,7 +2661,7 @@ ENDPROC	get_vars
 ;	DS = CS
 ;
 ; Modifies:
-;	AX, BX, SI
+;	AX, BX
 ;
 DEFPROC	hook_vecs
 	mov	[vec_save+2],cs
@@ -2674,24 +2669,22 @@ DEFPROC	hook_vecs
 ENDPROC	hook_vecs			; fall into swap_vecs
 
 DEFPROC	swap_vecs
-	push	es
-	sub	ax,ax
-	mov	es,ax
+	push	cx
+	push	dx
 	mov	bx,offset vec_save
-	mov	si,01h*4
+	mov	al,01h
 	call	sv1
-	mov	si,03h*4
+	mov	al,03h
 	call	sv1
-	pop	es
+	pop	dx
+	pop	cx
 	ret
-sv1:	call	sv2			; (swap 2 words)
-sv2:	mov	ax,[bx]
-	xchg	ax,es:[si]
-	mov	[bx],ax
-	inc	bx
-	inc	bx
-	inc	si
-	inc	si
+sv1:	mov	cx,[bx].OFF
+	mov	dx,[bx].SEG
+	call	far ptr DDINT_SETVEC	; DX:CX = previous vector
+	mov	[bx].OFF,cx
+	mov	[bx].SEG,dx
+	add	bx,4
 	ret
 ENDPROC	swap_vecs
 

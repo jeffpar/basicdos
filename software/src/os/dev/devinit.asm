@@ -56,8 +56,10 @@ DEFPROC	devinit,far
 ;
 ; Perform some preliminary BIOS data initialization; in particular,
 ; DDINT_ENTER and DDINT_LEAVE entry points for hardware interrupt handlers,
-; the DDINT_UTIL entry point for driver WAIT and ENDWAIT requests, and the
-; DDINT_CPU entry point, which the CPU$ driver sets if it stays loaded.
+; the DDINT_UTIL entry point for driver WAIT and ENDWAIT requests, the
+; DDINT_CPU entry point, which the CPU$ driver sets if it stays loaded, and
+; the DDINT_GETVEC and DDINT_SETVEC entry points, which drivers use to read and
+; write interrupt vectors (until sysinit revectors them to the kernel).
 ;
 	push	ds
 	mov	ax,BIOS
@@ -67,6 +69,12 @@ DEFPROC	devinit,far
 	mov	[DDINT_LEAVE],OP_IRET
 	mov	word ptr [DDINT_UTIL],(OP_RETF SHL 8) OR OP_STC
 	mov	word ptr [DDINT_CPU],(OP_RETF SHL 8) OR OP_STC
+	mov	[DDINT_GETVEC],OP_JMPF
+	mov	word ptr [DDINT_GETVEC+1],offset dv_getvec
+	mov	word ptr [DDINT_GETVEC+3],cs
+	mov	[DDINT_SETVEC],OP_JMPF
+	mov	word ptr [DDINT_SETVEC+1],offset dv_setvec
+	mov	word ptr [DDINT_SETVEC+3],cs
 	sub	ax,ax
 	mov	[FDC_DEVICE].SEG,ax	; no FDC driver yet
 	mov	[CLOCK_DEVICE].SEG,ax	; and no CLOCK$ driver yet
@@ -403,6 +411,55 @@ ck5:	pop	si
 ck9:	pop	di
 	ret
 ENDPROC	chk_skip
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dv_getvec and dv_setvec
+;
+; DDINT_GETVEC and DDINT_SETVEC go here while drivers initialize, until sysinit
+; revectors them to the kernel's int_getvec and int_setvec (see dosints.asm).
+;
+; Inputs:
+;	AL = vector #
+;	DX:CX = new vector (dv_setvec only)
+;
+; Outputs:
+;	DX:CX = vector (for dv_setvec, the previous one)
+;
+; Modifies:
+;	CX, DX
+;
+DEFPROC	dv_setvec,far
+	push	ds
+	push	bx
+	call	dv_vecptr		; DS:BX -> vector
+	pushf
+	cli
+	xchg	cx,[bx].OFF
+	xchg	dx,[bx].SEG
+	popf
+	jmp	short dv9
+ENDPROC	dv_setvec
+
+DEFPROC	dv_getvec,far
+	push	ds
+	push	bx
+	call	dv_vecptr		; DS:BX -> vector
+	mov	cx,[bx].OFF
+	mov	dx,[bx].SEG
+dv9:	pop	bx
+	pop	ds
+	ret
+ENDPROC	dv_getvec
+
+DEFPROC	dv_vecptr
+	sub	bx,bx
+	mov	ds,bx
+	mov	bl,al
+	shl	bx,1
+	shl	bx,1
+	ret
+ENDPROC	dv_vecptr
 
 	DEFWORD	skip_list,0		; offset of "SKIP=" list, if any
 	DEFWORD	buf_off,0		; offset of scratch buffer

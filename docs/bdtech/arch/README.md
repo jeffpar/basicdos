@@ -63,7 +63,7 @@ In DEBUG builds, the [DOS_UTL_DPRINTF](../util/#formatted-output) messages are p
 |---------|----------|
 | 0000h | Interrupt vector table |
 | 0400h | ROM BIOS data area |
-| 0500h | BASIC-DOS low memory data: drive info, device list head (50Ah), CPU_TYPE (512h), DPT (522h), BOOT_KEY (52Dh), and the DDINT entry points (530h: DDINT_ENTER, DDINT_LEAVE, DDINT_UTIL, and DDINT_CPU, with room for two more) |
+| 0500h | BASIC-DOS low memory data: drive info, device list head (50Ah), CPU_TYPE (512h), DPT (522h), BOOT_KEY (52Dh), and the DDINT entry points (530h: DDINT_ENTER, DDINT_LEAVE, DDINT_UTIL, DDINT_CPU, DDINT_GETVEC, and DDINT_SETVEC) |
 | 0550h | First disk buffer (16-byte header and 512-byte sector; initially the FAT sector the boot code read) |
 | 0760h | Second disk buffer (header and 512-byte sector) |
 | 0970h | BIOS_END: device drivers (BASDEV.COM), followed by the DOS kernel (BASDOS.COM) |

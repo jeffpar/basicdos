@@ -814,10 +814,14 @@ ENDPROC	format_track
 DEFPROC	set_dpt
 	push	ds
 	push	bx
-	sub	bx,bx
-	mov	ds,bx
-	ASSUME	DS:NOTHING
-	lds	bx,dword ptr ds:[INT_DPT*4]
+	push	cx
+	push	dx
+	push	ax
+	mov	al,INT_DPT
+	call	far ptr DDINT_GETVEC	; DX:CX -> DPT
+	pop	ax
+	mov	ds,dx
+	mov	bx,cx
 	ASSUME	DS:NOTHING		; DS:BX -> DPT
 	mov	[bx].DP_SPT,al
 	mov	ah,50h			; gap length for 8 or 9 sectors
@@ -825,6 +829,8 @@ DEFPROC	set_dpt
 	jbe	sd1
 	mov	ah,54h			; gap length for 15 sectors
 sd1:	mov	[bx].DP_GAP3,ah
+	pop	dx
+	pop	cx
 	pop	bx
 	pop	ds
 	ret

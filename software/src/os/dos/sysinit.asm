@@ -32,7 +32,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>
 	EXTNEAR	<dos_term,dos_func,dos_exit,dos_ctrlc,dos_error,dos_default>
 	EXTNEAR	<disk_read,disk_write,dos_tsr,dos_call5,dos_util,dos_leave>
-	EXTNEAR	<int_enter,int_leave,int_util>
+	EXTNEAR	<int_enter,int_leave,int_util,int_getvec,int_setvec>
 
 	DEFLBL	sysinit_start
 
@@ -128,46 +128,62 @@ si1:	mov	ax,BIOS
 	pop	ss			; directly below the sysinit code
 	mov	sp,offset sysinit_start
 	sti
-	mov	es,cx			; CX is zero from above
-	ASSUME	ES:NOTHING
+	push	dx			; save DX (1st paragraph of init code)
+;
+; "Revector" DDINT_GETVEC and DDINT_SETVEC to int_getvec and int_setvec
+; (DEVINIT's versions are gone), and then use them to initialize all the DOS
+; vectors.
+;
+	mov	ax,BIOS
+	mov	es,ax
+	ASSUME	ES:BIOS
+	mov	di,offset DDINT_GETVEC
+	mov	ax,offset int_getvec
+	call	sto_jmpf
+	mov	ax,offset int_setvec
+	call	sto_jmpf		; (DDINT_SETVEC follows DDINT_GETVEC)
 	mov	si,offset INT_TABLES
 si2:	lodsw
 	test	ax,ax			; any more tables?
 	jl	si2b			; no
-	xchg	di,ax			; DI -> first vector for table
-si2a:	lodsw				; load vector offset
-	test	ax,ax			; end of sub-table?
+	xchg	bx,ax			; BL = first vector of the table
+si2a:	lodsw				; AX = offset of the next handler
+	test	ax,ax			; end of the table?
 	jz	si2			; yes
-	stosw				; store vector offset
-	mov	ax,ds
-	stosw				; store vector segment
+	xchg	cx,ax
+	mov	dx,ds			; DX:CX -> handler
+	mov	al,bl
+	call	far ptr DDINT_SETVEC
+	inc	bx
 	jmp	si2a
-si2b:	mov	al,0EAh			; DI -> INT_DOSCALL5 * 4
-	stosb
+;
+; INT_DOSCALL5 * 4 holds a far jump rather than a vector (a PSP's CALL 5
+; reaches it by wrapping around at 1Mb), so it's stored directly.
+;
+si2b:	sub	ax,ax
+	mov	es,ax
+	ASSUME	ES:NOTHING
+	mov	di,INT_DOSCALL5 * 4
 	mov	ax,offset dos_call5
-	stosw
-	mov	ax,ds
-	stosw
-	add	di,3			; DI -> INT_DOSUTIL * 4
-	mov	ax,offset dos_util
-	stosw
-	mov	ax,ds
-	stosw
+	call	sto_jmpf
+	mov	al,INT_DOSUTIL
+	mov	cx,offset dos_util
+	mov	dx,ds
+	call	far ptr DDINT_SETVEC
 ;
 ; Unless a mouse driver has installed an INT 33h handler (ie, one in RAM;
 ; see ddmou_init), point INT 33h at an IRET, because programs like WOLF3D.EXE
 ; treat any other non-null vector (eg, a BIOS stub) as a mouse driver.
 ;
-	mov	di,INT_MOUSE * 4
-	mov	ax,es:[di+2]
-	dec	ax
-	cmp	ax,0A000h-1		; is the vector in RAM (1h-9FFFh)?
+	mov	al,INT_MOUSE
+	call	far ptr DDINT_GETVEC	; DX:CX = INT 33h vector
+	dec	dx
+	cmp	dx,0A000h-1		; is the vector in RAM (1h-9FFFh)?
 	jb	si2c			; yes, so leave it alone
-	mov	ax,offset dos_default
-	stosw
-	mov	ax,ds
-	stosw
-si2c:
+	mov	cx,offset dos_default
+	mov	dx,ds
+	call	far ptr DDINT_SETVEC
+si2c:	pop	dx			; restore DX (see si4)
 ;
 ; "Revector" DDINT_UTIL to int_util as soon as INT_DOSUTIL is available,
 ; since drivers use it in place of some DOSUTIL functions (eg, LOCK, which
@@ -178,12 +194,8 @@ si2c:
 	mov	es,ax
 	ASSUME	ES:BIOS
 	mov	di,offset DDINT_UTIL
-	mov	al,OP_JMPF
-	stosb
 	mov	ax,offset int_util
-	stosw
-	mov	ax,ds
-	stosw
+	call	sto_jmpf
 	sti
 ;
 ; The current SP is sysinit_start, and relative to SS, that's safe place
@@ -932,18 +944,10 @@ si20a:
 	ASSUME	ES:BIOS
 	cli
 	mov	di,offset DDINT_ENTER
-	mov	al,OP_JMPF
-	stosb
 	mov	ax,offset int_enter
-	stosw
-	mov	ax,ds
-	stosw
-	mov	al,OP_JMPF
-	stosb
+	call	sto_jmpf
 	mov	ax,offset int_leave
-	stosw
-	mov	ax,ds
-	stosw
+	call	sto_jmpf
 	ASSUME	ES:NOTHING
 ;
 ; Now that every SHELL has been loaded, add the memory containing our code and
@@ -976,25 +980,16 @@ si20a:
 ; Save the vectors that programs commonly hook directly (01h, 03h, 08h, 09h,
 ; 1Bh, and 1Ch), now that the drivers have hooked theirs (see psp_restvec).
 ;
-	push	ds
-	pop	es
-	mov	di,offset ivt_save	; ES:DI -> ivt_save
-	sub	ax,ax
-	mov	ds,ax
-	mov	si,01h*4		; DS:SI -> vector 01h
-	movsw
-	movsw
-	mov	si,03h*4		; DS:SI -> vector 03h
-	movsw
-	movsw
-	mov	si,08h*4		; DS:SI -> vectors 08h and 09h
-	mov	cx,4
-	rep	movsw
-	mov	si,1Bh*4		; DS:SI -> vectors 1Bh and 1Ch
-	mov	cl,4
-	rep	movsw
-	push	es
-	pop	ds
+	mov	si,offset ivt_save	; DS:SI -> vector #s and saved vectors
+iv1:	lodsb				; AL = vector #
+	test	al,al			; end of the list?
+	jz	iv2			; yes
+	call	far ptr DDINT_GETVEC	; DX:CX = vector
+	mov	[si].OFF,cx
+	mov	[si].SEG,dx
+	add	si,4
+	jmp	iv1
+iv2:
 ;
 ; Activate and start running the first session.  We must mimic scb_switch
 ; rather than calling it, because we're not switching SCBs (sysinit is not
@@ -1067,6 +1062,31 @@ fe1:	mov	ah,DOS_TTY_PRINT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; sto_jmpf
+;
+; Inputs:
+;	DS:AX -> target
+;	ES:DI -> where to store a far jump to it
+;
+; Outputs:
+;	ES:DI -> just past the far jump
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	sto_jmpf
+	push	ax
+	mov	al,OP_JMPF
+	stosb
+	pop	ax
+	stosw
+	mov	ax,ds
+	stosw
+	ret
+ENDPROC	sto_jmpf
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; last_mcb
 ;
 ; Inputs:
@@ -1120,17 +1140,17 @@ ENDPROC	last_mcb
 ; Labels are capitalized to indicate that the data is R/O, not R/W.
 ;
 	DEFLBL	INT_TABLES,word
-	dw	(INT_DV * 4)		; 00h: diverr and single-step vectors
+	dw	INT_DV			; 00h: diverr and single-step vectors
 	dw	dos_dverr,dos_sstep,0
-	dw	(INT_BP * 4)		; 03h: breakpoint and overflow vectors
+	dw	INT_BP			; 03h: breakpoint and overflow vectors
 	dw	dos_brkpt,dos_oferr,0
-	dw	(INT_DOSTERM * 4)	; 20h: initialize all the DOS vectors
+	dw	INT_DOSTERM		; 20h: initialize all the DOS vectors
 	dw	dos_term,dos_func,dos_exit,dos_ctrlc
 	dw	dos_error,disk_read,disk_write,dos_tsr,dos_default,0
-	dw	(INT_DOSNET * 4)	; 2Ah
+	dw	INT_DOSNET		; 2Ah
 	dw	dos_default,dos_default,dos_default
 	dw	dos_default,dos_default,dos_default,0
-	dw	-1			; end of tables (should end at INT 30h)
+	dw	-1			; end of tables
 	DEFLBL	INT_TABLES_END
 
 CFG_CON		db	4,"CON="

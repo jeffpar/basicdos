@@ -24,7 +24,7 @@ The PCjs Debugger stops the machine as CPU$ starts to initialize, just after the
 This is the development page for BASIC-DOS's protected-mode work (the *mmu* branch).  The goal is for BASIC-DOS to run in protected mode on an 80286, with its drivers and kernel at ring 0, its sessions at ring 3, and extended memory for BASIC programs, while the same binaries still run in real mode on an 8088.  The PC AT is the only target for now.  See the [design](/docs/bdtech/mmu/) for details.
 
 - **Done**: the CPU$ driver.  On an 80286 or later with extended memory, it enables A20, builds a physical memory arena and the GDT, IDT, and LDT in the first 64K of extended memory, checks that it can switch to protected mode and back (returning to real mode, on an 80286, by resetting the processor with CMOS shutdown code 0Ah), and then provides its functions (CPU_ALLOC, CPU_FREE, CPU_MAP, CPU_UNMAP, CPU_QUERY, and CPU_GETINFO) through DDINT_CPU, a far jump at 53Fh.  BASIC-DOS itself still runs in real mode.  On an 8088, or with `CPU=8088`, CPU$ records processor type 0 (in CPU_TYPE, at 0:512h) and unloads itself.
-- **In progress**: making the drivers and the kernel run unchanged in either mode.  The BIOS data and BASIC-DOS's low memory (at 500h) are now accessed through segment 40h, which is also a valid selector, instead of segment 0.  Next, interrupt vectors will be read and written through new DDINT entry points (since 0 isn't a valid selector), and writes through CS will become writes through DS or ES (a code segment can't be written in protected mode).  Every change is tested on three machines: an IBM PC XT (8088), a 2Mb PC AT with `CPU=8088` (real mode), and a 2Mb PC AT without it (this configuration).
+- **In progress**: making the drivers and the kernel run unchanged in either mode.  The BIOS data and BASIC-DOS's low memory (at 500h) are now accessed through segment 40h, which is also a valid selector, instead of segment 0, and interrupt vectors are read and written through two new DDINT entry points (DDINT_GETVEC and DDINT_SETVEC), since 0 isn't a valid selector.  Next, writes through CS will become writes through DS or ES (a code segment can't be written in protected mode).  Every change is tested on three machines: an IBM PC XT (8088), a 2Mb PC AT with `CPU=8088` (real mode), and a 2Mb PC AT without it (this configuration).
 - **Next**: loading modules at 128-byte boundaries (so that every segment is also a valid selector), the remaining segment arithmetic (eg, MCBs and PSPs), and then staying in protected mode after CPU$ initializes.
 
 #### Physical Memory
@@ -33,7 +33,7 @@ This is the development page for BASIC-DOS's protected-mode work (the *mmu* bran
 |---------|--------|----------|
 | 000000h | 1K | Real-mode interrupt vector table |
 | 000400h | 256 | ROM BIOS data area (segment 40h) |
-| 000500h | 1136 | BASIC-DOS low memory (also segment 40h, from offset 100h): CPU_TYPE (512h), the diskette parameter table (522h), the DDINT entry points (530h, including DDINT_CPU at 53Fh), and two disk buffers |
+| 000500h | 1136 | BASIC-DOS low memory (also segment 40h, from offset 100h): CPU_TYPE (512h), the diskette parameter table (522h), the DDINT entry points (530h, including DDINT_CPU at 53Fh and the vector functions), and two disk buffers |
 | 000970h | | Drivers (CPU$ first), then BASDOS.COM, its tables, and the MCB chain |
 | 0A0000h | 384K | Video memory, adapter ROMs, and the system ROM |
 | 100000h | 64K | CPU$'s system area (the HMA, segment FFFFh in real mode) |
