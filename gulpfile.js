@@ -85,11 +85,12 @@ function checkOutput(task, outputFile)
  * timestamps of its files.
  *
  * Which disks a build updates depends on the mode of its binaries (the mode of the last mkdos.sh or mk.sh build, which
- * tools/pc/disks/mkmode records) and package.json's config.release: a disk marked "final" (the release diskette, and
- * the 64K demos, which don't have room for DEBUG binaries) is updated only with FINAL binaries, and every other disk
- * is updated with any binaries, except FINAL binaries while config.release is "debug".  So while config.release is
- * "debug", a DEBUG build updates all but the "final" disks, and a FINAL build updates only the "final" disks; once
- * it's "final", a FINAL build updates them all, and a DEBUG build updates all but the "final" disks.
+ * tools/pc/disks/mkmode records) and package.json's config.release: a disk marked "final" (the release diskette, the
+ * 64K demos, which don't have room for DEBUG binaries, and the Protected Mode demo, whose CPU$ work is built FINAL) is
+ * updated only with FINAL binaries, and every other disk is updated with any binaries, except FINAL binaries while
+ * config.release is "debug".  So while config.release is "debug", a DEBUG build updates all but the "final" disks, and
+ * a FINAL build updates only the "final" disks; once it's "final", a FINAL build updates them all, and a DEBUG build
+ * updates all but the "final" disks.
  */
 const SRC = "./software/src";
 /*
@@ -161,6 +162,7 @@ let disks = {
     "BASICDOS-360K-M640": { config: "./demos/m64/m640/CONFIG.SYS", title: "BASIC-DOS 640K Monochrome Demo" },
     "BASICDOS-360K-TERM": { config: "./demos/term/CONFIG.SYS", title: "BASIC-DOS Terminal Only Demo", final: true },
     "BASICDOS-360K-TERMHD": { config: "./demos/term/hd/CONFIG.SYS", title: "BASIC-DOS HD Terminal Only Demo" },
+    "BASICDOS-360K-MMU": { config: "./demos/mmu/CONFIG.SYS", title: "BASIC-DOS Protected Mode Demo", final: true },
     "BASICDOS-360K-TESTS": {
         title: "BASIC-DOS Tests",
         data: true,

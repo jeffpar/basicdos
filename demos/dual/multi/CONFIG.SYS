@@ -1,4 +1,5 @@
 REM Demonstration of dual monitors with multiple sessions per monitor
+CPU=8088
 FILES=20
 BUFFERS=4
 SESSIONS=8

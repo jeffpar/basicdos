@@ -15,8 +15,9 @@
 ; provide the functions listed in cpu.inc through DDINT_CPU; otherwise, it
 ; unloads itself.  For now, the processor always returns to real mode; see
 ; docs/bdtech/mmu for the design and the plans for the rest of BASIC-DOS.
-; A "CPU=PROBE" line in CONFIG.SYS also runs an experimental probe of the
-; ROM BIOS in protected mode (see pm_probe).
+; A "CPU=8088" line in CONFIG.SYS makes CPU$ act as it does on an 8088, and
+; "CPU=PROBE" runs an experimental probe of the ROM BIOS in protected mode
+; (see pm_probe).
 ;
 	BIOSAPI equ 1
 	include	macros.inc
@@ -919,9 +920,12 @@ DEFPROC	ddcpu_init,far
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddcpu_req
 	push	es
 	push	bx
-	sub	ax,ax
+	mov	di,offset DEV:cfg_8088
+	call	find_cfg		; is there a "CPU=8088" line?
+	mov	ax,0			; (AL = CPUTYPE_8086)
 	mov	ds,ax
 	ASSUME	DS:BIOS
+	je	di2			; yes, so act as if this is an 8088
 ;
 ; An 8086 or 80186 decrements SP before PUSH SP stores it, whereas an 80286
 ; or later stores the original value.
@@ -1103,6 +1107,50 @@ di8:	pop	bx
 	mov	es:[bx].DDPI_END.OFF,ax
 	ret
 ENDPROC	ddcpu_init
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; find_cfg
+;
+; Looks for a CONFIG.SYS line that begins with the given text, using only
+; 8086 instructions (ddcpu_init calls this before checking the CPU type).
+;
+; Inputs:
+;	ES:BX -> DDPI
+;	CS:DI -> text, preceded by its length
+;
+; Outputs:
+;	Zero flag set if found
+;
+; Modifies:
+;	AX, CX, SI, DS
+;
+DEFPROC	find_cfg
+	push	es
+	lds	si,es:[bx].DDP_PTR	; DS:SI -> CONFIG.SYS text
+	push	cs
+	pop	es
+fc1:	push	si
+	push	di
+	mov	cl,cs:[di]
+	mov	ch,0
+	inc	di
+	repe	cmpsb			; does this line begin with the text?
+	pop	di
+	pop	si
+	je	fc9			; yes
+fc2:	lodsb
+	cmp	al,CHR_LINEFEED		; end of the line?
+	je	fc1			; yes
+	test	al,al			; end of CONFIG.SYS?
+	jnz	fc2			; no
+	inc	ax			; clear the zero flag
+fc9:	pop	es
+	ret
+ENDPROC	find_cfg
+
+	DEFLBL	cfg_8088,byte
+	db	8,"CPU=8088"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1878,8 +1926,7 @@ pr9:	ret
 ENDPROC	probe_report
 
 	DEFLBL	probe_cfg,byte
-	db	"CPU=PROBE"
-PROBE_CFGLEN	equ	$ - probe_cfg
+	db	9,"CPU=PROBE"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1894,7 +1941,9 @@ PROBE_CFGLEN	equ	$ - probe_cfg
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	probe_init
-	lds	si,es:[bx].DDP_PTR	; DS:SI -> CONFIG.SYS text
+	mov	di,offset DEV:probe_cfg
+	call	find_cfg		; is there a "CPU=PROBE" line?
+	jne	pi9			; no
 	les	di,es:[bx].DDPI_BUFPTR	; ES:DI -> scratch buffer
 	mov	ax,es
 	mov	dx,ax
@@ -1904,24 +1953,7 @@ DEFPROC	probe_init
 	adc	dx,0			; DX:AX = its address
 	push	dx
 	push	ax
-	push	cs
-	pop	es
-	mov	cx,ds
-	or	cx,si			; is there any CONFIG.SYS text?
-	jz	pi8			; no
-pi1:	mov	di,offset DEV:probe_cfg
-	mov	cx,PROBE_CFGLEN
-	push	si
-	repe	cmpsb			; does this line start with CPU=PROBE?
-	pop	si
-	je	pi3			; yes
-pi2:	lodsb
-	test	al,al			; end of CONFIG.SYS?
-	jz	pi8			; yes
-	cmp	al,CHR_LINEFEED
-	jne	pi2
-	jmp	pi1
-pi3:	mov	ax,SYS_SEG
+	mov	ax,SYS_SEG
 	mov	ds,ax
 	mov	es,ax
 	mov	di,SYS_LOG
@@ -1933,9 +1965,7 @@ pi3:	mov	ax,SYS_SEG
 	mov	bx,offset DEV:pm_probe
 	call	pm_call
 	jmp	probe_report
-pi8:	pop	ax
-	pop	dx
-	ret
+pi9:	ret
 ENDPROC	probe_init
 
 	ASSERT	<offset irq_common - offset irq_stubs>,EQ,<16 * 5>

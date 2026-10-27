@@ -1,4 +1,5 @@
 REM Demonstration of a single-session hard disk configuration
+CPU=8088
 SKIP=VKD$
 BUFFERS=8
 SESSIONS=3

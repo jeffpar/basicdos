@@ -10,7 +10,8 @@
 #
 # The machine is a 2Mb IBM PC AT (ibm5170 with --ram=2M, which pc.js splits into 640K of conventional memory and 1408K
 # of extended memory; the mmu branch's baseline, unless another --ram is given), whose real-time clock sets the date
-# and time.
+# and time.  Each configuration's CONFIG.SYS has a "CPU=8088" line, so CPU$ acts as it does on an 8088 and BASIC-DOS
+# runs in real mode (tools/tests/mmutest.sh pm and tools/tests/pmprobe.sh boot without it).
 #
 #   fpe     floppy, console on COM1, no FPU (the default)
 #   fpu     floppy, console on COM1, with an 80287

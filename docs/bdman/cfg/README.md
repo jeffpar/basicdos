@@ -30,6 +30,7 @@ The recognized keywords are:
 - [AUX](#aux)
 - [BUFFERS](#buffers)
 - [CON](#con)
+- [CPU](#cpu)
 - [DEVICE](#device)
 - [FILES](#files)
 - [MEMSIZE](#memsize)
@@ -94,6 +95,12 @@ Two full-screen consoles on a CGA, each on its own page:
 	SHELL=COMMAND.COM
 	CON=VKD$:80,25
 	SHELL=COMMAND.COM
+
+### CPU
+
+> CPU=8088
+
+Makes BASIC-DOS treat an 80286 or later processor as an 8088: the processor type is recorded as 8086/8088, extended memory isn't used, and the A20 address line stays disabled, so addresses wrap at 1Mb as they do on an 8088.  On an 8088 or 8086, the line has no effect.
 
 ### DEVICE
 

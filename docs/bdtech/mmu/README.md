@@ -7,7 +7,7 @@ permalink: /docs/bdtech/mmu/
 
 {% include header.html %}
 
-**NOTE**: This is a design document for work in progress on the `mmu` branch.  Everything here is tentative; only [Phase 1](#phases) has been implemented, along with an experimental [protected-mode probe](#probe) that runs the ROM BIOS at ring 0 on behalf of ring 3 code.
+**NOTE**: This is a design document for work in progress on the `mmu` branch.  Everything here is tentative; only [Phase 1](#phases) has been implemented, along with an experimental [protected-mode probe](#probe) that runs the ROM BIOS at ring 0 on behalf of ring 3 code.  The [Protected Mode demo](/demos/mmu/) runs the current CPU$ on a 2Mb PC AT with the PCjs Debugger, and summarizes where things stand.
 
 ### Goals
 
@@ -15,13 +15,19 @@ permalink: /docs/bdtech/mmu/
 - Keep all knowledge of descriptors, selectors, and physical memory in one built-in driver, **CPU$**, which loads first, determines the processor type, and on a protected-mode processor, manages a physical memory arena and the GDT, IDT, and LDT.
 - Restructure the rest of BASIC-DOS (drivers, kernel, and COMMAND.COM) so that it can run in either mode, using CPU$ to map existing blocks of code and data to selectors, and to allocate and free extended memory.
 
-### Baseline Machine
+### Target and Test Machines
 
-All `mmu` work is tested on a 2Mb IBM PC AT: `ibm5170` (80286, AT BIOS revision 3) with `--ram=2M`, which pc.js now splits into 640K of conventional memory (0-9FFFFh) and 1408K of extended memory (100000h-25FFFFh), like the PCjs 2048K PC AT machines.  On the `mmu` branch, [boot.sh](../../../boot.sh) passes `--ram=2M` for every configuration.  For example:
+The design targets the IBM PC AT: `ibm5170` (80286, AT BIOS revision 3) with `--ram=2M`, which pc.js now splits into 640K of conventional memory (0-9FFFFh) and 1408K of extended memory (100000h-25FFFFh), like the PCjs 2048K PC AT machines.  On the `mmu` branch, [boot.sh](../../../boot.sh) passes `--ram=2M` for every configuration.
 
-	./boot.sh fpe 'VER;\TESTS\MISC\CPUTEST'
+Every change is tested on three machines, with `tools/tests/mmutest.sh`, which runs quick.sh's floppy tests and CPUTEST on each:
 
-The 80386 path (which returns to real mode by clearing PE instead of resetting the CPU) is tested with `compaq386` (a COMPAQ DeskPro 386), and the 8086 path (where CPU$ unloads itself) with `ibm5160`, which `tools/tests/quick.sh` uses.
+| Name | Machine | CPU$ |
+|------|---------|------|
+| `8088` | IBM PC XT (`ibm5160`) | Unloads itself (CPU type 0) |
+| `real` | 2Mb PC AT with `CPU=8088` in CONFIG.SYS | Unloads itself (CPU type 0), so BASIC-DOS runs in real mode with A20 disabled |
+| `pm` | 2Mb PC AT without `CPU=8088` | Manages extended memory (and eventually, runs BASIC-DOS in protected mode) |
+
+Because real mode is the only mode they've been tested in, every other configuration that boots on a PC AT or DeskPro 386 (the demo diskettes and hard disk, the test configurations that boot.sh uses, and mk.sh's build configuration) has `CPU=8088` in its CONFIG.SYS; only the `pm` test, `tools/tests/pmprobe.sh`, and the Protected Mode demo leave it out.  The 80386 path (which returns to real mode by clearing PE instead of resetting the CPU) is still tested occasionally with `compaq386` (a COMPAQ DeskPro 386), but only the PC AT is a target for now.
 
 ### The CPU$ Driver
 
@@ -31,7 +37,7 @@ CPU$ is the first driver in BASDEV.COM (ahead of NUL), so it's initialized befor
 2. An 80186 masks shift counts to 5 bits, so shifting 1 left 33 times leaves 2 (instead of 0 on an 8086).
 3. In real mode, an 80286 always clears FLAGS bits 12-15, whereas an 80386 lets software set bits 12-14 (IOPL and NT).
 
-It stores the result in CPU_TYPE (0:512h), as one of the CPUTYPE_* values in cpu.inc (0 = 8086/8088, 1 = 80186/80188, 2 = 80286, 3 = 80386 or later), which DEVINIT sets to zero beforehand in case CPU$ is skipped (`SKIP=CPU$`).
+It stores the result in CPU_TYPE (0:512h), as one of the CPUTYPE_* values in cpu.inc (0 = 8086/8088, 1 = 80186/80188, 2 = 80286, 3 = 80386 or later), which DEVINIT sets to zero beforehand in case CPU$ is skipped (`SKIP=CPU$`).  A `CPU=8088` line in CONFIG.SYS makes CPU$ store 0 (8086/8088) and unload itself, as it does on an 8088, without enabling A20.
 
 CPU$ unloads itself (taking no memory) unless the processor is an 80286 or later, the BIOS reports at least 64K of extended memory (INT 15h function 88h), A20 can be enabled (with the 8042 keyboard controller, as on a PC AT), and a switch to protected mode and back succeeds.  Otherwise, it stays loaded, enables A20 permanently, builds the arena and descriptor tables described below, and makes its functions available through DDINT_CPU (0:513h), a 5-byte far jump in low memory like the other DDINT entry points.  DEVINIT initializes DDINT_CPU to `STC`, `RETF`, so a call fails (with carry set) whenever CPU$ isn't loaded.
 
@@ -198,7 +204,7 @@ Both machines get through the probe, and BASIC-DOS then boots normally:
 
 What the event logs show:
 
-- **PC AT**: each INT 10h teletype call makes three nested INT 10h calls (functions 03h, 0Ah, and 02h).  INT 13h goes to the hard disk BIOS first, which passes diskette requests to INT 40h, and the diskette BIOS calls INT 15h functions 90h and 91h around its wait for IRQ 6.  The null selector faults come in pairs, at F000:2994h and F000:2998h: GET_PARM does `LDS SI,[78h]` with DS = 0, and then reads through the DPT pointer's segment, which is also 0 (BASIC-DOS's DPT is at 0:522h).  The timer handler issues INT 1Ch.
+- **PC AT**: each INT 10h teletype call makes three nested INT 10h calls (functions 03h, 0Ah, and 02h).  INT 13h goes to the hard disk BIOS first, which passes diskette requests to INT 40h, and the diskette BIOS calls INT 15h functions 90h and 91h around its wait for IRQ 6.  The null selector faults come in pairs, at F000:2994h and F000:2998h: GET_PARM does `LDS SI,[78h]` with DS = 0, and then reads through the DPT pointer's segment, which is also 0 (BASIC-DOS's boot sector sets vector 1Eh to 0:522h; 0050:0022h, the same address through an identity selector, would avoid the second fault).  The timer handler issues INT 1Ch.
 - **DeskPro 386**: INT 10h goes through the VGA BIOS (INT 6Dh, at C000h), which loads DS with 0 for every character (fixed at C000:33FEh).  The diskette code faults at F000:EC69h, D4D0h, and ED38h, and IRQ 9 (about 60 per second) chains to IRQ 2's handler with INT 0Ah.
 
 #### Debugging the Probe
@@ -238,13 +244,26 @@ Linear breakpoints (`%`) work in either mode, and once the probe has started, `r
 
 ### Running BASIC-DOS in Protected Mode {#plan}
 
-Staying in protected mode after CPU$ initializes is the goal, but the rest of BASIC-DOS assumes real mode in several ways, and each needs its own solution:
+Staying in protected mode after CPU$ initializes is the goal, but the rest of BASIC-DOS assumes real mode in several ways, and each needs its own solution.  This design targets the PC AT (an 80286, with IBM's BIOS); the 80386 (eg, virtual-8086 mode for DOS programs) and other BIOSes, such as the DeskPro 386's, are for later.
 
 1. **BIOS calls**.  The drivers call the ROM BIOS (INT 10h, 13h, 14h, 17h, and 1Ah).  The [probe](#probe) shows that the BIOS can run at ring 0 in protected mode, with identity selectors, a fix for null selectors, and reflection through the real-mode vector table, so a BIOS call needn't cost a mode switch, which on an 80286 means a processor reset (as in OS/2 1.x's real-mode session).  The remaining BIOS functions the drivers use still need trying, and a few (eg, INT 15h functions 87h and 89h) will need CPU$ replacements.
 2. **Hardware interrupts**.  The master PIC's IRQs 0-7 use vectors 08h-0Fh, which are also processor exceptions (eg, 0Dh is a general protection fault).  The probe moves the master PIC to 78h-7Fh, next to the slave PIC (70h-77h), and its IDT reflects each IRQ to its real-mode handler, which works for the BIOS's handlers; the drivers' handlers (CLOCK$, VKD$, COM, MOUSE$) will need protected-mode-safe code, or protected-mode handlers of their own.  Vectors 08h-0Fh can still be software interrupts (eg, INT 0Ah from a BIOS's IRQ 9 handler), so their gates must tell the two apart.
 3. **Segment arithmetic**.  The kernel and COMMAND.COM compute segments from paragraphs (eg, walking the MCB chain, `mov ax,es` + `inc ax` to get from an MCB to its block, PSP and environment segments, and paragraph rounding), use fixed segments (0 for low memory, 40h, B000h and B800h for video, and F000h for the ROM), and use `push cs` + `pop ds` and then write data (a code segment can't be written in protected mode).  Each case needs a selector: for example, DOS_MEM_ALLOC could return a selector from CPU_MAP for the new block (keeping the MCB in the arena below 640K), the fixed segments would become fixed selectors (SEL_LOW, plus SEL_VIDEO and SEL_ROM), and each module with a code segment would also get a data alias (eg, the next selector).  The first step is an inventory of every such case.
 4. **DOS programs**.  COM and EXE programs are real-mode programs.  On an 80386 they can run in virtual-8086 mode; on an 80286, only in real mode, so a session running a DOS program would switch the processor back to real mode while it runs (much like OS/2's DOS session), and other sessions would wait.
 5. **COMMAND.COM**.  The biggest payoff: BASIC programs, variables, strings, and arrays limited only by memory, with each block in extended memory and addressed by a selector.
+
+#### Mode-Independent Code {#modeless}
+
+The first step toward staying in protected mode is to change the drivers and the kernel (everything that will run at ring 0) so that the same code runs in either mode, by using only segment values that are also valid selectors, and by never writing to a code segment.  The rules, *in progress*:
+
+1. **BIOS data through segment 40h**: the ROM BIOS data area is addressed as segment 40h (offsets 00h-FFh), as the BIOS itself does, instead of segment 0.  In protected mode, 40h is an identity selector.
+2. **BASIC-DOS low memory through segment 50h**: CPU_TYPE, the DDINT entry points, the DPT, the disk buffers, and the rest of BASIC-DOS's data at 500h-95Fh are addressed as segment 50h.
+3. **Interrupt vectors through CPU$**: segment 0 is the null selector, so vectors will be read and written with CPU$ functions (eg, CPU_GETVEC and CPU_SETVEC), which in protected mode can also maintain the IDT.  So CPU$ must stay loaded on every processor, keeping just a small core (DDINT_CPU, CPU_GETINFO, and the vector functions) on an 8088 or with `CPU=8088`, and CPU$ can no longer be skipped.
+4. **No writes through CS**: a protected-mode code segment can't be written, so each write with a CS override becomes a write through DS or ES holding the module's own segment, which in protected mode will be a data alias of its code segment (eg, if modules are loaded at 128-byte boundaries, the LDT could hold an execute/read descriptor for each identity data selector in the GDT, so that `CS AND 0FFF8h` would be the data alias in either mode).
+
+The boot sector, which runs at 0:7C00h and then 0:0550h before anything else, keeps using segment 0, as do DEVINIT and sysinit where they load and relocate the drivers and the kernel, since they run only in real mode, at boot.
+
+Inventory: about 250 references to the low memory symbols in bios.inc (86 of them in VKD$), interrupt vector accesses in the INIT code of CLOCK$, VKD$, MOUSE$, FDC$, and DEVINIT and in the kernel (DOS functions 25h and 35h, checking vectors when a program ends, and saving vectors when a session is locked), and about 80 writes through CS in the drivers and kernel.
 
 #### Phases {#phases}
 
@@ -256,7 +275,6 @@ Staying in protected mode after CPU$ initializes is the goal, but the rest of BA
 
 ### Open Questions
 
-- **80286 or 80386 first?**  The probe shows that BIOS calls needn't leave protected mode on either processor, but every DOS program on an 80286 would still cost a mode switch through a reset, whereas an 80386 has virtual-8086 mode.  The 80286 baseline keeps the design honest (16-bit descriptors, 64K segments, and no paging).
 - **The HMA**: putting the system area in the HMA costs no conventional memory and is reachable in both modes, but A20 stays enabled, so besides the CALL 5 trampoline, programs that depend on wrapping at 1Mb could break (eg, EXEPACK-compressed programs loaded in the first 64K report "Packed file is corrupt").
 - **Owners**: should PMB owners be PSPs (freed when a program ends) or sessions?
 - **Privilege levels**: everything is DPL 0 for now; DOS programs and BASIC code could run at ring 3 later, which would need a TSS and DPL 3 selectors.
