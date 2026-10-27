@@ -17,16 +17,13 @@ Displays the attributes of each file matching *filespec* (or every file), includ
 Prompts for program lines, starting with *line* (default 10) and adding *increment* (default 10) after each one.  If a line already exists, it's displayed for editing.  To stop, press ENTER on a line with nothing after its number, or press CTRL-C.
 
 [d]CD [*drive*:][*path*]
-Changes the current directory of *drive* (or the current drive) to *path*, where directory names are separated by the path character (slash or backslash, depending on PATHCHAR in CONFIG.SYS).  A *path* that begins with the path character starts at the root directory, and .. refers to the parent directory.  If no *path* is specified, the current directory is displayed.  CHDIR is the same as CD.
+Changes the current directory of *drive* (or the current drive) to *path*, where directory names are separated by the path character (slash or backslash, depending on PATHCHAR in CONFIG.SYS).  A *path* that begins with the path character starts at the root directory, and .. refers to the parent directory.  If no *path* is specified, the current directory is displayed.
 
 [f]CDBL(*x*)
 Returns *x* as a double.  CSNG is the same, since all floating-point values are double-precision.
 
 [b+]CHAIN [MERGE] *file*[,[*line*][,ALL]]
 Replaces the running program with the specified BAS file (searching PATH$ if necessary) and runs it, starting at *line* if given.  Variables are cleared unless ALL is given.  With MERGE, the file's numbered lines are added to the program instead, replacing any lines with the same numbers.  Any GOSUBs, FOR and WHILE loops, and ON ERROR handler in progress are ended.  COMMON and the DELETE option are not supported.
-
-[d]CHDIR [*drive*:][*path*]
-Same as CD.
 
 [e]CHKDSK [*d*:] [~V]
 Checks the FAT and directories of drive *d* (or the current drive), following every file's and directory's cluster chain, and reports chains that are cross-linked, don't match a file's size, or contain invalid clusters, and lost clusters, and then the space used by hidden files, directories, and user files, and the space available.  ~V lists every file.  Problems are reported, not fixed.
@@ -112,14 +109,11 @@ Defines the first letter(s) of variables that will default to double-precision (
 [b]DEFINT [*letter(s)*]
 Defines the first letter(s) of variables that will default to integer values.  BAT files start with an implied DEFINT A-Z.
 
-[b]DEFSNG [*letter(s)*]
-Same as DEFDBL, since all floating-point values are double-precision.
-
 [b]DEFSTR [*letter(s)*]
 Defines the first letter(s) of variables that will default to string values.  Unless DEFSTR is used, all string variables must be defined using the $ suffix.
 
 [d]DEL *file*
-Deletes the specified file, or with wildcards (? and *), every matching file (eg, DEL *.TMP).  DEL *.* asks "Are you sure (Y/N)?" first.  ERASE is the same as DEL, unless it's erasing arrays.
+Deletes the specified file, or with wildcards (? and *), every matching file (eg, DEL *.TMP).  DEL *.* asks "Are you sure (Y/N)?" first.  *file* can be quoted or a string variable, but not an expression (eg, F$ = "TEMP" + N$ : DEL F$, not DEL "TEMP" + N$).
 
 [b+]DELETE *line*[-[*line*]] | -*line*
 Deletes the specified range of program lines.  Typing a line number by itself deletes just that line.
@@ -129,7 +123,7 @@ Dimensions one or more arrays, with up to 255 dimensions each (eg, DIM A(10), B$
 Arrays that are used without DIM have a largest subscript of 10.
 
 [d]DIR [*filespec*] [~A] [~S] [~W]
-Displays a directory listing of all files matching the given *filespec* (or all files if none is specified), after the drive's volume label and the directory's path.  Subdirectories are listed as <DIR>, and if *filespec* is a directory, its files are listed.  Hidden files are listed only with ~A (with an * after the name), ~S lists the matching files in every subdirectory, too, and ~W lists only the names, in columns.  Use DIR | MORE to page the listing.
+Displays a directory listing of all files matching the given *filespec* (or all files if none is specified), after the drive's volume label and the directory's path.  Subdirectories are listed as <DIR>, and if *filespec* is a directory, its files are listed.  Hidden files are listed only with ~A (with an * after the name), ~S lists the matching files in every subdirectory, too, and ~W lists only the names, in columns, with \ after each directory.  Use DIR | MORE to page the listing.
 
 [f]DIR$[(*filespec*[,*attributes*])]
 Returns the first file or directory matching *filespec* (which may contain wildcards), or if *filespec* is omitted, the next match, or an empty string if there are no (more) matches.  For a match F$, ASC(F$) is its attributes, CVI(MID$(F$,2)) its time, CVI(MID$(F$,4)) its date, CVL(MID$(F$,6)) its size, and MID$(F$,10) its name.  The default *attributes* (&H16) include hidden, system, and directory entries; 8 finds the volume label.  See DEMOS\DIR.BAS.
@@ -152,13 +146,13 @@ Controls the echo of lines in a BAT file.  Every BAT file starts with ECHO OFF; 
 Displays the specified program line for editing.  Press ENTER to store the edited line.
 
 [b]END
-Ends the program.  STOP and SYSTEM are the same.
+Ends the program.  STOP is the same.
 
 [f+]EOF(*n*)
 Returns -1 (true) if file *n*, which must be open for INPUT, is at its end, or 0 (false) if not (eg, WHILE NOT EOF(1)).  For a serial port opened without FOR (eg, COM1), it's true if no characters are waiting.
 
 [b]ERASE *array*[,*array*]...
-Erases the specified arrays, so that they can be dimensioned again.  If the first name is not an array, ERASE is the same as DEL.
+Erases the specified arrays, so that they can be dimensioned again.
 
 [f]ERL
 Returns the line number of the last error (see ON ERROR), or 0 if the program has no line numbers.
@@ -217,6 +211,9 @@ Displays help for *keyword* (eg, HELP MID$), or lists the keywords in a category
 [f]HEX$(*n*)
 Returns the hexadecimal representation of the integer *n*.  Negative values are treated as unsigned 32-bit values (eg, HEX$(-1) is FFFFFFFF).
 
+[e]HEXDUMP *file* [~S *offset*] [~N *length*]
+Displays the bytes of *file* in hexadecimal and as characters, 16 per line, in the format of DEBUG's DB command, with the file offset as the address.  ~S starts at a decimal *offset*, and ~N displays at most *length* bytes (by default, the rest of the file).
+
 [b]IF *expression* THEN *command(s)* [ELSE *command(s)*]
 Evaluates the *expression*, and if it is TRUE (non-zero), executes the commands after THEN; otherwise, executes the commands after ELSE, if any.  Multiple commands are separated by colons, and a line number by itself (eg, THEN 100) is the same as GOTO 100.
 
@@ -256,9 +253,6 @@ CTRL-C  Abort\
 DELETE  Del Left Char\
 ESCAPE  Erase Line
 CTRL-ALT-DEL is reserved for terminating programs. Use RESTART to restart the system.
-
-[d]KILL *file*
-Same as DEL.  *file* can be quoted or a string variable, but not an expression (eg, F$ = "TEMP" + N$ : KILL F$, not KILL "TEMP" + N$).
 
 [e]LABEL [*d*:][*label*]
 Gives drive *d* (or the current drive) a volume label (up to 11 characters), or without a *label*, displays the current label and asks for a new one (or ENTER to delete it).
@@ -327,7 +321,7 @@ Sets the variable to *string*, left-justified and padded with spaces (or truncat
 Constant equal to the largest positive integer.
 
 [d]MD [*drive*:]*path*
-Creates a new directory.  MKDIR is the same as MD.
+Creates a new directory.
 
 [s]MEM
 Displays total memory, memory available for executables, and memory available for BASIC programs, and notes anything unavailable (eg, floating-point when the FPU$ driver isn't loaded, or the functions outside COMMAND.COM's core when there wasn't enough memory for all of it, as HELP CORE explains).
@@ -341,9 +335,6 @@ The statement MID$(*variable$*,*start*[,*n*])=*string* replaces characters of th
 
 [f+]MKD$(*x*)
 Returns an 8-byte string containing the double *x* (see CVD), for a random access file.
-
-[d]MKDIR [*drive*:]*path*
-Same as MD.
 
 [f+]MKI$(*n*)
 Returns a 2-byte string containing the integer *n* (see CVI), for a random access file.
@@ -362,9 +353,6 @@ Resets the mouse and shows (ON) or hides (OFF) the mouse pointer.  If there's no
 MOUSE(*n*)
 Returns the next button event (*n* = 0: 0 if none, 1 = left pressed, 2 = left released, 3 = right pressed, 4 = right released), the x (1) or y (2) of that event, or the current x (3), y (4), or buttons (5: 1 = left, 2 = right).
 Positions are pixels in graphics modes, or a column and row (starting at 1) in text modes.
-
-[d]MV *source* *destination*
-Same as REN.
 
 [b]NEW
 Erases the loaded program, functions, and variables.
@@ -430,7 +418,7 @@ With a file number, writes the FIELD variables of random access file *n* to the 
 Reseeds the random number generator, so that the same *seed* always produces the same sequence (without a *seed*, the BIOS tick count is used).
 
 [d]RD [*drive*:]*path*
-Removes an empty directory, unless it's the current directory of any session.  RMDIR is the same as RD.
+Removes an empty directory, unless it's the current directory of any session.
 
 [b]READ *variable*[,*variable*]...
 Assigns the next DATA item to each variable.  Reading past the last item is an "Out of DATA" error.
@@ -439,13 +427,7 @@ Assigns the next DATA item to each variable.  Reading past the last item is an "
 Used for program remarks.  The rest of the line is not executed.  An apostrophe (') outside of quotes is the same as REM.
 
 [d]REN *source* *destination*
-Renames or moves one file or directory on the same drive.  The destination can be a new filename or an existing directory (which keeps the source filename).  Existing destination files are not overwritten; open files, cross-drive moves, and wildcards are rejected.  RENAME and MV are the same as REN.
-
-[d]RENAME *source* *destination*
-Same as REN.
-
-[b+]RESET
-Same as CLOSE without file numbers (ie, closes all files).
+Renames or moves one file or directory on the same drive.  The destination can be a new filename or an existing directory (which keeps the source filename).  Existing destination files are not overwritten; open files, cross-drive moves, and wildcards are rejected.
 
 [s]RESTART [SYSTEM | *session*]
 RESTART alone lists every session's number, console, and program (or "Unused" if it has none), marking the current session with an *.  RESTART SYSTEM restarts the system.  RESTART *session* (a number from that list) stops the program running in that session, as CTRL-ALT-DEL does on its console, even if the program is stuck in a loop; a session running only its shell returns to its prompt.
@@ -461,9 +443,6 @@ Returns from a GOSUB subroutine, or ends a function block and returns the specif
 
 [f]RIGHT$(*string*,*n*)
 Returns the rightmost *n* characters of *string*.
-
-[d]RMDIR [*drive*:]*path*
-Same as RD.
 
 [f]RND[(*n*)]
 Returns a random number from 0 up to (but not including) 1.  *n* has the same effect as with RND%.
@@ -533,9 +512,6 @@ Exchanges the values of two variables (or array elements) of the same type.
 
 [e]SYS *d*:
 Copies the system files (BASDEV.COM, BASDOS.COM, and COMMAND.COM) from the root directory of the current drive to drive *d*, and gives *d*'s boot sector the current drive's boot code, making *d* bootable without reformatting it.
-
-[b]SYSTEM
-Same as END.
 
 [f]TAB(*n*)
 Returns enough spaces to move the cursor to column *n* (1-254), for PRINT; if the cursor is already past column *n*, the spaces start on the next line.
@@ -609,4 +585,4 @@ Defines the world coordinates of the viewport (or screen) for graphics commands,
 Prints the values (or with #*n*, writes them to file *n*) separated by commas, with strings in quotes, so that INPUT # can read them back.
 
 *Unsupported Commands*
-Files can be created, written, copied, renamed, moved, and deleted (eg, with COPY, REN, MV, DEL, and SAVE, or OPEN in a BAS program).
+Files can be created, written, copied, renamed, moved, and deleted (eg, with COPY, REN, DEL, and SAVE, or OPEN in a BAS program).

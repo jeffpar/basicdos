@@ -8,9 +8,9 @@ Each BASIC-DOS demo runs on up to four generations of PC hardware: the original 
 
 | Demo | IBM PC | IBM PC XT | IBM PC AT | COMPAQ DeskPro 386 |
 |------|--------|-----------|-----------|--------------------|
-| 1. Terminal Only | [64K, VT100](term/pc/) | | | |
-| 2. Monochrome | [64K, MDA](m64/pc/) | | | |
-| 3. Color with FPU | [128K, CGA, 8087](s80/pc/) | [640K, CGA, 8087](s80/xt/) | [640K, CGA, 80287](s80/at/) | [1Mb, VGA, 80387](s80/386/) |
+| 1. Monochrome | [64K, MDA](m64/pc/) | [640K, MDA](m64/xt/) | | |
+| 2. VT100 Terminal | [64K, VT100](term/pc/) | [640K, VT100](term/xt/) | | |
+| 3. Color Graphics | [128K, CGA, 8087](s80/pc/) | [640K, CGA, 8087](s80/xt/) | [640K, CGA, 80287](s80/at/) | [1Mb, VGA, 80387](s80/386/) |
 | 4. Dual 40-Column | [128K, CGA](d40/pc/) | [640K, CGA](d40/xt/) | [640K, CGA](d40/at/) | [1Mb, VGA](d40/386/) |
 | 5. Dual 80-Column | [128K, CGA](d80/pc/) | [640K, CGA](d80/xt/) | [640K, CGA](d80/at/) | [1Mb, VGA](d80/386/) |
 | 6. Multiple Pages | [128K, CGA](p80/pc/) | [640K, CGA](p80/xt/) | [640K, CGA](p80/at/) | [1Mb, VGA](p80/386/) |

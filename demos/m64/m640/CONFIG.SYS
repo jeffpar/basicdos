@@ -1,0 +1,3 @@
+REM 640K demonstration with one session, with its shell on the hard disk
+BUFFERS=8
+SHELL=C:COMMAND.COM PATH$="C:\;C:\EXT;C:\DEMOS;C:\SAMPLES;C:\TESTS;C:\TOOLS"

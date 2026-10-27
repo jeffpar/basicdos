@@ -1,10 +1,10 @@
 
 ### BASIC Samples
 
-The diskette's **SAMPLES** directory contains text copies of the BASIC samples from the IBM PC DOS 1.00 diskette, but most of them use graphics (and some use floating-point), so try the [Color (with FPU)](../../s80/pc/) machine demo instead.
+The {% if include.hw == "xt" %}hard disk's{% else %}diskette's{% endif %} **SAMPLES** directory contains text copies of the BASIC samples from the IBM PC DOS 1.00 diskette, but most of them use graphics{% if include.hw != "xt" %} (and some use floating-point){% endif %}, so try the [Color Graphics](../../s80/{{ include.hw }}/) machine demo instead.
 
-### **CONFIG.SYS** from the BASIC-DOS Monochrome Demo Diskette
+### **CONFIG.SYS** from the BASIC-DOS {% if include.hw == "xt" %}640K {% endif %}Monochrome Demo Diskette
 
 ```
-{% include_relative CONFIG.SYS %}
+{% if include.hw == "xt" %}{% include_relative m640/CONFIG.SYS %}{% else %}{% include_relative CONFIG.SYS %}{% endif %}
 ```

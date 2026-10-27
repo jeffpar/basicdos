@@ -131,6 +131,30 @@
     },
     "/machines/pcx86/ibm/fdc.json",
     {
+      "id": "hdcAT",
+      "class": "hdc",
+      "type": "AT",
+      "drives": [
+        {
+          "name": "BASICDOS-10MB",
+          "type": 1,
+          "path": "/software/disks/BASICDOS-10MB.json"
+        }
+      ],
+      "controls": [
+        {
+          "id": "saveHD0",
+          "type": "button",
+          "label": "Save HD",
+          "style": {
+            "padding-right": "8px",
+            "padding-bottom": "8px",
+            "height": "22px"
+          }
+        }
+      ]
+    },
+    {
       "id": "ramLow",
       "class": "ram",
       "size": 655360,
@@ -193,30 +217,6 @@
           "id": "setSpeed",
           "type": "button",
           "label": "6Mhz",
-          "style": {
-            "padding-right": "8px",
-            "padding-bottom": "8px",
-            "height": "22px"
-          }
-        }
-      ]
-    },
-    {
-      "id": "hdcAT",
-      "class": "hdc",
-      "type": "AT",
-      "drives": [
-        {
-          "name": "BASICDOS-10MB",
-          "type": 1,
-          "path": "/software/disks/BASICDOS-10MB.json"
-        }
-      ],
-      "controls": [
-        {
-          "id": "saveHD0",
-          "type": "button",
-          "label": "Save HD",
           "style": {
             "padding-right": "8px",
             "padding-bottom": "8px",

@@ -45,6 +45,7 @@ In the **EXT** directory (see [Running Programs](../../intro/#running-programs) 
 - COMP.BAS: compares files (see [COMP](#comp) below)
 - DISKCOPY.BAS: copies a diskette (see [DISKCOPY](#diskcopy) below)
 - FORMAT.BAS: formats a diskette or hard disk volume (see [FORMAT](#format) below)
+- HEXDUMP.BAS: displays a file in hexadecimal (see [HEXDUMP](#hexdump) below)
 - LABEL.BAS and VOL.BAS: change or display a volume label (see [LABEL and VOL](#label) below)
 - LS.BAS: lists files and directories like the UNIX `ls` command (see [LS](#ls) below)
 - MODE.BAS: sets the display, a serial port, or a printer (see [MODE](#mode) below)
@@ -249,6 +250,17 @@ A write-protected diskette, an empty drive, or a track that can't be formatted (
 For a hard disk drive, FORMAT first displays the disk's geometry and partition table (each partition's type, starting sector, size, and drive letter, if it's a FAT volume).  If the disk has FAT volumes, FORMAT formats the drive named on the command line (or if that drive is the whole disk, asks which volume to format), after a warning that all data on the drive will be lost.  If the disk has no partition table (eg, a new hard disk, which BASIC-DOS gives a drive letter anyway, with "unknown media"), FORMAT offers to create one, with a single volume (starting at the second track and ending at a cylinder boundary) of the size you choose in Mb, up to 32Mb (65535 sectors) or the size of the disk; it then writes a master boot record (with the hard disk driver's boot code) and formats the new volume.  A volume of up to 32680 sectors (about 16Mb) gets the PC DOS 2.x layout for its size (eg, 4K clusters and 512 root entries for 10Mb) with a 12-bit FAT; a larger volume gets 2K clusters and a 16-bit FAT, as PC DOS 3.x did.  Hard disk volumes aren't verified, and extended partitions aren't supported.
 
 Source: [FORMAT.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/FORMAT.BAS)
+
+### HEXDUMP
+
+	HEXDUMP file [/S offset] [/N length]
+
+Displays the bytes of *file*, 16 per line, in the same format as DEBUG's DB command: an address, the bytes in hexadecimal (with a dash after the 8th), and the same bytes as characters (with a period for each byte outside 20h-7Eh).  The address is the file offset, written as a segment and an offset, where the segment is 1000h for each 64K (eg, offset 65536 is `1000:0000`).  `/S` starts at a decimal *offset* (by default, 0), and `/N` displays at most *length* bytes (by default, the rest of the file).  As with DB, lines begin at multiples of 16, so the first and last lines can be partial.
+
+	HEXDUMP COMMAND.COM /N 64
+	HEXDUMP DEMOS\HELLO.BAT /S 100 /N 32
+
+Source: [HEXDUMP.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/HEXDUMP.BAS)
 
 ### LABEL and VOL {#label}
 

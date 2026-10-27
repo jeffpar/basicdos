@@ -214,7 +214,6 @@ KEYWORDS	macro	PASS
 	PASS	BASE,  205,,PUB
 	PASS	CD,     16, cmdChdir
 	PASS	CHAIN,  71, genChain
-	PASS	CHDIR,  16, cmdChdir
 	PASS	CIRCLE, 82, genCircle
 	PASS	CLEAR,  81, genClear
 	PASS	CLOSE,  88, genClose
@@ -227,9 +226,8 @@ KEYWORDS	macro	PASS
 	PASS	DEF,    42, genDef
 	PASS	DEFDBL, 43, genDefDbl
 	PASS	DEFINT, 44, genDefInt
-	PASS	DEFSNG, 45, genDefDbl
 	PASS	DEFSTR, 46, genDefStr
-	PASS	DEL,    24, cmdDel,PUB
+	PASS	DEL,    24, cmdDel
 	PASS	DELETE, 13, cmdDelete
 	PASS	DIM,    54, genDim
 	PASS	DIR,    21, cmdDir
@@ -239,7 +237,7 @@ KEYWORDS	macro	PASS
 	PASS	EDIT,   14, cmdEdit
 	PASS	ELSE,  201,,PUB
 	PASS	END,    57, genEnd
-	PASS	ERASE,  55, genErase,PUB
+	PASS	ERASE,  55, genErase
 	PASS	ERROR,  72, genError,PUB
 	PASS	EXIT,    1, cmdExit
 	PASS	EXP,   104
@@ -256,7 +254,6 @@ KEYWORDS	macro	PASS
 	PASS	IOCTL,  98, genIoctl,PUB
 	PASS	KEY,    67, genKey
 	PASS	KEYS,    3, cmdKeys
-	PASS	KILL,   25, cmdDel
 	PASS	LET,    50, genLet
 	PASS	LINE,   76, genLine
 	PASS	LIST,    4, cmdList
@@ -269,9 +266,7 @@ KEYWORDS	macro	PASS
 	PASS	MD,     17, cmdMkdir
 	PASS	MEM,     5, cmdMem
 	PASS	MERGE,  27, cmdMerge,PUB
-	PASS	MKDIR,  17, cmdMkdir
 	PASS	MOUSE,  86, genMouse,PUB
-	PASS	MV,     26, cmdRen
 	PASS	NEW,     6, cmdNew
 	PASS	NEXT,   60, genNext
 	PASS	OFF,   202,,PUB
@@ -293,13 +288,10 @@ KEYWORDS	macro	PASS
 	PASS	READ,   84, genRead
 	PASS	REM,    52
 	PASS	REN,    26, cmdRen
-	PASS	RENAME, 26, cmdRen
-	PASS	RESET,  94, genClose
 	PASS	RESTART, 7, cmdRestart
 	PASS	RESTORE,85, genRestore
 	PASS	RESUME, 73, genResume
 	PASS	RETURN, 53, genReturn
-	PASS	RMDIR,  18, cmdRmdir
 	PASS	RSET,   93, genRset
 	PASS	RUN,     8, cmdRun
 	PASS	SAVE,   15, cmdSave
@@ -311,7 +303,6 @@ KEYWORDS	macro	PASS
 	PASS	STEP,  206,,PUB
 	PASS	STOP,   61, genEnd
 	PASS	SWAP,   97, genSwap
-	PASS	SYSTEM, 95, genEnd
 	PASS	TAN,   110,,PUB
 	PASS	THEN,  204,,PUB
 	PASS	TIME,   11, cmdTime

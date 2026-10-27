@@ -14,9 +14,7 @@
 ;	DEF				(genDefFn: user-defined functions,
 ;					via genDef in gensys.asm)
 ;	DIM				(genDim: dimension arrays)
-;	ERASE				(genErase: erase arrays, or delete
-;					files, like DEL, if the first name is
-;					not an array)
+;	ERASE				(genErase: erase arrays)
 ;	OPTION BASE			(genOption: set the lower bound of
 ;					subsequently dimensioned arrays)
 ;	READ				(genRead: read DATA into variables)
@@ -43,7 +41,6 @@ CODE    SEGMENT
 
 	EXTNEAR	<addVar,findVar,genExpr,genCvtType,genCallCS,genPushImm>
 	EXTNEAR	<genPushVarPtr,getNextToken,getNextSymbol,peekNextSymbol>
-	EXTNEAR	<genDOS,cmdDel>
 	EXTNEAR	<setVar,removeVar,allocTempVars,updateTempVars,freeTempVars>
 	EXTNEAR	<allocFunc,freeFunc,ensureRoom,shrinkCode,getNextLine>
 	EXTNEAR	<genCommands,genPushBPOffset,genPopBPOffset,setVarDouble>
@@ -52,7 +49,7 @@ CODE    SEGMENT
 	EXTNEAR	<genPushSlot,genPushLong,genPushImmLong,peekNextToken>
 	EXTNEAR	<readData,restoreData,strToLong,strVal,setStr,setVarLong>
 	EXTNEAR	<genPushImmByteAH,swapVars>
-	EXTABS	<TOK_BASE,TOK_DEL>
+	EXTABS	<TOK_BASE>
 	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -624,9 +621,7 @@ ENDPROC	genDim
 ;
 ; genErase
 ;
-; Generate code for "ERASE array[,array]...".  Since ERASE is also the same
-; as DEL in BASIC-DOS, if the first name isn't an existing array, then we
-; generate code for the DOS command instead.
+; Generate code for "ERASE array[,array]...".
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs
@@ -639,39 +634,21 @@ ENDPROC	genDim
 ;	Any
 ;
 DEFPROC	genErase
-	push	bx			; save the token and code positions
-	push	di			; (in case this is a DOS command)
 ger1:	mov	al,CLS_VAR
 	call	getNextToken
 	jbe	ger7
 	and	ah,VAR_TYPE		; AH = element type
 	mov	al,0
 	call	findArray		; DX:SI -> array variable
-	jc	ger7
+	jc	ger8
 	call	genPushVarPtr
 	GENCALL	eraseArray
 	call	getNextSymbol		; another array?
 	jbe	ger8			; no
 	cmp	al,','
 	je	ger1
-	stc				; not a comma, so it's an error
-	jmp	short ger8
-;
-; If the first name isn't an array (ie, no code has been generated yet), then
-; it's a DOS command after all.
-;
-ger7:	mov	si,sp
-	cmp	di,ss:[si]		; any code generated?
-	stc
-	jne	ger8			; yes, so it's an error
-	pop	di
-	pop	bx			; rewind
-	mov	ax,TOK_DEL		; and generate the DEL command
-	mov	dx,offset cmdDel
-	jmp	genDOS
-ger8:	pop	si			; discard the saved positions
-	pop	si			; (POP doesn't modify flags)
-	ret
+ger7:	stc				; not a comma (or an array), so it's an error
+ger8:	ret
 ENDPROC	genErase
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

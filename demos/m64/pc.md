@@ -18,4 +18,6 @@ The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 64K of memory, 
 
 {% include machine.html id="ibm5150" %}
 
+This demo is also available on an [IBM PC XT](../xt/) with 640K and a 10Mb hard disk.
+
 {% include_relative _overview.md hw="pc" %}

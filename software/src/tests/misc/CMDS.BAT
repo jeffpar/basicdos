@@ -59,13 +59,17 @@ F$ = "T1.TMP"
 TR a-z A-Z < F$ > "T2.TMP"
 OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
 IF VAL(L$) <> 1 THEN PRINT "redirection string failed" : FAILS = FAILS + 1
-KILL "T1.TMP" + F$
-IF ERRORLEVEL = 0 THEN PRINT "KILL expression failed" : FAILS = FAILS + 1
+DEL "T1.TMP" + F$
+IF ERRORLEVEL = 0 THEN PRINT "DEL expression failed" : FAILS = FAILS + 1
 DEL T?.TMP
 DIR /W \EXT\T*.COM > T.TMP
 OPEN "T.TMP" FOR INPUT AS #1
 FOR I = 1 TO 5 : LINE INPUT #1, L$ : NEXT : CLOSE #1
 IF LEFT$(L$, 28) <> "TEE      COM    TR       COM" THEN PRINT "DIR /W failed" : FAILS = FAILS + 1
+DIR /W \TOOLS > T.TMP
+OPEN "T.TMP" FOR INPUT AS #1
+FOR I = 1 TO 5 : LINE INPUT #1, L$ : NEXT : CLOSE #1
+IF LEFT$(L$, 29) <> ".           \   ..          \" THEN PRINT "DIR /W dir failed" : FAILS = FAILS + 1
 LS /r \T*.* > T.TMP
 OPEN "T.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
 IF L$ <> "\TOOLS\" THEN PRINT "LS failed" : FAILS = FAILS + 1
@@ -73,6 +77,11 @@ REM A BAS file writing more than a pipe holds must not wait for the reader
 LS \EXT | SORT /R > T.TMP
 OPEN "T.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
 IF L$ <> "WC.COM" THEN PRINT "BAS pipe failed" : FAILS = FAILS + 1
+OPEN "T1.TMP" FOR OUTPUT AS #1 : PRINT #1, "0123456789"; : CLOSE #1
+HEXDUMP T1.TMP /S 2 /N 3 > T.TMP
+OPEN "T.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
+IF LEFT$(L$, 24) <> "0000:0000       32 33 34" OR MID$(L$, 60, 5) <> "  234" THEN PRINT "HEXDUMP failed" : FAILS = FAILS + 1
+DEL T1.TMP
 TYPE NOFILE.TMP | SORT
 IF ERRORLEVEL = 0 THEN PRINT "deferred error failed" : FAILS = FAILS + 1
 REM A BAT or BAS file can't be the target of a pipe

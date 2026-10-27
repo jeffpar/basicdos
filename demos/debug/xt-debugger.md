@@ -18,6 +18,7 @@ machines:
     autoMount:
       A: "BASIC-DOS Serial Debugger Demo"
       B: "BASIC-DOS Tests"
+    autoType: DATE $date\rTIME $time\r
 ---
 
 {% include vt100-demo.html id="ibm5160" %}

@@ -8,12 +8,12 @@ permalink: /docs/bdman/cmd/basic/
 
 BASIC programs can use any BASIC-DOS [command](../) in combination with the BASIC statements described below, along with any of the [BASIC Functions](func/).  See [BASIC-DOS Programming](../../lang/) for an overview of programs, variables, and expressions.
 
-- Variables and types: [CLEAR](#clear), [DEF](def/), [DEFDBL](#defdbl), [DEFINT](#defint), [DEFSNG](#defsng), [DEFSTR](#defstr), [DIM](#dim), [ERASE](#erase), [LET](let/), [OPTION BASE](#option-base), [RANDOMIZE](#randomize), [SWAP](#swap)
-- Control flow: [CHAIN](#chain), [END](#end), [FOR](#for)/[NEXT](#for), [GOSUB](#gosub), [GOTO](goto/), [IF](if/), [ON](#on), [RETURN](return/), [STOP](#end), [SYSTEM](#end), [WHILE](#while)/[WEND](#while)
+- Variables and types: [CLEAR](#clear), [DEF](def/), [DEFDBL](#defdbl), [DEFINT](#defint), [DEFSTR](#defstr), [DIM](#dim), [ERASE](#erase), [LET](let/), [OPTION BASE](#option-base), [RANDOMIZE](#randomize), [SWAP](#swap)
+- Control flow: [CHAIN](#chain), [END](#end), [FOR](#for)/[NEXT](#for), [GOSUB](#gosub), [GOTO](goto/), [IF](if/), [ON](#on), [RETURN](return/), [STOP](#end), [WHILE](#while)/[WEND](#while)
 - Error handling: [ERROR](#error), [ON ERROR](#on-error), [RESUME](#resume)
 - Data: [DATA](#data), [READ](#read), [RESTORE](#restore)
 - Input: [INPUT](#input), [LINE INPUT](#line-input)
-- Files: [OPEN](#open), [CLOSE](#close) (or RESET), [INPUT #](#input), [LINE INPUT #](#line-input), [PRINT #](#print), [WRITE](#write), and the [file functions](func/#file-functions)
+- Files: [OPEN](#open), [CLOSE](#close), [INPUT #](#input), [LINE INPUT #](#line-input), [PRINT #](#print), [WRITE](#write), and the [file functions](func/#file-functions)
 - Random access files: [FIELD](#field), [GET #](#get), [PUT #](#put), [LSET](#lset), [RSET](#lset)
 - Memory and DOS: [DEF SEG](#def-seg), [POKE](#poke), [DOS](#dos)
 - Remarks: [REM](#rem)
@@ -44,7 +44,7 @@ Resets all numeric variables to zero and all string variables to empty strings, 
 
 > CLOSE [[#]*n*[,[#]*n*]...]
 
-Closes the specified files, or all files if none are specified (see [OPEN](#open)).  Closing a file that isn't open does nothing.  RESET is the same as CLOSE without file numbers.
+Closes the specified files, or all files if none are specified (see [OPEN](#open)).  Closing a file that isn't open does nothing.
 
 A DOS close or metadata commit failure raises "Device I/O error" (57).  The affected file is closed even when this error occurs.
 
@@ -84,12 +84,6 @@ Defines the first letter(s) of variables that will default to integer (32-bit) v
 
 BAT files start with an implied `DEFINT A-Z`, since batch files rarely need fractions; a BAT file can still use suffixes (eg, `X#`) or `DEFDBL` for floating-point variables.  Note that assigning a fraction to an integer variable rounds it (eg, `A = 7/2` sets `A` to 4).
 
-### DEFSNG
-
-> DEFSNG [*letter(s)*]
-
-Same as DEFDBL, since all floating-point values are double-precision.
-
 ### DEFSTR
 
 > DEFSTR [*letter(s)*]
@@ -118,16 +112,15 @@ A failure (ie, DOS returned with carry set) is a runtime error that [ON ERROR](#
 ### END
 
 > END  
-> STOP  
-> SYSTEM
+> STOP
 
-Ends the program.  STOP and SYSTEM are currently the same as END.
+Ends the program.  STOP is currently the same as END.
 
 ### ERASE
 
 > ERASE *array*[,*array*]...
 
-Erases the specified arrays, so that they can be dimensioned again.  If the first name is not an array, ERASE is the same as [DEL](../disk/#del).
+Erases the specified arrays, so that they can be dimensioned again.
 
 ### ERROR
 

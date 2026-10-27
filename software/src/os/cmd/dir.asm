@@ -432,7 +432,7 @@ ENDPROC	cmdRen
 ;
 ; cmdDel
 ;
-; Delete the specified file (also used by ERASE).  A filespec with wildcards
+; Delete the specified file.  A filespec with wildcards
 ; deletes every matching file (see walkFiles); like PC DOS, a filename of
 ; "*.*" asks "Are you sure (Y/N)?" first, until Y or N is entered.
 ;
@@ -459,7 +459,7 @@ de1:	pop	si			; (if so, cmdDOS replaced it with *.*)
 	jc	de7			; no filename
 ;
 ; Like REN, DEL rejects extra arguments, so that an MSBASIC-style expression
-; (eg, KILL "TEMP" + N$) is an error, rather than deleting the wrong file.
+; (eg, DEL "TEMP" + N$) is an error, rather than deleting the wrong file.
 ;
 	inc	dx
 	call	getToken		; any other argument?
@@ -1184,8 +1184,7 @@ ENDPROC	tryProgram
 ;
 ; cmdMkdir
 ;
-; Create a directory (MD or MKDIR), or with cmdRmdir, remove a directory
-; (RD or RMDIR).
+; Create a directory (MD), or with cmdRmdir, remove a directory (RD).
 ;
 ; Inputs:
 ;	BX -> CMDHEAP

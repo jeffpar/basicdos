@@ -158,7 +158,9 @@ let disks = {
     "BASICDOS-360K-VT100": { config: "./demos/vt100/CONFIG.SYS", title: "BASIC-DOS HD VT100 Demo" },
     "BASICDOS-360K-DEBUG": { config: "./demos/debug/CONFIG.SYS", title: "BASIC-DOS Serial Debugger Demo" },
     "BASICDOS-360K-M64": { config: "./demos/m64/CONFIG.SYS", title: "BASIC-DOS Monochrome Demo", final: true },
+    "BASICDOS-360K-M640": { config: "./demos/m64/m640/CONFIG.SYS", title: "BASIC-DOS 640K Monochrome Demo" },
     "BASICDOS-360K-TERM": { config: "./demos/term/CONFIG.SYS", title: "BASIC-DOS Terminal Only Demo", final: true },
+    "BASICDOS-360K-TERMHD": { config: "./demos/term/hd/CONFIG.SYS", title: "BASIC-DOS HD Terminal Only Demo" },
     "BASICDOS-360K-TESTS": {
         title: "BASIC-DOS Tests",
         data: true,

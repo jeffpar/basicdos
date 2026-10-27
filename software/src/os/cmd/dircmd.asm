@@ -30,8 +30,9 @@ CODE    SEGMENT
 ; listed only with /A (in BASIC-DOS, only the hidden attribute keeps a file
 ; out of a listing, so system files are listed, too), and with /S, the
 ; matching files in every subdirectory are listed as well, each directory with
-; its own header and totals (see dirTree).  /W lists only the names, in as
-; many 16-character columns as the console has room for (eg, 5 in 80).
+; its own header and totals (see dirTree).  /W lists only the names (with a
+; path char after each directory), in as many 16-character columns as the
+; console has room for (eg, 5 in 80).
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -250,9 +251,7 @@ DEFPROC	dirList
 	call	dirHeader
 	jnc	dl1
 	ret
-dl1:	push	bx
-	push	di
-	mov	bx,[dirClus]		; BX = bytes per cluster
+dl1:	push	di
 	mov	al,[dirWide]
 	mov	[dirCol],al		; (for /W, a new row)
 ;
@@ -266,8 +265,13 @@ dl4:	push	cx
 	call	splitName		; AX = name length, SI, DI
 	mov	dx,' '			; (a hidden file gets '*' instead)
 	test	ds:[PSP_DTA].FFB_ATTR,02h ; DIRATTR_HIDDEN?
-	jz	dl5
+	jz	dl4a
 	mov	dl,'*'
+dl4a:	test	ds:[PSP_DTA].FFB_ATTR,10h ; DIRATTR_SUBDIR?
+	jz	dl5			; no
+	cmp	[dirWide],ah		; /W (AH = 0)?
+	je	dl5			; no
+	mov	dl,[bx].PATH_CHAR	; yes, so a directory gets a path char
 dl5:	PRINTF	<"%-8.*s %-3s%c">,ax,si,di,dx
 	mov	al,[dirWide]
 	test	al,al			; /W?
@@ -292,10 +296,11 @@ dl6b:	PRINTF	<" %2M-%02D-%02X %2G:%02N%A",13,10>,dx,dx,dx,cx,cx,cx
 ;
 dl6c:	mov	ax,ds:[PSP_DTA].FFB_SIZE.LOW
 	mov	dx,ds:[PSP_DTA].FFB_SIZE.HIW
-	lea	cx,[bx-1]
+	mov	cx,[dirClus]
+	dec	cx
 	add	ax,cx			; add cluster size - 1 to file size
 	adc	dx,0
-	div	bx			; # clusters = file size/cluster size
+	div	[dirClus]		; # clusters = file size/cluster size
 	pop	dx
 	pop	cx
 	add	dx,ax			; update our cluster total
@@ -311,10 +316,9 @@ dl7:	mov	al,[dirCol]
 	je	dl7a			; no
 	call	printCRLF		; yes
 dl7a:	xchg	ax,dx			; AX = total # of clusters used
-	mul	bx			; DX:AX = total # bytes
+	mul	[dirClus]		; DX:AX = total # bytes
 	PRINTF	<"%8d file(s) %8ld bytes",13,10>,cx,ax,dx
 	pop	di
-	pop	bx
 	clc
 	ret
 ENDPROC	dirList

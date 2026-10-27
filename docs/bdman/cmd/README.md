@@ -24,27 +24,27 @@ As in MS-DOS, a DOS command typed as one word with a path (eg, `CD\`, `CD\EXT`, 
 | Command | Category | Command | Category |
 |---------|----------|---------|----------|
 | [AUTO](system/#auto) | System | [LOAD](disk/#load) | Disk |
-| [CHAIN](basic/#chain) | BASIC | [LOCATE](device/screen/#locate) | Screen |
-| [CIRCLE](device/graphics/#circle) | Graphics | [LPRINT](device/screen/#lprint) | Screen |
+| [CD](disk/#cd) | Disk | [LOCATE](device/screen/#locate) | Screen |
+| [CHAIN](basic/#chain) | BASIC | [LPRINT](device/screen/#lprint) | Screen |
+| [CIRCLE](device/graphics/#circle) | Graphics | [MD](disk/#md) | Disk |
 | [CLEAR](basic/#clear) | BASIC | [MEM](system/#mem) | System |
 | [CLS](device/screen/#cls) | Screen | [MERGE](disk/#merge) | Disk |
 | [COLOR](device/screen/#color) | Screen | [MOUSE](device/mouse/#mouse) | Mouse |
-| [COPY](disk/#copy) | Disk | [MV](disk/#ren) | Disk |
-| [DATA](basic/#data) | BASIC | [NEW](system/#new) | System |
-| [DATE](device/clock/#date) | Clock | [NEXT](basic/#for) | BASIC |
-| [DEF](basic/def/) | BASIC | [ON](basic/#on) | BASIC |
-| [DEF SEG](basic/#def-seg) | BASIC | [OPTION BASE](basic/#option-base) | BASIC |
-| [DEFDBL](basic/#defdbl) | BASIC | [PAINT](device/graphics/#paint) | Graphics |
-| [DEFINT](basic/#defint) | BASIC | [PLAY](device/sound/#play) | Sound |
-| [DEFSNG](basic/#defsng) | BASIC | [POKE](basic/#poke) | BASIC |
+| [COPY](disk/#copy) | Disk | [NEW](system/#new) | System |
+| [DATA](basic/#data) | BASIC | [NEXT](basic/#for) | BASIC |
+| [DATE](device/clock/#date) | Clock | [ON](basic/#on) | BASIC |
+| [DEF](basic/def/) | BASIC | [OPTION BASE](basic/#option-base) | BASIC |
+| [DEF SEG](basic/#def-seg) | BASIC | [PAINT](device/graphics/#paint) | Graphics |
+| [DEFDBL](basic/#defdbl) | BASIC | [PLAY](device/sound/#play) | Sound |
+| [DEFINT](basic/#defint) | BASIC | [POKE](basic/#poke) | BASIC |
 | [DEFSTR](basic/#defstr) | BASIC | [PRESET](device/graphics/#preset) | Graphics |
 | [DEL](disk/#del) | Disk | [PRINT](device/screen/#print) | Screen |
 | [DELETE](system/#delete) | System | [PSET](device/graphics/#pset) | Graphics |
 | [DIM](basic/#dim) | BASIC | [PUT](device/graphics/#put) | Graphics |
-| [DIR](disk/#dir) | Disk | [READ](basic/#read) | BASIC |
-| [DRAW](device/graphics/#draw) | Graphics | [REM](basic/#rem) | BASIC |
-| [ECHO](device/screen/#echo) | Screen | [REN](disk/#ren) | Disk |
-| [EDIT](system/#edit) | System | [RENAME](disk/#ren) | Disk |
+| [DIR](disk/#dir) | Disk | [RD](disk/#rd) | Disk |
+| [DRAW](device/graphics/#draw) | Graphics | [READ](basic/#read) | BASIC |
+| [ECHO](device/screen/#echo) | Screen | [REM](basic/#rem) | BASIC |
+| [EDIT](system/#edit) | System | [REN](disk/#ren) | Disk |
 | [END](basic/#end) | BASIC | [RESTART](system/#restart) | System |
 | [ERASE](basic/#erase) | BASIC | [RESTORE](basic/#restore) | BASIC |
 | [ERROR](basic/#error) | BASIC | [RESUME](basic/#resume) | BASIC |
@@ -63,8 +63,6 @@ As in MS-DOS, a DOS command typed as one word with a path (eg, `CD\`, `CD\EXT`, 
 | [LIST](system/#list) | System | [WIDTH](device/screen/#width) | Screen |
 | [LLIST](system/#llist) | System | [WINDOW](device/graphics/#window) | Graphics |
 See [BASIC Functions](basic/func/) for the list of functions and predefined constants.
-
-REN (RENAME) and MV share the same file and directory rename and move command; see [REN](disk/#ren).
 
 ### Not Yet Supported
 

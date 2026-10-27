@@ -77,7 +77,7 @@ Unlike a BAS file, a BAT file doesn't remain loaded when it ends.
 
 There are three kinds of commands, and each kind takes its arguments differently:
 
-- **DOS commands** (built-in commands like DIR, COPY, DEL, KILL, LOAD, RUN, and SAVE; see [Disk Commands](../cmd/disk/) and [System Commands](../cmd/system/)) take PC DOS-style arguments, separated by spaces, and use them as typed.  A file name (or path, or filespec) can be written as is (eg, `TYPE PRIMES.BAS`), in quotes (`TYPE "PRIMES.BAS"`), or as a string variable (`TYPE F$`), whose value is used, and so can a redirection file name (eg, `DIR > F$`; see [Pipes and Redirection](../intro/#pipes-and-redirection)).  Expressions aren't evaluated, so assign one to a variable first (eg, `F$ = "TEMP" + N$ : KILL F$`).  Other arguments, such as line numbers (`LIST 10-20`), keywords (`HELP MID$`), and dates (`DATE 10-24-26`), are always used as typed.
+- **DOS commands** (built-in commands like DIR, COPY, DEL, LOAD, RUN, and SAVE; see [Disk Commands](../cmd/disk/) and [System Commands](../cmd/system/)) take PC DOS-style arguments, separated by spaces, and use them as typed.  A file name (or path, or filespec) can be written as is (eg, `TYPE PRIMES.BAS`), in quotes (`TYPE "PRIMES.BAS"`), or as a string variable (`TYPE F$`), whose value is used, and so can a redirection file name (eg, `DIR > F$`; see [Pipes and Redirection](../intro/#pipes-and-redirection)).  Expressions aren't evaluated, so assign one to a variable first (eg, `F$ = "TEMP" + N$ : KILL F$`).  Other arguments, such as line numbers (`LIST 10-20`), keywords (`HELP MID$`), and dates (`DATE 10-24-26`), are always used as typed.
 - **BASIC statements and functions** (eg, OPEN, CHAIN, DIR$, and EXISTS) take expressions, so a file name must be a string: a quoted name, a string variable, or any string expression (eg, `OPEN "DATA" + N$ FOR INPUT AS #1`).  For example, the DOS command `MERGE PART2` works, but the CHAIN MERGE statement needs `CHAIN MERGE "PART2"`.
 - **External commands** (programs such as FORMAT and VI; see [External Commands](../cmd/external/)) receive their arguments as typed, so a string variable isn't replaced by its value (eg, `FORMAT D$` doesn't format the drive in D$), and there's currently no way to pass a variable's value to one.  BAS and BAT programs read their arguments with [ARG$](../cmd/basic/func/#arg), which removes any quotes; other programs may not.
 
@@ -193,7 +193,7 @@ On a machine with too little memory for all of COMMAND.COM (eg, 64K), BASIC-DOS 
 - The sound commands: PLAY and SOUND
 - PRINTF, LPRINT, LLIST, the LPOS function, the MID$ statement, KEY *n*,*string*, and WIDTH *device*,*width*
 - The program editing commands AUTO, DELETE, and EDIT (lines can still be entered and deleted by number)
-- The file statements (OPEN, CLOSE, FIELD, GET, PUT, LSET, RSET, RESET, IOCTL, and the # forms of INPUT, LINE INPUT, PRINT, and WRITE) and file functions (CVD, CVI, CVL, EOF, INPUT$, IOCTL$, LOC, LOF, MKD$, MKI$, and MKL$)
+- The file statements (OPEN, CLOSE, FIELD, GET, PUT, LSET, RSET, IOCTL, and the # forms of INPUT, LINE INPUT, PRINT, and WRITE) and file functions (CVD, CVI, CVL, EOF, INPUT$, IOCTL$, LOC, LOF, MKD$, MKI$, and MKL$)
 - The DOS statement and function
 - CHAIN, MERGE, RUN *file*, and RUN in a program
 - LOAD of tokenized BAS files (eg, those saved by BASICA or GW-BASIC)
@@ -206,12 +206,14 @@ BASIC-DOS runs many IBM PC BASIC programs unchanged (eg, DONKEY.BAS, from the or
 
 - Programs are text files, which can be edited with a text editor, or typed at the prompt with line numbers (see [Entering Programs](../intro/#entering-programs)) and saved with [SAVE](../cmd/disk/#save); there's no RENUM command, and tokenized BAS files saved by BASICA and GW-BASIC can be loaded, but not saved
 - Line numbers are optional, and only needed on lines that are targets of GOTO, GOSUB, etc
-- Single-precision values are double-precision (DEFSNG is the same as DEFDBL), and integers are 32-bit, not 16-bit
+- Single-precision values are double-precision (so there's no DEFSNG; use DEFDBL), and integers are 32-bit, not 16-bit
 - Function names don't need to begin with FN, and functions can have multiple lines
 - PRINT commas print a tab instead of advancing to the next print zone
 - Up to 4 files can be open at once, random access records are limited to 255 bytes, MKD$ and CVD use IEEE doubles (not MBF), MKS$, CVS, and the OPEN "mode",#n,file form aren't supported
 - INPUT doesn't display "Redo from start"; missing items are empty (or zero), and extra items are ignored
-- KILL, LOAD, MERGE, RUN, and SAVE are DOS commands, so their file names don't need quotes, but can't be expressions (eg, `KILL "TEMP" + N$` is a syntax error; see [Command Arguments](#command-arguments))
+- KILL, NAME, CHDIR, MKDIR, and RMDIR aren't supported; use the DOS commands DEL, REN, CD, MD, and RD instead
+- RESET and SYSTEM aren't supported; use CLOSE (with no file numbers) and END (or STOP) instead
+- DEL, LOAD, MERGE, RUN, and SAVE are DOS commands, so their file names don't need quotes, but can't be expressions (eg, `DEL "TEMP" + N$` is a syntax error; see [Command Arguments](#command-arguments))
 - RANDOMIZE without a seed uses the BIOS tick count instead of prompting for a seed
 - Not supported yet: PCOPY, RUN *line*, and RUN's R option (which keeps files open)
 - RESUME requires a label: RESUME without one (or with 0) and RESUME NEXT aren't supported (see [RESUME](../cmd/basic/#resume))

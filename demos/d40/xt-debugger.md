@@ -10,6 +10,7 @@ machines:
     autoMount:
       A: "BASIC-DOS 40-Column Demo"
       B: "PC DOS 2.00 (Disk 1)"
+    autoType: DATE $date\rTIME $time\r
 ---
 
 {% include machine.html id="ibm5160" %}

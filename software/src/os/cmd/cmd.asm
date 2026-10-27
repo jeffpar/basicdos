@@ -13,7 +13,7 @@
 CODE    SEGMENT
 
 	IF DETOK
-	EXTNEAR	<chkExt,getCwd,cmdDel,chkColon,splitCmd,findProgram>
+	EXTNEAR	<chkExt,getCwd,chkColon,splitCmd,findProgram>
 	EXTNEAR	<openInput,openError,closeInput>
 	EXTNEAR	<openHandle,syncFiles,openPipe,addPipe,endPipes,doHelp>
 	EXTNEAR	<pipeStages>
@@ -26,7 +26,6 @@ CODE    SEGMENT
 	EXTNEAR	<initEnv,buildEnv>
 	EXTBYTE	<CMD_PATH,MSG_DRIVE>
 	EXTWORD	<CMD_REFS,TRANS_SUM>
-	EXTABS	<TOK_ERASE,TOK_DEL>
 	EXTWORD	<KEYWORD_TOKENS>
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF>
 	EXTSTR	<VER_FINAL,VER_DEBUG,FPU_NAME>
@@ -718,16 +717,11 @@ pd5c:	lea	dx,[KEYWORD_TOKENS]
 	DOSUTIL	TOKID			; CS:DX -> TOKTBL; identify token
 	jc	pd5a
 	mov	dx,cs:[si].CTD_FUNC
-	cmp	ax,TOK_ERASE		; ERASE (which genErase handles if
-	jne	pd5b			; it's erasing arrays) is otherwise DEL
-	mov	ax,TOK_DEL
-	mov	dx,offset cmdDel
-	jmp	short pd5a		; (carry is clear)
 ;
 ; Any other BASIC keyword here (eg, CIRCLE, when its generator found no
 ; arguments; see genCommands) must be the name of a file to run instead.
 ;
-pd5b:	cmp	ax,KEYWORD_BASIC	; BASIC keyword?
+	cmp	ax,KEYWORD_BASIC	; BASIC keyword?
 	cmc				; (carry set if so)
 	jnc	pd5a			; no (and carry is clear)
 	sub	ax,ax			; yes, so treat it like a file

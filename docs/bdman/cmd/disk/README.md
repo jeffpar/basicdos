@@ -8,15 +8,15 @@ permalink: /docs/bdman/cmd/disk/
 
 BASIC-DOS disk commands include:
 
-- [CD](#cd) (or CHDIR)
+- [CD](#cd)
 - [COPY](#copy)
-- [DEL](#del) (or ERASE)
+- [DEL](#del)
 - [DIR](#dir)
 - [LOAD](#load)
-- [MD](#md) (or MKDIR)
+- [MD](#md)
 - [MERGE](#merge)
-- [RD](#rd) (or RMDIR)
-- [REN](#ren) (or RENAME or MV)
+- [RD](#rd)
+- [REN](#ren)
 - [SAVE](#save)
 - [TYPE](#type)
 
@@ -30,12 +30,11 @@ Device names (eg, CON, PRN, AUX, COM1, LPT1, and NUL) can be used in place of fi
 
 A file name (or path, or filespec) can also be quoted or a string variable, whose value is used (eg, `F$ = "PRIMES.BAS"` and then `TYPE F$`, or `COPY CON NAME$`), but not an expression.  An empty string variable is the same as no file name (eg, `DIR E$` lists all files when `E$` is empty), and a file name that looks like a string variable must be quoted (eg, `TYPE "TEST$"`).  See [Command Arguments](../../lang/#command-arguments) for the details, and for how BASIC file statements (eg, OPEN) and external commands differ.
 
-REN (or RENAME or MV) renames or moves a file or directory on the same drive.
+REN renames or moves a file or directory on the same drive.
 
 ### CD
 
-> CD [*drive*:][*path*]  
-> CHDIR [*drive*:][*path*]
+> CD [*drive*:][*path*]
 
 Changes the current directory of *drive* (or the current drive) to *path*.  If no *path* is specified, the drive's current directory is displayed.
 
@@ -59,10 +58,9 @@ Input files separated by `+` are combined (concatenated) into the output file, w
 
 ### DEL
 
-> DEL *file*  
-> ERASE *file*
+> DEL *file*
 
-Deletes the specified file.  With the wildcards `?` and `*` (as in [DIR](#dir)), every matching file is deleted (eg, `DEL *.TMP` or `DEL SUBDIR/T?.TXT`); hidden and system files and directories never match.  It's an error if no file matches.  Like PC DOS, a file name of `*.*` (eg, `DEL *.*` or `DEL SUBDIR/*.*`) first asks `Are you sure (Y/N)?`, and asks again until **Y** or **N** is entered.  An empty string variable is the same as no file name, so `DEL E$` reports `Missing filename` when `E$` is empty.  Only one file name can be given, and anything after it is a syntax error, so a Microsoft BASIC expression like `KILL "TEMP" + N$` must be assigned to a variable first (eg, `F$ = "TEMP" + N$ : KILL F$`).  ERASE is the same as DEL, unless it's erasing arrays (see [ERASE](../basic/#erase)), and KILL is the same as DEL.
+Deletes the specified file.  With the wildcards `?` and `*` (as in [DIR](#dir)), every matching file is deleted (eg, `DEL *.TMP` or `DEL SUBDIR/T?.TXT`); hidden and system files and directories never match.  It's an error if no file matches.  Like PC DOS, a file name of `*.*` (eg, `DEL *.*` or `DEL SUBDIR/*.*`) first asks `Are you sure (Y/N)?`, and asks again until **Y** or **N** is entered.  An empty string variable is the same as no file name, so `DEL E$` reports `Missing filename` when `E$` is empty.  Only one file name can be given, and anything after it is a syntax error, so a Microsoft BASIC-style expression like `DEL "TEMP" + N$` must be assigned to a variable first (eg, `F$ = "TEMP" + N$ : DEL F$`).  Microsoft BASIC's KILL isn't supported; use DEL.
 
 ### DIR
 
@@ -72,7 +70,7 @@ Displays a directory listing of all files matching the given *filespec* (or all 
 
 Files with the hidden attribute (eg, BASDEV.COM and BASDOS.COM) are listed only with `/A`, with an asterisk after the name (eg, `BASDEV   COM*`).  Unlike PC DOS, DIR lists system files that aren't hidden (eg, COMMAND.COM); see [ATTRIB](../external/#attrib).  `/S` lists the matching files in every subdirectory, too (in hidden subdirectories only with `/A`): each directory with matches gets its own ` Directory of` line and totals, and the bytes free are displayed at the end.
 
-`/W` lists only the names, as PC DOS does, each in a 16-character column, with as many columns as the console has room for (5 on an 80-column screen, or 2 on a 40-column screen); subdirectories are listed like files, without `<DIR>`.  For a Unix-style listing, see [LS](../external/#ls).
+`/W` lists only the names, as PC DOS does, each in a 16-character column, with as many columns as the console has room for (5 on an 80-column screen, or 2 on a 40-column screen); subdirectories are listed without `<DIR>`, but with the path character where a hidden file's asterisk goes (eg, `EXT         \`), even if the subdirectory is hidden.  For a Unix-style listing, see [LS](../external/#ls).
 
 	DIR *.BAS
 	DIR /S *.BAS
@@ -86,8 +84,7 @@ Loads the specified BAS or BAT file without running it, so that it can be [LIST]
 
 ### MD
 
-> MD [*drive*:]*path*  
-> MKDIR [*drive*:]*path*
+> MD [*drive*:]*path*
 
 Creates a new directory, which initially contains only the `.` and `..` entries.  A directory grows as needed when files are added to it (unlike the root directory, which has a fixed size).
 
@@ -104,8 +101,7 @@ Adds the numbered lines of the specified BAS file to the loaded program, replaci
 
 ### RD
 
-> RD [*drive*:]*path*  
-> RMDIR [*drive*:]*path*
+> RD [*drive*:]*path*
 
 Removes a directory, which must be empty (except for its `.` and `..` entries) and can't be the current directory of any session.
 
@@ -115,7 +111,7 @@ Removes a directory, which must be empty (except for its `.` and `..` entries) a
 
 > REN *source* *destination*
 
-Renames or moves one file or directory on the same drive.  RENAME and MV are aliases.  Both paths are relative to the current directory unless qualified.  The destination can be a new filename (eg, `REN OLD.TXT NEW.TXT` or `MV IN/OLD.TXT OUT/NEW.TXT`) or an existing directory (eg, `MV IN/OLD.TXT OUT`), which retains the original filename.
+Renames or moves one file or directory on the same drive.  Both paths are relative to the current directory unless qualified.  The destination can be a new filename (eg, `REN OLD.TXT NEW.TXT` or `REN IN/OLD.TXT OUT/NEW.TXT`) or an existing directory (eg, `REN IN/OLD.TXT OUT`), which retains the original filename.
 
 An existing destination is never overwritten.  File contents, size, attributes, and timestamps are preserved.  Directories, including their contents, can also be moved; their parent (`..`) is updated, and active current directories remain valid.  A directory cannot be moved into itself or a descendant.  Open source files and files on an open volume cannot be moved, but files within a moved directory can remain open.  Cross-drive moves and wildcard names are not supported.
 

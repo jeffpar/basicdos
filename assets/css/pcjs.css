@@ -157,7 +157,7 @@
   clear: both;
   padding-right: 8px;
   padding-bottom: 8px;
-  width: 512px;
+  width: 100%;
 }
 .pcjs-textarea {
   font-family: Monaco, "Lucida Console", monospace;
@@ -397,11 +397,6 @@
 }
 .pcjs-copyright a {
   text-decoration: none;
-}
-@media screen and (max-width: 1500px) {
-  .pcjs-panel {
-    width: 100%;
-  }
 }
 @media screen and (max-width: 800px) {
   .pcjs-textarea {

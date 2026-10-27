@@ -179,6 +179,30 @@
       ]
     },
     {
+      "id": "hdcXT",
+      "class": "hdc",
+      "type": "XT",
+      "drives": [
+        {
+          "name": "BASICDOS-10MB",
+          "type": 3,
+          "path": "/software/disks/BASICDOS-10MB.json"
+        }
+      ],
+      "controls": [
+        {
+          "id": "saveHD0",
+          "type": "button",
+          "label": "Save HD",
+          "style": {
+            "padding-right": "8px",
+            "padding-bottom": "8px",
+            "height": "22px"
+          }
+        }
+      ]
+    },
+    {
       "id": "ramLow",
       "class": "ram",
       "size": 655360,
@@ -241,30 +265,6 @@
           "id": "setSpeed",
           "type": "button",
           "label": "4.77Mhz",
-          "style": {
-            "padding-right": "8px",
-            "padding-bottom": "8px",
-            "height": "22px"
-          }
-        }
-      ]
-    },
-    {
-      "id": "hdcXT",
-      "class": "hdc",
-      "type": "XT",
-      "drives": [
-        {
-          "name": "BASICDOS-10MB",
-          "type": 3,
-          "path": "/software/disks/BASICDOS-10MB.json"
-        }
-      ],
-      "controls": [
-        {
-          "id": "saveHD0",
-          "type": "button",
-          "label": "Save HD",
           "style": {
             "padding-right": "8px",
             "padding-bottom": "8px",

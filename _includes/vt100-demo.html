@@ -26,18 +26,20 @@ With headless=true (a PC with no video; see demos/term), the terminal spans the 
 #{{ include.id }} .pcjs-chassis > .pcjs-video { order: 10; flex-basis: 100%; }
 #{{ include.id }} .pcjs-fdc, #{{ include.id }} .pcjs-fdc > .pcjs-group { display: contents; }
 #{{ include.id }} .pcjs-fdc .pcjs-control { order: 12; padding-bottom: 8px; }
-#{{ include.id }} .pcjs-fdc [id="{{ include.id }}.descDisk"], #{{ include.id }} .pcjs-fdc [id="{{ include.id }}.mountDisk"] { order: 20; }
+#{{ include.id }} .pcjs-fdc [id="{{ include.id }}.descDisk"], #{{ include.id }} .pcjs-fdc [id="{{ include.id }}.mountDisk"] { order: 13; }
 #{{ include.id }} .pcjs-keyboard, #{{ include.id }} .pcjs-keyboard > .pcjs-group { display: contents; }
 #{{ include.id }} .pcjs-keyboard .pcjs-control { order: 40; padding-bottom: 8px; }
 #{{ include.id }} .pcjs-keyboard .pcjs-control, #{{ include.id }} .pcjs-fdc .pcjs-control { line-height: 22px; }
 #{{ include.id }} .pcjs-keyboard [id="{{ include.id }}.caps-lock"], #{{ include.id }} .pcjs-keyboard [id="{{ include.id }}.num-lock"], #{{ include.id }} .pcjs-keyboard [id="{{ include.id }}.scroll-lock"] { order: 15; }
 #{{ include.id }} .pcjs-chassis > .pcjs-serial { order: 16; flex-basis: 100%; }
-#{{ include.id }} .pcjs-fdc [id="{{ include.id }}.saveDisk"] { padding-right: 0 !important; }
+#{{ include.id }} .pcjs-fdc [id="{{ include.id }}.mountDisk"] { padding-right: 8px; }
+#{{ include.id }} .pcjs-chassis > .pcjs-hdc { order: 14; }
 #{{ include.id }} .pcjs-fdc [id="{{ include.id }}.descDisk"]:has(> .pcjs-description:empty) { display: none; }
 #{{ include.id }} .pcjs-keyboard [id="{{ include.id }}.num-lock"], #{{ include.id }} .pcjs-keyboard [id="{{ include.id }}.scroll-lock"] { padding-left: 6px !important; }
 #{{ include.id }} .pcjs-keyboard [id="{{ include.id }}.caps-lock"] { margin-left: auto; }
 #{{ include.id }} .pcjs-keyboard [id="{{ include.id }}.shift-tab"] { margin-left: auto; }
 #{{ include.id }} .pcjs-keyboard [id="{{ include.id }}.keys"] { order: 35; }
 #{{ include.id }} .pcjs-chassis > .pcjs-computer { order: 25; flex-basis: 100%; }
+#{{ include.id }} .pcjs-chassis > .pcjs-panel { flex-basis: 100%; }
 #{{ include.id }} .pcjs-soft-keyboard, #{{ include.id }} .pcjs-soft-keyboard-mobile { order: 50; flex-basis: 100%; }
 </style>

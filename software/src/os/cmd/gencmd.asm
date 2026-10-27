@@ -18,7 +18,7 @@
 ;
 ; Generates code for these commands:
 ;
-;	DEFDBL/DEFINT/DEFSNG/DEFSTR	(genDefDbl, genDefInt, genDefStr)
+;	DEFDBL/DEFINT/DEFSTR		(genDefDbl, genDefInt, genDefStr)
 ;	LET				(genLet)
 ;	All DOS commands		(genDOS, generates call to callDOS)
 ;
@@ -741,8 +741,8 @@ ENDPROC	genDefInt
 ;
 ; genDefDbl
 ;
-; Process "DEFDBL".  In BASIC-DOS, floating-point will come in only one
-; flavor, and this is it; "DEFSNG" is allowed, but it's treated as "DEFDBL".
+; Process "DEFDBL".  In BASIC-DOS, floating-point comes in only one flavor,
+; and this is it.
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs

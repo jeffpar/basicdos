@@ -9,6 +9,7 @@ machines:
     debugger: true
     autoMount:
       A: "BASIC-DOS HD Serial Port Demo"
+    autoType: DATE $date\rTIME $time\r
 ---
 
 {% include machine.html id="ibm5160" %}
