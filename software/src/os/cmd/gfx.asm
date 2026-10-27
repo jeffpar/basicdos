@@ -1247,8 +1247,10 @@ ENDPROC	clampCoord
 ;	ES -> video memory
 ;	(an "Illegal function call" error occurs in any other mode)
 ;
-; The mode is cached in GFX_MODE, so that we ask the CON driver for it only
-; once per program (or after a SCREEN or WIDTH; see setScreen).
+; The mode is cached in GFX_MODE, and the segment (or, in protected mode,
+; the selector) of its video memory in GFX_FRAME, so that we ask the CON
+; driver for them only once per program (or after a SCREEN or WIDTH; see
+; setScreen).
 ;
 ; gfxInit also hides the mouse pointer (see mouseGfx), whereas gfxMode (used
 ; by statements that call mouseArea themselves) doesn't.  Unless VIEW defined
@@ -1265,13 +1267,21 @@ DEFPROC	gfxInit
 	dec	dl			; is the mode cached?
 	jns	gi0			; yes
 	push	cx
+	mov	cl,1
+	mov	al,IOCTL_GETMODE
+	call	ioctlCon		; DX = video memory
+	jc	gi8
+	push	dx
+	mov	cl,0
 	mov	al,IOCTL_GETMODE
 	call	ioctlCon		; DL = video mode
-	pop	cx
+	pop	ax
+gi8:	pop	cx
 	jc	gi9
+	mov	bx,ss:[PSP_HEAP]
+	mov	ss:[bx].GFX_DATA.GFX_FRAME,ax
 	mov	al,dl
 	inc	ax
-	mov	bx,ss:[PSP_HEAP]
 	mov	byte ptr ss:[bx].GFX_DATA.GFX_MODE,al
 gi0:	mov	bx,0003h
 	cmp	dl,6
@@ -1281,10 +1291,9 @@ gi0:	mov	bx,0003h
 	jbe	gi2
 gi9:	jmp	strIllegal
 gi1:	mov	bx,0101h
-gi2:	mov	ax,0B800h
-	mov	es,ax
-	push	di
+gi2:	push	di
 	mov	di,ss:[PSP_HEAP]
+	mov	es,ss:[di].GFX_DATA.GFX_FRAME
 	test	ss:[di].GFX_DATA.GFX_FLAGS,GF_VIEW
 	pop	di
 	jz	setClip			; no viewport, so clip to the screen

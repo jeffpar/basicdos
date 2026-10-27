@@ -77,7 +77,7 @@ IOCTL_SCROLL	equ	0D6h	; CON: scroll (or clear) interior of context
 IOCTL_GETCOLOR	equ	0D7h	; CON: get fill (DL) and border (DH) colors
 IOCTL_SETCOLOR	equ	0D8h	; CON: set fill (CL) and border (CH) colors
 IOCTL_SETPOS	equ	0D9h	; CON: set cursor pos (CL,CH), visibility (DL)
-IOCTL_GETMODE	equ	0DAh	; CON: get video mode (DL)
+IOCTL_GETMODE	equ	0DAh	; CON: get mode (DL), or memory (DX) if CL=1
 IOCTL_SETMODE	equ	0DBh	; CON: set video mode (CL)
 IOCTL_GETCHAR	equ	0DCh	; CON: get char/attr (DL/DH) at col,row (CL,CH)
 IOCTL_SETKEYS	equ	0DDh	; CON: set raw keys ON (CL=1) or OFF (CL=0)

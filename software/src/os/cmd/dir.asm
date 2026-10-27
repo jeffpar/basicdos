@@ -902,10 +902,10 @@ ENDPROC	setPath
 ; and checks the command tail for /C, which runs the rest of the tail as a
 ; command and then exits.
 ;
-; The environment is kept in CMDHEAP (ENV_DATA), at a paragraph boundary,
-; rather than in a block of its own, which would otherwise be left after our
-; memory block and prevent its transient portion from being reused while it's
-; set aside (see runTransient).
+; The environment is a block of its own, allocated from the top of memory, so
+; that it's never left after our memory block, where it would keep our
+; transient portion from being reused while it's set aside (see runTransient).
+; If there's no room for it, programs get no environment (see buildEnv).
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -917,13 +917,17 @@ ENDPROC	setPath
 ; Modifies:
 ;	AX, CX, DX, SI, DI
 ;
+ENV_LEN	equ	176			; environment size (see buildEnv)
+
 DEFPROC	initEnv
-	lea	ax,[bx].ENV_DATA + 15
-	mov	cl,4
-	shr	ax,cl
-	mov	dx,ds
-	add	ax,dx			; AX = environment segment
-	mov	[bx].EXECDATA.EPB_ENVSEG,ax
+	push	bx
+	mov	bx,ENV_LEN SHR 4
+	mov	ax,(DOS_MEM_ALLOC SHL 8) OR MCBTYPE_HIGH
+	int	21h			; AX = environment segment
+	pop	bx
+	jnc	ie1
+	sub	ax,ax			; no room, so no environment
+ie1:	mov	[bx].EXECDATA.EPB_ENVSEG,ax
 	push	ds
 	mov	ds,ds:[PSP_ENVSEG]
 	mov	ax,ds

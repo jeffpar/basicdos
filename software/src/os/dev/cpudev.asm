@@ -87,6 +87,8 @@ DESC		ends
 
 ACC_DATA	equ	92h	; present, DPL 0, read/write data
 ACC_CODE	equ	9Ah	; present, DPL 0, execute/read code
+ACC_RW		equ	02h	; writable data (or readable code)
+ACC_DPL3	equ	60h	; DPL 3 (added to another ACC_* value)
 ACC_LDT		equ	82h	; present, LDT
 ACC_CALLGATE	equ	84h	; present, DPL 0, 80286 call gate
 ACC_INTGATE	equ	86h	; present, DPL 0, 80286 interrupt gate
@@ -160,7 +162,6 @@ SEL_R3CODE	equ	00h+SEL_TI+3	; probe LDT: CPU$'s code, DPL 3
 SEL_R3DATA	equ	08h+SEL_TI+3	; probe LDT: ring 3 data and stack
 SEL_R3EXIT	equ	10h+SEL_TI+3	; probe LDT: call gate to probe_exit
 ACC_TSS		equ	81h	; present, DPL 0, available 80286 TSS
-ACC_DPL3	equ	60h	; DPL 3 (added to another ACC_* value)
 FL_RESULTS	equ	FL_CARRY OR FL_ZERO OR FL_SIGN OR FL_OVFL
 	ENDIF	; PROBE
 
@@ -173,7 +174,7 @@ CPU	DDH	<offset DEV:ddcpu_end+16,,DDATTR_CHAR,offset DEV:ddcpu_init,-1,202020202
 
 	DEFLBL	CPU_FUNCS,word
 	dw	ddcpu_getinfo, ddcpu_alloc, ddcpu_free, ddcpu_map
-	dw	ddcpu_unmap, ddcpu_query
+	dw	ddcpu_unmap, ddcpu_query, ddcpu_alias
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -493,6 +494,58 @@ ENDPROC	ddcpu_query
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; ddcpu_alias (CPU_ALIAS)
+;
+; Creates a selector for the same memory as an existing one, with the access
+; rights that the SELF_* flags select (eg, a code selector for a data block of
+; generated code, or a read-only selector); CPU_UNMAP frees it.
+;
+; Inputs:
+;	AL = SELF_* flags, BX = selector to alias
+;
+; Outputs:
+;	Carry clear if successful: AX = selector, DX:CX = base address
+;	Carry set if error: AX = error code (ERR_INVALID if BX isn't in use,
+;	or ERR_NOMEMORY if there's no free descriptor)
+;
+DEFPROC	ddcpu_alias
+	mov	si,bx
+	and	si,NOT 7
+	mov	cx,si
+	shr	cx,3			; CX = descriptor index
+	add	si,SYS_GDT
+	mov	dx,GDT_MAX
+	test	bl,SEL_TI
+	jz	ci1
+	add	si,SYS_LDT - SYS_GDT
+	mov	dx,LDT_MAX
+ci1:	cmp	cx,dx			; is the index within the table?
+	jae	ci8			; no
+	cmp	ds:[si].DESC_ACC,0	; is the descriptor in use?
+	je	ci8			; no
+	push	si
+	mov	cx,1
+	call	desc_alloc		; AX = selector, BX -> DESC
+	pop	si
+	jc	ci9
+	mov	cx,ds:[si].DESC_LIMIT
+	mov	ds:[bx].DESC_LIMIT,cx
+	mov	dx,ds:[si].DESC_EXT
+	mov	ds:[bx].DESC_EXT,dx
+	mov	dl,ds:[si].DESC_BASE16
+	mov	ds:[bx].DESC_BASE16,dl
+	mov	cx,ds:[si].DESC_BASE
+	mov	ds:[bx].DESC_BASE,cx	; DX:CX = base (and carry is clear)
+	ret
+ci8:	mov	ax,ERR_INVALID
+	stc
+	ret
+ci9:	mov	ax,ERR_NOMEMORY
+	ret
+ENDPROC	ddcpu_alias
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; pmb_largest
 ;
 ; Outputs:
@@ -718,7 +771,13 @@ da5:	mov	ah,ACC_DATA
 	test	al,SELF_CODE
 	jz	da6
 	mov	ah,ACC_CODE
-da6:	mov	bx,di
+da6:	test	al,SELF_RDONLY
+	jz	da6a
+	and	ah,NOT ACC_RW		; read-only data (or execute-only code)
+da6a:	test	al,SELF_USER
+	jz	da6b
+	or	ah,ACC_DPL3
+da6b:	mov	bx,di
 	push	cx
 da7:	mov	ds:[di].DESC_ACC,ah
 	add	di,size DESC

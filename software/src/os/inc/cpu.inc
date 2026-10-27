@@ -36,7 +36,8 @@ CPU_FREE	equ	02h	; DX:CX = address returned by CPU_ALLOC
 CPU_MAP		equ	03h	; AL = SELF_*, DX:CX = address, SI:DI = length
 CPU_UNMAP	equ	04h	; BX = selector, CX = # selectors (0 = 1)
 CPU_QUERY	equ	05h	; BX = PMB #; stores PMB at ES:DI
-CPU_MAXFUNC	equ	05h
+CPU_ALIAS	equ	06h	; AL = SELF_*, BX = selector to alias
+CPU_MAXFUNC	equ	06h
 
 ;
 ; CPU_GETINFO flags (AH)
@@ -45,15 +46,22 @@ CPUF_PM		equ	01h	; processor is in protected mode
 CPUF_PMOK	equ	02h	; protected-mode self-test passed
 
 ;
-; Selector flags (AL) for CPU_ALLOC and CPU_MAP
+; Selector flags (AL) for CPU_ALLOC, CPU_MAP, and CPU_ALIAS
 ;
 ; CPU_ALLOC and CPU_MAP return the first selector in AX; a block larger than
 ; 64K is mapped by consecutive selectors (each 8 more than the last), each
-; covering the next 64K.
+; covering the next 64K.  CPU_ALIAS returns a new selector for the same memory
+; as an existing one (eg, a code selector for a block of generated code, or
+; for a COM program's PSP block; see docs/bdtech/mmu), with its base address
+; in DX:CX; CPU_UNMAP frees it.  It works on selectors in either mode (CPU$
+; keeps its descriptor tables in real mode, too), but in real mode, a segment
+; is its own alias, so callers that run in either mode should check CPUF_PM.
 ;
 SELF_LDT	equ	01h	; LDT selector(s) (otherwise GDT)
 SELF_CODE	equ	02h	; code (execute/read), not data (read/write)
 SELF_NONE	equ	04h	; CPU_ALLOC only: no selector (AX = 0)
+SELF_RDONLY	equ	08h	; read-only data (or execute-only code)
+SELF_USER	equ	10h	; DPL 3, for programs (otherwise DPL 0)
 
 ;
 ; Physical Memory Block (PMB)

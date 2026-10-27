@@ -155,7 +155,7 @@ DOS_HDL_IOCTL (INT 21h, AH = 44h) sends IOCTL requests to drivers: AL is passed 
 | D7h | IOCTL_GETCOLOR | Gets the fill (DL) and border (DH) colors |
 | D8h | IOCTL_SETCOLOR | Sets the fill (CL) and border (CH) colors |
 | D9h | IOCTL_SETPOS | Sets the cursor position (CL = column, CH = row) and visibility (DL) |
-| DAh | IOCTL_GETMODE | Gets the video mode (DL) |
+| DAh | IOCTL_GETMODE | Gets the video mode (DL), or if CL = 1, the segment of the context's video memory (DX), which a program can use to draw directly (in protected mode, it will be a selector) |
 | DBh | IOCTL_SETMODE | Sets the video mode (CL) |
 | DCh | IOCTL_GETCHAR | Gets the character (DL) and attributes (DH) at column CL, row CH (zero-based; see the SCREEN function) |
 | DDh | IOCTL_SETKEYS | Sets raw keys mode on (CL = 1) or off (CL = 0); see [Raw Keys](#raw-keys) |

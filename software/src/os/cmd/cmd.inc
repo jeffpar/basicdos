@@ -237,7 +237,7 @@ CMD_SINGLE	equ	02h		; set if /C (exit after the command)
 ; that define GFXDEFS need (since structure fields are costly in MASM's
 ; symbol space)
 ;
-GFXDATA_LEN	equ	1Ah		; size of GFXDATA
+GFXDATA_LEN	equ	1Ch		; size of GFXDATA
 
 	IFDEF	GFXDEFS
 GFXDATA		struc
@@ -257,6 +257,7 @@ GFX_VX1		dw	?		; 12h: the viewport (or screen)
 GFX_VY1		dw	?		; 14h: that drawing is clipped to
 GFX_VX2		dw	?		; 16h: (see gfxInit and gfxView)
 GFX_VY2		dw	?		; 18h
+GFX_FRAME	dw	?		; 1Ah: video memory (see gfxInit)
 GFXDATA		ends
 	ASSERT	<SIZE GFXDATA>,EQ,GFXDATA_LEN
 
@@ -368,17 +369,16 @@ ERR_ADDR	dd	?		; 4A4h: ON ERROR handler (0 if none)
 ERR_LINE	dw	?		; 4A8h: line # of last error (see ERL)
 PLAY_STATE	dw    4 dup (?)		; 4AAh: PLAY/SOUND state (see doPlay)
 GFX_DATA	db GFXDATA_LEN dup (?)	; 4B2h: graphics and mouse state
-GFX_WORLD	db GFXWORLD_LEN dup (?)	; 4CCh: WINDOW state
-CODE_CACHE	dw	?		; 524h: cached code (see keepCode)
-EDIT_STATE	dw    2 dup (?)		; 526h: line to edit (see edit.asm)
-DATA_STATE	db	size DATASTATE dup (?)	; 52Ah: next DATA item (see sys.asm)
-PATH_CHAR	db	?		; 532h: path char (fixed at boot)
-SWITCH_CHAR	db	?		; 533h: switch char (fixed at boot)
-FILE_DATA	db   44 dup (?)		; 534h: OPEN files (see fileio.inc)
-PIPE_SCB	dd	?		; 560h: pipeline sessions (see endPipes)
-PATH_BUF	db  128 dup (?)		; 564h: PATH$ (length, 0-120 chars, null)
-ENV_DATA	db  176 dup (?)		; 5E4h: environment (see initEnv)
-DOS_REGS	dw    4 dup (?)		; 694h: AX-DX from DOS (see dosCall)
+GFX_WORLD	db GFXWORLD_LEN dup (?)	; 4CEh: WINDOW state
+CODE_CACHE	dw	?		; 526h: cached code (see keepCode)
+EDIT_STATE	dw    2 dup (?)		; 528h: line to edit (see edit.asm)
+DATA_STATE	db	size DATASTATE dup (?)	; 52Ch: next DATA item
+PATH_CHAR	db	?		; 534h: path char (fixed at boot)
+SWITCH_CHAR	db	?		; 535h: switch char (fixed at boot)
+FILE_DATA	db   44 dup (?)		; 536h: OPEN files (see fileio.inc)
+PIPE_SCB	dd	?		; 562h: pipeline sessions (endPipes)
+PATH_BUF	db  128 dup (?)		; 566h: PATH$ (length, 120 chars, null)
+DOS_REGS	dw    4 dup (?)		; 5E6h: AX-DX from DOS (see dosCall)
 ;
 ; The BASIC-DOS loader always set the stack pointer for a COM file to the top
 ; of the segment, which means we must declare our stack at the end of CMDHEAP.
@@ -389,8 +389,8 @@ DOS_REGS	dw    4 dup (?)		; 694h: AX-DX from DOS (see dosCall)
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-STACK		dw  970 dup (?)		; 69Ch
-CMDHEAP		ends			 ; E30h
+STACK		dw  977 dup (?)		; 5EEh
+CMDHEAP		ends			 ; D90h
 SIG_CMD		equ	'H'
 
 ;
@@ -398,7 +398,7 @@ SIG_CMD		equ	'H'
 ; stack pointer at the end of the heap (a whole number of paragraphs), and the
 ; [heap] equate below assumes that's the end of STACK.
 ;
-	ASSERT	<SIZE CMDHEAP>,EQ,0E30h
+	ASSERT	<SIZE CMDHEAP>,EQ,0D90h
 
 ;
 ; The initial stack frame created by the main function can also be used to

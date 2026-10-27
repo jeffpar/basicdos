@@ -225,10 +225,8 @@ DEFPROC	transParas
 	push	bx
 	push	cx
 	sub	ax,ax
-	mov	bx,cs
-	mov	cx,ss
-	cmp	bx,cx			; do we own the shared code?
-	jne	tp9			; no
+	cmp	word ptr ss:[PSP_HEAP],size PSP
+	je	tp9			; we don't own the code (see main)
 	cmp	cs:[CMD_REFS],1		; and is no other copy using it?
 	jne	tp9			; no
 	call	resParas		; BX = paras with the transient portion
@@ -302,11 +300,11 @@ ENDPROC	resSum
 ;
 ; resSave
 ;
-; Before the transient portion is discarded, we copy it to the top of the
-; highest free memory block, WITHOUT allocating that memory, so the program
-; is free to use it; but since most programs don't use all available memory,
-; the copy is likely to be intact when the program ends, saving us from
-; reloading it from COMMAND.COM (see runTransient).
+; Before the transient portion is discarded, we copy it into a block that we
+; allocate at the top of free memory and then free again, so the program is
+; free to use that memory; but since most programs don't use all
+; available memory, the copy is likely to be intact when the program ends,
+; saving us from reloading it from COMMAND.COM (see runTransient).
 ;
 ; Outputs:
 ;	TRANS_HI = segment of the copy (or zero if there wasn't room)
@@ -318,19 +316,12 @@ DEFPROC	resSave
 	ASSUME	DS:CODE			; (DS = CS, since we own the code)
 	mov	[TRANS_HI],0
 	DOSUTIL	LOCK			; keep other sessions from allocating
-	mov	dl,3			; the block until the copy is done
-
-	DOSUTIL	QRYMEM			; BX = segment, DX = size (paras)
-	jc	rsv9			; no free memory
-	push	bx
-	mov	bx,ss:[PSP_CODESIZE]
+	mov	bx,ss:[PSP_CODESIZE]	; the block until the copy is done
 	sub	bx,offset DGROUP:RES_END
 	call	toParas			; BX = paras in the transient portion
-	pop	ax
-	cmp	dx,bx			; is there room?
-	jb	rsv9			; no
-	add	ax,dx
-	sub	ax,bx			; AX = segment of the copy
+	mov	ax,(DOS_MEM_ALLOC SHL 8) OR MCBTYPE_HIGH
+	int	21h			; AX = block at the top of free memory
+	jc	rsv9			; there's no room
 	mov	[TRANS_HI],ax
 	ASSUME	DS:DATA
 	mov	es,ax
@@ -342,6 +333,12 @@ DEFPROC	resSave
 	shr	cx,1			; CX = # words
 	cld
 	rep	movsw
+;
+; Free the block (in ES) again, so that the program can have it; the copy
+; stays intact unless the program uses that memory.
+;
+	mov	ah,DOS_MEM_FREE
+	int	21h
 rsv9:	DOSUTIL	UNLOCK
 	ret
 ENDPROC	resSave

@@ -673,20 +673,28 @@ ENDPROC	ddcon_setpos
 ;
 ; ddcon_getmode
 ;
+; Returns the context's video mode, or (if CL is 1) the segment of its video
+; memory, which is all a program needs to draw directly (eg, the graphics
+; statements; see gfxInit), and which will be a selector in protected mode.
+;
 ; Inputs:
 ;	ES:DI -> DDPRW
+;	CL = 0 for the video mode, 1 for the video memory
 ;	DS = CONSOLE context
 ;
 ; Outputs:
-;	DL = video mode
+;	DL = video mode, or DX = segment of video memory
 ;
 ; Modifies:
-;	DX
+;	CL, DX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_getmode
 	mov	dl,ds:[CT_MODE]
-	ret
+	dec	cl			; video memory instead?
+	jnz	dgm9			; no
+	mov	dx,ds:[CT_SCREEN].SEG
+dgm9:	ret
 ENDPROC	ddcon_getmode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

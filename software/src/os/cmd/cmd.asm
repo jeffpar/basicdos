@@ -35,16 +35,17 @@ CODE    SEGMENT
 
 DEFPROC	main
 ;
-; If we're the copy that owns the shared code (ie, CS = DS), the loader has
-; already put our heap and stack in RES_HEAP (see COMHEAP), so we just record
-; what we need to reload the transient portion later (see runTransient in
-; res.asm).  We also release the heap template that follows our code (see
-; HEAPDEF), which only other copies use, as runTransient would after an EXEC.
+; If we're the copy that owns the shared code (ie, the code is in our memory
+; block), the loader has already put our heap and stack in RES_HEAP (see
+; COMHEAP), so we just record what we need to reload the transient portion
+; later (see runTransient in res.asm).  We also release the heap template that
+; follows our code (see HEAPDEF), which only other copies use, as runTransient
+; would after an EXEC.  Any other copy's heap starts right after its PSP (see
+; load_program), which is how we tell them apart without comparing CS and DS
+; (which are different selectors in protected mode, even for the owner).
 ;
-	mov	ax,cs
-	mov	dx,ds
-	cmp	ax,dx			; do we own the shared code?
-	jne	m0z			; no
+	cmp	word ptr ds:[PSP_HEAP],size PSP
+	je	m0z			; we don't own the shared code
 	ASSUME	DS:CODE
 	call	resParas		; BX = paras through end of code
 	mov	ah,DOS_MEM_REALLOC
@@ -1469,7 +1470,9 @@ ENDPROC	getFileName
 ; If a token is quoted (eg, "TEST$"), remove the quotes; otherwise, if it's a
 ; string variable name (a letter, followed by letters or digits, ending with
 ; '$'), replace it with the variable's value (a variable that doesn't exist
-; is empty, as in BASIC).  Any other token is left alone.
+; is empty, as in BASIC).  Any other token, including a function name (eg,
+; PATH$, so that "COMMAND /C PRINT PATH$" prints the new COMMAND's PATH$),
+; is left alone.
 ;
 ; Inputs:
 ;	SS:SI -> token, CX = length
@@ -1522,11 +1525,14 @@ csv3:	cmp	byte ptr [si],'$'	; does it end with '$'?
 	jne	csv7			; no
 	pop	cx
 	pop	si
+	push	si			; (in case it's a function)
 	push	dx
 	dec	cx			; CX = length of name (without '$')
 	mov	ah,VAR_STR
 	call	findVar			; DX:SI -> variable data
 	jc	csv5			; no such variable, so it's empty
+	cmp	ah,VAR_STR		; a string variable (not a function)?
+	jne	csv4			; no
 	mov	ds,dx
 	lds	si,[si]			; DS:SI -> value (or null)
 	mov	cx,ds
@@ -1535,15 +1541,19 @@ csv3:	cmp	byte ptr [si],'$'	; does it end with '$'?
 	mov	ah,0
 	xchg	cx,ax			; CX = length
 	pop	dx
-	clc
+	pop	ax			; (carry is clear)
 	ret
+csv4:	pop	dx
+	inc	cx			; CX = length of the token
+	jmp	short csv7a
 csv5:	pop	dx
+	pop	ax
 csv6:	push	ss
 	pop	ds
 	stc
 	ret
 csv7:	pop	cx			; not a variable, so leave it alone
-	pop	si
+csv7a:	pop	si
 	clc
 	ret
 ENDPROC	chkStrVar

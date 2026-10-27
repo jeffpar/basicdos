@@ -9,9 +9,10 @@
 ;
 ; Prints the CPU type and, if the CPU$ driver is loaded, its physical memory
 ; arena, and then tests its functions: allocations with GDT and LDT selectors,
-; a mapping of video memory, invalid requests, and freeing everything, which
-; must leave the arena as it was.  Exits with code 0 if every check passes
-; (including when CPU$ isn't loaded, eg, on an 8086), or 1 if any fails.
+; a mapping of video memory, aliases (code and read-only), invalid requests,
+; and freeing everything, which must leave the arena as it was.  Exits with
+; code 0 if every check passes (including when CPU$ isn't loaded, eg, on an
+; 8086), or 1 if any fails.
 ;
 	DOSPSP equ 1
 	DOSFUNC equ 1
@@ -75,6 +76,7 @@ m1:	call	info
 	mov	[sel3],ax
 	PRINTF	<"Map %#lx at 000B8000: sel %#x",13,10>,di,si,ax
 	call	arena
+	call	aliases
 ;
 ; These requests must fail: freeing an unallocated address, unmapping a
 ; fixed selector, and allocating more memory than there is.
@@ -160,6 +162,63 @@ DEFPROC	cpu_err
 ENDPROC	cpu_err
 
 ;
+; aliases
+;
+; Aliases the 4K block's LDT selector as ring 3 code, and the video selector as
+; read-only data: each alias must be a new selector for the same address.
+; Then frees the code alias, after which aliasing it must fail.
+;
+DEFPROC	aliases
+	inc	bp
+	mov	al,SELF_LDT OR SELF_CODE OR SELF_USER
+	mov	bx,[sel2]
+	mov	ah,CPU_ALIAS
+	call	cpu_ok
+	cmp	ax,bx			; is it a new selector?
+	je	al7
+	test	al,4			; an LDT selector?
+	jz	al7
+	cmp	cx,[addr2].LOW		; for the same address?
+	jne	al7
+	cmp	dx,[addr2].HIW
+	je	al1
+al7:	jmp	m8
+al1:	mov	[sel4],ax
+	PRINTF	<"Alias %#x as code: sel %#x at %#lx",13,10>,bx,ax,cx,dx
+	inc	bp
+	mov	al,SELF_RDONLY
+	mov	bx,[sel3]
+	mov	ah,CPU_ALIAS
+	call	cpu_ok
+	cmp	ax,bx			; is it a new selector?
+	je	al8
+	cmp	cx,8000h		; for B8000h?
+	jne	al8
+	cmp	dx,000Bh
+	je	al2
+al8:	jmp	m8
+al2:	mov	[sel5],ax
+	PRINTF	<"Alias %#x as read-only: sel %#x at %#lx",13,10>,bx,ax,cx,dx
+	inc	bp
+	mov	bx,[sel4]
+	sub	cx,cx
+	mov	ah,CPU_UNMAP
+	call	cpu_ok
+	inc	bp
+	mov	[experr],ERR_INVALID
+	mov	al,SELF_LDT
+	mov	bx,[sel4]
+	mov	ah,CPU_ALIAS
+	call	cpu_err
+	inc	bp
+	mov	bx,[sel5]
+	sub	cx,cx
+	mov	ah,CPU_UNMAP
+	call	cpu_ok
+	ret
+ENDPROC	aliases
+
+;
 ; info
 ;
 ; Prints and returns the CPU_GETINFO results (DX:CX = largest free block).
@@ -221,6 +280,8 @@ ENDPROC	arena
 	DEFWORD	experr,0
 	DEFWORD	sel2,0
 	DEFWORD	sel3,0
+	DEFWORD	sel4,0
+	DEFWORD	sel5,0
 	DEFLONG	free0,0
 	DEFLONG	addr1,0
 	DEFLONG	addr2,0
