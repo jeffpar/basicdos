@@ -13,7 +13,7 @@
 ;
 
 VERSION_MAJOR	equ	2	; eg, MS-DOS 3.20 return 3 (03h)
-VERSION_MINOR	equ	1	; eg, MS-DOS 3.20 returns 20 (14h)
+VERSION_MINOR	equ	10	; eg, MS-DOS 3.20 returns 20 (14h)
 
 VERSION_STR	macro
 		db	'0' + VERSION_MAJOR

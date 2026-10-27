@@ -7,6 +7,13 @@
     {
       "type": "chrome",
       "request": "launch",
+      "name": "BASIC-DOS Demos",
+      "url": "http://localhost:4040/demos/",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
       "name": "BASIC-DOS on an IBM PC",
       "url": "http://localhost:4040/demos/s80/pc/",
       "webRoot": "${workspaceFolder}"
@@ -51,6 +58,13 @@
       "request": "launch",
       "name": "BASIC-DOS with a Serial Debugger",
       "url": "http://localhost:4040/demos/debug/at/debugger/",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "BASIC-DOS Protected Mode",
+      "url": "http://localhost:4040/demos/mmu/",
       "webRoot": "${workspaceFolder}"
     },
     {
