@@ -186,10 +186,17 @@ lf5a:	mov	[lineOffset],si
 	ASSERT	Z,<test dx,dx>		; DX:AX is the result but keep only AX
 	mov	[lineLabel],ax
 	pop	dx
+	jnc	lf6			; we found a label #
 ;
-; We've extracted the label #, if any; skip over any intervening space.
+; There's no label #, so keep any leading whitespace (which ATOI32D skipped),
+; so that SAVE and LIST show the line as it was.
 ;
-	lodsb
+	mov	si,[lineOffset]
+	jmp	short lf7
+;
+; We've extracted the label #; skip over one intervening space.
+;
+lf6:	lodsb
 	cmp	al,CHR_SPACE
 	je	lf7
 	dec	si
@@ -396,7 +403,8 @@ ENDPROC	walkLines
 ;
 ; listLine
 ;
-; Lists a line (see walkLines).
+; Lists a line (see walkLines), as saveLine would write it, so that any tabs
+; in the line line up as they would with TYPE.
 ;
 ; Inputs:
 ;	ES:DI -> line
@@ -411,9 +419,8 @@ DEFPROC	listLine
 	mov	ax,es:[di]
 	test	ax,ax			; does the line have a label #?
 	jz	li1			; no
-	PRINTF	<"%5u">,ax
-li1:	PRINTF	<CHR_TAB>
-	push	ds
+	PRINTF	<"%u ">,ax
+li1:	push	ds
 	push	es
 	pop	ds
 	lea	si,[di+2]		; DS:SI -> length-prefixed text

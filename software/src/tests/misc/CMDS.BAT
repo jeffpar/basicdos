@@ -38,6 +38,11 @@ OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
 IF L$ <> "      2 hello,  world" THEN PRINT "UNIQ failed" : FAILS = FAILS + 1
 FIND /R /I "^H[a-z]*,  *W.*D$" T.TMP > T2.TMP
 IF ERRORLEVEL THEN PRINT "FIND /R failed" : FAILS = FAILS + 1
+S$ = ",  w" : F$ = "T.TMP"
+FIND S$ F$ > T2.TMP
+IF ERRORLEVEL THEN PRINT "FIND variable failed" : FAILS = FAILS + 1
+FIND hello T.TMP > T2.TMP
+IF ERRORLEVEL THEN PRINT "FIND literal failed" : FAILS = FAILS + 1
 SED "s/[a/b/" T.TMP
 IF ERRORLEVEL = 0 THEN PRINT "SED error failed" : FAILS = FAILS + 1
 TR a-z A-Z < T.TMP > T2.TMP
@@ -70,7 +75,8 @@ DIR /W \TOOLS > T.TMP
 OPEN "T.TMP" FOR INPUT AS #1
 FOR I = 1 TO 5 : LINE INPUT #1, L$ : NEXT : CLOSE #1
 IF LEFT$(L$, 19) <> ".\              ..\" THEN PRINT "DIR /W dir failed" : FAILS = FAILS + 1
-LS /r \T*.* > T.TMP
+D$ = "\T*.*"
+LS /r D$ > T.TMP
 OPEN "T.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
 IF L$ <> "\TOOLS\" THEN PRINT "LS failed" : FAILS = FAILS + 1
 REM A BAS file writing more than a pipe holds must not wait for the reader

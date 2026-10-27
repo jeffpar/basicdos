@@ -7,14 +7,15 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Usage: FIND [-C] [-I] [-N] [-R] [-V] "string" [files...]
+; Usage: FIND [-C] [-I] [-N] [-R] [-V] string [files...]
 ;
 ; Displays every line of input (or of the specified files, which may include
-; wildcards) that contains "string".  -C displays only the number of lines, -I
-; ignores case, -N adds line numbers, -R treats "string" as a regular
-; expression (see reCompile), and -V selects lines that do NOT contain
-; "string".  The exit code is 0 if any lines were selected, 1 if none, and 2 if
-; an error occurred.
+; wildcards) that contains string, which must be quoted if it contains spaces
+; (otherwise, it's the first argument that isn't a switch; see getArgs).  -C
+; displays only the number of lines, -I ignores case, -N adds line numbers, -R
+; treats string as a regular expression (see reCompile), and -V selects lines
+; that do NOT contain string.  The exit code is 0 if any lines were selected,
+; 1 if none, and 2 if an error occurred.
 ;
 	UTILWALK equ 1
 	UTILRE equ 1
@@ -192,7 +193,7 @@ ENDPROC	matchLine
 
 	include	utilproc.inc
 
-NO_STRING	db	"Missing quoted string",13,10,0
+NO_STRING	db	"Missing string",13,10,0
 BAD_RE		db	"Invalid expression",13,10,0
 COLON		db	": ",0
 

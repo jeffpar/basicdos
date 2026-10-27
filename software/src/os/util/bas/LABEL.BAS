@@ -1,6 +1,6 @@
 	' LABEL.BAS: creates, changes, or deletes a drive's volume label
 	'
-	'   LABEL [d:][label]
+	'   LABEL [drive:][label]
 	'
 	' Without a label, LABEL displays the current one and asks for a new
 	' one (ENTER deletes the current label, after asking first).  A label

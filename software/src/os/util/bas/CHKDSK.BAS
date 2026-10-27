@@ -1,12 +1,14 @@
 	' CHKDSK.BAS: checks a drive's FAT and directories, and reports its space
 	'
-	'   CHKDSK [d:] [/V]
+	'   CHKDSK [drive:] [/V]
 	'
 	' Every file's and directory's cluster chain is followed (and /V lists
 	' them), to find chains that are cross-linked (sharing a cluster), that
 	' don't match the file's size, or that contain invalid clusters, and
 	' finally, lost clusters (in use, but in no chain).  CHKDSK only reports
-	' these problems; it doesn't fix them (there's no /F).
+	' these problems; it doesn't fix them (there's no /F).  Options start
+	' with the switch char (W$), which is "/" unless CONFIG.SYS changes it
+	' (eg, to "-").
 	'
 	' The volume is read directly: first with 32-byte records, for the boot
 	' sector's BPB and the FAT, which is kept in 192-byte strings (Z$), so
@@ -17,12 +19,16 @@
 	' each cluster that's in a chain.
 	'
 	DEFINT A-Z
-	D$ = LEFT$(CURDIR$, 2) : V = 0
-	FOR I = 1 TO 2
-	A$ = UCASE$(ARG$(I))
-	IF A$ = "/V" OR A$ = "-V" THEN V = 1
-	IF MID$(A$, 2, 1) = ":" THEN D$ = LEFT$(A$, 2)
-	NEXT
+	DOS &H3700 : W$ = CHR$(DOS(3) AND 255)
+	D$ = "" : V = 0 : I = 1 : A$ = UCASE$(ARG$(1))
+	WHILE A$ <> ""
+	IF A$ = W$ + "V" THEN V = 1 : GOTO 5
+	' Any other option, or a second drive (or anything else), is an error
+	IF LEN(A$) <> 2 OR RIGHT$(A$, 1) <> ":" OR D$ <> "" THEN GOTO 95
+	D$ = A$
+5	I = I + 1 : A$ = UCASE$(ARG$(I))
+	WEND
+	IF D$ = "" THEN D$ = LEFT$(CURDIR$, 2)
 	PC$ = MID$(CURDIR$, 3, 1)
 	ON ERROR GOTO 90
 	' From the BPB: the cluster size (K sectors, CB bytes), the first FAT
@@ -127,6 +133,7 @@
 	IF ERR = 75 THEN PRINT "Invalid drive specification" : END
 	PRINT "Unable to check drive "; D$; " (error"; ERR; ")"
 	END
+95	PRINT "Usage: CHKDSK [drive:] ["; W$; "V]" : END
 200	' Get the next entry (Q$) of the directory being read (empty at its
 	' end): DC is its current cluster (0 for the root), DS the current
 	' sector, DN the sectors left in DC (or the root), and DJ the next of

@@ -25,8 +25,8 @@ Returns *x* as a double.  CSNG is the same, since all floating-point values are 
 [b+]CHAIN [MERGE] *file*[,[*line*][,ALL]]
 Replaces the running program with the specified BAS file (searching PATH$ if necessary) and runs it, starting at *line* if given.  Variables are cleared unless ALL is given.  With MERGE, the file's numbered lines are added to the program instead, replacing any lines with the same numbers.  Any GOSUBs, FOR and WHILE loops, and ON ERROR handler in progress are ended.  COMMON and the DELETE option are not supported.
 
-[e]CHKDSK [*d*:] [~V]
-Checks the FAT and directories of drive *d* (or the current drive), following every file's and directory's cluster chain, and reports chains that are cross-linked, don't match a file's size, or contain invalid clusters, and lost clusters, and then the space used by hidden files, directories, and user files, and the space available.  ~V lists every file.  Problems are reported, not fixed.
+[e]CHKDSK [*drive*:] [~V]
+Checks the FAT and directories of *drive* (or the current drive), following every file's and directory's cluster chain, and reports chains that are cross-linked, don't match a file's size, or contain invalid clusters, and lost clusters, and then the space used by hidden files, directories, and user files, and the space available.  ~V lists every file.  Problems are reported, not fixed.
 
 [f]CHR$(*code*)
 Returns a one-character string containing the character with the specified *code* (0-255).
@@ -128,8 +128,8 @@ Displays a directory listing of all files matching the given *filespec* (or all 
 [f]DIR$[(*filespec*[,*attributes*])]
 Returns the first file or directory matching *filespec* (which may contain wildcards), or if *filespec* is omitted, the next match, or an empty string if there are no (more) matches.  For a match F$, ASC(F$) is its attributes, CVI(MID$(F$,2)) its time, CVI(MID$(F$,4)) its date, CVL(MID$(F$,6)) its size, and MID$(F$,10) its name.  The default *attributes* (&H16) include hidden, system, and directory entries; 8 finds the volume label.  See DEMOS\DIR.BAS.
 
-[e]DISKCOPY [*d1*: [*d2*:]]
-Copies the diskette in drive *d1* (or the current drive) to the diskette in drive *d2* (or *d1*), formatting the target's tracks as it goes.  If both drives are the same, the copy is made in passes, asking for the source and target diskettes in turn.
+[e]DISKCOPY [*drive1*: [*drive2*:]]
+Copies the diskette in *drive1* (or the current drive) to the diskette in *drive2* (or *drive1*), formatting the target's tracks as it goes.  If both drives are the same, the copy is made in passes, asking for the source and target diskettes in turn.
 
 [b+]DOS *ax*[,*bx*[,*cx*[,*dx*|*string*]]]
 Calls DOS (INT 21h) with the values in registers AX, BX, CX, and DX (omitted values are zero), or with DS:DX pointing to a null-terminated copy of *string* (eg, DOS &H4301,0,1,F$ makes file F$ read-only).  A DOS error is a runtime error (eg, "File not found" or "Permission denied").  See DOS(*n*) for the registers that DOS returns.
@@ -178,8 +178,8 @@ Returns e (2.71828...) raised to the power of *x*.
 [b+]FIELD [#]*n*,*width* AS *variable$*[,*width* AS *variable$*]...
 Divides each record of random access file *n* into fields (up to 16): GET # sets each variable to its field, and PUT # writes each variable to its field (see LSET and RSET).
 
-[e]FIND [~C] [~I] [~N] [~R] [~V] "*string*" [*file*...]
-Displays the lines of input (or of each *file*, or with wildcards (? and *), every matching file) that contain *string* (eg, DIR | FIND "BAS").  ~C displays only the number of lines, ~I ignores case, ~N adds line numbers, ~R treats *string* as a regular expression (see SED; eg, DIR | FIND ~R "^[A-M]"), and ~V displays the lines that do NOT contain *string*.
+[e]FIND [~C] [~I] [~N] [~R] [~V] *string* [*file*...]
+Displays the lines of input (or of each *file*, or with wildcards (? and *), every matching file) that contain *string* (eg, DIR | FIND BAS).  *string* needs quotes only if it contains spaces, and it can be a string variable (eg, FIND S$ *.TXT).  ~C displays only the number of lines, ~I ignores case, ~N adds line numbers, ~R treats *string* as a regular expression (see SED; eg, DIR | FIND ~R "^[A-M]"), and ~V displays the lines that do NOT contain *string*.
 ERRORLEVEL is set to 0 if any lines were displayed (or counted), 1 if none, and 2 if a *file* couldn't be opened or the expression is invalid.
 
 [f]FIX(*x*)
@@ -189,8 +189,8 @@ Returns *x* truncated to an integer (eg, FIX(-2.5) is -2).  See also INT.
 Executes the lines up to the matching NEXT repeatedly, adding *step* (default 1) to the *variable* each time, until it passes the *limit*.
 If the *start* is already past the *limit*, the lines are skipped.
 
-[e]FORMAT *d*: [~S] [~V[:*label*]] [~F:*size*] [~1] [~8]
-Formats the diskette or hard disk volume in drive *d*.  ~S copies the system files from the current drive (making *d* bootable), and ~V gives the volume a label (asking for one, unless it's given).  A diskette is formatted as 360K, 720K, or 1.2M (~F:360, ~F:720, or ~F:1200; by default, the drive's own size, which a PC or XT can't report, so 360K); for 360K, ~1 formats one side, and ~8 formats 8 sectors per track (for PC DOS 1.x).
+[e]FORMAT *drive*: [~S] [~V[:*label*]] [~F:*size*] [~1] [~8]
+Formats the diskette or hard disk volume in the specified *drive*.  ~S copies the system files from the current drive (making the volume bootable), and ~V gives the volume a label (asking for one, unless it's given).  A diskette is formatted as 360K, 720K, or 1.2M (~F:360, ~F:720, or ~F:1200; by default, the drive's own size, which a PC or XT can't report, so 360K); for 360K, ~1 formats one side, and ~8 formats 8 sectors per track (for PC DOS 1.x).
 
 [f]FRE(*x*)
 Compacts string memory and returns the number of bytes available, or if *x* is negative (eg, FRE(-1)), the number of bytes owned by this session, which other sessions can't change.
@@ -205,8 +205,8 @@ Calls the subroutine at the line with the specified label number; the subroutine
 [b]GOTO *label*
 Transfers program control to the line with the specified label number.
 
-[s]HELP [*keyword*|ALL|BASIC|CORE|DISK|EXT|FUNC|SYS]
-Displays help for *keyword* (eg, HELP MID$), or lists the keywords in a category: ALL (every keyword), BASIC (BASIC statements and commands), DISK (disk commands, like DIR), EXT (external commands and drivers, like FORMAT), FUNC (functions, like MID$), or SYS (system commands, like MEM).  HELP CORE lists the keywords that low memory systems don't support.
+[s]HELP [*keyword*|ALL|BASIC|CORE|DISK|EXT|FUNC|SYSTEM]
+Displays help for *keyword* (eg, HELP MID$), or lists the keywords in a category: ALL (every keyword), BASIC (BASIC statements and commands), DISK (disk commands, like DIR), EXT (external commands and drivers, like FORMAT), FUNC (functions, like MID$), or SYSTEM (system commands, like MEM).  HELP CORE lists the keywords that low memory systems don't support.
 
 [f]HEX$(*n*)
 Returns the hexadecimal representation of the integer *n*.  Negative values are treated as unsigned 32-bit values (eg, HEX$(-1) is FFFFFFFF).
@@ -252,8 +252,8 @@ DELETE  Del Left    CTRL-V  Toggle Ins\
 ESCAPE  Cancel      CTRL-C  Abort
 Use CTRL-BREAK or CTRL-ALT-DELETE to terminate programs, and use RESTART to terminate sessions or restart the system.
 
-[e]LABEL [*d*:][*label*]
-Gives drive *d* (or the current drive) a volume label (up to 11 characters), or without a *label*, displays the current label and asks for a new one (or ENTER to delete it).
+[e]LABEL [*drive*:][*label*]
+Gives *drive* (or the current drive) a volume label (up to 11 characters), or without a *label*, displays the current label and asks for a new one (or ENTER to delete it).
 
 [f]LCASE$(*string*)
 Returns *string* with all upper-case letters converted to lower-case.
@@ -272,7 +272,7 @@ Draws a line (or with B, a box; or with BF, a filled box) in a graphics mode.  I
 LINE INPUT [*prompt*;]*variable$* (or LINE INPUT #*n*,*variable$*) reads a whole line from the keyboard (or file *n*) into the string variable.
 
 [b]LIST [*line*][-[*line*]] | VARS
-Lists all lines (or the specified range of lines) of the currently loaded BAS or BAT program.
+Lists all lines (or the specified range of lines) of the currently loaded BAS or BAT program, as SAVE would write them.
 LIST VARS lists preserved strings (including PATH$), then ordinary variable values with type suffixes and quoted strings, and array bounds without their elements.  Function definitions are omitted.  Use LIST VARS | MORE to page the listing.
 To add a line to the program (or replace the line with the same number), type the line with its line number at the prompt.
 
@@ -466,8 +466,8 @@ Changing the mode clears the screen and removes the session's border, if any.
 SCREEN(*row*,*col*[,*z*])
 Returns the character code at *row* and *col*, or its attributes if *z* is non-zero.
 
-[e]SED [~I] [~N] "*script*" [*file*]
-Runs the commands in *script* (separated by ;) on each line of input (or *file*), and then displays the line, unless ~N is given (eg, DIR | SED "s/BAS/BAK/").  A command can start with an address (a line number, $ for the last line, or /*regex*/ for each line that *regex* matches), or with two addresses separated by a comma, for each range of lines from one that the first selects to one that the second selects; a ! after the addresses selects the other lines instead.  The commands are: s/*regex*/*text*/ replaces the first match of *regex* with *text* (or every match, with g after the last /), in which & is the match and \1 to \9 are the parts of *regex* marked by \( and \) (and p after the last / displays the result); d deletes the line and skips the rest of the commands, p displays the line, q quits (after displaying the line, unless ~N), and = displays the line number.
+[e]SED [~I] [~N] *script* [*file*]
+Runs the commands in *script* (separated by ;) on each line of input (or *file*), and then displays the line, unless ~N is given (eg, DIR | SED s/BAS/BAK/).  *script* needs quotes only if it contains spaces.  A command can start with an address (a line number, $ for the last line, or /*regex*/ for each line that *regex* matches), or with two addresses separated by a comma, for each range of lines from one that the first selects to one that the second selects; a ! after the addresses selects the other lines instead.  The commands are: s/*regex*/*text*/ replaces the first match of *regex* with *text* (or every match, with g after the last /), in which & is the match and \1 to \9 are the parts of *regex* marked by \( and \) (and p after the last / displays the result); d deletes the line and skips the rest of the commands, p displays the line, q quits (after displaying the line, unless ~N), and = displays the line number.
 In a *regex*, . matches any character, [*chars*] any of the *chars* or ranges (eg, [a-z0-9]), and [^*chars*] any other character; * after any of those matches it zero or more times, ^ at the start matches the start of the line and $ at the end its end, and \ makes the next character ordinary (eg, \. or \/).  An empty *regex* reuses the previous one, and ~I ignores case.
 ERRORLEVEL is set to 0, or 2 if *script* is missing or invalid, or *file* couldn't be opened.
 
@@ -508,8 +508,8 @@ Returns a string of *n* copies of *char*, which can be either a character code o
 [b]SWAP *variable1*,*variable2*
 Exchanges the values of two variables (or array elements) of the same type.
 
-[e]SYS *d*:
-Copies the system files (BASDEV.COM, BASDOS.COM, and COMMAND.COM) from the root directory of the current drive to drive *d*, and gives *d*'s boot sector the current drive's boot code, making *d* bootable without reformatting it.
+[e]SYS *drive*:
+Copies the system files (BASDEV.COM, BASDOS.COM, and COMMAND.COM) from the root directory of the current drive to the specified *drive*, and gives its boot sector the current drive's boot code, making it bootable without reformatting it.
 
 [f]TAB(*n*)
 Returns enough spaces to move the cursor to column *n* (1-254), for PRINT; if the cursor is already past column *n*, the spaces start on the next line.
@@ -533,7 +533,7 @@ Returns the current time as a string in the form HH:MM:SS.
 Copies input to output, replacing each character in *set1* with the matching character in *set2* (eg, DIR | TR a-z A-Z converts to upper-case); if *set2* is shorter, its last character repeats.  ~D deletes the characters in *set1* instead, ~C uses every character NOT in *set1*, and ~S squeezes each run of a character in the last set into one (eg, TR ~S " ").  A set can contain ranges (eg, a-z) and the escapes \t, \n, \r, and \ before any other character (eg, \-); quote a set that contains spaces.
 ERRORLEVEL is set to 0, or 2 if a set is missing.
 
-[e]TREE [*d*:][*path*] [~F] [~A]
+[e]TREE [*drive*:][*path*] [~F] [~A]
 Displays the directories below *path* (or the current directory), connected by line-drawing characters (or ASCII characters, with ~A); ~F also lists each directory's files.
 
 [d]TYPE *file*
@@ -558,8 +558,8 @@ Edits *file* full-screen, using a subset of the commands of the UNIX *vi* editor
 [b+]VIEW [[SCREEN] (*x1*,*y1*)-(*x2*,*y2*)[,[*fill*][,*border*]]]
 Limits drawing in a graphics mode to a viewport, after filling it with the *fill* color and drawing a *border* around it, if specified.  Points are relative to the viewport, unless SCREEN is specified.  VIEW alone ends the viewport.
 
-[e]VOL [*d*:]
-Displays the volume label of drive *d* (or the current drive).
+[e]VOL [*drive*:]
+Displays the volume label of *drive* (or the current drive).
 
 [e]WC [~L] [~W] [~C] [*file*...]
 Displays the number of lines, words, and bytes of input (or of each *file*, or with wildcards (? and *), every matching file, and their totals) (eg, DIR | WC ~L).  ~L, ~W, and ~C display only the selected counts.

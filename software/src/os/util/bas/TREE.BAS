@@ -1,10 +1,12 @@
 	' TREE.BAS: displays the directory structure of a drive or directory
 	'
-	'   TREE [d:][path] [/F] [/A]
+	'   TREE [drive:][path] [/F] [/A]
 	'
 	' Each directory's subdirectories are listed below it (after its files,
 	' for /F), connected by line-drawing characters, or ASCII ones for /A.
-	' Without a path, TREE starts with the current directory.
+	' Without a path, TREE starts with the current directory.  Options start
+	' with the switch char (W$), which is "/" unless CONFIG.SYS changes it
+	' (eg, to "-").
 	'
 	' Since BASIC has no local variables, each level of the tree being
 	' walked (L) has its own element in a few arrays: the directory's path
@@ -13,13 +15,16 @@
 	'
 	DEFINT A-Z
 	DIM P$(32), X$(32), B(32), C(32), I(32), N$(400)
-	S$ = "" : F = 0 : A = 0
-	FOR J = 1 TO 4
-	A$ = UCASE$(ARG$(J))
-	IF A$ = "/F" OR A$ = "-F" THEN F = 1 : A$ = ""
-	IF A$ = "/A" OR A$ = "-A" THEN A = 1 : A$ = ""
-	IF A$ <> "" THEN S$ = A$
-	NEXT
+	DOS &H3700 : W$ = CHR$(DOS(3) AND 255)
+	S$ = "" : F = 0 : A = 0 : J = 1 : A$ = UCASE$(ARG$(1))
+	WHILE A$ <> ""
+	IF A$ = W$ + "F" THEN F = 1 : GOTO 5
+	IF A$ = W$ + "A" THEN A = 1 : GOTO 5
+	' Any other option, or a second path, is an error
+	IF LEFT$(A$, 1) = W$ OR S$ <> "" THEN GOTO 95
+	S$ = A$
+5	J = J + 1 : A$ = UCASE$(ARG$(J))
+	WEND
 	' The pieces of each line: a branch (G1$), the last branch (G2$), and
 	' the prefix below a branch that has more after it (G3$)
 	G1$ = CHR$(195) + STRING$(3, 196) : G2$ = CHR$(192) + STRING$(3, 196)
@@ -77,3 +82,4 @@
 	PRINT Y$
 	RETURN
 90	PRINT "Invalid drive specification" : END
+95	PRINT "Usage: TREE [drive:][path] ["; W$; "F] ["; W$; "A]"

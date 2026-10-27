@@ -15,7 +15,8 @@
 ; accept wildcards in file names (FIND and WC) define UTILWALK first, which
 ; adds eachFile (see utilproc.inc) and the shared walkFiles and scanSpec (see
 ; util.inc), and utilities that match regular expressions (FIND and SED)
-; define UTILRE, which adds reCompile and reSearch (see utilproc.inc).
+; define UTILRE, which adds reCompile and reSearch (see utilproc.inc), and
+; lets their string be unquoted (see getArgs).
 ;
 	DOSFUNC equ 1
 	DOSPSP equ 1
@@ -68,8 +69,8 @@ UV_COUNT	dw	?	; FIND: # lines; SORT: # lines * 2; WC: # files
 UV_LINENO	dw	?	; FIND and SED: current line #
 UV_PREFIX	dw	?	; FIND: prefix for line count (": " or "")
 UV_CNTS		dd	6 dup (?); WC: line, word, and byte counts, and totals
-UV_STR		dw	?	; offset of quoted string (0 if none)
-UV_STRLEN	dw	?	; length of quoted string
+UV_STR		dw	?	; offset of the string (0 if none)
+UV_STRLEN	dw	?	; length of the string
 UV_NFILES	dw	?	; # file names * 2
 UV_FILES	dw	MAXFILES dup (?); offsets of file names
 UV_SW		db	26 dup (?); switches 'A' through 'Z' (non-zero if set)

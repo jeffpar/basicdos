@@ -73,8 +73,8 @@ A line typed at the prompt that begins with a line number (followed by a space, 
 	20 PRINT "WORLD"
 	10 PRINT "HELLO"
 	LIST
-	   10	PRINT "HELLO"
-	   20	PRINT "WORLD"
+	10 PRINT "HELLO"
+	20 PRINT "WORLD"
 	RUN
 	HELLO
 	WORLD

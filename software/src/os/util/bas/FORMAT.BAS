@@ -1,6 +1,6 @@
 	' FORMAT.BAS: formats a diskette or a hard disk volume for BASIC-DOS
 	'
-	'   FORMAT d: [/S] [/V[:label]] [/F:size] [/1] [/8]
+	'   FORMAT drive: [/S] [/V[:label]] [/F:size] [/1] [/8]
 	'
 	' /S copies the system files (from the root of the current drive), and
 	' makes them read-only system files (and BASDEV.COM and BASDOS.COM hidden
@@ -8,7 +8,9 @@
 	' it's given as /V:label).  A diskette's size is 360 (360K), 720 (720K),
 	' or 1200 (1.2M), with /F:size, or by default, the drive's own size (on
 	' a PC or XT, whose BIOS doesn't report it, 360K); with 360K, /1 formats
-	' one side, and /8 formats 8 sectors per track (for PC DOS 1.x).
+	' one side, and /8 formats 8 sectors per track (for PC DOS 1.x).  Options
+	' start with the switch char (W$), which is "/" unless CONFIG.SYS changes
+	' it (eg, to "-").
 	'
 	' The drive's volume is opened for writing (an unformatted diskette or
 	' a new hard disk has "unknown media", but can still be opened), and the
@@ -27,21 +29,25 @@
 	' one (IOCTL &HF4) with a single volume of the requested size.
 	'
 	DEFINT A-Z
+	DOS &H3700 : W$ = CHR$(DOS(3) AND 255)
 	D$ = "" : S = 0 : H = 2 : T = 9 : V = 0 : VC$ = "" : FS = 0
-	FOR I = 1 TO 6
-	A$ = UCASE$(ARG$(I)) : W$ = MID$(A$, 2)
-	IF LEFT$(A$, 1) <> "/" AND LEFT$(A$, 1) <> "-" THEN W$ = ""
-	IF W$ = "S" THEN S = 1
-	IF W$ = "1" THEN H = 1
-	IF W$ = "8" THEN T = 8
-	IF W$ = "V" THEN V = 1
-	IF LEFT$(W$, 2) = "V:" THEN V = 1 : VC$ = MID$(W$, 3)
-	IF LEFT$(W$, 2) = "F:" THEN FS = VAL(MID$(W$, 3))
-	IF LEN(A$) = 2 AND RIGHT$(A$, 1) = ":" THEN D$ = A$
-	NEXT
-	IF D$ = "" THEN PRINT "Drive letter required (eg, FORMAT A:)" : END
+	I = 1 : A$ = UCASE$(ARG$(1))
+	WHILE A$ <> ""
+	O$ = "" : IF LEFT$(A$, 1) = W$ THEN O$ = MID$(A$, 2)
+	IF O$ = "S" THEN S = 1 : GOTO 5
+	IF O$ = "1" THEN H = 1 : GOTO 5
+	IF O$ = "8" THEN T = 8 : GOTO 5
+	IF O$ = "V" THEN V = 1 : GOTO 5
+	IF LEFT$(O$, 2) = "V:" THEN V = 1 : VC$ = MID$(O$, 3) : GOTO 5
+	IF LEFT$(O$, 2) = "F:" THEN FS = VAL(MID$(O$, 3)) : GOTO 5
+	' Any other option, or a second drive (or anything else), is an error
+	IF LEN(A$) <> 2 OR RIGHT$(A$, 1) <> ":" OR D$ <> "" THEN GOTO 97
+	D$ = A$
+5	I = I + 1 : A$ = UCASE$(ARG$(I))
+	WEND
+	IF D$ = "" THEN GOTO 97
 	IF FS AND FS <> 360 AND FS <> 720 AND FS <> 1200 THEN GOTO 96
-	IF FS > 360 AND (H = 1 OR T = 8) THEN PRINT "/1 and /8 are only for 360K" : END
+	IF FS > 360 AND (H = 1 OR T = 8) THEN PRINT W$; "1 and "; W$; "8 are only for 360K" : END
 	V$ = LEFT$(CURDIR$, 2)
 	IF D$ = V$ THEN PRINT "Cannot format the current drive" : END
 	Z = 0 : U = 0
@@ -173,11 +179,12 @@
 	IF ERR = 70 THEN PRINT "Write protect error" : END
 	IF ERR = 71 THEN PRINT "Drive not ready" : END
 	IF ERR = 72 AND Z THEN PRINT "Track"; C; "bad - disk unusable" : END
-	IF ERR = 75 THEN PRINT "Invalid drive: "; D$ : END
+	IF ERR = 75 THEN PRINT "Invalid drive specification" : END
 	PRINT "Format failed (error"; ERR; ")"
 	END
 95	PRINT "Drive "; D$; " can't format" + STR$(FS) + "K diskettes" : END
-96	PRINT "Invalid size (use /F:360, /F:720, or /F:1200)" : END
+96	PRINT "Invalid size (use "; W$; "F:360, "; W$; "F:720, or "; W$; "F:1200)" : END
+97	PRINT "Usage: FORMAT drive: ["; W$; "S] ["; W$; "V[:label]] ["; W$; "F:size] ["; W$; "1] ["; W$; "8]" : END
 100	' Hard disk: P$ holds the disk's cylinders, heads, and sectors per track,
 	' its BIOS drive number, whether its MBR is valid, the drive letter of
 	' each partition (0 if it isn't a volume), and the partition table, so

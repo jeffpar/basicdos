@@ -24,10 +24,12 @@ CODE    SEGMENT
 ; cmdHelp
 ;
 ; If a keyword is specified, display help for that keyword, or if it's a
-; category (ALL, BASIC, DISK, EXT, FUNC, or SYS), list the keywords in that
-; category (see findHelp), or for CORE, display help for CORE and then list
-; the keywords that aren't in COMMAND's core; otherwise, display help for
-; HELP, which describes the categories.
+; category (ALL, BASIC, DISK, EXT, FUNC, or SYSTEM), list the keywords in
+; that category (see findHelp), or for CORE, display help for CORE and then
+; list the keywords that aren't in COMMAND's core; otherwise, display help
+; for HELP, which describes the categories.  Categories are checked first,
+; so a category hides any keyword with the same name (which is why the
+; system category is SYSTEM, rather than SYS, the name of a utility).
 ;
 ; Names passed to findHelp must be in DS (eg, a token), and HELP_CATS must be
 ; read with CS, since only the copy that owns the shared code has DS = CS.
@@ -185,7 +187,7 @@ ENDPROC	cmdHelp
 ; lower case) are the tags in HELP.TXT, except for CORE (see findHelp).
 ;
 HELP_CATS	db	"ALL",0,"BASIC",0,"CORE",0,"DISK",0,"EXT",0,"FUNC",0
-		db	"SYS",0,0
+		db	"SYSTEM",0,0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

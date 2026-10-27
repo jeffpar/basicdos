@@ -1165,22 +1165,20 @@ cf4i:	sub	sp,GEN_WORDS * 2
 	push	[bp].DATA_STATE.DATA_OFF
 ;
 ; Copy the command line (from the filename up to the end, which is a CR or a
-; null, such as a redirection symbol that parseDOS replaced) to the stack as
-; a string, followed by the # of words it occupies, for ARG$ (see strArg),
-; which finds it via the CHAINS frame that saveChains creates.
+; null, such as a redirection symbol that parseDOS replaced), with any string
+; variables replaced (see copyArgs), to the stack as a string, followed by the
+; # of words it occupies, for ARG$ (see strArg), which finds it via the CHAINS
+; frame that saveChains creates.  The copy is made in the second half of
+; LINEBUF first, since the filespec occupies the first half.
 ;
-	mov	bx,[bp].CMD_ARGPTR	; BX -> command line
 	push	cx
-	sub	cx,cx			; CX = length of command line
-cf4t:	cmp	cl,127			; (limited to a PSP command tail)
-	jae	cf4u
-	mov	di,bx
-	add	di,cx
-	cmp	byte ptr [di],CHR_RETURN; end of command line?
-	jbe	cf4u			; yes
-	inc	cx
-	jmp	cf4t
-cf4u:	mov	ax,cx
+	push	si
+	mov	si,[bp].CMD_ARGPTR	; SI -> command line
+	lea	di,[bp].LINEBUF+128
+	mov	bx,di			; BX -> copy of command line
+	call	copyArgs		; CX = length of copy
+	pop	si
+	mov	ax,cx
 	add	ax,2
 	and	al,0FEh			; AX = # bytes in string (rounded up)
 	pop	di			; DI = filespec length (from CX)
@@ -1189,7 +1187,7 @@ cf4u:	mov	ax,cx
 	push	ax			; save # words in the string
 	push	si
 	push	di
-	mov	si,bx			; SI -> command line
+	mov	si,bx			; SI -> copy of command line
 	mov	di,sp
 	add	di,6			; ES:DI -> string space
 	mov	bx,di			; BX -> string (for saveChains)
@@ -1279,8 +1277,7 @@ cf5x:	DOSUTIL	STRLEN			; AX = length of filename in LINEBUF
 	mov	dx,si			; DS:DX -> filename
 	mov	si,[bp].CMD_ARGPTR	; recover original filename
 	add	si,[bp].CMD_ARGLEN	; DS:SI -> tail after original filename
-	sub	cx,cx
-	cmp	[bp].CMD_ARG,cl		; is this the first command?
+	cmp	[bp].CMD_ARG,0		; is this the first command?
 	jne	cf6			; no, use DOS_UTL_LOAD instead
 	call	buildEnv		; update EPB_ENVSEG's environment
 	lea	bx,[bp].EXECDATA
@@ -1291,13 +1288,8 @@ cf5x:	DOSUTIL	STRLEN			; AX = length of filename in LINEBUF
 	mov	[bx].EPB_CMDTAIL.OFF,di
 	mov	[bx].EPB_CMDTAIL.SEG,es
 	inc	di			; use our tail space to build new tail
-cf5a:	lodsb
-	cmp	al,CHR_RETURN		; command line may end with CHR_RETURN
-	jbe	cf5b			; or null; we don't really care
-	stosb
-	inc	cx			; store and count all other characters
-	jmp	cf5a
-cf5b:	mov	al,CHR_RETURN		; regardless how the command line ends,
+	call	copyArgs		; CX = length of tail
+	mov	al,CHR_RETURN		; regardless how the command line ends,
 	stosb				; terminate the tail with CHR_RETURN
 	pop	di
 	mov	[di],cl			; set the cmd tail length
@@ -1347,12 +1339,8 @@ cf5e:	mov	si,dx
 cf6:	mov	di,dx			; DI -> filename in LINEBUF
 	push	di
 	add	di,ax			; DI -> null
-cf6a:	lodsb
-	cmp	al,CHR_RETURN		; tail may end with CHR_RETURN
-	jbe	cf6b			; or null; we don't really care
-	stosb
-	jmp	cf6a
-cf6b:	mov	al,0			; regardless how the tail ends,
+	call	copyArgs
+	mov	al,0			; regardless how the tail ends,
 	stosb				; null-terminate the new command line
 	pop	si			; SI -> new command line
 	sub	sp,size SPB
@@ -1545,6 +1533,98 @@ csv7:	pop	cx			; not a variable, so leave it alone
 	clc
 	ret
 ENDPROC	chkStrVar
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; copyArgs
+;
+; Copies the rest of the current token (eg, the program name) and the
+; arguments that follow, up to the CR or null that ends them, for an external
+; command.  As for DOS commands, an unquoted argument that's a string variable
+; name is replaced with its value (see chkStrVar), which is quoted if it
+; contains whitespace, and an empty value removes the argument.  At most 126
+; characters are copied (the most that PSP_CMDTAIL can hold).
+;
+; Inputs:
+;	DS:SI -> current token (DS = SS)
+;	ES:DI -> buffer
+;
+; Outputs:
+;	DI -> end of copy, CX = length of copy
+;
+; Modifies:
+;	AX, CX, SI, DI
+;
+DEFPROC	copyArgs
+	push	bx
+	push	dx
+	push	di
+	lea	bx,[di+126]		; BX -> end of buffer
+	sub	dx,dx			; DL = # arguments, DH = 1 if quoting
+	jmp	short ca3		; (the current token isn't an argument)
+ca1:	call	caPut
+ca2:	lodsb
+	cmp	al,CHR_RETURN		; end of the arguments?
+	jbe	ca9			; yes
+	cmp	al,'"'			; quote?
+	jne	ca2a			; no
+	xor	dh,1			; yes, so toggle quoting
+	jmp	ca1
+ca2a:	test	dh,dh			; copy a quoted character
+	jnz	ca1
+	cmp	al,CHR_SPACE		; or whitespace as is
+	jbe	ca1
+	dec	si
+	inc	dx
+ca3:	push	si			; save the start of the token
+ca3a:	lodsb
+	cmp	al,CHR_SPACE
+	ja	ca3a
+	dec	si
+	pop	ax
+	push	si			; save the end of the token
+	xchg	si,ax			; SI -> token
+	sub	ax,si
+	xchg	cx,ax			; CX = length
+	test	dl,dl			; is the token an argument?
+	jz	ca4			; no
+	call	chkStrVar		; DS:SI -> value, CX = length
+	jc	ca6			; it's empty, so remove it
+ca4:	jcxz	ca6
+	push	cx
+	push	si
+	mov	ah,0			; AH = 0 (no quotes)
+ca4a:	lodsb
+	cmp	al,CHR_SPACE		; whitespace?
+	ja	ca4b			; no
+	mov	ah,'"'			; yes, so the value needs quotes
+ca4b:	loop	ca4a
+	pop	si
+	pop	cx
+	call	caQuote
+ca5:	lodsb
+	call	caPut
+	loop	ca5
+	call	caQuote
+ca6:	push	ss
+	pop	ds
+	pop	si			; SI -> end of the token
+	jmp	ca2
+ca9:	pop	cx
+	neg	cx
+	add	cx,di			; CX = length of copy
+	pop	dx
+	pop	bx
+	ret
+caQuote:
+	mov	al,ah
+	test	al,al			; any quote?
+	jz	cq9			; no
+caPut:	cmp	di,bx			; room for another character?
+	jae	cq9			; no
+	stosb
+cq9:	ret
+ENDPROC	copyArgs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

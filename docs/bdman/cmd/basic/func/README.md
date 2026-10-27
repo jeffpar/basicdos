@@ -306,7 +306,7 @@ Return a 2-byte string containing the integer *n* (its low 16 bits), a 4-byte st
 
 > ARG$[(*n*)]
 
-Returns an argument from the command line that ran the current BAS or BAT file: `ARG$(0)` is the file's name (as typed), `ARG$(1)` is the first argument, and so on, and `ARG$` alone returns all the arguments.  Arguments are separated by spaces, and a quoted argument (eg, `"two words"`) can contain spaces; the quotes aren't included.  The result is an empty string if there's no such argument, or if no BAS or BAT file is running (eg, at the prompt).  A BAS or BAT file run by another one has its own arguments.  For example, if SHOW.BAS contains:
+Returns an argument from the command line that ran the current BAS or BAT file: `ARG$(0)` is the file's name (as typed), `ARG$(1)` is the first argument, and so on, and `ARG$` alone returns all the arguments.  Arguments are separated by spaces, and a quoted argument (eg, `"two words"`) can contain spaces; the quotes aren't included.  Any string variable in the command line has already been replaced by its value (see [Command Arguments](../../../lang/#command-arguments)).  The result is an empty string if there's no such argument, or if no BAS or BAT file is running (eg, at the prompt).  A BAS or BAT file run by another one has its own arguments.  For example, if SHOW.BAS contains:
 
 	PRINT ARG$(0); " has "; ARG$(1); " and "; ARG$(2)
 

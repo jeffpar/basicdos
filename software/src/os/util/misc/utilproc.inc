@@ -18,6 +18,8 @@
 ; entry in UV_SW, and "+n" (after the switch char) sets UV_COL; a quoted string
 ; is recorded in UV_STR and UV_STRLEN; and every other argument is treated
 ; as a file name, which is null-terminated in place and recorded in UV_FILES.
+; For utilities that take a string (UTILRE), if no string was quoted, the
+; first file name (if any) becomes the string instead (eg, "FIND BAS").
 ;
 ; Inputs:
 ;	BP -> UTILVARS
@@ -56,7 +58,31 @@ ga2:	lodsb
 	mov	byte ptr [si-1],0	; null-terminate the file name
 	cmp	al,CHR_RETURN		; did it end the tail?
 	jne	ga1			; no
-ga9:	ret
+ga9:
+	IFDEF	UTILRE
+	mov	cx,[bp].UV_NFILES
+	cmp	[bp].UV_STR,0		; was a string quoted?
+	jne	ga9a			; yes
+	jcxz	ga9a			; no, and there are no file names
+	lea	di,[bp].UV_FILES
+	mov	si,[di]			; SI -> first file name
+	mov	[bp].UV_STR,si
+	push	si
+	lea	si,[di+2]
+	dec	cx
+	dec	cx
+	mov	[bp].UV_NFILES,cx
+	rep	movsb			; remove it from UV_FILES
+	pop	di
+	mov	al,0
+	dec	cx			; CX = -1
+	repne	scasb
+	not	cx
+	dec	cx			; CX = length of the string
+	mov	[bp].UV_STRLEN,cx
+ga9a:
+	ENDIF
+	ret
 
 ga3:	lodsb				; consume switch chars
 	cmp	al,'+'			; column switch?
@@ -94,9 +120,9 @@ ga7:	lea	bx,[si-1]
 	sub	bx,[bp].UV_STR
 	mov	[bp].UV_STRLEN,bx
 	cmp	al,CHR_DQUOTE		; did the string end with a quote?
-	je	ga1			; yes
+	je	ga8			; yes
 ga1a:	dec	si			; no, so re-examine the last char
-	jmp	ga1
+ga8:	jmp	ga1
 ENDPROC	getArgs
 
 	IFDEF	UTILWALK

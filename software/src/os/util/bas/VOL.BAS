@@ -1,6 +1,6 @@
 	' VOL.BAS: displays the volume label of a drive
 	'
-	'   VOL [d:]
+	'   VOL [drive:]
 	'
 	' The label is found with DIR$ (attribute 8 finds only the volume label),
 	' which returns it in NAME.EXT form, so its first 8 characters are put
@@ -8,7 +8,7 @@
 	'
 	DEFINT A-Z
 	D$ = UCASE$(ARG$(1)) : IF D$ = "" THEN D$ = LEFT$(CURDIR$, 2)
-	IF LEN(D$) <> 2 OR RIGHT$(D$, 1) <> ":" THEN PRINT "Usage: VOL [d:]" : END
+	IF LEN(D$) <> 2 OR RIGHT$(D$, 1) <> ":" THEN PRINT "Usage: VOL [drive:]" : END
 	ON ERROR GOTO 90
 	F$ = DIR$(D$ + MID$(CURDIR$, 3, 1) + "*.*", 8)
 	ON ERROR GOTO 0

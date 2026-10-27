@@ -55,9 +55,9 @@ Exits the command shell if there is a previously loaded copy (see [COMMAND.COM](
 
 ### HELP
 
-> HELP [*keyword*|ALL|BASIC|CORE|DISK|EXT|FUNC|SYS]
+> HELP [*keyword*|ALL|BASIC|CORE|DISK|EXT|FUNC|SYSTEM]
 
-Displays help for *keyword* (eg, `HELP MID$`), or lists the keywords in a category: ALL (every keyword), BASIC (BASIC statements and commands), DISK (disk commands, like DIR), EXT (external commands and drivers, like FORMAT), FUNC (functions, like MID$), or SYS (system commands, like MEM), and HELP CORE explains low memory systems and lists the keywords they don't support.  HELP alone displays help for HELP.  The help text comes from HELP.TXT, in the root directory of the drive that COMMAND.COM was loaded from (so HELP works from any directory), where each entry begins with a lower-case letter for its category, in brackets (eg, `[b]PRINT` or `[f]MID$`), followed by `+` if it isn't available on low memory systems (eg, `[b+]CIRCLE`), which HELP doesn't display.
+Displays help for *keyword* (eg, `HELP MID$`), or lists the keywords in a category: ALL (every keyword), BASIC (BASIC statements and commands), DISK (disk commands, like DIR), EXT (external commands and drivers, like FORMAT), FUNC (functions, like MID$), or SYSTEM (system commands, like MEM), and HELP CORE explains low memory systems and lists the keywords they don't support.  HELP alone displays help for HELP.  The help text comes from HELP.TXT, in the root directory of the drive that COMMAND.COM was loaded from (so HELP works from any directory), where each entry begins with a lower-case letter for its category, in brackets (eg, `[b]PRINT` or `[f]MID$`), followed by `+` if it isn't available on low memory systems (eg, `[b+]CIRCLE`), which HELP doesn't display.
 
 ### KEYS
 
@@ -69,7 +69,7 @@ Displays a summary of the special keys that can be used when typing commands (se
 
 > LIST [*line*][-[*line*]] | VARS
 
-Lists all lines of the currently loaded BAS or BAT program, or the specified range of lines (eg, `LIST 100`, `LIST 100-200`, `LIST 100-`, or `LIST -200`).  Lines without line numbers are listed with the numbered line that precedes them.
+Lists all lines of the currently loaded BAS or BAT program, or the specified range of lines (eg, `LIST 100`, `LIST 100-200`, `LIST 100-`, or `LIST -200`).  Lines without line numbers are listed with the numbered line that precedes them.  Each line is listed as [SAVE](../disk/#save) writes it (a line number is followed by one space), so the listing lines up the same way as the saved file does with [TYPE](../disk/#type) (eg, a line indented with a tab starts at the next tab stop).
 
 `LIST VARS` lists preserved string variables such as `PATH$` first, followed by the current session's ordinary variables and their values in allocation order.  Names include `%`, `#`, or `$` to identify their types, and string values are quoted.  Arrays show each dimension's lower and upper bounds (eg, `A%(0 TO 2, 0 TO 3)`), without listing their elements.  Function definitions are omitted.  The listing can be redirected (eg, `LIST VARS > VARS.TXT` at the prompt) or paged with `LIST VARS | MORE`.
 

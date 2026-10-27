@@ -13,6 +13,8 @@ Any program on a disk can be run as a command, by typing its name (see [Running 
 
 If no extension is specified, BASIC-DOS looks for a COM, EXE, BAT, and BAS file, in that order.
 
+A command's arguments are passed as typed, except that an argument that's a string variable is replaced by its value (eg, `FORMAT D$` formats the drive in `D$`); see [Command Arguments](../../lang/#command-arguments).
+
 ### Binary Programs
 
 Many COM and EXE programs written for PC DOS 1.x and 2.x will work, as long as they don't rely on features that BASIC-DOS doesn't support (eg, TSR functions that allow a program to terminate-and-stay-resident).  One key difference is that BASIC-DOS does not give COM programs all available memory.  BASIC-DOS COM programs can specify a memory size, and non-BASIC-DOS programs only receive a portion of what's available.
@@ -52,7 +54,7 @@ In the **EXT** directory (see [Running Programs](../../intro/#running-programs) 
 - SYS.BAS: makes a disk bootable (see [SYS](#sys) below)
 - TREE.BAS: displays a directory tree (see [TREE](#tree) below)
 
-Utilities that don't need the speed of assembly language are BASIC programs, written in the style BASIC-DOS lists them in: every line indented with a tab, after a line number only where one is needed as a label.
+Utilities that don't need the speed of assembly language are BASIC programs, written in the style BASIC-DOS lists them in: every line indented with a tab, after a line number only where one is needed as a label.  Their switches start with the switch character (`/`, unless [SWITCHAR](../../cfg/#switchar) changes it, eg, to `-`), and when a required argument is missing or an argument isn't valid (eg, an unknown switch), a utility displays its usage (eg, `Usage: CHKDSK [drive:] [/V]`).
 
 ### Filters
 
@@ -60,9 +62,11 @@ A filter reads lines of input, which normally come from a pipe (eg, `DIR | SORT`
 
 #### FIND
 
-	FIND [/C] [/I] [/N] [/R] [/V] "string" [file...]
+	FIND [/C] [/I] [/N] [/R] [/V] string [file...]
 
-Displays the lines of input (or of each *file*, or with wildcards (`?` and `*`), every matching file) that contain *string* (eg, `DIR | FIND "BAS"`).  When files are specified, the lines from each file follow a line containing its name.
+Displays the lines of input (or of each *file*, or with wildcards (`?` and `*`), every matching file) that contain *string* (eg, `DIR | FIND BAS`).  When files are specified, the lines from each file follow a line containing its name.
+
+*string* needs quotes only if it contains spaces or starts with the switch character (eg, `FIND "BASIC-DOS 2" *.TXT`); without quotes, it's the first argument that isn't a switch.  It can also be a string variable, whose value is used, even if it contains spaces (eg, `S$ = "BASIC-DOS 2"` and then `FIND S$ *.TXT`; see [Command Arguments](../../lang/#command-arguments)).
 
 - `/C` displays only the number of lines
 - `/I` ignores case
@@ -84,9 +88,9 @@ Source: [more.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os
 
 #### SED
 
-	SED [/I] [/N] "script" [file]
+	SED [/I] [/N] script [file]
 
-Runs the commands in *script* on each line of input (or *file*), and then displays the line, unless `/N` is given, like a simple version of the UNIX `sed` command (eg, `DIR | SED "s/BAS/BAK/"`).  The commands are separated by semicolons, and each has the form:
+Runs the commands in *script* on each line of input (or *file*), and then displays the line, unless `/N` is given, like a simple version of the UNIX `sed` command (eg, `DIR | SED s/BAS/BAK/`).  As with FIND's *string*, *script* needs quotes only if it contains spaces or starts with the switch character (eg, `DIR | SED "/^D/d"`), and it can be a string variable.  The commands are separated by semicolons, and each has the form:
 
 	[address[,address]][!]command
 
@@ -203,9 +207,9 @@ Source: [ATTRIB.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/
 
 ### CHKDSK
 
-	CHKDSK [d:] [/V]
+	CHKDSK [drive:] [/V]
 
-Checks the FAT and directories of drive *d* (or the current drive): every file's and directory's cluster chain is followed, and CHKDSK reports a chain that's cross-linked with another (sharing a cluster), that doesn't match its file's size, or that contains an invalid cluster, and finally, lost clusters (in use, but in no file's chain).  Then it reports the volume label (with its date and time) and the space on the drive: the total, the bad sectors, the hidden files, directories, and user files (each in whole clusters), the lost clusters, and the space available.  `/V` lists the name of every file and directory as it's checked.
+Checks the FAT and directories of *drive* (or the current drive): every file's and directory's cluster chain is followed, and CHKDSK reports a chain that's cross-linked with another (sharing a cluster), that doesn't match its file's size, or that contains an invalid cluster, and finally, lost clusters (in use, but in no file's chain).  Then it reports the volume label (with its date and time) and the space on the drive: the total, the bad sectors, the hidden files, directories, and user files (each in whole clusters), the lost clusters, and the space available.  `/V` lists the name of every file and directory as it's checked.
 
 Unlike PC DOS, CHKDSK only reports problems (there's no `/F` to fix them), and it doesn't report memory (see [MEM](../system/#mem)).  CHKDSK reads the volume directly (see [OPEN](../basic/#open)), so it can't check directories beyond the first 14Mb of a volume, which it reports.
 
@@ -233,17 +237,17 @@ Source: [COMP.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os
 
 ### DISKCOPY
 
-	DISKCOPY [d1: [d2:]]
+	DISKCOPY [drive1: [drive2:]]
 
-Copies the diskette in drive *d1* (or the current drive) to the diskette in drive *d2* (or *d1*), track by track, formatting each of the target's tracks (with the source's parameters) as it goes, so the target doesn't have to be formatted first.  If both drives are the same, DISKCOPY reads as many tracks as memory allows, then asks for the target diskette, writes them, and asks for the source diskette again, until the whole diskette has been copied.  DISKCOPY copies diskettes of any size its drives support, including PC DOS 1.x diskettes (whose sizes come from the media ID in their FATs), and it refuses hard disks.
+Copies the diskette in *drive1* (or the current drive) to the diskette in *drive2* (or *drive1*), track by track, formatting each of the target's tracks (with the source's parameters) as it goes, so the target doesn't have to be formatted first.  If both drives are the same, DISKCOPY reads as many tracks as memory allows, then asks for the target diskette, writes them, and asks for the source diskette again, until the whole diskette has been copied.  DISKCOPY copies diskettes of any size its drives support, including PC DOS 1.x diskettes (whose sizes come from the media ID in their FATs), and it refuses hard disks.
 
 Source: [DISKCOPY.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/DISKCOPY.BAS)
 
 ### FORMAT
 
-	FORMAT d: [/S] [/V[:label]] [/F:size] [/1] [/8]
+	FORMAT drive: [/S] [/V[:label]] [/F:size] [/1] [/8]
 
-Formats the diskette in drive *d* (A: or B:) as a 360K diskette (40 cylinders, 2 sides, 9 sectors per track), or with `/1` as a single-sided diskette (180K), or with `/8` with 8 sectors per track (320K, or 160K with `/1`, for PC DOS 1.x).  `/F:720` formats a 720K diskette (80 cylinders, 9 sectors per track) in a 3.5-inch drive, and `/F:1200` a 1.2M diskette (80 cylinders, 15 sectors per track) in a high-capacity 5.25-inch drive; without `/F`, FORMAT uses the drive's own size, which the BIOS of a PC AT (or later) reports, and a PC or XT doesn't (so 360K), and a 1.44M drive formats 720K diskettes.  `/S` then copies BASDEV.COM, BASDOS.COM, and COMMAND.COM from the root directory of the current drive, making the diskette bootable, and makes BASDEV.COM and BASDOS.COM read-only hidden system files and COMMAND.COM a read-only system file, and `/V` gives the new volume a label (up to 11 characters, which FORMAT asks for, unless it's given as `/V:label`).  FORMAT prompts for the diskette, formats and verifies every track (with the diskette driver's [IOCTL](../basic/#ioctl) requests), writes the boot sector (a copy of the current drive's, with the new diskette's parameters), the two FATs, and the root directory, reports the space on the diskette, and asks whether to format another.  Cluster sizes and root directory sizes follow the PC DOS 2.x rules (eg, 1K clusters and 112 root entries for 360K and 720K diskettes), with 12-bit FATs, except that 1.2M diskettes get PC DOS 3.x's layout (512-byte clusters and 224 root entries).
+Formats the diskette in *drive* (A: or B:) as a 360K diskette (40 cylinders, 2 sides, 9 sectors per track), or with `/1` as a single-sided diskette (180K), or with `/8` with 8 sectors per track (320K, or 160K with `/1`, for PC DOS 1.x).  `/F:720` formats a 720K diskette (80 cylinders, 9 sectors per track) in a 3.5-inch drive, and `/F:1200` a 1.2M diskette (80 cylinders, 15 sectors per track) in a high-capacity 5.25-inch drive; without `/F`, FORMAT uses the drive's own size, which the BIOS of a PC AT (or later) reports, and a PC or XT doesn't (so 360K), and a 1.44M drive formats 720K diskettes.  `/S` then copies BASDEV.COM, BASDOS.COM, and COMMAND.COM from the root directory of the current drive, making the diskette bootable, and makes BASDEV.COM and BASDOS.COM read-only hidden system files and COMMAND.COM a read-only system file, and `/V` gives the new volume a label (up to 11 characters, which FORMAT asks for, unless it's given as `/V:label`).  FORMAT prompts for the diskette, formats and verifies every track (with the diskette driver's [IOCTL](../basic/#ioctl) requests), writes the boot sector (a copy of the current drive's, with the new diskette's parameters), the two FATs, and the root directory, reports the space on the diskette, and asks whether to format another.  Cluster sizes and root directory sizes follow the PC DOS 2.x rules (eg, 1K clusters and 112 root entries for 360K and 720K diskettes), with 12-bit FATs, except that 1.2M diskettes get PC DOS 3.x's layout (512-byte clusters and 224 root entries).
 
 A write-protected diskette, an empty drive, or a track that can't be formatted ("Track *n* bad - disk unusable") ends the format.  FORMAT can't format the current drive (which also supplies the boot sector and system files).
 
@@ -264,10 +268,10 @@ Source: [HEXDUMP.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src
 
 ### LABEL and VOL {#label}
 
-	LABEL [d:][label]
-	VOL [d:]
+	LABEL [drive:][label]
+	VOL [drive:]
 
-LABEL gives drive *d* (or the current drive) a volume label of up to 11 characters, which can include spaces, but not `* ? / \ | . , ; : + = [ ] < >` or `"`.  Without a *label*, LABEL displays the current label and asks for a new one; pressing ENTER deletes the current label (after asking).  VOL displays the label, as DIR does at the start of a listing.  The label is a root directory entry with the volume attribute, which LABEL writes directly (see [OPEN](../basic/#open)), so the drive can't have any files open.
+LABEL gives *drive* (or the current drive) a volume label of up to 11 characters, which can include spaces, but not `* ? / \ | . , ; : + = [ ] < >` or `"`.  Without a *label*, LABEL displays the current label and asks for a new one; pressing ENTER deletes the current label (after asking).  VOL displays the label, as DIR does at the start of a listing.  The label is a root directory entry with the volume attribute, which LABEL writes directly (see [OPEN](../basic/#open)), so the drive can't have any files open.
 
 	LABEL A:SAVED FILES
 
@@ -321,15 +325,15 @@ Source: [MODE.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os
 
 ### SYS
 
-	SYS d:
+	SYS drive:
 
-Makes drive *d* bootable without reformatting it: SYS copies BASDEV.COM, BASDOS.COM, and COMMAND.COM from the root directory of the current drive to the root directory of *d* (replacing any copies already there), makes them read-only system files (and BASDEV.COM and BASDOS.COM hidden), and gives *d*'s boot sector the current drive's boot code, keeping *d*'s disk parameters.  Since the boot code follows the system files' cluster chains, they don't have to be the first files on the drive, or contiguous, so SYS works on any FAT volume with room for them (including one formatted by another DOS).
+Makes *drive* bootable without reformatting it: SYS copies BASDEV.COM, BASDOS.COM, and COMMAND.COM from the root directory of the current drive to the root directory of *drive* (replacing any copies already there), makes them read-only system files (and BASDEV.COM and BASDOS.COM hidden), and gives *drive*'s boot sector the current drive's boot code, keeping *drive*'s disk parameters.  Since the boot code follows the system files' cluster chains, they don't have to be the first files on the drive, or contiguous, so SYS works on any FAT volume with room for them (including one formatted by another DOS).
 
 Source: [SYS.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/SYS.BAS)
 
 ### TREE
 
-	TREE [d:][path] [/F] [/A]
+	TREE [drive:][path] [/F] [/A]
 
 Displays the directories below *path* (or the current directory), each one connected to its parent by line-drawing characters, or with `/A`, by ASCII characters (eg, for a printer); `/F` lists each directory's files, too, before its subdirectories.  If there are no subdirectories, TREE says so.
 

@@ -7,16 +7,17 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Usage: SED [-I] [-N] "script" [file]
+; Usage: SED [-I] [-N] script [file]
 ;
-; Runs the commands in "script" on each line of input (or of the specified
-; file), and then writes the line to STDOUT (unless -N).  Commands, separated
-; by ';', have the form [address[,address]][!]command, where an address is a
-; line #, '$' (the last line), or /RE/ (any line that matches the regular
-; expression; see reCompile); a command with one address applies to the
-; lines it selects, a command with two applies to each range of lines from one
-; that the first address selects through one that the second selects, and '!'
-; applies it to the lines NOT selected instead.  The commands are:
+; Runs the commands in script (which must be quoted if it contains spaces) on
+; each line of input (or of the specified file), and then writes the line to
+; STDOUT (unless -N).  Commands, separated by ';', have the form
+; [address[,address]][!]command, where an address is a line #, '$' (the last
+; line), or /RE/ (any line that matches the regular expression; see
+; reCompile); a command with one address applies to the lines it selects, a
+; command with two applies to each range of lines from one that the first
+; address selects through one that the second selects, and '!' applies it to
+; the lines NOT selected instead.  The commands are:
 ;
 ;	s/RE/text/[g][p]	replaces the first (or with g, every) match
 ;				of RE with text, in which '&' is the match and
@@ -83,30 +84,23 @@ CODE    SEGMENT
 DEFPROC	main
 	mov	bp,ds:[PSP_HEAP]	; BP -> SEDVARS
 	call	getArgs
-	lea	di,[bp].UV_FILES	; DI -> file name, if any
-	mov	si,[bp].UV_STR
-	test	si,si			; was the script quoted?
-	jz	m1			; no
-	mov	bx,si
+	mov	si,offset NO_SCRIPT
+	mov	di,[bp].UV_STR
+	test	di,di			; was there a script?
+	jz	m8			; no
+	mov	bx,di
 	add	bx,[bp].UV_STRLEN
 	mov	byte ptr [bx],0		; null-terminate it
-	jmp	short m2
-m1:	mov	si,offset NO_SCRIPT
-	sub	[bp].UV_NFILES,2	; is there an argument for the script?
-	jnb	m1a			; yes
+	mov	si,di
+	call	compile
+	mov	si,offset BAD_SCRIPT
+	jnc	m2
 m8:	call	writeErr
 	mov	[bp].UV_ERR,2
 m9:	jmp	exit
-m1a:	mov	si,[di]			; SI -> script
-	scasw				; DI -> file name, if any
-m2:	push	di
-	call	compile
-	pop	di
-	mov	si,offset BAD_SCRIPT
-	jc	m8
-	cmp	[bp].UV_NFILES,0	; was a file specified?
+m2:	cmp	[bp].UV_NFILES,0	; was a file specified?
 	je	m3			; no
-	mov	dx,[di]
+	mov	dx,[bp].UV_FILES
 	call	openFile
 	jc	m9
 ;

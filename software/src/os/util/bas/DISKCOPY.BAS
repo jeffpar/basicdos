@@ -1,9 +1,9 @@
 	' DISKCOPY.BAS: copies a diskette to another diskette
 	'
-	'   DISKCOPY [d1: [d2:]]
+	'   DISKCOPY [drive1: [drive2:]]
 	'
-	' Copies the diskette in drive d1 (or the current drive) to the
-	' diskette in drive d2 (or d1), formatting each of the target's tracks
+	' Copies the diskette in drive1 (or the current drive) to the
+	' diskette in drive2 (or drive1), formatting each of the target's tracks
 	' with the source's parameters as it goes, so the target needn't be
 	' formatted first.  When both drives are the same, the copy is made in
 	' passes, with as many tracks as memory allows, and DISKCOPY asks for
@@ -118,5 +118,5 @@
 	IF ERR = 75 THEN PRINT "Invalid drive specification" : END
 	PRINT "Copy failed (error"; ERR; ")"
 	END
-95	PRINT "Usage: DISKCOPY [d1: [d2:]]"
+95	PRINT "Usage: DISKCOPY [drive1: [drive2:]]"
 	END
