@@ -4227,8 +4227,7 @@ INIT	segment para public 'CODE'
         ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 DEFPROC	ddfpu_init,far
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:DEV
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddfpu_req
 ;
@@ -4266,8 +4265,7 @@ ddi1:	pop	ax
 	test	dh,dh			; 8087 present?
 	jnz	ddi9			; yes
 	push	es
-	push	cs
-	pop	es
+	mov	es,cs:[0].DDH_DATA
 	mov	si,ax			; DS:SI -> SWCODE
 	mov	cx,((offset swEnd - offset swTable) + 1) SHR 1
 	rep	movsw			; move SWCODE down to HWCODE

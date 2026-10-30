@@ -28,7 +28,7 @@ DDH_NEXT_OFF	dw	?	; 00h: offset of next DDH (or FFFFh)
 DDH_NEXT_SEG	dw	?	; 02h: segment of next DDH
 DDH_ATTR	dw	?	; 04h: device attributes
 DDH_REQUEST	dw	?	; 06h: request ("strategy") entry offset
-DDH_INTERRUPT	dw	?	; 08h: unused ("interrupt") entry offset
+DDH_DATA	dw	?	; 08h: data segment (or selector; see DEVINIT)
 DDH_NAME	dq	?	; 0Ah: device name (8 characters)
 DDH		ends
 

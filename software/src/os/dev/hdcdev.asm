@@ -99,8 +99,7 @@ DEFPROC	ddhdc_req,far
 	cmp	bl,CMDTBL_SIZE
 	jb	ddq1
 	mov	bl,0
-ddq1:	push	cs
-	pop	ds
+ddq1:	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	bh,0
 	add	bx,bx
@@ -648,8 +647,7 @@ stp3:	cmp	byte ptr [si+PART_TYPE],PART_FAT12
 	add	si,16
 	loop	stp3
 	jmp	short stp7		; (carry is clear)
-stp4:	push	cs
-	pop	es
+stp4:	mov	es,cs:[0].DDH_DATA
 	mov	ax,[si+PART_LBA]
 	mov	es:[bx].VOL_START.LOW,ax
 	mov	ax,[si+PART_LBA+2]
@@ -783,8 +781,7 @@ ENDPROC	get_vol
 DEFPROC	ddhdc_init,far
 	push	es
 	push	bx
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddhdc_req
 	mov	ax,BIOS
 	mov	ds,ax
@@ -799,8 +796,7 @@ DEFPROC	ddhdc_init,far
 	mov	ax,ds
 	test	ax,ax
 	jz	hi0
-	push	cs
-	pop	es
+	mov	es,cs:[0].DDH_DATA
 	ASSUME	ES:CODE			; (ES:BX -> DDPI is on the stack)
 	mov	ax,[si + size DDH].FDCX_RW
 	mov	[fdc_rw].OFF,ax
@@ -838,8 +834,7 @@ hi1:	mov	[hdc_base],al
 	mov	cl,MAX_DRIVES
 hi2:	jcxz	hi8
 	mov	dl,80h			; DL = BIOS drive #
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	di,offset vol_table	; DS:DI -> next VOL
 hi3:	push	cx

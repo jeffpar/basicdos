@@ -69,8 +69,7 @@ DEFPROC	ddfdc_req,far
 	cmp	bl,CMDTBL_SIZE
 	jb	ddq1
 	mov	bl,0
-ddq1:	push	cs
-	pop	ds
+ddq1:	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	al,es:[di].DDP_UNIT
 	mov	[rw_drive],al	; (diskette units are BIOS drive #s)
@@ -549,8 +548,7 @@ dcw4:	mov	es:[di].DDPRW_OFFSET,0
 ; invalidate it.
 ;
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	[ddbuf_lba],-1
 	pop	ds
@@ -1129,8 +1127,7 @@ ENDPROC	bios_rw
 ;	AX, BX, CX, DX, BP, SI, DS
 ;
 DEFPROC	fdc_rw,far
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	[rw_drive],al
 	cmp	es:[di].DDP_CMD,DDC_READ
@@ -1231,8 +1228,7 @@ DEFPROC	ddfdc_init,far
 	mov	ds,ax
 	ASSUME	DS:BIOS
 	mov	ax,[EQUIP_FLAG]
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	jne	ddin0				; not a PC AT
 	mov	[rw_pio],80h
@@ -1242,7 +1238,7 @@ DEFPROC	ddfdc_init,far
 ;
 ddin0:	mov	es:[bx].DDPI_END.OFF,offset ddfdc_init + 512
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddfdc_req
-	mov	[ddbuf_ptr].SEG,cs
+	mov	[ddbuf_ptr].SEG,ds	; (our data segment)
 ;
 ; Determine how many floppy disk drives are in the system.
 ;

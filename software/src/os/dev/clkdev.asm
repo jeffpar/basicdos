@@ -32,8 +32,8 @@ CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CLOCK+DDATTR_CHAR+DDATTR_IOCTL,offset
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFPTR	tmr_int,0		; timer hardware interrupt handler
-	DEFPTR	wait_ptr,-1		; chain of waiting packets
-	DEFPTR	tmr_list,-1		; chain of running timers
+	DEFPTR	wait_ptr,0FFFFh,0	; chain of waiting packets (none)
+	DEFPTR	tmr_list,0FFFFh,0	; chain of running timers (none)
 	DEFBYTE	dateDay,10		; 1-31 (default for PC and XT)
 	DEFBYTE	dateMonth,12		; 1-12
 	DEFWORD	dateYear,2020		; 1980-
@@ -56,8 +56,7 @@ DEFPROC	ddclk_req,far
 	cmp	bl,CMDTBL_SIZE
 	jb	ddq1
 	mov	bl,0
-ddq1:	push	cs
-	pop	ds
+ddq1:	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	bh,0
 	add	bx,bx
@@ -453,8 +452,7 @@ DEFPROC	remove_packet
 	push	bx
 	push	cx
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	mov	bx,offset wait_ptr	; DS:BX -> first link
 	mov	cx,es			; CX:DI -> packet to remove
 	pushf
@@ -554,8 +552,7 @@ DEFPROC	ddclk_timer,far
 	push	ax
 	push	dx
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	pushf
 	cli
@@ -601,8 +598,7 @@ ENDPROC	ddclk_timer
 DEFPROC	tmr_remove
 	push	bx
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	mov	bx,offset tmr_list	; DS:BX -> first link
 tr1:	mov	ax,[bx].OFF
 	cmp	ax,-1			; end of chain?
@@ -661,8 +657,7 @@ rt2:	mov	bx,di			; DS:BX -> this timer's link
 	push	es
 	pop	ds
 	jmp	rt1
-rt9:	push	cs
-	pop	ds
+rt9:	mov	ds,cs:[0].DDH_DATA
 	ret
 ENDPROC	run_timers
 
@@ -690,8 +685,7 @@ DEFPROC	ddclk_interrupt,far
 	push	di
 	push	ds
 	push	es
-	mov	ax,cs
-	mov	ds,ax
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 
 	add	[ticksToday].LOW,1
@@ -802,8 +796,7 @@ DEFPROC	ddclk_init,far
 	ASSERT	STRUCT,es:[bx],DDP
 
 	mov	es:[bx].DDPI_END.OFF,offset ddclk_init
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddclk_req
 ;

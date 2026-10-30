@@ -435,8 +435,9 @@ errmsg2		db	"System file(s) missing, halted",0
 ;	the halves should be copied above (see step 1).
 ;
 ;   (3) Locate DEV_FILE's "init" code, which resides just beyond all the
-;	device drivers, and call it.  It must return the next available
-;	load address.
+;	device drivers, and jump to it, with BX = offset of read_file, which
+;	it uses to load CFG_FILE and DOS_FILE; it never returns (it has the
+;	CPU$ driver move DOS_FILE after the drivers and jumps to it).
 ;
 DEFPROC	part2,far
 	int	20h		; fake DOS terminate call
@@ -491,55 +492,18 @@ i1:	mov	ax,[di]		; AX = current driver's total size
 	loop	i1
 i2:	jmp	load_error
 ;
-; Prepare to "call" the DEV_FILE entry point, with DI -> end of drivers.
+; Jump to the DEV_FILE entry point, with DI -> end of drivers.
 ;
 i3:	mov	ds:[DD_LIST+BIOS_DATA].OFF,ax
 				; initialize driver list head (to -1)
 	mov	ax,di
-	push	cs
-	mov	cx,offset part3
-	push	cx		; far return address -> part3
+	mov	bx,offset read_file
 	mov	cx,4
 	shr	ax,cl
 	push	ax
-	push	cx		; far "call" address -> CS:0004h
-	ret			; "call"
+	push	cx		; far "jump" address -> CS:0004h
+	ret			; "jump"
 ENDPROC	part2
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; Part 3 of the boot process:
-;
-;   (1) When DEV_FILE returns, load DOS_FILE at the next load address,
-;	and then jump to it.  At that point, we never return to this code.
-;
-;   (2) DEV_FILE's init code loads CFG_FILE (using read_file), so that it
-;	can process "SKIP=", and before returning, it moves CFG_FILE above
-;	where DOS_FILE will be loaded, and replaces the CLN and size in
-;	CFG_FILE's DIR info with its offset (relative to DOS_FILE) and size.
-;
-DEFPROC	part3,far
-	mov	si,offset PART2_COPY
-;
-; Convert ES:DI to SEG:0, and then load ES with the new segment
-;
-	add	di,15
-	mov	cl,4
-	shr	di,cl
-	mov	es,di
-	ASSUME	ES:NOTHING
-	sub	di,di		; ES:DI now converted
-	mov	bx,offset DOS_FILE2
-	call	read_file	; load DOS_FILE
-	mov	bx,offset CFG_FILE2
-	mov	dx,[bx+4]	; DX = CFG_FILE size
-	mov	bx,[bx+2]	; BX = CFG_FILE offset
-	push	es
-	mov	ax,2		; skip the fake INT 20h in DOS_FILE
-	push	ax		; far "jmp" address -> CS:0002h
-	mov	ax,offset PART2_COPY
-	ret			; AX = offset of BPB
-ENDPROC	part3
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -728,7 +692,6 @@ print2		label	near
 	DEFLBL	PART2_END
 
 	ASSERT 	<offset PART2_END - offset part2>,LE,512
-	ASSERT	<offset read_file - offset part3>,EQ,BOOT_RDFILE
 
 BOOT	ends
 

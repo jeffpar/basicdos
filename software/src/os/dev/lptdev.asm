@@ -47,7 +47,7 @@ LPT1	DDH	<LPT1_LEN,,DDATTR_OPEN+DDATTR_CHAR,LPT1_INIT,-1,202020203154504Ch>
         ASSUME	CS:CODE1, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddlpt_req,far
 	mov	dx,[lpt_num]
-	mov	bp,cs			; BP = this instance (see ddlpt_cmd)
+	mov	bp,cs:[0].DDH_DATA	; BP = this instance (see ddlpt_cmd)
 	jmp	[ddlpt_cmdp]
 ENDPROC	ddlpt_req
 
@@ -169,7 +169,7 @@ LPT2	DDH	<LPT2_LEN,,DDATTR_CHAR,LPT2_INIT,-1,202020203254504Ch>
         ASSUME	CS:CODE2, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddlpt_req2,far
 	mov	dx,[lpt_num2]
-	mov	bp,cs			; BP = this instance (see ddlpt_cmd)
+	mov	bp,cs:[0].DDH_DATA	; BP = this instance (see ddlpt_cmd)
 	jmp	[ddlpt_cmdp2]
 ENDPROC	ddlpt_req2
 
@@ -203,7 +203,7 @@ LPT3	DDH	<LPT3_LEN,,DDATTR_CHAR,LPT3_INIT,-1,202020203354504Ch>
         ASSUME	CS:CODE3, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddlpt_req3,far
 	mov	dx,[lpt_num3]
-	mov	bp,cs			; BP = this instance (see ddlpt_cmd)
+	mov	bp,cs:[0].DDH_DATA	; BP = this instance (see ddlpt_cmd)
 	jmp	[ddlpt_cmdp3]
 ENDPROC	ddlpt_req3
 
@@ -237,8 +237,7 @@ DEFPROC	ddlpt_init,far
 	and	bx,0003h		; BX = printer # (0-2)
 	add	si,bx
 	mov	ax,[si+bx]		; get BIOS PRINTER port address
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:DEV
 	test	ax,ax			; exists?
 	jz	in9			; no

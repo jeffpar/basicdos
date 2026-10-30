@@ -163,8 +163,7 @@ DEFPROC	ddmou_int33,far
 	sti
 	cld
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	cmp	ax,MOUSE_EVENT
 	je	m_event
@@ -483,8 +482,7 @@ i10v:	cmp	ah,0Fh
 	jnc	i10c			; no
 i10a:	push	ax			; save the function
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	call	ptr_hide
 	pop	ds
@@ -492,8 +490,7 @@ i10a:	push	ax			; save the function
 	pushf
 	call	[int10_ptr]
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	push	bp
 	mov	bp,sp
@@ -505,8 +502,7 @@ i10a:	push	ax			; save the function
 	add	sp,2
 	iret
 i10c:	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	dec	[hidden]		; leave the pointer alone
 	pop	ds
@@ -514,8 +510,7 @@ i10c:	push	ds
 	pushf
 	call	[int10_ptr]
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	inc	[hidden]
 	call	ptr_move		; and then move it, if necessary
@@ -613,11 +608,9 @@ DEFPROC	ddmou_irq,far
 	push	bp
 	push	ds
 	push	es
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
-	push	cs
-	pop	es
+	mov	es,cs:[0].DDH_DATA
 	cld
 	mov	dx,[port_base]
 	in	al,dx			; read the RBR
@@ -625,7 +618,7 @@ DEFPROC	ddmou_irq,far
 	jz	irq1			; no
 	mov	[pkt_b1],al
 	mov	[pkt_cnt],1
-	jmp	short irq8
+	jmp	irq8
 irq1:	cmp	[pkt_cnt],1		; is this the 2nd byte?
 	jne	irq2			; no
 	mov	[pkt_b2],al
@@ -650,8 +643,7 @@ irq2:	cmp	[pkt_cnt],2		; is this the 3rd byte?
 	add	[cur_x],ax		; add the x delta
 	push	bx
 	call	do_move			; clamp the position, move the pointer
-	push	cs
-	pop	es
+	mov	es,cs:[0].DDH_DATA
 	pop	bx
 ;
 ; Update the buttons, and queue an event for each button that changed.
@@ -1444,13 +1436,12 @@ in1:	lods	word ptr [si]
 	xchg	dx,ax			; DX = port, if any
 	test	dx,dx
 	jz	in2
-	call	probe			; is there a mouse on this port?
+	call	find_mouse		; is there a mouse on this port?
 	jnc	in3			; yes
 in2:	loop	in1
 	jmp	short in9		; no mouse, so DDPI_END stays zero
 
-in3:	push	cs
-	pop	ds
+in3:	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	[port_base],dx
 	mov	bx,(0EFh SHL 8) OR INT_HW_COM1
@@ -1497,7 +1488,7 @@ ENDPROC	ddmou_init
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; probe
+; find_mouse
 ;
 ; Resets the device on a COM port the way a Microsoft serial mouse expects
 ; (DTR and RTS are turned off and then on again), and waits for the mouse to
@@ -1515,7 +1506,7 @@ ENDPROC	ddmou_init
 ;	AX, BX, DI
 ;
 	ASSUME	CS:CODE, DS:BIOS, ES:NOTHING, SS:NOTHING
-DEFPROC	probe
+DEFPROC	find_mouse
 	push	cx
 	add	dx,3			; DX -> LCR
 	in	al,dx
@@ -1581,7 +1572,7 @@ pb8:	dec	dx			; DX -> MCR
 	stc
 pb9:	pop	cx
 	ret
-ENDPROC	probe
+ENDPROC	find_mouse
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

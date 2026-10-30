@@ -414,8 +414,7 @@ ENDPROC	endwait_data
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddpipe_init,far
 	mov	es:[bx].DDPI_END.OFF,offset ddpipe_init
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddpipe_req
 	ret
 ENDPROC	ddpipe_init

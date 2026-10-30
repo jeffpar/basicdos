@@ -335,21 +335,7 @@ CPU_TYPE	db	?		; 512h: CPUTYPE_* (see cpu.inc)
 DPT_ACTIVE	DPT	<>		; 522h: active DPT
 BOOT_KEY	dw	?		; 52Dh: set by boot sector
 		db	1 dup (?)	; 52Fh: paragraph padding
-;
-; The DDINT entry points, which drivers (and the kernel) call far, are 5-byte
-; slots starting at 530h, each holding a far jump to its handler, or a stub
-; (eg, STC and RETF) until one is installed; new ones go after DDINT_SETVEC.
-; DDINT_GETVEC and DDINT_SETVEC read and write interrupt vectors (see
-; int_getvec in dosints.asm), so that other code needn't address the vector
-; table with segment 00h.
-;
-DDINT_ENTER	db	5 dup (?)	; 530h: room for a 5-byte far jump
-DDINT_LEAVE	db	5 dup (?)	; 535h: room for a 5-byte far jump
-DDINT_UTIL	db	5 dup (?)	; 53Ah: room for a 5-byte far jump
-DDINT_CPU	db	5 dup (?)	; 53Fh: room for a 5-byte far jump
-DDINT_GETVEC	db	5 dup (?)	; 544h: room for a 5-byte far jump
-DDINT_SETVEC	db	5 dup (?)	; 549h: room for a 5-byte far jump
-		db	2 dup (?)	; 54Eh: paragraph padding
+		db	32 dup (?)	; 530h: DDINT entry points (below)
 ;
 ; We move the boot sector from BOOT_SECTOR to FAT_SECTOR.
 ;
@@ -367,3 +353,29 @@ DIR_SECTOR	db	512 dup (?)	; 770h
 BIOS_END	label	byte		; 970h
 
 BIOS		ends
+
+;
+; The DDINT entry points, which drivers (and the kernel) call far, are 5-byte
+; slots starting at 530h, each holding a far jump to its handler, or a stub
+; (eg, STC and RETF) until one is installed; new ones go after DDINT_SETVEC.
+; DDINT_GETVEC and DDINT_SETVEC read and write interrupt vectors (see
+; int_getvec in dosints.asm), so that other code needn't address the vector
+; table with segment 00h.
+;
+; They're called through segment 50h, which in protected mode is also a code
+; selector for the same memory (see docs/bdtech/mmu), so the addresses are
+; the same in either mode; code that installs a handler writes its slot
+; through segment 40h (BIOS) instead: with DS (or ES) assumed to be BIOS, an
+; operand like ds:[DDINT_CPU] gets the BIOS offset from LINK, and an offset
+; (eg, offset DDINT_UTIL) needs DDINT_BIAS added.
+;
+DDINT_BIAS	equ	100h		; DDINT offsets in the BIOS segment
+DDINT		segment at 50h
+		org	30h
+DDINT_ENTER	db	5 dup (?)	; 530h: room for a 5-byte far jump
+DDINT_LEAVE	db	5 dup (?)	; 535h: room for a 5-byte far jump
+DDINT_UTIL	db	5 dup (?)	; 53Ah: room for a 5-byte far jump
+DDINT_CPU	db	5 dup (?)	; 53Fh: room for a 5-byte far jump
+DDINT_GETVEC	db	5 dup (?)	; 544h: room for a 5-byte far jump
+DDINT_SETVEC	db	5 dup (?)	; 549h: room for a 5-byte far jump
+DDINT		ends

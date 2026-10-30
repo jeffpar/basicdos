@@ -27,6 +27,7 @@ DOS	segment word public 'CODE'
 	EXTLONG	<bpb_table,scb_table,sfb_table,cdir_table,clk_ptr,fpu_table>
 	EXTLONG	<dev_head>
 	EXTNEAR	<find_cfg,init_table,set_bpbtime,load_devices,sysinit_end>
+	EXTNEAR	<move_init,dos_size,init_free>
 	EXTNEAR	<open_dev,open_warning,open_error>
 	EXTERNS	<cache_int21>,far
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>
@@ -46,19 +47,25 @@ DOS	segment word public 'CODE'
 ; Everything after "sysinit_start" will be recycled.
 ;
 ; Entry:
-;	AX = offset of initial BPB (in segment 0)
-;	ES:BX -> CFG_FILE data, if any
-;	DX = size of CFG_FILE data, if any
+;	Stack (from the top): offset of CFG_FILE data (if any), our data
+;	segment, size of CFG_FILE data (if any), offset of initial BPB (in
+;	segment 0), and our address; DEVINIT pushes them before having CPU$
+;	move us after the drivers, which then "returns" here (see devinit's i9)
 ;
 DEFPROC	sysinit,far
+	pop	bx			; ES:BX -> CFG_FILE data
+	pop	es
+	pop	dx			; DX = size of CFG_FILE data
+	pop	ax			; AX = offset of initial BPB
+	pop	bp			; BP = our address (see move_init)
 	sub	ax,BIOS_DATA
 	mov	es:[bpb_off],ax		; save boot BPB (BIOS offset)
 	mov	ax,cs
 	mov	es:[dos_seg],ax		; save the resident DOS segment
 	mov	es:[cfg_size],dx	; size of CFG data
 ;
-; The CFG data follows our image rounded up to a whole cluster (see devinit),
-; so copy it down to sysinit_end, to avoid relocating the gap below with it.
+; The CFG data follows our image (see devinit's chk_cpu), and we copy it to
+; sysinit_end, so that it's relocated along with us.
 ;
 ; To simplify use of the CFG data, replace CRs and LFs with nulls (so that
 ; every value is null-terminated, even if lines end with only LFs); find_cfg
@@ -78,10 +85,11 @@ si0:	lods	byte ptr es:[si]
 	stosb
 	loop	si0
 ;
-; Move all the init code/data out of the way, to top of available memory.
+; Move all the init code/data out of the way, to the top of available memory
+; (see move_init), along with 512 bytes below it for our stack.
 ;
-; Size is in Kb (2^10 units), we need size in paragraphs (2^4 units), so
-; shift left 6 bits.  Then calculate init code size in paras and subtract.
+; MEMORY_SIZE is in Kb (2^10 units), and mcb_limit is in paragraphs (2^4
+; units), so shift left 6 bits.
 ;
 si1:	mov	ax,BIOS
 	mov	ds,ax
@@ -89,30 +97,15 @@ si1:	mov	ax,BIOS
 	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
 	mov	cl,6
 	shl	ax,cl			; available memory in paras
-	mov	es:[top_seg],ax		; segment of end of memory
 	mov	[mcb_limit],ax
-	mov	bx,di			; BX = end of CFG data
-	mov	si,offset sysinit_start	; SI = offset of init code
-	sub	bx,si			; BX = number of bytes to move
-	lea	dx,[bx+31]
-	mov	cl,4
-	shr	dx,cl			; max number of paras spanned
-	sub	ax,dx			; target segment
-	mov	dx,si
-	shr	dx,cl			; DX = 1st paragraph of init code
-	sub	ax,dx			; AX = target segment adjusted for ORG
-	mov	es,ax			; begin the move
-	ASSUME	ES:NOTHING
-	push	cs
+	push	es
 	pop	ds
 	ASSUME	DS:DOS
-	mov	di,si
-	mov	cx,bx
-	shr	cx,1
-	rep	movsw
-	push	ax			; push new segment on stack
+	mov	si,offset sysinit_start - 200h
+	call	move_init		; AX = code selector, DX = data
+	push	ax
 	mov	ax,offset sysinit_high
-	push	ax			; push new offset on stack
+	push	ax
 	ret
 ;
 ; Initialize all the DOS vectors.  DS is dos_seg; set ES to BIOS.
@@ -125,11 +118,9 @@ si1:	mov	ax,BIOS
 ; There just weren't any particularly known good safe places, until now.
 ;
 	cli				; guard against early 8088 errata
-	push	cs			; use all the space available
-	pop	ss			; directly below the sysinit code
+	mov	ss,dx			; use the space below the sysinit code
 	mov	sp,offset sysinit_start
 	sti
-	push	dx			; save DX (1st paragraph of init code)
 ;
 ; "Revector" DDINT_GETVEC and DDINT_SETVEC to int_getvec and int_setvec
 ; (DEVINIT's versions are gone), and then use them to initialize all the DOS
@@ -138,7 +129,7 @@ si1:	mov	ax,BIOS
 	mov	ax,BIOS
 	mov	es,ax
 	ASSUME	ES:BIOS
-	mov	di,offset DDINT_GETVEC
+	mov	di,offset DDINT_GETVEC + DDINT_BIAS
 	mov	ax,offset int_getvec
 	call	sto_jmpf
 	mov	ax,offset int_setvec
@@ -197,17 +188,16 @@ si2c:	mov	al,INT_MOUSE
 	mov	cx,offset dos_default
 	mov	dx,ds
 	call	far ptr DDINT_SETVEC
-si2d:	pop	dx			; restore DX (see si4)
 ;
 ; "Revector" DDINT_UTIL to int_util as soon as INT_DOSUTIL is available,
 ; since drivers use it in place of some DOSUTIL functions (eg, LOCK, which
 ; VKD$'s INT 10h handler uses).
 ;
-	cli
+si2d:	cli
 	mov	ax,BIOS
 	mov	es,ax
 	ASSUME	ES:BIOS
-	mov	di,offset DDINT_UTIL
+	mov	di,offset DDINT_UTIL + DDINT_BIAS
 	mov	ax,offset int_util
 	call	sto_jmpf
 	sti
@@ -280,16 +270,18 @@ si3a:	mov	si,offset CFG_MEMSIZE
 	cmp	ax,[mcb_limit]		; is MEMSIZE too large?
 	jae	si4			; yes
 	mov	[mcb_limit],ax
-	mov	ss:[top_seg],ax		; (SS = CS since sysinit_high)
 ;
-; Now set ES to the first available paragraph for resident DOS tables.
+; Now grow the kernel's block (see dos_size) as much as possible, and set ES
+; to the first available paragraph for resident DOS tables.
 ;
-si4:	mov	ax,sp			;
+si4:	sub	bx,bx
+	call	dos_size
+	mov	ax,sp
 	ASSERT	Z,<cmp ax,offset sysinit_start>
-	test	al,0Fh			; started on a paragraph boundary?
-	jz	si4a			; yes
-	inc	dx			; no, so skip to next paragraph
-si4a:	mov	ax,ds
+	add	ax,15
+	mov	cl,4
+	shr	ax,cl
+	mov	dx,ds
 	add	ax,dx
 ;
 ; Reserve the hard error stack (see dev_error) ahead of the first table.
@@ -572,38 +564,26 @@ sb2:	push	cx
 	loop	sb2
 sb3:
 ;
-; After all the resident tables have been created, initialize the MCB chain.
+; After all the resident tables have been created, the kernel's block ends at
+; ES, so we give the rest back (see dos_size), and the MCB chain starts there
+; (with the 8086 CPU$, the free block at ES follows the kernel's block in its
+; MCB chain).
 ;
-; The chain must end below our own code and stack (allowing 512 bytes for the
-; stack, which peaks at 256-384 bytes, in a BIOS diskette interrupt), since
-; loading a SHELL can use all available memory (eg, on a 64K machine); we add
-; the code below sysinit_tail to the chain before loading the first SHELL, and
-; the rest after the last SHELL has been loaded.
+; The memory after it ends below our own code and stack (allowing 512 bytes
+; for the stack, which peaks at 256-384 bytes, in a BIOS diskette interrupt),
+; since loading a SHELL can use all available memory (eg, on a 64K machine);
+; we give back the code below sysinit_tail before loading the first SHELL, and
+; the rest after the last SHELL has been loaded (see init_free).
 ;
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
 	mov	bx,es
-	sub	di,di
-	mov	al,MCBSIG_LAST
-	stosb				; mov es:[MCB_SIG],MCBSIG_LAST
-	sub	ax,ax
-	stosw				; mov es:[MCB_OWNER],0
-	mov	ax,offset sysinit_start - 200h
-	mov	cl,4
-	shr	ax,cl
-	mov	dx,cs
-	add	ax,dx			; AX = 1st para of our code and stack
-	sub	ax,bx			; AX = that para - ES
-	dec	ax			; AX reduced by 1 para (for MCB)
-	stosw
-	mov	cl,size MCB_RESERVED + size MCB_NAME
-	mov	al,0
-	rep	stosb
-
 	mov	es,[dos_seg]		; mcb_head is in resident DOS segment
 	ASSUME	ES:DOS
 	mov	es:[mcb_head],bx
+	sub	bx,[dos_seg]		; BX = paragraphs in the kernel's block
+	call	dos_size
 ;
 ; Before we create any sessions (and our first PSPs), we need to open all the
 ; devices required for the 5 STD handles: the console (CON) first, so that
@@ -804,16 +784,14 @@ si14:	mov	dx,offset SYS_MSG
 ; so even if there are no SHELL definitions, at least one will be loaded.
 ;
 ; None of our code before this point will run again, so first we move our
-; stack up to sysinit_tail and grow the last (free) MCB to end just below it,
-; giving the SHELLs that memory too.
+; stack up to sysinit_tail and give back the memory below it (see init_free),
+; so that the SHELLs can use that memory too.
 ;
 	ASSERT	Z,<cmp sp,offset sysinit_start - 2>	; (after PUSHF)
 	mov	sp,offset sysinit_tail
 	DEFLBL	sysinit_tail,near
-	call	last_mcb
-	ASSERT	Z,<cmp es:[MCB_OWNER],MCBOWNER_NONE>
-	sub	dx,ax			; DX = paras to add
-	add	es:[MCB_PARAS],dx
+	mov	ax,offset sysinit_tail - 200h
+	call	init_free
 
 	sub	sp,size SPB		; alloc SPB from the stack
 
@@ -969,39 +947,19 @@ si20a:
 	mov	es,ax
 	ASSUME	ES:BIOS
 	cli
-	mov	di,offset DDINT_ENTER
+	mov	di,offset DDINT_ENTER + DDINT_BIAS
 	mov	ax,offset int_enter
 	call	sto_jmpf
 	mov	ax,offset int_leave
 	call	sto_jmpf
 	ASSUME	ES:NOTHING
 ;
-; Now that every SHELL has been loaded, add the memory containing our code and
-; stack to the MCB chain, by appending it as a new block and then freeing it,
-; so that it's merged with the preceding block if that block is free.  We must
-; use DOS_MEM_FREE, since our relocated code can't call DOS functions directly.
+; Now that every SHELL has been loaded, free the memory containing our code
+; and stack (which CPU$ merges with the free block before it, if any).
 ; Interrupts are off, and nothing will allocate memory until we're gone.
 ;
-	call	last_mcb		; DX = new MCB
-	ASSERT	Z,<cmp ax,dx>		; it must end where the new MCB begins
-	mov	es:[MCB_SIG],MCBSIG_NEXT
-	mov	es,dx
-	sub	di,di
-	mov	al,MCBSIG_LAST
-	stosb				; mov es:[MCB_SIG],MCBSIG_LAST
-	mov	ax,MCBOWNER_SYSTEM
-	stosw				; mov es:[MCB_OWNER],MCBOWNER_SYSTEM
-	mov	ax,cs:[top_seg]
-	sub	ax,dx
-	dec	ax
-	stosw				; mov es:[MCB_PARAS],AX
-	mov	cx,size MCB - MCB_TYPE
-	mov	al,0
-	rep	stosb
-	inc	dx
-	mov	es,dx			; ES = new block
-	mov	ah,DOS_MEM_FREE
-	int	21h
+	sub	ax,ax
+	call	init_free
 ;
 ; Save the vectors that programs commonly hook directly (01h, 03h, 08h, 09h,
 ; 1Bh, and 1Ch), now that the drivers have hooked theirs (see psp_restvec).
@@ -1111,44 +1069,12 @@ DEFPROC	sto_jmpf
 	ret
 ENDPROC	sto_jmpf
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; last_mcb
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	ES = last MCB, AX = 1st para after it
-;	DX = 1st para of our stack (where the MCB chain must end)
-;
-; Modifies:
-;	AX, CX, DX, ES
-;
-DEFPROC	last_mcb
-	mov	ax,offset sysinit_tail - 200h
-	mov	cl,4
-	shr	ax,cl
-	mov	dx,cs
-	add	dx,ax			; DX = 1st para of our stack
-	mov	es,cs:[dos_seg]
-	ASSUME	ES:DOS
-	mov	ax,es:[mcb_head]
-lm1:	mov	es,ax			; find the last MCB
-	ASSUME	ES:NOTHING
-	add	ax,es:[MCB_PARAS]
-	inc	ax
-	cmp	es:[MCB_SIG],MCBSIG_LAST
-	jne	lm1
-	ret
-ENDPROC	last_mcb
 ;
 ; Initialization variables (these follow sysinit_tail, since they're used
 ; until we're done).
 ;
 	DEFWORD	bpb_off
 	DEFWORD	dos_seg
-	DEFWORD	top_seg
 	DEFWORD	cfg_data
 	DEFWORD	cfg_size
 

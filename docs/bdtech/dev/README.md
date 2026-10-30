@@ -19,7 +19,7 @@ Each driver begins with a Device Driver Header (DDH):
 | 02h | DDH_NEXT_SEG | Segment of the next DDH |
 | 04h | DDH_ATTR | Device attributes (DDATTR_*) |
 | 06h | DDH_REQUEST | Offset of the request entry point |
-| 08h | DDH_INTERRUPT | Unused (-1) |
+| 08h | DDH_DATA | The driver's data segment (or in protected mode, its data selector), which DEVINIT (or the kernel, for a DEVICE= driver) stores before initializing it |
 | 0Ah | DDH_NAME | Device name (8 characters, padded with spaces) |
 
 Unlike PC DOS drivers, which have separate STRATEGY and INTERRUPT entry points, a BASIC-DOS driver has a single REQUEST entry point that performs the request immediately.  (PC DOS always called a driver's INTERRUPT routine right after its STRATEGY routine anyway.)
@@ -46,9 +46,12 @@ In BASDEV.COM, each driver's DDH_NEXT_OFF initially contains the driver's length
 
 	DEFPROC	ddnul_init,far
 		mov	es:[bx].DDPI_END.OFF,offset ddnul_init
-		mov	cs:[0].DDH_REQUEST,offset DEV:ddnul_req
+		mov	ds,cs:[0].DDH_DATA
+		mov	ds:[0].DDH_REQUEST,offset DEV:ddnul_req
 		ret
 	ENDPROC	ddnul_init
+
+A driver never writes through CS: whenever it writes to its own memory (eg, DDH_REQUEST above, or its variables in a request or interrupt handler), it loads DS (or ES) from DDH_DATA, as above.  In real mode, that's the driver's own segment; in protected mode, CS is the driver's code selector and DDH_DATA is a separate data selector for the same memory (see [Protected-Mode Boot](../mmu/#pmboot)).  Far pointers to a driver's code (eg, vectors and DDH_NEXT_SEG) use CS, and far pointers to its data use DDH_DATA.  An empty chain's far pointer (eg, a driver's list of waiting packets) is FFFFh:0000h, not -1:-1, so that loading it into a segment register before checking the offset is safe in protected mode.
 
 The head of the driver chain is stored at 0:50Ah (DD_LIST), and DOS_UTL_GETDEV returns the header for a device name.
 
@@ -116,9 +119,9 @@ Console drivers (VKD$ and COM) handle CTRL-C the same way, and only report it: t
 
 To stop a program that never calls DOS, console drivers report an ABORT instead (DOS_UTL_HOTKEY with CTRL-D): the VKD$ driver does so for CTRL-ALT-DEL and CTRL-BREAK, and the COM driver does so when it receives a BREAK (a line status interrupt with LSR BI set).
 
-A request that must wait (eg, a keyboard read with no key available) calls DOS_UTL_WAIT with the packet address as the wait ID, which lets other sessions run; the driver's interrupt handler later calls DOS_UTL_ENDWAIT with the same ID.  Interrupt handlers should begin with a far call to DDINT_ENTER (530h) and end with a far jump to DDINT_LEAVE (535h), which lets DOS switch sessions when the interrupt ends.
+A request that must wait (eg, a keyboard read with no key available) calls DOS_UTL_WAIT with the packet address as the wait ID, which lets other sessions run; the driver's interrupt handler later calls DOS_UTL_ENDWAIT with the same ID.  Interrupt handlers should begin with a far call to DDINT_ENTER (0050:0030h) and end with a far jump to DDINT_LEAVE (0050:0035h), which lets DOS switch sessions when the interrupt ends.  The DDINT entry points (at 530h) are called through segment 50h, which in protected mode is also a code selector for the same memory, so their addresses are the same in either mode.
 
-Drivers read and write interrupt vectors with far calls to DDINT_GETVEC (544h) and DDINT_SETVEC (549h), rather than addressing the vector table with segment 0, which isn't a valid selector in protected mode.  Both take the vector number in AL and pass vectors in DX:CX (segment:offset), not in a segment register, since a vector's segment isn't necessarily a valid selector either: DDINT_GETVEC returns the vector in DX:CX, and DDINT_SETVEC sets the vector to DX:CX (with interrupts disabled) and returns the previous one in DX:CX, so hooking a vector takes one call.  They modify only CX and DX.  DEVINIT provides them while drivers initialize, and sysinit then points them at the kernel, which uses them too (eg, for DOS functions 25h and 35h).
+Drivers read and write interrupt vectors with far calls to DDINT_GETVEC (0050:0044h) and DDINT_SETVEC (0050:0049h), rather than addressing the vector table with segment 0, which isn't a valid selector in protected mode.  Both take the vector number in AL and pass vectors in DX:CX (segment:offset), not in a segment register, since a vector's segment isn't necessarily a valid selector either: DDINT_GETVEC returns the vector in DX:CX, and DDINT_SETVEC sets the vector to DX:CX (with interrupts disabled) and returns the previous one in DX:CX, so hooking a vector takes one call.  They modify only CX and DX.  DEVINIT provides them while drivers initialize, and sysinit then points them at the kernel, which uses them too (eg, for DOS functions 25h and 35h).  In protected mode, CPU$ provides them, and they read and write its IDT (see [Protected-Mode Interrupts](../mmu/#interrupts)).
 
 ### IOCTL Functions
 
@@ -214,7 +217,7 @@ The MBR code (mbr_code in hdcdev.asm) is modeled on the pc.js MBR (tools/pc/mbr.
 | VKD$ | Character | Video and keyboard driver: a console with a separate context for each session (see [CON=](../../bdman/cfg/#con)); interrupt-driven input, direct video output (or BIOS output), and INT 29h fast output |
 | LPT1-LPT3 | Character | Parallel ports (one for each port the BIOS found): writes print with INT 17h, a failed write's error is also reported by the next IOCTL_OUTSTATUS (see LPRINT), and IOCTL_GETPOS returns the column (see LPOS) |
 | COM1-COM4 | Character | Serial ports, with interrupt-driven, asynchronous I/O |
-| CPU$ | Character | Loaded first: stores the processor type in CPU_TYPE (0:512h), and on an 80286 or later with at least 64K of extended memory, stays loaded to manage extended memory and protected-mode descriptors through DDINT_CPU (see [Protected Mode](../mmu/)); otherwise, it unloads itself |
+| CPU$ | Character | Two drivers, loaded first, of which one stays to manage all memory through DDINT_CPU (see [Protected Mode](../mmu/)): the 80286 driver stores the processor type in CPU_TYPE (0:512h), and on an 80286 or later with at least 64K of extended memory, manages memory with a PMB table (and protected-mode descriptors); otherwise, the 8086 driver manages it with an MCB chain.  Neither can be skipped |
 | NUL | Character | Null device |
 | CLOCK$ | Character | Timer interrupt, date and time, delays, and sound |
 | PIPE$ | Character | Pipes between sessions (used by the command shell's `|` operator), with a 128-byte buffer; as on UNIX, a read waits only until some data is available, and then returns what's there (up to the requested length), while a write waits until all its data fits |

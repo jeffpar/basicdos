@@ -24,7 +24,7 @@ CODE	segment para public 'CODE'
 	public	COM1
 	DEFLEN	COM1_LEN,<COM1>
 	DEFLEN	COM1_INIT,<COM1,COM2,COM3,COM4>
-COM1	DDH	<COM1_LEN,,DDATTR_OPEN+DDATTR_CHAR,COM1_INIT,ddcom_int1,20202020314D4F43h>
+COM1	DDH	<COM1_LEN,,DDATTR_OPEN+DDATTR_CHAR,COM1_INIT,,20202020314D4F43h>
 ;
 ; Every COM driver instance must define the next group of variables in
 ; the same location/order as shown below, followed by its request handler
@@ -34,6 +34,7 @@ COM1	DDH	<COM1_LEN,,DDATTR_OPEN+DDATTR_CHAR,COM1_INIT,ddcom_int1,20202020314D4F4
 	DEFPTR	ddcom_intp	; ddcom_int pointer
 	DEFWORD	ct_seg,0	; active context, if any
 	DEFWORD	card_num,0	; card number
+	DEFWORD	ddcom_isr,<offset ddcom_int1>; interrupt entry
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -49,15 +50,14 @@ DEFPROC	ddcom_req,far
 	mov	cx,[ct_seg]
 	mov	dx,[card_num]
 	call	[ddcom_cmdp]
-	push	cs			; (DOS doesn't need DS preserved)
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA	; (DOS doesn't need DS preserved)
 	ASSUME	DS:CODE
 	mov	[ct_seg],cx
 	ASSUME	DS:NOTHING
 	ret
 ENDPROC	ddcom_req
 
-	DEFPTR	wait_ptr,-1	; chain of waiting packets
+	DEFPTR	wait_ptr,0FFFFh,0	; chain of waiting packets (none)
 
 	DEFLBL	CMDTBL,word
 	dw	ddcom_none,   ddcom_none,   ddcom_none,   ddcom_ioctl	; 0-3
@@ -167,8 +167,7 @@ DEFPROC	ddcom_cmd,far
 	cmp	bl,CMDTBL_SIZE
 	jb	ddq1
 	mov	bl,0
-ddq1:	push	cs
-	pop	ds
+ddq1:	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	bh,0
 	add	bx,bx
@@ -1454,7 +1453,7 @@ ddi3b:	call	read_lsr		; line status (reading LSR clears it)
 ddi4:	mov	al,20h			; EOI the interrupt now
 	out	20h,al
 
-	mov	cx,cs
+	mov	cx,cs:[0].DDH_DATA
 	mov	es,cx
 	mov	bx,offset wait_ptr	; CX:BX -> ptr
 	les	di,es:[bx]		; ES:DI -> packet, if any
@@ -1546,8 +1545,7 @@ ENDPROC	ddcom_int1
 DEFPROC	add_packet
 	cli
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	ax,di
 	xchg	[wait_ptr].OFF,ax
@@ -1598,8 +1596,7 @@ DEFPROC	remove_packet
 	push	bx
 	push	cx
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	mov	bx,offset wait_ptr	; DS:BX -> first link
 	mov	cx,es			; CX:DI -> packet to remove
 	pushf
@@ -2332,7 +2329,7 @@ ENDPROC	esc_timeout
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	wake_reader
-	mov	cx,cs
+	mov	cx,cs:[0].DDH_DATA
 	mov	es,cx
 	mov	bx,offset wait_ptr	; CX:BX -> ptr
 	les	di,es:[bx]		; ES:DI -> packet, if any
@@ -2766,7 +2763,7 @@ CODE2	segment para public 'CODE'
 	public	COM2
 	DEFLEN	COM2_LEN,<COM2>
 	DEFLEN	COM2_INIT,<COM2,COM3,COM4>
-COM2	DDH	<COM2_LEN,,DDATTR_CHAR,COM2_INIT,ddcom_int2,20202020324D4F43h>
+COM2	DDH	<COM2_LEN,,DDATTR_CHAR,COM2_INIT,,20202020324D4F43h>
 ;
 ; Every COM driver instance must define the next group of variables in
 ; the same location/order as shown below.
@@ -2775,6 +2772,7 @@ COM2	DDH	<COM2_LEN,,DDATTR_CHAR,COM2_INIT,ddcom_int2,20202020324D4F43h>
 	DEFPTR	ddcom_intp2
 	DEFWORD	ct_seg2,0
 	DEFWORD	card_num2,0
+	DEFWORD	ddcom_isr2,<offset ddcom_int2>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2790,8 +2788,7 @@ DEFPROC	ddcom_req2,far
 	mov	cx,[ct_seg2]
 	mov	dx,[card_num2]
 	call	[ddcom_cmdp2]
-	push	cs			; (DOS doesn't need DS preserved)
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA	; (DOS doesn't need DS preserved)
 	ASSUME	DS:CODE2
 	mov	[ct_seg2],cx
 	ASSUME	DS:NOTHING
@@ -2813,7 +2810,7 @@ CODE3	segment para public 'CODE'
 	public	COM3
 	DEFLEN	COM3_LEN,<COM3>
 	DEFLEN	COM3_INIT,<COM3,COM4>
-COM3	DDH	<COM3_LEN,,DDATTR_CHAR,COM3_INIT,ddcom_int3,20202020334D4F43h>
+COM3	DDH	<COM3_LEN,,DDATTR_CHAR,COM3_INIT,,20202020334D4F43h>
 ;
 ; Every COM driver instance must define the next group of variables in
 ; the same location/order as shown below.
@@ -2822,6 +2819,7 @@ COM3	DDH	<COM3_LEN,,DDATTR_CHAR,COM3_INIT,ddcom_int3,20202020334D4F43h>
 	DEFPTR	ddcom_intp3
 	DEFWORD	ct_seg3,0
 	DEFWORD	card_num3,0
+	DEFWORD	ddcom_isr3,<offset ddcom_int3>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2837,8 +2835,7 @@ DEFPROC	ddcom_req3,far
 	mov	cx,[ct_seg3]
 	mov	dx,[card_num3]
 	call	[ddcom_cmdp3]
-	push	cs			; (DOS doesn't need DS preserved)
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA	; (DOS doesn't need DS preserved)
 	ASSUME	DS:CODE3
 	mov	[ct_seg3],cx
 	ASSUME	DS:NOTHING
@@ -2860,7 +2857,7 @@ CODE4	segment para public 'CODE'
 	public	COM4
 	DEFLEN	COM4_LEN,<COM4,ddcom_init>,16
 	DEFLEN	COM4_INIT,<COM4>
-COM4	DDH	<COM4_LEN,,DDATTR_CHAR,COM4_INIT,ddcom_int4,20202020344D4F43h>
+COM4	DDH	<COM4_LEN,,DDATTR_CHAR,COM4_INIT,,20202020344D4F43h>
 ;
 ; Every COM driver instance must define the next group of variables in
 ; the same location/order as shown below.
@@ -2869,6 +2866,7 @@ COM4	DDH	<COM4_LEN,,DDATTR_CHAR,COM4_INIT,ddcom_int4,20202020344D4F43h>
 	DEFPTR	ddcom_intp4
 	DEFWORD	ct_seg4,0
 	DEFWORD	card_num4,0
+	DEFWORD	ddcom_isr4,<offset ddcom_int4>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2884,8 +2882,7 @@ DEFPROC	ddcom_req4,far
 	mov	cx,[ct_seg4]
 	mov	dx,[card_num4]
 	call	[ddcom_cmdp4]
-	push	cs			; (DOS doesn't need DS preserved)
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA	; (DOS doesn't need DS preserved)
 	ASSUME	DS:CODE4
 	mov	[ct_seg4],cx
 	ASSUME	DS:NOTHING
@@ -2928,8 +2925,7 @@ DEFPROC	ddcom_init,far
 	and	bx,0003h
 	add	si,bx
 	mov	dx,[si+bx]		; DX = BIOS RS232 port address
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:DEV
 	test	dx,dx			; exists?
 	jz	in9			; no
@@ -2958,7 +2954,7 @@ in3:	mov	[ddcom_cmdp].SEG,ax
 	cmp	dh,03h
 	je	in4
 	dec	ax
-in4:	mov	cx,ds:[DDH_INTERRUPT]
+in4:	mov	cx,[ddcom_isr]		; CX = this port's interrupt entry
 	mov	dx,cs
 	call	far ptr DDINT_SETVEC
 

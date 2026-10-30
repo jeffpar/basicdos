@@ -69,7 +69,7 @@ VKD	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 
 	DEFPTR	kbd_int,0	; original keyboard hardware interrupt handler
 	DEFPTR	video_int,0	; original video services interrupt handler
-	DEFPTR	wait_ptr,-1	; chain of waiting packets
+	DEFPTR	wait_ptr,0FFFFh,0	; chain of waiting packets (none)
 ;
 ; A context of "80,25,1" requests a border, so logical cursor positions are
 ; 1,1 to 78,23.  Physical character and cursor positions will be adjusted by
@@ -160,8 +160,7 @@ DEFPROC	ddcon_req,far
 	cmp	bl,CMDTBL_SIZE
 	jb	ddq1
 	mov	bl,0
-ddq1:	push	cs
-	pop	ds
+ddq1:	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	bh,0
 	add	bx,bx
@@ -736,8 +735,7 @@ dsm1:	cmp	cl,6			; CGA modes 0-6 only
 ; BIOS data ourselves and bypass ddcon_int10 (see set_curtype).
 ;
 dsm2:	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	inc	[bios_lock]
 	pop	ds
@@ -1061,8 +1059,7 @@ dco2:	mov	ds:[CT_NEXT],0
 	mov	word ptr ds:[CT_REFS],bx
 	sub	si,si			; no CURTYPE yet
 	mov	di,offset ct_head
-	push	cs
-	pop	es
+	mov	es,cs:[0].DDH_DATA
 dco2a:	mov	ax,es:[di]		; ES:DI -> next context segment
 	test	ax,ax
 	jz	dco2b
@@ -1429,7 +1426,7 @@ i09d:	push	ax
 	call	far ptr DDINT_UTIL	; notify DOS
 
 i09e:	mov	ds,cx			; DS = context
-	mov	cx,cs
+	mov	cx,cs:[0].DDH_DATA
 	mov	es,cx
 	mov	bx,offset wait_ptr	; CX:BX -> ptr
 	les	di,es:[bx]		; ES:DI -> packet, if any
@@ -1552,8 +1549,7 @@ DEFPROC	ddcon_int10,far
 ; unnecessary now.
 ;
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	inc	[bios_lock]
 ;
@@ -1658,8 +1654,7 @@ ENDPROC	ddcon_int29
 DEFPROC	add_packet
 	cli
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	ax,di
 	xchg	[wait_ptr].OFF,ax
@@ -1711,8 +1706,7 @@ DEFPROC	remove_packet
 	push	bx
 	push	cx
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	mov	bx,offset wait_ptr	; DS:BX -> first link
 	mov	cx,es			; CX:DI -> packet to remove
 	pushf
@@ -2311,8 +2305,7 @@ scr3:	mov	ah,bl
 ;
 	cli
 	push	es
-	push	cs
-	pop	es
+	mov	es,cs:[0].DDH_DATA
 	ASSUME	ES:CODE
 	mov	[bios_ctx],ds
 	pop	es
@@ -2444,8 +2437,7 @@ DEFPROC	switch_focus
 	cmp	[bios_lock],0
 	je	switch_now
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	inc	[req_switch]
 	pop	ds
@@ -2469,8 +2461,7 @@ DEFPROC	switch_focus
 sf1:	mov	cx,[ct_head]
 	cmp	cx,[ct_focus]
 	je	sf8			; nothing to do
-sf2:	push	cs
-	pop	es
+sf2:	mov	es,cs:[0].DDH_DATA
 	ASSUME	ES:CODE
 	xchg	cx,[ct_focus]
 	ASSUME	ES:NOTHING
@@ -2511,8 +2502,7 @@ ENDPROC	switch_focus
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	unlock_bios
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	dec	[bios_lock]		; BIOS unlocked now?
 	jnz	ub9			; no
@@ -2612,8 +2602,7 @@ ENDPROC	chk_blocked
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	release_mode
-	push	cs
-	pop	es
+	mov	es,cs:[0].DDH_DATA
 	ASSUME	ES:CODE
 	mov	[mode_ctx],0
 	ASSUME	ES:NOTHING
@@ -2638,8 +2627,7 @@ rg3:	pop	ds
 ; the chain before its wait is ended, so that it can safely be added again.
 ;
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	mov	bx,offset wait_ptr	; DS:BX -> link to the first packet
 	cli
 rg4:	les	di,dword ptr [bx]	; ES:DI -> next packet
@@ -2838,8 +2826,7 @@ um1:	mov	ds:[CT_PAGE],ah
 	cmp	al,ds:[CTO_MODE]	; back to the original mode?
 	je	um6			; yes
 	push	es
-	push	cs
-	pop	es
+	mov	es,cs:[0].DDH_DATA
 	ASSUME	ES:CODE
 	mov	[mode_ctx],ds		; no, so block the other contexts
 	pop	es
@@ -3284,8 +3271,7 @@ DEFPROC	ddcon_init,far
 	ASSUME	DS:BIOS
 
 	mov	ax,[EQUIP_FLAG]		; AX = EQUIP_FLAG
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	es:[bx].DDPI_END.OFF,offset ddcon_init
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddcon_req
