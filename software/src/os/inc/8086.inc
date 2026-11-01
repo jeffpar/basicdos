@@ -29,7 +29,12 @@ FL_TRAP		equ	0100h
 FL_INTS		equ	0200h
 FL_DOWN		equ	0400h
 FL_OVFL		equ	0800h
-FL_DEFAULT	equ    0F202h
+;
+; FL_DEFAULT is a new program's FLAGS; an 8086 always pushes FLAGS with bits
+; 12-15 set, but in protected mode, popping them would set IOPL and NT (and
+; IRET with NT set is a task switch).
+;
+FL_DEFAULT	equ	0202h
 
 ;
 ; Processor opcode definitions
@@ -41,6 +46,7 @@ OP_PUSH_SS	equ	016h
 OP_PUSH_DS	equ	01Eh
 OP_POP_DS	equ	01Fh
 OP_SEG_ES	equ	026h
+OP_SEG_CS	equ	02Eh
 OP_CMP_AX	equ	03Dh		; CMP AX,imm16
 OP_PUSH_AX	equ	050h
 OP_PUSH_DX	equ	052h
@@ -91,5 +97,7 @@ OP_JZ_SELF	equ	0FE74h		; JZ  $
 OP_JNZ_3	equ	00375h		; JNZ $+5 (eg, around a near JMP)
 OP_MOV_BP_SP	equ	0E589h		; MOV BP,SP
 OP_MOV_SP_BP	equ	0EC89h		; MOV SP,BP
+OP_PUSH_MEM	equ	036FFh		; PUSH [nnnn]
+OP_MOV_ES_MEM	equ	0068Eh		; MOV ES,[nnnn]
 OP_PUSH_BP8	equ	076FFh		; PUSH [BP+nn]
 OP_PUSH_BP16	equ	0B6FFh		; PUSH [BP+nnnn]

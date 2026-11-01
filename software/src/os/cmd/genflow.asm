@@ -50,7 +50,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<genExpr,genCommands,getNextToken>
+	EXTNEAR	<genExpr,genCommands,getNextToken,codeSeg>
 	EXTNEAR	<genCvtType,genTestDouble,genCallCS,genPushVarPtr>
 	EXTNEAR	<genPushImm,genPushImmLong,addVar,getNextSymbol>
 	EXTNEAR	<setVarLong,setVarDouble,forInit,forNext,doGosub,doReturn>
@@ -776,7 +776,9 @@ DEFPROC	emitJmp
 	xchg	cx,ax
 	stosw
 	jmp	short ej9
-ej1:	xchg	cx,ax
+ej1:	push	dx
+	call	codeSeg			; DX = target's code segment
+	xchg	cx,ax
 	mov	al,OP_JMPF
 	stosb
 	xchg	cx,ax
@@ -784,6 +786,7 @@ ej1:	xchg	cx,ax
 	xchg	ax,dx
 	stosw				; and the segment
 	xchg	ax,dx
+	pop	dx
 ej9:	pop	cx
 	ret
 ENDPROC	emitJmp

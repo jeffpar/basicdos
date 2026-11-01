@@ -897,15 +897,9 @@ ENDPROC	setPath
 ;
 ; initEnv
 ;
-; Sets up the environment that programs receive (see buildEnv), sets PATH$
-; from our own environment's PATH, if any (eg, when MAKE runs "COMMAND /C"),
-; and checks the command tail for /C, which runs the rest of the tail as a
-; command and then exits.
-;
-; The environment is a block of its own, allocated from the top of memory, so
-; that it's never left after our memory block, where it would keep our
-; transient portion from being reused while it's set aside (see runTransient).
-; If there's no room for it, programs get no environment (see buildEnv).
+; Sets PATH$ from our own environment's PATH, if any (eg, when MAKE runs
+; "COMMAND /C"), and checks the command tail for /C, which runs the rest of
+; the tail as a command and then exits.
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -917,17 +911,8 @@ ENDPROC	setPath
 ; Modifies:
 ;	AX, CX, DX, SI, DI
 ;
-ENV_LEN	equ	176			; environment size (see buildEnv)
-
 DEFPROC	initEnv
-	push	bx
-	mov	bx,ENV_LEN SHR 4
-	mov	ax,(DOS_MEM_ALLOC SHL 8) OR MCBTYPE_HIGH
-	int	21h			; AX = environment segment
-	pop	bx
-	jnc	ie1
-	sub	ax,ax			; no room, so no environment
-ie1:	mov	[bx].EXECDATA.EPB_ENVSEG,ax
+	mov	[bx].EXECDATA.EPB_ENVSEG,0; no environment yet (see buildEnv)
 	push	ds
 	mov	ds,ds:[PSP_ENVSEG]
 	mov	ax,ds
@@ -993,6 +978,12 @@ ENDPROC	initEnv
 ; (for programs like MAKE that run commands with "COMMAND /C") and PATH (from
 ; PATH$), so that it's up-to-date for the next program.
 ;
+; The environment is a block of its own, allocated for each program that runs
+; (and freed when it ends; see freeEnv), from the top of memory, so that it's
+; never left after our memory block, where it would keep our transient portion
+; from being reused while it's set aside (see runTransient).  If there's no
+; room for it, the program gets no environment.
+;
 ; Inputs:
 ;	BP -> CMDHEAP
 ;
@@ -1002,15 +993,24 @@ ENDPROC	initEnv
 ; Modifies:
 ;	None
 ;
+ENV_LEN	equ	176			; environment size
+
 DEFPROC	buildEnv
 	push	ax
 	push	si
 	push	di
 	push	es
-	mov	es,[bp].EXECDATA.EPB_ENVSEG
-	mov	ax,es
-	test	ax,ax			; is there an environment?
-	jz	be9			; no
+	mov	ax,[bp].EXECDATA.EPB_ENVSEG
+	test	ax,ax			; is there an environment yet?
+	jnz	be0			; yes
+	push	bx
+	mov	bx,ENV_LEN SHR 4
+	mov	ax,(DOS_MEM_ALLOC SHL 8) OR MCBTYPE_EBLK OR MCBTYPE_HIGH
+	int	21h			; AX = environment segment
+	pop	bx
+	jc	be9			; no room, so no environment
+	mov	[bp].EXECDATA.EPB_ENVSEG,ax
+be0:	mov	es,ax
 	sub	di,di			; ES:DI -> environment
 	mov	si,offset ENV_VARS
 	call	be2			; copy "COMSPEC="
@@ -1040,6 +1040,34 @@ be3:	ret
 ENDPROC	buildEnv
 
 ENV_VARS	db	"COMSPEC=",0,"PATH=",0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; freeEnv
+;
+; Frees the environment that buildEnv allocated, once the program that got it
+; has ended (or couldn't be loaded); no program can stay resident and keep it.
+;
+; Inputs:
+;	BP -> CMDHEAP
+;
+; Modifies:
+;	None
+;
+DEFPROC	freeEnv
+	push	ax
+	push	es
+	sub	ax,ax
+	xchg	ax,[bp].EXECDATA.EPB_ENVSEG
+	test	ax,ax			; is there an environment?
+	jz	fe9			; no
+	mov	es,ax
+	mov	ah,DOS_MEM_FREE
+	int	21h
+fe9:	pop	es
+	pop	ax
+	ret
+ENDPROC	freeEnv
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -68,11 +68,7 @@ CODE	segment
 ;
 DEFPROC	main
 	cld
-	push	cs
-	pop	ds
-	push	cs
-	pop	es
-	mov	sp,offset stktop
+	mov	sp,offset stktop	; (DS = ES = SS = our PSP)
 	cmp	byte ptr ds:[PSP_CMDTAIL],0
 	je	start0
 	inc	srlout
@@ -711,7 +707,7 @@ DEFPROC	ownership_tests
 	int	21h
 	FCALL	DOS_FCB_CREATE
 	CHECK	je,al,0
-	mov	childparent,cs
+	mov	childparent,ds
 	mov	al,havecon
 	mov	childconok,al
 	mov	dx,offset childname
@@ -727,9 +723,9 @@ DEFPROC	ownership_tests
 	CHECK	je,ax,<offset childend-offset ownerchild>
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
-	mov	ownerepb.EPB_CMDTAIL.SEG,cs
-	mov	ownerepb.EPB_FCB1.SEG,cs
-	mov	ownerepb.EPB_FCB2.SEG,cs
+	mov	ownerepb.EPB_CMDTAIL.SEG,ds
+	mov	ownerepb.EPB_FCB1.SEG,ds
+	mov	ownerepb.EPB_FCB2.SEG,ds
 	call	refcount
 	mov	ownerrefs,ax
 	mov	si,4
@@ -863,8 +859,8 @@ ownerchild label byte
 	int	21h
 	test	al,al			; can the child use the parent's FCB?
 	jnz	oc8
-	push	cs
-	pop	ds
+	push	ss
+	pop	ds			; (the child's PSP, not CS)
 	mov	dx,offset childfcb-offset ownerchild+100h
 	mov	ah,DOS_FCB_CREATE
 	int	21h

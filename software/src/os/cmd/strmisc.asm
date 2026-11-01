@@ -293,21 +293,18 @@ DEFPROC	strFre,FAR
 	xchg	ax,bx			; AX = owner of our blocks
 fr0:	mov	[freOwner],ax
 	sub	cx,cx			; CX = memory block #
-	sub	si,si			; SI = total paragraphs
+	mov	[retFre].LOW,cx
+	mov	[retFre].HIW,cx		; total bytes (none yet)
 fr1:	mov	dl,0			; DL = 0 (any block)
-	DOSUTIL	QRYMEM			; AX = owner, DX = paragraphs
+	DOSUTIL	QRYMEM			; AX = owner, SI:DX = size (in bytes)
 	jc	fr8
 	cmp	ax,[freOwner]		; one of the blocks to total?
 	jne	fr2			; no
-	add	si,dx
+	add	[retFre].LOW,dx
+	adc	[retFre].HIW,si
 fr2:	inc	cx
 	jmp	fr1
-fr8:	xchg	ax,si
-	mov	cx,16
-	mul	cx			; DX:AX = free bytes
-	mov	[retFre].LOW,ax
-	mov	[retFre].HIW,dx
-	pop	ds
+fr8:	pop	ds
 	LEAVE
 	RETURN
 ENDPROC	strFre

@@ -20,6 +20,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<releaseStr,strIllegal,allocStr,rtError>
+	EXTWORD	<CODE_DS>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
@@ -30,7 +31,9 @@ CODE    SEGMENT
 ;
 ; Used by "DEF SEG=segment" (and, via defSegBasic, by "DEF SEG", which selects
 ; BASIC's own data segment; ie, our heap).  We store the segment XOR SS, so
-; that the zero-initialized default is the heap.
+; that the zero-initialized default is the heap.  A segment other than the
+; heap comes from DOS_UTL_MAPSEG, which in protected mode is a selector for
+; it, and except for video memory, a read-only one (see pokeByte).
 ;
 ; Inputs:
 ;	1 32-bit arg on stack (-32768 to 65535)
@@ -54,6 +57,11 @@ DEFPROC	defSeg,FAR
 	push	dx
 	push	cx
 	call	chkWord
+	xchg	bx,ax			; BX = segment
+	DOSUTIL	MAPSEG			; AX = its selector (or segment)
+	jnc	dfs1
+	mov	al,7			; "Out of memory"
+	jmp	rtError
 dfs1:	mov	bx,ss
 	xor	ax,bx
 	mov	bx,ss:[PSP_HEAP]
@@ -121,8 +129,23 @@ DEFPROC	pokeByte,FAR
 	jnz	cw8
 	test	ch,ch
 	jnz	cw8
-	call	getSeg
-	xchg	bx,ax
+	call	getSeg			; ES = DX = DEF SEG segment
+;
+; In protected mode, a DEF SEG segment other than the heap may be read-only
+; (see defSeg), so we check it with VERW, which can run only in protected
+; mode, which is when CS (a code alias) isn't the same as CODE_DS.
+;
+	mov	bx,ss
+	cmp	dx,bx			; the heap?
+	je	pb1			; yes
+	mov	bx,cs
+	cmp	bx,cs:[CODE_DS]		; real mode?
+	je	pb1			; yes
+	.286p
+	verw	dx			; is the segment writable?
+	.8086
+	jnz	cw8			; no ("Illegal function call")
+pb1:	xchg	bx,ax
 	mov	es:[bx],cl
 	ret
 ENDPROC	pokeByte

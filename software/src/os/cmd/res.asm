@@ -46,8 +46,9 @@ CODE    SEGMENT
 ;
 	DEFPTR	FPU_TABLE
 	DEFWORD	CMD_REFS,0		; # of copies using the shared code
+	DEFWORD	CODE_DS,0		; data segment for the shared code
 	DEFWORD	TRANS_SUM,0		; checksum of the transient portion
-	DEFWORD	TRANS_HI,0		; segment of its copy (see resSave)
+	DEFWORD	TRANS_HI,0		; nonzero if it has a copy (resSave)
 	DEFLBL	CMD_PATH,byte		; (main updates the drive and path char)
 	db	"A:\COMMAND.COM",0
 MSG_RELOAD	db	13,10,"Insert disk with COMMAND.COM in drive "
@@ -65,7 +66,8 @@ MSG_NOMEM	db	13,10,"Can't reload COMMAND, press any key",13,10,'$'
 ; Inputs:
 ;	DS:DX -> program filename
 ;	ES:BX -> EPB (for DOS_PSP_EXEC1 and DOS_PSP_EXEC2)
-;	DS = ES = SS = CS (ie, the copy that owns the shared code)
+;	DS = ES = SS = our PSP (ie, the copy that owns the shared code, whose
+;	CS is the same segment, or in protected mode, its code alias)
 ;
 ; Outputs:
 ;	Carry clear if the program ran, set if it couldn't be loaded (AX)
@@ -80,7 +82,7 @@ DEFPROC	runTransient
 	int	21h			; not use the transient ctrlc handler
 	push	bx
 	call	resSave			; save a copy of the transient portion
-	push	cs
+	push	ss
 	pop	es			; (ES = our PSP again)
 	mov	bx,offset DGROUP:RES_END
 	call	toParas
@@ -100,8 +102,8 @@ rt1:	pushf
 	mov	dx,offset rcIgnore	; CTRLC must not terminate us, either,
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	int	21h			; until the transient portion is back
-	push	cs
-	pop	es
+	push	ss
+	pop	es			; (our PSP, where CS is its code alias)
 rt2:	call	resParas		; BX = paras for the transient, too
 	mov	ah,DOS_MEM_REALLOC
 	int	21h			; restore our memory block
@@ -120,32 +122,30 @@ rt2:	call	resParas		; BX = paras for the transient, too
 ; disk reload, since disk I/O (and resPrompt) can wait.
 ;
 rt2a:	DOSUTIL	LOCK
-	sub	ax,ax
 	ASSUME	DS:CODE			; (DS = CS, since we own the code)
-	xchg	ax,[TRANS_HI]
+	cmp	[TRANS_HI],0		; was a copy made?
 	ASSUME	DS:DATA
-	test	ax,ax			; was a copy made?
-	jz	rt2b			; no
-	mov	es,ax
+	je	rt2b			; no
+	call	resAllocHi		; ES = the copy's block again
+	jc	rt2b
 	call	resSumHi		; AX = checksum of the copy
 	cmp	ax,[TRANS_SUM]		; does it match?
-	jne	rt2b			; no
+	jne	rt2c			; no
 	push	ds
-	mov	ax,es
-	mov	ds,ax
+	push	es
+	pop	ds
 	sub	si,si			; DS:SI -> copy
-	push	cs
+	push	ss
 	pop	es
 	mov	di,offset DGROUP:RES_END; ES:DI -> transient portion
-	mov	cx,ss:[PSP_CODESIZE]
-	sub	cx,di
-	inc	cx
-	shr	cx,1			; CX = # words
-	cld
-	rep	movsw
+	call	resCopy
+	push	ds
+	pop	es			; ES = the copy's block
 	pop	ds
-	DOSUTIL	UNLOCK
+	call	resFree			; free it and unlock
 	jmp	short rt5
+rt2c:	mov	ah,DOS_MEM_FREE
+	int	21h			; free the copy's block
 rt2b:	DOSUTIL	UNLOCK
 rt3:	mov	dx,offset CMD_PATH
 	mov	ax,DOS_HDL_OPENRO
@@ -306,8 +306,13 @@ ENDPROC	resSum
 ; available memory, the copy is likely to be intact when the program ends,
 ; saving us from reloading it from COMMAND.COM (see runTransient).
 ;
+; A freed block's segment isn't valid in protected mode, so we don't keep
+; it: runTransient allocates the same size at the top of free memory again,
+; which is the same memory unless something else has allocated memory there
+; (and either way, the copy's checksum tells it whether the copy is intact).
+;
 ; Outputs:
-;	TRANS_HI = segment of the copy (or zero if there wasn't room)
+;	TRANS_HI = nonzero if there's a copy (zero if there wasn't room)
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, ES
@@ -316,32 +321,67 @@ DEFPROC	resSave
 	ASSUME	DS:CODE			; (DS = CS, since we own the code)
 	mov	[TRANS_HI],0
 	DOSUTIL	LOCK			; keep other sessions from allocating
-	mov	bx,ss:[PSP_CODESIZE]	; the block until the copy is done
-	sub	bx,offset DGROUP:RES_END
-	call	toParas			; BX = paras in the transient portion
-	mov	ax,(DOS_MEM_ALLOC SHL 8) OR MCBTYPE_HIGH
-	int	21h			; AX = block at the top of free memory
+	call	resAllocHi		; the block until the copy is done
 	jc	rsv9			; there's no room
 	mov	[TRANS_HI],ax
 	ASSUME	DS:DATA
-	mov	es,ax
 	sub	di,di			; ES:DI -> copy
 	mov	si,offset DGROUP:RES_END; DS:SI -> transient portion
-	mov	cx,ss:[PSP_CODESIZE]
-	sub	cx,si
-	inc	cx
-	shr	cx,1			; CX = # words
-	cld
-	rep	movsw
+	call	resCopy
 ;
 ; Free the block (in ES) again, so that the program can have it; the copy
 ; stays intact unless the program uses that memory.
 ;
+	DEFLBL	resFree,near
 	mov	ah,DOS_MEM_FREE
 	int	21h
 rsv9:	DOSUTIL	UNLOCK
 	ret
 ENDPROC	resSave
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; resAllocHi
+;
+; Allocates a block for the transient portion's copy at the top of free
+; memory (see resSave).
+;
+; Outputs:
+;	Carry clear if successful: AX and ES = block
+;	Carry set if there's no room
+;
+; Modifies:
+;	AX, BX, ES
+;
+DEFPROC	resAllocHi
+	mov	bx,ss:[PSP_CODESIZE]
+	sub	bx,offset DGROUP:RES_END
+	call	toParas			; BX = paras in the transient portion
+	mov	ax,(DOS_MEM_ALLOC SHL 8) OR MCBTYPE_HIGH
+	int	21h			; AX = block at the top of free memory
+	jc	rah9			; there's no room
+	mov	es,ax
+rah9:	ret
+ENDPROC	resAllocHi
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; resCopy
+;
+; Copies the transient portion (or its copy) from DS:SI to ES:DI.
+;
+; Modifies:
+;	CX, SI, DI
+;
+DEFPROC	resCopy
+	mov	cx,ss:[PSP_CODESIZE]
+	sub	cx,offset DGROUP:RES_END
+	inc	cx
+	shr	cx,1			; CX = # words
+	cld
+	rep	movsw
+	ret
+ENDPROC	resCopy
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

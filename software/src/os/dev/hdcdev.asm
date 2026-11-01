@@ -768,8 +768,10 @@ ENDPROC	get_vol
 ;
 ; Driver initialization
 ;
-; For every hard disk, get the drive geometry, read the MBR (into the scratch
-; buffer that devinit provides at DDPI_BUFPTR), and add a volume for every
+; For every hard disk, get the drive geometry, read the MBR (with fdc_mbr,
+; so that the FDC driver's INT 13h work-arounds apply, and copy it to the
+; scratch buffer that devinit provides at DDPI_BUFPTR, since add_vol reads
+; boot sectors into the FDC driver's buffer), and add a volume for every
 ; FAT12/FAT16 partition.  If there are no volumes, the driver isn't needed.
 ;
 ; Inputs:
@@ -900,12 +902,24 @@ av0:	inc	dh			; DH = # heads
 	mov	ds:[di].VOL_CYLS,ax	; (for a whole-disk unit, if any)
 	push	dx
 	push	cx
-	mov	ax,(FDC_READ SHL 8) OR 1
-	mov	cx,1			; CH = cylinder 0, CL = sector 1
-	mov	dh,0			; DH = head 0
 	push	bx
-	mov	bx,bp			; ES:BX -> scratch buffer
-	int	INT_FDC			; read the MBR
+	push	di
+	push	ds
+	push	es
+	push	bp
+	mov	al,dl			; AL = BIOS drive #
+	mov	ah,FDC_READ
+	call	cs:[fdc_mbr]		; ES:BP -> MBR (in the FDC's buffer)
+	push	es
+	pop	ds
+	mov	si,bp			; DS:SI -> MBR
+	pop	di
+	pop	es			; ES:DI -> scratch buffer
+	mov	bp,di
+	mov	cx,256
+	rep	movsw			; copy the MBR (carry is unchanged)
+	pop	ds
+	pop	di
 	pop	bx
 	pop	cx
 	pop	dx

@@ -22,12 +22,13 @@ CODE    SEGMENT
 ;
 ; cmdMem
 ;
-; Prints memory usage: the total memory, the free memory available for an
-; EXEC (which includes COMMAND's transient portion, if it can be discarded;
-; see transParas), and the free memory available for BASIC programs, followed
-; by a line for anything that's unavailable: floating-point, if the FPU$
-; driver isn't loaded (see FPU_TABLE), and the functions outside COMMAND's
-; core, if only the core was loaded (see CORE_END and genUpper).
+; Prints memory usage: the total memory (all of it, including any extended
+; memory; see DV_MEM_SIZE), the available memory (which includes COMMAND's
+; transient portion, if it can be discarded; see transParas), and if it can,
+; the memory available for BASIC programs, followed by a line for anything
+; that's unavailable: floating-point, if the FPU$ driver isn't loaded (see
+; FPU_TABLE), and the functions outside COMMAND's core, if only the core was
+; loaded (see CORE_END and genUpper).
 ;
 ; Inputs:
 ;	BX -> CMDHEAP (not used)
@@ -41,30 +42,32 @@ CODE    SEGMENT
 DEFPROC	cmdMem
 	mov	ah,DOS_MSC_GETVARS
 	int	21h			; ES:BX -> DOSVARS + 2
-	mov	ax,es:[bx-2].DV_MCB_LIMIT
-	call	toBytes			; DX:AX = total memory (in bytes)
+	mov	ax,es:[bx-2].DV_MEM_SIZE
+	mov	cx,1024
+	mul	cx			; DX:AX = total memory (in bytes)
 	PRINTF	<"%8ld bytes total",13,10>,ax,dx
 	sub	cx,cx			; CX = memory block #
-	sub	si,si			; SI = free paragraphs
+	sub	di,di			; DI = free bytes (low word)
+	push	cx			; and the high word is on the stack
 mem1:	mov	dl,1			; DL = 1 (free blocks only)
-	DOSUTIL	QRYMEM
+	DOSUTIL	QRYMEM			; SI:DX = size (in bytes)
 	jc	mem2
-	add	si,dx
+	add	di,dx
+	pop	ax
+	adc	ax,si
+	push	ax
 	inc	cx
 	jmp	mem1
-mem2:	call	transParas		; AX = paras of COMMAND's transient
-	test	ax,ax			; can it be discarded?
-	jz	mem3			; no, so EXEC and BASIC have the same
-	add	ax,si			; AX = free memory for EXEC (paras)
+mem2:	pop	si			; SI:DI = free bytes
+	call	transParas		; AX = paras of COMMAND's transient
+	mov	bx,ax			; BX = same (0 if not discardable)
 	call	toBytes
-	PRINTF	<"%8ld bytes free for EXEC",13,10>,ax,dx
-	xchg	ax,si			; AX = free memory for BASIC (paras)
-	call	toBytes
-	PRINTF	<"%8ld bytes free for BASIC",13,10>,ax,dx
-	jmp	short mem9
-mem3:	xchg	ax,si
-	call	toBytes
-	PRINTF	<"%8ld bytes free",13,10>,ax,dx
+	add	ax,di
+	adc	dx,si			; DX:AX = free memory for EXEC
+	PRINTF	<"%8ld bytes available",13,10>,ax,dx
+	test	bx,bx			; can the transient be discarded?
+	jz	mem9			; no, so EXEC and BASIC have the same
+	PRINTF	<"%8ld bytes for BASIC",13,10>,di,si
 mem9:	cmp	word ptr cs:[FPU_TABLE].SEG,0; is the FPU$ driver loaded?
 	jne	mem10			; yes
 	PRINTF	<"Floating-point disabled",13,10>

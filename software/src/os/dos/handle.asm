@@ -18,6 +18,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTWORD	<dos_data>
 	EXTNEAR	<dev_request,scb_release>
 	EXTNEAR	<chk_devname,chk_filename>
 	EXTNEAR	<get_bpb,get_psp,find_cln,new_bpb>
@@ -354,8 +355,7 @@ DEFPROC	sfb_open,DOS
 	push	si
 	push	ds
 	push	es
-	push	cs
-	pop	es
+	mov	es,cs:[dos_data]
 	ASSUME	ES:DOS
 	LOCK_SCB
 	ASSUME	ES:NOTHING
@@ -396,8 +396,7 @@ so0:	jcxz	so0a			; not one of the session's devices
 	jz	so9a			; no
 	dec	cx
 	xchg	bx,cx			; BX -> session's SFB
-	push	cs
-	pop	ds			; (so9 restores DS)
+	mov	ds,cs:[dos_data]	; (so9 restores DS)
 	ASSUME	DS:DOS
 	inc	[bx].SFB_REFS		; add a reference
 	mov	dx,[bx].SFB_CONTEXT	; DX = context (and carry is clear)
@@ -410,8 +409,7 @@ so0a:	call	chk_devopen		; can it be opened in this mode?
 	jne	so1			; no
 	mov	si,cs:[scb_active]
 	lea	si,[si].SCB_FILENAME + 1
-	push	cs
-	pop	ds			; DS:SI -> ASCIIZ name (see chk_devname)
+	mov	ds,cs:[dos_data]	; DS:SI -> name (see chk_devname)
 
 so1:	mov	ax,DDC_OPEN SHL 8	; ES:DI -> driver
 	sub	dx,dx			; no initial context
@@ -426,8 +424,7 @@ so1a:	push	cx			; save DIRENT # (if any)
 ; Although the primary goal here is to find a free SFB, a matching SFB
 ; will suffice if it's for a context-less device (ie, not a file).
 ;
-so2:	push	cs
-	pop	ds
+so2:	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	mov	ah,bl			; save mode in AH
 	mov	cx,es			; CX:DI is driver, DX is context
@@ -445,7 +442,12 @@ so3:	test	al,al			; is this a file (ie, a drive #)?
 	jne	so4			; check next SFB
 	cmp	[si].SFB_CONTEXT,dx	; context-less device?
 	jne	so4			; no
-	jmp	so7			; yes, this SFB will suffice
+	pop	ax			; yes, this SFB will suffice, so throw
+	pop	ax			; away any DIRENT on the stack
+	pop	ax			; and any DIRENT #
+	mov	bx,si			; return matching SFB
+	inc	[bx].SFB_REFS
+	jmp	so9
 so4:	test	bx,bx			; are we still looking for a free SFB?
 	jnz	so5			; no
 	cmp	[si].SFB_REFS,bl	; is this one free?
@@ -462,8 +464,7 @@ so5:	add	si,size SFB
 	jz	so8			; no, tell the driver sorry
 	push	di
 	push	es
-	push	cs
-	pop	es
+	mov	es,cs:[dos_data]
 	ASSUME	ES:DOS
 	mov	es:[bx].SFB_DIRNUM,cx
 	push	si
@@ -498,8 +499,7 @@ so5b:	pop	es
 	ASSUME	ES:NOTHING
 	pop	di
 
-so6:	push	cs
-	pop	ds
+so6:	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	DBGINIT	STRUCT,[bx],SFB
 	mov	[bx].SFB_DEVICE.OFF,di
@@ -520,13 +520,6 @@ so6:	push	cs
 	inc	ax			; is it a volume (see chk_volume)?
 	jz	so8b			; yes
 	jmp	short so9		; no, return new SFB (carry clear)
-
-so7:	pop	ax			; throw away any DIRENT on the stack
-	pop	ax
-	pop	ax			; and any DIRENT #
-	mov	bx,si			; return matching SFB
-	inc	[bx].SFB_REFS
-	jmp	short so9
 
 so8:	test	al,al			; did we issue DDC_OPEN?
 	jge	so8a			; no
@@ -595,8 +588,7 @@ DEFPROC	chk_volume,DOS
 	or	sp,sp			; no (carry clear, ZF clear)
 	ret
 cv1:	mov	dl,[si]
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	and	dl,NOT 20h		; DL = upper-case drive letter
 	sub	dl,'A'			; DL = drive #
@@ -1084,8 +1076,7 @@ sw7:	mov	ah,DDC_WRITE
 	cmp	cs:[bx].SCB_CTRLC_ACT,0	; CTRLC pending (BX -> SCB)?
 	stc				; (carry set for the write error)
 	je	sw9			; no
-sw7b:	push	cs
-	pop	ds
+sw7b:	mov	ds,cs:[dos_data]
 	jmp	msc_readctrlc
 
 sw8:	call	dev_request		; issue the DDC_WRITE request
@@ -1344,8 +1335,7 @@ DEFPROC	sfh_add_ref,DOS
 	pop	ax
 	jc	sha9
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	add	[bx].SFB_REFS,ah
 	pop	ds

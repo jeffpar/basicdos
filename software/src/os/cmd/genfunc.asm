@@ -18,7 +18,7 @@ CODE    SEGMENT
 	EXTNEAR	<genExpr,genCvtType,genPushSlot,getVar,holdStr,swapArgs>
 	EXTNEAR	<genCallCS,genCallFar,genPushImmLong,genPushBPOffset>
 	EXTNEAR	<genPushLong,genPushZeroLong>
-	EXTNEAR	<getNextSymbol,peekNextSymbol,memError>
+	EXTNEAR	<getNextSymbol,peekNextSymbol,memError,codeSeg>
 	EXTBYTE	<STR_DATA,VAL_DATA,TIMER_DATA>
 	EXTLONG	<FPU_TABLE>
 
@@ -194,12 +194,14 @@ gfe7:	call	loadFuncData		; AX = function address offset
 	call	loadFuncData		; AX = function address segment
 	xchg	dx,ax
 	test	dx,dx
-	jnz	gfe8
+	jz	gfe7a
+	call	codeSeg			; DX = function block's code segment
+	jmp	short gfe8
 ;
 ; A predefined function outside COMMAND's core isn't there if only the core
 ; was loaded (see genUpper).
 ;
-	cmp	cx,ds:[PSP_CODESIZE]	; is the function loaded?
+gfe7a:	cmp	cx,ds:[PSP_CODESIZE]	; is the function loaded?
 	jae	gfeM			; no
 	mov	dx,cs
 gfe8:	GENCALL	dx,cx			; generate call to function DX:CX

@@ -71,6 +71,7 @@ BLKHDR		ends
 CBLK		struc
 CBLK_HDR	db size	BLKHDR dup (?)	; 00h
 CBLK_REFS	dw	?		; 08h: bottom of LBLREF stack, if any
+CBLK_DATA	dw	?		; 0Ah: the block's data segment
 CBLK		ends
 CBLKLEN		equ	4096		; preferred code block size
 CODE_ROOM	equ	160		; room required at "safe points"
@@ -83,6 +84,7 @@ SIG_CBLK	equ	MCBTYPE_CBLK
 FBLK		struc
 FBLK_HDR	db size	BLKHDR dup (?)	; 00h
 FBLK_REFS	dw	?		; 08h: bottom of LBLREF stack, if any
+		dw	?		; 0Ah: (CBLK_DATA)
 FBLK		ends
 FBLKLEN		equ	4096		; preferred function block size
 FBLK_SIG	equ	BLK_SIG

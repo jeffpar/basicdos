@@ -22,19 +22,20 @@ DOS	segment word public 'CODE'
 
 	EXTBYTE	<bpb_total,sfh_debug,def_drive,def_swchar,def_pathchar>
 	EXTBYTE	<scb_locked>
-	EXTWORD	<mcb_head,mcb_limit,buf_head,key_boot,scb_active,ivt_save>
-	EXTWORD	<err_stack>
+	EXTWORD	<mcb_limit,buf_head,key_boot,scb_active,ivt_save,tbl_next>
+	EXTWORD	<err_stack,dos_data>
 	EXTLONG	<bpb_table,scb_table,sfb_table,cdir_table,clk_ptr,fpu_table>
 	EXTLONG	<dev_head>
 	EXTNEAR	<find_cfg,init_table,set_bpbtime,load_devices,sysinit_end>
-	EXTNEAR	<move_init,dos_size,init_free>
+	EXTNEAR	<move_init,dos_size,init_free,map_buf,map_dos>
+	EXTNEAR	<set_call5,mem_total>
 	EXTNEAR	<open_dev,open_warning,open_error>
 	EXTERNS	<cache_int21>,far
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>
 	EXTNEAR	<dos_term,dos_func,dos_exit,dos_ctrlc,dos_error,dos_default>
 	EXTNEAR	<dos_fastcon>
-	EXTNEAR	<disk_read,disk_write,dos_tsr,dos_call5,dos_util,dos_leave>
-	EXTNEAR	<int_enter,int_leave,int_util,int_getvec,int_setvec>
+	EXTNEAR	<disk_read,disk_write,dos_tsr,dos_util,dos_leave>
+	EXTNEAR	<int_enter,int_leave,int_util>
 
 	DEFLBL	sysinit_start
 
@@ -49,7 +50,7 @@ DOS	segment word public 'CODE'
 ; Entry:
 ;	Stack (from the top): offset of CFG_FILE data (if any), our data
 ;	segment, size of CFG_FILE data (if any), offset of initial BPB (in
-;	segment 0), and our address; DEVINIT pushes them before having CPU$
+;	segment 0), and our address; devinit pushes them before having CPU$
 ;	move us after the drivers, which then "returns" here (see devinit's i9)
 ;
 DEFPROC	sysinit,far
@@ -60,8 +61,9 @@ DEFPROC	sysinit,far
 	pop	bp			; BP = our address (see move_init)
 	sub	ax,BIOS_DATA
 	mov	es:[bpb_off],ax		; save boot BPB (BIOS offset)
-	mov	ax,cs
-	mov	es:[dos_seg],ax		; save the resident DOS segment
+	mov	es:[dos_seg],es		; save the resident DOS data segment
+	mov	es:[dos_data],es	; (where the kernel keeps it, too)
+	mov	es:[dos_code],cs	; and its code segment
 	mov	es:[cfg_size],dx	; size of CFG data
 ;
 ; The CFG data follows our image (see devinit's chk_cpu), and we copy it to
@@ -89,18 +91,21 @@ si0:	lods	byte ptr es:[si]
 ; (see move_init), along with 512 bytes below it for our stack.
 ;
 ; MEMORY_SIZE is in Kb (2^10 units), and mcb_limit is in paragraphs (2^4
-; units), so shift left 6 bits.
+; units), so shift left 6 bits.  CPU$ has already applied any "MEMSIZE="
+; line to MEMORY_SIZE (see ddcpu_init in 286dev.asm).  mem_total adds any
+; extended memory to it, for the total memory (see DV_MEM_SIZE).
 ;
 si1:	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
 	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
-	mov	cl,6
-	shl	ax,cl			; available memory in paras
-	mov	[mcb_limit],ax
 	push	es
 	pop	ds
 	ASSUME	DS:DOS
+	call	mem_total		; record the total memory
+	mov	cl,6
+	shl	ax,cl			; available memory in paras
+	mov	[mcb_limit],ax
 	mov	si,offset sysinit_start - 200h
 	call	move_init		; AX = code selector, DX = data
 	push	ax
@@ -108,7 +113,7 @@ si1:	mov	ax,BIOS
 	push	ax
 	ret
 ;
-; Initialize all the DOS vectors.  DS is dos_seg; set ES to BIOS.
+; Initialize all the DOS vectors.  DS is dos_seg.
 ;
 	EVEN
 	DEFLBL	sysinit_high,near
@@ -122,18 +127,8 @@ si1:	mov	ax,BIOS
 	mov	sp,offset sysinit_start
 	sti
 ;
-; "Revector" DDINT_GETVEC and DDINT_SETVEC to int_getvec and int_setvec
-; (DEVINIT's versions are gone), and then use them to initialize all the DOS
-; vectors.
+; Initialize all the DOS vectors with DDINT_SETVEC (which CPU$ provides).
 ;
-	mov	ax,BIOS
-	mov	es,ax
-	ASSUME	ES:BIOS
-	mov	di,offset DDINT_GETVEC + DDINT_BIAS
-	mov	ax,offset int_getvec
-	call	sto_jmpf
-	mov	ax,offset int_setvec
-	call	sto_jmpf		; (DDINT_SETVEC follows DDINT_GETVEC)
 	mov	si,offset INT_TABLES
 si2:	lodsw
 	test	ax,ax			; any more tables?
@@ -143,24 +138,16 @@ si2a:	lodsw				; AX = offset of the next handler
 	test	ax,ax			; end of the table?
 	jz	si2			; yes
 	xchg	cx,ax
-	mov	dx,ds			; DX:CX -> handler
+	mov	dx,cs:[dos_code]	; DX:CX -> handler
 	mov	al,bl
 	call	far ptr DDINT_SETVEC
 	inc	bx
 	jmp	si2a
 ;
-; INT_DOSCALL5 * 4 holds a far jump rather than a vector (a PSP's CALL 5
-; reaches it by wrapping around at 1Mb), so it's stored directly.
-;
-si2b:	sub	ax,ax
-	mov	es,ax
-	ASSUME	ES:NOTHING
-	mov	di,INT_DOSCALL5 * 4
-	mov	ax,offset dos_call5
-	call	sto_jmpf
+si2b:	call	set_call5
 	mov	al,INT_DOSUTIL
 	mov	cx,offset dos_util
-	mov	dx,ds
+	mov	dx,cs:[dos_code]
 	call	far ptr DDINT_SETVEC
 ;
 ; Unless a driver (eg, VKD$) has installed an INT 29h handler (ie, one in RAM),
@@ -173,7 +160,7 @@ si2b:	sub	ax,ax
 	cmp	dx,0A000h-1		; is the vector in RAM (1h-9FFFh)?
 	jb	si2c			; yes, so leave it alone
 	mov	cx,offset dos_fastcon
-	mov	dx,ds
+	mov	dx,cs:[dos_code]
 	call	far ptr DDINT_SETVEC
 ;
 ; Unless a mouse driver has installed an INT 33h handler (ie, one in RAM;
@@ -186,7 +173,7 @@ si2c:	mov	al,INT_MOUSE
 	cmp	dx,0A000h-1		; is the vector in RAM (1h-9FFFh)?
 	jb	si2d			; yes, so leave it alone
 	mov	cx,offset dos_default
-	mov	dx,ds
+	mov	dx,cs:[dos_code]
 	call	far ptr DDINT_SETVEC
 ;
 ; "Revector" DDINT_UTIL to int_util as soon as INT_DOSUTIL is available,
@@ -199,7 +186,7 @@ si2d:	cli
 	ASSUME	ES:BIOS
 	mov	di,offset DDINT_UTIL + DDINT_BIAS
 	mov	ax,offset int_util
-	call	sto_jmpf
+	call	set_ddint
 	sti
 ;
 ; The current SP is sysinit_start, and relative to SS, that's safe place
@@ -250,49 +237,17 @@ si3:	mov	ax,[DD_LIST].OFF	; copy the device driver list head
 	je	si3a
 	mov	[key_boot],ax
 ;
-; For ease of configuration testing, allow MEMSIZE (eg, MEMSIZE=32) to set a
-; new memory limit (Kb), assuming we have at least as much memory as specified.
+; Now grow the kernel's block (see dos_size) as much as possible; the hard
+; error stack (see dev_error) goes in the next paragraph after our original
+; code and stack, and the first resident table follows it (see init_table).
 ;
-si3a:	mov	si,offset CFG_MEMSIZE
-	call	find_cfg		; look for "MEMSIZE="
-	jc	si4
-	xchg	si,di
-	push	cs
-	pop	es
-	ASSUME	ES:NOTHING		; ES:DI -> validation data
-	mov	bl,10			; BL = base 10
-	DOSUTIL	ATOI16			; DS:SI -> string
-	jc	si4			; AX = value
-	push	cx
-	mov	cl,6
-	shl	ax,cl
-	pop	cx
-	cmp	ax,[mcb_limit]		; is MEMSIZE too large?
-	jae	si4			; yes
-	mov	[mcb_limit],ax
-;
-; Now grow the kernel's block (see dos_size) as much as possible, and set ES
-; to the first available paragraph for resident DOS tables.
-;
-si4:	sub	bx,bx
+si3a:	sub	bx,bx
 	call	dos_size
-	mov	ax,sp
-	ASSERT	Z,<cmp ax,offset sysinit_start>
-	add	ax,15
-	mov	cl,4
-	shr	ax,cl
-	mov	dx,ds
-	add	ax,dx
-;
-; Reserve the hard error stack (see dev_error) ahead of the first table.
-;
-	add	ax,ERR_STACK_SIZE SHR 4
-	mov	es,ax			; ES = first free (low) paragraph
-	ASSUME	ES:NOTHING
 	mov	ax,offset sysinit_start + 15
 	and	al,0F0h			; AX = DS-relative offset of the stack
 	add	ax,ERR_STACK_SIZE
 	mov	[err_stack],ax		; record the top of the stack
+	mov	ss:[tbl_next],ax
 ;
 ; The first resident table (scb_table) contains our Session Control Blocks.
 ; Look for a "SESSIONS=" line in CFG_FILE.
@@ -301,15 +256,13 @@ si5:	mov	si,offset CFG_SESSIONS
 	call	find_cfg		; look for "SESSIONS="
 	jc	si5a			; if not found, AX will be min value
 	xchg	si,di
-	push	es
 	push	cs
 	pop	es
 	mov	bl,10			; BL = base 10
 	DOSUTIL	ATOI16			; DS:SI -> string, ES:DI -> validation
-	pop	es			; AX = new value
-si5a:	mov	dx,size SCB
+si5a:	mov	dx,size SCB		; AX = new value
 	mov	bx,offset scb_table
-	call	init_table		; initialize table, update ES
+	call	init_table
 ;
 ; Initialize all the SCBs, by assigning them unique SCB_NUM values and
 ; setting their default console, AUX, and PRN system file handles to
@@ -351,7 +304,7 @@ si5c:	mov	[FDC_UNITS],al		; (updated to include reserved drives)
 	mov	ah,0			; AX = # drives
 	mov	dx,size BPBEX
 	mov	bx,offset bpb_table
-	call	init_table		; initialize table, update ES
+	call	init_table
 	mov	si,cs:[bpb_off]		; get the BPB the boot sector used
 ;
 ; Note that when we copy the "boot" BPB into the table of system BPBs, we
@@ -365,14 +318,16 @@ si5c:	mov	[FDC_UNITS],al		; (updated to include reserved drives)
 	mov	ah,[FDC_UNITS]		; AH = # diskette drives
 	push	ax			; save # BPBs on stack
 ;
-; Initialize the buffer chain while DS still points to the BIOS segment.
+; Initialize the buffer chain while DS still points to the BIOS segment, with
+; segments (or selectors) from CPU$ for the two buffers in low memory.
 ;
-	mov	cl,4
-	mov	ax,offset FAT_BUFHDR + BIOS_DATA
-	shr	ax,cl
+	mov	cx,offset DIR_BUFHDR + BIOS_DATA
+	call	map_buf
+	push	ax			; save DIR_BUFHDR's segment
+	mov	cx,offset FAT_BUFHDR + BIOS_DATA
+	call	map_buf			; AX = FAT_BUFHDR's segment
+	pop	dx			; DX = DIR_BUFHDR's segment
 	mov	es:[buf_head],ax
-	mov	dx,offset DIR_BUFHDR + BIOS_DATA
-	shr	dx,cl
 
 	DBGINIT	STRUCT,[FAT_BUFHDR],BUF
 	mov	[FAT_BUFHDR].BUF_PREV,dx
@@ -495,7 +450,7 @@ si6d:	add	di,size BPBEX
 	mul	[bpb_total]		; AX = # SCBs * # drives
 	mov	dx,2
 	mov	bx,offset cdir_table
-	call	init_table		; initialize table, update ES
+	call	init_table
 ;
 ; The next resident table (sfb_table) contains our System File Blocks.
 ; Look for a "FILES=" line in CFG_FILE.
@@ -504,42 +459,44 @@ si7:	mov	si,offset CFG_FILES
 	call	find_cfg		; look for "FILES="
 	jc	si7a			; if not found, AX will be min value
 	xchg	si,di
-	push	es
 	push	cs
 	pop	es
 	mov	bl,10			; BL = base 10
 	DOSUTIL	ATOI16			; DS:SI -> string, ES:DI -> validation
-	pop	es			; AX = new value
-si7a:	mov	dx,size SFB
+si7a:	mov	dx,size SFB		; AX = new value
 	mov	bx,offset sfb_table
-	call	init_table		; initialize table, update ES
+	call	init_table
 ;
 ; Any disk buffers beyond the two in low memory (see "BUFFERS=") come next,
-; each a BUFHDR followed by a 512-byte sector, added to the end of the chain.
+; each a BUFHDR followed by a 512-byte sector, added to the end of the chain,
+; with a segment (or selector) from CPU$.
 ;
 	mov	si,offset CFG_BUFFERS
 	call	find_cfg		; look for "BUFFERS="
 	jc	sb1			; if not found, AX will be min value
 	xchg	si,di
-	push	es
 	push	cs
 	pop	es
 	mov	bl,10			; BL = base 10
 	DOSUTIL	ATOI16			; DS:SI -> string, ES:DI -> validation
-	pop	es			; AX = new value
-sb1:	sub	ax,2
+sb1:	sub	ax,2			; AX = new value
 	jbe	sb3
-	push	ax			; save # extra buffers
-	mov	cl,4
-	mov	ax,offset DIR_BUFHDR + BIOS_DATA
-	shr	ax,cl
-	xchg	dx,ax			; DX = last buffer in the chain
-	mov	ax,offset FAT_BUFHDR + BIOS_DATA
-	shr	ax,cl
-	xchg	bx,ax			; BX = head
-	pop	cx			; CX = # extra buffers
+	xchg	cx,ax			; CX = # extra buffers
+	mov	bx,[buf_head]		; BX = head
+	push	ds
+	mov	ds,bx
+	mov	dx,ds:[BUF_PREV]	; DX = last buffer in the chain
+	pop	ds
 sb2:	push	cx
-	sub	di,di
+	mov	di,ss:[tbl_next]	; DI = offset of this buffer
+	mov	ax,di
+	add	ax,size BUFHDR + 512
+	jnc	$+5
+	jmp	sysinit_error		; (it doesn't fit in the segment)
+	mov	ss:[tbl_next],ax
+	push	di
+	push	ds
+	pop	es			; ES:DI -> this buffer
 	mov	ax,dx
 	stosw				; BUF_PREV = last buffer
 	mov	ax,bx
@@ -549,7 +506,10 @@ sb2:	push	cx
 	sub	ax,ax
 	mov	cx,(size BUFHDR - 6) SHR 1
 	rep	stosw			; zero the rest of the BUFHDR
-	mov	ax,es
+	pop	ax			; AX = offset of this buffer
+	push	dx
+	call	map_dos			; AX = its segment (or selector)
+	pop	dx
 	push	ds
 	mov	ds,dx
 	mov	ds:[BUF_NEXT],ax	; link the last buffer to this one
@@ -557,17 +517,12 @@ sb2:	push	cx
 	mov	ds:[BUF_PREV],ax	; and the head back to this one
 	pop	ds
 	xchg	dx,ax			; DX = new last buffer
-	mov	ax,dx
-	add	ax,(size BUFHDR + 512) SHR 4
-	mov	es,ax			; ES = next available paragraph
 	pop	cx
 	loop	sb2
 sb3:
 ;
 ; After all the resident tables have been created, the kernel's block ends at
-; ES, so we give the rest back (see dos_size), and the MCB chain starts there
-; (with the 8086 CPU$, the free block at ES follows the kernel's block in its
-; MCB chain).
+; tbl_next, so we give the rest back (see dos_size).
 ;
 ; The memory after it ends below our own code and stack (allowing 512 bytes
 ; for the stack, which peaks at 256-384 bytes, in a BIOS diskette interrupt),
@@ -575,15 +530,13 @@ sb3:
 ; we give back the code below sysinit_tail before loading the first SHELL, and
 ; the rest after the last SHELL has been loaded (see init_free).
 ;
-	push	cs
+	push	ss			; (our data; CS is our code)
 	pop	ds
 	ASSUME	DS:DOS
-	mov	bx,es
-	mov	es,[dos_seg]		; mcb_head is in resident DOS segment
-	ASSUME	ES:DOS
-	mov	es:[mcb_head],bx
-	sub	bx,[dos_seg]		; BX = paragraphs in the kernel's block
+	mov	bx,ss:[tbl_next]	; BX = length of the kernel's block
 	call	dos_size
+	mov	es,[dos_seg]
+	ASSUME	ES:DOS
 ;
 ; Before we create any sessions (and our first PSPs), we need to open all the
 ; devices required for the 5 STD handles: the console (CON) first, so that
@@ -775,9 +728,11 @@ si14:	mov	dx,offset SYS_MSG
 	mov	[pCacheInt21].SEG,es
 	mov	dx,offset cache_int21
 	push	cs
-	pop	ds
+	pop	ds			; DS:DX -> cache_int21
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 21h
 	int	21h
+	push	ss
+	pop	ds			; DS = our data again
 ;
 ; For each SHELL definition, load the corresponding file into the next
 ; available SCB.  The first time through, CFG_SHELL is used as a fallback,
@@ -919,7 +874,7 @@ si20:	add	sp,size SPB		; free SPB on the stack
 	lds	dx,[pCacheInt21]	; restore INT 21h vector
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 21h
 	int	21h
-	push	cs
+	push	ss
 	pop	ds
 
 	test	cx,cx			; if no SCBs loaded, that's not good
@@ -949,9 +904,9 @@ si20a:
 	cli
 	mov	di,offset DDINT_ENTER + DDINT_BIAS
 	mov	ax,offset int_enter
-	call	sto_jmpf
+	call	set_ddint
 	mov	ax,offset int_leave
-	call	sto_jmpf
+	call	set_ddint
 	ASSUME	ES:NOTHING
 ;
 ; Now that every SHELL has been loaded, free the memory containing our code
@@ -961,13 +916,14 @@ si20a:
 	sub	ax,ax
 	call	init_free
 ;
-; Save the vectors that programs commonly hook directly (01h, 03h, 08h, 09h,
-; 1Bh, and 1Ch), now that the drivers have hooked theirs (see psp_restvec).
+; Save the vectors that programs commonly hook directly (00h, 01h, 03h, 08h,
+; 09h, 1Bh, and 1Ch), now that the drivers have hooked theirs (see
+; psp_restvec).
 ;
 	mov	si,offset ivt_save	; DS:SI -> vector #s and saved vectors
 iv1:	lodsb				; AL = vector #
-	test	al,al			; end of the list?
-	jz	iv2			; yes
+	test	al,al			; end of the list (-1)?
+	js	iv2			; yes
 	call	far ptr DDINT_GETVEC	; DX:CX = vector
 	mov	[si].OFF,cx
 	mov	[si].SEG,dx
@@ -992,7 +948,7 @@ iv2:
 	mov	[scb_active],bx		; make it active (for consistency)
 	mov	ss,[bx].SCB_STACK.SEG
 	mov	sp,[bx].SCB_STACK.OFF
-	push	ds
+	push	cs:[dos_code]		; (the kernel's code segment, not DS)
 	mov	ax,offset dos_leave
 	push	ax
 	ret				; we let dos_leave turn interrupts on
@@ -1046,10 +1002,10 @@ fe1:	mov	ah,DOS_TTY_PRINT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; sto_jmpf
+; set_ddint
 ;
 ; Inputs:
-;	DS:AX -> target
+;	AX = offset of the target in the kernel (see dos_code)
 ;	ES:DI -> where to store a far jump to it
 ;
 ; Outputs:
@@ -1058,16 +1014,16 @@ fe1:	mov	ah,DOS_TTY_PRINT
 ; Modifies:
 ;	AX, DI
 ;
-DEFPROC	sto_jmpf
+DEFPROC	set_ddint
 	push	ax
 	mov	al,OP_JMPF
 	stosb
 	pop	ax
 	stosw
-	mov	ax,ds
+	mov	ax,cs:[dos_code]
 	stosw
 	ret
-ENDPROC	sto_jmpf
+ENDPROC	set_ddint
 
 ;
 ; Initialization variables (these follow sysinit_tail, since they're used
@@ -1075,6 +1031,7 @@ ENDPROC	sto_jmpf
 ;
 	DEFWORD	bpb_off
 	DEFWORD	dos_seg
+	DEFWORD	dos_code		; kernel's code segment (or selector)
 	DEFWORD	cfg_data
 	DEFWORD	cfg_size
 
@@ -1116,8 +1073,6 @@ CFG_BUFFERS	db	8,"BUFFERS="
 ;
 CFG_FILES	db	6,"FILES="
 		dw	20,8,254
-CFG_MEMSIZE	db	8,"MEMSIZE="
-		dw	640,16,640
 CFG_SESSIONS	db	9,"SESSIONS="
 		dw	4,1,32		; TODO: Decide if 32 session limit OK
 CFG_SHELL	db	6,"SHELL="

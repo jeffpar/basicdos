@@ -7,14 +7,18 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Prints the CPU type and the CPU$ driver's memory arena, and then tests its
+; Prints the CPU type (and the processor's own, CPUF_HWTYPE) and the CPU$
+; driver's memory arena, and then tests its
 ; functions: an allocation from the top of conventional memory, resized with
 ; CPU_REALLOC, copies with CPU_MOVE (including an overlapping one), and in
 ; protected mode, allocations with GDT and LDT selectors, a mapping of video
 ; memory, and aliases (code and read-only), or in real mode, the segments
 ; that CPU_MAP and CPU_ALIAS return instead; then invalid requests, and freeing
-; everything, which must leave the arena as it was.  Exits with code 0 if
-; every check passes, or 1 if any fails.
+; everything, which must leave the arena as it was.  Along the way, it names a
+; block (CPU_SETBLK), finds it by its selector (CPU_QUERY), and frees all the
+; blocks of an owner (CPU_FREEALL), and tests the functions for debuggers
+; (see debugfns).  Exits with code 0 if every check passes, or 1 if any
+; fails.
 ;
 	DOSPSP equ 1
 	DOSFUNC equ 1
@@ -30,27 +34,33 @@ CODE	segment
 	org	100h
 
 DEFPROC	main
-	mov	ax,BIOS
-	mov	es,ax
-	ASSUME	ES:BIOS
-	mov	al,[CPU_TYPE]
-	push	cs
-	pop	es
-	ASSUME	ES:CODE
-	PRINTF	<"CPU type %d",13,10>,ax
 	mov	ah,CPU_GETINFO
-	call	far ptr DDINT_CPU
+	call	far ptr DDINT_CPU	; AH = CPUF_* flags
 	jnc	m1
 	PRINTF	<"CPU$ not loaded",13,10>
 	jmp	m9
-m1:	call	info
-	mov	[pmflag],ah
+m1:	mov	[pmflag],ah
+	mov	cl,6
+	shr	ah,cl
+	mov	bl,ah
+	mov	bh,0			; BX = CPUF_HWTYPE
+	mov	ax,BIOS
+	mov	es,ax
+	ASSUME	ES:BIOS
+	mov	al,[CPU_TYPE]		; (and AH = 0)
+	push	ds
+	pop	es
+	ASSUME	ES:CODE
+	PRINTF	<"CPU type %d (hardware %d)",13,10>,ax,bx
+	call	info
 	mov	[free0].LOW,cx
 	mov	[free0].HIW,dx
 	call	arena
 	mov	[npmbs],bx
 	sub	bp,bp			; BP = step #
 	call	common
+	call	blocks
+	call	debugfns
 	test	byte ptr [pmflag],CPUF_PM
 	jnz	m2
 	call	realmode
@@ -66,7 +76,7 @@ m2:	inc	bp
 	mov	[addr1].LOW,cx
 	mov	[addr1].HIW,dx
 	inc	bp
-	mov	al,SELF_LDT
+	mov	al,MEMF_LDT
 	sub	si,si
 	mov	di,4096
 	call	alloc
@@ -133,8 +143,8 @@ m2:	inc	bp
 	test	byte ptr [sel2],4	; was the 2nd selector an LDT selector?
 	jz	m8			; no
 m7:	inc	bp
-	mov	cx,[addr6].LOW
-	mov	dx,[addr6].HIW
+	mov	cx,[sel6]
+	mov	dx,-1			; DX:CX = the block, by its selector
 	mov	ah,CPU_FREE
 	call	cpu_ok
 	call	info
@@ -163,10 +173,11 @@ ENDPROC	main
 ;
 DEFPROC	common
 	inc	bp
-	mov	al,SELF_LOW OR SELF_HIGH
+	mov	al,MEMF_LOW OR MEMF_HIGH
 	sub	si,si
 	mov	di,4096
 	call	alloc
+	mov	[sel6],ax
 	mov	[addr6].LOW,cx
 	mov	[addr6].HIW,dx
 	inc	bp
@@ -227,7 +238,7 @@ ENDPROC	resize
 ;
 DEFPROC	realmode
 	inc	bp
-	mov	al,SELF_LOW OR SELF_HIGH
+	mov	al,MEMF_LOW OR MEMF_HIGH
 	sub	si,si
 	mov	di,16
 	call	alloc			; AX = segment
@@ -260,7 +271,7 @@ DEFPROC	realmode
 	jne	rm8
 	inc	bp
 	mov	bx,ax
-	mov	al,SELF_CODE
+	mov	al,MEMF_CODE
 	mov	ah,CPU_ALIAS
 	call	cpu_ok
 	cmp	ax,bx			; the same segment?
@@ -292,12 +303,12 @@ ENDPROC	realmode
 ; Copies STR_LEN bytes from DS:SI to DS:DI with CPU_MOVE.
 ;
 DEFPROC	move
-	mov	ax,ds
-	mov	dx,ax
-	mov	cl,4
-	shl	ax,cl
-	mov	cl,12
-	shr	dx,cl			; DX:AX = address of DS
+	mov	al,[pmflag]
+	and	al,CPUF_PM		; AL = ADDR_SEL (the same bit) or 0
+	mov	bx,ds
+	mov	ah,CPU_SEGINFO
+	call	cpu_ok			; DX:CX = address of DS
+	xchg	ax,cx			; DX:AX = address of DS
 	mov	bx,offset mvpkt
 	mov	[bx].MV_SRC.LOW,si
 	add	[bx].MV_SRC.LOW,ax
@@ -347,7 +358,7 @@ ENDPROC	cpu_err
 ;
 DEFPROC	aliases
 	inc	bp
-	mov	al,SELF_LDT OR SELF_CODE OR SELF_USER
+	mov	al,MEMF_LDT OR MEMF_CODE OR MEMF_USER
 	mov	bx,[sel2]
 	mov	ah,CPU_ALIAS
 	call	cpu_ok
@@ -363,7 +374,7 @@ al7:	jmp	m8
 al1:	mov	[sel4],ax
 	PRINTF	<"Alias %#x as code: sel %#x at %#lx",13,10>,bx,ax,cx,dx
 	inc	bp
-	mov	al,SELF_RDONLY
+	mov	al,MEMF_RDONLY
 	mov	bx,[sel3]
 	mov	ah,CPU_ALIAS
 	call	cpu_ok
@@ -383,7 +394,7 @@ al2:	mov	[sel5],ax
 	call	cpu_ok
 	inc	bp
 	mov	[experr],ERR_INVALID
-	mov	al,SELF_LDT
+	mov	al,MEMF_LDT
 	mov	bx,[sel4]
 	mov	ah,CPU_ALIAS
 	call	cpu_err
@@ -394,6 +405,166 @@ al2:	mov	[sel5],ax
 	call	cpu_ok
 	ret
 ENDPROC	aliases
+
+;
+; blocks
+;
+; Names the 4K block (by its selector) with CPU_SETBLK, which CPU_QUERY must
+; then find (by its selector too), and frees two blocks of another owner with
+; CPU_FREEALL, after which freeing either of them must fail.
+;
+DEFPROC	blocks
+	inc	bp
+	mov	cx,[sel6]
+	mov	dx,-1			; DX:CX = the 4K block
+	mov	bx,2			; BX = owner
+	mov	si,offset name1		; ES:SI -> name
+	mov	ax,(CPU_SETBLK SHL 8) OR MCBTYPE_TBLK
+	call	cpu_ok
+	inc	bp
+	mov	cx,[sel6]
+	mov	dx,-1
+	mov	bx,dx			; BX = -1 (the block at DX:CX)
+	mov	di,offset pmb_buf
+	mov	ah,CPU_QUERY
+	call	cpu_ok
+	mov	ax,[addr6].LOW
+	cmp	[di].PMB_ADDR.LOW,ax
+	jne	bk8
+	mov	ax,[addr6].HIW
+	cmp	[di].PMB_ADDR.HIW,ax
+	jne	bk8
+	cmp	[di].PMB_OWNER,2
+	jne	bk8
+	cmp	[di].PMB_MCBTYPE,MCBTYPE_TBLK
+	jne	bk8
+	lea	di,[di].PMB_NAME
+	mov	si,offset name1
+	mov	cx,8
+	repe	cmpsb
+	je	bk1
+bk8:	jmp	m8
+bk1:	inc	bp
+	mov	bx,3			; BX = another owner
+	sub	si,si
+	mov	di,16			; SI:DI = length
+	mov	ax,(CPU_ALLOC SHL 8) OR MEMF_LOW OR MEMF_HIGH
+	call	cpu_ok
+	mov	[addr1].LOW,cx
+	mov	[addr1].HIW,dx
+	mov	ax,(CPU_ALLOC SHL 8) OR MEMF_LOW OR MEMF_HIGH
+	call	cpu_ok
+	mov	[addr2].LOW,cx
+	mov	[addr2].HIW,dx
+	inc	bp
+	mov	ah,CPU_FREEALL
+	call	cpu_ok
+	inc	bp
+	mov	[experr],ERR_BADADDR
+	mov	cx,[addr1].LOW
+	mov	dx,[addr1].HIW
+	mov	ah,CPU_FREE
+	call	cpu_err			; it's free already
+	inc	bp
+	mov	cx,[addr2].LOW
+	mov	dx,[addr2].HIW
+	mov	ah,CPU_FREE
+	call	cpu_err			; and so is this one
+	mov	si,offset name1
+	PRINTF	<"Named %.8s, freed owner 3",13,10>,si
+	ret
+ENDPROC	blocks
+
+;
+; debugfns
+;
+; Tests the functions for debuggers: CPU_SEGINFO of CS as a segment (whose
+; base must be CS * 16, with a limit of FFFFh), CPU_RWMEM through CS (a
+; selector in protected mode) reading our PSP's INT 20h and writing 4 bytes
+; (which must then match), a CPU_RWMEM that would wrap past the end of the
+; segment (which must fail), CPU_SETFAULT (which must return the handler we
+; set, before we restore the original), and CPU_SYSREGS, which only the
+; 80286 driver supports.
+;
+DEFPROC	debugfns
+	inc	bp
+	mov	al,0
+	mov	bx,cs
+	mov	ah,CPU_SEGINFO
+	call	cpu_ok			; DX:CX = base, AX = limit
+	inc	ax			; is the limit FFFFh?
+	jnz	df8			; no
+	push	cx
+	push	dx
+	mov	ax,16
+	mul	bx			; DX:AX = our address
+	pop	si
+	pop	cx
+	cmp	ax,cx
+	jne	df8
+	cmp	dx,si
+	jne	df8
+	inc	bp
+	mov	al,[pmflag]
+	and	al,CPUF_PM		; AL = ADDR_SEL or 0 (see move)
+	sub	si,si			; BX:SI -> our PSP's INT 20h
+	mov	cx,2
+	mov	di,offset pmb_buf
+	mov	ah,CPU_RWMEM
+	call	cpu_ok
+	cmp	word ptr [pmb_buf],20CDh
+	jne	df8
+	inc	bp
+	mov	al,[pmflag]
+	and	al,CPUF_PM
+	or	al,ADDR_WRITE
+	mov	si,offset pmb_buf	; BX:SI -> pmb_buf
+	mov	cx,4
+	mov	di,offset str1		; ES:DI -> str1
+	mov	ah,CPU_RWMEM
+	call	cpu_ok
+	mov	si,offset str1
+	mov	di,offset pmb_buf
+	mov	cx,4
+	repe	cmpsb			; were they written?
+	jne	df8			; no
+	inc	bp
+	mov	[experr],ERR_INVALID
+	mov	al,0
+	mov	si,0FFFFh		; (the second byte would wrap)
+	mov	cx,2
+	mov	di,offset pmb_buf
+	mov	ah,CPU_RWMEM
+	call	cpu_err
+	jmp	short df1
+df8:	jmp	m8
+df1:	inc	bp
+	mov	cx,1234h
+	mov	dx,5678h		; DX:CX = a handler (never called)
+	mov	ah,CPU_SETFAULT
+	call	cpu_ok			; DX:CX = the previous handler
+	mov	ah,CPU_SETFAULT
+	call	cpu_ok			; (restored) DX:CX = ours
+	cmp	cx,1234h		; did we get ours back?
+	jne	df8			; no
+	cmp	dx,5678h
+	jne	df8
+;
+; CPU_SYSREGS must fail exactly when this isn't the 80286 driver.
+;
+	inc	bp
+	mov	ah,CPU_SYSREGS
+	call	far ptr DDINT_CPU	; AX = MSW (or an error)
+	sbb	dx,dx
+	inc	dx			; DX = 1 if it succeeded, 0 if not
+	mov	cl,[pmflag]
+	and	cx,CPUF_PMOK		; CX = CPUF_PMOK if the 80286 driver
+	shr	cx,1			; CX = 1 if so, 0 if not
+	cmp	dx,cx
+	jne	df8
+	PRINTF	<"SYSREGS %d (MSW %#x)",13,10>,dx,ax
+	ret
+ENDPROC	debugfns
 
 ;
 ; info
@@ -413,7 +584,7 @@ ENDPROC	info
 ;
 ; alloc
 ;
-; Allocates SI:DI bytes with SELF_* flags AL, prints the results, and returns
+; Allocates SI:DI bytes with MEMF_* flags AL, prints the results, and returns
 ; the selector in AX and the address in DX:CX (the test fails if it fails).
 ;
 DEFPROC	alloc
@@ -460,12 +631,15 @@ ENDPROC	arena
 	DEFWORD	sel3,0
 	DEFWORD	sel4,0
 	DEFWORD	sel5,0
+	DEFWORD	sel6,0
 	DEFLONG	free0,0
 	DEFLONG	addr1,0
 	DEFLONG	addr2,0
 	DEFLONG	addr6,0
 	even
 mvpkt	MOVEPKT	<>
+	DEFLBL	name1,byte
+	db	"CPUTEST "
 	DEFLBL	str1,byte
 	db	"CPU_MOVE",0
 	DEFLBL	str2,byte

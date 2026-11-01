@@ -7,25 +7,38 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+; CPU$ manages all memory (see cpu.inc), so these functions just call it,
+; passing it the segment (or selector) of each block, and keeping each
+; block's owner, type, and name with CPU$ (see CPU_SETBLK).
+;
 	DOSPSP equ 1
 	include	macros.inc
+	include	8086.inc
+	include	bios.inc
 	include	dos.inc
 	include	dosapi.inc
+	include	cpu.inc
 
 DOS	segment word public 'CODE'
 
+	EXTWORD	<dos_data,scb_active>
 	EXTNEAR	<get_psp,scb_release>
 
 	EXTBYTE	<scb_locked>
-	EXTWORD	<mcb_head,scb_active>
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; mem_alloc (REG_AH = 48h)
 ;
+; The block can be anywhere in memory (including extended memory, in protected
+; mode).  If MCBTYPE_HIGH is set in AL, it's allocated from the top of the
+; last free block that's big enough, instead of the bottom of the first, so
+; that long-lived blocks don't fragment the memory below them (eg, the memory
+; that COMMAND.COM frees when it discards its transient portion).  The block
+; is owned by the current PSP (or the system, if there's no PSP yet).
+;
 ; Inputs:
-;	REG_AL = MCBTYPE
+;	REG_AL = MCBTYPE (optionally with MCBTYPE_HIGH)
 ;	REG_BX = paragraphs requested
 ;
 ; Outputs:
@@ -33,12 +46,30 @@ DOS	segment word public 'CODE'
 ;	On failure, REG_AX = error, REG_BX = max paras available
 ;
 DEFPROC	mem_alloc,DOS
-	mov	bx,[bp].REG_BX		; BX = # paras requested
-	call	mcb_alloc
-	jnc	ma9
-	mov	[bp].REG_BX,bx
-ma9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
+	mov	dl,al			; DL = type (and MCBTYPE_HIGH)
+	call	get_psp			; AX = PSP (ZF set if none)
+	jnz	ma1
+	mov	ax,MCBOWNER_SYSTEM
+ma1:	xchg	bx,ax			; BX = owner
+	mov	ax,[bp].REG_BX
+	call	para_len		; SI:DI = length
+	mov	ax,CPU_ALLOC SHL 8
+	test	dl,MCBTYPE_HIGH
+	jz	ma2
+	or	al,MEMF_HIGH
+ma2:	push	dx
+	call	far ptr DDINT_CPU	; AX = segment, DX:CX = address
+	pop	si			; SI = type
+	jc	ma8
+	mov	[bp].REG_AX,ax
+	xchg	ax,si
+	and	al,NOT MCBTYPE_HIGH	; AL = type
+	sub	si,si			; SI = 0 (no name)
+	mov	ah,CPU_SETBLK
+	call	far ptr DDINT_CPU	; BX = owner still
 	ret
+ma8:	mov	[bp].REG_AX,ax		; update REG_AX
+	jmp	short mem_fail		; and REG_BX, and return CARRY set
 ENDPROC	mem_alloc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -49,15 +80,30 @@ ENDPROC	mem_alloc
 ;	REG_ES = segment to free
 ;
 ; Outputs:
-;	On success, carry clear
-;	On failure, carry set, REG_AX = ERR_BADMCB or ERR_BADADDR
+;	On success, carry clear, REG_ES = 0 (and REG_DS, if it was the same)
+;	On failure, carry set, REG_AX = ERR_BADADDR
 ;
 DEFPROC	mem_free,DOS
-	mov	ax,[bp].REG_ES		; AX = segment to free
-	call	mcb_free
+	mov	cx,[bp].REG_ES		; CX = segment to free
+	mov	dx,-1			; (DX = -1 means CX is a segment)
+	mov	ah,CPU_FREE
+	call	far ptr DDINT_CPU
 	jnc	mf9
 	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY set
-mf9:	ret
+	ret
+;
+; In protected mode, the block's selector is gone, and reloading it into the
+; caller's ES (or DS, if it addressed the block, too) would fault, so (in
+; either mode) the caller gets 0 instead.
+;
+mf9:	mov	ax,[bp].REG_ES		; AX = the freed segment (or selector)
+	sub	dx,dx
+	mov	[bp].REG_ES,dx
+	cmp	[bp].REG_DS,ax		; did DS address the block, too?
+	jne	mf9a			; no
+	mov	[bp].REG_DS,dx
+mf9a:	clc
+	ret
 ENDPROC	mem_free
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -78,440 +124,322 @@ ENDPROC	mem_free
 ;	Do we care to do the same?  I think not.
 ;
 DEFPROC	mem_realloc,DOS
-	mov	dx,[bp].REG_ES		; DX = segment to realloc
-	mov	bx,[bp].REG_BX		; BX = # new paras requested
-	call	mcb_realloc
+	mov	ax,[bp].REG_BX
+	call	para_len		; SI:DI = length
+	mov	cx,[bp].REG_ES		; CX = segment to realloc
+	mov	dx,-1			; (DX = -1 means CX is a segment)
+	mov	ah,CPU_REALLOC
+	call	far ptr DDINT_CPU
 	jnc	mr9
-	mov	[bp].REG_BX,bx
-	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY set
+	mov	[bp].REG_AX,ax		; update REG_AX
+;
+; mem_fail sets REG_BX to the paragraphs in DX:CX (at most FFFFh), the
+; length that CPU$ says is available, and returns carry set.
+;
+	DEFLBL	mem_fail,near
+	mov	bx,-1
+	cmp	dx,10h			; 1Mb or more?
+	jae	mr8			; yes
+	mov	bx,cx
+	mov	cl,4
+	shr	bx,cl
+	mov	cl,12
+	shl	dx,cl
+	or	bx,dx			; BX = paragraphs
+mr8:	mov	[bp].REG_BX,bx
+	stc
 mr9:	ret
 ENDPROC	mem_realloc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; para_len
+;
+; Converts AX paragraphs to a length for CPU$; DOS allows a block with no
+; paragraphs, but CPU$ doesn't, so it gets one.
+;
+; Inputs:
+;	AX = paragraphs
+;
+; Outputs:
+;	SI:DI = length in bytes
+;
+; Modifies:
+;	AX, CX, SI, DI
+;
+DEFPROC	para_len
+	cmp	ax,1
+	adc	ax,0			; (0 becomes 1)
+	mov	cl,4
+	mov	di,ax
+	shl	di,cl
+	mov	si,ax
+	mov	cl,12
+	shr	si,cl
+	ret
+ENDPROC	para_len
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; mem_query
 ;
-; This utility function simplifies implementation of the MEM command.
+; This utility function simplifies implementation of the MEM command.  It
+; describes the memory blocks (all of memory, conventional and extended),
+; using CPU_QUERY.
 ;
 ; Inputs:
 ;	CX = memory block # (0-based)
-;	DL = memory block type (0 for any, 1 for free, 2 for used), or 3
-;	for the highest free block (CX is ignored), which is useful for
-;	storing data that can be recreated if it's overwritten (eg, see
-;	runTransient in COMMAND.COM); REG_BX + REG_DX is then the highest
-;	free paragraph + 1
+;	DL = memory block type (0 for any, 1 for free, 2 for used)
 ;
 ; Outputs:
 ;	On success, carry clear:
 ;		REG_BX = segment
 ;		REG_AX = owner ID (eg, PSP)
-;		REG_DX = size (in paragraphs)
+;		REG_SI:REG_DX = size (in bytes)
 ;		REG_ES:REG_DI -> name of process or type, if any
 ;	On failure, carry set (ie, no more blocks of the requested type)
 ;
 ; Modifies:
-;	AX, BX, CX, DI, ES
+;	AX, BX, CX, DX, SI, DI, ES
 ;
 DEFPROC	mem_query,DOS
+	ASSUME	DS:DOS
 	LOCK_SCB
-	mov	bx,[mcb_head]		; BX tracks ES
-	mov	es,bx
-	ASSUME	ES:NOTHING
-	cmp	dl,3			; highest free block?
-	jne	q1			; no
-	sub	di,di			; DI = last free block (none yet)
-q0:	cmp	es:[MCB_OWNER],0	; free block?
-	jne	q0a			; no
-	mov	di,bx			; yes, so record it
-q0a:	cmp	es:[MCB_SIG],MCBSIG_LAST
-	je	q0b
-	add	bx,es:[MCB_PARAS]
-	inc	bx
-	mov	es,bx
-	jmp	q0
-q0b:	mov	bx,di
-	mov	es,di
-	cmp	di,1			; any free block?
-	jb	q9			; no (carry set)
-	sub	ax,ax			; AX = owner (none)
-	jmp	short q7
-q1:	mov	ax,es:[MCB_OWNER]
-	test	dl,dl			; report any block?
+	push	ds
+	pop	es
+	mov	di,offset pmb_buf	; ES:DI -> PMB buffer
+	sub	bx,bx			; BX = PMB #
+q1:	call	mem_pmb			; get PMB # BX
+	jc	q9			; no more (and carry is set)
+	test	dl,dl			; any block?
 	jz	q3			; yes
-	test	ax,ax			; free block?
-	jnz	q2			; no
-	cmp	dl,1			; yes, interested?
-	je	q3			; yes
-	jmp	short q4		; no
-q2:	cmp	dl,2			; interested in used blocks?
+	mov	al,1			; AL = 1 (free)
+	cmp	[pmb_buf].PMB_TYPE,PMBTYPE_FREE
+	je	q2
+	inc	ax			; AL = 2 (used)
+q2:	cmp	dl,al			; the type requested?
 	jne	q4			; no
-
-q3:	jcxz	q7
+q3:	jcxz	q7			; and the block # requested?
 	dec	cx
-q4:	cmp	es:[MCB_SIG],MCBSIG_LAST
-	stc
-	je	q9
-	add	bx,es:[MCB_PARAS]
-	inc	bx
-	mov	es,bx
+q4:	inc	bx
 	jmp	q1
-
-q7:	mov	dx,es:[MCB_PARAS]
-	mov	[bp].REG_AX,ax
-	mov	[bp].REG_DX,dx
-	cmp	ax,MCBOWNER_SYSTEM
-	jbe	q8
-	mov	di,MCB_NAME
-	cmp	byte ptr es:[di],0
-	jne	q7a
-	mov	di,MCB_TYPE
-q7a:	mov	[bp].REG_DI,di
-	mov	[bp].REG_ES,es		; REG_ES:REG_DI -> string
-q8:	inc	bx
+q7:	mov	ax,[pmb_buf].PMB_OWNER
+	cmp	[pmb_buf].PMB_TYPE,PMBTYPE_FREE
+	je	q7a			; (AX is zero)
+	test	ax,ax			; does the used block have an owner?
+	jnz	q7a			; yes
+	mov	al,MCBOWNER_SYSTEM	; no (eg, a reserved block)
+q7a:	mov	[bp].REG_AX,ax
+	mov	cx,[pmb_buf].PMB_LEN.LOW
+	mov	[bp].REG_DX,cx
+	mov	cx,[pmb_buf].PMB_LEN.HIW
+	mov	[bp].REG_SI,cx		; REG_SI:REG_DX = size
+	mov	bx,[pmb_buf].PMB_SEL
 	mov	[bp].REG_BX,bx
-	clc
+	cmp	ax,MCBOWNER_SYSTEM	; owned by a process (or driver)?
+	jbe	q8			; no
+	mov	di,offset pmb_buf + PMB_NAME
+	cmp	byte ptr [di],0
+	jne	q7b
+	mov	di,offset pmb_buf + PMB_MCBTYPE
+q7b:	mov	[bp].REG_DI,di
+	mov	[bp].REG_ES,ds		; REG_ES:REG_DI -> string
+q8:	clc
 q9:	UNLOCK_SCB_RET
 ENDPROC	mem_query
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; mcb_init
+; mem_pmb
 ;
 ; Inputs:
-;	ES:0 -> MCB
-;	AL = SIG (ie, MCBSIG_NEXT or MCBSIG_LAST)
-;	DX = OWNER (ie, MCBOWNER_NONE, MCBOWNER_SYSTEM, or a PSP segment)
-;	CX = PARAS
+;	BX = PMB #, or -1 for the block whose segment is CX
+;	ES:DI -> PMB buffer
 ;
 ; Outputs:
-;	Carry clear
+;	Carry clear if successful (PMB copied to ES:DI)
 ;
 ; Modifies:
-;	AX, CX, DX, DI
+;	None
 ;
-DEFPROC	mcb_init,DOS
-	ASSUME	DS:NOTHING, ES:NOTHING
-	sub	di,di
-	stosb				; mov es:[MCB_SIG],al
-	xchg	ax,dx
-	stosw				; mov es:[MCB_OWNER],dx
-	xchg	ax,cx
-	stosw				; mov es:[MCB_PARAS],cx
-	mov	cl,size MCB_RESERVED + size MCB_NAME
-	mov	al,0
-	rep	stosb
+DEFPROC	mem_pmb
+	push	ax
+	push	cx
+	push	dx
+	mov	ah,CPU_QUERY
+	call	far ptr DDINT_CPU
+	pop	dx
+	pop	cx
+	pop	ax
 	ret
-ENDPROC	mcb_init
+ENDPROC	mem_pmb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; mcb_setname
 ;
+; Makes the PSP at DX the owner of its block, and gives the block a name.
+;
 ; Inputs:
-;	ES = segment
+;	DX = PSP segment
+;	DS:SI -> name (8 characters), or SI = 0 for none
 ;
 ; Outputs:
 ;	None
 ;
 ; Modifies:
-;	BX, CX, SI, DI
+;	None
 ;
 DEFPROC	mcb_setname,DOS
-	ASSUME	DS:DOS, ES:NOTHING
+	ASSUME	DS:NOTHING, ES:NOTHING
+	push	ax
+	push	bx
+	push	cx
+	push	dx
 	push	es
-	mov	di,es
-	dec	di
-	mov	es,di
-	mov	bx,[scb_active]
-	lea	si,[bx].SCB_FILENAME + 1
-	mov	cx,size MCB_NAME
-	mov	di,offset MCB_NAME
-	rep	movsb
+	push	ds
+	pop	es			; ES:SI -> name
+	mov	bx,dx			; BX = owner
+	mov	cx,dx
+	mov	dx,-1			; DX:CX = block
+	mov	ax,(CPU_SETBLK SHL 8) OR MCBTYPE_NONE
+	call	far ptr DDINT_CPU
 	pop	es
+	pop	dx
+	pop	cx
+	pop	bx
+	pop	ax
 	ret
 ENDPROC	mcb_setname
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; mcb_split
+; mem_alias
+;
+; Returns the code alias of a memory block: in protected mode, a code
+; selector for the same memory as the block's selector, which CPU$ creates
+; only once and frees with the block (see CPU_ALIAS); in real mode, the
+; block's own segment.  load_program uses it for a COM program's CS, and
+; programs get it with DOS_UTL_ALIAS (see utl_alias).
 ;
 ; Inputs:
-;	ES:0 -> MCB
-;	AL = SIG for new block
-;	BX = new (smaller) size for block
-;	CX = original (larger) size of block
+;	AX = block's segment (or selector)
 ;
 ; Outputs:
-;	Carry clear
+;	Carry clear if successful: AX = code segment (or selector)
+;	Carry set if error: AX = error code
 ;
 ; Modifies:
-;	AX, CX, DX, DI
+;	AX
 ;
-DEFPROC	mcb_split,DOS
-	ASSUME	DS:NOTHING
-	cmp	bx,cx			; are the sizes identical?
-	jne	sp1			; no
-	mov	es:[MCB_SIG],al		; yes, no actual split required
-	jmp	short sp9
-sp1:	push	es
-	mov	dx,es
-	add	dx,bx
-	inc	dx
-	mov	es,dx			; ES:0 -> new MCB
-	sub	cx,bx			; reduce by # paras requested
-	dec	cx			; reduce by 1 for new MCB
-	sub	dx,dx			; DX = owner (none)
-	call	mcb_init
-	pop	es			; ES:0 -> back to found block
-	mov	es:[MCB_SIG],MCBSIG_NEXT
-sp9:	mov	es:[MCB_PARAS],bx
+DEFPROC	mem_alias,DOS
+	push	bx
+	push	cx
+	push	dx
+	xchg	bx,ax
+	mov	ax,(CPU_ALIAS SHL 8) OR MEMF_CODE
+	call	far ptr DDINT_CPU
+	pop	dx
+	pop	cx
+	pop	bx
 	ret
-ENDPROC	mcb_split
+ENDPROC	mem_alias
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; mcb_alloc
+; utl_alias (AH = 27h)
 ;
-; If MCBTYPE_HIGH is set in AL, the block is allocated from the top of the
-; last free block that's big enough, instead of the bottom of the first, so
-; that long-lived blocks don't fragment the memory below them (eg, the memory
-; that COMMAND.COM frees when it discards its transient portion).
+; Returns the code alias of a memory block (see mem_alias), which a program
+; needs to execute code that it writes into the block (eg, COMMAND.COM's code
+; blocks).
 ;
 ; Inputs:
-;	AL = MCBTYPE (optionally with MCBTYPE_HIGH)
-;	BX = paragraphs requested (from REG_BX if via INT 21h)
+;	REG_BX = block's segment (or selector)
 ;
 ; Outputs:
-;	On success, carry clear, AX = new segment
-;	On failure, carry set, BX = max paras available
+;	Carry clear if successful: REG_AX = code segment (or selector)
+;	Carry set if error: REG_AX = error code
 ;
-; Modifies:
-;	AX, BX, CX, DX, SI, DI, ES
-;
-DEFPROC	mcb_alloc,DOS
-	ASSUME	ES:NOTHING
-	LOCK_SCB
-	push	ax			; save AX
-	mov	ah,al			; AH = MCBTYPE (and MCBTYPE_HIGH)
-	sub	di,di			; DI = last free block that fits
-	mov	es,[mcb_head]
-	sub	dx,dx			; DX = largest free block so far
-a1:	mov	al,es:[MCB_SIG]
-	cmp	al,MCBSIG_NEXT
-	je	a2
-	cmp	al,MCBSIG_LAST
-	jne	a7
-a2:	mov	cx,es:[MCB_PARAS]	; CX = # paras this block
-	cmp	es:[MCB_OWNER],0	; free block?
-	jne	a6			; no
-	cmp	cx,bx			; big enough?
-	jae	a2a			; yes
-	cmp	dx,cx			; is this largest free block so far?
-	jae	a6			; no
-	mov	dx,cx			; yes
-	jmp	short a6
-a2a:	mov	di,es			; remember the block that fits
-	test	ah,MCBTYPE_HIGH		; and unless allocating high, use it
-	jnz	a6
-	cmp	cx,bx
-	je	a4			; just big enough, use as-is
-;
-; Split the current block; the new MCB at the split point will
-; be marked free, and it will have the same MCB_SIG as the found block.
-;
-a3:	mov	al,es:[MCB_SIG]		; AL = signature for new block
-	call	mcb_split
+DEFPROC	utl_alias,DOS
+	sti
+	and	[bp].REG_FL,NOT FL_CARRY
+	mov	ax,[bp].REG_BX
+	call	mem_alias
+	mov	[bp].REG_AX,ax		; (carry is unchanged)
+	ret
+ENDPROC	utl_alias
 
-a4:	call	get_psp
-	jnz	a5
-	mov	ax,MCBOWNER_SYSTEM	; no active PSP yet, so use this
-a5:	mov	es:[MCB_OWNER],ax
-	pop	ax			; AL = MCBTYPE again
-	and	al,NOT MCBTYPE_HIGH
-	mov	es:[MCB_TYPE],al
-	mov	ax,es
-	inc	ax			; return ES+1 in AX, with CARRY clear
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_mapseg (AH = 28h)
+;
+; Returns a selector for a real-mode segment's 64K, for programs that read
+; and write memory by segment (eg, BASIC's DEF SEG, PEEK, and POKE).  In real
+; mode, it's the segment itself.  In protected mode, it's a selector that the
+; session keeps (a later call replaces it): writable for video memory (A000h
+; through BFFFh), and read-only everywhere else, so that programs can read
+; low memory (eg, the BIOS data area) and the ROMs, but not change them.
+;
+; Inputs:
+;	REG_BX = real-mode segment
+;
+; Outputs:
+;	Carry clear if successful: REG_AX = selector (or segment)
+;	Carry set if error: REG_AX = error code
+;
+DEFPROC	utl_mapseg,DOS
+	sti
+	and	[bp].REG_FL,NOT FL_CARRY
+	mov	ah,CPU_GETINFO
+	call	far ptr DDINT_CPU	; AH = CPUF_* flags
+	mov	bx,[bp].REG_BX		; BX = segment
+	test	ah,CPUF_PM		; protected mode?
+	jz	ums9			; no (the segment is its own selector)
+	mov	ax,bx
+	mov	cl,4
+	shl	ax,cl
+	mov	dx,bx
+	mov	cl,12
+	shr	dx,cl
+	xchg	cx,ax			; DX:CX = the segment's address
+	mov	al,MEMF_RDONLY OR MEMF_USER
+	cmp	bh,0A0h			; video memory (A000h-BFFFh)?
+	jb	ums1			; no
+	cmp	bh,0C0h
+	jae	ums1			; no
+	mov	al,MEMF_USER		; yes, so it's writable
+ums1:	mov	si,1
+	sub	di,di			; SI:DI = 64K
+	mov	ah,CPU_MAP
+	call	far ptr DDINT_CPU	; AX = new selector
+	jc	ums8
+	mov	bx,[scb_active]
+	xchg	ax,[bx].SCB_MAPSEL	; AX = the session's previous one
+	test	ax,ax			; is there one?
+	jz	ums3			; no
+;
+; Free the previous selector, and like mem_free, make sure the caller doesn't
+; get it back in ES or DS.
+;
+	push	bx
+	xchg	bx,ax			; BX = previous selector
+	cmp	[bp].REG_ES,bx
+	jne	ums2
+	mov	[bp].REG_ES,0
+ums2:	cmp	[bp].REG_DS,bx
+	jne	ums2a
+	mov	[bp].REG_DS,0
+ums2a:	sub	cx,cx			; CX = 0 (one selector)
+	mov	ah,CPU_UNMAP
+	call	far ptr DDINT_CPU
+	pop	bx
 	clc
-	jmp	short a9
-
-a6:	cmp	es:[MCB_SIG],MCBSIG_LAST; last block?
-	je	a8			; yes
-	mov	si,es			; advance to the next block
-	add	si,cx			; (without modifying AH)
-	inc	si
-	mov	es,si
-	jmp	a1
-
-a7:	mov	ax,ERR_BADMCB
-	jmp	short a8a
-;
-; If allocating high, split the last block that fits, so that the free
-; remainder (BX) is at the bottom, and use the new block at the top.
-;
-a8:	test	di,di			; did a block fit?
-	jz	a8b			; no, return error
-	mov	es,di
-	mov	cx,es:[MCB_PARAS]	; CX = # paras in that block
-	cmp	cx,bx
-	je	a4			; just big enough, use as-is
-	not	bx
-	add	bx,cx			; BX = CX - BX - 1 (remainder)
-	mov	al,es:[MCB_SIG]		; AL = signature for new block
-	call	mcb_split
-	mov	ax,es
-	add	ax,bx
-	inc	ax
-	mov	es,ax			; ES:0 -> new block
-	jmp	a4
-
-a8b:	mov	ax,ERR_NOMEMORY
-	mov	bx,dx			; BX = max # paras available
-a8a:	pop	dx			; throw away AX
-	stc
-
-a9:	UNLOCK_SCB_RET
-ENDPROC	mcb_alloc
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; mcb_realloc
-;
-; Inputs:
-;	DX = segment to realloc (from REG_ES if via INT 21h)
-;	BX = new size (in paragraphs)
-;
-; Outputs:
-;	On success, carry clear, AX = new segment
-;	On failure, carry set, BX = max paras available for segment
-;
-; Modifies:
-;	AX, BX, CX, DX, DI, ES
-;
-DEFPROC	mcb_realloc,DOS
-	ASSUME	ES:NOTHING
-	LOCK_SCB
-	dec	dx
-	mov	es,dx			; ES:0 -> MCB
-	mov	cx,es:[MCB_PARAS]	; CX = # paras in block
-	cmp	bx,cx			; any change in size?
-	je	r9			; no, that's easy
-
-	mov	al,es:[MCB_SIG]
-	cmp	al,MCBSIG_LAST		; is this the last block?
-	je	r2			; yes
-	add	dx,cx
-	inc	dx
-	mov	ds,dx			; DS:0 -> next MCB
-	ASSUME	DS:NOTHING
-	mov	al,ds:[MCB_SIG]
-	cmp	ds:[MCB_OWNER],0	; is the next MCB free?
-	je	r1			; yes
-	mov	al,MCBSIG_NEXT		; no, so a free remainder must be NEXT
-	jmp	short r2
-r1:	add	cx,ds:[MCB_PARAS]	; yes, include it
-	inc	cx			; CX = maximum # of paras
-
-r2:	cmp	bx,cx			; is requested <= avail?
-	ja	r8			; no
-	call	mcb_split		; yes, split block into used and free
-	jmp	short r9		; return success
-
-r7:	mov	ax,ERR_BADMCB
-	jmp	short r8a
-
-r8:	mov	bx,cx			; BX = maximum # of paras available
-	mov	ax,ERR_NOMEMORY
-r8a:	stc
-
-r9:	UNLOCK_SCB_RET
-ENDPROC	mcb_realloc
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; mcb_free
-;
-; When freeing a block, it's important to merge it with any free block that
-; immediately precedes or follows it.  And since the MCBs are singly-linked,
-; we must walk the chain from the head until we find the candidate block.
-;
-; Inputs:
-;	AX = segment to free (from REG_ES if via INT 21h)
-;
-; Outputs:
-;	On success, carry clear
-;	On failure, carry set, AX = ERR_BADMCB or ERR_BADADDR
-;
-; Modifies:
-;	AX, BX, CX, DX, ES
-;
-DEFPROC	mcb_free,DOS
-	ASSUME	ES:NOTHING
-	LOCK_SCB
-
-	mov	bx,[mcb_head]		; BX tracks ES
-	dec	ax			; AX = candidate MCB
-	sub	dx,dx			; DX = previous MCB (0 if not free)
-
-f1:	mov	es,bx
-	cmp	bx,ax			; does current MCB match candidate?
-	jne	f4			; no
-;
-; If the previous block is free, add this block's paras (+1 for its MCB)
-; to the previous block's paras.
-;
-	test	dx,dx			; is the previous block free?
-	jz	f3			; no
-
-f2:	mov	al,es:[MCB_SIG]
-	cmp	al,MCBSIG_NEXT
-	je	f2a
-	cmp	al,MCBSIG_LAST
-	jne	f7
-
-f2a:	mov	cx,es:[MCB_PARAS]	; yes, merge current with previous
-	inc	cx
-	mov	es,dx			; ES:0 -> previous block
-	add	es:[MCB_PARAS],cx	; update its number of paras
-	mov	es:[MCB_SIG],al		; propagate the signature as well
-	mov	bx,dx
-	sub	dx,dx
-;
-; Mark the candidate block free, and if the next block is NOT free, we're done.
-;
-f3:	mov	es:[MCB_OWNER],dx	; happily, DX is zero
-	mov	es:[MCB_NAME],dl
-	cmp	es:[MCB_SIG],MCBSIG_LAST; is there a next block?
-	je	f9			; no (and carry is clear)
-	mov	dx,bx			; yes, save this block as new previous
-	add	bx,es:[MCB_PARAS]
-	inc	bx
-	mov	es,bx			; ES:0 -> next block
-	cmp	es:[MCB_OWNER],0	; also free?
-	jne	f9			; no, we're done (and carry is clear)
-;
-; Otherwise, use the same merge logic as before; the only difference now
-; is that the candidate block has become the previous block.
-;
-	jmp	f2
-
-f4:	cmp	es:[MCB_SIG],MCBSIG_LAST; continuing search: last block?
-	je	f8			; yes, return error
-	sub	dx,dx			; assume block is not free
-	cmp	es:[MCB_OWNER],dx	; is it free?
-	jne	f5			; no
-	mov	dx,bx			; DX = new previous (and free) MCB
-f5:	add	bx,es:[MCB_PARAS]
-	inc	bx
-	jmp	f1			; check the next block
-
-f7:	mov	ax,ERR_BADMCB
-	jmp	short f8a
-
-f8:	mov	ax,ERR_BADADDR
-f8a:	stc
-
-f9:	UNLOCK_SCB_RET
-ENDPROC	mcb_free
+ums3:	mov	bx,[bx].SCB_MAPSEL
+ums9:	mov	[bp].REG_AX,bx		; (carry is clear)
+	ret
+ums8:	mov	[bp].REG_AX,ax		; (carry is set)
+	ret
+ENDPROC	utl_mapseg
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -523,36 +451,16 @@ ENDPROC	mcb_free
 ;	AX = owner (PSP)
 ;
 ; Outputs:
-;	On success, carry clear
-;	On failure, carry set, AX = ERR_BADMCB or ERR_BADADDR
+;	Carry clear
 ;
 ; Modifies:
-;	AX, BX, CX, DX, ES
+;	AX, BX
 ;
 DEFPROC	mcb_free_all,DOS
-	ASSUME	ES:NOTHING
-	LOCK_SCB
-	mov	bx,[mcb_head]
-
-fa1:	mov	es,bx
-	cmp	es:[MCB_OWNER],ax	; MCB owned by PSP?
-	jne	fa8			; no
-	push	ax			; save owner
-	mov	ax,es			; AX = MCB
-	inc	ax			; AX = segment
-	call	mcb_free		; free the segment
-	pop	ax			; restore owner
-	jc	fa9			; assuming free was successful
-	mov	bx,es			; we can pick up where free left off
-	jmp	fa1
-
-fa8:	cmp	es:[MCB_SIG],MCBSIG_LAST
-	je	fa9
-	add	bx,es:[MCB_PARAS]
-	inc	bx
-	jmp	fa1
-
-fa9:	UNLOCK_SCB_RET
+	xchg	bx,ax			; BX = owner
+	mov	ah,CPU_FREEALL
+	call	far ptr DDINT_CPU
+	ret
 ENDPROC	mcb_free_all
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -561,45 +469,105 @@ ENDPROC	mcb_free_all
 ;
 ; Returns the size (in paras) of a segment IFF it's a valid memory block.
 ;
-; It's tempting to simply subtract one from the segment and check for an MCB
-; signature; however, it's too easy to be spoofed by a bogus signature.  The
-; only way to be sure it's valid is by walking the MCB chain.
-;
 ; Inputs:
 ;	DX = segment
 ;
 ; Outputs:
 ;	On success, carry clear:
 ;		AX = size of segment, in paragraphs
-;		CX = owner (zero if free)
+;		CX = owner
 ;	On failure, carry set (not a valid memory block)
 ;
 ; Modifies:
 ;	AX, CX
 ;
 DEFPROC	mcb_getsize,DOS
-	ASSUME	ES:NOTHING
-	LOCK_SCB
+	ASSUME	DS:NOTHING, ES:NOTHING
 	push	bx
+	push	dx
+	push	di
 	push	es
-	mov	bx,[mcb_head]		; BX tracks ES
-	dec	dx			; DX = candidate MCB
-gs1:	mov	es,bx
-	cmp	bx,dx			; does current MCB match candidate?
-	je	gs8			; yes
-	cmp	es:[MCB_SIG],MCBSIG_LAST; continuing search: last block?
-	stc
-	je	gs9			; yes, return error
-	add	bx,es:[MCB_PARAS]
-	inc	bx
-	jmp	gs1			; check the next block
-gs8:	mov	ax,es:[MCB_PARAS]	; AX = size, in paragraphs
-	mov	cx,es:[MCB_OWNER]	; CX = owner (zero if free)
-gs9:	inc	dx			; restore DX
-	pop	es
+	mov	es,cs:[dos_data]
+	ASSUME	ES:DOS
+	inc	es:[scb_locked]		; LOCK_SCB (through ES, not CS)
+	mov	di,offset pmb_buf	; ES:DI -> PMB buffer
+	mov	cx,dx
+	mov	bx,-1			; BX = -1 (the block at segment CX)
+	mov	dx,bx
+	call	mem_pmb
+	jc	gs9
+	mov	ax,es:[di].PMB_LEN.LOW
+	mov	dx,es:[di].PMB_LEN.HIW
+	mov	cl,4
+gs1:	shr	dx,1
+	rcr	ax,1
+	dec	cl
+	jnz	gs1			; AX = paragraphs (and carry is clear)
+	mov	cx,es:[di].PMB_OWNER
+gs9:	pop	es
+	ASSUME	ES:NOTHING
+	pop	di
+	pop	dx
 	pop	bx
 	UNLOCK_SCB_RET
 ENDPROC	mcb_getsize
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; mcb_findpsp
+;
+; Finds a PSP block (one that owns itself) whose PSP_CODESIZE and PSP_CHECKSUM
+; match, and which is still long enough to contain the code (eg, COMMAND
+; discards the transient portion of its code while running a program; see
+; runTransient).
+;
+; Inputs:
+;	AX = code size, DX = checksum
+;
+; Outputs:
+;	CX = code segment (PSP_START.SEG, which in protected mode is a code
+;	alias of the block) of the matching PSP (zero if none)
+;
+; Modifies:
+;	CX
+;
+DEFPROC	mcb_findpsp,DOS
+	ASSUME	DS:NOTHING, ES:NOTHING
+	push	bx
+	push	di
+	push	es
+	mov	es,cs:[dos_data]
+	mov	di,offset pmb_buf	; ES:DI -> PMB buffer
+	sub	bx,bx			; BX = PMB #
+fp1:	call	mem_pmb
+	jc	fp8			; no more
+	mov	cx,es:[di].PMB_SEL
+	jcxz	fp3			; (no segment)
+	cmp	es:[di].PMB_OWNER,cx	; does the block own itself?
+	jne	fp3			; no
+	cmp	es:[di].PMB_LEN.HIW,0
+	jne	fp2
+	cmp	es:[di].PMB_LEN.LOW,ax	; does it still contain the code?
+	jb	fp3			; no
+fp2:	push	ds
+	mov	ds,cx
+	cmp	ds:[PSP_CODESIZE],ax
+	jne	fp2a
+	cmp	ds:[PSP_CHECKSUM],dx
+	jne	fp2a
+	mov	cx,ds:[PSP_START].SEG	; CX = its code (and ZF is still set)
+fp2a:	pop	ds
+	je	fp9			; a match
+fp3:	inc	bx
+	jmp	fp1
+fp8:	sub	cx,cx			; no match
+fp9:	pop	es
+	pop	di
+	pop	bx
+	ret
+ENDPROC	mcb_findpsp
+
+pmb_buf	PMB	<>			; for CPU_QUERY
 
 DOS	ends
 

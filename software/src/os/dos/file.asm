@@ -17,6 +17,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTWORD	<dos_data>
 	EXTNEAR	<dev_request,scb_release,resize_file>
 	EXTNEAR	<get_bpb,get_cln,get_dirent,read_buffer,flush_buffers>
 	EXTNEAR	<alloc_cln,free_clns,chk_volopen,walk_cln,advance_cln>
@@ -56,8 +57,7 @@ DEFPROC	sfb_commit,DOS
 	push	di
 	push	ds
 	push	es
-	push	cs
-	pop	es
+	mov	es,cs:[dos_data]
 	ASSUME	ES:DOS
 ;
 ; Copy the SFB's directory, drive #, and filename to SCB_DIRCLN and
@@ -142,8 +142,7 @@ DEFPROC	write_file,DOS
 	mov	word ptr [bp].TMP_AX,0	; use TMP_AX to accumulate bytes written
 	mov	[bp].TMP_ES,ds
 	mov	[bp].TMP_DX,si		; TMP_ES:TMP_DX -> data buffer
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	LOCK_SCB
 	mov	ax,ERR_ACCDENIED

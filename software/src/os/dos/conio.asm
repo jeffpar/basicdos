@@ -20,6 +20,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTWORD	<dos_data>
 	EXTNEAR	<strlen,upper,sfb_get,sfb_read,sfb_write,dev_request>
 	EXTNEAR	<flush_stdin>
 	EXTWORD	<FUNCTBL>
@@ -1392,8 +1393,7 @@ DEFPROC	write_handle,DOS
 	push	di
 	push	es
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	call	sfb_get			; BX -> SFB
 	pop	ds

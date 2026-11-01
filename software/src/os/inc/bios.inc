@@ -46,9 +46,9 @@ INT_VGCDATA	equ	1Fh	; VIDEO GRAPHICS CHARACTER DATA
 VIDEO_SETMODE	equ	00h	; AL=mode
 VIDEO_SETCTYPE	equ	01h	; CH=cursor top, CL=cursor bottom
 VIDEO_SETCPOS	equ	02h	; DH=row, DL=col, BH=display page
-VIDEO_SCROLL	equ	06h	; AL=# lines, BH=fill attribute, CX/DX=coords
+VIDEO_SCROLL	equ	06h	; AL=# lines, BH=fill attr, CX/DX=coords
 VIDEO_SCROLLDN	equ	07h	; scroll down (same inputs as VIDEO_SCROLL)
-VIDEO_WRITECA	equ	09h	; AL=char, BL=attribute, BH=display page, CX=count
+VIDEO_WRITECA	equ	09h	; AL=char, BL=attr, BH=display page, CX=count
 VIDEO_SETPAL	equ	0Bh	; BH=0: BL=background, BH=1: BL=palette
 VIDEO_TTYOUT	equ	0Eh	; AL=char, BH=display page
 
@@ -175,6 +175,35 @@ BUFHDR		ends
 SIG_BUF		equ	'B'
 
 ;
+; The DDINT entry points, which drivers (and the kernel) call far, are 5-byte
+; slots starting at 530h, each holding a far jump to its handler, or a stub
+; (eg, STC and RETF) until one is installed; a new one replaces the padding
+; after DDINT_UTIL (moving the disk buffers that follow; see the ASSERTs in
+; the BIOS segment).  DDINT_GETVEC and DDINT_SETVEC read and write interrupt
+; vectors (see rm_getvec in x86dev.asm and pm_getvec in 286dev.asm), so that
+; other code needn't address the vector table with segment 00h.
+;
+; They're called through segment 50h, which in protected mode is also a code
+; selector for the same memory (see docs/bdtech/mmu), so the addresses are
+; the same in either mode; code that installs a handler writes its slot
+; through segment 40h (BIOS) instead: with DS (or ES) assumed to be BIOS, an
+; operand like ds:[DDINT_CPU] gets the BIOS offset from LINK, and an offset
+; (eg, offset DDINT_UTIL) needs DDINT_BIAS added.
+;
+DDINT_BIAS	equ	100h		; DDINT offsets in the BIOS segment
+DDINT		segment at 50h
+		org	30h
+DDINT_CPU	db	5 dup (?)	; 530h: room for a 5-byte far jump
+DDINT_GETVEC	db	5 dup (?)	; 535h: room for a 5-byte far jump
+DDINT_SETVEC	db	5 dup (?)	; 53Ah: room for a 5-byte far jump
+DDINT_ENTER	db	5 dup (?)	; 53Fh: room for a 5-byte far jump
+DDINT_LEAVE	db	5 dup (?)	; 544h: room for a 5-byte far jump
+DDINT_UTIL	db	5 dup (?)	; 549h: room for a 5-byte far jump
+		db	2 dup (?)	; 54Eh: paragraph padding
+DDINT_LEN	equ	$ - DDINT_CPU	; (see the BIOS segment)
+DDINT		ends
+
+;
 ; ROM BIOS DATA AREA (RBDA)
 ;
 ; We'll assume that all 256 bytes from 40:00h to 40:FFh are used or reserved.
@@ -183,10 +212,10 @@ SIG_BUF		equ	'B'
 ; segment 40h, as the ROM BIOS does, because 40h is also a valid selector in
 ; protected mode, whereas segment 00h isn't (see docs/bdtech/mmu).  Drivers
 ; and the kernel read and write interrupt vectors with DDINT_GETVEC and
-; DDINT_SETVEC (below); the boot code and DEVINIT, which run first, still use
+; DDINT_SETVEC (above); the boot code and devinit, which run first, still use
 ; segment 00h.  The comments below give each field's linear address, not its
 ; offset; BIOS_DATA is the linear address of the segment, for code that needs
-; a linear address or paragraph (eg, the boot code, DEVINIT, and the disk
+; a linear address or paragraph (eg, the boot code, devinit, and the disk
 ; buffer chain).
 ;
 BIOS_DATA	equ	400h
@@ -242,10 +271,10 @@ SEEK_STATUS	db	?	; 43Eh: DRIVE RECALIBRATION STATUS
 INT_FLAG	equ	80h	;	INTERRUPT OCCURRENCE FLAG
 MOTOR_STATUS	db	?	; 43Fh: MOTOR STATUS
 				;	BIT 3-0 = DRIVE 3-0 IS CURRENTLY RUNNING
-				;	BIT 7 = CURRENT OPERATION IS A WRITE, REQUIRES DELAY
+				;	BIT 7 = CURRENT WRITE OP REQUIRES DELAY
 MOTOR_COUNT	db	?	; 440h: TIME OUT COUNTER FOR DRIVE TURN OFF
-                        	;	37 = TWO SECONDS OF COUNTS FOR MOTOR TURN OFF
-DISKETTE_STATUS	db	?	; 441h: SINGLE BYTE OF RETURN CODE INFO FOR STATUS
+                        	;	37 = TWO SECONDS OF COUNTS FOR MOTOR OFF
+DISKETTE_STATUS	db	?	; 441h: SINGLE BYTE OF RETURN INFO FOR STATUS
 ;
 ; DISKETTE_STATUS bits
 ;
@@ -291,7 +320,7 @@ TIMER_OFL	db	?	; 470h: TIMER HAS ROLLED OVER SINCE LAST READ
 ;
 ; SYSTEM DATA AREA
 ;
-BIOS_BREAK	db	?	; 471h: BIT 7 = 1 IF BREAK KEY HAS BEEN DEPRESSED
+BIOS_BREAK	db	?	; 471h: BIT 7=1 IF BREAK KEY HAS BEEN DEPRESSED
 RESET_FLAG	dw	?	; 472h: SET TO 0x1234 IF KEYBOARD RESET UNDERWAY
 ;
 ; RESET_FLAG marks the traditional end of the RBDA, as defined by the IBM PC.
@@ -331,11 +360,13 @@ FDC_DEVICE	dd	?		; 506h: FDC driver header
 DD_LIST		dd	?		; 50Ah: head of device driver list
 CLOCK_DEVICE	dd	?		; 50Eh: CLOCK$ driver header
 CPU_TYPE	db	?		; 512h: CPUTYPE_* (see cpu.inc)
-		db	15 dup (?)	; 513h: reserved
+CPU_HWTYPE	db	?		; 513h: the processor's own CPUTYPE_*
+CPU_ARENA	dd	?		; 514h: CPU$ arena (see cpu.inc)
+		db	10 dup (?)	; 518h: reserved
 DPT_ACTIVE	DPT	<>		; 522h: active DPT
 BOOT_KEY	dw	?		; 52Dh: set by boot sector
 		db	1 dup (?)	; 52Fh: paragraph padding
-		db	32 dup (?)	; 530h: DDINT entry points (below)
+		db	DDINT_LEN dup (?) ; 530h: DDINT entry points (above)
 ;
 ; We move the boot sector from BOOT_SECTOR to FAT_SECTOR.
 ;
@@ -353,29 +384,3 @@ DIR_SECTOR	db	512 dup (?)	; 770h
 BIOS_END	label	byte		; 970h
 
 BIOS		ends
-
-;
-; The DDINT entry points, which drivers (and the kernel) call far, are 5-byte
-; slots starting at 530h, each holding a far jump to its handler, or a stub
-; (eg, STC and RETF) until one is installed; new ones go after DDINT_SETVEC.
-; DDINT_GETVEC and DDINT_SETVEC read and write interrupt vectors (see
-; int_getvec in dosints.asm), so that other code needn't address the vector
-; table with segment 00h.
-;
-; They're called through segment 50h, which in protected mode is also a code
-; selector for the same memory (see docs/bdtech/mmu), so the addresses are
-; the same in either mode; code that installs a handler writes its slot
-; through segment 40h (BIOS) instead: with DS (or ES) assumed to be BIOS, an
-; operand like ds:[DDINT_CPU] gets the BIOS offset from LINK, and an offset
-; (eg, offset DDINT_UTIL) needs DDINT_BIAS added.
-;
-DDINT_BIAS	equ	100h		; DDINT offsets in the BIOS segment
-DDINT		segment at 50h
-		org	30h
-DDINT_ENTER	db	5 dup (?)	; 530h: room for a 5-byte far jump
-DDINT_LEAVE	db	5 dup (?)	; 535h: room for a 5-byte far jump
-DDINT_UTIL	db	5 dup (?)	; 53Ah: room for a 5-byte far jump
-DDINT_CPU	db	5 dup (?)	; 53Fh: room for a 5-byte far jump
-DDINT_GETVEC	db	5 dup (?)	; 544h: room for a 5-byte far jump
-DDINT_SETVEC	db	5 dup (?)	; 549h: room for a 5-byte far jump
-DDINT		ends

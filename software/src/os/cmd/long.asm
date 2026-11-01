@@ -11,6 +11,8 @@
 
 CODE    SEGMENT
 
+	EXTNEAR	<rtError>
+
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -282,9 +284,12 @@ dl3:	dec	[bitCount]		; repeat
 ; remainder must be less than the divisor, it can't be more than 16 bits, too.
 ;
 ; This is also the only path that has to worry about divide-by-zero, since zero
-; is a 16-bit divisor.
+; is a 16-bit divisor, so we check for it here: it's a runtime error (which ON
+; ERROR can handle), not a divide error (which would end the program).
 ;
-dl4:	sub	cx,cx
+dl4:	test	bx,bx			; is the divisor zero?
+	jz	dl10			; yes
+	sub	cx,cx
 	cmp	dx,bx			; can we avoid the first division?
 	jb	dl4a			; yes
 	xchg	cx,ax			; save low dividend
@@ -318,6 +323,8 @@ dl8:	mov	[divA].LOW,ax		; return quotient
 	mov	[divA].HIW,dx
 dl9:	LEAVE
 	ret	4
+dl10:	mov	al,11			; "Division by zero"
+	jmp	rtError
 ENDPROC	evalDivLong
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -199,9 +199,6 @@ ENDPROC	itoa
 ;	%x:	unsigned 16-bit hex integer (%bx for 8-bit, %lx for 32-bit);
 ;		use precision of ".n" to display n digits
 ;
-; Non-standard formatters (in DEBUG-only builds, to save space):
-;	%U:	skip one 16-bit parameter on the stack; nothing output
-;
 ; Non-standard formatters:
 ;	%W:	day of week from a 16-bit DATE value, as string
 ;	%F:	month portion of a 16-bit DATE value, as string
@@ -434,11 +431,7 @@ pf30:	cmp	al,'S'			; %S (second portion of TIME)?
 	jmp	short pfa
 
 pf31:	cmp	al,'A'			; %A (AM or PM portion of TIME)?
-	IFDEF DEBUG
-	jne	pf33			; no
-	ELSE
 	jne	pferr			; no
-	ENDIF
 	mov	al,VAR_LONG
 	call	pfarg			; SI -> TIME parameter
 	jc	pferr			; wrong type
@@ -453,15 +446,6 @@ pf31:	cmp	al,'A'			; %A (AM or PM portion of TIME)?
 	mov	al,'p'			; no, use 'p'
 pf32:	mov	[bp+si],ax
 	jmp	pfc1
-;
-; %U exists only for DEBUG builds (see dosints.asm).
-;
-	IFDEF DEBUG
-pf33:	cmp	al,'U'			; %U (skip one 16-bit parameter)?
-	jne	pferr			; no
-	add	si,2			; yes, bump parameter index
-	jmp	pf1			; and return to top
-	ENDIF	; DEBUG
 pferr:	mov	bx,[bp].SPF_FPOS	; error, didn't end with known letter
 	mov	al,'%'			; restore '%'
 	jmp	pf1f
@@ -706,6 +690,9 @@ pfs:	mov	al,VAR_STR
 	add	si,2
 pfs2:	push	si
 	xchg	si,ax			; DS:SI -> string
+	mov	ax,ds
+	test	ax,ax			; null pointer (eg, an empty string)?
+	jz	pfs2a			; yes (AX = 0 = length)
 	mov	al,0
 	call	strlen			; AX = length
 	jmp	short pfs2a

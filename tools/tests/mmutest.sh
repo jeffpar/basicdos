@@ -25,12 +25,12 @@ log=$(mktemp)
 failed=
 for name in ${@:-8088 real pm}; do
     case $name in
-        8088)   args="ibm5160 $fpe"; cpu="CPU type 0" ;;
-        real)   args="ibm5170 $fpe --ram=2M"; cpu="CPU type 0" ;;
+        8088)   args="ibm5160 $fpe"; cpu="CPU type 0 (hardware 0)" ;;
+        real)   args="ibm5170 $fpe --ram=2M"; cpu="CPU type 0 (hardware 2)" ;;
         pm)     rm -rf $tmp
                 cp -R $fpe $tmp || exit 1
                 grep -v "^CPU=" $fpe/CONFIG.SYS > $tmp/CONFIG.SYS
-                args="ibm5170 $tmp --ram=2M"; cpu="CPU type 2" ;;
+                args="ibm5170 $tmp --ram=2M"; cpu="CPU type 2 (hardware 2)" ;;
         *)      echo "usage: $0 [8088] [real] [pm]" >&2; exit 1 ;;
     esac
     tools/pc/pc.js $args "$cmds" --sys=bd:2 --floppy --serial --normalize --nosync | tee "$log"

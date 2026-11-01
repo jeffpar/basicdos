@@ -81,6 +81,10 @@ DEFPROC	allocBlockMin
 	mov	bx,0FFFFh
 	mov	ah,DOS_MEM_ALLOC
 	int	21h			; BX = largest free block (in paras)
+	jc	$+8			; unless a block that big was free
+	mov	es,ax
+	mov	ah,DOS_MEM_FREE
+	int	21h			; so free it again
 	mov	ax,0FFFFh
 	cmp	bx,4000h
 	jae	ab0
@@ -124,8 +128,25 @@ ab2:	mov	es,ax
 	sub	cx,di
 	shr	cx,1
 	rep	stosw			; zero out the rest of the block
-	jnc	ab3
+	jnc	ab2a
 	stosb
+;
+; A code (or function) block gets its code alias now (see codeSeg), so that
+; getting it later can't fail, and records its data segment for the code
+; that writes its slots (see genBlkData).
+;
+ab2a:	mov	al,[si].BDEF_SIG
+	cmp	al,SIG_CBLK		; a code block?
+	je	ab2b			; yes
+	cmp	al,SIG_FBLK		; a function block?
+	jne	ab3			; no
+ab2b:	mov	bx,es
+	mov	es:[CBLK_DATA],bx	; (FBLKs have it, too)
+	DOSUTIL	ALIAS
+	jnc	ab3
+	mov	ah,DOS_MEM_FREE
+	int	21h			; free the block (in ES)
+	jmp	short ab8
 ;
 ; Block is initialized, append to the header chain now.
 ;
@@ -196,20 +217,27 @@ ENDPROC	freeBlock
 ;	SI = offset of block chain head
 ;
 ; Outputs:
-;	Carry clear if successful, set if error
+;	Carry clear if successful, set if error; ES is preserved, unless it
+;	was one of the blocks, in which case it's zero (like DOS_MEM_FREE),
+;	since reloading a freed selector would fault in protected mode
 ;
 ; Modifies:
 ;	CX, SI
 ;
 DEFPROC	freeAllBlocks
 	clc
-	push	es
+	push	ax
+	mov	ax,es			; AX = caller's ES
 fa1:	mov	cx,[si]
 	jcxz	fa9			; end of chain
 	mov	es,cx
-	call	freeBlock		; ES = segment of block to free
+	cmp	cx,ax			; freeing the caller's ES?
+	jne	fa2			; no
+	sub	ax,ax			; yes, so return zero instead
+fa2:	call	freeBlock		; ES = segment of block to free
 	jnc	fa1
-fa9:	pop	es
+fa9:	mov	es,ax
+	pop	ax
 	ret
 ENDPROC	freeAllBlocks
 
@@ -428,15 +456,18 @@ er2:	push	ss
 	mov	dx,di
 	pop	di
 	pop	es			; ES:DI -> current code block
+	push	dx
+	mov	dx,cx
+	call	codeSeg			; DX = new block's code segment
 	mov	al,OP_JMPF
 	stosb
-	xchg	ax,dx
+	pop	ax
 	stosw
-	xchg	ax,cx
+	xchg	ax,dx
 	stosw				; JMPF to the new code block
 	mov	es:[BLK_FREE],di
-	mov	es,ax
-	mov	di,cx			; ES:DI -> new code block
+	mov	es,cx
+	mov	di,dx			; ES:DI -> new code block
 	clc
 	jmp	short er8a
 er8:	pop	di
@@ -536,6 +567,38 @@ DEFPROC	allocFunc
 	lea	si,[si].FBLKDEF
 	jmp	allocCodeBlock
 ENDPROC	allocFunc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; codeSeg
+;
+; Returns the segment to run a code (or function) block's code with: in
+; protected mode, the block's code alias (see DOS_UTL_ALIAS), which
+; allocBlockMin has already created, and in real mode, its own segment.
+; Everything else (eg, the block chains, labels, and function vars) keeps
+; the block's segment, so this is needed only where code transfers into a
+; block (eg, a far JMP or CALL, or genCode's call).
+;
+; Inputs:
+;	DX = block's segment (or selector)
+;
+; Outputs:
+;	DX = code segment (or selector), carry clear
+;
+; Modifies:
+;	DX
+;
+DEFPROC	codeSeg
+	push	ax
+	push	bx
+	mov	bx,dx
+	DOSUTIL	ALIAS			; AX = code alias (which can't fail)
+	ASSERT	NC
+	xchg	dx,ax
+	pop	bx
+	pop	ax
+	ret
+ENDPROC	codeSeg
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -20,7 +20,7 @@ MEDIA_HARD	equ	0F8h
 BOOT_BPB	equ	3		; BPB offset within boot sector
 
 ;
-; Boot code offset that DEVINIT relies on (verified by boot.asm), so that it
+; Boot code offset that devinit relies on (verified by boot.asm), so that it
 ; can find the DIR info of the files it loads with the boot code's read_file.
 ;
 BOOT_CFGFILE	equ	3Eh		; CFG_FILE offset in the BPB+file copy

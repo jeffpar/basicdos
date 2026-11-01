@@ -19,8 +19,9 @@
 
 DOS	segment word public 'CODE'
 
+	EXTWORD	<dos_data>
 	EXTNEAR	<dos_check,dos_restart,dev_request,write_handle>
-	EXTNEAR	<sfb_get,flush_console,err_jump>
+	EXTNEAR	<sfb_get,flush_console,err_jump,get_psp,mem_alias>
 	EXTBYTE	<err_active>
 	EXTWORD	<err_stack>
 	EXTSTR	<STR_CTRLC>
@@ -49,9 +50,23 @@ DOS	segment word public 'CODE'
 ; Notes:
 ; 	Too bad this function wasn't defined to also return the original vector.
 ;
+;	A program's handler is often in the block that DS addresses (eg, a
+;	COM program's PSP block), but in protected mode, DS is the block's data
+;	selector, which can't be executed, so the vector gets the block's code
+;	alias instead (see mem_alias), which in real mode is the same segment.
+;
 DEFPROC	msc_setvec,DOS
 	mov	cx,[bp].REG_DX
 	mov	dx,[bp].REG_DS		; DX:CX = new vector
+	push	ax
+	call	get_psp			; AX = current PSP (ZF set if none)
+	jz	msv0
+	cmp	ax,dx			; is DS the program's PSP block?
+	jne	msv0			; no
+	call	mem_alias		; AX = its code alias
+	jc	msv0
+	xchg	dx,ax			; DX:CX = new vector
+msv0:	pop	ax
 	push	ax
 	call	get_vecoff		; AX = vector offset
 	xchg	di,ax			; DI -> vector, if it's in the SCB
@@ -342,8 +357,7 @@ ENDPROC	msc_setctrlc
 ;
 DEFPROC	msc_sigctrlc,DOSFAR
 	ASSUME	DS:NOTHING, ES:NOTHING
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	mov	bx,[scb_active]
 	ASSERT	STRUCT,[bx],SCB
@@ -353,8 +367,7 @@ DEFPROC	msc_sigctrlc,DOSFAR
 ; or flushing the console again.
 ;
 	DEFLBL	msc_retctrlc,near
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	mov	di,-1			; DI = -1 (don't echo the CTRLC)
 	jmp	short msg1
 
@@ -387,8 +400,7 @@ msg1:	cmp	[err_active],0		; inside a hard error handler?
 ; response: discard everything on the hard error stack above dev_error's
 ; frame and resume there (see err_jump).
 ;
-	push	cs
-	pop	ss
+	mov	ss,cs:[dos_data]
 	mov	sp,[err_stack]
 	sub	sp,ERR_FRAME
 	mov	al,CRERR_ABORT
@@ -564,9 +576,10 @@ ENDPROC	msc_getswc
 ; Get address of BASIC-DOS variables in REG_ES:REG_BX.
 ;
 ; NOTE: The only variable located at the same offset as PC DOS is mcb_head
-; (REG_BX-2).  Attempting to support most other variables would be pointless,
-; because we don't have a Drive Parameter Table (just BPBs), the SFBs in our
-; System File Table are completely different, etc.
+; (REG_BX-2), which is zero (see dosdata.asm).  Attempting to support most
+; other variables would be pointless, because we don't have a Drive Parameter
+; Table (just BPBs), the SFBs in our System File Table are completely
+; different, etc.
 ;
 ; Inputs:
 ;	None

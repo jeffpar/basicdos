@@ -30,7 +30,7 @@ CODE    SEGMENT
 	EXTNEAR	<genInit,genMore,findLabel,genJmp5,rtError,ctrlc>
 	EXTNEAR	<releaseStr,findProgram,openError,freeAllCode,freeAllVars>
 	EXTNEAR	<chkProgram,cmdLoad,storeLine,nextLine,freeAllBlocks>
-	EXTNEAR	<getFileName,cmdRunFlags,closeFile>
+	EXTNEAR	<getFileName,cmdRunFlags,closeFile,codeSeg>
 	EXTSTR	<BAS_EXT>
 	EXTABS	<TOK_MERGE>
 
@@ -242,9 +242,11 @@ dc6c:	sub	si,si
 dc7:	sub	ax,ax
 	mov	[bx].ERR_NUM,ax		; no error or ON ERROR handler
 	mov	[bx].ERR_ADDR.SEG,ax
+	mov	dx,es
+	call	codeSeg
 	mov	ds,[bx].VBLKDEF.BDEF_NEXT
 	ASSUME	DS:NOTHING
-	push	es
+	push	dx
 	push	si
 	ret				; jump to the new code
 dc9:	jmp	ctrlc

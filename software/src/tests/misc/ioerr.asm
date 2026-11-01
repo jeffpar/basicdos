@@ -27,6 +27,7 @@ CODE	SEGMENT
 ;
 DEFPROC	main
 	cld
+	mov	[data_seg],ds		; (for dos_hook; CS is read-only)
 	mov	dx,offset starting
 	call	print
 ;
@@ -43,12 +44,12 @@ DEFPROC	main
 	int	21h
 	mov	[old_dos].OFF,bx
 	mov	[old_dos].SEG,es
-	push	cs
+	push	ds
 	pop	es
 	mov	[exec_parms].EPB_CMDTAIL.OFF,offset cmd_tail
-	mov	[exec_parms].EPB_CMDTAIL.SEG,cs
-	mov	[exec_parms].EPB_FCB1.SEG,cs
-	mov	[exec_parms].EPB_FCB2.SEG,cs
+	mov	[exec_parms].EPB_CMDTAIL.SEG,ds
+	mov	[exec_parms].EPB_FCB1.SEG,ds
+	mov	[exec_parms].EPB_FCB2.SEG,ds
 	mov	dx,offset dos_hook
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 21h
 	int	21h
@@ -168,8 +169,7 @@ DEFPROC	dos_hook,far
 	jmp	cs:[old_dos]		; no
 h0:
 	push	ds
-	push	cs
-	pop	ds			; DS = CS (for the test state below)
+	mov	ds,cs:[data_seg]	; (for the test state below)
 	cmp	ah,DOS_HDL_IOCTL		; test-only control requests?
 	jne	h1
 	cmp	al,0F0h			; arm a fault on the supplied file handle?
@@ -210,8 +210,7 @@ h1a:
 	push	ds
 	pushf
 	call	cs:[old_dos]
-	push	cs
-	pop	ds
+	mov	ds,cs:[data_seg]
 	jnc	h1b
 	jmp	h_err
 h1b:
@@ -298,6 +297,7 @@ DEFPROC	print
 ENDPROC	print
 
 old_dos		dd	0
+data_seg	dw	0
 fault_handle	dw	0
 fault_mode	db	0
 session		db	0

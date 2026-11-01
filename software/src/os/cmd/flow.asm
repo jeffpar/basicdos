@@ -13,7 +13,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<ctrlc,restoreMode,firstBlock,nextBlock>
+	EXTNEAR	<ctrlc,restoreMode,firstBlock,nextBlock,codeSeg>
 	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -399,6 +399,7 @@ ERR_MSGS label byte
 	db	8,"Undefined line number",0
 	db	9,"Subscript out of range",0
 	db	10,"Duplicate definition",0
+	db	11,"Division by zero",0
 	db	13,"Type mismatch",0
 	db	14,"Out of string space",0
 	db	15,"String too long",0
@@ -612,16 +613,14 @@ DEFPROC	findErl
 	lea	bp,[bp].STACK + size STACK
 fe1:	cmp	si,bp			; reached the top of the stack?
 	jae	fe8			; yes
-	les	di,ss:[si]		; ES:DI = possible return address
-	mov	al,es:[BLK_SIG]
-	cmp	al,SIG_CBLK
-	je	fe2
-	cmp	al,SIG_FBLK
-	jne	fe3
-fe2:	cmp	di,es:[BLK_FREE]
-	ja	fe3
+	mov	di,ss:[si]		; DI = possible return offset
 	cmp	di,size CBLK + 5
 	jb	fe3
+	mov	ax,ss:[si+2]		; AX = possible code segment
+	call	findCode		; ES = its block, if any
+	jc	fe3
+	cmp	di,es:[BLK_FREE]
+	ja	fe3
 	cmp	byte ptr es:[di-5],9Ah	; (OP_CALLF)
 	je	fe4
 fe3:	inc	si
@@ -662,6 +661,41 @@ fe7:	mov	ax,es
 fe9:	xchg	ax,cx			; AX = line #
 	ret
 ENDPROC	findErl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; findCode
+;
+; Returns the code (or function) block whose code segment (see codeSeg) is
+; AX, if any.  findErl can't simply load each word on the stack into ES and
+; check it, since in protected mode, most values aren't valid selectors.
+;
+; Inputs:
+;	AX = segment (or selector)
+;
+; Outputs:
+;	Carry clear if found: ES = block (its data segment)
+;
+; Modifies:
+;	BX, DX, ES
+;
+DEFPROC	findCode
+	mov	bx,ss:[PSP_HEAP]
+	mov	dx,ss:[bx].CBLKDEF.BDEF_NEXT
+	call	fc1			; is it a code block?
+	jnc	fc9			; yes
+	mov	dx,ss:[bx].FBLKDEF.BDEF_NEXT
+fc1:	test	dx,dx			; end of the chain?
+	stc
+	jz	fc9			; yes
+	mov	es,dx
+	call	codeSeg			; DX = its code segment
+	cmp	dx,ax			; a match?
+	je	fc9			; yes (carry clear)
+	mov	dx,es:[BLK_NEXT]
+	jmp	fc1
+fc9:	ret
+ENDPROC	findCode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

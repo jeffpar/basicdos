@@ -178,8 +178,8 @@ DEFPROC	genPushSlot
 	mov	cx,4
 	rep	stosw			; zero the slot
 	pop	di
-	mov	al,OP_PUSH_CS
-	stosb
+	mov	ax,OP_PUSH_MEM
+	call	genBlkData		; PUSH CS:[CBLK_DATA]
 	jmp	genPushImm		; push offset of slot
 ENDPROC	genPushSlot
 
@@ -274,8 +274,8 @@ DEFPROC	genCallFPUDst2
 	push	ax
 	mov	al,8
 gcd1:	call	genSlotAL		; DX = offset of result slot
-	mov	ax,OP_PUSH_CS OR (OP_POP_ES SHL 8)
-	stosw
+	mov	ax,OP_MOV_ES_MEM
+	call	genBlkData		; MOV ES,CS:[CBLK_DATA]
 	mov	al,OP_MOV_DI
 	stosb
 	xchg	ax,dx
@@ -326,6 +326,35 @@ DEFPROC	genSlot
 	add	di,ax
 	ret
 ENDPROC	genSlot
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genBlkData
+;
+; Generates an instruction (eg, PUSH or MOV ES) whose operand is the code
+; block's data segment, CS:[CBLK_DATA], for code that writes a slot: in
+; protected mode, CS is the block's code alias, which can't be written.
+;
+; Inputs:
+;	AX = opcode and ModRM byte (eg, OP_PUSH_MEM)
+;	ES:DI -> code block
+;
+; Outputs:
+;	ES:DI -> code block (after the instruction)
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	genBlkData
+	push	ax
+	mov	al,OP_SEG_CS
+	stosb
+	pop	ax
+	stosw
+	mov	ax,CBLK_DATA		; (FBLKs have it, too)
+	stosw
+	ret
+ENDPROC	genBlkData
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

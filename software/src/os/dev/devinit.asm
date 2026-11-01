@@ -59,27 +59,24 @@ DEFPROC	devinit,far
 	mov	word ptr ds:[INT_BP*4].SEG,cs
 	ENDIF	; DEBUG
 ;
-; Perform some preliminary BIOS data initialization; in particular,
-; DDINT_ENTER and DDINT_LEAVE entry points for hardware interrupt handlers,
-; the DDINT_UTIL entry point for driver WAIT and ENDWAIT requests, the
-; DDINT_CPU entry point, which the CPU$ driver sets when it initializes, and
-; the DDINT_GETVEC and DDINT_SETVEC entry points, which drivers use to read and
-; write interrupt vectors (until sysinit revectors them to the kernel).
+; Perform some preliminary BIOS data initialization; in particular, stubs for
+; the DDINT_ENTER and DDINT_LEAVE entry points for hardware interrupt
+; handlers, the DDINT_UTIL entry point for driver WAIT and ENDWAIT requests,
+; and the DDINT_CPU, DDINT_GETVEC, and DDINT_SETVEC entry points, which CPU$
+; sets when it initializes (or switches to protected mode), before any other
+; driver initializes and reads or writes an interrupt vector.
 ;
 	push	ds
 	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
-	mov	word ptr ds:[DDINT_ENTER],(OP_RETF SHL 8) OR OP_STC
+	mov	ax,(OP_RETF SHL 8) OR OP_STC
+	mov	word ptr ds:[DDINT_ENTER],ax
 	mov	byte ptr ds:[DDINT_LEAVE],OP_IRET
-	mov	word ptr ds:[DDINT_UTIL],(OP_RETF SHL 8) OR OP_STC
-	mov	word ptr ds:[DDINT_CPU],(OP_RETF SHL 8) OR OP_STC
-	mov	byte ptr ds:[DDINT_GETVEC],OP_JMPF
-	mov	word ptr ds:[DDINT_GETVEC+1],offset dv_getvec
-	mov	word ptr ds:[DDINT_GETVEC+3],cs
-	mov	byte ptr ds:[DDINT_SETVEC],OP_JMPF
-	mov	word ptr ds:[DDINT_SETVEC+1],offset dv_setvec
-	mov	word ptr ds:[DDINT_SETVEC+3],cs
+	mov	word ptr ds:[DDINT_UTIL],ax
+	mov	word ptr ds:[DDINT_CPU],ax
+	mov	word ptr ds:[DDINT_GETVEC],ax
+	mov	word ptr ds:[DDINT_SETVEC],ax
 	sub	ax,ax
 	mov	[FDC_DEVICE].SEG,ax	; no FDC driver yet
 	mov	[CLOCK_DEVICE].SEG,ax	; and no CLOCK$ driver yet
@@ -99,11 +96,8 @@ DEFPROC	devinit,far
 	pop	es
 	ASSUME	ES:DEV			; (read_file preserves ES)
 	mov	es:[rd_addr],bx		; (see rd_file)
-	mov	ax,cs
-	mov	es:[dv_data],ax		; our data segment (see chk_cpu)
-	mov	cl,4
-	shl	ax,cl
-	mov	es:[dv_addr],ax		; and our address
+	mov	es:[dv_data],cs		; our data segment (see chk_cpu)
+	mov	es:[dv_addr],di		; and our address (end of drivers)
 	mov	di,offset devinit_end	; DI -> CFG_FILE buffer
 	lea	bx,[si+BOOT_CFGFILE]	; BX -> CFG_FILE DIR info
 	mov	es:[cfg_info],bx
@@ -157,11 +151,7 @@ i1:	cmp	si,di		; reached the end of drivers?
 	jb	i2		; no
 	jmp	i9		; yes
 i2:	call	chk_cpu		; claim our memory once CPU$ is loaded
-	call	get_sels	; AX = code selector, DX = data selector
-	mov	[si].DDH_DATA,dx	; the driver's data segment/selector
 	mov	[bp].DDPI_END.OFF,0
-	mov	[bp].DDPI_END.SEG,dx
-	mov	dx,[si]		; DX = original size of this driver
 ;
 ; Memory beyond the end of this code (and our copy of CFG_FILE) is free until
 ; we return, so it serves as a scratch buffer for any driver that needs one
@@ -172,12 +162,26 @@ i2:	call	chk_cpu		; claim our memory once CPU$ is loaded
 	mov	[bp].DDPI_BUFPTR.OFF,cx
 	push	cs:[dv_data]
 	pop	[bp].DDPI_BUFPTR.SEG
+;
+; A driver that's skipped gets no selectors; any other gets a code selector
+; and a data selector (or its segment), which fit_sels fits to whatever the
+; driver keeps (or frees, if it keeps nothing) when its INIT returns.
+;
+	call	chk_skip	; is this driver on the SKIP list?
+	mov	ax,0
+	cwd			; AX = DX = 0 (no selectors)
+	jc	i2s		; yes (and DDPI_END is zero)
+	call	get_sels	; AX = code selector, DX = data selector
+	mov	[si].DDH_DATA,dx	; the driver's data segment/selector
+	mov	[bp].DDPI_END.SEG,dx
+i2s:	push	dx		; save the data selector
+	push	ax		; and the code selector (or segment)
+	mov	dx,[si]		; DX = original size of this driver
+	test	ax,ax		; was it skipped?
+	jz	i2a		; yes
 	push	ss
 	pop	es
 	ASSUME	ES:NOTHING
-	push	ax		; AX = driver's code segment (or selector)
-	call	chk_skip	; is this driver on the SKIP list?
-	jc	i2a		; yes (and DDPI_END is zero)
 	mov	bx,bp		; ES:BX -> packet
 	push	[si].DDH_REQUEST
 ;
@@ -189,7 +193,7 @@ i2:	call	chk_cpu		; claim our memory once CPU$ is loaded
 	push	bp
 	push	ds
 	DEFLBL	dv_init,near	; (a breakpoint here precedes each INIT)
-	call	dword ptr [bp-4]; far call to DDH_REQUEST
+	call	dword ptr [bp-6]; far call to DDH_REQUEST
 
 	pop	ds
 	pop	bp
@@ -228,7 +232,8 @@ i2a:	mov	bx,[bp].DDPI_END.OFF
 	jnc	i3
 ;
 ; If CPU$ isn't loaded yet, the first driver (the 80286 CPU$) just unloaded
-; itself, and the 8086 CPU$ is next, so we move the drivers down ourselves.
+; itself, and the 8086 CPU$ is next, so we move the drivers down ourselves;
+; this is the only memory we move without CPU$.
 ;
 	push	si
 	push	di
@@ -243,7 +248,9 @@ i2a:	mov	bx,[bp].DDPI_END.OFF
 i3:	pop	bx
 	mov	dx,bx
 
-i4:	pop	ax		; recover the driver's code segment
+i4:	pop	ax		; recover the driver's code selector
+	pop	bx		; and its data selector
+	call	fit_sels
 	test	dx,dx
 	jz	i8		; jump if driver not required
 	mov	cx,BIOS
@@ -280,9 +287,6 @@ i6:	pop	ax
 ;
 ; because it's simpler, but later decided to keep the list in memory order.
 ;
-; In addition, I now store the next available segment in the SEG portion of
-; the final driver pointer (-1 in the OFF portion still means end of list).
-;
 i7:	test	[si].DDH_ATTR,DDATTR_CLOCK
 	jz	i7c
 	mov	[CLOCK_DEVICE].OFF,cx	; record the CLOCK$ driver (see CLKX)
@@ -296,10 +300,6 @@ i7a:	cmp	es:[di].DDH_NEXT_OFF,-1
 	jmp	i7a
 i7b:	mov	es:[di].DDH_NEXT_OFF,cx
 	mov	es:[di].DDH_NEXT_SEG,ax
-	add	bx,si
-	mov	cl,4
-	shr	bx,cl
-	mov	[si].DDH_NEXT_SEG,bx
 	mov	[si].DDH_NEXT_OFF,-1
 	pop	di
 
@@ -308,12 +308,11 @@ i8:	add	si,dx		; SI -> next driver, after adding original size
 
 i9:	add	sp,DDP_MAXSIZE
 ;
-; Every driver is initialized, and they end at DI, so DOS_FILE goes in the
-; next paragraph (leaving room for its MCB, with the 8086 CPU$).  We shrink
-; the drivers' block to fit them, free our own block and the block we loaded
-; DOS_FILE into (see chk_cpu), and claim DOS_FILE's new home.
+; Every driver is initialized, and they end at DI.  We shrink the drivers'
+; block to fit them, free our own block and the block we loaded DOS_FILE into
+; (see chk_cpu), and allocate DOS_FILE's new home, which is the first free
+; block, right after the drivers.
 ;
-	push	di
 	mov	cx,cs:[drv_addr]
 	sub	di,cx			; DI = length of the drivers
 	mov	ah,CPU_REALLOC
@@ -325,15 +324,25 @@ i9:	add	sp,DDP_MAXSIZE
 	mov	dx,cs:[dos_pkt].MV_SRC.HIW
 	mov	ah,CPU_FREE
 	call	cpu_chk
-	pop	cx
-	add	cx,16
-	push	cx
+;
+; DOS_FILE's new home overlaps our block, and the 8086 CPU$ puts a free MCB
+; at the end of it, so the block must reach devinit_end at least, or that MCB
+; could land on code or data we still need (sysinit resizes the block anyway;
+; see dos_size).
+;
+	mov	ax,cs:[dv_addr]
+	add	ax,offset devinit_end
+	sub	ax,cs:[drv_addr]	; AX = length through devinit_end
 	mov	di,cs:[dos_pkt].MV_LEN.LOW
-	call	claim
-	pop	si
+	cmp	di,ax			; is DOS_FILE at least that long?
+	jae	i9a			; yes
+	xchg	di,ax
+i9a:	mov	ax,(CPU_ALLOC SHL 8) OR MEMF_LOW OR MEMF_NONE
+	call	cpu_blk			; DX:CX = address (in the first 64K)
 	mov	es,cs:[dv_data]
 	ASSUME	ES:DEV
-	mov	es:[dos_pkt].MV_DST.LOW,si
+	mov	es:[dos_pkt].MV_DST.LOW,cx
+	mov	si,cx
 	push	si			; address of DOS_FILE
 	call	get_sels		; AX = code selector, DX = data
 ;
@@ -419,7 +428,7 @@ cu1:	push	si
 	push	si
 	sub	si,si			; SI:DI = length
 	mov	bx,MCBOWNER_SYSTEM
-	mov	ax,(CPU_ALLOC SHL 8) OR SELF_LOW OR SELF_HIGH
+	mov	ax,(CPU_ALLOC SHL 8) OR MEMF_LOW OR MEMF_HIGH
 	call	cpu_chk			; AX = segment, DX:CX = address
 	mov	es:[dos_pkt].MV_SRC.LOW,cx
 	mov	es:[dos_pkt].MV_SRC.HIW,dx
@@ -451,28 +460,30 @@ cu1:	push	si
 	ASSUME	ES:NOTHING
 	mov	ah,CPU_PMODE
 	call	far ptr DDINT_CPU	; AX = data selector for our CS
-	jc	cu5			; (we're still in real mode)
+;
+; The 80286 CPU$ stays only if it can switch to protected mode, and it fills
+; DDINT_GETVEC and DDINT_SETVEC only when it does, so a failure is fatal.
+;
+	jc	$			; halt
 	mov	es,ax
 	ASSUME	ES:DEV
 	mov	es:[dv_data],ax
 	mov	[bp].DDP_PTR.SEG,ax	; DDP_PTR -> CFG_FILE data
-cu5:	mov	ax,BIOS
-	mov	es,ax
-	ASSUME	ES:NOTHING
-	mov	bx,offset DD_LIST	; ES:BX -> link to the first driver
-cu6:	cmp	es:[bx].OFF,-1		; end of the list?
-	je	cu7			; yes
-	mov	si,es:[bx].SEG
-	mov	cl,4
-	shl	si,cl			; SI = the driver's address
+;
+; The only driver initialized so far is CPU$ (see get_sels), so we relink it.
+;
+cu5:	mov	si,offset BIOS_END + BIOS_DATA
 	call	get_sels		; AX = code selector, DX = data
-	mov	es:[bx].SEG,ax
 	mov	[si].DDH_DATA,dx
-	push	ds
-	pop	es
-	mov	bx,si			; ES:BX -> the driver's link
-	jmp	cu6
-cu7:	pop	di
+	mov	bx,dx
+	mov	dx,cs:[drv_addr]
+	sub	dx,si			; DX = length of CPU$ (ie, up to us)
+	call	fit_sels
+	mov	dx,BIOS
+	mov	es,dx
+	ASSUME	ES:BIOS
+	mov	es:[DD_LIST].SEG,ax
+	pop	di
 	pop	si
 	ret
 ENDPROC	chk_cpu
@@ -483,8 +494,8 @@ ENDPROC	chk_cpu
 ;
 ; Returns a code selector and a data selector (with 64K limits) for a driver
 ; (or DOS_FILE) at the given address, from CPU$ (see CPU_MAP and CPU_ALIAS);
-; in real mode, they're its segment, which is all we can return until CPU$
-; is loaded.
+; in real mode, they're its segment.  Until CPU$ is loaded, the only driver
+; is CPU$ itself, at BIOS_END, so we return its segment.
 ;
 ; Inputs:
 ;	SI = address (a multiple of 16, in the first 64K)
@@ -496,13 +507,13 @@ ENDPROC	chk_cpu
 ;	AX, CX, DX
 ;
 DEFPROC	get_sels
-	mov	ax,si
-	mov	cl,4
-	shr	ax,cl			; AX = segment
+	mov	ax,(BIOS_END - RS232_BASE + BIOS_DATA) SHR 4
 	mov	dx,ax
 	cmp	cs:[drv_addr],0		; is CPU$ loaded yet?
-	je	gs9			; no
-	push	bx
+	jne	gs1			; yes
+	ASSERT	Z,<cmp si,offset BIOS_END + BIOS_DATA>
+	ret
+gs1:	push	bx
 	push	si
 	push	di
 	mov	cx,si
@@ -513,14 +524,60 @@ DEFPROC	get_sels
 	call	cpu_chk			; AX = data selector
 	push	ax
 	xchg	bx,ax
-	mov	ax,(CPU_ALIAS SHL 8) OR SELF_CODE
+	mov	ax,(CPU_ALIAS SHL 8) OR MEMF_CODE
 	call	cpu_chk			; AX = code selector
 	pop	dx
 	pop	di
 	pop	si
 	pop	bx
-gs9:	ret
+	ret
 ENDPROC	get_sels
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fit_sels
+;
+; Fits the selectors that get_sels returned for a driver to the length that
+; it keeps (CPU_SETLIM), or frees them if it keeps nothing (CPU_UNMAP); in
+; real mode, CPU$ has nothing to do.  Until CPU$ is loaded, the only driver
+; is CPU$ itself, whose selectors chk_cpu fits.
+;
+; Inputs:
+;	AX = code selector (zero if none), BX = data selector, DX = length
+;
+; Modifies:
+;	BX, CX
+;
+DEFPROC	fit_sels
+	test	ax,ax			; any selectors?
+	jz	fs9			; no
+	cmp	cs:[drv_addr],0		; is CPU$ loaded yet?
+	je	fs9			; no
+	push	ax
+	push	dx
+	push	si
+	push	di
+	push	bx			; save the data selector
+	xchg	bx,ax			; BX = code selector
+	mov	di,dx
+	sub	si,si			; SI:DI = length
+	sub	cx,cx			; CX = 0 (one selector, for CPU_UNMAP)
+	mov	ah,CPU_SETLIM
+	test	di,di			; does the driver keep anything?
+	jnz	fs1			; yes
+	mov	ah,CPU_UNMAP		; no, so free its selectors
+fs1:	push	ax
+	call	cpu_chk			; the code selector
+	pop	ax
+	pop	bx			; and the data selector
+	sub	cx,cx
+	call	cpu_chk
+	pop	di
+	pop	si
+	pop	dx
+	pop	ax
+fs9:	ret
+ENDPROC	fit_sels
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -538,7 +595,7 @@ ENDPROC	get_sels
 ;	AX, BX, CX, DX, SI (except cpu_chk), DI (as for the CPU$ function)
 ;
 DEFPROC	claim
-	mov	ax,(CPU_ALLOC SHL 8) OR SELF_AT OR SELF_NONE
+	mov	ax,(CPU_ALLOC SHL 8) OR MEMF_AT OR MEMF_NONE
 	DEFLBL	cpu_blk,near
 	sub	dx,dx			; DX:CX = address
 	sub	si,si			; SI:DI = length
@@ -640,55 +697,6 @@ ck5:	pop	si
 ck9:	pop	di
 	ret
 ENDPROC	chk_skip
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; dv_getvec and dv_setvec
-;
-; DDINT_GETVEC and DDINT_SETVEC go here while drivers initialize, until sysinit
-; revectors them to the kernel's int_getvec and int_setvec (see dosints.asm).
-;
-; Inputs:
-;	AL = vector #
-;	DX:CX = new vector (dv_setvec only)
-;
-; Outputs:
-;	DX:CX = vector (for dv_setvec, the previous one)
-;
-; Modifies:
-;	CX, DX
-;
-DEFPROC	dv_setvec,far
-	push	ds
-	push	bx
-	call	dv_vecptr		; DS:BX -> vector
-	pushf
-	cli
-	xchg	cx,[bx].OFF
-	xchg	dx,[bx].SEG
-	popf
-	jmp	short dv9
-ENDPROC	dv_setvec
-
-DEFPROC	dv_getvec,far
-	push	ds
-	push	bx
-	call	dv_vecptr		; DS:BX -> vector
-	mov	cx,[bx].OFF
-	mov	dx,[bx].SEG
-dv9:	pop	bx
-	pop	ds
-	ret
-ENDPROC	dv_getvec
-
-DEFPROC	dv_vecptr
-	sub	bx,bx
-	mov	ds,bx
-	mov	bl,al
-	shl	bx,1
-	shl	bx,1
-	ret
-ENDPROC	dv_vecptr
 
 	DEFWORD	skip_list,0		; offset of "SKIP=" list, if any
 	DEFWORD	buf_off,0		; offset of scratch buffer

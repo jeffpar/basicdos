@@ -27,6 +27,7 @@
 	include	disk.inc
 	include	dev.inc
 	include	devapi.inc
+	include	cpu.inc
 
 DEV	group	CODE,DATA
 
@@ -47,9 +48,10 @@ FDC 	DDH	<offset DEV:ddfdc_end+16,,DDATTR_BLOCK+DDATTR_IOCTL,offset ddfdc_init,-
 
 	DEFBYTE	rw_drive,0		; BIOS drive # for readwrite_sectors
 	DEFBYTE	rw_pio,0		; 80h if hard disks don't use DMA
+	DEFBYTE	rw_pm,0			; 80h if requests need pm_rw
 	DEFBYTE	ddbuf_drv,-1
 	DEFWORD	ddbuf_lba,-1
-	DEFPTR	ddbuf_ptr,<offset ddfdc_init>
+	DEFPTR	ddbuf_ptr,<offset pm_rw>; (see ddfdc_init)
 
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
@@ -802,8 +804,9 @@ ENDPROC	format_track
 ;
 ; Sets the DPT's sectors per track (its "end of track" sector, which the
 ; BIOS needs for every diskette transfer, as well as for formatting) and
-; its format gap length.  The boot code moved the DPT to RAM (see boot.asm),
-; so it can be changed.
+; its format gap length.  The boot code moved the DPT to RAM (DPT_ACTIVE, at
+; 40:122h; see boot.asm), so it can be changed, and since BIOS is also a
+; selector (SEL_BIOS), this works in either mode.
 ;
 ; Inputs:
 ;	AL = sectors per track
@@ -818,25 +821,18 @@ ENDPROC	format_track
 DEFPROC	set_dpt
 	push	ds
 	push	bx
-	push	cx
-	push	dx
-	push	ax
-	mov	al,INT_DPT
-	call	far ptr DDINT_GETVEC	; DX:CX -> DPT
-	pop	ax
-	mov	ds,dx
-	mov	bx,cx
-	ASSUME	DS:NOTHING		; DS:BX -> DPT
-	mov	[bx].DP_SPT,al
+	mov	bx,BIOS
+	mov	ds,bx
+	ASSUME	DS:BIOS
+	mov	[DPT_ACTIVE].DP_SPT,al
 	mov	ah,50h			; gap length for 8 or 9 sectors
 	cmp	al,9
 	jbe	sd1
 	mov	ah,54h			; gap length for 15 sectors
-sd1:	mov	[bx].DP_GAP3,ah
-	pop	dx
-	pop	cx
+sd1:	mov	[DPT_ACTIVE].DP_GAP3,ah
 	pop	bx
 	pop	ds
+	ASSUME	DS:NOTHING
 	ret
 ENDPROC	set_dpt
 
@@ -923,7 +919,9 @@ ENDPROC	write_buffer
 ;
 ; PC AT hard disks are the exception: the AT fixed disk BIOS uses programmed
 ; I/O rather than DMA, and it normalizes ES:BX, so a single-track request can
-; never cross a boundary it cares about (see rw_pio).
+; never cross a boundary it cares about (see rw_pio).  In protected mode,
+; pm_dma supplies the buffer's address, and a buffer that the diskette BIOS
+; can't reach (see pm_rw) goes through our own buffer, a sector at a time.
 ;
 ; Inputs:
 ;	BH = BIOS cmd (FDC_READ or FDC_WRITE)
@@ -940,16 +938,17 @@ ENDPROC	write_buffer
 ; Modifies:
 ;	AX
 ;
-; NOTE: We advance the transfer address by adding to ES rather than BP, so
-; that a large transfer can extend beyond ES:FFFFh (eg, when loading a large
-; program into a buffer that doesn't begin at offset zero).
+; NOTE: We advance the transfer address by adding to BP, not ES, so that ES
+; can be a selector; requests never extend beyond offset FFFFh, since DOS
+; advances only the offsets of its buffers, too (and the program loader reads
+; at most FF00h bytes at offset 100h).
 ;
 DEFPROC	readwrite_sectors
 	ASSUME	DS:NOTHING
 	push	bx
 	push	cx
 	push	dx
-	push	es
+	push	bp
 	test	cs:[rw_drive],80h	; hard disk?
 	jnz	rw1			; yes (the DPT is only for diskettes)
 	mov	al,byte ptr [si].BPB_TRACKSECS
@@ -991,8 +990,12 @@ rw2:	inc	ah			; AH = sector ID
 	mov	cl,4
 	shl	bx,cl
 	add	bx,bp			; BX = low 16 bits of physical address
-	mov	cl,al			; CL = # sectors
+	test	cs:[rw_pm],80h		; protected mode?
+	jz	rw2d			; no
+	call	pm_dma			; yes, so BX comes from ES's base
+rw2d:	mov	cl,al			; CL = # sectors
 	mov	al,0			; AL = # sectors before the boundary
+	jnz	rw2b			; (pm_dma: the BIOS can't reach ES:BP)
 rw2a:	add	bx,512
 	jc	rw2b
 	inc	ax
@@ -1013,11 +1016,9 @@ rw3:	pop	cx
 	jbe	rw9			; no
 	add	dx,cx			; advance LBA in DX
 	xchg	ax,cx
-	mov	cl,5			; (512-byte sectors are 32 paragraphs)
-	shl	ax,cl			; AX = # paragraphs in request
-	mov	cx,es
-	add	cx,ax
-	mov	es,cx			; advance transfer address in ES
+	mov	cl,9			; (512-byte sectors)
+	shl	ax,cl			; AX = # bytes in request
+	add	bp,ax			; advance transfer address in BP
 	jmp	rw1
 ;
 ; The next sector crosses a 64K boundary, so transfer it through our own
@@ -1071,7 +1072,7 @@ rw8:	mov	al,ah
 	mov	ah,0			; AX = driver error code
 	stc
 
-rw9:	pop	es
+rw9:	pop	bp
 	pop	dx
 	pop	cx
 	pop	bx
@@ -1085,6 +1086,7 @@ ENDPROC	readwrite_sectors
 ; On a PC AT, if a drive's change line is active, the BIOS resets the line
 ; and fails the request with FDCERR_CHANGED, so the request must be retried.
 ; We retry only once, because the line stays active if the drive is empty.
+; In protected mode, requests go to pm_rw first (see int_rw).
 ;
 ; Inputs:
 ;	Same as INT_FDC
@@ -1096,6 +1098,9 @@ ENDPROC	readwrite_sectors
 ;	AX
 ;
 DEFPROC	bios_rw
+	test	cs:[rw_pm],80h		; protected mode?
+	jnz	pm_rw			; yes
+	DEFLBL	int_rw,near
 	push	di
 	mov	di,ax			; DI = BIOS cmd and # sectors
 	int	INT_FDC			; AX and carry are from the ROM
@@ -1204,6 +1209,139 @@ DEFPROC	fdc_rdbuf,far
 	ret
 ENDPROC	fdc_rdbuf
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; pm_rw
+;
+; INT 13h work-arounds for protected mode, where ES is a selector:
+;
+; 1) The diskette BIOS turns ES:BX into a DMA address (ES * 16 + BX), so
+;    ES:BX becomes BIOS (SEL_BIOS, whose base is 400h) and the buffer's
+;    offset from 400h, which must be less than 64K (see pm_dma).
+; 2) The AT fixed disk BIOS normalizes ES:BX by adding BX / 16 to ES, which
+;    makes ES an invalid selector unless BX is less than 16, so ES:BX becomes
+;    a selector of the buffer's own (CPU_MAP) and zero.
+;
+; In real mode, this code is part of ddbuf (see ddfdc_init).
+;
+; Inputs:
+;	Same as INT_FDC
+;
+; Outputs:
+;	Same as INT_FDC
+;
+; Modifies:
+;	AX
+;
+DEFPROC	pm_rw
+	push	bx
+	push	si
+	push	di
+	push	es
+	push	cx
+	push	dx
+	push	ax
+	mov	di,dx			; DI = drive # (in the low byte)
+	call	pm_addr			; DX:CX = address of ES:BX
+	test	di,80h			; a hard disk?
+	jnz	pr2			; yes
+	sub	cx,BIOS_DATA
+	sbb	dx,0			; DX:CX = buffer's offset from 400h
+	mov	bx,BIOS
+	jz	pr3			; it's within 64K of 400h
+	mov	ah,DDERR_DMA64K		; (BIOS errors are driver errors)
+pr1:	pop	dx			; (discard the caller's AX)
+	pop	dx
+	pop	cx
+	pop	es
+	stc
+	jmp	short pr9
+pr2:	sub	si,si
+	mov	di,0FFFFh		; SI:DI = length (any transfer fits)
+	mov	ax,CPU_MAP SHL 8	; (a GDT data selector)
+	call	far ptr DDINT_CPU	; AX = selector
+	xchg	bx,ax			; BX = selector
+	mov	ah,DDERR_GENFAIL
+	jc	pr1			; no selector
+	sub	cx,cx			; CX = offset (zero)
+pr3:	mov	es,bx
+	mov	bx,cx			; ES:BX -> buffer
+	pop	ax
+	pop	dx
+	pop	cx			; AX, CX, and DX for INT_FDC again
+	mov	si,cx
+	mov	di,dx			; (SI and DI keep CX and DX)
+	push	es
+	call	int_rw			; AX and carry are from the ROM
+	pop	bx			; BX = selector (or BIOS)
+	pop	es			; (ES can't hold a freed selector)
+	test	di,80h			; a hard disk?
+	jz	pr8			; no
+	push	ax
+	pushf
+	mov	ah,CPU_UNMAP
+	sub	cx,cx			; CX = 0 (one selector)
+	call	far ptr DDINT_CPU
+	popf
+	pop	ax
+pr8:	mov	cx,si
+	mov	dx,di			; CX and DX again
+pr9:	pop	di
+	pop	si
+	pop	bx
+	ret
+ENDPROC	pm_rw
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; pm_dma
+;
+; Gets the address of ES:BP for readwrite_sectors' DMA boundary check, which
+; in protected mode can't be computed from ES.
+;
+; Outputs:
+;	BX = low 16 bits of ES:BP's address
+;	ZF set if the diskette BIOS can reach it (see pm_rw)
+;
+DEFPROC	pm_dma
+	push	ax
+	push	cx
+	push	dx
+	mov	bx,bp
+	call	pm_addr			; DX:CX = address of ES:BP
+	mov	bx,cx
+	sub	cx,BIOS_DATA
+	sbb	dx,0			; ZF set if it's within 64K of 400h
+	pop	dx
+	pop	cx
+	pop	ax
+	ret
+ENDPROC	pm_dma
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; pm_addr
+;
+; Inputs:
+;	ES:BX -> buffer
+;
+; Outputs:
+;	DX:CX = address of ES:BX
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	pm_addr
+	push	bx
+	mov	bx,es
+	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_SEL
+	call	far ptr DDINT_CPU	; DX:CX = base of ES
+	pop	bx
+	add	cx,bx
+	adc	dx,0
+	ret
+ENDPROC	pm_addr
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Driver initialization
@@ -1234,9 +1372,21 @@ DEFPROC	ddfdc_init,far
 	mov	[rw_pio],80h
 ;
 ; We're not keeping any of this code, but we are reserving 512 bytes
-; for an internal sector buffer (ddbuf).
+; for an internal sector buffer (ddbuf), which begins at pm_rw (and
+; overlays the code that only protected mode needs) unless we're in
+; protected mode (AH is unchanged, ie, zero, if there's no CPU$).
 ;
-ddin0:	mov	es:[bx].DDPI_END.OFF,offset ddfdc_init + 512
+ddin0:	push	ax
+	mov	ah,CPU_GETINFO
+	call	far ptr DDINT_CPU	; AH = CPUF_* flags
+	test	ah,CPUF_PM		; protected mode?
+	jz	ddin1			; no
+	mov	[rw_pm],80h		; yes, so keep pm_rw (etc)
+	mov	[ddbuf_ptr].OFF,offset ddfdc_init
+ddin1:	pop	ax
+	mov	cx,[ddbuf_ptr].OFF
+	add	cx,512
+	mov	es:[bx].DDPI_END.OFF,cx
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddfdc_req
 	mov	[ddbuf_ptr].SEG,ds	; (our data segment)
 ;

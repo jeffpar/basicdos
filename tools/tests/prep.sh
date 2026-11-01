@@ -4,7 +4,8 @@
 # (eg, software/src/configs/console/serial/fpe) before boot.sh (in the repository root) or another script in tools/tests boots it.
 #
 # The files come from software/manifest.txt: HELP.TXT from ROOT (pc.js adds the system files, and each configuration
-# has its own CONFIG.SYS and, if needed, AUTOEXEC.BAT), utilities from EXT in EXT, the DEMOS and TESTS files together in TESTS,
+# has its own CONFIG.SYS and, if needed, AUTOEXEC.BAT), utilities from EXT in EXT, the DEMOS and TESTS files together in TESTS
+# (only TESTS on a diskette; see below),
 # the TESTS/REGRESS files (the regression tests) in TESTS\REGRESS, the TESTS/MISC files (other test programs) in
 # TESTS\MISC, and the TOOLS files (except MSBASIC) in TOOLS.  A test configuration's CONFIG.SYS sets PATH$ to all of
 # them except the TESTS subfolders (eg, "A:\;A:\EXT;A:\TESTS;A:\TOOLS"); the tests in TESTS\REGRESS are run by
@@ -34,15 +35,16 @@ manifest() {
 }
 files_root=($(manifest ROOT | grep -v -e '/CONFIG\.SYS$' -e '\.COM$'))
 files_ext=($(manifest EXT))
+files_tests=($(manifest DEMOS) $(manifest TESTS))
 #
 # A diskette configuration (whose PATH$ is on A:) leaves out the EXT utilities that work on entire volumes (CHKDSK,
-# DISKCOPY, FORMAT, LABEL, and SYS), which no test uses, to keep enough free space on a 360K test floppy for MOVES and
-# FCBTESTS; use the hd configuration to test them.
+# DISKCOPY, FORMAT, LABEL, and SYS) and the DEMOS files (eg, DIR.BAS and PAINT.BAS), which no test uses, to keep enough
+# free space on a 360K test floppy for MOVES and FCBTESTS; use the hd configuration to test them.
 #
 if grep -q 'PATH\$="A:' "$dir/CONFIG.SYS"; then
     files_ext=($(printf '%s\n' "${files_ext[@]}" | grep -v -E '/(CHKDSK|DISKCOPY|FORMAT|LABEL|SYS)\.BAS$'))
+    files_tests=($(manifest TESTS))
 fi
-files_tests=($(manifest DEMOS) $(manifest TESTS))
 files_regress=($(manifest TESTS/REGRESS))
 files_misc=($(manifest TESTS/MISC))
 #

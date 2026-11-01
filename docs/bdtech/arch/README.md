@@ -29,18 +29,18 @@ The boot sector runs in two parts:
 1. Part 1 copies the BIOS diskette parameter table (DPT) to low memory (522h) so its values can be tuned, and moves the boot sector to low memory (560h).  If a hard disk is present, it displays "Press a key to start..." and waits for a key (or at most 2 seconds); **Esc** boots from the hard disk instead.  The key pressed is saved in BOOT_KEY (52Dh).  It then finds BASDEV.COM, BASDOS.COM, and CONFIG.SYS in the root directory.
 2. Part 2 loads BASDEV.COM at BIOS_END (970h), hops over its driver headers to find the devinit code that follows them, and jumps to it, with the address of its `read_file` function.
 
-Devinit reads CONFIG.SYS (to honor any SKIP= line), chains the driver headers together, and sends each driver a DDC_INIT request, starting with CPU$ (two drivers, the first of which records the processor type, and one of which stays, to manage all memory; see [Protected Mode](../mmu/)), which can't be skipped; each driver reports how much memory it needs, so the drivers end up packed together, and skipped drivers take no memory.  As soon as CPU$ is initialized, devinit claims the memory it's using from CPU$ (the drivers, and its own code, CONFIG.SYS data, and scratch buffer), and loads BASDOS.COM into a block at the top of conventional memory, followed by a copy of the CONFIG.SYS data.  When the last driver is initialized, devinit frees its blocks, claims the memory right after the drivers for BASDOS.COM, and has CPU$ move it there and "return" to sysinit, which also takes the memory for its tables and its initialization code from CPU$.
+Devinit reads CONFIG.SYS (to honor any SKIP= line), chains the driver headers together, and sends each driver a DDC_INIT request, starting with CPU$ (two drivers, the first of which records the processor type, and one of which stays, to manage all memory; see [Protected Mode](../mmu/)), which can't be skipped; each driver reports how much memory it needs, so the drivers end up packed together, and skipped drivers take no memory.  As soon as CPU$ is initialized, devinit claims the memory it's using from CPU$ (the drivers, and its own code, CONFIG.SYS data, and scratch buffer), and loads BASDOS.COM into a block at the top of conventional memory, followed by a copy of the CONFIG.SYS data.  When the last driver is initialized, devinit frees its blocks, allocates the first free block (right after the drivers) for BASDOS.COM, and has CPU$ move it there and "return" to sysinit, which also takes the memory for its tables and its initialization code from CPU$, and gets a segment (or selector) for each disk buffer from CPU$.  The first CPU$ driver also applies any MEMSIZE= line, by lowering the BIOS's memory size.
 
 Sysinit then:
 
-- Processes PATHCHAR= and MEMSIZE=, and records the boot key
+- Processes PATHCHAR=, and records the boot key
 - Allocates the Session Control Block table (SESSIONS=) and the System File Block table (FILES=), along with the BPBs, the current directory table, and any extra disk buffers (BUFFERS=)
 - Opens the first session's console (CON=, or VKD$:80,25 by default)
 - Processes SWITCHAR= or a `-` boot key (after the first console is open, so that a conflict with PATHCHAR= can be reported)
 - Loads any DEVICE= drivers, and then opens AUX and PRN (AUX= and PRN=, or COM1 and LPT1 by default), which every session shares
 - Opens the console for each additional CON= line
 - Opens the DEBUG$ device (the [DEBUG.COM](../dev/) driver), if installed, for DPRINTF messages, and obtains the FPU$ function table (FPUTBL), if the FPU$ driver is present
-- Revectors the DDINT_ENTER, DDINT_LEAVE, and DDINT_UTIL entry points (530h-53Fh) used by driver interrupt handlers
+- Revectors the DDINT_ENTER, DDINT_LEAVE, and DDINT_UTIL entry points (53Fh-54Dh) used by driver interrupt handlers
 - Prints the startup banner, and for each SHELL= line (or the default, COMMAND.COM), loads the program into the next session with DOS_UTL_LOAD and starts it with DOS_UTL_START
 
 Successive loads of the same program (eg, COMMAND.COM in several sessions) are served from a cached copy of the file, so the disk is read only once.
@@ -64,16 +64,16 @@ In DEBUG builds, the [DOS_UTL_DPRINTF](../util/#formatted-output) messages are p
 |---------|----------|
 | 0000h | Interrupt vector table |
 | 0400h | ROM BIOS data area |
-| 0500h | BASIC-DOS low memory data: drive info, device list head (50Ah), CPU_TYPE (512h), DPT (522h), BOOT_KEY (52Dh), and the DDINT entry points (530h, called through segment 50h: DDINT_ENTER, DDINT_LEAVE, DDINT_UTIL, DDINT_CPU, DDINT_GETVEC, and DDINT_SETVEC) |
+| 0500h | BASIC-DOS low memory data: drive info, device list head (50Ah), CPU_TYPE (512h), CPU_HWTYPE (513h), CPU_ARENA (514h), DPT (522h), BOOT_KEY (52Dh), and the DDINT entry points (530h, called through segment 50h: DDINT_CPU, DDINT_GETVEC, DDINT_SETVEC, DDINT_ENTER, DDINT_LEAVE, and DDINT_UTIL) |
 | 0550h | First disk buffer (16-byte header and 512-byte sector; initially the FAT sector the boot code read) |
 | 0760h | Second disk buffer (header and 512-byte sector) |
 | 0970h | BIOS_END: device drivers (BASDEV.COM), followed by the DOS kernel (BASDOS.COM) |
 | | Resident tables: SCBs, BPBs, current directories, SFBs, and any extra disk buffers (BUFFERS=) |
-| | Memory pool: MCB chain (programs, COMMAND.COM blocks, and free memory) |
+| | Memory pool: the rest of CPU$'s arena (programs, COMMAND.COM blocks, and free memory) |
 
 All the disk buffers form a circular chain, ordered from most to least recently used.  Each buffer holds a FAT sector or a directory sector (file data goes directly through the disk drivers), and when a sector isn't already in a buffer, the least recently used buffer is reused, except that the most recently used buffer of the other kind (FAT or directory) is never reused, so that DOS can keep working with a directory entry while it updates the FAT (and vice versa).
 
-The memory pool is a chain of Memory Control Blocks (see [MCB](../data/#mcb)), as in PC DOS.  [DOS_MEM_ALLOC](../dos/#memory) normally allocates from the bottom of the first free block that's big enough, but with MCBTYPE_HIGH (80h) set in AL, it allocates from the top of the last one.  COMMAND.COM allocates its code, text, variable, and string blocks from the top, so that the memory it frees before running a program stays contiguous.
+The memory pool is managed by the CPU$ driver (see [Protected Mode](../mmu/)): on an 8088 (or with `CPU=8088`), it's a chain of Memory Control Blocks (see [MCB](../data/#mcb)), as in PC DOS, and on an 80286, a table of physical memory blocks.  [DOS_MEM_ALLOC](../dos/#memory) normally allocates from the bottom of the first free block that's big enough, but with MCBTYPE_HIGH (80h) set in AL, it allocates from the top of the last one.  COMMAND.COM allocates its code, text, variable, and string blocks from the top, so that the memory it frees before running a program stays contiguous.
 
 Unlike PC DOS, BASIC-DOS doesn't give a program all available memory: a COM program gets its file size plus a heap (at least MINHEAP, or 1K, or more if the program requests it; see [COMDATA](../data/#comdata)), or at least half of the available memory if it has no COMDATA, and an EXE program gets its image size plus the minimum its header requests (EXE_PARASMIN), plus as much of the maximum (EXE_PARASMAX) as is available, up to 64K (or the minimum, if larger).  This leaves memory available for other sessions, while still giving programs like LINK.EXE (which sizes its stack from the memory it's given) enough room to run.
 
@@ -91,8 +91,8 @@ Each session has its own console context (if it was given one by a CON= line), a
 
 | Vector | Use |
 |--------|-----|
-| 00h, 04h | Divide error and overflow: the program is terminated (exit types EXTYPE_DVERR and EXTYPE_OVERR) |
-| 01h, 03h | Single-step and breakpoint (used by DEBUG builds, where an INT 3 other than a DBGBRK is an assertion failure, which is reported and halts the system) |
+| 00h, 04h | Divide error and overflow: DOS displays "Division error" or "Overflow error" (with the address, in DEBUG builds) and terminates the program (exit types EXTYPE_DVERR and EXTYPE_OVERR), as MS-DOS ends a program after "Divide overflow"; the parent isn't aborted, too (unlike a CTRL-C), and a session's last program (eg, COMMAND) gets a CTRL-C signal instead.  DEBUG.COM (as a driver or a program) stops on a divide error first |
+| 01h, 03h | Single-step and breakpoint (used by DEBUG builds, where an INT 3 preceded by a NOP is an assertion failure, which is reported and halts the system, while any other INT 3, such as a DBGBRK, is ignored) |
 | 20h | Terminate program |
 | 21h | DOS functions (see [DOS Functions](../dos/)) |
 | 22h | Exit address |

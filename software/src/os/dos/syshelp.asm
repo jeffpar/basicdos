@@ -23,11 +23,13 @@ DOS	segment word public 'CODE'
 
 	EXTNEAR	<sysinit_error,fatal_error>
 	EXTWORD	<dos_seg,cfg_data,cfg_size,cbCacheData>
+	EXTWORD	<init_data>
 	EXTLONG	<pCacheInt21,pCacheData>
 
 	DEFPTR	pCacheFile
 	DEFPTR	pCacheActive
 	DEFWORD	cbCacheActive
+	DEFWORD	tbl_next		; offset of next table (see init_table)
 
 	ASSUME	CS:DOS, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
@@ -75,7 +77,7 @@ DEFPROC	find_cfg
 	push	cx
 	push	dx
 	push	es
-	push	cs
+	push	ss			; (our data; see sysinit_high)
 	pop	es
 	ASSUME	ES:DOS
 	mov	bx,si
@@ -118,8 +120,10 @@ ENDPROC	find_cfg
 ;
 ; init_table
 ;
-; Initializes table with AX entries of length DX at ES:0, stores DOS segment-
-; relative table offset at [BX], table limit at [BX+2], and finally adjusts ES.
+; Initializes a table of AX entries of length DX at tbl_next (an offset in the
+; DOS segment), stores the table's offset at [BX] and its limit at [BX+2] (in
+; the DOS segment too), and advances tbl_next to the next paragraph.  This
+; runs in sysinit's block (SS = its data), where tbl_next is.
 ;
 ; Outputs:
 ;	Nothing
@@ -129,36 +133,26 @@ ENDPROC	find_cfg
 DEFPROC	init_table
 	ASSUME	DS:NOTHING, ES:NOTHING
 	push	ax
+	push	es
+	mov	es,[dos_seg]
 	mul	dx			; AX = length of table in bytes
 	xchg	cx,ax			; CX = length
-	sub	di,di
+	mov	di,ss:[tbl_next]	; ES:DI -> table
+	mov	es:[bx].OFF,di		; save DS-relative offset
 	mov	ax,di
+	add	ax,cx			; does the table fit in the segment?
+	jc	it8			; no
+	add	ax,15
+	jc	it8
+	and	al,0F0h
+	mov	ss:[tbl_next],ax
+	mov	al,0
 	rep	stosb			; zero the table
-	push	ds
-	mov	ds,[dos_seg]
-	mov	ax,es
-	mov	dx,ds
-	sub	ax,dx			; AX = distance from DS:0 in paras
-	mov	dx,ax			; save for DS overflow check
-	mov	cl,4
-	shl	ax,cl			; AX = DS-relative offset
-	mov	[bx].OFF,ax		; save DS-relative offset
-	add	ax,di
-	mov	[bx].SEG,ax		; save DS-relative limit
-	pop	ds
-	add	di,15
-	mov	cl,4
-	shr	di,cl			; DI = length of table in paras
-	add	dx,di			; check for DS overflow
-	cmp	dx,1000h		; have we exceeded the DS 64K limit?
-	jbe	it9			; no
-	jmp	sysinit_error		; yes, sadly
-it9:
-	mov	ax,es
-	add	ax,di
-	mov	es,ax			; ES = next available paragraph
+	mov	es:[bx].SEG,di		; save DS-relative limit
+	pop	es
 	pop	ax
 	ret
+it8:	jmp	sysinit_error		; no, sadly
 ENDPROC	init_table
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -170,7 +164,8 @@ ENDPROC	init_table
 ; completely sequential (and therefore our caching logic can be very simple).
 ;
 ; This allows us to preload multiple copies of COMMAND.COM into memory without
-; having to reread the file from disk every time.
+; having to reread the file from disk every time.  Since we run on the caller's
+; stack, we get our data segment (or selector) from init_data.
 ;
 ; Inputs:
 ;	AH = DOS function #
@@ -197,8 +192,7 @@ DEFPROC	cache_int21,FAR
 	repe	cmpsb			; does previous filename match current?
 	jne	ci1			; no
 	mov	ax,[pCacheData].OFF	; yes, init active cache data
-ci1:	push	cs
-	pop	es
+ci1:	mov	es,cs:[init_data]
 	ASSUME	ES:DOS
 	mov	[pCacheActive].OFF,ax
 	mov	ax,[pCacheData].SEG
@@ -213,7 +207,7 @@ ci1:	push	cs
 	pop	si
 	pop	cx
 	pop	ax
-	jmp	short ci9
+	jmp	ci9
 
 ci2:	cmp	ah,DOS_HDL_SEEK
 	jne	ci4
@@ -225,8 +219,7 @@ ci2:	cmp	ah,DOS_HDL_SEEK
 ;
 	push	bx
 	push	es
-	push	cs
-	pop	es
+	mov	es,cs:[init_data]
 	ASSUME	ES:DOS
 	mov	bx,dx			; BX = offset
 	sub	al,SEEK_END
@@ -268,8 +261,7 @@ ci4:	cmp	ah,DOS_HDL_READ
 	mov	ax,[cbCacheActive]	; no
 ci3:	mov	cx,ax
 	rep	movsb
-	push	cs
-	pop	es
+	mov	es,cs:[init_data]
 	ASSUME	ES:DOS
 	sub	[cbCacheActive],ax
 	add	[pCacheActive].OFF,ax

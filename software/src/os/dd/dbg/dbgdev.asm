@@ -21,27 +21,43 @@
 ; be a 16-bit register name (eg, DB DS:DX).
 ;
 ; Ctrl-C or a serial BREAK stops the machine as soon as it arrives (via the
-; port's hardware interrupt), as do breakpoints, single-steps (T), and any
-; other INT 1 or INT 3.  The monitor displays the registers and the current
-; instruction, and then accepts commands (? lists them) until G or T.
+; port's hardware interrupt), as do breakpoints, single-steps (T and P), any
+; other INT 1 or INT 3, and divide errors (INT 0).  The monitor displays the
+; registers and the current instruction, and then accepts commands (? lists
+; them) until G, P, or T.
 ;
-; Only INIT calls DOS.  The monitor can interrupt DOS (or an IRQ handler),
-; so it runs on a private stack with interrupts disabled, polling the UART
-; of a COM port that INIT opened with MODE_DENY_RW.  For the same reason, it
-; can't use the DOS utility functions (eg, SPRINTF), which enable
-; interrupts and reenter the DOS dispatcher.
+; Memory is read and written through CPU$ (see CPU_RWMEM), which checks every
+; address, and can store breakpoints in code segments (but not in the parts
+; of CPU$ that we call, such as DDINT_CPU itself).  When CPU$ is the
+; 80286 driver (see CPU_SYSREGS), we work in either mode: the prompt is #
+; in protected mode (- in real mode), an address may start with & (real
+; mode) or # (protected mode), and otherwise has the processor's current
+; mode, every address is displayed with its prefix, and the registers include
+; the MSW, GDTR, and IDTR, plus in protected mode, the LDTR, the TR, and each
+; segment register's base and limit (see CPU_SEGINFO).
 ;
-	DOSFUNC equ 1
-	DOSHEAP equ 1
+; The disassembler is in dbgdis.asm, which LINK puts after this module, and
+; which is resident, too.  Only INIT calls DOS, and it's in dbginit.asm,
+; which LINK puts after the resident code, along with program mode.  The
+; monitor can interrupt DOS (or an IRQ handler), so it runs on a private
+; stack with interrupts disabled, polling the UART of a COM port that INIT
+; opened with MODE_DENY_RW.  For the same reason, it can't use the DOS
+; utility functions (eg, SPRINTF), which enable interrupts and reenter the
+; DOS dispatcher.
+;
 	include	macros.inc
 	include	bios.inc
 	include	dev.inc
 	include	devapi.inc
 	include	dosapi.inc
 	include	uart.inc
-	include	version.inc
+	include	cpu.inc
 
 CODE	segment para public 'CODE'
+
+	EXTNEAR	<com_main,com_quit,dbgdev_init>
+	EXTNEAR	<chk_over,dis_line>
+	public	gl1,mon3a,mon4,mon4a	; (patched by dbginit.asm)
 
 ;
 ; When run as a program, execution begins at the DDH, so DDH_NEXT_OFF holds a
@@ -53,7 +69,7 @@ DBGDEV	DDH	<COM_JMP,-1,DDATTR_CHAR,dbgdev_req,0,2020244755424544h>
 ;
 ; in_buf must follow the DDH: its initial contents (which don't matter to the
 ; driver) are a JMP to com_main, which (like everything that runs only as a
-; program) follows resident_end, so a driver doesn't keep it.
+; program) is in dbginit.asm, after resident_end, so a driver doesn't keep it.
 ;
 IN_MASK		equ	127	; in_buf is a ring buffer, with one slot unused
 	ASSUME	CS:CODE
@@ -75,23 +91,47 @@ R_FL		equ	26
 REGS_LEN	equ	28
 ;
 ; Each breakpoint (BP_TAB entry) has an offset, segment, original byte, and
-; state; entry 0 is the temporary breakpoint for G addr.
+; state (BP_* flags, plus ADDR_SEL if the segment is a selector); entry 0 is
+; the temporary breakpoint (for G addr, P, and BP 0), which is cleared when
+; CS:IP reaches it.
 ;
-BP_SET		equ	01h	; breakpoint is set
-BP_ARMED	equ	02h	; breakpoint's INT 3 is in memory
+BP_SET		equ	02h	; breakpoint is set
+BP_ARMED	equ	04h	; breakpoint's INT 3 is in memory
+BP_STEP		equ	08h	; temporary breakpoint ends a P step
+CPU_DUAL	equ	80h	; cpu_mode: CPU$ is the 80286 driver
 BP_SIZE		equ	6
 NUM_BPS		equ	10
-CMD_TAIL	equ	80h	; PSP_CMDTAIL (see com_main)
-
+;
+; trace_mode flags, for the T or P command in progress (see cmd_t).
+;
+TRACE_BRIEF	equ	01h	; display only the instruction (no R)
+TRACE_OVER	equ	02h	; step over CALL, INT, LOOP, and REP (P)
+;
+; vec_save holds our INT 00h, 01h, and 03h handlers, which dbginit.asm's
+; swap_vecs exchanges with the vectors, so once they're hooked, it holds the
+; previous handlers (eg, DOS's INT 00h handler, for cmd_g).
+;
+	DEFWORD	vec_save,<dbg_int0,0,dbg_int1,0,dbg_int3,0>
 	DEFPTR	old_com			; original COM interrupt handler
-	DEFPTR	dos_vars		; DOSVARS + 2 (see hook_vecs)
 	DEFWORD	com_port,0		; UART base port
+	DEFWORD	dos_seg,0		; DOS's segment (see hook_vecs)
 	DEFWORD	dump_off,0		; offset of the next D command
 	DEFWORD	dump_seg,0		; segment of the next D command
 	DEFBYTE	dump_size,1		; 1 (DB) or 2 (DW), for the next D
 	DEFWORD	u_off,0			; offset of the next U command
 	DEFWORD	u_seg,0			; segment of the next U command
-	DEFWORD	trace_cnt,0		; T steps remaining
+	DEFWORD	mem_seg,0		; segment of the memory to access
+	DEFWORD	mem_val,0		; bytes read or written (see mem_io)
+	DEFBYTE	mem_mode,0		; ADDR_SEL if mem_seg is a selector
+	DEFBYTE	dump_mode,0		; ADDR_SEL if dump_seg is a selector
+	DEFBYTE	u_mode,0		; ADDR_SEL if u_seg is a selector
+	DEFBYTE	cpu_mode,0		; CPU_DUAL, plus ADDR_SEL if in PM
+;
+; sys_regs holds what CPU_SYSREGS returns: the GDTR and IDTR (6 bytes each),
+; and then the MSW, LDTR, and TR.
+;
+	DEFWORD	sys_regs,0,9
+	DEFWORD	trace_cnt,0		; T or P steps remaining
 	DEFWORD	regs,0,REGS_LEN/2	; saved registers
 	DEFBYTE	bp_tab,0,BP_SIZE*NUM_BPS
 	DEFLBL	bp_end
@@ -99,18 +139,17 @@ CMD_TAIL	equ	80h	; PSP_CMDTAIL (see com_main)
 	DEFBYTE	paused,0		; set by XOFF, cleared by XON
 	DEFBYTE	in_head,0		; next byte to read from in_buf
 	DEFBYTE	in_tail,0		; next byte to write in in_buf
-	DEFBYTE	why,0			; 1 (INT 1), 3 (INT 3), else 0
-	DEFBYTE	tracing,0		; 1 for T, 2 for G past a breakpoint
+	DEFBYTE	why,0			; 1, 3 (INT 1, INT 3), -1 (fault),
+					; -2 (divide error), or 0
+	DEFBYTE	fault_vec,0		; a fault's vector (see dbg_fault)
+	DEFBYTE	brk_skip,0		; nonzero to resume past a DBGBRK
+	DEFWORD	fault_ec,0		; and its error code
+	DEFBYTE	tracing,0		; 1 for T or P, 2 for G past a BP
+	DEFBYTE	trace_mode,0		; TRACE_* flags (0 after other stops)
 	DEFBYTE	col,0			; output column (see pad)
 	DEFBYTE	mute,0			; nonzero to discard output
-;
-; Disassembler state (see decode).
-;
-	DEFBYTE	opcode,0
-	DEFBYTE	modrm,0			; ModRM byte (or opcode, if none)
-	DEFBYTE	wbit,0			; 0 (byte), 1 (word), or 2 (far)
-	DEFBYTE	opnds,0			; operand types (see OPND_TAB)
-	DEFBYTE	seg_ovr,0		; segment override (as in REGNAMES)
+	DEFBYTE	ln_find,0		; 1 while put_name looks, 2 to name
+	DEFLONG	ln_addr,0		; the address that put_name looks for
 ;
 ; Register names, with offsets of the saved registers in regs, in display
 ; order.
@@ -135,14 +174,36 @@ FLAG_MASK	equ	0ED5h	; OF, DF, IF, SF, ZF, AF, PF, and CF
 	db	"DB [range]",9,"dump bytes",13,10
 	db	"DW [range]",9,"dump words",13,10
 	db	"DM",9,9,"dump memory blocks",13,10
+	db	"DS sel",9,9,"dump selector",13,10
 	db	"E addr [list]",9,"edit memory",13,10
 	db	"G [addr]",9,"go (to address)",13,10
+	db	"LN [addr]",9,"list nearest block",13,10
+	db	"P[R] [count]",9,"step over (R: registers)",13,10
 	db	"R [reg | F]",9,"display or edit registers",13,10
-	db	"T [count]",9,"trace",13,10
+	db	"T[R] [count]",9,"trace (R: registers)",13,10
 	db	"U [range]",9,"unassemble",13,10,0
 
 	DEFLBL	ASSERT_MSG,byte
 	db	"Assertion failure",0
+	DEFLBL	DIV_MSG,byte
+	db	"Division error",0
+	DEFLBL	FAULT_MSG,byte
+	db	"CPU$ fault ",0
+	DEFLBL	EC_MSG,byte
+	db	" (EC=",0
+;
+; The names of the registers that show_regs displays in protected mode after
+; SS, in order (A20 is always enabled then), and the flags' letters there.
+;
+	DEFLBL	SYS_NAMES,byte
+	db	"A20=ON ",0,"LD=",0
+	DEFLBL	SYS_GD,byte
+	db	" GD=",0," ID=",0,"TR=",0
+	DEFLBL	SYS_MS,byte
+	db	" MS=",0," PS=",0
+	DEFLBL	PM_FLAGS,byte
+	db	"VDITSZAPC"
+PM_FLAG_MASK	equ	0FD5h	; OF, DF, IF, TF, SF, ZF, AF, PF, and CF
 
 ;
 ; Commands, and the procedures that perform them (with SI -> the text after
@@ -157,6 +218,10 @@ FLAG_MASK	equ	0ED5h	; OF, DF, IF, SF, ZF, AF, PF, and CF
 	dw	cmd_e
 	db	'G'
 	dw	cmd_g
+	db	'L'
+	dw	cmd_l
+	db	'P'
+	dw	cmd_p
 	db	'R'
 	dw	cmd_r
 	db	'T'
@@ -169,198 +234,6 @@ FLAG_MASK	equ	0ED5h	; OF, DF, IF, SF, ZF, AF, PF, and CF
 	db	0			; program mode changes this to 'Q'
 	dw	com_quit
 	db	0
-;
-; Mnemonics, each with bit 7 set in its last character, and an M_ equate
-; with its index (see put_mnem); bit 7 of an index in OPTAB means "word"
-; and indexes 78h-7Ch are groups (see decode), so there can be only 120.
-;
-_MN = 0
-MNEM	macro	text,name
-	IFB	<name>
-M_&text = _MN
-	ELSE
-M_&name = _MN
-	ENDIF
-_MN = _MN + 1
-_LC = 0
-	IRPC	c,<text>
-	 IF	_LC
-	db	_LC
-	 ENDIF
-_LC = '&c'
-	ENDM
-	db	_LC OR 80h
-	endm
-
-	DEFLBL	MNEMS,byte
-	MNEM	ADD			; 00h-07h: ALU ops and group 1
-	MNEM	OR
-	MNEM	ADC
-	MNEM	SBB
-	MNEM	AND
-	MNEM	SUB
-	MNEM	XOR
-	MNEM	CMP
-	MNEM	ROL			; 08h-0Fh: group 2
-	MNEM	ROR
-	MNEM	RCL
-	MNEM	RCR
-	MNEM	SHL
-	MNEM	SHR
-	MNEM	???,BAD
-	MNEM	SAR
-	MNEM	JO			; 10h-1Fh: opcodes 70h-7Fh
-	MNEM	JNO
-	MNEM	JB
-	MNEM	JNB
-	MNEM	JZ
-	MNEM	JNZ
-	MNEM	JBE
-	MNEM	JA
-	MNEM	JS
-	MNEM	JNS
-	MNEM	JPE
-	MNEM	JPO
-	MNEM	JL
-	MNEM	JGE
-	MNEM	JLE
-	MNEM	JG
-	MNEM	INC			; 20h-23h: opcodes 40h-5Fh
-	MNEM	DEC
-	MNEM	PUSH
-	MNEM	POP
-	MNEM	DAA			; 24h-27h: opcodes 27h-3Fh
-	MNEM	DAS
-	MNEM	AAA
-	MNEM	AAS
-	MNEM	MOVS			; 28h-2Ch: B or W is appended
-	MNEM	CMPS
-	MNEM	STOS
-	MNEM	LODS
-	MNEM	SCAS
-	MNEM	<BYTE PTR>,BYTE		; (see op_e)
-	MNEM	<WORD PTR>,WORD
-	MNEM	FAR
-	MNEM	TEST
-	MNEM	NOT
-	MNEM	NEG
-	MNEM	MUL
-	MNEM	IMUL
-	MNEM	DIV
-	MNEM	IDIV
-	MNEM	CALL
-	MNEM	JMP
-	MNEM	XCHG
-	MNEM	MOV
-	MNEM	LEA
-	MNEM	NOP
-	MNEM	CBW
-	MNEM	CWD
-	MNEM	WAIT
-	MNEM	PUSHF
-	MNEM	POPF
-	MNEM	SAHF
-	MNEM	LAHF
-	MNEM	RET
-	MNEM	RETF
-	MNEM	LES
-	MNEM	LDS
-	MNEM	<INT 3>,INT3
-	MNEM	INT
-	MNEM	INTO
-	MNEM	IRET
-	MNEM	AAM
-	MNEM	AAD
-	MNEM	XLAT
-	MNEM	ESC
-	MNEM	LOOPNZ
-	MNEM	LOOPZ
-	MNEM	LOOP
-	MNEM	JCXZ
-	MNEM	IN
-	MNEM	OUT
-	MNEM	LOCK
-	MNEM	REPNZ
-	MNEM	REPZ
-	MNEM	HLT
-	MNEM	CMC
-	MNEM	CLC
-	MNEM	STC
-	MNEM	CLI
-	MNEM	STI
-	MNEM	CLD
-	MNEM	STD
-	IF	_MN GT 78h
-	ERROR	<Too many mnemonics>
-	ENDIF
-;
-; Operand types, one per nibble (first operand in the high nibble), each
-; indexing OPND_TAB (0 means none):
-;
-;	1: ModRM r/m	5: reg in opcode   9: imm16	D: [addr]
-;	2: ModRM reg	6: imm		   A: rel8	E: DX
-;	3: segment reg	7: signed imm8	   B: rel16	F: 1 or CL
-;	4: AL or AX	8: imm8		   C: seg:off
-;
-; Sizes come from bit 0 of the opcode, unless the operands say otherwise.
-;
-	DEFLBL	OPND_TAB,word
-	dw	op_e, op_g, op_s, op_a, op_z, op_i, op_sib, op_ib
-	dw	op_iw, op_j8, op_j16, op_ap, op_o, op_dx, op_shift
-;
-; Groups 3, 4, and 5 (mnemonics for each ModRM reg); bit 7 means "far".
-;
-	DEFLBL	GRPS,byte
-	db	M_TEST,M_BAD,M_NOT,M_NEG,M_MUL,M_IMUL,M_DIV,M_IDIV
-	db	M_INC,M_DEC,M_BAD,M_BAD,M_BAD,M_BAD,M_BAD,M_BAD
-	db	M_INC,M_DEC,M_CALL,M_CALL+80h,M_JMP,M_JMP+80h,M_PUSH,M_BAD
-;
-; Opcodes 80h-FFh: mnemonic (or group) and operand types; operand type FFh
-; marks a prefix.
-;
-G1	equ	78h
-G2	equ	79h
-G3	equ	7Ah
-G4	equ	7Bh
-G5	equ	7Ch
-	DEFLBL	OPTAB,byte
-	db	G1,16h, G1,16h, G1,16h, G1,17h			; 80h
-	db	M_TEST,12h, M_TEST,12h, M_XCHG,21h, M_XCHG,21h
-	db	M_MOV,12h, M_MOV,12h, M_MOV,21h, M_MOV,21h	; 88h
-	db	M_MOV+80h,13h, M_LEA,21h, M_MOV+80h,31h, M_POP,10h
-	db	M_NOP,0, 7 dup (M_XCHG+80h,45h)			; 90h
-	db	M_CBW,0, M_CWD,0, M_CALL,0C0h, M_WAIT,0		; 98h
-	db	M_PUSHF,0, M_POPF,0, M_SAHF,0, M_LAHF,0
-	db	M_MOV,4Dh, M_MOV,4Dh, M_MOV,0D4h, M_MOV,0D4h	; A0h
-	db	M_MOVS,0, M_MOVS,0, M_CMPS,0, M_CMPS,0
-	db	M_TEST,46h, M_TEST,46h, M_STOS,0, M_STOS,0	; A8h
-	db	M_LODS,0, M_LODS,0, M_SCAS,0, M_SCAS,0
-	db	16 dup (M_MOV,56h)				; B0h
-	db	M_BAD,0, M_BAD,0, M_RET,90h, M_RET,0		; C0h
-	db	M_LES+80h,21h, M_LDS,21h, M_MOV,16h, M_MOV,16h
-	db	M_BAD,0, M_BAD,0, M_RETF,90h, M_RETF,0		; C8h
-	db	M_INT3,0, M_INT,80h, M_INTO,0, M_IRET,0
-	db	G2,1Fh, G2,1Fh, G2,1Fh, G2,1Fh			; D0h
-	db	M_AAM,80h, M_AAD,80h, M_BAD,0, M_XLAT,0
-	db	8 dup (M_ESC,10h)				; D8h
-	db	M_LOOPNZ,0A0h, M_LOOPZ,0A0h, M_LOOP,0A0h	; E0h
-	db	M_JCXZ,0A0h
-	db	M_IN,48h, M_IN,48h, M_OUT,84h, M_OUT,84h
-	db	M_CALL,0B0h, M_JMP,0B0h, M_JMP,0C0h, M_JMP,0A0h	; E8h
-	db	M_IN,4Eh, M_IN,4Eh, M_OUT,0E4h, M_OUT,0E4h
-	db	M_LOCK,0FFh, M_BAD,0, M_REPNZ,0FFh, M_REPZ,0FFh	; F0h
-	db	M_HLT,0, M_CMC,0, G3,10h, G3,10h
-	db	M_CLC,0, M_STC,0, M_CLI,0, M_STI,0		; F8h
-	db	M_CLD,0, M_STD,0, G4,10h, G5,10h
-
-	DEFLBL	ALU_OPS,byte		; operands of ALU opcodes 00h-3Fh
-	db	12h,21h,46h
-;
-; ModRM r/m (when mod isn't 3): base and index register names (as in
-; REGNAMES, with index 0 meaning none).
-;
-	DEFLBL	RMTAB,byte
-	db	0EBh,0FBh,0EDh,0FDh,0Eh,0Fh,0Dh,0Bh
 
 	DEFLBL	REGNAMES,byte
 	db	"ALCLDLBLAHCHDHBHAXCXDXBXSPBPSIDIESCSSSDS"
@@ -401,8 +274,7 @@ drq1:	mov	dx,DDSTAT_DONE
 	lds	si,es:[bx].DDPRW_ADDR	; DS:SI -> data
 drq2:	lodsb
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	call	put_char
 	pop	ds
 	loop	drq2
@@ -425,8 +297,7 @@ DEFPROC	dbgdev_com,far
 	push	ax
 	push	dx
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	dx,[com_port]
 	add	dx,REG_IIR
@@ -458,15 +329,40 @@ ENDPROC	dbgdev_com
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dbgdev_enter (dbg_int1, dbg_int3, and dbg_brk)
+; dbgdev_enter (dbg_int0, dbg_int1, dbg_int3, dbg_fault, and dbg_brk)
 ;
 ; Save the interrupted registers on the interrupted stack, copy them to regs,
-; and run the monitor on our own stack.
+; and run the monitor on our own stack, with DS, ES, and SS all addressing
+; our data (DDH_DATA, which in protected mode is a data alias of CS).
 ;
 ; Inputs:
-;	Interrupt frame on SS:SP (with interrupts disabled)
+;	Interrupt frame on SS:SP (with interrupts disabled), which for
+;	dbg_fault (see CPU_SETFAULT) follows the vector and error code
 ;
 DEFPROC	dbgdev_enter,far
+	DEFLBL	dbg_fault,near
+	push	bp
+	mov	bp,sp
+	push	ax
+	push	ds
+	mov	ds,cs:[0].DDH_DATA
+	ASSUME	DS:CODE
+	mov	ax,[bp+2]
+	mov	[fault_vec],al
+	mov	ax,[bp+4]
+	mov	[fault_ec],ax
+	pop	ds
+	ASSUME	DS:NOTHING
+	pop	ax
+	pop	bp
+	add	sp,4			; discard the vector and error code
+	push	ax
+	mov	al,-1			; (a fault)
+	jmp	short de1
+	DEFLBL	dbg_int0,near
+	push	ax
+	mov	al,-2			; (a divide error)
+	jmp	short de1
 	DEFLBL	dbg_int1,near
 	push	ax
 	mov	al,1
@@ -494,17 +390,16 @@ de1:	push	bx
 	mov	si,sp
 	push	ss
 	pop	ds
-	push	cs
-	pop	es
+	mov	es,cs:[0].DDH_DATA
 	mov	di,offset regs
 	mov	cx,REGS_LEN/2
 	cld
 	rep	movsw
-	push	cs
+	push	es
 	pop	ds
 	ASSUME	DS:CODE
 	mov	[why],dl
-	push	cs
+	push	es
 	pop	ss
 	DEFLBL	mon_sp			; (com_main changes this stack)
 	mov	sp,offset mon_stack_end
@@ -515,55 +410,132 @@ ENDPROC	dbgdev_enter
 ;
 ; monitor
 ;
-; Remove breakpoints, finish any G past a breakpoint (or T with a count), and
-; process commands.
+; Get the processor's mode (and system registers, if CPU$ is the 80286
+; driver), remove breakpoints, finish any G past a breakpoint (or T or P with
+; a count), and process commands.
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	monitor
+	push	ds
+	pop	es
+	mov	di,offset sys_regs	; ES:DI -> GDTR and IDTR buffer
+	mov	ah,CPU_SYSREGS
+	call	far ptr DDINT_CPU	; AX = MSW, CX = LDTR, DX = TR
+	mov	bl,0
+	jc	mon0			; it's not the 80286 driver
+	mov	sys_regs[12],ax
+	mov	sys_regs[14],cx
+	mov	sys_regs[16],dx
+	and	al,ADDR_SEL		; (the MSW's PE bit)
+	or	al,CPU_DUAL
+	mov	bl,al
+mon0:	mov	[cpu_mode],bl
 	call	disarm
+	mov	dl,0			; DL = nonzero if a T or P step is done
 	mov	al,0
 	xchg	al,[tracing]
-	test	al,al			; were we tracing?
-	jz	mon2			; no
+;
+; A step's TF can be saved (eg, by a PUSHF, or on an 8086, by a hardware
+; interrupt, which takes priority over the step's trap) and restored later,
+; so TF is always cleared, and a single-step trap with TF set when we weren't
+; tracing resumes, as G past a breakpoint does.
+;
+	mov	ah,byte ptr regs[R_FL+1]
 	and	byte ptr regs[R_FL+1],0FEh
-	cmp	[why],1			; did a step finish?
-	jne	mon2			; no
-	dec	al			; was it T?
-	jz	mon3			; yes
-	call	arm			; no, G past a breakpoint
-	jc	mon1			; but we're at another one
+	cmp	[why],1			; a single-step trap?
+	jne	mon1			; no
+	test	al,al			; were we tracing?
+	jnz	mon0a			; yes
+	test	ah,01h			; was TF set?
+	jz	mon1			; no (it was an INT 1)
+	mov	al,2			; yes, so resume
+mon0a:	dec	al			; was it T or P?
+	jnz	mon0b			; no
+	inc	dx			; yes, so the step is done
+	jmp	short mon1
+mon0b:	call	arm			; no, G past a breakpoint
+	jc	mon0c			; but we're at another one
 	jmp	resume
-mon1:	call	disarm
-mon2:	mov	[trace_cnt],0
+mon0c:	call	disarm			; (DL is zero, since arm zeroes it)
+;
+; Reaching the temporary breakpoint, however we got there, clears it, and if
+; P set it, the P step is done.
+;
+mon1:	mov	bx,offset bp_tab
+	call	bp_mem
+	call	at_ip			; is it at CS:IP?
+	jne	mon1a			; no
+	mov	al,0
+	xchg	al,[bx+5]		; yes, so clear it
+	and	al,BP_STEP
+	or	dl,al
+mon1a:	test	dl,dl			; is a T or P step done?
+	jnz	mon3			; yes
+mon2:	sub	ax,ax
+	mov	[trace_cnt],ax		; no more steps
+	mov	[trace_mode],al		; (and show_step shows the registers)
 	mov	al,[in_tail]		; discard any buffered input
 	mov	[in_head],al
 	mov	[paused],0
 ;
-; An INT 3 that isn't a breakpoint (disarm clears why for those) or a DBGBRK
-; (which follows a NOP) must be an ASSERT, so say so.
+; A fault (see dbg_fault) gets a message like the one CPU$ would display.
 ;
-	cmp	[why],3			; INT 3 other than a breakpoint?
-	jne	mon3			; no
-	les	di,dword ptr regs[R_IP]	; ES:DI -> byte after the INT 3
-	cmp	byte ptr es:[di-2],90h	; NOP (OP_NOP in 8086.inc)?
-	je	mon3			; yes, it's a DBGBRK
-	mov	si,offset ASSERT_MSG
+	mov	al,[why]
+	cmp	al,-1			; a fault?
+	jne	mon2a			; no
+	mov	si,offset FAULT_MSG
 	call	put_string
+	mov	al,[fault_vec]
+	call	hex_byte
+	mov	si,offset EC_MSG
+	call	put_string
+	mov	ax,[fault_ec]
+	call	hex_word
+	mov	al,')'
+	call	put_char
 	call	newline
-mon3:	mov	byte ptr bp_tab[5],0	; clear the temporary breakpoint
-	mov	ax,regs[R_IP]
+	jmp	short mon3
+;
+; A divide error gets the same message that DOS displays (see cmd_g).
+;
+mon2a:	mov	si,offset DIV_MSG
+	cmp	al,-2			; a divide error?
+	je	mon2c			; yes
+;
+; An INT 3 that isn't a breakpoint (disarm clears why for those) and follows
+; a NOP is an ASSERT, so say so; any other is a DBGBRK, which a driver loaded
+; without /H resumes past, as G would (see dbgdev_init).
+;
+	cmp	al,3			; INT 3 other than a breakpoint?
+	jne	mon3			; no
+	call	ip_mem			; DI -> byte after the INT 3
+	dec	di
+	dec	di
+	call	peek_b
+	cmp	al,90h			; NOP (OP_NOP in 8086.inc)?
+	je	mon2b			; yes, so it's an ASSERT
+	cmp	[brk_skip],0		; should a DBGBRK stop us?
+	je	mon3			; yes
+	jmp	cg1			; no, so resume
+mon2b:	mov	si,offset ASSERT_MSG
+mon2c:	call	put_string
+	call	newline
+mon3:	mov	ax,regs[R_IP]
 	mov	[u_off],ax		; U defaults to CS:IP
 	mov	ax,regs[R_CS]
 	mov	[u_seg],ax
 	mov	ax,regs[R_DS]
 	mov	[dump_seg],ax		; D defaults to DS
-mon3a:	call	show_regs		; (com_main changes this, and mon4)
-	cmp	[trace_cnt],0		; more T steps?
+	mov	al,[cpu_mode]
+	and	al,ADDR_SEL
+	mov	[u_mode],al		; in the current mode
+	mov	[dump_mode],al
+mon3a:	call	show_step		; (com_main changes this, and mon4)
+	cmp	[trace_cnt],0		; more T or P steps?
 	je	mon4			; no
 	call	do_trace		; (which never returns)
 
-mon4:	mov	al,'-'
-	call	put_char
+mon4:	call	put_prompt
 	call	get_line
 mon4a:	mov	si,offset command
 	call	skip_space
@@ -622,8 +594,9 @@ ENDPROC	resume
 ;
 ; cmd_b
 ;
-; BP[n] addr sets breakpoint n (1-9), or the first free one; BC clears the
-; listed breakpoints (or * for all); BL lists them.
+; BP[n] addr sets breakpoint n (1-9, or 0 for the temporary one), or the
+; first free one (1-9); BC clears the listed breakpoints (or * for all); BL
+; lists them.
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	cmd_b
@@ -658,8 +631,8 @@ cmd_bc:	call	skip_space
 	jz	cb9
 	cmp	al,'*'
 	jne	bc2
-	mov	bx,offset bp_tab+BP_SIZE+5
-	mov	cx,NUM_BPS-1
+	mov	bx,offset bp_tab+5
+	mov	cx,NUM_BPS
 bc1:	mov	byte ptr [bx],0
 	add	bx,BP_SIZE
 	loop	bc1
@@ -671,14 +644,14 @@ bc2:	call	get_slot
 
 cmd_bl:	call	end_command
 	jc	cb9
-	mov	bx,offset bp_tab+BP_SIZE
-	mov	dl,'1'
+	mov	bx,offset bp_tab
+	mov	dl,'0'
 bl1:	test	byte ptr [bx+5],BP_SET
 	jz	bl2
 	mov	al,dl
 	call	put_char
 	call	space
-	les	di,dword ptr [bx]
+	call	bp_mem
 	call	dis_line
 bl2:	add	bx,BP_SIZE
 	inc	dx
@@ -702,11 +675,16 @@ DEFPROC	set_bp
 	mov	bp,regs[R_CS]
 	call	parse_addr
 	jc	sb9
+	test	[mem_mode],ADDR_PHYS	; (a breakpoint needs a segment)
+	stc
+	jnz	sb9
 	call	end_command
 	jc	sb9
 	mov	[bx],ax
 	mov	[bx+2],bp
-	mov	byte ptr [bx+5],BP_SET
+	mov	al,[mem_mode]
+	or	al,BP_SET
+	mov	[bx+5],al
 sb9:	ret
 ENDPROC	set_bp
 
@@ -715,7 +693,7 @@ ENDPROC	set_bp
 ; get_slot
 ;
 ; Inputs:
-;	AL = breakpoint number ('1'-'9')
+;	AL = breakpoint number ('0'-'9')
 ;
 ; Outputs:
 ;	If carry clear, BX -> BP_TAB entry
@@ -724,11 +702,10 @@ ENDPROC	set_bp
 ;	AX, BX
 ;
 DEFPROC	get_slot
-	sub	al,'1'
-	cmp	al,9			; '1'-'9'?
+	sub	al,'0'
+	cmp	al,NUM_BPS		; '0'-'9'?
 	cmc
 	jc	gs9			; no
-	inc	ax
 	mov	ah,BP_SIZE
 	mul	ah
 	add	ax,offset bp_tab
@@ -749,13 +726,15 @@ DEFPROC	cmd_e
 	call	parse_addr
 	jc	ce9
 	xchg	di,ax
-	mov	es,bp			; ES:DI -> memory
+	mov	[mem_seg],bp		; mem_seg:DI -> memory
 	call	end_command
 	jnc	ce1
 	jmp	short store_list
-ce1:	mov	ax,es
+ce1:	call	peek_b
+	jc	ce9
+	push	ax
 	call	hex_addr
-	mov	al,es:[di]
+	pop	ax
 	call	hex_byte
 	mov	al,'.'
 	call	put_char
@@ -774,7 +753,7 @@ ENDPROC	cmd_e
 ;
 ; Inputs:
 ;	SI -> list of bytes and quoted strings
-;	ES:DI -> memory
+;	mem_seg:DI -> memory
 ;
 ; Outputs:
 ;	Carry clear if successful (DI updated), set if invalid
@@ -793,7 +772,8 @@ sl1:	call	skip_space
 	jc	sl9
 	test	ah,ah			; a byte?
 	jnz	sl8			; no
-	stosb
+	call	poke_b
+	jc	sl9
 	jmp	sl1
 sl2:	mov	ah,al			; AH = quote
 sl3:	lodsb
@@ -801,7 +781,10 @@ sl3:	lodsb
 	jz	sl8			; yes
 	cmp	al,ah
 	je	sl1
-	stosb
+	push	ax
+	call	poke_b
+	pop	ax
+	jc	sl9
 	jmp	sl3
 sl8:	stc
 sl9:	ret
@@ -812,31 +795,57 @@ ENDPROC	store_list
 ; cmd_g
 ;
 ; G [addr] removes any breakpoint at CS:IP, steps past it, and then sets all
-; the breakpoints (including one at addr) and resumes.
+; the breakpoints (including the temporary one, which addr replaces) and
+; resumes.  After a divide error, G without an addr passes the error to the
+; previous INT 00h handler instead (eg, DOS's, which ends the program), since
+; resuming would only run the DIV again on an 80286 or later (which report
+; the DIV's address).
 ;
 DEFPROC	cmd_g
 	call	end_command
-	jnc	cg1
+	jnc	cg0
 	mov	bx,offset bp_tab
 	call	set_bp
 	jc	cg9
 cg1:	call	arm
 	mov	al,2
-	jc	step
+	jnc	cg8
+	DEFLBL	step,near
+	mov	[tracing],al
+	or	byte ptr regs[R_FL+1],01h	; set TF
+cg8:	jmp	resume
+cg0:	cmp	[why],-2		; did a divide error stop us?
+	jne	cg1			; no
+	call	arm			; (one at CS:IP isn't needed)
+	mov	di,regs[R_IP]
+	mov	cx,[vec_save]
+	mov	dx,[vec_save+2]		; DX:CX = previous INT 00h handler
+	call	sim_int
 	jmp	resume
 cg9:	ret
 ENDPROC	cmd_g
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; cmd_t
+; cmd_p, cmd_t
 ;
-; T [count] executes count (default 1) instructions, displaying the
-; registers after each.  Like DEBUG, it steps into an INT (other than one
-; that we handle) by simulating it.
+; T [count] executes count (default 1) instructions, displaying the next
+; instruction after each (TR displays the registers, too).  Like DEBUG, it
+; steps into an INT (other than one that we handle) by simulating it.  P (or
+; PR) is the same, except that it steps over a CALL, INT, LOOP, or REP string
+; instruction, by setting the temporary breakpoint after it (with BP_STEP)
+; and resuming, as G does.
 ;
-DEFPROC	cmd_t
-	mov	ax,1
+DEFPROC	cmd_p
+	mov	bl,TRACE_BRIEF OR TRACE_OVER
+	jmp	short ct0
+	DEFLBL	cmd_t,near
+	mov	bl,TRACE_BRIEF
+ct0:	cmp	byte ptr [si],'R'	; TR or PR?
+	jne	ct0a			; no
+	inc	si
+	dec	bx			; (clearing TRACE_BRIEF)
+ct0a:	mov	ax,1
 	call	end_command
 	jnc	ct1
 	call	parse_hex
@@ -847,16 +856,18 @@ DEFPROC	cmd_t
 	call	end_command
 	jc	ct9
 ct1:	mov	[trace_cnt],ax
+	mov	[trace_mode],bl
 	DEFLBL	do_trace,near
 	dec	[trace_cnt]
-	les	di,dword ptr regs[R_IP]
-	mov	al,es:[di]
+	call	ip_mem
+	call	peek_w			; AX = first two bytes at CS:IP
 	cmp	al,0CCh			; INT 3 (one byte)?
 	je	ct1b			; yes, so skip it
 	cmp	al,0CDh			; INT n?
 	jne	ct2			; no
-	mov	al,es:[di+1]
+	mov	al,ah
 	call	far ptr DDINT_GETVEC	; DX:CX = vector
+	jc	ct2			; there's none (eg, in protected mode)
 	mov	ax,cs
 	cmp	dx,ax			; is it one of ours (eg, INT 3)?
 	jne	ct1c			; no
@@ -868,11 +879,48 @@ ct1:	mov	[trace_cnt],ax
 ct1b:	inc	di
 	mov	regs[R_IP],di
 	jmp	short ct1d
-ct1c:	les	bx,dword ptr regs[R_SP]
+ct1c:	test	[trace_mode],TRACE_OVER	; P?
+	jnz	ct2a			; yes, so step over the INT
+	inc	di
+	inc	di			; DI = offset after the INT
+	call	sim_int
+ct1d:	pop	ax			; discard our return address
+	mov	dl,1			; (the step is done)
+	jmp	mon1
+ct2:	test	[trace_mode],TRACE_OVER	; P?
+	jz	ct3			; no
+ct2a:	call	chk_over		; DI -> next instruction
+	jnc	ct3			; but trace this one
+	mov	word ptr bp_tab[0],di
+	mov	ax,[mem_seg]
+	mov	word ptr bp_tab[2],ax
+	mov	al,[mem_mode]
+	or	al,BP_SET OR BP_STEP
+	mov	bp_tab[5],al		; (replacing any temporary breakpoint)
+	jmp	cg1
+ct3:	mov	al,1
+	jmp	step
+ct9:	ret
+ENDPROC	cmd_p
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; sim_int
+;
+; Simulate an interrupt into DX:CX, as the processor would, by pushing an
+; interrupt frame (CS:DI and the flags) on the interrupted stack and clearing
+; IF and TF.
+;
+; Inputs:
+;	DX:CX = handler, DI = return offset (in the interrupted CS)
+;
+; Modifies:
+;	AX, BX, ES
+;
+DEFPROC	sim_int
+	les	bx,dword ptr regs[R_SP]
 	sub	bx,6
 	mov	regs[R_SP],bx
-	inc	di
-	inc	di
 	mov	es:[bx],di		; push the return address
 	mov	ax,regs[R_CS]
 	mov	es:[bx+2],ax
@@ -881,15 +929,8 @@ ct1c:	les	bx,dword ptr regs[R_SP]
 	and	byte ptr regs[R_FL+1],0FCh	; and clear IF and TF
 	mov	regs[R_IP],cx
 	mov	regs[R_CS],dx
-ct1d:	pop	ax			; discard our return address
-	jmp	mon3
-ct2:	mov	al,1
-	DEFLBL	step,near
-	mov	[tracing],al
-	or	byte ptr regs[R_FL+1],01h	; set TF
-	jmp	resume
-ct9:	ret
-ENDPROC	cmd_t
+	ret
+ENDPROC	sim_int
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -944,8 +985,7 @@ cr8:	stc
 cr9:	ret
 
 rf0:	call	show_flags
-	mov	al,'-'
-	call	put_char
+	call	put_prompt
 	call	get_line
 	mov	si,offset command
 rf1:	call	skip_space
@@ -985,10 +1025,12 @@ ENDPROC	cmd_r
 DEFPROC	cmd_u
 	mov	bp,[u_seg]
 	mov	di,[u_off]
+	mov	al,[u_mode]
+	mov	[mem_mode],al		; (unless there's an address)
 	mov	bx,20h
 	call	parse_range
 	jc	cu9
-	mov	es,bp
+	mov	[mem_seg],bp
 	mov	dx,di
 cu1:	call	dis_line
 	mov	ax,di
@@ -996,19 +1038,57 @@ cu1:	call	dis_line
 	cmp	ax,bx
 	jb	cu1
 	mov	[u_off],di
-	mov	[u_seg],es
+	mov	ax,[mem_seg]
+	mov	[u_seg],ax
+	mov	al,[mem_mode]
+	mov	[u_mode],al
 cu9:	ret
 ENDPROC	cmd_u
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; cmd_l
+;
+; LN [address] ("list near") displays an address (CS:IP by default), its
+; linear address, and the name of the memory it's in, as DM would show it.
+;
+DEFPROC	cmd_l
+	lodsb
+	cmp	al,'N'
+	jne	cl8
+	call	ip_mem			; mem_seg:DI = CS:IP (the default)
+	call	end_command
+	jnc	cl1			; no address
+	mov	bp,[mem_seg]
+	call	parse_addr		; BP:AX = address
+	jc	cl9
+	mov	[mem_seg],bp
+	xchg	di,ax
+	call	end_command
+	jc	cl9			; there's more
+cl1:	mov	bx,[mem_seg]
+	mov	al,[mem_mode]
+	call	lin_addr		; DX:CX = linear address
+	jc	cl9
+	call	hex_addr		; (with its mode's prefix)
+	mov	ax,cx
+	call	hex_addr6
+	call	put_name
+	call	newline
+	clc
+	ret
+cl8:	stc
+cl9:	ret
+ENDPROC	cmd_l
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; dump_blocks
 ;
-; DM displays memory in address order, as MEM /D once did: the system area
-; (from 0000 to the first built-in driver), each built-in driver, DOS, and
-; then every memory block in the system.  Each row has the segment, owner, and
-; size (in paragraphs), and a name (or type).  The dump stops at an invalid
-; MCB, which is reported as an error.
+; DM displays memory in address order, as CPU$ describes it (see CPU_QUERY):
+; each block's address, length, owner, and name (or type), after any memory
+; below the first block (see ma_low), with each of the system's blocks shown
+; as the drivers in it (see ma_drvs).
 ;
 DEFPROC	dump_blocks
 	call	end_command
@@ -1016,114 +1096,309 @@ DEFPROC	dump_blocks
 	ret
 ma0:	mov	si,offset MA_HDR
 	call	put_string
-	les	bx,[dos_vars]
-	mov	cx,es			; CX = DOS segment
-	les	di,es:[bx-2].DV_DD_LIST	; ES:DI -> first driver
-;
-; Skip any installed drivers (DEVICE= puts them at the head of the list);
-; they're above DOS, in memory blocks of their own, so they will be listed
-; normally.
-;
-mb1:	mov	bx,es
-	cmp	bx,cx			; installed driver?
-	jb	mb2			; no
-	les	di,es:[di]
-	jmp	mb1
-mb2:	sub	ax,ax			; AX = segment 0
-	cwd				; DX = owner (none)
-	call	ma_row			; BX = paras (up to the first driver)
-	mov	dl,MCBOWNER_SYSTEM
-	call	put_type
-;
-; Each built-in driver ends where the next one begins; the last one's next
-; pointer has an offset of -1 and the next available segment.
-;
-mb3:	mov	ax,es
-	mov	bx,es:[di].DDH_NEXT_SEG
-	sub	bx,ax			; BX = paras
-	sub	dx,dx			; DX = owner (none)
-	call	ma_row
-	lea	si,[di].DDH_NAME
-	call	put_name
-	cmp	es:[di].DDH_NEXT_OFF,-1	; last built-in driver?
-	les	di,es:[di]		; (flags unchanged)
-	jne	mb3			; no
-;
-; DOS resides between the built-in drivers and the first memory block.
-;
-	les	bx,[dos_vars]
-	mov	bp,es:[bx-2].DV_MCB_HEAD
-	mov	ax,es
-	mov	bx,bp
-	sub	bx,ax			; BX = paras
-	sub	dx,dx			; DX = owner (none)
-	call	ma_row
-	mov	dl,MA_DOS
-	call	put_type
-ma1:	mov	es,bp
-	mov	al,es:[MCB_SIG]
-	cmp	al,MCBSIG_NEXT		; valid MCB?
-	je	ma2			; yes
-	cmp	al,MCBSIG_LAST		; valid last MCB?
-	jne	ma8			; no
-ma2:	lea	ax,[bp+1]
-	mov	dx,es:[MCB_OWNER]
-	mov	bx,es:[MCB_PARAS]
-	call	ma_row
-	mov	si,MCB_NAME
-	cmp	dx,MCBOWNER_SYSTEM	; owned by a process (or driver)?
-	jbe	ma3			; no, so DL is the type
+	DEFLBL	ma_walk,near		; (see put_name)
+	sub	sp,size PMB
+	mov	di,sp
+	push	ss
+	pop	es			; ES:DI -> PMB buffer
+	sub	bx,bx			; BX = PMB #
+ma1:	mov	ah,CPU_QUERY
+	call	far ptr DDINT_CPU
+	jc	ma9			; no more blocks
+	test	bx,bx			; the first block?
+	jnz	ma2			; no
+	call	ma_low
+ma2:	call	ma_sys			; a block of the system's?
+	jnc	ma6			; yes (and it's displayed)
+	mov	ax,es:[di].PMB_ADDR.LOW
+	mov	dl,byte ptr es:[di].PMB_ADDR.HIW
+	call	hex_addr6
+	mov	ax,es:[di].PMB_LEN.LOW
+	mov	dl,byte ptr es:[di].PMB_LEN.HIW
+	call	hex_addr6
+	mov	ax,es:[di].PMB_OWNER
+	lea	si,[di].PMB_NAME
 	cmp	byte ptr es:[si],0	; named?
 	jne	ma5			; yes
-	mov	dl,es:[MCB_TYPE]
-ma3:	call	put_type
+	mov	dl,es:[di].PMB_TYPE
+	cmp	dl,PMBTYPE_USED		; allocated?
+	jne	ma3			; no (eg, free)
+	mov	dl,al			; DL = owner (eg, the system)
+	cmp	ax,MCBOWNER_SYSTEM	; owned by a process (or driver)?
+	jbe	ma3			; no
+	mov	dl,es:[di].PMB_MCBTYPE	; yes, so DL is its type, if any
+	test	dl,dl
+	jnz	ma3
+	dec	dx			; (no type, so MA_DATA)
+ma3:	call	ma_type
 	jmp	short ma6
-ma5:	call	put_name
-ma6:	mov	es,bp
-	cmp	byte ptr es:[MCB_SIG],MCBSIG_LAST
-	je	ma9			; (carry clear)
-	add	bp,es:[MCB_PARAS]
-	inc	bp
+ma5:	call	ma_name
+ma6:	inc	bx
 	jmp	ma1
-ma8:	stc
-ma9:	ret
+ma9:	add	sp,size PMB
+	clc
+	ret
 ENDPROC	dump_blocks
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ma_row
+; ma_low, ma_sys
+;
+; The 8086 CPU$'s blocks start after its own code (and the first block's MCB),
+; so if the first block doesn't start at zero, ma_low displays the memory below
+; it (up to that MCB) as the system's.  ma_sys displays a block if it's the
+; system's (and has no name), and otherwise returns carry set (after checking
+; the block for put_name; see ln_span).
 ;
 ; Inputs:
-;	AX = segment
-;	DX = owner
-;	BX = size (in paragraphs)
+;	ES:DI -> PMB
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	ma_low
+	mov	cx,es:[di].PMB_ADDR.LOW
+	jcxz	ml9			; the first block starts at zero
+	sub	cx,size MCB
+	sub	ax,ax
+	cwd				; DX:AX = zero
+	mov	si,dx			; SI:CX = end
+	jmp	short ma_drvs
+ml9:	ret
+ENDPROC	ma_low
+
+DEFPROC	ma_sys
+	mov	ax,es:[di].PMB_ADDR.LOW
+	mov	dx,es:[di].PMB_ADDR.HIW	; DX:AX = address
+	mov	cx,es:[di].PMB_LEN.LOW
+	mov	si,es:[di].PMB_LEN.HIW
+	add	cx,ax
+	adc	si,dx			; SI:CX = end
+	cmp	es:[di].PMB_TYPE,PMBTYPE_USED
+	jne	ms8
+	cmp	es:[di].PMB_OWNER,MCBOWNER_SYSTEM
+	jne	ms8
+	cmp	byte ptr es:[di].PMB_NAME,0
+	je	ma_drvs
+ms8:	call	ln_span
+	stc
+	ret
+ENDPROC	ma_sys
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ma_drvs
+;
+; Displays memory of the system's as a row for each driver in it, from the
+; driver chain (which devinit keeps in memory order), with any other memory
+; as SYS (or DOS, for the memory DOS is in).  A driver ends where the next
+; one begins (or at the end of the memory); the chain's links are segments in
+; real mode and selectors in protected mode, so we read them through CPU$
+; (see mem_io and lin_addr).
+;
+; Inputs:
+;	DX:AX = address, SI:CX = end
+;
+; Outputs:
+;	Carry clear
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	ma_drvs
+	LOCVAR	mrCur,dword
+	LOCVAR	mrEnd,dword
+	LOCVAR	mrNext,dword
+	ENTER
+	push	bx
+	push	di
+	mov	[mrCur].LOW,ax
+	mov	[mrCur].HIW,dx
+	mov	[mrEnd].LOW,cx
+	mov	[mrEnd].HIW,si
+	mov	al,[cpu_mode]
+	and	al,ADDR_SEL
+	mov	[mem_mode],al		; links are selectors in protected mode
+	mov	[mem_seg],BIOS
+	mov	di,offset DD_LIST	; mem_seg:DI -> head of the chain
+md1:	call	fetch_word
+	xchg	cx,ax			; CX = offset of the next driver
+	call	fetch_word		; AX = its segment (or selector)
+	cmp	cx,-1			; end of the chain?
+	jne	md2			; no
+md8:	mov	cx,[mrEnd].LOW
+	mov	dx,[mrEnd].HIW
+	call	md_sys			; display any memory that's left
+	pop	di
+	pop	bx
+	clc
+	LEAVE
+	ret
+md2:	mov	[mem_seg],ax
+	mov	di,cx			; mem_seg:DI -> driver
+	call	md_addr			; DX:CX = its address
+	jc	md8
+	mov	ax,cx
+	sub	ax,[mrCur].LOW
+	mov	ax,dx
+	sbb	ax,[mrCur].HIW
+	jb	md1			; it's before the rest of the memory
+	mov	ax,cx
+	sub	ax,[mrEnd].LOW
+	mov	ax,dx
+	sbb	ax,[mrEnd].HIW
+	jnb	md1			; it's after the memory
+	call	md_sys			; display any memory before it
+	push	di
+	call	fetch_word
+	xchg	cx,ax			; CX = offset of the next driver
+	call	fetch_word		; AX = its segment (or selector)
+	mov	di,cx
+	inc	cx			; end of the chain?
+	jz	md5			; yes
+	push	[mem_seg]
+	mov	[mem_seg],ax
+	call	md_addr			; DX:CX = next driver's address
+	pop	[mem_seg]
+	jc	md5
+	mov	ax,[mrEnd].LOW
+	sub	ax,cx
+	mov	ax,[mrEnd].HIW
+	sbb	ax,dx
+	jb	md5			; it's after the memory
+	mov	ax,[mrCur].LOW
+	sub	ax,cx
+	mov	ax,[mrCur].HIW
+	sbb	ax,dx
+	jb	md6			; it's after this driver
+md5:	mov	cx,[mrEnd].LOW
+	mov	dx,[mrEnd].HIW
+md6:	pop	di
+	call	md_span			; AX = owner
+	call	hex_word
+	call	space
+	add	di,DDH_NAME		; mem_seg:DI -> driver's name
+	mov	cx,size DDH_NAME
+	call	ln_on
+md7:	call	peek_b
+	call	put_char
+	inc	di
+	loop	md7
+	call	ln_off
+	call	newline
+	sub	di,DDH_NAME + size DDH_NAME
+	jmp	md1
+ENDPROC	ma_drvs
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; md_addr, md_sys, md_span
+;
+; For ma_drvs (whose frame they use): md_addr returns the address of the
+; driver at mem_seg:DI in DX:CX (carry set if it's not valid); md_sys displays
+; the memory from mrCur to DX:CX, if any, as SYS (or DOS, if DOS's segment is
+; in it); md_span displays the address and length of the memory from mrCur to
+; DX:CX, advances mrCur to DX:CX, and returns the owner (the system) in AX
+; (after checking the memory for put_name; see ln_span).
+;
+; Modifies:
+;	AX, BX (md_addr and md_sys), CX, DX, SI (md_sys and md_span)
+;
+DEFPROC	md_addr
+	mov	bx,[mem_seg]
+	mov	al,[mem_mode]
+	jmp	lin_addr
+ENDPROC	md_addr
+
+DEFPROC	md_sys
+	cmp	cx,[mrCur].LOW
+	jne	ds1
+	cmp	dx,[mrCur].HIW
+	je	ds9
+ds1:	mov	[mrNext].LOW,cx
+	mov	[mrNext].HIW,dx
+	push	di
+	mov	bx,[dos_seg]
+	sub	di,di
+	mov	al,[cpu_mode]
+	call	lin_addr		; DX:CX = DOS's address
+	pop	di
+	mov	bl,MCBOWNER_SYSTEM	; BL = SYS
+	jc	ds2
+	mov	ax,cx
+	sub	ax,[mrCur].LOW
+	mov	ax,dx
+	sbb	ax,[mrCur].HIW
+	jb	ds2			; DOS is before this memory
+	sub	cx,[mrNext].LOW
+	sbb	dx,[mrNext].HIW
+	jnb	ds2			; or after it
+	mov	bl,MA_DOS
+ds2:	mov	cx,[mrNext].LOW
+	mov	dx,[mrNext].HIW
+	call	md_span
+	mov	dl,bl
+	jmp	ma_type
+ds9:	ret
+ENDPROC	md_sys
+
+DEFPROC	md_span
+	mov	ax,[mrCur].LOW
+	push	dx
+	mov	si,dx
+	mov	dx,[mrCur].HIW		; DX:AX = address, SI:CX = end
+	call	ln_span
+	call	hex_addr6		; the address
+	pop	dx
+	mov	ax,cx
+	sub	ax,[mrCur].LOW
+	push	dx
+	sbb	dx,[mrCur].HIW
+	call	hex_addr6		; and the length
+	pop	dx
+	mov	[mrCur].LOW,cx
+	mov	[mrCur].HIW,dx
+	mov	ax,MCBOWNER_SYSTEM
+	ret
+ENDPROC	md_span
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; hex_addr6
+;
+; Displays DL:AX as 6 hex digits (an address or length), and a space.
 ;
 ; Modifies:
 ;	AX
 ;
-DEFPROC	ma_row
-	call	hex_word
-	call	space
-	mov	ax,dx
-	call	hex_word
-	call	space
-	mov	ax,bx
+DEFPROC	hex_addr6
+	push	ax
+	mov	al,dl
+	call	hex_byte
+	pop	ax
 	call	hex_word
 	jmp	space
-ENDPROC	ma_row
+ENDPROC	hex_addr6
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; put_type, put_name
+; ma_type, put_type, ma_name
 ;
-; Display the name of block type DL (put_type), or the 8-character name at
-; ES:SI (put_name), followed by a newline; put_type displays nothing but the
-; newline for an unknown type.
+; ma_type displays the owner in AX and then the name of block type DL; put_type
+; displays the name of block type DL; ma_name displays the owner in AX and then
+; the 8-character name at ES:SI.  Each is followed by a newline, and put_type
+; displays nothing but the newline for an unknown type.
 ;
 ; Modifies:
 ;	AL, CX, SI
 ;
+DEFPROC	ma_type
+	call	hex_word
+	call	space
+ENDPROC	ma_type				; fall into put_type
+
 DEFPROC	put_type
+	call	ln_on
 	push	es
 	push	cs
 	pop	es
@@ -1142,27 +1417,118 @@ pt2:	mov	al,'<'
 	mov	al,'>'
 	call	put_char
 pt3:	pop	es
+	call	ln_off
 	jmp	newline
 ENDPROC	put_type
 
-DEFPROC	put_name
+DEFPROC	ma_name
+	call	hex_word
+	call	space
+	call	ln_on
 	mov	cx,8
 	call	put_n
+	call	ln_off
 	jmp	newline
+ENDPROC	ma_name
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; put_name
+;
+; Displays the name of the memory at linear address DX:CX, as DM would show
+; it (or nothing, if no block has it), by walking the blocks as DM does, with
+; the output muted except for that name (see ln_span, ln_on, and ln_off).
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	put_name
+	push	bx
+	push	si
+	push	di
+	push	bp
+	push	es
+	push	[mem_seg]
+	mov	al,[mem_mode]
+	push	ax
+	mov	[ln_addr].LOW,cx
+	mov	[ln_addr].HIW,dx
+	mov	[ln_find],1
+	inc	[mute]
+	call	ma_walk
+	dec	[mute]
+	mov	[ln_find],0
+	pop	ax
+	mov	[mem_mode],al
+	pop	[mem_seg]
+	pop	es
+	pop	bp
+	pop	di
+	pop	si
+	pop	bx
+	ret
 ENDPROC	put_name
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ln_span, ln_on, ln_off
+;
+; While put_name looks for ln_addr, ln_span marks the memory from DX:AX up to
+; SI:CX as the memory to name, if it contains that address; then ln_on unmutes
+; the output for that memory's name, and ln_off mutes it again.
+;
+; Modifies:
+;	Nothing
+;
+DEFPROC	ln_span
+	cmp	[ln_find],1		; looking?
+	jne	lsp9			; no
+	push	bx
+	mov	bx,[ln_addr].LOW
+	sub	bx,ax
+	mov	bx,[ln_addr].HIW
+	sbb	bx,dx			; is the address below the start?
+	jb	lsp8			; yes
+	mov	bx,[ln_addr].LOW
+	sub	bx,cx
+	mov	bx,[ln_addr].HIW
+	sbb	bx,si			; is it below the end?
+	jnb	lsp8			; no
+	inc	[ln_find]		; yes, so name this memory
+lsp8:	pop	bx
+lsp9:	ret
+ENDPROC	ln_span
+
+DEFPROC	ln_on
+	cmp	[ln_find],2		; naming this memory?
+	jne	lo9			; no
+	dec	[mute]
+lo9:	ret
+ENDPROC	ln_on
+
+DEFPROC	ln_off
+	cmp	[ln_find],2		; was this memory named?
+	jne	lf9			; no
+	inc	[mute]
+	dec	[ln_find]		; (and we're done)
+lf9:	ret
+ENDPROC	ln_off
+
 	DEFLBL	MA_HDR,byte
-	db	"Seg  Own  Size Name",13,10,0
+	db	"Addr   Length Own  Name",13,10,0
 ;
-; Memory block types (as owner or MCB_TYPE), each followed by a 4-character
-; name (zero-padded).  MA_DOS is a pseudo-type for the DOS row, since no
-; owner or MCB_TYPE is 1.
+; Memory block types (as owner, PMB_TYPE, or PMB_MCBTYPE), each followed by a
+; 4-character name (zero-padded).  MA_DATA and MA_DOS are pseudo-types, for
+; a program's memory with no type and for the memory DOS is in (see md_sys).
 ;
-MA_DOS	equ	1
+MA_DATA	equ	MCBTYPE_NONE-1
+MA_DOS	equ	MCBTYPE_NONE-2
+
 	DEFLBL	MA_TYPES,byte
 	db	MCBOWNER_NONE,"FREE",MCBOWNER_SYSTEM,"SYS",0
-	db	MA_DOS,"DOS",0
+	db	PMBTYPE_SYS,"CPU$",PMBTYPE_RSVD,"RSVD"
 	db	MCBTYPE_ABLK,"ARR",0,MCBTYPE_CBLK,"CODE"
+	db	MCBTYPE_EBLK,"ENV",0,MA_DATA,"DATA",MA_DOS,"DOS",0
 	db	MCBTYPE_FBLK,"FUNC",MCBTYPE_SBLK,"STR",0
 	db	MCBTYPE_TBLK,"TEXT",MCBTYPE_VBLK,"VAR",0
 	DEFLBL	MA_END,byte
@@ -1202,24 +1568,27 @@ ENDPROC	cmd_help
 ; Write an INT 3 at every breakpoint except any at CS:IP.
 ;
 ; Outputs:
-;	Carry set if a breakpoint is at CS:IP
+;	Carry set if a breakpoint is at CS:IP (and DL zero, either way)
 ;
 ; Modifies:
-;	AX, BX, DX, DI, ES
+;	AX, BX, DX, DI
 ;
 DEFPROC	arm
 	mov	bx,offset bp_tab
 	mov	dl,0
 ar1:	test	byte ptr [bx+5],BP_SET
 	jz	ar3
-	les	di,dword ptr [bx]
+	call	bp_mem
 	call	at_ip
 	jne	ar2
 	mov	dl,1
 	jmp	short ar3
-ar2:	mov	al,0CCh
-	xchg	al,es:[di]
+ar2:	call	peek_b			; AL = original byte
+	jc	ar3			; (the address isn't valid)
 	mov	[bx+4],al
+	mov	al,0CCh
+	call	poke_b
+	jc	ar3
 	or	byte ptr [bx+5],BP_ARMED
 ar3:	add	bx,BP_SIZE
 	cmp	bx,offset bp_end
@@ -1236,7 +1605,7 @@ ENDPROC	arm
 ; case two share an address); if INT 3 stopped at one, back up IP to it.
 ;
 ; Modifies:
-;	AX, BX, DI, ES
+;	AX, BX, DI
 ;
 DEFPROC	disarm
 	mov	bx,offset bp_end
@@ -1244,12 +1613,11 @@ da1:	sub	bx,BP_SIZE
 	test	byte ptr [bx+5],BP_ARMED
 	jz	da2
 	and	byte ptr [bx+5],0FFh XOR BP_ARMED
-	les	di,dword ptr [bx]
+	call	bp_mem
 	mov	al,[bx+4]
-	mov	es:[di],al
+	call	poke_b			; (which advances DI)
 	cmp	[why],3			; INT 3?
 	jne	da2			; no
-	inc	di
 	call	at_ip			; did it stop here?
 	jne	da2			; no
 	dec	regs[R_IP]
@@ -1263,22 +1631,99 @@ ENDPROC	disarm
 ;
 ; at_ip
 ;
+; Compares physical addresses, so that a breakpoint matches CS:IP even if
+; it was set in the other mode (eg, &F000:E05B and #F000:E05B).
+;
 ; Inputs:
-;	ES:DI = address
+;	mem_seg:DI = address (in mem_mode)
 ;
 ; Outputs:
-;	ZF set if ES:DI is CS:IP
+;	ZF set if it's CS:IP (in the current mode)
 ;
 ; Modifies:
 ;	AX
 ;
 DEFPROC	at_ip
-	cmp	di,regs[R_IP]
+	push	bx
+	push	cx
+	push	dx
+	push	si
+	mov	al,[mem_mode]
+	mov	bx,[mem_seg]
+	call	lin_addr		; DX:CX = address of mem_seg:DI
+	jc	ai8
+	mov	si,cx
+	push	dx
+	push	di
+	mov	di,regs[R_IP]
+	mov	bx,regs[R_CS]
+	mov	al,[cpu_mode]
+	call	lin_addr		; DX:CX = address of CS:IP
+	pop	di
+	pop	bx			; BX:SI = address of mem_seg:DI
+	jc	ai8
+	cmp	cx,si
 	jne	ai9
-	mov	ax,es
-	cmp	ax,regs[R_CS]
-ai9:	ret
+	cmp	dx,bx
+	jmp	short ai9
+ai8:	test	sp,sp			; (ZF clear, since SP isn't zero)
+ai9:	pop	si
+	pop	dx
+	pop	cx
+	pop	bx
+	ret
 ENDPROC	at_ip
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; lin_addr
+;
+; Inputs:
+;	AL = mode (ADDR_SEL, plus any other bits), BX:DI = address
+;
+; Outputs:
+;	Carry clear if valid: DX:CX = physical address (see CPU_SEGINFO)
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	lin_addr
+	and	al,ADDR_SEL OR ADDR_PHYS
+	mov	ah,CPU_SEGINFO
+	call	far ptr DDINT_CPU	; DX:CX = base address
+	jc	la9
+	add	cx,di
+	adc	dx,0			; (carry is clear)
+la9:	ret
+ENDPROC	lin_addr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ip_mem, bp_mem
+;
+; Make CS:IP (in the current mode), or the breakpoint at BX, the memory to
+; access (mem_seg and mem_mode), with its offset in DI.
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	ip_mem
+	mov	di,regs[R_IP]
+	mov	ax,regs[R_CS]
+	mov	[mem_seg],ax
+	mov	al,[cpu_mode]
+	jmp	short bm1
+ENDPROC	ip_mem
+
+DEFPROC	bp_mem
+	mov	di,[bx]
+	mov	ax,[bx+2]
+	mov	[mem_seg],ax
+	mov	al,[bx+5]
+bm1:	and	al,ADDR_SEL
+	mov	[mem_mode],al
+	ret
+ENDPROC	bp_mem
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1466,16 +1911,32 @@ ENDPROC	newline
 ; hex_addr, hex_word, hex_byte, hex_digit
 ;
 ; Inputs:
-;	AX:DI (hex_addr), AX (hex_word), AL (hex_byte), or AL = 0-15
+;	mem_seg:DI (hex_addr, which displays its mode's prefix if CPU$ is the
+;	80286 driver), AX (hex_word), AL (hex_byte), or AL = 0-15
 ;
 ; Modifies:
 ;	AX
 ;
 DEFPROC	hex_addr
+	test	[mem_mode],ADDR_PHYS	; a physical address?
+	jz	ha0			; no
+	mov	al,'%'
+	call	put_char
+	mov	ax,[mem_seg]
+	call	hex_byte		; (bits 16-23)
+	jmp	short ha2
+ha0:	test	[cpu_mode],CPU_DUAL	; does the mode matter?
+	jz	ha1			; no
+	mov	al,'&'
+	test	[mem_mode],ADDR_SEL	; protected mode?
+	jz	ha0a			; no
+	mov	al,'#'
+ha0a:	call	put_char
+ha1:	mov	ax,[mem_seg]
 	call	hex_word
 	mov	al,':'
 	call	put_char
-	mov	ax,di
+ha2:	mov	ax,di
 	call	hex_word
 	jmp	space
 ENDPROC	hex_addr
@@ -1508,28 +1969,6 @@ ENDPROC	hex_digit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; put_sbyte
-;
-; Inputs:
-;	AL = signed byte (displayed as +XX or -XX)
-;
-; Modifies:
-;	AX
-;
-DEFPROC	put_sbyte
-	mov	ah,'+'
-	test	al,al
-	jns	psb1
-	neg	al
-	mov	ah,'-'
-psb1:	xchg	al,ah
-	call	put_char
-	xchg	al,ah
-	jmp	hex_byte
-ENDPROC	put_sbyte
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; put_reg, put_2ch
 ;
 ; Inputs:
@@ -1553,20 +1992,136 @@ ENDPROC	put_2ch
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; show_regs
+; show_step
 ;
-; Display the saved registers and flags, in the same format as DEBUG,
-; followed by the instruction at CS:IP.
+; After a T or P step (without R), display only the instruction at CS:IP;
+; otherwise, display the registers, too.
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI, DI, ES
+;	AX, BX, CX, DX, SI, DI
+;
+DEFPROC	show_step
+	test	[trace_mode],TRACE_BRIEF
+	jnz	sr9
+ENDPROC	show_step			; fall into show_regs
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; show_regs
+;
+; Display the saved registers and flags, followed by the instruction at CS:IP.
+; In real mode, they're in the same format as DEBUG, with a line for the MSW,
+; GDTR, and IDTR if CPU$ is the 80286 driver; in protected mode, they're in
+; the PCjs Debugger's format, with each segment register's [base,limit], the
+; system registers, and the flags as 0 or 1 (and no IP, which the instruction
+; shows).
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	show_regs
 	mov	si,offset REG_TABLE
+	test	[cpu_mode],ADDR_SEL	; protected mode?
+	jnz	srp			; yes
 sr1:	cmp	si,offset SEG_TABLE	; start of the second line?
 	jne	sr2			; no
 	call	newline
-sr2:	lodsw
+sr2:	call	put_regval
+	cmp	si,offset FLAG_NAMES
+	jb	sr1
+	call	show_flags
+	call	newline
+	test	[cpu_mode],CPU_DUAL	; is CPU$ the 80286 driver?
+	jz	sr9			; no
+	mov	si,offset SYS_MS+1
+	call	put_string		; "MS="
+	mov	ax,sys_regs[12]
+	call	hex_word
+	mov	si,offset SYS_GD
+	call	put_string		; " GD="
+	mov	bx,offset sys_regs
+	call	put_dtr
+	call	put_string		; " ID="
+	mov	bx,offset sys_regs+6
+	call	put_dtr
+sr8:	call	newline
+sr9:	call	ip_mem
+	jmp	dis_line
+
+srp:	call	put_regval		; AX through DI
+	cmp	si,offset SEG_TABLE
+	jb	srp
+	call	newline
+sp2:	call	put_regval		; DS, ES, and SS
+	cmp	si,offset SEG_TABLE+9	; CS's entry?
+	jb	sp2
+	push	si
+	mov	si,offset SYS_NAMES
+	call	put_string		; "A20=ON "
+	call	newline
+	pop	ax
+	push	si			; (SI -> "LD=")
+	xchg	si,ax			; SI -> CS's entry
+	call	put_regval		; CS
+	pop	si
+	call	put_string		; "LD="
+	mov	ax,sys_regs[14]
+	push	ax
+	call	hex_word
+	pop	ax
+	call	put_desc
+	call	put_string		; " GD="
+	mov	bx,offset sys_regs
+	call	put_dtr
+	call	put_string		; " ID="
+	mov	bx,offset sys_regs+6
+	call	put_dtr
+	call	space
+	call	newline
+	call	put_string		; "TR="
+	mov	ax,sys_regs[16]
+	call	hex_word
+	call	put_string		; " MS="
+	mov	ax,sys_regs[12]
+	call	hex_word
+	call	put_string		; " PS="
+	mov	ax,regs[R_FL]
+	mov	dx,ax
+	call	hex_word
+	call	space
+	mov	cl,4
+	shl	dx,cl			; DX = flags, with OF in bit 15
+	mov	bx,PM_FLAG_MASK SHL 4	; BX = flags to display, likewise
+spf1:	shl	bx,1			; display the next flag?
+	jnc	spf3			; no
+	lodsb
+	call	put_char		; its letter
+	mov	al,'0'
+	test	dh,80h			; is it set?
+	jz	spf2			; no
+	inc	ax
+spf2:	call	put_char		; and 0 or 1
+	test	bx,bx			; any more?
+	jz	spf9			; no
+	call	space
+spf3:	shl	dx,1
+	jmp	spf1
+spf9:	jmp	sr8
+ENDPROC	show_regs
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; put_regval
+;
+; Display the register whose name (2 characters) and offset in regs are at
+; SI as NAME=VALUE, followed in protected mode by a segment register's
+; [base,limit], and then a space.
+;
+; Modifies:
+;	AX, BX, CX, DX, SI (advanced to the next register)
+;
+DEFPROC	put_regval
+	lodsw
 	call	put_2ch
 	mov	al,'='
 	call	put_char
@@ -1575,14 +2130,67 @@ sr2:	lodsw
 	xchg	bx,ax
 	mov	ax,regs[bx]
 	call	hex_word
-	call	space
-	cmp	si,offset FLAG_NAMES
-	jb	sr1
-	call	show_flags
-	call	newline
-	les	di,dword ptr regs[R_IP]
-	jmp	dis_line
-ENDPROC	show_regs
+	cmp	si,offset SEG_TABLE	; a segment register (or IP)?
+	jbe	pv9			; no
+	test	[cpu_mode],ADDR_SEL	; protected mode (with no IP)?
+	jz	pv9			; no
+	mov	ax,regs[bx]		; (hex_word changed AX)
+	call	put_desc
+pv9:	jmp	space
+ENDPROC	put_regval
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; put_dtr, put_desc
+;
+; Display [base,limit] for the GDTR or IDTR at BX, or for the selector in AX
+; (see CPU_SEGINFO; nothing is displayed if it isn't valid).
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+DEFPROC	put_dtr
+	mov	ax,[bx]			; AX = limit
+	mov	cx,[bx+2]
+	mov	dl,[bx+4]		; DL:CX = base
+	jmp	short put_bl
+ENDPROC	put_dtr
+
+DEFPROC	put_desc
+	xchg	bx,ax
+	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_SEL
+	call	far ptr DDINT_CPU	; DX:CX = base, AX = limit
+	jc	pd9
+	DEFLBL	put_bl,near
+	push	ax
+	mov	al,'['
+	call	put_char
+	mov	al,dl
+	call	hex_byte
+	mov	ax,cx
+	call	hex_word
+	mov	al,','
+	call	put_char
+	pop	ax
+	call	hex_word
+	mov	al,']'
+	jmp	put_char
+pd9:	ret
+ENDPROC	put_desc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; put_prompt
+;
+; Display the prompt (-), in either mode, since addresses show their mode.
+;
+; Modifies:
+;	AL
+;
+DEFPROC	put_prompt
+	mov	al,'-'
+	jmp	put_char
+ENDPROC	put_prompt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1750,6 +2358,29 @@ ENDPROC	find_reg
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; reg_val
+;
+; Inputs:
+;	AL = 16-bit register (as in REGNAMES)
+;
+; Outputs:
+;	AX = its saved value
+;
+; Modifies:
+;	AX, BX
+;
+DEFPROC	reg_val
+	cbw
+	xchg	bx,ax
+	shl	bx,1
+	mov	ax,word ptr REGNAMES[bx]
+	call	find_reg		; BX = its offset in regs
+	mov	ax,regs[bx]
+	ret
+ENDPROC	reg_val
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; parse_hex
 ;
 ; Parse a hex value, or a 16-bit register name (for the register's value);
@@ -1808,19 +2439,40 @@ ENDPROC	parse_hex
 ;
 ; parse_addr
 ;
-; Parse [segment:]offset, where either may be a register name (see parse_hex).
+; Parse [&|#][segment:]offset, where either may be a register name (see
+; parse_hex); & means real mode, and # protected mode (if CPU$ is the 80286
+; driver), and otherwise the address has the current mode; or parse %address,
+; a physical address of up to 6 hex digits, whose "segment" is bits 16-23
+; (see ADDR_PHYS).
 ;
 ; Inputs:
 ;	SI -> command text
 ;	BP = default segment
 ;
 ; Outputs:
-;	If carry clear, BP:AX = address, and SI -> next character
+;	If carry clear, BP:AX = address (in mem_mode), and SI -> next character
 ;
 ; Modifies:
 ;	AX, CX, DX, SI, BP
 ;
 DEFPROC	parse_addr
+	call	skip_space
+	cmp	byte ptr [si],'%'	; a physical address?
+	je	pa4			; yes
+	mov	al,[cpu_mode]
+	and	al,ADDR_SEL		; AL = current mode
+	cmp	byte ptr [si],'&'	; real mode?
+	jne	pa1			; no
+	mov	al,0
+	jmp	short pa2
+pa1:	cmp	byte ptr [si],'#'	; protected mode?
+	jne	pa3			; no
+	test	[cpu_mode],CPU_DUAL	; is it available?
+	stc
+	jz	pa9			; no
+	mov	al,ADDR_SEL
+pa2:	inc	si
+pa3:	mov	[mem_mode],al
 	call	parse_hex
 	jc	pa9
 	cmp	byte ptr [si],':'
@@ -1830,6 +2482,40 @@ DEFPROC	parse_addr
 	jmp	parse_hex
 pa8:	clc
 pa9:	ret
+pa4:	inc	si
+	mov	[mem_mode],ADDR_PHYS
+	push	bx
+	sub	ax,ax
+	cwd				; DX:AX = address
+	mov	cx,si			; CX -> first digit
+pa5:	mov	bl,[si]
+	sub	bl,'0'
+	cmp	bl,10
+	jb	pa6
+	sub	bl,'A'-'0'-10
+	cmp	bl,10
+	jb	pa7
+	cmp	bl,16
+	jae	pa7
+pa6:	test	dl,0F0h			; room for another digit?
+	stc
+	jnz	pa7a			; no
+	shl	ax,1
+	rcl	dx,1
+	shl	ax,1
+	rcl	dx,1
+	shl	ax,1
+	rcl	dx,1
+	shl	ax,1
+	rcl	dx,1
+	or	al,bl
+	inc	si
+	jmp	pa5
+pa7:	cmp	cx,si			; CF set if any digits
+	cmc
+pa7a:	mov	bp,dx			; BP = bits 16-23
+	pop	bx
+	ret
 ENDPROC	parse_addr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1886,7 +2572,8 @@ ENDPROC	parse_range
 ; default, continuing from the last D, in the last format).  Rows are 16
 ; bytes, with ASCII at the right; byte rows are aligned on 16 bytes, with a
 ; dash after the 8th byte, and word rows are aligned on 16 bytes or 16 bytes
-; plus 1, so that each word is whole.
+; plus 1, so that each word is whole.  Bytes that can't be read (see mem_io)
+; are displayed as ?? (and . at the right).
 ;
 ; Inputs:
 ;	SI -> command text after D
@@ -1905,7 +2592,10 @@ DEFPROC	dump_memory
 	inc	ah
 	cmp	al,'W'			; DW?
 	je	dm0			; yes
-	cmp	al,'M'			; DM?
+	cmp	al,'S'			; DS?
+	jne	dm0b			; no
+	jmp	dump_sel
+dm0b:	cmp	al,'M'			; DM?
 	jne	dm0a			; no
 	jmp	dump_blocks
 dm0a:	dec	si
@@ -1913,6 +2603,8 @@ dm0a:	dec	si
 dm0:	push	ax
 	mov	bp,[dump_seg]
 	mov	di,[dump_off]
+	mov	al,[dump_mode]
+	mov	[mem_mode],al		; (unless there's an address)
 	mov	bx,128
 	call	parse_range
 	pop	ax
@@ -1920,7 +2612,9 @@ dm0:	push	ax
 	ret
 dm1:	mov	[dump_size],ah
 	mov	[dump_seg],bp
-	mov	es,bp
+	mov	[mem_seg],bp
+	mov	al,[mem_mode]
+	mov	[dump_mode],al
 	mov	cx,bx			; CX = bytes remaining
 	mov	al,10h
 	sub	al,ah
@@ -1931,13 +2625,10 @@ dm1:	mov	[dump_size],ah
 ;
 ; For each row, DL and DH are the first and last+1 columns to display.
 ;
-dm6:	mov	ax,es
-	call	hex_word
-	mov	al,':'
-	call	put_char
-	mov	ax,si
-	call	hex_word
-	call	space
+dm6:	push	di
+	mov	di,si
+	call	hex_addr
+	pop	di
 	mov	ax,di
 	sub	ax,si
 	mov	dl,al
@@ -1957,8 +2648,22 @@ dm6b:	cmp	bl,dl
 	jb	dm6c
 	cmp	bl,dh
 	jae	dm6c
-	mov	ax,es:[si+bx]
+	push	di
+	lea	di,[si+bx]
+	mov	ah,[dump_size]
+	mov	al,0
+	call	mem_io			; AX = byte or word
+	pop	di
+	jnc	dm6w
+	mov	al,'?'
+	call	put_char
+	call	put_char
 	cmp	[dump_size],1		; bytes?
+	je	dm6d			; yes
+	call	put_char
+	call	put_char
+	jmp	short dm6d
+dm6w:	cmp	[dump_size],1		; bytes?
 	je	dm6x			; yes
 	call	hex_word
 	jmp	short dm6d
@@ -1985,7 +2690,11 @@ dm7:	mov	al,' '
 	jb	dm7b
 	cmp	bl,dh
 	jae	dm7b
-	mov	al,es:[si+bx]
+	push	di
+	lea	di,[si+bx]
+	call	peek_b
+	pop	di
+	jc	dm7a
 	cmp	al,' '
 	jb	dm7a
 	cmp	al,7Fh
@@ -2011,274 +2720,178 @@ ENDPROC	dump_memory
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dis_line
+; dump_sel
 ;
-; Display the address, bytes, and disassembly of an instruction.  The first
-; decode is muted, to find the instruction's length.
+; Parse DS selector (or a register name) and display what its descriptor
+; holds, as the PCjs Debugger's DS command does: its base and limit (or for a
+; gate, its selector and offset), its type and what that means, its extended
+; byte's 80386 flags, and its DPL (see CPU_SEGINFO).  In real mode (or with
+; the 8086 CPU$), a segment has only a base and a limit.
 ;
 ; Inputs:
-;	ES:DI -> instruction
+;	SI -> command text after DS
 ;
 ; Outputs:
-;	DI -> next instruction
+;	Carry clear if successful, set if invalid
 ;
 ; Modifies:
-;	AX, CX, SI, DI
+;	AX, BX, CX, DX, SI
 ;
-DEFPROC	dis_line
-	push	bx
-	push	dx
-	mov	al,[col]
+DEFPROC	dump_sel
+	call	parse_hex		; AX = selector (or segment)
+	jc	dsl0
 	push	ax
-	push	di
-	inc	[mute]
-	call	decode
-	dec	[mute]
-	pop	si			; SI -> instruction
+	call	end_command
+	pop	bx			; BX = selector (or segment)
+	jc	dsl0
+	mov	al,[cpu_mode]
+	and	al,ADDR_SEL		; (a selector, in protected mode)
+	push	ax
+	or	al,ADDR_RIGHTS
+	mov	ah,CPU_SEGINFO
+	call	far ptr DDINT_CPU	; AX = access rights (zero if none)
+	pop	si
+	jnc	dsl0a
+dsl0:	ret
+dsl0a:	xchg	si,ax			; SI = rights, AL = mode
+	mov	ah,CPU_SEGINFO
+	call	far ptr DDINT_CPU	; DX:CX = base, AX = limit
+	mov	bx,si			; BL = access rights, BH = extended
+	push	ax			; save the limit (or offset)
+	mov	si,offset SELS_BASE	; "base=" and " limit="
+	test	bl,10h			; a code or data segment?
+	jnz	dsl1			; yes
+	test	bl,04h			; a gate (types 4-7 and 0Ch-0Fh)?
+	jz	dsl1			; no
+	mov	si,offset SELS_GATE	; "seg=" and " off="
+	call	put_string
+	jmp	short dsl2
+dsl1:	call	put_string
+	mov	al,dl
+	call	hex_byte		; (bits 16-23 of the base)
+dsl2:	xchg	ax,cx
+	call	hex_word
+	call	put_string		; " limit=" or " off="
 	pop	ax
-	mov	[col],al
-	mov	cx,di
-	sub	cx,si			; CX = length
-	mov	di,si
-	mov	ax,es
-	call	hex_addr
-dl1:	lods	byte ptr es:[si]
+	call	hex_word
+	test	bx,bx			; a descriptor?
+	jz	dsl8			; no
+	mov	si,offset SELS_TYPE
+	call	put_string		; " type="
+	mov	al,bl
+	and	al,1Fh
 	call	hex_byte
-	loop	dl1
-	mov	ah,24
-	call	pad
-	call	decode
-	pop	dx
-	pop	bx
-	jmp	newline
-ENDPROC	dis_line
+	call	put_string		; " ("
+	push	si
+	call	sel_type
+	pop	si
+	call	put_string		; ") ext="
+	mov	al,bh
+	and	ax,0F0h			; (just the 80386 flags)
+	call	hex_word
+	call	put_string		; " dpl="
+	mov	al,bl
+	mov	cl,5
+	shr	al,cl
+	and	al,3
+	call	hex_byte
+dsl8:	call	newline
+	clc
+	ret
+ENDPROC	dump_sel
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; decode
+; sel_type
 ;
-; Display an 8086 instruction (prefixes, mnemonic, and operands).  A segment
-; override is displayed with the memory operand (or after the instruction,
-; if there isn't one).
-;
-; Inputs:
-;	ES:DI -> instruction
-;
-; Outputs:
-;	DI -> next instruction
-;
-; Modifies:
-;	AX, BX, CX, DX, SI, DI
-;
-DEFPROC	decode
-	mov	[seg_ovr],0
-dc1:	call	fetch
-	mov	[opcode],al
-	mov	[modrm],al		; (see op_s and op_z)
-	mov	ah,al
-	and	ah,1
-	mov	[wbit],ah
-	test	al,al
-	jns	dc2
-	mov	bl,al
-	mov	bh,0
-	shl	bx,1
-	mov	dx,word ptr OPTAB[bx-100h]
-	cmp	dh,0FFh			; prefix?
-	jne	dc6			; no
-	mov	al,dl
-	call	put_mnem
-	call	space
-	jmp	dc1
-;
-; Opcodes 00h-7Fh are decoded from their bits.
-;
-dc2:	mov	bl,al
-	and	bx,7			; BX = opcode bits 0-2
-	mov	ah,al
-	mov	cl,3
-	shr	ah,cl			; AH = opcode bits 3-6
-	cmp	al,40h
-	jae	dc4
-	cmp	bl,6			; ALU op?
-	jae	dc3			; no
-	mov	dl,ah
-	shr	bl,1
-	mov	dh,ALU_OPS[bx]
-	jmp	short dc6
-dc3:	and	ah,3
-	cmp	al,20h			; PUSH or POP segment?
-	jae	dc3a			; no
-	lea	dx,[bx+3000h+M_PUSH-6]
-	jmp	short dc8		; (there's no ModRM)
-dc3a:	cmp	bl,7			; DAA, DAS, AAA, or AAS?
-	je	dc3b			; yes
-	add	ah,16
-	mov	[seg_ovr],ah
-	jmp	dc1
-dc3b:	mov	dx,M_DAA
-	add	dl,ah
-	jmp	short dc6
-dc4:	and	ah,3
-	mov	dx,5000h+M_INC
-	add	dl,ah
-	cmp	al,60h			; INC, DEC, PUSH, or POP?
-	jb	dc6			; yes
-	mov	dx,M_BAD
-	cmp	al,70h			; Jcc?
-	jb	dc6			; no
-	and	al,0Fh
-	add	al,M_JO
-	mov	dl,al
-	mov	dh,0A0h
-;
-; DL = mnemonic (or group), and DH = operand types.
-;
-dc6:	test	dl,dl			; word operands?
-	jns	dc6a			; no
-	mov	[wbit],1
-	and	dl,7Fh
-dc6a:	mov	al,dh
-	sub	al,10h
-	cmp	al,30h			; is the first operand E, G, or S?
-	jae	dc8			; no, so there's no ModRM
-	call	fetch
-	mov	[modrm],al
-	cmp	dl,G1			; group?
-	jb	dc8			; no
-	mov	cl,3
-	shr	al,cl
-	and	ax,7			; AX = ModRM reg
-	sub	dl,G1
-	shl	dl,cl
-	add	al,dl
-	mov	dl,al
-	cmp	al,16			; group 1 or 2?
-	jb	dc8			; yes (the mnemonic is AL)
-	xchg	bx,ax
-	mov	dl,GRPS[bx-16]
-	test	dl,dl			; far?
-	jns	dc7			; no
-	mov	[wbit],2
-	and	dl,7Fh
-dc7:	cmp	dl,M_TEST		; TEST has an immediate operand, too
-	jne	dc8
-	mov	dh,16h
-
-dc8:	mov	[opnds],dh
-	mov	al,dl
-	call	put_mnem
-	sub	dl,M_MOVS		; string instruction?
-	cmp	dl,5
-	jae	dc9			; no
-	mov	al,'B'
-	cmp	[wbit],0
-	je	dc8a
-	mov	al,'W'
-dc8a:	call	put_char
-dc9:	mov	al,[opnds]
-	test	al,al
-	jz	dc10
-	mov	ah,32
-	call	pad
-	mov	al,[opcode]
-	xor	al,0D8h
-	cmp	al,8			; ESC?
-	jae	dc9a			; no
-	mov	cl,3			; display its code (opcode bits 0-2,
-	shl	al,cl			; then ModRM reg)
-	mov	ah,[modrm]
-	shr	ah,cl
-	and	ah,7
-	or	al,ah
-	call	hex_byte
-	mov	al,','
-	call	put_char
-dc9a:	mov	al,[opnds]
-	mov	cl,4
-	shr	al,cl
-	call	put_opnd
-	mov	al,[opnds]
-	and	al,0Fh
-	jz	dc10
-	push	ax
-	mov	al,','
-	call	put_char
-	pop	ax
-	call	put_opnd
-dc10:	cmp	[seg_ovr],0		; unused segment override?
-	je	dc11			; no
-	call	space
-	jmp	put_seg
-dc11:	ret
-ENDPROC	decode
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; put_mnem
-;
-; Inputs:
-;	AL = mnemonic index
+; Displays what the type in a descriptor's access rights (BL) means, using
+; the PCjs Debugger's names (eg, "code,readable,accessed").
 ;
 ; Modifies:
 ;	AX, SI
 ;
-DEFPROC	put_mnem
-	mov	si,offset MNEMS
-	mov	ah,al
-pm1:	dec	ah
-	js	pm3
-pm2:	lodsb
-	test	al,al
-	jns	pm2
-	jmp	pm1
-pm3:	lodsb
-	mov	ah,al
-	and	al,7Fh
-	call	put_char
+DEFPROC	sel_type
+	mov	al,bl
+	and	al,0Fh			; AL = type
+	test	bl,10h			; a code or data segment?
+	jnz	st1			; yes
+	cmp	al,8			; a type that we have a name for?
+	jae	st9			; no
+	mov	si,offset SDT_NAMES
+	jmp	short put_nth
+st1:	mov	ah,al
+	and	ah,08h			; AH = 8 for code, 0 for data
+	mov	al,ah
+	shr	al,1
+	shr	al,1
+	shr	al,1			; AL = 1 for code, 0 for data
+	call	st8			; "code" or "data"
+	mov	al,bl
+	and	al,02h			; readable (or writable)?
+	shr	al,1
+	add	al,2			; AL = 2 or 3 (data)
 	test	ah,ah
-	jns	pm3
-	ret
-ENDPROC	put_mnem
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; put_seg
-;
-; Display the segment override, if any, and clear it.
-;
-; Modifies:
-;	AX, BX
-;
-DEFPROC	put_seg
-	mov	al,0
-	xchg	al,[seg_ovr]
+	jz	st2
+	add	al,2			; AL = 4 or 5 (code)
+st2:	call	st8
+	test	bl,04h			; conforming (or expand-down)?
+	jz	st3
+	mov	al,6
+	test	ah,ah
+	jz	st2a
+	inc	ax
+st2a:	call	st8
+st3:	test	bl,01h			; accessed?
+	jz	st9
+	mov	al,8
+st8:	mov	si,offset SEG_NAMES
+	DEFLBL	put_nth,near		; display string AL in the list at SI
+	push	cx
+	mov	cl,al
+sn1:	dec	cl
+	js	sn3
+sn2:	lodsb
 	test	al,al
-	jz	psg9
-	call	put_reg
-	mov	al,':'
-	jmp	put_char
-psg9:	ret
-ENDPROC	put_seg
+	jnz	sn2
+	jmp	sn1
+sn3:	pop	cx
+	jmp	put_string
+st9:	ret
+ENDPROC	sel_type
+
+	DEFLBL	SELS_BASE,byte
+	db	"base=",0," limit=",0
+	DEFLBL	SELS_GATE,byte
+	db	"seg=",0," off=",0
+	DEFLBL	SELS_TYPE,byte
+	db	" type=",0," (",0,") ext=",0," dpl=",0
+	DEFLBL	SEG_NAMES,byte
+	db	"data",0,"code",0,",readonly",0,",writable",0
+	db	",execonly",0,",readable",0,",expdown",0
+	db	",conforming",0,",accessed",0
+	DEFLBL	SDT_NAMES,byte
+	db	"?",0,"tss286",0,"ldt",0,"busy tss286",0
+	db	"call gate",0,"task gate",0,"int gate286",0
+	db	"trap gate286",0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; fetch, fetch_word
 ;
 ; Inputs:
-;	ES:DI -> next instruction byte
+;	mem_seg:DI -> next instruction byte
 ;
 ; Outputs:
 ;	AL (or AX) = next instruction byte (or word); DI advanced
 ;
 DEFPROC	fetch
-	mov	al,es:[di]
+	call	peek_b
 	inc	di
 	ret
 ENDPROC	fetch
 
 DEFPROC	fetch_word
-	mov	ax,es:[di]
+	call	peek_w
 	inc	di
 	inc	di
 	ret
@@ -2286,728 +2899,65 @@ ENDPROC	fetch_word
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; put_opnd
+; peek_w, peek_b, poke_b, mem_io
 ;
-; Display an operand (and fetch any bytes it needs).
-;
-; Inputs:
-;	AL = operand type (1-15; see OPND_TAB)
-;
-; Modifies:
-;	AX, BX, CX, SI, DI
-;
-DEFPROC	put_opnd
-	cbw
-	shl	ax,1
-	xchg	bx,ax
-	jmp	OPND_TAB[bx-2]
-
-op_e:	mov	al,[modrm]
-	cmp	al,0C0h			; register?
-	jb	oe1			; no
-oe0:	and	al,7
-op_reg:	mov	ah,[wbit]		; AL = register 0-7, sized by wbit
-	mov	cl,3
-	shl	ah,cl
-	add	al,ah
-	jmp	put_reg
-;
-; Display the size of a memory operand, unless there's a register operand,
-; or it's ESC.
-;
-oe1:	mov	al,[opnds]
-	and	al,0EEh
-	cmp	al,02h			; is the other operand G or S?
-	je	oe2			; yes
-	cmp	al,20h			; likewise
-	je	oe2
-	mov	al,[opcode]
-	and	al,0F8h
-	cmp	al,0D8h			; ESC?
-	je	oe2			; yes
-	mov	al,M_BYTE
-	add	al,[wbit]
-	call	put_mnem
-	call	space
-oe2:	call	put_seg
-	mov	al,'['
-	call	put_char
-	mov	al,[modrm]
-	and	al,0C7h
-	cmp	al,06h			; direct address?
-	je	oe_dir			; yes
-	and	ax,7
-	xchg	bx,ax
-	mov	al,RMTAB[bx]
-	push	ax
-	and	al,0Fh
-	call	put_reg			; base register
-	pop	ax
-	mov	cl,4
-	shr	al,cl
-	jz	oe3
-	push	ax
-	mov	al,'+'
-	call	put_char
-	pop	ax
-	call	put_reg			; index register
-oe3:	mov	al,[modrm]
-	test	al,40h			; 8-bit displacement?
-	jnz	oe4			; yes
-	test	al,al			; 16-bit displacement?
-	jns	oe_end			; no
-	mov	al,'+'
-	call	put_char
-	jmp	short oe_dir
-oe4:	call	fetch
-	call	put_sbyte
-	jmp	short oe_end
-
-op_o:	call	put_seg
-	mov	al,'['
-	call	put_char
-oe_dir:	call	fetch_word
-	call	hex_word
-oe_end:	mov	al,']'
-	jmp	put_char
-
-op_g:	mov	al,[modrm]
-	mov	cl,3
-	shr	al,cl
-	jmp	oe0
-
-op_s:	mov	al,[modrm]
-	mov	cl,3
-	shr	al,cl
-	and	al,3
-	add	al,16
-	jmp	put_reg
-
-op_a:	mov	al,0
-	jmp	op_reg
-
-op_z:	mov	al,[opcode]
-	mov	ah,al
-	and	ah,0F8h
-	cmp	ah,0B0h			; MOV reg8,imm8?
-	mov	ah,0
-	je	oz1			; yes
-	inc	ah
-oz1:	mov	[wbit],ah
-	jmp	oe0
-
-op_i:	cmp	[wbit],0
-	jne	op_iw
-op_ib:	call	fetch
-	jmp	hex_byte
-op_iw:	call	fetch_word
-	jmp	hex_word
-
-op_sib:	call	fetch
-	jmp	put_sbyte
-
-op_j8:	call	fetch
-	cbw
-	jmp	short oj1
-op_j16:	call	fetch_word
-oj1:	add	ax,di
-	jmp	hex_word
-
-op_ap:	call	fetch_word
-	push	ax
-	call	fetch_word
-	call	hex_word
-	mov	al,':'
-	call	put_char
-	pop	ax
-	jmp	hex_word
-
-op_dx:	mov	al,10
-	jmp	put_reg
-
-op_shift:
-	mov	al,1			; CL
-	test	[opcode],2
-	jnz	os1
-	mov	al,'1'
-	jmp	put_char
-os1:	jmp	put_reg
-ENDPROC	put_opnd
-
-	DEFLBL	resident_end
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; dbgdev_init
-;
-; Open the COM port exclusively, and then install the interrupt hooks; a
-; failure closes the port and leaves no hooks.
-;
-; The arguments are the COM descriptor and then any switches (using the
-; current switch char), each of which is a monitor command (eg, /BP 70:100).
-; If there are any, our final RET becomes an INT 3, and get_line reads them
-; from sw_get, as if they had been typed, followed by a G, so that booting
-; continues with any breakpoints set; /H omits the G, so that the monitor
-; prompts instead.  /G is ignored, since it would resume us before the end
-; of the switches.
-;
-; Inputs:
-;	ES:BX -> DDPI (DDPI_BUFPTR -> arguments)
+; Read a word (or a byte) at mem_seg:DI, or write AL there (and advance DI),
+; through CPU$ (see CPU_RWMEM), which checks the address; mem_io reads (or
+; writes) AH bytes (1 or 2) of mem_val, with AL = 0 (or ADDR_WRITE).
 ;
 ; Outputs:
-;	DDPI updated
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	dbgdev_init,far
-	mov	ax,DOS_MSC_GETSWC
-	int	21h			; DL = switch char
-	push	cs
-	pop	ds
-	ASSUME	DS:CODE
-	mov	[sw_char],dl
-	ASSUME	DS:NOTHING
-	mov	di,bx			; ES:DI -> DDPI
-	lds	si,es:[di].DDPI_BUFPTR	; DS:SI -> arguments
-	mov	bx,si			; BX -> COM descriptor
-din0:	lodsb
-	cmp	al,' '			; end of the descriptor?
-	ja	din0			; no
-	mov	byte ptr [si-1],0
-din0a:	test	al,al			; end of the arguments?
-	jz	din0b			; yes
-	lodsb
-	cmp	al,dl			; a switch?
-	jne	din0a			; no
-	call	skip_h
-	mov	ax,ds
-	push	cs
-	pop	ds
-	ASSUME	DS:CODE
-	mov	[sw_ptr].OFF,si
-	mov	[sw_ptr].SEG,ax
-	mov	word ptr [gl1+1],offset sw_get - offset gl1 - 3
-	mov	byte ptr [din7],0CCh	; INT 3
-	mov	ds,ax
-	ASSUME	DS:NOTHING
-din0b:	mov	dx,bx			; DS:DX -> COM descriptor
-	mov	ax,DOS_HDL_OPENRW OR MODE_DENY_RW
-	int	21h			; open the port for exclusive access
-	jc	din9
-	xchg	bx,ax			; BX = handle
-	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_COMDEBUG
-	int	21h
-	jc	din8
-	push	cs
-	pop	ds
-	ASSUME	DS:CODE
-	mov	al,dl
-	and	al,COMDBG_XON OR COMDBG_RTS
-	mov	[com_flow],al
-	xor	dl,al
-	mov	[com_port],dx
-;
-; Nothing else can fail, so install the hooks: INT 01h, INT 03h, and the
-; port's hardware interrupt (chosen by port, as the COM driver does: IRQ4
-; for 3xxh, IRQ3 for 2xxh), and then have the UART interrupt us when data
-; (or a BREAK) arrives.
-;
-	call	get_vars
-	call	hook_vecs
-	mov	al,INT_HW_COM1
-	cmp	dh,03h			; port 3xxh?
-	je	din1			; yes
-	mov	al,INT_HW_COM2
-din1:	push	dx
-	mov	cx,offset dbgdev_com
-	mov	dx,cs
-	cli
-	call	far ptr DDINT_SETVEC	; DX:CX = previous vector
-	mov	[old_com].OFF,cx
-	mov	[old_com].SEG,dx
-	pop	dx
-	inc	dx			; DX -> REG_IER (DLAB is clear)
-	mov	al,IER_RBR_AVAIL OR IER_DELTA
-	out	dx,al
-	sti
-	cld
-	mov	si,offset BANNER
-	call	put_string
-	mov	es:[di].DDPI_END.OFF,offset resident_end
-	mov	es:[di].DDPI_END.SEG,cs
-	mov	es:[di].DDP_STATUS,DDSTAT_DONE
-	nop				; (so that INT 3 isn't an assertion)
-din7:	ret				; (switches change this to INT 3)
-	ret
-din8:	mov	ah,DOS_HDL_CLOSE
-	int	21h
-din9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE + DDSTAT_ERROR + DDERR_GENFAIL
-	ret
-ENDPROC	dbgdev_init
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; sw_get
-;
-; get_line's input (in place of get_char) while INIT performs its switches:
-; the text of each switch is a line, ended by the next switch char or the
-; end of the arguments.  Then we supply a G, or after a /H, read from the
-; port; either way, get_line's get_char call is restored at the end of the
-; last line (or immediately, if there were no lines), since we're not
-; resident.
-;
-; Outputs:
-;	AL = next byte
+;	Carry clear if successful: AX (or AL) = mem_val
+;	Carry set if the address isn't valid: AX = FFFFh
 ;
 ; Modifies:
 ;	AX
 ;
-	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
-DEFPROC	sw_get
-	push	si
-	push	ds
-sg1:	lds	si,cs:[sw_ptr]
-	ASSUME	DS:NOTHING
-	lodsb
-	cmp	al,cs:[sw_char]		; the next switch?
-	jne	sg2			; no
-	call	skip_h
-	jmp	short sg4
-sg2:	test	al,al			; end of the switches?
-	jnz	sg5			; no
-	dec	si			; (stay at the null)
-	push	cs
-	pop	ds
-	ASSUME	DS:CODE
-	cmp	[sw_halt],al		; was there a /H (or is this our G)?
-	jne	sg3			; yes
-	cmp	[sw_last],CHR_RETURN	; at the start of a line?
-	jne	sg4			; no, so end it
-	inc	[sw_halt]		; (so the G's end restores get_char)
-	mov	[sw_ptr].OFF,offset G_CMD
-	mov	[sw_ptr].SEG,cs
-	jmp	sg1
-sg3:	mov	word ptr [gl1+1],offset get_char - offset gl1 - 3
-	cmp	[sw_last],CHR_RETURN	; at the start of a line?
-	jne	sg4			; no, so end it
-	pop	ds
-	pop	si
-	jmp	get_char
-sg4:	mov	al,CHR_RETURN
-sg5:	pop	ds			; DS = CS again (see get_line)
-	mov	[sw_ptr].OFF,si
-	mov	[sw_last],al
-	pop	si
+DEFPROC	peek_w
+	mov	ax,200h
+	jmp	short mem_io
+ENDPROC	peek_w
+
+DEFPROC	peek_b
+	mov	ax,100h
+	jmp	short mem_io
+ENDPROC	peek_b
+
+DEFPROC	poke_b
+	mov	byte ptr [mem_val],al
+	mov	ax,100h OR ADDR_WRITE
+	call	mem_io
+	inc	di
 	ret
-ENDPROC	sw_get
+ENDPROC	poke_b
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; skip_h
-;
-; Skip any /H switches (setting sw_halt) and /G switches, each up to the
-; next switch char.
-;
-; Inputs:
-;	DS:SI -> switch text (after the switch char)
-;
-; Outputs:
-;	DS:SI -> switch text (or the null at the end of the arguments)
-;
-; Modifies:
-;	AL
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	skip_h
-sh1:	mov	al,[si]
-	and	al,NOT 20h		; upper-case the switch letter
-	cmp	al,'G'			; /G?
-	je	sh2			; yes
-	cmp	al,'H'			; /H?
-	jne	sh9			; no
-	push	ds
-	push	cs
-	pop	ds
-	ASSUME	DS:CODE
-	mov	[sw_halt],al		; (nonzero)
-	pop	ds
-	ASSUME	DS:NOTHING
-sh2:	lodsb
-	test	al,al			; end of the arguments?
-	jz	sh8			; yes
-	cmp	al,cs:[sw_char]		; the next switch?
-	jne	sh2			; no
-	jmp	sh1
-sh8:	dec	si
-sh9:	ret
-ENDPROC	skip_h
-
-	DEFPTR	sw_ptr			; next switch text (see sw_get)
-	DEFBYTE	sw_char,0		; switch char
-	DEFBYTE	sw_halt,0		; nonzero after /H (or for our G)
-	DEFBYTE	sw_last,CHR_RETURN	; last byte from sw_get
-	DEFLBL	G_CMD,byte
-	db	"G",0
-
-	DEFLBL	BANNER,byte
-	db	"BASIC-DOS Debugger "
-	VERSION_STR
-	db	13,10,"CTRL-C or BREAK to stop, ? for help",13,10,0
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; get_vars
-;
-; Save the DOSVARS pointer for DM.
-;
-; Inputs:
-;	DS = CS
-;
-; Modifies:
-;	AX, BX
-;
-	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
-DEFPROC	get_vars
-	push	es
-	mov	ah,DOS_MSC_GETVARS
-	int	21h			; ES:BX -> DOSVARS + 2
-	mov	[dos_vars].OFF,bx
-	mov	[dos_vars].SEG,es
-	pop	es
-	ret
-ENDPROC	get_vars
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; hook_vecs, swap_vecs
-;
-; Exchange the INT 01h and INT 03h vectors with vec_save, which hook_vecs
-; first points at our handlers.
-;
-; Inputs:
-;	DS = CS
-;
-; Modifies:
-;	AX, BX
-;
-DEFPROC	hook_vecs
-	mov	[vec_save+2],cs
-	mov	[vec_save+6],cs
-ENDPROC	hook_vecs			; fall into swap_vecs
-
-DEFPROC	swap_vecs
+DEFPROC	mem_io
+	push	bx
 	push	cx
 	push	dx
-	mov	bx,offset vec_save
-	mov	al,01h
-	call	sv1
-	mov	al,03h
-	call	sv1
+	push	si
+	push	di
+	push	es
+	mov	cl,ah
+	mov	ch,0			; CX = length
+	or	al,[mem_mode]		; AL = ADDR_* flags
+	mov	si,di
+	mov	bx,[mem_seg]		; BX:SI -> memory
+	push	ds
+	pop	es
+	mov	di,offset mem_val	; ES:DI -> mem_val
+	mov	ah,CPU_RWMEM
+	call	far ptr DDINT_CPU
+	mov	ax,[mem_val]
+	jnc	mi9
+	mov	ax,-1
+mi9:	pop	es
+	pop	di
+	pop	si
 	pop	dx
 	pop	cx
+	pop	bx
 	ret
-sv1:	mov	cx,[bx].OFF
-	mov	dx,[bx].SEG
-	call	far ptr DDINT_SETVEC	; DX:CX = previous vector
-	mov	[bx].OFF,cx
-	mov	[bx].SEG,dx
-	add	bx,4
-	ret
-ENDPROC	swap_vecs
-
-	DEFWORD	vec_save,<dbg_int1,0,dbg_int3,0>
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; com_main
-;
-; Program entry (via the DDH and in_buf).  Rebase CS so that offset 0 is the
-; start of the file, as it is for the driver, then patch put_char and get_char
-; to use DOS console I/O, enable Q, hook INT 01h and INT 03h (unless there's
-; a switch), and run the monitor on our own stack (just below the frame)
-; rather than its small one (DOS calls run on the caller's stack).
-;
-; If the command tail names a program, copy the name to command (as a string)
-; and load the program with DOS_PSP_EXEC1, which returns its initial SS:SP
-; (with AX on top) and CS:IP in the EPB, and leaves its PSP current; the rest
-; of the tail (from the space after the name) becomes the program's command
-; tail, with its length stored in the name's last byte.  We then enter the
-; monitor as if the program's first instruction had been interrupted.  When
-; the program terminates (or Q terminates it), DOS returns here as well, to
-; the instruction after the EXEC1 call (see PSP_EXIT), with our stack as it
-; was and the other registers unknown, so com_runs tells the two apart.
-;
-; Without a program, we enter the monitor as if PSP:0100h had been
-; interrupted, after storing a RET there (over the DDH's JMP, which is done),
-; so G pops the zero that DOS pushed on our stack and runs the INT 20h at
-; PSP:0000h (psp_restvec then restores INT 01h and INT 03h).  That "program"
-; shares our stack, so the monitor's stack leaves it 200h bytes (beyond the
-; frame), enough for a stop inside a DOS call (and for resume's copy of the
-; registers below it).
-;
-; A tail that starts with a switch (eg, /DB 40:0) is instead a command, which
-; the monitor performs in place of displaying the registers, and then exits;
-; INT 01h and INT 03h aren't hooked, so that a dump shows their vectors as
-; they are.
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	com_main,far
-	mov	ax,cs
-	add	ax,10h
-	push	ax
-	mov	ax,offset cm1
-	push	ax
-	ret				; (RETF, since this is a FAR proc)
-cm1:	push	cs
-	pop	ds
-	ASSUME	DS:CODE
-	inc	[com_runs]
-	mov	byte ptr [put_raw],0E9h
-	mov	word ptr [put_raw+1],offset dos_put - offset put_raw - 3
-	mov	byte ptr [get_char],0E9h
-	mov	word ptr [get_char+1],offset dos_get - offset get_char - 3
-	mov	[CMD_Q],'Q'
-	call	get_vars
-	mov	ax,sp
-	sub	ax,330h			; leave room for the program, and rebase
-	mov	word ptr [mon_sp+1],ax
-	mov	ax,DOS_MSC_GETSWC
-	int	21h			; DL = switch char
-	mov	si,CMD_TAIL+1		; ES:SI -> command tail (ES = PSP)
-	mov	di,offset command
-cm2:	mov	al,es:[si]
-	inc	si
-	cmp	al,' '			; skip leading spaces
-	je	cm2
-	cmp	al,dl			; a switch?
-	je	cm6			; yes
-cm3:	cmp	al,' '			; space or CHR_RETURN ends the name
-	jbe	cm4
-	mov	[di],al
-	inc	di
-	mov	al,es:[si]
-	inc	si
-	jmp	cm3
-;
-; Copy the switch's command to command, in upper case (a long one spills
-; into mon_stack, which program mode doesn't use), and change the monitor to
-; perform it in place of displaying the registers (at mon3a), and to exit in
-; place of prompting for another command (at mon4).  INT 01h and INT 03h are
-; never hooked, so the exit (at cm9c) skips swap_vecs.
-;
-cm6:	mov	al,es:[si]
-	inc	si
-	cmp	al,'a'
-	jb	cm6a
-	cmp	al,'z'
-	ja	cm6a
-	sub	al,'a'-'A'
-cm6a:	cmp	al,CHR_RETURN		; end of the tail?
-	je	cm6b			; yes
-	mov	[di],al
-	inc	di
-	jmp	cm6
-cm6b:	mov	byte ptr [di],0
-	mov	byte ptr [mon3a],0E9h
-	mov	word ptr [mon3a+1],offset mon4a - offset mon3a - 3
-	mov	byte ptr [mon4],0E9h
-	mov	word ptr [mon4+1],offset cm9c - offset mon4 - 3
-	jmp	short cm5a
-cm4:	mov	byte ptr [di],0
-	cmp	di,offset command	; was there a name?
-	je	cm5			; no
-	dec	si			; ES:SI -> the rest of the tail
-	mov	cx,si
-	mov	al,es:[CMD_TAIL]
-	add	al,CMD_TAIL+1
-	sub	al,cl			; AL = its length (tail length - name)
-	dec	si
-	mov	es:[si],al		; stored just before it
-	mov	[epb_tail].OFF,si
-	mov	[epb_tail].SEG,es
-	mov	[epb_fcb1].OFF,-1	; let DOS build the FCBs from the tail
-	call	hook_vecs
-	push	ds
-	pop	es
-	mov	bx,offset epb		; ES:BX -> EPB
-	mov	dx,offset command	; DS:DX -> program name
-	mov	ax,DOS_PSP_EXEC1
-	int	21h			; load it (termination returns here)
-	push	cs
-	pop	ds
-	jc	cm7			; it couldn't be loaded
-	cmp	[com_runs],1		; did we just load it?
-	jne	cm8			; no, it terminated
-	inc	[com_runs]
-	mov	ah,DOS_PSP_GET
-	int	21h			; BX = the program's PSP
-	pushf
-	pop	cx			; CX = flags (with interrupts enabled)
-	cli
-	mov	ss,[epb_sp].SEG
-	mov	sp,[epb_sp].OFF
-	pop	ax			; AX = the program's initial AX
-	push	cx
-	push	[epb_ip].SEG
-	push	[epb_ip].OFF		; its CS:IP (as if interrupted there)
-	mov	ds,bx
-	mov	es,bx			; DS = ES = PSP, and the rest are zero
-	sub	bx,bx
-	mov	cx,bx
-	mov	dx,bx
-	mov	si,bx
-	mov	di,bx
-	mov	bp,bx
-	jmp	dbg_brk
-	ASSUME	DS:CODE
-cm5:	call	hook_vecs
-cm5a:	mov	byte ptr es:[100h],0C3h	; RET
-	push	es			; ES = PSP
-	pop	ds
-	ASSUME	DS:NOTHING
-	pushf
-	push	es
-	mov	ax,100h
-	push	ax
-	sub	ax,ax			; (AX = 0 in the frame)
-	cli
-	jmp	dbg_brk
-	ASSUME	DS:CODE
-cm7:	mov	si,offset FIND_MSG
-	cmp	al,ERR_NOFILE		; file not found?
-	je	cm7b			; yes
-	cmp	al,ERR_NOPATH		; path not found?
-	je	cm7b			; yes
-	mov	si,offset LOAD_MSG
-cm7b:
-	IFDEF DEBUG
-	push	ax			; save the error code
-	ENDIF
-	call	put_string
-	mov	si,offset command
-	call	put_string		; display the program name
-	IFDEF DEBUG
-	mov	si,offset ERRNUM_MSG
-	call	put_string
-	pop	ax
-	call	put_dec			; display the error code
-	mov	al,')'
-	call	put_char
-	ENDIF
-	jmp	short cm9a
-cm8:	cmp	[com_runs],2		; did the program terminate itself?
-	jne	cm9b			; no, Q did
-	mov	si,offset TERM_MSG
-	call	put_string
-cm9a:	call	newline
-	jmp	short cm9b
-;
-; Exit (Q, or at cm9c, the end of a switch's command).  If a program is
-; loaded, terminate it first, which brings us back to cm8, and then exit with
-; its exit code.
-;
-cm9:	call	disarm
-	cmp	[com_runs],2		; is a program loaded?
-	jne	cm9b			; no
-	inc	[com_runs]		; yes (and Q is terminating it)
-	mov	ax,DOS_PSP_RETURN SHL 8
-	int	21h
-cm9b:	call	swap_vecs
-cm9c:	mov	ah,DOS_PSP_RETCODE
-	int	21h			; AL = the program's exit code (or 0)
-	mov	ah,DOS_PSP_RETURN
-	int	21h
-ENDPROC	com_main
-
-	DEFLBL	LOAD_MSG,byte
-	db	"Unable to load ",0
-	DEFLBL	FIND_MSG,byte
-	db	"Unable to find ",0
-	IFDEF DEBUG
-	DEFLBL	ERRNUM_MSG,byte
-	db	" (",0
-	ENDIF
-	DEFLBL	TERM_MSG,byte
-	db	"Program terminated normally",0
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; com_quit
-;
-; Program mode's Q command.
-;
-DEFPROC	com_quit
-	call	end_command
-	jnc	cm9
-	ret
-ENDPROC	com_quit
-
-	IFDEF DEBUG
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; put_dec (DEBUG builds only)
-;
-; Inputs:
-;	AX = unsigned value (displayed in decimal)
-;
-; Modifies:
-;	AX, CX, DX
-;
-DEFPROC	put_dec
-	mov	cx,10
-	sub	dx,dx
-	div	cx			; AX = quotient, DX = remainder
-	push	dx
-	test	ax,ax			; any more digits?
-	jz	pdec1			; no
-	call	put_dec
-pdec1:	pop	ax
-	jmp	hex_digit		; display AL (0-9) as a digit
-ENDPROC	put_dec
-	ENDIF
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; dos_put, dos_get
-;
-; Program versions of put_char (which preserves all registers) and get_char
-; (which returns the next byte in AL and modifies AX and DX); get_char reads
-; without checking for Ctrl-C, so that Ctrl-C cancels a line, as it does on
-; the serial port.
-;
-DEFPROC	dos_put
-	push	dx
-	push	ax
-	mov	dl,al
-	mov	ah,DOS_TTY_WRITE
-	int	21h
-	pop	ax
-	pop	dx
-	ret
-ENDPROC	dos_put
-
-DEFPROC	dos_get
-	mov	ah,DOS_TTY_IN
-	int	21h
-	ret
-ENDPROC	dos_get
-
-	DEFBYTE	com_runs,0		; 1 running, 2 program loaded, 3 Q
-;
-; The EPB for DOS_PSP_EXEC1 (we define DOSHEAP, not DOSPSP, so this is laid
-; out by hand, and CMD_TAIL is PSP_CMDTAIL).
-;
-	DEFWORD	epb,0			; EPB_ENVSEG (0 = the parent's)
-	DEFPTR	epb_tail		; EPB_CMDTAIL
-	DEFPTR	epb_fcb1		; EPB_FCB1 (-1 to build from the tail)
-	DEFPTR	epb_fcb2		; EPB_FCB2
-	DEFPTR	epb_sp			; EPB_INIT_SP (returned)
-	DEFPTR	epb_ip			; EPB_INIT_IP (returned)
-;
-; The COMDATA tells the loader that we need only a small heap (for the stack
-; in program mode); without it, we'd get half of the available memory.  As a
-; driver, everything past resident_end is discarded anyway.
-;
-	COMHEAP	2048
+ENDPROC	mem_io
 
 CODE	ends
 

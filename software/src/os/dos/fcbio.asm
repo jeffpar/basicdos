@@ -18,6 +18,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTWORD	<dos_data>
 	EXTBYTE	<bpb_total,scb_locked>
 	EXTWORD	<scb_active>
 	EXTLONG	<sfb_table>
@@ -104,8 +105,7 @@ fo0:	mov	byte ptr [bp].REG_AL,0FFh
 	push	ds
 	pop	es			; ES:DI -> FCB
 	mov	si,bx
-	push	cs
-	pop	ds			; DS:SI -> SFB
+	mov	ds,cs:[dos_data]	; DS:SI -> SFB
 	ASSUME	DS:DOS, ES:NOTHING
 	cmp	[bx].SFB_REFS,1		; did the open share a device SFB?
 	je	fo2			; no, this FCB can own the SFB directly
@@ -118,8 +118,7 @@ fo0:	mov	byte ptr [bp].REG_AL,0FFh
 	push	di
 	cmp	[bx].SFB_REFS,0		; did the new device ref overflow?
 	je	fo1e			; yes, undo it
-	push	cs
-	pop	es
+	mov	es,cs:[dos_data]
 	mov	di,[sfb_table].OFF
 fo1:	cmp	[di].SFB_REFS,0		; find a free SFB for the association
 	je	fo1a
@@ -624,8 +623,7 @@ wfc2:	push	bx
 	pop	di
 	pop	es
 	pop	bx
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	jc	wfc8
 	cmp	ax,cx
@@ -711,8 +709,7 @@ DEFPROC	get_fcb,DOS
 	call	fcb_ptr
 	mov	dx,si
 	mov	cx,ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	call	sfb_find_fcb
 	jc	gf9
 	mov	di,dx
@@ -841,8 +838,7 @@ pf2c:	cmp	al,'*'			; asterisk?
 pf2d:	push	cx
 	push	di
 	push	es
-	push	cs
-	pop	es
+	mov	es,cs:[dos_data]
 	ASSUME	ES:DOS
 	mov	cx,FILENAME_CHARS_LEN
 	mov	di,offset FILENAME_CHARS
@@ -1043,8 +1039,7 @@ ENDPROC	find_fcb
 ;
 DEFPROC	name_fcb,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
-	push	cs
-	pop	es
+	mov	es,cs:[dos_data]
 	ASSUME	ES:DOS
 	mov	bx,[scb_active]
 	lea	di,[bx].SCB_FILENAME	; ES:DI -> filename buffer
@@ -1211,8 +1206,7 @@ DEFPROC	sfb_create,DOS
 	push	si
 	push	ds
 	push	es
-	push	cs
-	pop	es
+	mov	es,cs:[dos_data]
 	ASSUME	ES:DOS
 	LOCK_SCB
 	ASSUME	ES:NOTHING

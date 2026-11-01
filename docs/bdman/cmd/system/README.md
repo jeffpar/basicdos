@@ -83,7 +83,7 @@ Lists all lines (or the specified range of lines) like [LIST](#list), but to the
 
 > MEM
 
-Displays the total memory, followed by the memory free for running external programs (EXEC) and the memory free for BASIC programs.  The difference between the two is the transient portion of COMMAND.COM, which is set aside while an external program runs, but which BASIC programs need (it compiles and runs them).  When more than one session is running, every session shares the same COMMAND.COM code, so the transient portion can't be set aside, and MEM displays a single "bytes free" value instead.
+Displays the total memory ("bytes total") and the memory available for running external programs ("bytes available"), followed by the memory available for BASIC programs ("bytes for BASIC") when that's less.  The difference between the last two is the transient portion of COMMAND.COM, which is set aside while an external program runs, but which BASIC programs need (it compiles and runs them).  When more than one session is running, every session shares the same COMMAND.COM code, so the transient portion can't be set aside, and MEM omits the "bytes for BASIC" line, since the available memory is the same for both.
 
 A line follows for anything that's unavailable: `Floating-point disabled` when the FPU$ driver was skipped or couldn't be loaded, and `Core functions only (see HELP CORE)` when there wasn't enough memory for all of COMMAND.COM (see [Low Memory](../../lang/#low-memory) for what's left out).
 
@@ -91,8 +91,8 @@ To see every device driver and memory block, use the DM command of [DEBUG.COM](.
 
 	MEM
 	  131072 bytes total
-	   93568 bytes free for EXEC
-	   66928 bytes free for BASIC
+	   93568 bytes available
+	   66928 bytes for BASIC
 
 ### NEW
 

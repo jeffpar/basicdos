@@ -17,6 +17,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTWORD	<dos_data>
 	EXTWORD	<FUNCTBL>
 	EXTABS	<FUNCTBL_SIZE,UTILTBL_SIZE>
 	EXTWORD	<scb_active>
@@ -29,32 +30,28 @@ DOS	segment word public 'CODE'
 ; dos_dverr (INT 00h)
 ;
 ; If a "divide exception" occurs, this default handler reports it and then
-; aborts the current program.
+; aborts the current program, in every build, as MS-DOS does (since resuming
+; would run the DIV again on an 80286 or later, which report the address of
+; the DIV, not the instruction after it).  The exit type isn't EXTYPE_CTRLC,
+; so the parent isn't aborted, too (see psp_retcode), unless the program is
+; its session's last (see psp_term).
 ;
 DEFPROC	dos_dverr,DOSFAR
 	IFDEF MAXDEBUG
 	DBGBRK
 	ENDIF
-	push	ax
 	IFNDEF	DEBUG
 	PRINTF	<"Division error",13,10>
 	ELSE
 ;
 ; Print the 32-bit return address on the stack, and since it's already on
 ; the stack, we don't have to push it, which means PRINTF won't try to pop it
-; either.  However, since we had to push AX (the only register that PRINTF
-; modifies), we must include a special PRINTF formatter (%U) that skips one
-; 16-bit value on the stack.
+; either.
 ;
-	PRINTF	<"Division error @%U%08lx",13,10>
+	PRINTF	<"Division error @%08lx",13,10>
 	ENDIF
-	pop	ax
-	IFDEF DEBUG
-	iret
-	ELSE
 	mov	ah,EXTYPE_DVERR
 	jmp	dos_abort
-	ENDIF
 ENDPROC	dos_dverr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -73,9 +70,9 @@ ENDPROC	dos_sstep
 ; dos_brkpt (INT 03h)
 ;
 ; If a breakpoint interrupt occurs, and no debugger is currently running,
-; we catch it here and ignore it.  In DEBUG builds, any INT 3 that isn't a
-; DBGBRK (which is preceded by a NOP) is an assertion failure, so we report it
-; and halt, so that the first failure is the one reported.
+; we catch it here and ignore it.  In DEBUG builds, an INT 3 preceded by a NOP
+; is an assertion failure (see ASSERT), so we report it and halt, so that the
+; first failure is the one reported.
 ;
 DEFPROC	dos_brkpt,DOSFAR
 	IFDEF	DEBUG
@@ -86,15 +83,14 @@ DEFPROC	dos_brkpt,DOSFAR
 	push	ds
 	lds	si,dword ptr [bp+2]	; DS:SI -> byte after the INT 3
 	dec	si			; DS:SI -> the INT 3
-	cmp	byte ptr [si-1],OP_NOP	; DBGBRK?
-	je	bk9			; yes
+	cmp	byte ptr [si-1],OP_NOP	; an ASSERT?
+	jne	bk9			; no
 	PRINTF	<"Assertion failure @%08lx",13,10>,si,ds
 ;
 ; Lock the session, so that no other session runs, but leave interrupts on,
 ; so that a COM console can finish (as sysinit's fatal_error does).
 ;
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	LOCK_SCB
 	sti
@@ -113,32 +109,19 @@ ENDPROC	dos_brkpt
 ; dos_oferr (INT 04h)
 ;
 ; If an "overflow exception" occurs, this default handler reports it and then
-; aborts the current program.
+; aborts the current program, in every build (see dos_dverr).
 ;
 DEFPROC	dos_oferr,DOSFAR
 	IFDEF MAXDEBUG
 	DBGBRK
 	ENDIF
-	push	ax
 	IFNDEF	DEBUG
 	PRINTF	<"Overflow error",13,10>
 	ELSE
-;
-; Print the 32-bit return address on the stack, and since it's already on
-; the stack, we don't have to push it, which means PRINTF won't try to pop it
-; either.  However, since we had to push AX (the only register that PRINTF
-; modifies), we must include a special PRINTF formatter (%U) that skips one
-; 16-bit value on the stack.
-;
-	PRINTF	<"Overflow error @%U%08lx",13,10>
+	PRINTF	<"Overflow error @%08lx",13,10>
 	ENDIF
-	pop	ax
-	IFDEF DEBUG
-	iret
-	ELSE
 	mov	ah,EXTYPE_OVERR
 	jmp	dos_abort
-	ENDIF
 ENDPROC	dos_oferr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -213,7 +196,7 @@ dc0:	IF REG_CHECK			; in DEBUG builds, use CALL to push
 ; While we assign DS and ES to the DOS segment on DOS function entry, we
 ; do NOT assume they will still be set that way when the FUNCTBL call returns.
 ;
-	mov	bx,cs
+	mov	bx,cs:[dos_data]
 	mov	ds,bx
 	ASSUME	DS:DOS
 	mov	es,bx
@@ -283,8 +266,7 @@ dc3:	adc	[bp].REG_FL,0
 ; clear the ABORT condition and simulate a DOSUTIL TERM of the type in
 ; SCB_ABTYPE (EXTYPE_ABORT, or EXTYPE_ERROR for a critical error ABORT).
 ;
-	push	cs
-	pop	ds			; (dos_leave2 restores DS)
+	mov	ds,cs:[dos_data]	; (dos_leave2 restores DS)
 	ASSUME	DS:DOS
 	mov	bx,[scb_active]
 	ASSERT	STRUCT,[bx],SCB
@@ -441,8 +423,7 @@ ENDPROC	dos_util
 ;
 DEFPROC	int_enter,DOSFAR
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	inc	[int_level]
 	pop	ds
@@ -466,8 +447,7 @@ ENDPROC	int_enter
 DEFPROC	int_leave,DOSFAR
 	cli
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	dec	[int_level]
 	pop	ds
@@ -487,8 +467,7 @@ DEFPROC	int_leave,DOSFAR
 	push	cx
 	push	dx
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	mov	ah,DOS_UTL_YIELD + 80h
 	mov	bx,[scb_active]
@@ -547,8 +526,7 @@ DEFPROC	int_util,DOSFAR
 	push	cx
 	push	dx
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	cld
 	cmp	ah,DOS_UTL_WAIT		; function 1Ah?
@@ -597,59 +575,6 @@ iu8:	pop	ds
 	stc				; and return carry set
 	ret
 ENDPROC	int_util
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; int_getvec and int_setvec
-;
-; DDINT_GETVEC and DDINT_SETVEC are "revectored" here by sysinit (DEVINIT
-; provides its own until then, for drivers' INIT code).  They're the only way
-; that drivers and the kernel read and write interrupt vectors, since the
-; vector table's segment (00h) isn't a valid selector in protected mode.  A
-; vector is passed in DX:CX, not a segment register, since its segment isn't
-; necessarily a valid selector either.
-;
-; Inputs:
-;	AL = vector #
-;	DX:CX = new vector (int_setvec only)
-;
-; Outputs:
-;	DX:CX = vector (for int_setvec, the previous one)
-;
-; Modifies:
-;	CX, DX
-;
-DEFPROC	int_setvec,DOSFAR
-	push	ds
-	push	bx
-	call	int_vecptr		; DS:BX -> vector
-	pushf
-	cli
-	xchg	cx,[bx].OFF
-	xchg	dx,[bx].SEG
-	popf
-	jmp	short iv9
-ENDPROC	int_setvec
-
-DEFPROC	int_getvec,DOSFAR
-	push	ds
-	push	bx
-	call	int_vecptr		; DS:BX -> vector
-	mov	cx,[bx].OFF
-	mov	dx,[bx].SEG
-iv9:	pop	bx
-	pop	ds
-	ret
-ENDPROC	int_getvec
-
-DEFPROC	int_vecptr
-	sub	bx,bx
-	mov	ds,bx
-	mov	bl,al
-	shl	bx,1
-	shl	bx,1
-	ret
-ENDPROC	int_vecptr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

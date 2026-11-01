@@ -169,6 +169,8 @@ DOS_UTL_GETTIME	equ	23h	; get time (AX) in "packed" format
 DOS_UTL_INCDATE	equ	24h	; increment date (CX=year, DH=month, DL=day)
 DOS_UTL_EDITLN	equ	25h	; edit line (DS:DX)
 DOS_UTL_SOUND	equ	26h	; sound (DX = PIT divisor) for CX ticks
+DOS_UTL_ALIAS	equ	27h	; code alias (AX) of memory block (BX)
+DOS_UTL_MAPSEG	equ	28h	; selector (AX) for real-mode segment (BX)
 DOS_UTL_HDLCTL	equ	(DOS_HDL_IOCTL + 80h)
 	ENDIF	; DOSFUNC
 
@@ -269,6 +271,7 @@ MCBOWNER_SYSTEM	equ	0008h	; owned by the system
 MCBTYPE_NONE	equ	0	; no specified block type
 MCBTYPE_ABLK	equ	'A'	; array block
 MCBTYPE_CBLK	equ	'C'	; code block
+MCBTYPE_EBLK	equ	'E'	; environment block
 MCBTYPE_FBLK	equ	'F'	; function block
 MCBTYPE_SBLK	equ	'S'	; string block
 MCBTYPE_TBLK	equ	'T'	; text block
@@ -338,7 +341,7 @@ FFB		ends		; 2Bh
 ;
 DOSVARS		struc
 DV_MCB_HEAD	dw	?	; -02h: first memory segment
-DV_MCB_LIMIT	dw	?	;  00h: first unavailable segment
+DV_MEM_SIZE	dw	?	;  00h: total memory (in Kb)
 DV_BPB_TABLE	dd	?	;  02h: offset, limit of BPBs
 DV_SFB_TABLE	dd	?	;  06h: offset, limit of SFBs
 DV_SCB_TABLE	dd	?	;  0Ah: offset, limit of SCBs

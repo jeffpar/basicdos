@@ -15,6 +15,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTWORD	<dos_data>
 	EXTNEAR	<read_buffer,get_bpb,get_wcln,scb_release>
 	EXTBYTE	<scb_locked>
 
@@ -103,8 +104,7 @@ DEFPROC	set_cln,DOS
 	push	si
 	push	bp
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 ;
 ; Invalidate before changing the FAT, including a partially failed update.
@@ -185,8 +185,7 @@ DEFPROC	alloc_cln,DOS
 	push	bx
 	push	cx
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	mov	bx,dx			; BX = previous CLN
 	mov	cx,[di].BPB_CLUSTERS	; CX = # clusters to check

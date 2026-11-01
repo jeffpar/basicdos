@@ -18,11 +18,13 @@
 
 DOS	segment word public 'CODE'
 
+	EXTWORD	<dos_data,call5_gate>
 	EXTBYTE	<scb_locked>
-	EXTWORD	<mcb_head,mcb_limit,scb_active,load_reserve>
+	EXTWORD	<mcb_limit,scb_active,load_reserve>
 	EXTLONG	<scb_table,sfb_table>
 	EXTNEAR	<sfh_add_ref,pfh_close,sfh_close,sfb_close,reset_keys>
-	EXTNEAR	<mcb_getsize,mcb_free_all,scb_endio>
+	EXTNEAR	<mcb_getsize,mcb_free_all,mcb_findpsp,scb_endio>
+	EXTNEAR	<mem_alias>
 	EXTNEAR	<dos_check,dos_leave,dos_leave2,dos_ctrlc,dos_error>
 	EXTNEAR	<mcb_setname,scb_getnum,scb_release,scb_close,scb_yield>
 	EXTNEAR	<msc_sigctrlc,msc_retctrlc>
@@ -65,16 +67,22 @@ DEFPROC	psp_term,DOS
 ;
 ; Since we can't terminate the program, an ABORT (CTRL-ALT-DEL) must be
 ; converted into a CTRLC signal instead; otherwise, it would be ignored.  The
-; same goes for a critical error ABORT (see dev_error), minus the echo.
+; same goes for a critical error ABORT (see dev_error) and a divide or
+; overflow error (see dos_dverr), minus the echo, since each was reported.
 ;
 	cmp	ah,EXTYPE_ABORT		; ABORT request?
 	jne	pt0			; no
 	sti
 	jmp	msc_sigctrlc		; signal CTRLC (does not return)
-pt0:	cmp	ah,EXTYPE_ERROR		; critical error ABORT?
-	jne	pt7			; no
+;
+; EXTYPE_ERROR through EXTYPE_OVERR (nothing uses EXTYPE_KEEP yet) are the
+; errors that abort.
+;
+pt0:	cmp	ah,EXTYPE_ERROR		; an error ABORT?
+	jb	pt0a			; no
 	sti
 	jmp	msc_retctrlc		; signal CTRLC quietly (never returns)
+pt0a:	ret
 ;
 ; Close process file handles.
 ;
@@ -126,6 +134,8 @@ pt1a:	call	psp_close		; close all the process file handles
 	pop	es
 pt1b:	LOCK_SCB
 	mov	ax,es
+	push	ds
+	pop	es			; (ES can't hold a selector we free)
 	call	mcb_free_all		; free all blocks owned by PSP in AX
 	pop	ax			; restore PSP of parent
 	pop	cx			; CL = SCB #
@@ -577,7 +587,7 @@ ENDPROC	load_command
 ; load_args
 ;
 ; NOTE: If EPB_FCB1.OFF is -1, then this function will build both FCBs
-; from the command tail at EPB_CMDTAIL.
+; from the command tail at EPB_CMDTAIL (and EPB_FCB1.SEG is ignored).
 ;
 ; NOTE: While EPB_CMDTAIL normally ends with a CHR_RETURN, load_command
 ; doesn't bother, because it knows load_args will copy only the specified
@@ -620,11 +630,12 @@ la0:	mov	es:[PSP_ENVSEG],ax
 	pop	ds
 	push	ds			; DS:BX -> EPB again
 	mov	di,PSP_FCB1		; ES:DI -> PSP_FCB1
-	lds	si,[bx].EPB_FCB1
-	cmp	si,-1
-	jne	la1
-	pop	ds
-	push	ds			; DS:BX -> EPB again
+;
+; Check EPB_FCB1's offset before loading the pointer, since with -1 there,
+; its segment can be anything (eg, an invalid selector in protected mode).
+;
+	cmp	[bx].EPB_FCB1.OFF,-1	; build the FCBs?
+	jne	la1			; no
 	lds	si,[bx].EPB_CMDTAIL
 	inc	si
 	mov	ax,(DOS_FCB_PARSE SHL 8) or 01h
@@ -634,7 +645,8 @@ la0:	mov	es:[PSP_ENVSEG],ax
 	int	21h
 	jmp	short la2
 
-la1:	mov	cx,size FCB
+la1:	lds	si,[bx].EPB_FCB1
+	mov	cx,size FCB
 	rep	movsb			; fill in PSP_FCB1
 	pop	ds
 	push	ds			; DS:BX -> EPB again
@@ -691,16 +703,14 @@ DEFPROC	load_program,DOS
 ; 1) it's lengthy and 2) everything it does other than the memory allocations
 ; is session-local, that's the only solution we have available at the moment.
 ;
-	push	cs
-	pop	es
+	mov	es,cs:[dos_data]
 	ASSUME	ES:DOS
 	LOCK_SCB
 	ASSUME	ES:NOTHING
-	mov	bx,0A000h		; alloc a PSP segment
-	mov	ax,DOS_MEM_ALLOC SHL 8	; with a size that should fail
-	int	21h			; in order to get max paras avail
-	ASSERT	C
-	jnc	lp1			; if it didn't fail, use it anyway?
+	mov	bx,0FFFFh		; alloc a PSP segment
+	mov	ax,DOS_MEM_ALLOC SHL 8	; with the largest size possible,
+	int	21h			; or failing that, get max paras avail
+	jnc	lp1			; (a block that big may be free)
 	cmp	bx,11h			; enough memory to do anything useful?
 	jb	lp0			; no
 	mov	ax,DOS_MEM_ALLOC SHL 8	; BX = max paras avail
@@ -1167,11 +1177,12 @@ lp8a:	test	dx,dx			; additional heap?
 	rep	stosw			; zero the words
 
 lp8b:	mov	dx,es
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	call	psp_setmem		; DX = PSP segment, BX = PSP paras
-	call	mcb_setname		; ES = PSP segment
+	mov	si,[scb_active]
+	add	si,SCB_FILENAME + 1	; DS:SI -> the program's name
+	call	mcb_setname		; DX = PSP segment
 ;
 ; Since we're past the point of no return now, let's take care of some
 ; initialization outside of the program segment; namely, resetting the CTRLC
@@ -1194,14 +1205,23 @@ lp8b:	mov	dx,es
 	xchg	[bx].SCB_DTA.SEG,ax
 	mov	es:[PSP_DTAPREV].SEG,ax
 ;
-; Create an initial REG_FRAME at the top of the stack segment.
+; Create an initial REG_FRAME at the top of the stack segment.  A program
+; whose code is in its PSP's segment starts with a code alias of its block
+; instead (see mem_alias), since in protected mode, that's a data selector.
 ;
 ; TODO: Verify that we're setting proper initial values for all the registers.
 ;
 	push	es
 	pop	ds
 	ASSUME	DS:NOTHING
-	les	di,ds:[PSP_STACK]	; ES:DI -> stack (NOT PSP)
+	mov	ax,ds
+	cmp	ds:[PSP_START].SEG,ax	; is the code in the PSP's segment?
+	jne	lpx2			; no (eg, another copy's, or an EXE's)
+	call	mem_alias		; AX = code alias
+	jnc	lpx1			; (it can fail only in protected mode)
+	jmp	lpf
+lpx1:	mov	ds:[PSP_START].SEG,ax
+lpx2:	les	di,ds:[PSP_STACK]	; ES:DI -> stack (NOT PSP)
 	dec	di
 	dec	di
 	std
@@ -1261,8 +1281,7 @@ lpc:	push	ax
 	pop	ax
 
 lpf:	push	ax
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	call	psp_close
 	call	get_psp
@@ -1550,41 +1569,9 @@ DEFPROC	psp_calcsum
 	call	psp_addsum		; DX = checksum
 	pop	ax
 ;
-; Scan the pool for a PSP block with matching PSP_CODESIZE and PSP_CHECKSUM,
-; whose memory still contains all of its code (eg, COMMAND discards the
-; transient portion of its code while running a program; see runTransient).
+; Look for a PSP block with the same code (see mcb_findpsp).
 ;
-crc1a:	push	es
-	mov	si,[mcb_head]
-crc2:	mov	es,si
-	ASSUME	ES:NOTHING
-	inc	si
-	mov	cx,es:[MCB_OWNER]
-	jcxz	crc5
-	cmp	cx,si			; MCB_OWNER = PSP?
-	jne	crc5			; no
-	cmp	es:[size MCB].PSP_CODESIZE,ax
-	jne	crc5
-	cmp	es:[size MCB].PSP_CHECKSUM,dx
-	jne	crc5
-	push	ax
-	add	ax,15
-	rcr	ax,1			; (including any carry)
-	shr	ax,1
-	shr	ax,1
-	shr	ax,1			; AX = paras of code
-	cmp	es:[MCB_PARAS],ax	; does the block still contain it?
-	pop	ax
-	jb	crc5			; no
-	mov	cx,si			; CX = matching segment
-	jmp	short crc7		; done scanning
-crc5:	cmp	es:[MCB_SIG],MCBSIG_LAST
-	jne	crc6
-	sub	cx,cx			; CX = zero (no match found)
-	jmp	short crc7		; done scanning
-crc6:	add	si,es:[MCB_PARAS]
-	jmp	crc2
-crc7:	pop	es
+crc1a:	call	mcb_findpsp		; CX = matching segment (zero if none)
 
 crc8:	xchg	ax,dx			; AX = checksum
 	pop	dx
@@ -1686,9 +1673,10 @@ ENDPROC	psp_init
 ;
 ; psp_restvec
 ;
-; Some programs hook vectors 01h, 03h, 08h, 09h, 1Bh, or 1Ch directly (eg,
-; DEBUG hooks 01h and 03h, and MSBASIC hooks 1Bh and 1Ch), and restore them
-; only when they exit normally; if one is terminated some other way (eg,
+; Some programs hook vectors 00h, 01h, 03h, 08h, 09h, 1Bh, or 1Ch directly
+; (eg, DEBUG hooks 00h, 01h, and 03h, MSBASIC hooks 1Bh and 1Ch, and C and
+; Pascal runtimes hook 00h), and restore them only when they exit normally;
+; if one is terminated some other way (eg,
 ; CTRL-ALT-DEL, or G in DEBUG without a program), any vector it left pointing
 ; into its memory is restored to the value that sysinit saved in ivt_save.
 ;
@@ -1717,8 +1705,8 @@ DEFPROC	psp_restvec,DOS
 	mov	bx,dx			; BX = start of the program's memory
 	mov	si,offset ivt_save	; SI -> vector #s and saved vectors
 prv1:	lodsb				; AL = vector #
-	test	al,al			; end of the list?
-	jz	prv9			; yes
+	test	al,al			; end of the list (-1)?
+	js	prv9			; yes
 	call	far ptr DDINT_GETVEC	; DX:CX = vector
 	cmp	dx,bx			; does it point into the program?
 	jb	prv2			; no
@@ -1765,10 +1753,10 @@ DEFPROC	psp_setmem,DOS
 	add	bx,ax			; BX = actual memory limit
 	ASSERT	NZ,<test cx,cx>
 	jcxz	ps1			; jump if segment unowned (unusual)
-	dec	dx
-	mov	es,dx			; ES -> MCB
-	inc	dx
-	mov	es:[MCB_OWNER],dx	; set MCB owner to PSP
+	push	si
+	sub	si,si			; (no name yet)
+	call	mcb_setname		; the PSP owns its block
+	pop	si
 ps1:	mov	es,dx
 	sub	di,di			; start building the new PSP at ES:0
 	mov	ax,OP_INT20
@@ -1796,7 +1784,15 @@ ps3:	sub	ax,256			; AX = max available bytes this segment
 	shr	bx,cl
 	mov	ax,(INT_DOSCALL5 * 4) SHR 4
 	sub	ax,bx			; basically, compute 000Ch - (BX SHR 4)
-	stosw				; 08h: PSP_FCSEG
+;
+; In protected mode, that segment isn't a selector, so we use the CALL 5
+; call gate instead (see SEL_CALL5), which ignores the offset.
+;
+	mov	bx,cs:[call5_gate]
+	test	bx,bx			; protected mode?
+	jz	ps4			; no
+	xchg	ax,bx
+ps4:	stosw				; 08h: PSP_FCSEG
 	ret
 ENDPROC	psp_setmem
 
@@ -1840,8 +1836,7 @@ DEFPROC	set_psp,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	push	bx
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	mov	bx,[scb_active]
 	ASSERT	STRUCT,[bx],SCB

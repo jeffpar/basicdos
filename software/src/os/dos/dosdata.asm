@@ -24,12 +24,15 @@ DOS	segment word public 'CODE'
 	jmp	sysinit			; boot.asm assumes our entry @CS:0002h
 	nop
 ;
-; INT 21h function 52h (msc_getvars) returns ES:BX -> mcb_head + 2 (mcb_limit).
+; INT 21h function 52h (msc_getvars) returns ES:BX -> mcb_head + 2 (mem_size).
+; mcb_head is always zero, since there's no MCB chain for programs to walk
+; (CPU$ manages memory; see cpu.inc).
 ;
-	DEFWORD	mcb_head,0		; 06h: 1st memory paragraph
-	DEFWORD	mcb_limit,0		; 08h: 1st unavailable paragraph
+	DEFWORD	mcb_head,0		; 06h: 1st memory paragraph (none)
+	DEFWORD	mem_size,0		; 08h: total memory (in Kb)
 	DEFTBL	<bpb_table,sfb_table,scb_table,cdir_table>
 	DEFPTR	dev_head		; 1Ah: head of device driver list
+	DEFWORD	mcb_limit,0		; MEMORY_SIZE, in paragraphs
 	DEFWORD	scb_active,0		; offset of active SCB (zero if none)
 	DEFWORD	load_reserve,0		; sessions to load next (see load_program)
 	DEFWORD	key_boot,0		; records key pressed at boot, if any
@@ -45,7 +48,9 @@ DOS	segment word public 'CODE'
 ; sysinit reserves, and a non-zero count while a hard error is being handled.
 ;
 	DEFWORD	err_stack,0
+	DEFWORD	dos_data,0		; our data segment (see sysinit)
 	DEFBYTE	err_active,0
+	DEFWORD	call5_gate,0		; CALL 5 call gate (see set_call5)
 
 	DEFBYTE	bpb_total,0		; total number of BPBs
 	DEFBYTE	sfh_debug,-1		; system file handle for DEBUG device
@@ -57,11 +62,13 @@ DOS	segment word public 'CODE'
 	DEFBYTE	def_swchar,'/'
 	DEFBYTE	def_pathchar,'\'
 ;
-; Vectors 01h, 03h, 08h, 09h, 1Bh, and 1Ch, each followed by its value at the
-; end of sysinit, so that psp_restvec can restore any that a terminated
-; program left hooked (a zero ends the list).
+; Vectors 00h, 01h, 03h, 08h, 09h, 1Bh, and 1Ch, each followed by its value at
+; the end of sysinit, so that psp_restvec can restore any that a terminated
+; program left hooked (a -1 ends the list).
 ;
 	DEFLBL	ivt_save,word
+	db	00h
+	dd	0
 	db	01h
 	dd	0
 	db	03h
@@ -74,7 +81,7 @@ DOS	segment word public 'CODE'
 	dd	0
 	db	1Ch
 	dd	0
-	db	0
+	db	-1
 ;
 ; Constants
 ;
@@ -132,7 +139,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<utl_hotkey,utl_lock,utl_unlock,utl_qrymem,utl_term>
 	EXTNEAR	<utl_getdate,utl_gettime,utl_incdate,utl_editln,utl_restart>
 	EXTNEAR	<utl_tprintf>
-	EXTNEAR	<utl_qryscb>
+	EXTNEAR	<utl_qryscb,utl_alias,utl_mapseg>
 	EXTNEAR	<func_none>
 
 	DEFLBL	FUNCTBL,word
@@ -170,7 +177,8 @@ DOS	segment word public 'CODE'
 	dw	utl_yield,   utl_sleep,   utl_wait,    utl_endwait	;18-1B
 	dw	utl_hotkey,  utl_lock,    utl_unlock,  utl_qrymem	;1C-1F
 	dw	utl_term,    utl_restart, utl_getdate, utl_gettime	;20-23
-	dw	utl_incdate, utl_editln,  utl_sound			;24-26
+	dw	utl_incdate, utl_editln,  utl_sound,   utl_alias	;24-27
+	dw	utl_mapseg						;28
 	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>
 
 DOS	ends

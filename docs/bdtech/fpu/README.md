@@ -26,7 +26,7 @@ Open the FPU$ device and issue IOCTL_GETFPU (E1h), with DS:SI pointing to a doub
 
 DH returns the FPU type (FPUTYPE_NONE, 0, for software emulation, or FPUTYPE_8087, 1), and DL returns the number of FPUTBL entries, so that callers can tell when newer functions are available.
 
-Each FPUTBL entry is the offset of a function, relative to the segment of the FPUTBL pointer, so every function must be called with a far call using that segment.
+Each FPUTBL entry is the offset of a function, relative to the segment of the FPUTBL pointer, so every function must be called with a far call using that segment.  The FPUTBL is at the start of the paragraph where the driver's functions begin, so that segment isn't the driver's: FPU$ gets it from CPU$ at initialization (CPU_MAP with MEMF_CODE, for that paragraph's address; see fpuinit.asm, which LINK puts after fpudev.asm), which in protected mode is a code selector of its own.
 
 ### Calling Conventions
 

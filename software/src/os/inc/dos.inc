@@ -109,7 +109,8 @@ SCB_PATHCHAR	db	?	; 30h: path char (fixed at boot)
 SCB_ABTYPE	db	?	; 31h: exit type of a pending ABORT (EXTYPE_*)
 SCB_DIRCLN	dw	?	; 32h: directory (1st cluster) for FILENAME
 SCB_FILENAME	db    12 dup (?); 34h: buffer for drive # and filename
-SCB		ends		; 40h bytes
+SCB_MAPSEL	dw	?	; 40h: DOS_UTL_MAPSEG selector, if any
+SCB		ends		; 42h bytes
 
 SIG_SCB		equ	'S'
 

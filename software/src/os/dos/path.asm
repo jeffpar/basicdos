@@ -16,6 +16,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTWORD	<dos_data>
 	EXTNEAR	<get_bpb,get_cdir,get_dirent,parse_name,scb_release>
 	EXTNEAR	<chk_filename,chk_volopen,sfb_chkopen,flush_buffers,free_clns>
 	EXTNEAR	<add_dirent,read_buffer>
@@ -369,8 +370,7 @@ mva:	mov	bx,sp
 	mov	si,ss:[bx+MV_DST]
 	mov	di,cs:[scb_active]
 	lea	di,[di].SCB_DIRCLN
-	push	cs
-	pop	es
+	mov	es,cs:[dos_data]
 	mov	cx,size SCB_FILENAME+2
 	REPS	MOVS,ES,SS,BYTE		; select the destination directory
 	mov	dl,ss:[bx+MV_DRV]
@@ -393,13 +393,13 @@ mv1:	push	ds
 	mov	bx,sp
 	mov	al,ss:[bx+MV_DRV]
 	call	flush_buffers
-	jc	mv9			; keep the source on write failure
+	jc	mvg			; keep the source on write failure
 	mov	bx,sp
 	test	ss:[bx].DIR_ATTR,DIRATTR_SUBDIR
 	jz	mvf
 	mov	dl,ss:[bx+MV_DRV]
 	call	get_bpb
-	jc	mv9
+mvg:	jc	mv9
 	mov	ax,ss:[bx].DIR_CLN
 	call	mv_par			; read the moved directory's ".."
 	jc	mv9
@@ -413,8 +413,7 @@ mv1:	push	ds
 	jc	mv9
 mvf:
 	mov	bx,sp
-	push	cs
-	pop	es
+	mov	es,cs:[dos_data]
 	mov	di,cs:[scb_active]
 	mov	ax,ss:[bx+MV_DIR]
 	mov	es:[di].SCB_DIRCLN,ax
@@ -824,8 +823,7 @@ ENDPROC	dsk_chdir
 ;
 DEFPROC	get_dirpath,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
-	push	cs
-	pop	es
+	mov	es,cs:[dos_data]
 	ASSUME	ES:DOS
 	mov	si,[bp].REG_DX
 	mov	ds,[bp].REG_DS		; DS:SI -> path
@@ -888,8 +886,7 @@ cw1a:	mov	dx,cx			; DX = current directory
 	mov	es,[bp].REG_DS
 	ASSUME	ES:NOTHING
 	mov	byte ptr es:[bx],0
-cw2:	push	cs
-	pop	es
+cw2:	mov	es,cs:[dos_data]
 	ASSUME	ES:DOS
 	test	dx,dx			; at the root yet?
 	jz	cw6			; yes

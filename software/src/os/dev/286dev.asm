@@ -1,5 +1,5 @@
 ;
-; BASIC-DOS Processor (CPU$) Device Driver
+; BASIC-DOS 80286 Processor (CPU$) Device Driver
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
 ; @copyright (c) 2026 Jeff Parsons
@@ -8,17 +8,17 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 ; This is the first built-in driver, and the first of two CPU$ drivers (see
-; cpu.inc); it stores the processor type in CPU_TYPE, and on an 80286 or later
-; with at least 64K of extended memory, it enables A20, builds its PMB table,
-; GDT, IDTs, and LDT in the system area (the first 64K of extended memory),
-; checks that it can switch to protected mode and back, and stays, managing
-; all of memory with its PMB table (see PMB in cpu.inc) through DDINT_CPU.
-; Otherwise (or with a "CPU=8088" line in CONFIG.SYS), it unloads itself, and
-; the 8086 driver (cpu86dev.asm) stays instead.  CPU_PMODE switches to
-; protected mode for good, after which CPU$ reflects interrupts to the ROM
-; BIOS, keeps the vectors that drivers install in its IDT (see pm_setvec),
-; and stops the machine on any other exception (see cpu_fatal).  See
-; docs/bdtech/mmu.
+; cpu.inc); it stores the processor type in CPU_HWTYPE and CPU_TYPE, and on
+; an 80286 or later with at least 64K of extended memory, it enables A20,
+; builds its PMB table, GDT, IDTs, and LDT in the system area (the first 64K
+; of extended memory), checks that it can switch to protected mode and back,
+; and stays, managing all of memory with its PMB table (see PMB in cpu.inc)
+; through DDINT_CPU.  Otherwise (or with a "CPU=8088" line in CONFIG.SYS,
+; which makes CPU_TYPE CPUTYPE_8086), it unloads itself, and the 8086 driver
+; (x86dev.asm) stays instead.  CPU_PMODE switches to protected mode for good,
+; after which CPU$ reflects interrupts to the ROM BIOS, keeps the vectors
+; that drivers install in its IDT (see pm_setvec), and stops the machine on
+; any other exception (see cpu_fatal).  See docs/bdtech/mmu.
 ;
 	BIOSAPI equ 1
 	include	macros.inc
@@ -73,7 +73,7 @@ SV_SIG		dw	?	; SIG_SYSVARS (if A20 is enabled)
 SV_TYPE		db	?	; CPU type
 SV_FLAGS	db	?	; CPUF_* flags
 SV_NPMBS	dw	?	; number of PMBs
-SV_ARG		db	?	; CPU_ALLOC: SELF_* flags
+SV_ARG		db	?	; CPU_ALLOC: MEMF_* flags
 		db	?
 SV_OWNER	dw	?	; CPU_ALLOC: owner
 SV_LEN		dd	?	; CPU_ALLOC, CPU_REALLOC, CPU_MOVE: length
@@ -86,6 +86,7 @@ SV_GDTR		dw	3 dup (?) ; GDT limit and base (for LGDT)
 SV_IDTR		dw	3 dup (?) ; pm_call's IDT limit and base (for LIDT)
 SV_PIDTR	dw	3 dup (?) ; protected mode's IDT limit and base
 SV_RMIDTR	dw	3 dup (?) ; real-mode IDT limit and base
+SV_FAULT	dd	?	; fault handler (see CPU_SETFAULT and to_fault)
 SYSVARS		ends
 SIG_SYSVARS	equ	'PC'
 	ASSERT	<SYS_VARS + size SYSVARS>,LE,SYS_CALL5
@@ -105,6 +106,7 @@ DESC		ends
 ACC_DATA	equ	92h	; present, DPL 0, read/write data
 ACC_CODE	equ	9Ah	; present, DPL 0, execute/read code
 ACC_RW		equ	02h	; writable data (or readable code)
+ACC_PRESENT	equ	80h	; present (in every ACC_* value but ACC_DPL3)
 ACC_DPL3	equ	60h	; DPL 3 (added to another ACC_* value)
 ACC_LDT		equ	82h	; present, LDT
 ACC_CALLGATE	equ	84h	; present, DPL 0, 80286 call gate
@@ -125,7 +127,9 @@ SEL_CPU		equ	38h	; call gate: cpu_entry
 SEL_BIOS	equ	40h	; data: segment 40h (BIOS)
 SEL_TMP2	equ	48h	; data: scratch (see pm_ptr)
 SEL_DDINT	equ	50h	; code: segment 50h (DDINT)
-GDT_FIXED	equ	0Bh	; number of fixed GDT entries
+SEL_C5CODE	equ	58h	; code: the CALL 5 jump (0:00C0h)
+;		equ	60h	; SEL_CALL5 (in cpu.inc): call gate to it
+GDT_FIXED	equ	0Dh	; number of fixed GDT entries
 FL_RESULTS	equ	FL_CARRY OR FL_ZERO OR FL_SIGN OR FL_OVFL
 
 DEV	group	CODE,DATA
@@ -143,7 +147,9 @@ CPU	DDH	<offset DEV:ddcpu_end+16,,DDATTR_CHAR,offset DEV:ddcpu_init,-1,202020202
 	DEFLBL	CPU_FUNCS,word
 	dw	ddcpu_getinfo, ddcpu_alloc, ddcpu_free, ddcpu_map
 	dw	ddcpu_unmap, ddcpu_query, ddcpu_alias, ddcpu_pmode
-	dw	ddcpu_realloc, ddcpu_move
+	dw	ddcpu_realloc, ddcpu_move, ddcpu_setblk, ddcpu_freeall
+	dw	ddcpu_setlim, ddcpu_seginfo, ddcpu_rwmem, ddcpu_sysregs
+	dw	ddcpu_setfault
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -248,9 +254,11 @@ ENDPROC	cpu_entry
 ; ddcpu_getinfo (CPU_GETINFO)
 ;
 ; Outputs:
-;	AL = CPU type, AH = CPUF_* flags, DX:CX = length of largest free block
+;	AL = CPU type, AH = CPUF_* flags (including CPUF_HWTYPE), DX:CX =
+;	length of largest free block
 ;
 DEFPROC	ddcpu_getinfo
+	mov	ds:[SYS_VARS].SV_ARG,0	; (anywhere; see pmb_largest)
 	call	pmb_largest
 	mov	ax,word ptr ds:[SYS_VARS].SV_TYPE
 	clc
@@ -263,12 +271,12 @@ ENDPROC	ddcpu_getinfo
 ;
 ; Allocates a block (see pmb_fit), rounding its length up to a multiple of
 ; 16, so that every block starts on a paragraph boundary.  In protected mode,
-; it gets selectors (see map_block), unless SELF_NONE is set; in real mode, AX
+; it gets selectors (see map_block), unless MEMF_NONE is set; in real mode, AX
 ; is its segment (or zero, above 1Mb).
 ;
 ; Inputs:
-;	AL = SELF_* flags, BX = owner, SI:DI = length
-;	DX:CX = address (if SELF_AT is set)
+;	AL = MEMF_* flags, BX = owner, SI:DI = length
+;	DX:CX = address (if MEMF_AT is set)
 ;
 ; Outputs:
 ;	Carry clear if successful: AX = selector (or segment), DX:CX = address
@@ -312,7 +320,7 @@ ENDPROC	ddcpu_alloc
 ; Frees a block allocated by CPU_ALLOC, along with its selectors.
 ;
 ; Inputs:
-;	DX:CX = address of block
+;	DX:CX = block
 ;
 ; Outputs:
 ;	Carry clear if successful, set if error (AX = ERR_BADADDR)
@@ -324,7 +332,19 @@ DEFPROC	ddcpu_free
 	mov	ds:[bx].PMB_TYPE,PMBTYPE_FREE
 	sub	ax,ax
 	mov	ds:[bx].PMB_OWNER,ax
-	sub	cx,cx
+	xchg	ax,ds:[bx].PMB_CODE	; does it have a code alias?
+	test	ax,ax
+	jz	cf0			; no
+	mov	cx,1
+	call	desc_free		; yes, so free it, too
+	sub	ax,ax
+cf0:	push	es
+	push	ds
+	pop	es
+	lea	di,[bx].PMB_MCBTYPE
+	mov	cx,(size PMB - PMB_MCBTYPE) SHR 1
+	rep	stosw			; zero the type and name
+	pop	es
 	xchg	ax,ds:[bx].PMB_SEL
 	xchg	cx,ds:[bx].PMB_NSEL
 	jcxz	cf1			; no selectors
@@ -337,6 +357,39 @@ cf1:	call	pmb_merge		; merge with the next block if free
 cf8:	clc
 cf9:	ret
 ENDPROC	ddcpu_free
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcpu_freeall (CPU_FREEALL)
+;
+; Frees every block that BX owns; since freeing a block can merge PMBs, we
+; start over after each one.
+;
+; Inputs:
+;	BX = owner
+;
+; Outputs:
+;	Carry clear
+;
+DEFPROC	ddcpu_freeall
+	mov	dx,bx			; DX = owner
+fa1:	mov	bx,SYS_PMBS
+	mov	si,ds:[SYS_VARS].SV_NPMBS
+fa2:	cmp	ds:[bx].PMB_TYPE,PMBTYPE_USED
+	jne	fa3
+	cmp	ds:[bx].PMB_OWNER,dx	; does DX own this block?
+	jne	fa3			; no
+	push	dx
+	call	pmb_free
+	pop	dx
+	jmp	fa1
+fa3:	add	bx,size PMB
+	dec	si
+	jnz	fa2
+	clc
+	ret
+cr8:	jmp	cpu_inval		; (for ddcpu_realloc)
+ENDPROC	ddcpu_freeall
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -391,7 +444,9 @@ cr2:	mov	ds:[SYS_VARS].SV_LEN.LOW,ax
 cr4:	call	pmb_split		; BX -> PMB of the new length
 	jc	cr7
 	add	bx,size PMB
-	mov	ds:[bx].PMB_NSEL,0	; (the selectors stay with the block)
+	sub	ax,ax			; (the selectors and code alias stay
+	mov	ds:[bx].PMB_NSEL,ax	; with the block)
+	mov	ds:[bx].PMB_CODE,ax
 	jmp	pmb_free		; free the rest
 cr7:	mov	cx,ds:[bx].PMB_LEN.LOW
 	mov	dx,ds:[bx].PMB_LEN.HIW
@@ -404,7 +459,6 @@ cr7:	mov	cx,ds:[bx].PMB_LEN.LOW
 cr7a:	mov	ax,ERR_NOMEMORY
 	stc
 	ret
-cr8:	jmp	cpu_inval
 cr9:	ret
 ENDPROC	ddcpu_realloc
 
@@ -418,7 +472,7 @@ ENDPROC	ddcpu_realloc
 ; segment.
 ;
 ; Inputs:
-;	AL = SELF_* flags, DX:CX = address, SI:DI = length
+;	AL = MEMF_* flags, DX:CX = address, SI:DI = length
 ;
 ; Outputs:
 ;	Carry clear if successful: AX = selector, CX = # of selectors
@@ -463,11 +517,11 @@ ENDPROC	ddcpu_unmap
 ; ddcpu_alias (CPU_ALIAS)
 ;
 ; Creates a selector for the same memory as an existing one, with the access
-; rights that the SELF_* flags select (see pm_alias); in real mode, a segment
+; rights that the MEMF_* flags select (see pm_alias); in real mode, a segment
 ; is its own alias.
 ;
 ; Inputs:
-;	AL = SELF_* flags, BX = selector (or segment) to alias
+;	AL = MEMF_* flags, BX = selector (or segment) to alias
 ;
 ; Outputs:
 ;	Carry clear if successful: AX = selector, DX:CX = base address
@@ -476,7 +530,37 @@ ENDPROC	ddcpu_unmap
 DEFPROC	ddcpu_alias
 	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM
 	jz	cl1
-	jmp	pm_alias
+;
+; A block's code alias (just MEMF_CODE, for the block's own selector) is
+; created only once, and kept in its PMB (see pmb_free).
+;
+	cmp	al,MEMF_CODE		; just a code alias?
+	jne	cl0b			; no
+	push	bx
+	mov	cx,bx
+	mov	dx,-1			; DX:CX = block with selector BX
+	call	pmb_used		; BX -> its PMB, if any
+	pop	ax			; AX = selector to alias
+	jc	cl0a			; it isn't a block's
+	cmp	ds:[bx].PMB_SEL,ax	; is it the block's own selector?
+	jne	cl0a			; no
+	cmp	ds:[bx].PMB_CODE,0	; does the block have its alias yet?
+	jne	cl0			; yes
+	push	bx
+	xchg	bx,ax			; BX = selector to alias
+	mov	al,MEMF_CODE
+	call	pm_alias		; AX = new alias
+	pop	bx
+	jc	cl9
+	mov	ds:[bx].PMB_CODE,ax
+cl0:	mov	ax,ds:[bx].PMB_CODE
+	mov	cx,ds:[bx].PMB_ADDR.LOW
+	mov	dx,ds:[bx].PMB_ADDR.HIW	; DX:CX = base address
+	clc
+cl9:	ret
+cl0a:	xchg	bx,ax			; BX = selector to alias again
+	mov	al,MEMF_CODE
+cl0b:	jmp	pm_alias
 cl1:	mov	ax,bx
 	mov	dx,bx
 	mov	cl,4
@@ -487,6 +571,227 @@ cl1:	mov	ax,bx
 	clc
 	ret
 ENDPROC	ddcpu_alias
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcpu_setlim (CPU_SETLIM)
+;
+; Changes the length that a selector from CPU_ALLOC, CPU_MAP, or CPU_ALIAS
+; covers (its limit), keeping the selector; fixed GDT selectors can't change.
+; In real mode, there's nothing to do.
+;
+; Inputs:
+;	BX = selector, SI:DI = new length (1 to 64K)
+;
+; Outputs:
+;	Carry clear if successful, set if error (AX = ERR_INVALID)
+;
+DEFPROC	ddcpu_setlim
+	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM
+	jz	sl9			; (carry is clear)
+	mov	ax,di
+	sub	ax,1			; AX = new limit
+	sbb	si,0			; is SI:DI from 1 to 64K?
+	jnz	sl8			; no
+	test	bl,SEL_TI		; an LDT selector?
+	jnz	sl1			; yes
+	cmp	bx,GDT_FIXED * 8	; a fixed GDT selector?
+	jb	sl8			; yes
+sl1:	push	ax
+	call	sel_desc		; SI -> its descriptor
+	pop	ax
+	jc	sl9
+	mov	ds:[si].DESC_LIMIT,ax
+	ret				; (carry is clear)
+sl8:	mov	ax,ERR_INVALID
+	stc
+sl9:	ret
+ENDPROC	ddcpu_setlim
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcpu_seginfo (CPU_SEGINFO)
+;
+; A selector may be any present descriptor in the GDT (including the identity
+; selectors) or the LDT, in either mode.
+;
+; Inputs:
+;	AL = ADDR_* flags, BX = segment or selector
+;
+; Outputs:
+;	Carry clear if successful: DX:CX = base address, AX = limit (or with
+;	ADDR_RIGHTS, the access rights in AL and the extended byte in AH)
+;	Carry set if the selector isn't present (AX = ERR_INVALID)
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	ddcpu_seginfo
+	test	al,ADDR_SEL		; a selector?
+	jnz	sg1			; yes
+	push	ax
+	test	al,ADDR_PHYS		; a physical address (BX:0000)?
+	mov	dx,bx
+	mov	cx,0			; DX:CX = BX:0000
+	jnz	sg0			; yes
+	mov	ax,16
+	mul	bx			; DX:AX = the segment's address
+	xchg	cx,ax
+sg0:	pop	ax
+	and	al,ADDR_RIGHTS
+	cmp	al,1			; carry set if not ADDR_RIGHTS
+	sbb	ax,ax			; AX = FFFFh (limit) or 0 (no rights)
+	clc
+	ret
+sg1:	mov	si,bx
+	and	si,NOT 7
+	test	bl,SEL_TI		; an LDT selector?
+	jz	sg2			; no
+	cmp	si,LDT_MAX * 8		; is it within the LDT?
+	jae	sg8			; no
+	add	si,SYS_LDT
+	jmp	short sg3
+sg2:	cmp	si,GDT_LIMIT		; is it within the GDT?
+	ja	sg8			; no
+	add	si,SYS_GDT
+sg3:	test	ds:[si].DESC_ACC,ACC_PRESENT
+	jz	sg8
+	mov	cx,ds:[si].DESC_BASE
+	mov	dl,ds:[si].DESC_BASE16
+	mov	dh,byte ptr ds:[si].DESC_EXT+1
+	test	al,ADDR_RIGHTS		; (carry is clear)
+	mov	ax,ds:[si].DESC_LIMIT
+	jz	sg9
+	mov	ax,word ptr ds:[si].DESC_ACC
+sg9:	ret
+sg8:	jmp	cpu_inval
+ENDPROC	ddcpu_seginfo
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcpu_rwmem (CPU_RWMEM)
+;
+; In protected mode, we copy through SEL_TMP2 (see pm_ptr), and then restore
+; its descriptor, in case we interrupted something that was using it (eg,
+; CPU_MOVE).  In real mode, the bytes must start below 1Mb.
+;
+; Inputs:
+;	AL = ADDR_* flags, BX:SI = address, CX = length
+;	ES:DI -> buffer
+;
+; Outputs:
+;	Carry clear if successful, set if error (AX = ERR_INVALID)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, BP
+;
+DEFPROC	ddcpu_rwmem
+	push	ax
+	push	cx
+	push	si
+	call	ddcpu_seginfo		; DX:CX = base, AX = limit
+	pop	si			; SI = offset
+	pop	bp			; BP = length
+	pop	bx			; BL = ADDR_* flags
+	jc	rw9
+	sub	ax,si			; AX = limit - offset
+	jb	sg8			; the offset is beyond the limit
+	test	bp,bp			; anything to copy?
+	jz	rw9			; no (and carry is clear)
+	dec	bp
+	cmp	ax,bp			; is the last byte within the limit?
+	jb	sg8			; no
+	inc	bp
+	add	cx,si
+	adc	dx,0			; DX:CX = address of the bytes
+	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM
+	jnz	rw2
+	cmp	dx,10h			; below 1Mb?
+	jae	sg8			; no
+	mov	si,cx
+	and	si,0Fh			; SI = offset
+	mov	ax,cx
+	mov	cl,4
+	shr	ax,cl
+	mov	cl,12
+	shl	dx,cl
+	or	ax,dx			; AX = segment
+	jmp	short rw4
+rw2:	mov	si,SYS_GDT + SEL_TMP2
+	push	ds:[si].DESC_LIMIT
+	push	ds:[si].DESC_BASE
+	push	word ptr ds:[si].DESC_BASE16
+	xchg	ax,cx			; DX:AX = address
+	push	bx
+	mov	bx,SEL_TMP2
+	call	pm_ptr			; BX = selector, AX = offset (zero)
+	xchg	si,ax			; SI = offset
+	xchg	ax,bx			; AX = selector
+	pop	bx
+rw4:	mov	cx,bp			; CX = length
+	push	ds
+	push	es
+	mov	ds,ax			; DS:SI -> the bytes
+	test	bl,ADDR_WRITE		; writing them?
+	jz	rw5			; no
+	push	es
+	push	ds
+	pop	es
+	pop	ds
+	xchg	si,di			; DS:SI -> buffer, ES:DI -> the bytes
+rw5:	cld
+	rep	movsb
+	pop	es
+	pop	ds			; DS = SYSVARS again
+	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM
+	jz	rw9			; (carry is clear)
+	mov	si,SYS_GDT + SEL_TMP2
+	pop	word ptr ds:[si].DESC_BASE16
+	pop	ds:[si].DESC_BASE
+	pop	ds:[si].DESC_LIMIT	; (carry is still clear)
+rw9:	ret
+ENDPROC	ddcpu_rwmem
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcpu_sysregs (CPU_SYSREGS)
+;
+; Inputs:
+;	ES:DI -> 12-byte buffer
+;
+; Outputs:
+;	Carry clear: GDTR and IDTR stored at ES:DI, AX = MSW, CX = LDTR, and
+;	DX = TR (both zero in real mode, where they can't be read)
+;
+DEFPROC	ddcpu_sysregs
+	sgdt	qword ptr es:[di]
+	sidt	qword ptr es:[di+6]
+	sub	cx,cx
+	cwd				; (AH is our function number)
+	smsw	ax
+	test	al,1			; protected mode?
+	jz	sr9			; no (and carry is clear)
+	sldt	cx
+	str	dx
+sr9:	ret
+ENDPROC	ddcpu_sysregs
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcpu_setfault (CPU_SETFAULT)
+;
+; Inputs:
+;	DX:CX = fault handler (0:0 for none; see to_fault)
+;
+; Outputs:
+;	Carry clear: DX:CX = previous handler
+;
+DEFPROC	ddcpu_setfault
+	xchg	cx,ds:[SYS_VARS].SV_FAULT.OFF
+	xchg	dx,ds:[SYS_VARS].SV_FAULT.SEG
+	clc
+	ret
+ENDPROC	ddcpu_setfault
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -506,18 +811,23 @@ ENDPROC	ddcpu_pmode
 ; ddcpu_query (CPU_QUERY)
 ;
 ; Inputs:
-;	BX = PMB # (0 for the first)
+;	BX = PMB # (0 for the first), or -1 for the block at DX:CX
 ;	ES:DI -> buffer for PMB
 ;
 ; Outputs:
 ;	Carry clear if successful (PMB copied to ES:DI)
-;	Carry set if no such PMB (AX = ERR_INVALID)
+;	Carry set if no such PMB (AX = ERR_INVALID, or ERR_BADADDR)
 ;
 DEFPROC	ddcpu_query
-	cmp	bx,ds:[SYS_VARS].SV_NPMBS	; is the PMB # valid?
+	cmp	bx,-1				; the block at DX:CX?
+	jne	cq1				; no
+	call	pmb_used			; BX -> PMB
+	jnc	cq2
+	ret
+cq1:	cmp	bx,ds:[SYS_VARS].SV_NPMBS	; is the PMB # valid?
 	jae	cpu_inval			; no
 	call	pmb_ptr				; BX -> PMB
-	mov	si,bx
+cq2:	mov	si,bx
 	mov	cx,(size PMB) SHR 1
 	rep	movsw
 	clc
@@ -527,6 +837,44 @@ DEFPROC	ddcpu_query
 	stc
 	ret
 ENDPROC	ddcpu_query
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcpu_setblk (CPU_SETBLK)
+;
+; Sets the owner, type, and name in a block's PMB.
+;
+; Inputs:
+;	DX:CX = block, AL = MCBTYPE_*, BX = owner
+;	ES:SI -> name (8 characters), or SI = 0 for none
+;
+; Outputs:
+;	Carry clear if successful, set if error (AX = ERR_BADADDR)
+;
+DEFPROC	ddcpu_setblk
+	push	bx
+	push	ax
+	call	pmb_used		; BX -> PMB
+	pop	ax
+	pop	cx			; CX = owner
+	jc	bk9
+	mov	ds:[bx].PMB_OWNER,cx
+	mov	ds:[bx].PMB_MCBTYPE,al
+	lea	di,[bx].PMB_NAME
+	mov	cx,size PMB_NAME
+	push	es
+	push	ds
+	push	es
+	pop	ds			; DS:SI -> name
+	pop	es			; ES:DI -> PMB_NAME
+	mov	al,0
+	test	si,si			; is there a name?
+	jz	bk1			; no
+	rep	movsb
+bk1:	rep	stosb			; (zero the rest, if any)
+	pop	es
+bk9:	ret
+ENDPROC	ddcpu_setblk
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -657,7 +1005,7 @@ ENDPROC	mv_ptr
 ;
 ; blk_sel
 ;
-; Gives the block at BX a selector (in protected mode, unless SELF_NONE is
+; Gives the block at BX a selector (in protected mode, unless MEMF_NONE is
 ; set in SV_ARG), or returns its segment (in real mode).
 ;
 ; Inputs:
@@ -674,7 +1022,7 @@ DEFPROC	blk_sel
 	mov	cx,ds:[bx].PMB_ADDR.LOW
 	mov	dx,ds:[bx].PMB_ADDR.HIW
 	sub	ax,ax
-	test	ds:[SYS_VARS].SV_ARG,SELF_NONE
+	test	ds:[SYS_VARS].SV_ARG,MEMF_NONE
 	jnz	bs9			; (carry is clear)
 	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM
 	jnz	bs1
@@ -754,14 +1102,13 @@ ENDPROC	len_round
 ;
 ; pmb_fit
 ;
-; Finds where to allocate a block of length SV_LEN: at DX:CX, with SELF_AT
+; Finds where to allocate a block of length SV_LEN: at DX:CX, with MEMF_AT
 ; (that memory must be free); otherwise, the first free block that's long
-; enough, in extended memory if there is any, or below 1Mb with SELF_LOW, or
-; the top of the last free block below 1Mb that's long enough, with
-; SELF_HIGH.
+; enough, or with MEMF_HIGH, the top of the last one, anywhere in memory, or
+; below 1Mb with MEMF_LOW.
 ;
 ; Inputs:
-;	AL = SELF_* flags, DX:CX = address (SELF_AT only)
+;	AL = MEMF_* flags, DX:CX = address (MEMF_AT only)
 ;
 ; Outputs:
 ;	Carry clear if successful: BX -> free PMB, DX:CX = address in it
@@ -770,7 +1117,7 @@ ENDPROC	len_round
 ;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	pmb_fit
-	test	al,SELF_AT
+	test	al,MEMF_AT
 	jz	pf1
 	call	pmb_find		; BX -> PMB containing DX:CX
 	jc	pf0
@@ -787,23 +1134,15 @@ DEFPROC	pmb_fit
 	sbb	di,ds:[SYS_VARS].SV_LEN.HIW
 pf0:	ret				; carry set if it doesn't fit
 pf1:	mov	ah,al
-	test	ah,SELF_HIGH
-	jnz	pf1a
-	cmp	ds:[SYS_VARS].SV_TYPE,CPUTYPE_80286
-	jae	pf1b
-pf1a:	or	ah,SELF_LOW		; (an 8086 has nothing above 1Mb)
-pf1b:	mov	bx,SYS_PMBS
+	mov	bx,SYS_PMBS
 	mov	si,ds:[SYS_VARS].SV_NPMBS
 	sub	di,di			; DI -> PMB found (none yet)
-pf2:	cmp	ds:[bx].PMB_TYPE,PMBTYPE_FREE
+pf2:	test	ah,MEMF_LOW		; must it be below 1Mb?
+	jz	pf2a			; no
+	cmp	ds:[bx].PMB_ADDR.HIW,10h; is this block below 1Mb?
+	jae	pf5			; no (and neither are the rest)
+pf2a:	cmp	ds:[bx].PMB_TYPE,PMBTYPE_FREE
 	jne	pf4
-	mov	al,0
-	cmp	ds:[bx].PMB_ADDR.HIW,10h
-	jae	pf2a
-	mov	al,SELF_LOW		; AL = SELF_LOW if it's below 1Mb
-pf2a:	xor	al,ah
-	test	al,SELF_LOW		; is it in the right place?
-	jnz	pf4			; no
 	mov	cx,ds:[SYS_VARS].SV_LEN.HIW
 	cmp	ds:[bx].PMB_LEN.HIW,cx
 	ja	pf3
@@ -812,7 +1151,7 @@ pf2a:	xor	al,ah
 	cmp	ds:[bx].PMB_LEN.LOW,cx
 	jb	pf4			; it's not long enough
 pf3:	mov	di,bx
-	test	ah,SELF_HIGH		; look for the last one?
+	test	ah,MEMF_HIGH		; look for the last one?
 	jz	pf5			; no
 pf4:	add	bx,size PMB
 	dec	si
@@ -822,7 +1161,7 @@ pf5:	mov	bx,di
 	jz	pf8			; no
 	mov	cx,ds:[bx].PMB_ADDR.LOW
 	mov	dx,ds:[bx].PMB_ADDR.HIW
-	test	ah,SELF_HIGH
+	test	ah,MEMF_HIGH
 	jz	pf9			; (carry is clear)
 	add	cx,ds:[bx].PMB_LEN.LOW
 	adc	dx,ds:[bx].PMB_LEN.HIW
@@ -871,19 +1210,31 @@ ENDPROC	pmb_find
 ;
 ; pmb_used
 ;
-; Finds the block that CPU_ALLOC returned at DX:CX.
+; Finds the block that CPU_ALLOC returned at DX:CX (or with DX = -1, the block
+; whose selector or segment is CX).
 ;
 ; Outputs:
 ;	Carry clear if successful: BX -> PMB
 ;	Carry set if error: AX = ERR_BADADDR
 ;
 ; Modifies:
-;	AX, BX, SI, DI
+;	AX, BX, CX, DX
 ;
 DEFPROC	pmb_used
 	push	si
 	push	di
-	call	pmb_find		; BX -> PMB containing DX:CX
+	cmp	dx,-1			; is CX a selector (or segment)?
+	jne	pu1			; no
+	xchg	ax,cx
+	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM
+	jz	pu0
+	call	sel_base		; DX:AX = its base address
+	jmp	short pu0a
+pu0:	mov	dx,ax
+	shl	ax,4
+	shr	dx,12			; DX:AX = the segment's address
+pu0a:	xchg	cx,ax
+pu1:	call	pmb_find		; BX -> PMB containing DX:CX
 	pop	di
 	pop	si
 	jc	pu8
@@ -902,6 +1253,9 @@ ENDPROC	pmb_used
 ;
 ; pmb_largest
 ;
+; Only blocks below 1Mb count if MEMF_LOW is set in SV_ARG (ie, for a
+; CPU_ALLOC that had to be there).
+;
 ; Outputs:
 ;	DX:CX = length of the largest free block (zero if none)
 ;
@@ -915,7 +1269,11 @@ DEFPROC	pmb_largest
 	mov	si,ds:[SYS_VARS].SV_NPMBS
 pl1:	cmp	ds:[bx].PMB_TYPE,PMBTYPE_FREE
 	jne	pl3
-	mov	ax,ds:[bx].PMB_LEN.HIW
+	test	ds:[SYS_VARS].SV_ARG,MEMF_LOW
+	jz	pl1a			; any block counts
+	cmp	ds:[bx].PMB_ADDR.HIW,10h
+	jae	pl3			; this one is above 1Mb
+pl1a:	mov	ax,ds:[bx].PMB_LEN.HIW
 	cmp	ax,dx
 	jb	pl3
 	ja	pl2
@@ -1162,7 +1520,7 @@ ENDPROC	a20_on
 ; pm_map (CPU_MAP in protected mode)
 ;
 ; Inputs:
-;	AL = SELF_* flags, DX:CX = address, SI:DI = length (non-zero)
+;	AL = MEMF_* flags, DX:CX = address, SI:DI = length (non-zero)
 ;
 ; Outputs:
 ;	Carry clear if successful: AX = selector, CX = # of selectors
@@ -1214,7 +1572,7 @@ ENDPROC	pm_unmap
 ; pm_alias (CPU_ALIAS in protected mode)
 ;
 ; Inputs:
-;	AL = SELF_* flags, BX = selector to alias
+;	AL = MEMF_* flags, BX = selector to alias
 ;
 ; Outputs:
 ;	Carry clear if successful: AX = selector, DX:CX = base address
@@ -1222,25 +1580,13 @@ ENDPROC	pm_unmap
 ;	or ERR_NOMEMORY if there's no free descriptor)
 ;
 DEFPROC	pm_alias
-	mov	si,bx
-	and	si,NOT 7
-	mov	cx,si
-	shr	cx,3			; CX = descriptor index
-	add	si,SYS_GDT
-	mov	dx,GDT_MAX
-	test	bl,SEL_TI
-	jz	ci1
-	add	si,SYS_LDT - SYS_GDT
-	mov	dx,LDT_MAX
-ci1:	cmp	cx,dx			; is the index within the table?
-	jae	ci8			; no
-	cmp	ds:[si].DESC_ACC,0	; is the descriptor in use?
-	je	ci8			; no
+	call	sel_desc		; SI -> BX's descriptor
+	jc	ci9
 	push	si
 	mov	cx,1
 	call	desc_alloc		; AX = selector, BX -> DESC
 	pop	si
-	jc	ci9
+	jc	ci8
 	mov	cx,ds:[si].DESC_LIMIT
 	mov	ds:[bx].DESC_LIMIT,cx
 	mov	dx,ds:[si].DESC_EXT
@@ -1250,12 +1596,43 @@ ci1:	cmp	cx,dx			; is the index within the table?
 	mov	cx,ds:[si].DESC_BASE
 	mov	ds:[bx].DESC_BASE,cx	; DX:CX = base (and carry is clear)
 	ret
-ci8:	mov	ax,ERR_INVALID
-	stc
-	ret
-ci9:	mov	ax,ERR_NOMEMORY
-	ret
+ci8:	mov	ax,ERR_NOMEMORY
+ci9:	ret
 ENDPROC	pm_alias
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; sel_desc
+;
+; Inputs:
+;	BX = selector
+;
+; Outputs:
+;	Carry clear if it's in use: SI -> its descriptor
+;	Carry set if not: AX = ERR_INVALID
+;
+; Modifies:
+;	CX, DX, SI (and AX, if carry is set)
+;
+DEFPROC	sel_desc
+	mov	si,bx
+	and	si,NOT 7
+	mov	cx,si
+	shr	cx,3			; CX = descriptor index
+	add	si,SYS_GDT
+	mov	dx,GDT_MAX
+	test	bl,SEL_TI
+	jz	sd1
+	add	si,SYS_LDT - SYS_GDT
+	mov	dx,LDT_MAX
+sd1:	cmp	cx,dx			; is the index within the table?
+	jae	sd8			; no
+	cmp	ds:[si].DESC_ACC,0	; is the descriptor in use?
+	jne	sd9			; yes (and carry is clear)
+sd8:	mov	ax,ERR_INVALID
+	stc
+sd9:	ret
+ENDPROC	sel_desc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1291,7 +1668,7 @@ ENDPROC	pm_ptr
 ; one's limit covers whatever remains).
 ;
 ; Inputs:
-;	AL = SELF_* flags, DX:CX = address, SI:DI = length (non-zero)
+;	AL = MEMF_* flags, DX:CX = address, SI:DI = length (non-zero)
 ;
 ; Outputs:
 ;	Carry clear if successful: AX = first selector, CX = # of selectors
@@ -1345,7 +1722,7 @@ ENDPROC	map_block
 ; or the LDT, and claims them by storing the access byte in each.
 ;
 ; Inputs:
-;	AL = SELF_* flags, CX = # of descriptors
+;	AL = MEMF_* flags, CX = # of descriptors
 ;
 ; Outputs:
 ;	Carry clear if successful: AX = first selector, BX -> first DESC
@@ -1357,7 +1734,7 @@ ENDPROC	map_block
 DEFPROC	desc_alloc
 	mov	bx,SYS_GDT + GDT_FIXED * (size DESC)
 	mov	dx,GDT_MAX - GDT_FIXED
-	test	al,SELF_LDT
+	test	al,MEMF_LDT
 	jz	da1
 	mov	bx,SYS_LDT
 	mov	dx,LDT_MAX
@@ -1379,13 +1756,13 @@ da4:	add	bx,size DESC
 da8:	stc
 	ret
 da5:	mov	ah,ACC_DATA
-	test	al,SELF_CODE
+	test	al,MEMF_CODE
 	jz	da6
 	mov	ah,ACC_CODE
-da6:	test	al,SELF_RDONLY
+da6:	test	al,MEMF_RDONLY
 	jz	da6a
 	and	ah,NOT ACC_RW		; read-only data (or execute-only code)
-da6a:	test	al,SELF_USER
+da6a:	test	al,MEMF_USER
 	jz	da6b
 	or	ah,ACC_DPL3
 da6b:	mov	bx,di
@@ -1394,7 +1771,7 @@ da7:	mov	ds:[di].DESC_ACC,ah
 	add	di,size DESC
 	loop	da7
 	pop	cx
-	test	al,SELF_LDT
+	test	al,MEMF_LDT
 	mov	ax,bx
 	jnz	da9
 	sub	ax,SYS_GDT		; GDT selector = offset within GDT
@@ -1575,7 +1952,7 @@ dp0:	mov	sp,bp
 	stc
 	ret
 dp1:	mov	ax,[bp+16]
-	mov	dl,SELF_CODE
+	mov	dl,MEMF_CODE
 	call	seg_sel			; caller's CS
 	jc	dp0
 	push	ax			; [bp-2]
@@ -1604,11 +1981,11 @@ dp1:	mov	ax,[bp+16]
 	mov	es,ax
 	mov	di,offset DDINT_CPU + DDINT_BIAS
 	mov	ax,offset DEV:cpu_entry
-	call	sto_slot
+	call	set_ddint
 	mov	ax,offset DEV:pm_getvec
-	call	sto_slot		; (DDINT_GETVEC follows DDINT_CPU)
+	call	set_ddint		; (DDINT_GETVEC follows DDINT_CPU)
 	mov	ax,offset DEV:pm_setvec
-	call	sto_slot		; (and DDINT_SETVEC follows that)
+	call	set_ddint		; (and DDINT_SETVEC follows that)
 	mov	ah,78h
 	call	pic_init		; move the master PIC to 78h
 	or	ds:[SYS_VARS].SV_FLAGS,CPUF_PM
@@ -1641,7 +2018,7 @@ ENDPROC	pm_pmode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; sto_slot
+; set_ddint
 ;
 ; Stores a far jump to SEL_CPUCODE:AX at ES:DI (a DDINT slot), and advances
 ; DI to the next slot.
@@ -1649,7 +2026,7 @@ ENDPROC	pm_pmode
 ; Modifies:
 ;	AX, DI
 ;
-DEFPROC	sto_slot
+DEFPROC	set_ddint
 	push	ax
 	mov	al,OP_JMPF
 	stosb
@@ -1658,7 +2035,7 @@ DEFPROC	sto_slot
 	mov	ax,SEL_CPUCODE
 	stosw
 	ret
-ENDPROC	sto_slot
+ENDPROC	set_ddint
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1669,7 +2046,7 @@ ENDPROC	sto_slot
 ; SEL_LOW for segment 0, or SEL_BIOS for segment 40h), or a new one.
 ;
 ; Inputs:
-;	AX = segment, DL = SELF_CODE for a code selector (otherwise 0)
+;	AX = segment, DL = MEMF_CODE for a code selector (otherwise 0)
 ;	DS = system area
 ;
 ; Outputs:
@@ -1686,7 +2063,7 @@ DEFPROC	seg_sel
 	shl	cx,4			; CX = base bits 15-0
 	shr	ax,12			; AL = base bits 23-16
 	mov	ah,ACC_DATA
-	test	dl,SELF_CODE
+	test	dl,MEMF_CODE
 	jz	ss1
 	mov	ah,ACC_CODE
 ss1:	mov	bx,SYS_GDT + (size DESC)
@@ -1840,6 +2217,7 @@ ex3:	popa
 	add	sp,2			; discard the error code
 	iret
 ex8:	mov	cx,bx			; CX = error code
+	call	to_fault		; (unless there's a fault handler)
 	jmp	cpu_fatal
 ENDPROC	exc_common
 ;
@@ -1892,30 +2270,31 @@ ENDPROC	irq_common
 ; get_vec), getting the vector from the caller's INT instruction.  The
 ; handler is entered with interrupts disabled and an interrupt frame that
 ; returns to si_ret, which copies its result flags (CF, ZF, SF, and OF) to the
-; caller's.  For INT 13h functions with a buffer at ES:BX, which the BIOS
-; turns into a DMA address (ES * 16 + BX), ES:BX first becomes SEL_BIOS and
-; an offset (the buffer must be within 64K of 400h), and si_ret restores
-; them.  An interrupt with no handler is fatal.
+; caller's.  Callers handle any BIOS quirks with selectors (eg, INT 13h's
+; buffers; see pm_rw in the FDC driver).  An interrupt with no handler is
+; fatal.
 ;
 ; The stack above the PUSHA frame holds the handler's address (BP+16), its
-; frame (BP+20), the caller's ES and BX (BP+26), and the caller's frame
-; (BP+30).
+; frame (BP+20), and the caller's frame (BP+26).
 ;
 DEFPROC	sw_int
-	sub	sp,14
+	sub	sp,10
 	pusha
 	mov	bp,sp
 	push	ds
-	lds	si,dword ptr [bp+30]	; DS:SI -> caller's next instruction
+	lds	si,dword ptr [bp+26]	; DS:SI -> caller's next instruction
 	mov	ax,[si-2]
 	mov	cl,[si-1]
 	pop	ds
+	mov	bx,2			; BX = length of the INT
 	cmp	al,OP_INT		; INT n?
 	je	si1			; yes (AH = n)
 	mov	ah,INT_BP
+	dec	bx
 	cmp	cl,OP_INT03		; INT3?
 	je	si1			; yes
 	mov	ah,0FFh			; no, so the vector is unknown
+	dec	bx
 	jmp	short si8
 si1:	mov	al,ah
 	call	get_vec			; DX:CX = handler
@@ -1925,34 +2304,14 @@ si1:	mov	al,ah
 	mov	[bp+18],dx
 	mov	word ptr [bp+20],offset DEV:si_ret
 	mov	word ptr [bp+22],SEL_CPUCODE
-	mov	cx,[bp+34]
+	mov	cx,[bp+30]
 	mov	[bp+24],cx		; the caller's flags
-	mov	word ptr [bp+26],0	; no ES:BX to restore
-	cmp	al,INT_FDC
-	jne	si3
-	mov	cl,[bp+15]		; CL = caller's AH
-	sub	cl,FDC_READ
-	cmp	cl,FDC_FORMAT - FDC_READ + 1
-	jae	si3			; no buffer at ES:BX
-	mov	ax,es
-	call	sel_base		; DX:AX = base of ES
-	add	ax,[bp+8]
-	adc	dx,0			; DX:AX = address of ES:BX
-	sub	ax,BIOS_DATA
-	sbb	dx,0			; DX:AX = its offset from 400h
-	jz	si2			; it's within 64K of 400h
-	mov	ah,INT_FDC
-	jmp	short si8
-si2:	mov	[bp+26],es
-	mov	cx,[bp+8]
-	mov	[bp+28],cx
-	mov	[bp+8],ax		; BX = the buffer's offset from 400h
-	mov	ax,SEL_BIOS
-	mov	es,ax
-si3:	popa
+	popa
 	db	OP_RETF			; "return" to the handler
-si8:	mov	cx,[bp+14]		; CX = caller's AX
-	lea	si,[bp+30]		; SS:SI -> caller's IP and CS
+si8:	sub	[bp+26],bx		; back the caller's IP up to the INT
+	mov	cx,[bp+14]		; CX = caller's AX
+	lea	si,[bp+26]		; SS:SI -> caller's IP and CS
+	call	to_fault		; (unless there's a fault handler)
 	jmp	cpu_fatal
 ENDPROC	sw_int
 
@@ -1961,25 +2320,20 @@ ENDPROC	sw_int
 ; si_ret
 ;
 ; A software interrupt's handler returns here (see sw_int), with the caller's
-; ES and BX (if ES isn't zero) and the caller's frame on the stack.
+; frame on the stack.
 ;
 DEFPROC	si_ret
 	push	bp
 	mov	bp,sp
 	pushf				; [bp-2] = handler's flags
-	cmp	word ptr [bp+2],0	; any ES:BX to restore?
-	je	sr1			; no
-	mov	es,[bp+2]
-	mov	bx,[bp+4]
-sr1:	push	ax
+	push	ax
 	mov	ax,[bp-2]
 	and	ax,FL_RESULTS
-	and	word ptr [bp+10],NOT FL_RESULTS
-	or	[bp+10],ax		; update the caller's flags
+	and	word ptr [bp+6],NOT FL_RESULTS
+	or	[bp+6],ax		; update the caller's flags
 	pop	ax
 	mov	sp,bp
 	pop	bp
-	add	sp,4			; discard ES and BX
 	iret
 ENDPROC	si_ret
 
@@ -2145,10 +2499,74 @@ ENDPROC	sel_base
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; to_fault
+;
+; Gives a fatal exception to the fault handler (see CPU_SETFAULT), if there
+; is one, unless the exception occurred in CPU$ or in the handler's own code
+; segment.  The stack below the faulting instruction's frame is rebuilt as the
+; PUSHA frame, a word of padding, the handler's address, the vector, and the
+; error code, and then the registers are restored and we "return" to the
+; handler.
+;
+; Inputs:
+;	AH = vector, CX = error code
+;	SS:BP -> PUSHA frame (at or above SI-26)
+;	SS:SI -> IP, CS, and FLAGS of the faulting instruction
+;	DS and ES as they were
+;
+; Outputs:
+;	Returns only if there's no handler (or it can't be used)
+;
+; Modifies:
+;	BX, DX, DI
+;
+DEFPROC	to_fault
+	push	ds
+	mov	dx,SEL_SYS
+	mov	ds,dx
+	mov	dx,ds:[SYS_VARS].SV_FAULT.SEG
+	pop	ds
+	test	dx,dx			; is there a handler?
+	jz	tf9			; no
+	mov	bx,ss:[si+2]		; BX = faulting CS
+	cmp	bx,dx			; is it the handler's?
+	je	tf9			; yes
+	cmp	bx,SEL_CPUCODE		; or ours?
+	je	tf9			; yes
+	lea	bx,[si-26]		; BX -> new PUSHA frame (<= BP)
+	sub	di,di
+tf1:	mov	dx,[bp+di]
+	mov	ss:[bx+di],dx
+	inc	di
+	inc	di
+	cmp	di,16
+	jb	tf1
+	mov	sp,bx
+	mov	ss:[si-2],cx		; error code
+	mov	al,ah
+	mov	ah,0
+	mov	ss:[si-4],ax		; vector
+	push	ds
+	mov	dx,SEL_SYS
+	mov	ds,dx
+	mov	dx,ds:[SYS_VARS].SV_FAULT.OFF
+	mov	ss:[si-8],dx
+	mov	dx,ds:[SYS_VARS].SV_FAULT.SEG
+	mov	ss:[si-6],dx
+	pop	ds
+	popa
+	add	sp,2			; skip the padding
+	db	OP_RETF			; "return" to the handler
+tf9:	ret
+ENDPROC	to_fault
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; cpu_fatal
 ;
 ; Reports an exception (or an interrupt that has no handler) with the BIOS,
-; and stops the machine (eg, for a debugger to examine).
+; as "CPU$ fault vv at cccc:iiii (DS=dddd ES=eeee EC=xxxx)", where EC is the
+; error code, and stops the machine (eg, for a debugger to examine).
 ;
 ; Inputs:
 ;	AH = vector (0FFh for an unknown software interrupt)
@@ -2157,49 +2575,48 @@ ENDPROC	sel_base
 ;	DS and ES as they were
 ;
 DEFPROC	cpu_fatal
+	push	cx
 	push	es
 	push	ds
 	push	word ptr ss:[si]	; IP
 	push	word ptr ss:[si+2]	; CS
-	push	cx
-	mov	al,ah
-	mov	ah,0
-	push	ax
-	mov	bp,sp			; BP -> vector, error, CS, IP, DS, ES
+	push	ax			; AH = vector
+	mov	bp,sp			; BP -> vector, CS, IP, DS, ES, error
 	mov	si,offset DEV:fatal_fields
 	sub	di,di
 cft1:	lods	byte ptr cs:[si]
-	test	al,al			; end of label?
-	jz	cft2			; yes
-	call	pr_char
-	jmp	cft1
-cft2:	cmp	di,12			; all values printed?
-	je	cft9			; yes
+	cmp	al,4			; a field's # of digits (or the end)?
+	ja	cft2			; no, a character
+	cbw
+	xchg	cx,ax			; CX = # of digits
+	jcxz	cft9			; the end
 	mov	ax,[bp+di]
-	call	pr_hex4
+	call	pr_hex
 	inc	di
 	inc	di
 	jmp	cft1
-cft9:	cli
-	hlt
-	jmp	cft9
+cft2:	call	pr_char
+	jmp	cft1
+cft9:	HALT_FATAL
 ENDPROC	cpu_fatal
-
+;
+; Each field is a # of digits (4, or 2 for the vector, in AH); 0 ends them.
+;
 	DEFLBL	fatal_fields,byte
-	db	13,10,"CPU$ fault ",0,", error ",0," at ",0,":",0
-	db	", ds ",0,", es ",0,13,10,0
+	db	13,10,"CPU$ fault ",2," at ",4,":",4," (DS=",4," ES=",4
+	db	" EC=",4,")",13,10,0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; pr_hex4 and pr_char
+; pr_hex and pr_char
 ;
-; Print the word in AX (as 4 hex digits) or the character in AL with the BIOS.
+; Print the high CX digits of AX (in hex) or the character in AL with the
+; BIOS.
 ;
 ; Modifies:
 ;	AX, BX, CX
 ;
-DEFPROC	pr_hex4
-	mov	cx,4
+DEFPROC	pr_hex
 ph1:	rol	ax,4
 	push	ax
 	and	al,0Fh
@@ -2216,7 +2633,7 @@ ph1:	rol	ax,4
 	mov	bh,0
 	int	INT_VIDEO
 	ret
-ENDPROC	pr_hex4
+ENDPROC	pr_hex
 
 	ASSERT	<offset exc_common - offset exc_stubs>,EQ,<16 * 5>
 	ASSERT	<offset irq_common - offset irq_stubs>,EQ,<16 * 7>
@@ -2233,11 +2650,16 @@ ENDPROC	pr_hex4
 ;
 ; Only 8086 instructions may be used until the CPU type is known.
 ;
+; We're always the first driver, so we also apply any "MEMSIZE=" line (see
+; docs/bdman/cfg), by lowering MEMORY_SIZE, before either driver builds its
+; arena.
+;
 ; Inputs:
 ;	ES:BX -> DDPI
 ;
 ; Outputs:
-;	DDPI's DDPI_END updated (left zero if we're not staying)
+;	DDPI's DDPI_END updated (left zero if we're not staying), and if
+;	we're staying, CPU_ARENA (see cpu.inc)
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, BP, DS
@@ -2247,13 +2669,40 @@ DEFPROC	ddcpu_init,far
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddcpu_req
 	push	es
 	push	bx
-	mov	di,offset DEV:cfg_8088
+	mov	di,offset DEV:cfg_memsize
+	call	find_cfg		; is there a "MEMSIZE=" line?
+	jne	di0			; no
+	add	si,8			; DS:SI -> its value
+	sub	ax,ax
+dm1:	mov	cl,[si]
+	sub	cl,'0'
+	cmp	cl,9			; another digit?
+	ja	dm2			; no
+	inc	si
+	mov	dx,ax
+	shl	ax,1
+	shl	ax,1
+	add	ax,dx
+	shl	ax,1			; AX = AX * 10
+	mov	ch,0
+	add	ax,cx
+	jmp	dm1
+dm2:	mov	dx,BIOS
+	mov	ds,dx
+	ASSUME	DS:BIOS
+	cmp	ax,16			; is the value at least 16 (Kb)?
+	jb	di0			; no
+	cmp	ax,[MEMORY_SIZE]	; and less than we have?
+	jae	di0			; no
+	mov	[MEMORY_SIZE],ax
+di0:	mov	di,offset DEV:cfg_8088
 	call	find_cfg		; is there a "CPU=8088" line?
 	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
-	mov	al,CPUTYPE_8086
-	je	di2			; yes, so act as if this is an 8088
+	pushf				; (ZF set if so; see di2)
+;
+; Even then, we determine the processor type (for CPU_HWTYPE).
 ;
 ; An 8086 or 80186 decrements SP before PUSH SP stores it, whereas an 80286
 ; or later stores the original value.
@@ -2285,7 +2734,11 @@ di1:	pushf
 	cmp	ah,1			; carry set if bits 12-14 are clear
 	mov	al,CPUTYPE_80386
 	sbb	al,0			; AL = CPUTYPE_80286 or CPUTYPE_80386
-di2:	mov	[CPU_TYPE],al
+di2:	mov	[CPU_HWTYPE],al
+	popf				; was there a "CPU=8088" line?
+	jne	di2a			; no
+	mov	al,CPUTYPE_8086		; yes, so act as if this is an 8088
+di2a:	mov	[CPU_TYPE],al
 	cmp	al,CPUTYPE_80286	; protected mode available?
 	jb	di9			; no
 ;
@@ -2332,6 +2785,7 @@ di9:	pop	bx
 ; SYSVARS, the PMBs, the GDT, and the IDTs.
 ;
 	.286p
+	ASSUME	DS:BIOS
 di3:	mov	di,10h
 	mov	cx,0FFF0h SHR 1		; (10000h - 10h bytes)
 	sub	ax,ax
@@ -2342,7 +2796,10 @@ di3:	mov	di,10h
 	mov	di,SYS_VARS
 	mov	es:[di].SV_SIG,SIG_SYSVARS
 	mov	al,[CPU_TYPE]
-	mov	es:[di].SV_TYPE,al
+	mov	ah,al			; (the same as CPU_HWTYPE here)
+	ror	ah,1
+	ror	ah,1			; AH = CPUF_HWTYPE
+	mov	word ptr es:[di].SV_TYPE,ax	; (and SV_FLAGS)
 	mov	es:[di].SV_RMCS,cs
 	mov	es:[di].SV_GDTR,GDT_LIMIT
 	mov	es:[di].SV_GDTR+2,SYS_GDT - 10h
@@ -2428,7 +2885,9 @@ di6:	call	idt_default		; AX = handler, DH = access rights
 	test	es:[SYS_VARS].SV_FLAGS,CPUF_PMOK
 	jnz	di7
 	jmp	di9
-di7:	mov	ax,offset DEV:ddcpu_init
+di7:	mov	[CPU_ARENA].OFF,SYS_PMBS
+	mov	[CPU_ARENA].SEG,es	; CPU_ARENA -> the PMB table
+	mov	ax,offset DEV:ddcpu_init
 	mov	byte ptr ds:[DDINT_CPU],OP_JMPF
 	mov	word ptr ds:[DDINT_CPU+1],offset DEV:cpu_entry
 	mov	word ptr ds:[DDINT_CPU+3],cs
@@ -2613,6 +3072,8 @@ ENDPROC	find_cfg
 
 	DEFLBL	cfg_8088,byte
 	db	8,"CPU=8088"
+	DEFLBL	cfg_memsize,byte
+	db	8,"MEMSIZE="
 
 	.286p
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2690,6 +3151,8 @@ ENDPROC	idt_default
 	DESC	<0FFFFh,BIOS_DATA,0,ACC_DATA,0>		; SEL_BIOS
 	DESC	<0,0,0,0,0>				; (unused)
 	DESC	<0FFFFh,BIOS_DATA+100h,0,ACC_CODE,0>	; SEL_DDINT
+	DESC	<INT_DOSCALL5*4+4,0,0,ACC_CODE,0>	; SEL_C5CODE
+	DESC	<INT_DOSCALL5*4,SEL_C5CODE,0,ACC_CALLGATE,0>
 	DEFLBL	gdt_init_end,byte
 	ASSERT	<offset gdt_init_end - offset gdt_init>,EQ,<(GDT_FIXED-1)*8>
 

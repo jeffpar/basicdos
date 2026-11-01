@@ -23,7 +23,7 @@ The Program Segment Prefix is compatible with PC DOS, but BASIC-DOS uses several
 | 04h | PSP_SCB | * Session number |
 | 05h | PSP_CALL5 | Far call (9Ah) for CALL 5 |
 | 06h | PSP_SIZE | Size of the PSP segment |
-| 08h | PSP_FCSEG | Far call segment |
+| 08h | PSP_FCSEG | Far call segment (in protected mode, the SEL_CALL5 call gate; see [CPU$](../mmu/#sysarea)) |
 | 0Ah | PSP_EXIT | Original INT 22h vector |
 | 0Eh | PSP_CTRLC | Original INT 23h vector |
 | 12h | PSP_ERROR | Original INT 24h vector |
@@ -181,7 +181,7 @@ File Control Blocks are compatible with PC DOS; see FCB, FCBF, and FCBEX in dosa
 
 ### MCB
 
-Each Memory Control Block occupies the paragraph before the memory block it describes.
+The CPU$ driver manages memory (see [Protected Mode](../mmu/)), and only its 8086 driver uses Memory Control Blocks, as PC DOS does: each MCB occupies the paragraph before the memory block it describes.  DOS keeps each block's owner, type, and name with CPU$ (see CPU_SETBLK), which stores them in the block's MCB (or with the 80286 driver, in its PMB).
 
 | Offset | Field | Description |
 |--------|-------|-------------|
@@ -194,12 +194,12 @@ Each Memory Control Block occupies the paragraph before the memory block it desc
 
 ### DOSVARS
 
-DOS_MSC_GETVARS returns ES:BX -> DOSVARS.  As in PC DOS, the word before it contains the first memory segment; the rest of the structure is BASIC-DOS-specific.
+DOS_MSC_GETVARS returns ES:BX -> DOSVARS.  As in PC DOS, the word before it is for the first memory segment, but it's always zero, since there's no MCB chain for programs to walk (CPU$ manages memory); the rest of the structure is BASIC-DOS-specific.
 
 | Offset | Field | Description |
 |--------|-------|-------------|
-| -02h | DV_MCB_HEAD | First memory segment (first MCB) |
-| 00h | DV_MCB_LIMIT | First unavailable segment |
+| -02h | DV_MCB_HEAD | First memory segment (zero) |
+| 00h | DV_MEM_SIZE | Total memory, in Kb (conventional memory plus any extended memory) |
 | 02h | DV_BPB_TABLE | Offset and limit of the BPB table |
 | 06h | DV_SFB_TABLE | Offset and limit of the SFB table |
 | 0Ah | DV_SCB_TABLE | Offset and limit of the SCB table |

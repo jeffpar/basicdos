@@ -56,7 +56,8 @@ DEFPROC	main
 ;
 ; Make a series of increasingly large memory allocations (in MEMSTEP
 ; increments), until an allocation fails; then verify that an allocation of
-; the maximum size reported by the failure succeeds.
+; the maximum size reported by the failure succeeds.  If a free block is at
+; least 1Mb (eg, with extended memory), every size succeeds instead.
 ;
 	mov	dx,offset alloctest
 	call	print
@@ -72,7 +73,7 @@ m2:	mov	ax,DOS_MEM_ALLOC SHL 8
 	ASSERT	NC
 	add	bx,MEMSTEP	; ask for MEMSTEP more paragraphs
 	jnc	m2
-	jmp	short m4	; we should never get this far
+	jmp	short m3a	; every size succeeded
 m3:	mov	ax,DOS_MEM_ALLOC SHL 8
 	int	21h		; BX = max paragraphs available
 	jc	m4		; so this allocation should succeed
@@ -80,7 +81,7 @@ m3:	mov	ax,DOS_MEM_ALLOC SHL 8
 	mov	ah,DOS_MEM_FREE
 	int	21h
 	jc	m4
-	mov	dx,offset progress
+m3a:	mov	dx,offset progress
 	call	print
 	loop	m1
 	clc
@@ -168,9 +169,9 @@ m7:
 	int	21h		; open file (and neglect to close it)
 
 	mov	bx,offset execparms
-	mov	[bx].EPB_CMDTAIL.SEG,cs
-	mov	[bx].EPB_FCB1.SEG,cs
-	mov	[bx].EPB_FCB2.SEG,cs
+	mov	[bx].EPB_CMDTAIL.SEG,ds
+	mov	[bx].EPB_FCB1.SEG,ds
+	mov	[bx].EPB_FCB2.SEG,ds
 	mov	ax,DOS_PSP_EXEC1
 	mov	dx,offset execfile
 	int	21h		; exec (but don't launch)
@@ -559,7 +560,7 @@ ENDPROC	test_date
 ; normal termination.  The DOS tables are read only, for checking counts.
 ;
 DEFPROC	test_load
-	push	cs
+	push	ds
 	pop	es
 	mov	dx,offset loadchild
 	xor	cx,cx
@@ -602,7 +603,7 @@ tl0a:	mov	[loadhandle],-1
 	add	ax,es:[bx].DV_SFB_TABLE.OFF
 	mov	[loadrefs].OFF,ax
 	mov	[loadrefs].SEG,es
-	mov	[loadspb].SPB_CMDLINE.SEG,cs
+	mov	[loadspb].SPB_CMDLINE.SEG,ds
 	mov	[loadspb].SPB_CMDLINE.OFF,offset testfile
 	mov	bp,32
 tl1:
@@ -633,7 +634,7 @@ tl8:	pushf
 tl8a:	mov	dx,offset loadchild
 	mov	ah,DOS_DSK_DELETE
 	int	21h
-	push	cs
+	push	ds
 	pop	es
 	popf
 tl9:	ret
@@ -645,7 +646,7 @@ ENDPROC	test_load
 ; Load through the session API, or check the fixture's reference count.
 ;
 DEFPROC	load_session
-	push	cs
+	push	ds
 	pop	es
 	mov	bx,offset loadspb
 	xor	cx,cx			; no subsequent pipeline stages
@@ -671,7 +672,7 @@ ENDPROC	load_refcheck
 ; loaded child with EXEC2.
 ;
 DEFPROC	test_reserve
-	mov	[reserveparent],cs
+	mov	[reserveparent],ds
 	mov	dx,offset reservefile
 	xor	cx,cx
 	mov	ah,DOS_HDL_CREATE
@@ -695,9 +696,9 @@ rv6:	pushf
 rv0:	mov	ah,DOS_HDL_CLOSE
 	int	21h
 	jc	rv8
-	mov	[execparms].EPB_CMDTAIL.SEG,cs
-	mov	[execparms].EPB_FCB1.SEG,cs
-	mov	[execparms].EPB_FCB2.SEG,cs
+	mov	[execparms].EPB_CMDTAIL.SEG,ds
+	mov	[execparms].EPB_FCB1.SEG,ds
+	mov	[execparms].EPB_FCB2.SEG,ds
 	xor	cx,cx
 	mov	ax,DOS_PSP_EXEC
 	call	reserve_exec
@@ -745,7 +746,7 @@ ENDPROC	test_reserve
 ;
 DEFPROC	reserve_exec
 	push	ax
-	push	cs
+	push	ds
 	pop	es
 	mov	bx,offset execparms
 	mov	dx,offset reservefile

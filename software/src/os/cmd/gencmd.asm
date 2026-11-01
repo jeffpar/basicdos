@@ -59,7 +59,7 @@ CODE    SEGMENT
 	EXTNEAR	<memError,strPath,setPath,callDOS,rtError,findMsg>
 	EXTNEAR	<genExpr,genCvtType,genCallCS,genPushImmLong>
 	EXTNEAR	<getNextLine,getNextSymbol,getNextToken,peekNextToken>
-	EXTNEAR	<getLineNum,genMidSet>
+	EXTNEAR	<getLineNum,genMidSet,codeSeg>
 	EXTBYTE	<MID_DATA>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -92,7 +92,9 @@ DEFPROC	genCode
 	jbe	gc9			; (carry set only if there was an error)
 	ASSUME	ES:NOTHING
 	mov	[pCode].OFF,di
-	mov	[pCode].SEG,es
+	mov	dx,es
+	call	codeSeg
+	mov	[pCode].SEG,dx
 ;
 ; The memory model for the generated code is simple: CS is the current
 ; code block, SS is the heap, DS is the first var block (if any; see addVar),
@@ -122,6 +124,8 @@ DEFPROC	genCode
 	clc
 gc5:	pop	ds			; (genMore arrives here with carry set)
 	ASSUME	DS:DATA
+	push	ds			; ES may hold a code alias of a code
+	pop	es			; block, which freeing the code frees
 	pop	bp
 	mov	si,ds:[PSP_HEAP]
 	pop	[si].ERR_ADDR.SEG

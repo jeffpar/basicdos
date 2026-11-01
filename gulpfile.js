@@ -162,7 +162,7 @@ let disks = {
     "BASICDOS-360K-M640": { config: "./demos/m64/m640/CONFIG.SYS", title: "BASIC-DOS 640K Monochrome Demo" },
     "BASICDOS-360K-TERM": { config: "./demos/term/CONFIG.SYS", title: "BASIC-DOS Terminal Only Demo", final: true },
     "BASICDOS-360K-TERMHD": { config: "./demos/term/hd/CONFIG.SYS", title: "BASIC-DOS HD Terminal Only Demo" },
-    "BASICDOS-360K-MMU": { config: "./demos/mmu/CONFIG.SYS", title: "BASIC-DOS Protected Mode Demo", final: true },
+    "BASICDOS-360K-MMU": { config: "./demos/mmu/CONFIG.SYS", title: "BASIC-DOS Protected Mode Demo" },
     "BASICDOS-360K-TESTS": {
         title: "BASIC-DOS Tests",
         data: true,

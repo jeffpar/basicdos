@@ -402,9 +402,9 @@ DBGINIT	macro	type,ptr,str
 ;	ASSERT	Z,<test dx,dx>	; assert that DX is zero
 ;
 ; Run-time assertions are present only in DEBUG builds, and any optional
-; instruction is wrapped with PUSHF/POPF.  A failed assertion executes an
-; INT 3, which DEBUG.COM stops on (see DBGBRK); otherwise, the INT 03h
-; handler (dos_brkpt) reports it.
+; instruction is wrapped with PUSHF/POPF.  A failed assertion executes a NOP
+; and an INT 3 (the NOP marks the INT 3 as an assertion), which DEBUG.COM
+; stops on and reports; otherwise, the INT 03h handler (dos_brkpt) reports it.
 ;
 ; NEVER and FALSE are conditions that always fail; use NEVER for code that
 ; should never be reached, and FALSE for code that isn't finished yet.
@@ -426,9 +426,10 @@ ASSERT	macro	cond,op,value
 	  ENDIF
 	  IFDIF	<cond>,<NEVER>
 	   IFDIF <cond>,<FALSE>
-	J&cond	$+3		;; skip the INT 3
+	J&cond	$+4		;; skip the NOP and INT 3
 	   ENDIF
 	  ENDIF
+	nop			;; marks the INT 3 as an assertion
 	int	3		;; signal an assertion failure
 	  IFNB	<op>
 	popf
@@ -437,17 +438,26 @@ ASSERT	macro	cond,op,value
 	ENDIF
 	endm
 ;
-; DBGBRK generates an INT 3 in DEBUG builds.  DEBUG.COM (as a driver, or as
-; a program while it's running) stops there; otherwise, the INT 03h handler
-; (dos_brkpt) ignores it, since it's preceded by a NOP (unlike an ASSERT's).
-; The PCjs debugger also stops on an INT 3 when its INT and HALT messages are
-; on ("m int on" and "m halt on").
+; DBGBRK generates an INT 3 in DEBUG builds.  DEBUG.COM (as a program while
+; it's running, or as a driver loaded with /H) stops there; otherwise, the
+; INT 03h handler (dos_brkpt) ignores it, since it isn't preceded by a NOP
+; (unlike an ASSERT's).  The PCjs debugger also stops on an INT 3 when its INT and HALT
+; messages are on ("m int on" and "m halt on").
 ;
 DBGBRK	macro
 	IFDEF DEBUG
-	nop			;; tells dos_brkpt this isn't an ASSERT
 	int	3
 	ENDIF
+	endm
+;
+; HALT_FATAL stops the machine for good (eg, after reporting a fatal error),
+; with interrupts off, so that only a debugger (or a reset) can examine it.
+;
+HALT_FATAL	macro
+	local	hf
+hf:	cli
+	hlt
+	jmp	hf
 	endm
 
 ;
@@ -476,8 +486,7 @@ ASSUME1	macro	segreg,segment
 	ASSERT	Z,<test ax,ax>
 	  ELSE
 	   IFIDN <segment>,<DOS>
-	push	cs
-	pop	dx
+	mov	dx,cs:[dos_data]	;; (CS is a code selector in PM)
 	ASSERT	Z,<cmp ax,dx>
 	   ENDIF
 	  ENDIF

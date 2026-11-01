@@ -18,6 +18,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTWORD	<dos_data>
 	EXTNEAR	<copy_name,sfb_from_sfh,sfb_read,sfb_write,strlen>
 	EXTNEAR	<scb_release>
 	EXTWORD	<scb_active,err_stack>
@@ -59,8 +60,7 @@ DEFPROC	chk_devname,DOS
 	inc	si			; yes, so skip FCB_DRIVE
 
 cd0a:	mov	di,[scb_active]
-	push	cs
-	pop	es
+	mov	es,cs:[dos_data]
 	ASSUME	ES:DOS
 	ASSERT	STRUCT,es:[di],SCB
 	lea	di,[di].SCB_FILENAME + 1
@@ -340,7 +340,8 @@ dr4:	mov	ah,size BPBEX		; AL still contains the unit #
 	mul	ah
 	add	ax,[bpb_table].OFF	; AX = BPB address
 	mov	[bp].DDPRW_BPB.OFF,ax	; save it in the request packet
-	mov	[bp].DDPRW_BPB.SEG,cs
+	mov	ax,cs:[dos_data]
+	mov	[bp].DDPRW_BPB.SEG,ax
 
 dr5:	push	es			; create far pointer to DDH_REQUEST
 	push	es:[di].DDH_REQUEST	; at [bp-4]
@@ -489,8 +490,7 @@ DEFPROC	dev_error,DOS
 	push	bp
 	push	ds
 	push	es
-	push	cs
-	pop	ds			; DS = DOS (for the handler as well)
+	mov	ds,cs:[dos_data]	; DS = DOS (for the handler as well)
 	ASSUME	DS:DOS
 	LOCK_SCB
 	cmp	[err_active],0		; already handling a hard error?
@@ -533,8 +533,7 @@ he2:	mov	ah,cl			; AH = flags
 	mov	dx,ss
 	mov	cx,sp
 	cli
-	push	cs
-	pop	ss
+	mov	ss,cs:[dos_data]
 	mov	sp,[err_stack]
 	sti
 	mov	bx,[scb_active]
@@ -548,8 +547,7 @@ he2:	mov	ah,cl			; AH = flags
 	pushf
 	call	[bx].SCB_ERROR		; call the session's ERROR handler
 	DEFLBL	err_jump,near		; (AL = CRERR_ABORT via msc_sigctrlc)
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	mov	bx,[scb_active]
 	mov	[err_active],0
 	pop	word ptr [bx].SCB_INDOS
@@ -612,8 +610,7 @@ DEFPROC	dos_error,DOSFAR
 	push	di
 	push	ds
 	push	es
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	mov	dx,ax			; DH = flags, DL = drive #
 	mov	cx,di			; CX = error code

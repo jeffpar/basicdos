@@ -16,6 +16,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTWORD	<dos_data>
 	EXTNEAR	<dev_request>
 	EXTWORD	<buf_head>
 	EXTLONG	<bpb_table>
@@ -136,6 +137,10 @@ rb4:	mov	si,ds:[BUF_NEXT]
 	mov	ds:[BUF_LBA],dx
 	mov	ch,-1			; CH = -1 (read the sector)
 	jmp	short rb7
+rb9:	pop	bp
+	pop	cx
+	pop	bx
+	ret
 rb6:	mov	bx,si			; BX = buffer with the sector
 	mov	ch,0			; CH = 0 (no read required)
 ;
@@ -158,8 +163,7 @@ rb7:	mov	ds,bx
 	mov	ds:[BUF_PREV],bx
 	mov	ds,ax
 	mov	ds:[BUF_NEXT],bx
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	mov	[buf_head],bx		; the buffer is now the head
 	mov	ds,bx
@@ -188,10 +192,7 @@ rb8:	mov	si,size BUFHDR		; DS:SI -> data buffer
 	jnc	rb9
 	mov	ds:[BUF_LBA],0		; invalidate the buffer on error
 	stc
-rb9:	pop	bp
-	pop	cx
-	pop	bx
-	ret
+	jmp	rb9
 ENDPROC	read_buffer
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

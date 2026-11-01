@@ -8,15 +8,16 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 ; This is the second of two CPU$ drivers (see cpu.inc), and it stays only if
-; the first (cpudev.asm) didn't, ie, on an 8086 or 8088 (or an 80286 that
+; the first (286dev.asm) didn't, ie, on an 8086 or 8088 (or an 80286 that
 ; can't, or with "CPU=8088", won't use protected mode).  It manages all of
 ; memory with a chain of MCBs (see MCB in dosapi.inc), as DOS always has: the
 ; first MCB is in the paragraph after our code (see cpu_mcb), and the chain
 ; covers the rest of conventional memory, so every block that's allocated
 ; after us (eg, the other drivers, the kernel, and programs) has an MCB in the
 ; paragraph before it.  Our functions are the same as the first driver's: a
-; selector is a segment, there are no descriptors to map or unmap, and
-; CPU_QUERY describes each MCB with a PMB.
+; selector is a segment, there are no descriptors to map or unmap, CPU_QUERY
+; describes each MCB with a PMB, CPU_SEGINFO and CPU_RWMEM accept only real-
+; mode addresses, and CPU_SYSREGS fails (there are no system registers).
 ;
 	include	macros.inc
 	include	8086.inc
@@ -35,12 +36,15 @@ CPU86	DDH	<offset DEV:ddcpu_end+16,,DDATTR_CHAR,offset DEV:ddcpu_init,-1,2020202
 
 	even
 	DEFWORD	mcb_first,0		; paragraph of the first MCB
+	DEFLONG	fault_ptr,0		; CPU_SETFAULT's handler (never called)
 mv_pkt	MOVEPKT	<0,0,0>			; CPU_MOVE's packet, as it goes
 
 	DEFLBL	CPU_FUNCS,word
 	dw	ddcpu_getinfo, ddcpu_alloc, ddcpu_free, ddcpu_map
 	dw	ddcpu_unmap, ddcpu_query, ddcpu_alias, cpu_inval
-	dw	ddcpu_realloc, ddcpu_move
+	dw	ddcpu_realloc, ddcpu_move, ddcpu_setblk, ddcpu_freeall
+	dw	ddcpu_unmap, ddcpu_seginfo, ddcpu_rwmem, cpu_inval
+	dw	ddcpu_setfault
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -123,6 +127,57 @@ ce1:	call	bp
 	ret
 ENDPROC	cpu_entry
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; rm_getvec and rm_setvec (DDINT_GETVEC and DDINT_SETVEC)
+;
+; They're the only way that drivers and the kernel read and write interrupt
+; vectors, since the vector table's segment (00h) isn't a valid selector in
+; protected mode.  A vector is passed in DX:CX, not a segment register, since
+; its segment isn't necessarily a valid selector either.
+;
+; Inputs:
+;	AL = vector #
+;	DX:CX = new vector (rm_setvec)
+;
+; Outputs:
+;	DX:CX = vector (the previous vector, for rm_setvec)
+;
+; Modifies:
+;	CX, DX
+;
+DEFPROC	rm_setvec,far
+	push	ds
+	push	bx
+	call	ivt_ptr			; DS:BX -> vector
+	pushf
+	cli
+	xchg	cx,[bx].OFF
+	xchg	dx,[bx].SEG
+	popf
+	jmp	short rg9
+ENDPROC	rm_setvec
+
+DEFPROC	rm_getvec,far
+	push	ds
+	push	bx
+	call	ivt_ptr			; DS:BX -> vector
+	mov	cx,[bx].OFF
+	mov	dx,[bx].SEG
+rg9:	pop	bx
+	pop	ds
+	ret
+ENDPROC	rm_getvec
+
+DEFPROC	ivt_ptr
+	sub	bx,bx
+	mov	ds,bx
+	mov	bl,al
+	shl	bx,1
+	shl	bx,1
+	ret
+ENDPROC	ivt_ptr
+
         ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -130,17 +185,19 @@ ENDPROC	cpu_entry
 ; ddcpu_getinfo (CPU_GETINFO)
 ;
 ; Outputs:
-;	AL = CPU type, AH = CPUF_* flags (none), DX:CX = length of largest
-;	free block
+;	AL = CPU type, AH = CPUF_* flags (only CPUF_HWTYPE), DX:CX = length
+;	of largest free block
 ;
 DEFPROC	ddcpu_getinfo
 	call	mcb_largest		; DX:CX = length of largest free block
 	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
-	mov	al,[CPU_TYPE]
-	mov	ah,0
-	ret				; (carry is clear)
+	mov	ax,word ptr [CPU_TYPE]	; AL = CPU_TYPE, AH = CPU_HWTYPE
+	ror	ah,1
+	ror	ah,1			; AH = CPUF_HWTYPE
+	clc				; (which ROR may have left in carry)
+	ret
 	ASSUME	DS:CODE
 ENDPROC	ddcpu_getinfo
 
@@ -148,42 +205,42 @@ ENDPROC	ddcpu_getinfo
 ;
 ; ddcpu_alloc (CPU_ALLOC)
 ;
-; Allocates the first free block that's long enough, or with SELF_HIGH, the
-; top of the last one, or with SELF_AT, the memory at DX:CX, whose MCB goes in
-; the paragraph before it (which must be free too); SELF_LOW is implied.
+; Allocates the first free block that's long enough, or with MEMF_HIGH, the
+; top of the last one, or with MEMF_AT, the memory at DX:CX, whose MCB goes in
+; the paragraph before it (which must be free too); MEMF_LOW is implied.
 ;
 ; Inputs:
-;	AL = SELF_* flags, BX = owner, SI:DI = length
-;	DX:CX = address (SELF_AT only)
+;	AL = MEMF_* flags, BX = owner, SI:DI = length
+;	DX:CX = address (MEMF_AT only)
 ;
 ; Outputs:
-;	Carry clear if successful: AX = segment (0 if SELF_NONE), DX:CX =
+;	Carry clear if successful: AX = segment (0 if MEMF_NONE), DX:CX =
 ;	address
 ;	Carry set if error: AX = error code (if ERR_NOMEMORY, DX:CX = length
 ;	of the largest free block)
 ;
 DEFPROC	ddcpu_alloc
-	push	ax			; save SELF_* flags
-	test	al,SELF_AT
+	push	ax			; save MEMF_* flags
+	test	al,MEMF_AT
 	jz	da1
 	call	addr_mcb		; BP = MCB for DX:CX
 	jc	da7
 da1:	call	len_paras		; AX = paragraphs
 	jz	da7			; (none)
 	xchg	cx,ax			; CX = paragraphs
-	pop	dx			; DL = SELF_* flags
+	pop	dx			; DL = MEMF_* flags
 	push	dx
 	sub	di,di			; DI = a free MCB that fits (none yet)
 	mov	ax,[mcb_first]
 da2:	mov	es,ax
 	cmp	es:[MCB_OWNER],0	; free?
 	jne	da5			; no
-	test	dl,SELF_AT
+	test	dl,MEMF_AT
 	jnz	da3
 	cmp	es:[MCB_PARAS],cx	; long enough?
 	jb	da5			; no
 	mov	di,ax
-	test	dl,SELF_HIGH		; looking for the last one?
+	test	dl,MEMF_HIGH		; looking for the last one?
 	jz	da6			; no
 	jmp	short da5
 da3:	cmp	bp,ax			; is the MCB we want in this block?
@@ -203,19 +260,19 @@ da5:	add	ax,es:[MCB_PARAS]
 	test	di,di			; did a block fit?
 	jz	da8			; no
 da6:	mov	es,di			; ES:0 -> the free block
-	test	dl,SELF_AT
+	test	dl,MEMF_AT
 	jnz	da6a
 	mov	bp,di			; BP = MCB at its start
-	test	dl,SELF_HIGH
+	test	dl,MEMF_HIGH
 	jz	da6a
 	add	bp,es:[MCB_PARAS]
 	sub	bp,cx			; or at its top
 da6a:	call	mcb_carve
-	pop	dx			; DL = SELF_* flags
+	pop	dx			; DL = MEMF_* flags
 	mov	cx,bp
 	inc	cx
 	mov	ax,cx			; AX = segment
-	test	dl,SELF_NONE
+	test	dl,MEMF_NONE
 	jz	da6b
 	sub	ax,ax
 da6b:	jmp	para_len		; DX:CX = address
@@ -235,7 +292,7 @@ ENDPROC	ddcpu_alloc
 ; Frees a block, merging it with any free blocks before and after it.
 ;
 ; Inputs:
-;	DX:CX = address of block
+;	DX:CX = block
 ;
 ; Outputs:
 ;	Carry clear if successful, set if error (AX = ERR_BADADDR)
@@ -243,9 +300,8 @@ ENDPROC	ddcpu_alloc
 DEFPROC	ddcpu_free
 	call	mcb_find		; ES = MCB, DX = free MCB before it
 	jc	df9
-	sub	ax,ax
-	mov	es:[MCB_OWNER],ax
-	mov	es:[MCB_NAME],al
+	sub	bx,bx
+	call	mcb_own			; BX = owner (none)
 	call	mcb_merge		; merge the next block if it's free
 	test	dx,dx			; is the block before it free?
 	jz	df9			; no (and carry is clear)
@@ -254,6 +310,47 @@ DEFPROC	ddcpu_free
 	clc
 df9:	ret
 ENDPROC	ddcpu_free
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcpu_freeall (CPU_FREEALL)
+;
+; Frees every block that BX owns, merging each free block into the one before
+; it, if that's free too.
+;
+; Inputs:
+;	BX = owner
+;
+; Outputs:
+;	Carry clear
+;
+DEFPROC	ddcpu_freeall
+	mov	ax,[mcb_first]
+	sub	dx,dx			; DX = the block before, if it's free
+fa1:	mov	es,ax
+	cmp	es:[MCB_OWNER],bx	; does BX own this block?
+	jne	fa2			; no
+	push	bx
+	sub	bx,bx
+	call	mcb_own			; yes, so free it
+	pop	bx
+fa2:	cmp	es:[MCB_OWNER],0	; is it free?
+	jne	fa4			; no
+	test	dx,dx			; is the block before it free?
+	jz	fa3			; no
+	mov	es,dx
+	call	mcb_merge		; yes, so merge this block into it
+fa3:	mov	dx,es			; DX = this free block
+	jmp	short fa5
+fa4:	sub	dx,dx
+fa5:	cmp	es:[MCB_SIG],MCBSIG_LAST
+	je	fa9			; (and carry is clear)
+	mov	ax,es
+	add	ax,es:[MCB_PARAS]
+	inc	ax
+	jmp	fa1
+fa9:	ret
+ENDPROC	ddcpu_freeall
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -333,7 +430,7 @@ ENDPROC	ddcpu_realloc
 ; paragraph boundary, and AX is its segment.
 ;
 ; Inputs:
-;	AL = SELF_* flags, DX:CX = address, SI:DI = length
+;	AL = MEMF_* flags, DX:CX = address, SI:DI = length
 ;
 ; Outputs:
 ;	Carry clear if successful: AX = segment, CX = 1
@@ -353,7 +450,7 @@ ENDPROC	ddcpu_map
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcpu_unmap (CPU_UNMAP)
+; ddcpu_unmap (CPU_UNMAP and CPU_SETLIM)
 ;
 ; There's nothing to do.
 ;
@@ -369,7 +466,7 @@ ENDPROC	ddcpu_unmap
 ; A segment is its own alias.
 ;
 ; Inputs:
-;	AL = SELF_* flags, BX = segment
+;	AL = MEMF_* flags, BX = segment
 ;
 ; Outputs:
 ;	Carry clear: AX = segment, DX:CX = its address
@@ -382,22 +479,124 @@ ENDPROC	ddcpu_alias
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcpu_query (CPU_QUERY)
-;
-; Describes an MCB with a PMB (PMB_SEL and PMB_NSEL are zero).
+; ddcpu_seginfo (CPU_SEGINFO)
 ;
 ; Inputs:
-;	BX = PMB # (0 for the first MCB)
+;	AL = ADDR_* flags, BX = segment
+;
+; Outputs:
+;	Carry clear if successful: DX:CX = its address, AX = FFFFh (its limit,
+;	or with ADDR_RIGHTS, zero, since there's no descriptor)
+;	Carry set if BX is a selector: AX = ERR_INVALID
+;
+DEFPROC	ddcpu_seginfo
+	test	al,ADDR_SEL		; a selector?
+	jnz	rw8			; yes (there are none)
+	push	ax
+	test	al,ADDR_PHYS		; a physical address (BX:0000)?
+	mov	dx,bx
+	mov	cx,0			; DX:CX = BX:0000
+	jnz	sgi1			; yes
+	mov	cx,bx
+	call	para_len		; DX:CX = the segment's address
+sgi1:	pop	ax
+	and	al,ADDR_RIGHTS
+	cmp	al,1			; carry set if not ADDR_RIGHTS
+	sbb	ax,ax			; AX = FFFFh (limit) or 0 (no rights)
+	clc
+	ret
+ENDPROC	ddcpu_seginfo
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcpu_rwmem (CPU_RWMEM)
+;
+; Inputs:
+;	AL = ADDR_* flags, BX:SI = address (segment:offset), CX = length
+;	ES:DI -> buffer
+;
+; Outputs:
+;	Carry clear if successful
+;	Carry set if BX is a selector, or the bytes would wrap past the end of
+;	the segment: AX = ERR_INVALID
+;
+DEFPROC	ddcpu_rwmem
+	test	al,ADDR_SEL		; a selector?
+	jnz	rw8			; yes (there are none)
+	test	al,ADDR_PHYS		; a physical address?
+	jz	rw0			; no
+	cmp	bx,10h			; below 1Mb?
+	jae	rw8			; no
+	push	cx
+	mov	cl,12
+	shl	bx,cl			; BX = the segment of BX:0000
+	pop	cx
+rw0:	jcxz	rw9			; (carry is clear)
+	mov	dx,cx
+	dec	dx
+	add	dx,si			; would the bytes wrap?
+	jc	rw8			; yes
+	mov	ds,bx			; DS:SI -> memory
+	test	al,ADDR_WRITE		; writing it?
+	jz	rw1			; no (and carry is clear)
+	push	es
+	push	ds
+	pop	es
+	pop	ds
+	xchg	si,di			; DS:SI -> buffer, ES:DI -> memory
+rw1:	cld
+	rep	movsb
+rw9:	ret
+rw8:	jmp	cpu_inval
+ENDPROC	ddcpu_rwmem
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcpu_setfault (CPU_SETFAULT)
+;
+; We keep the handler, as the 80286 driver does, but never call it, since
+; real-mode exceptions go through the vectors.
+;
+; Inputs:
+;	DX:CX = fault handler (0:0 for none)
+;
+; Outputs:
+;	Carry clear: DX:CX = previous handler
+;
+DEFPROC	ddcpu_setfault
+	xchg	cx,[fault_ptr].OFF
+	xchg	dx,[fault_ptr].SEG
+	clc
+	ret
+ENDPROC	ddcpu_setfault
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcpu_query (CPU_QUERY)
+;
+; Describes an MCB with a PMB (PMB_SEL is the block's segment).
+;
+; Inputs:
+;	BX = PMB # (0 for the first MCB), or -1 for the block at DX:CX
 ;	ES:DI -> buffer for PMB
 ;
 ; Outputs:
 ;	Carry clear if successful (PMB copied to ES:DI)
-;	Carry set if no such MCB (AX = ERR_INVALID)
+;	Carry set if no such MCB (AX = ERR_INVALID, or ERR_BADADDR)
 ;
 DEFPROC	ddcpu_query
 	mov	ax,[mcb_first]
-dq1:	mov	ds,ax
+	cmp	bx,-1			; the block at DX:CX?
+	jne	dq1			; no
+	push	es
+	call	mcb_find		; ES:0 -> its MCB
+	mov	bx,es
+	pop	es
+	jc	dq9
+	mov	ds,bx
 	ASSUME	DS:NOTHING		; DS:0 -> MCB
+	jmp	short dq2
+dq1:	mov	ds,ax
 	dec	bx			; is this the one?
 	js	dq2			; yes
 	cmp	ds:[MCB_SIG],MCBSIG_LAST
@@ -427,8 +626,10 @@ dq2:	mov	al,ds:[MCB_SIG]
 	stosw
 	xchg	ax,dx
 	stosw				; PMB_LEN
-	sub	ax,ax
+	mov	ax,ds
+	inc	ax
 	stosw				; PMB_SEL
+	mov	ax,1
 	stosw				; PMB_NSEL
 	mov	al,ds:[MCB_TYPE]
 	stosb				; PMB_MCBTYPE
@@ -442,9 +643,41 @@ dq2:	mov	al,ds:[MCB_SIG]
 	DEFLBL	cpu_inval,near
 	mov	ax,ERR_INVALID
 	stc
-	ret
+dq9:	ret
 	ASSUME	DS:CODE
 ENDPROC	ddcpu_query
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcpu_setblk (CPU_SETBLK)
+;
+; Sets the owner, type, and name in a block's MCB.
+;
+; Inputs:
+;	DX:CX = block, AL = MCBTYPE_*, BX = owner
+;	ES:SI -> name (8 characters), or SI = 0 for none
+;
+; Outputs:
+;	Carry clear if successful, set if error (AX = ERR_BADADDR)
+;
+DEFPROC	ddcpu_setblk
+	push	es
+	push	ax
+	call	mcb_find		; ES:0 -> MCB
+	pop	dx			; DL = type
+	pop	ds
+	ASSUME	DS:NOTHING		; DS:SI -> name
+	jc	ds9
+	call	mcb_own			; set the owner, and zero the rest
+	mov	es:[MCB_TYPE],dl
+	test	si,si			; is there a name?
+	jz	ds9			; no (and carry is clear)
+	mov	di,MCB_NAME
+	mov	cx,size MCB_NAME
+	rep	movsb
+ds9:	ret
+	ASSUME	DS:CODE
+ENDPROC	ddcpu_setblk
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -563,7 +796,7 @@ ENDPROC	mv_ptr
 ;
 ; mcb_find
 ;
-; Finds the allocated block at DX:CX.
+; Finds the allocated block at DX:CX (or with DX = -1, at segment CX).
 ;
 ; Outputs:
 ;	Carry clear if successful: ES:0 -> its MCB, DX = the MCB before it
@@ -571,10 +804,13 @@ ENDPROC	mv_ptr
 ;	Carry set if error: AX = ERR_BADADDR
 ;
 ; Modifies:
-;	AX, DX, BP, ES
+;	AX, CX, DX, BP, ES
 ;
 DEFPROC	mcb_find
-	call	addr_mcb		; BP = MCB
+	cmp	dx,-1			; is CX a segment?
+	jne	mf0			; no
+	call	para_len		; DX:CX = its address
+mf0:	call	addr_mcb		; BP = MCB
 	jc	mf8
 	mov	ax,[mcb_first]
 	sub	dx,dx
@@ -647,22 +883,25 @@ ENDPROC	mcb_carve
 ;
 ; mcb_set
 ;
+; mcb_own is the same, but sets only the owner (zero to free the block).
+;
 ; Inputs:
 ;	ES:0 -> MCB, AL = signature, BX = owner, CX = paragraphs
 ;
 ; Modifies:
-;	AX
+;	AL
 ;
 DEFPROC	mcb_set
 	mov	es:[MCB_SIG],al
-	mov	es:[MCB_OWNER],bx
 	mov	es:[MCB_PARAS],cx
+	DEFLBL	mcb_own,near
+	mov	es:[MCB_OWNER],bx
 	push	cx
 	push	di
 	mov	di,MCB_TYPE
-	mov	cx,(size MCB - MCB_TYPE) SHR 1
-	sub	ax,ax
-	rep	stosw			; zero the type and name
+	mov	cx,size MCB - MCB_TYPE
+	mov	al,0
+	rep	stosb			; zero the type and name
 	pop	di
 	pop	cx
 	ret
@@ -826,8 +1065,9 @@ ENDPROC	len_paras
 ;
 ; If the 80286 driver stayed, we don't; otherwise, we put the first MCB in the
 ; paragraph at cpu_mcb, with all the conventional memory after it free (our
-; INIT code, the other drivers, and DEVINIT, which claims what it's using as
-; soon as we return; see chk_cpu).
+; INIT code, the other drivers, and devinit, which claims what it's using as
+; soon as we return; see chk_cpu), store its address in CPU_ARENA, and point
+; DDINT_CPU, DDINT_GETVEC, and DDINT_SETVEC at our code.
 ;
 ; Inputs:
 ;	ES:BX -> DDPI
@@ -836,7 +1076,7 @@ ENDPROC	len_paras
 ;	DDPI's DDPI_END updated (left zero if we're not staying)
 ;
 ; Modifies:
-;	AX, BX, CX, DX, DS, ES
+;	AX, BX, CX, DX, DI, DS, ES
 ;
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcpu_init,far
@@ -869,11 +1109,41 @@ DEFPROC	ddcpu_init,far
 	sub	bx,bx			; BX = owner (none)
 	mov	al,MCBSIG_LAST
 	call	mcb_set
-	mov	byte ptr ds:[DDINT_CPU],OP_JMPF
-	mov	word ptr ds:[DDINT_CPU+1],offset DEV:cpu_entry
-	mov	word ptr ds:[DDINT_CPU+3],cs
+	mov	[CPU_ARENA].OFF,bx
+	mov	[CPU_ARENA].SEG,es	; CPU_ARENA -> the first MCB
+	push	ds
+	pop	es
+	ASSUME	ES:BIOS
+	mov	di,offset DDINT_CPU + DDINT_BIAS
+	mov	ax,offset DEV:cpu_entry
+	call	set_ddint
+	mov	ax,offset DEV:rm_getvec
+	call	set_ddint		; (DDINT_GETVEC follows DDINT_CPU)
+	mov	ax,offset DEV:rm_setvec
+	call	set_ddint		; (and DDINT_SETVEC follows that)
 di9:	ret
 ENDPROC	ddcpu_init
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; set_ddint
+;
+; Stores a far jump to CS:AX at ES:DI (a DDINT slot), and advances DI to the
+; next slot.
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	set_ddint
+	push	ax
+	mov	al,OP_JMPF
+	stosb
+	pop	ax
+	stosw
+	mov	ax,cs
+	stosw
+	ret
+ENDPROC	set_ddint
 
 CODE	ends
 

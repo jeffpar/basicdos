@@ -23,9 +23,9 @@ CODE    SEGMENT
 	EXTNEAR	<enterLine,editPrompt,genUpper,runFile>
 	EXTNEAR	<saveChains,restoreChains,compactStrs>
 	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resSum,resParas>
-	EXTNEAR	<initEnv,buildEnv>
+	EXTNEAR	<initEnv,buildEnv,freeEnv>
 	EXTBYTE	<CMD_PATH,MSG_DRIVE>
-	EXTWORD	<CMD_REFS,TRANS_SUM>
+	EXTWORD	<CMD_REFS,CODE_DS,TRANS_SUM>
 	EXTWORD	<KEYWORD_TOKENS>
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF>
 	EXTSTR	<VER_FINAL,VER_DEBUG,FPU_NAME>
@@ -47,6 +47,7 @@ DEFPROC	main
 	cmp	word ptr ds:[PSP_HEAP],size PSP
 	je	m0z			; we don't own the shared code
 	ASSUME	DS:CODE
+	mov	[CODE_DS],ds		; (for every copy's writes to CODE)
 	call	resParas		; BX = paras through end of code
 	mov	ah,DOS_MEM_REALLOC
 	int	21h			; (ES = our PSP)
@@ -62,8 +63,7 @@ DEFPROC	main
 	mov	[CMD_PATH+2],dl		; COMMAND.COM is in the root
 	ASSUME	DS:DATA
 m0z:	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[CODE_DS]
 	ASSUME	DS:CODE
 	inc	[CMD_REFS]
 	pop	ds
@@ -106,6 +106,7 @@ m0:	mov	bx,ds:[PSP_HEAP]
 	mov	dx,offset ctrlc		; DS:DX -> CTRLC handler
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	int	21h
+	mov	ds,cs:[CODE_DS]		; (FPU$ writes FPU_TABLE through DS)
 ;
 ; Get the address of the FPU$ driver's function table (FPUTBL), which the
 ; code generator uses for all floating-point operations.
@@ -217,8 +218,7 @@ m3:	call	enterLine		; is it a numbered program line?
 ;
 m9:	mov	al,[bx].EXIT_CODE
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[CODE_DS]
 	ASSUME	DS:CODE
 	dec	[CMD_REFS]
 	mov	ah,DOS_PSP_RETURN
@@ -994,6 +994,7 @@ DEFPROC	cmdExec
 	int	21h
 	ASSERT	STRUCT,[bp],CMD
 	mov	word ptr [bp].EXIT_CODE,ax
+	call	freeEnv			; the program is done with it
 	mov	dx,word ptr [bp].SFH_STDIN
 	mov	word ptr ds:[PSP_PFT][STDIN],dx	; report to the original STDOUT
 ;
@@ -1346,7 +1347,8 @@ cf5f:	call	pipeStages		; CH = commands that follow
 cf5c:	call	cmdStart
 cf5d:	jmp	short cf9
 
-cf5e:	mov	si,dx
+cf5e:	call	freeEnv			; (the program never ran)
+	mov	si,dx
 	jmp	cf8
 ;
 ; Use DOS_UTL_LOAD to load the external program into a background session.
@@ -1700,8 +1702,7 @@ ENDPROC	getToken
 ;
 DEFPROC	cmdExit
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[CODE_DS]
 	ASSUME	DS:CODE
 	dec	[CMD_REFS]
 	int	20h			; terminates the current process

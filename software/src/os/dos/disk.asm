@@ -17,6 +17,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTWORD	<dos_data>
 	EXTNEAR	<dev_request,name_fcb,get_path,get_cln>
 	EXTNEAR	<read_buffer,flush_buffers,zap_buffers,chk_buffers,scb_release>
 	EXTBYTE	<scb_locked>
@@ -240,8 +241,7 @@ ENDPROC	dsk_getinfo
 ;
 DEFPROC	chk_filename,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
-	push	cs
-	pop	es
+	mov	es,cs:[dos_data]
 	ASSUME	ES:DOS
 	push	bx
 	push	ax
@@ -357,8 +357,7 @@ gb0:	mov	al,dl			; AL = drive #
 	jnz	gb8			; yes (and carry is clear)
 gb7:	push	ds
 	push	bx
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	mov	bx,sp
 	mov	bx,ss:[bx+6]		; saved BPB ptr (past BX, DS, and ES)

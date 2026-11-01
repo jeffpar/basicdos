@@ -374,14 +374,13 @@ ENDPROC	utl_unlock
 ;
 ; Inputs:
 ;	REG_CX = memory block # (0-based)
-;	REG_DL = memory block type (0 for any, 1 for free, 2 for used), or
-;	3 for the highest free block (REG_CX is ignored; see mem_query)
+;	REG_DL = memory block type (0 for any, 1 for free, 2 for used)
 ;
 ; Outputs:
 ;	On success, carry clear:
 ;		REG_BX = segment
 ;		REG_AX = owner ID (eg, PSP)
-;		REG_DX = size (in paragraphs)
+;		REG_SI:REG_DX = size (in bytes)
 ;		REG_ES:REG_DI -> name of process or type, if any
 ;	On failure, carry set (ie, no more blocks of the requested type)
 ;

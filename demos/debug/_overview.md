@@ -1,6 +1,6 @@
 The BASIC-DOS Serial Debugger Demo diskette boots with a local console and a debugger on a DEC VT100 connected to COM2 at 9600 baud.  `DEBUG.COM` (in the **EXT** directory) is loaded by `DEVICE=` in CONFIG.SYS, independently of BASDEV.  It opens and exclusively claims COM2; subsequent attempts to open that port fail.
 
-Wait for the debugger's startup message on the VT100, then click its screen and press **Ctrl-C** (or BREAK).  The local machine stops and the terminal displays the interrupted registers, the current instruction, and a `-` prompt.  Type `?` for help, `R` to display registers, `U` to disassemble, `T` to single-step, or `G` to resume the local session.  Breakpoints and any other INT 1 or INT 3 also enter the debugger.
+Wait for the debugger's startup message on the VT100, then click its screen and press **Ctrl-C** (or BREAK).  The local machine stops and the terminal displays the interrupted registers, the current instruction, and a `-` prompt.  Type `?` for help, `R` to display registers, `U` to disassemble, `T` to single-step, `P` to step over a call, or `G` to resume the local session.  Breakpoints and any other INT 1 or INT 3 also enter the debugger.
 
 Memory dumps use SYMDEB's segmented addresses, uppercase hex, groups of eight bytes, and an ASCII column.  All numbers are hexadecimal:
 
@@ -13,8 +13,9 @@ Other commands, as in DEBUG and SYMDEB:
 
 - `U CS:IP` disassembles 32 bytes of 8086 instructions; `U` continues.
 - `BP1 1234:0100` sets breakpoint 1 of 9 (without the number, BP picks a free one), `BL` lists them, and `BC 1` (or `BC *`) clears them.
-- `G 0123:0456` resumes with a temporary breakpoint; a breakpoint at CS:IP is stepped past first.
-- `T 5` executes 5 instructions, displaying the registers after each.
+- `G 0123:0456` resumes with a temporary breakpoint (breakpoint 0, which stays set until execution stops there); a breakpoint at CS:IP is stepped past first.
+- `T 5` executes 5 instructions, displaying each next instruction (`TR 5` displays the registers, too); a memory operand's address follows the instruction at CS:IP (eg, `; EA = 0070:0123`).
+- `P` steps like `T`, but runs a CALL, INT, LOOP, or REP string instruction to completion (with the temporary breakpoint after it).
 - `E DS:200 41 42 "text"` stores bytes; `E DS:200` prompts for each byte.
 - `R AX 1234` changes AX; `R CS`, `R IP`, and even `R SS` and `R SP` work (prompting if no value is given), and `R F` prompts for flag names such as `CY ZR`.
 

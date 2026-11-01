@@ -105,7 +105,7 @@ An FCB opens a file read-only, so any number of FCBs (and handles opened for rea
 | AH | Name | Inputs | Outputs |
 |----|------|--------|---------|
 | 48h | DOS_MEM_ALLOC | AL = block type (MCBTYPE_*, optionally with MCBTYPE_HIGH), BX = paragraphs | AX = segment; on failure, BX = largest available |
-| 49h | DOS_MEM_FREE | ES = segment | |
+| 49h | DOS_MEM_FREE | ES = segment | ES = 0, and DS = 0 if it was the same segment (the freed segment's selector no longer exists in protected mode) |
 | 4Ah | DOS_MEM_REALLOC | ES = segment, BX = new size in paragraphs | On failure, BX = largest available |
 
 #### Processes {#processes}
@@ -128,7 +128,7 @@ An FCB opens a file read-only, so any number of FCBs (and handles opened for rea
 
 | AH | Name | Inputs | Outputs |
 |----|------|--------|---------|
-| 25h | DOS_MSC_SETVEC | AL = vector #, DS:DX = address | |
+| 25h | DOS_MSC_SETVEC | AL = vector #, DS:DX = address | If DS is the program's PSP block, the vector uses the block's code segment (in protected mode, its code alias; see [Code Aliases](../mmu/#aliases)) |
 | 2Ah | DOS_MSC_GETDATE | | CX = year (1980-2099), DH = month, DL = day, AL = day of week (0 = Sunday) |
 | 2Bh | DOS_MSC_SETDATE | CX = year, DH = month, DL = day | AL = 0 if valid, FFh if not |
 | 2Ch | DOS_MSC_GETTIME | | CH = hours, CL = minutes, DH = seconds, DL = hundredths |
@@ -157,7 +157,7 @@ A program that demands one exact version, by following the INT 21h with `XCHG AH
 
 #### Memory Allocation
 
-DOS_MEM_ALLOC takes a block type in AL, which is stored in the block's MCB (MCB_TYPE).  Types include MCBTYPE_NONE (0) and the types COMMAND.COM uses for its own blocks ('C' code, 'F' function, 'V' variable, 'S' string, 'T' text, and 'A' array).  Setting bit 7 of AL (MCBTYPE_HIGH) allocates the block from the top of the last free block that's large enough, rather than the bottom of the first, so that long-lived blocks don't fragment the memory below them.
+DOS_MEM_ALLOC takes a block type in AL, which the CPU$ driver records with the block (see CPU_SETBLK), along with its owner (the current PSP).  Types include MCBTYPE_NONE (0) and the types COMMAND.COM uses for its own blocks ('C' code, 'F' function, 'V' variable, 'S' string, 'T' text, 'A' array, and 'E' for the environment it builds for programs).  Setting bit 7 of AL (MCBTYPE_HIGH) allocates the block from the top of the last free block that's large enough, rather than the bottom of the first, so that long-lived blocks don't fragment the memory below them.  A request for 0 paragraphs gets 1, since CPU$ has no empty blocks.
 
 Programs aren't given all available memory when they're loaded (see [Memory Layout](../arch/#memory-layout)), so a program doesn't need to shrink its memory before allocating more.
 
@@ -169,7 +169,7 @@ An EXE file's maximum allocation (usually FFFFh, "all the memory") is honored, a
 
 BASIC-DOS also stores additional information in the PSP, in fields that PC DOS leaves unused (see [PSP](../data/#psp)): the session number (PSP_SCB), the program's initial stack and start address, its heap, its exit code and exit type, and command-line switches parsed by DOS_UTL_PARSESW.
 
-Environments aren't copied: a new program's PSP_ENVSEG is simply EPB_ENVSEG, or if that's zero, its parent's environment (which is safe to share, since the parent outlives the program).  COMMAND.COM gives every program it runs an environment containing COMSPEC (the path of COMMAND.COM) and PATH (the current [PATH$](../../bdman/cmd/basic/func/#path)), mainly for older programs (eg, MAKE) that use them to find and run other programs; and when COMMAND.COM itself is given an environment containing PATH, it sets PATH$ from it.
+Environments aren't copied: a new program's PSP_ENVSEG is simply EPB_ENVSEG, or if that's zero, its parent's environment (which is safe to share, since the parent outlives the program).  COMMAND.COM gives every program it runs an environment (a block of its own, which exists only while the program runs) containing COMSPEC (the path of COMMAND.COM) and PATH (the current [PATH$](../../bdman/cmd/basic/func/#path)), mainly for older programs (eg, MAKE) that use them to find and run other programs; and when COMMAND.COM itself is given an environment containing PATH, it sets PATH$ from it.
 
 For the same reason, COMMAND.COM supports `COMMAND /C command`, which is how the C runtime's system() function runs a command: the command is run, and then COMMAND.COM exits, with ERRORLEVEL as its exit code.  Unlike PC DOS, whose COMMAND /C always returns 0, this lets a program like MAKE stop when a command fails.  Without /C, any commands following COMMAND are run as startup commands (see [COMMAND](../../bdman/cmd/external/command/)), and COMMAND.COM keeps running.
 
@@ -221,7 +221,9 @@ DOS_PSP_RETCODE returns one of these exit types in AH:
 
 When DOS_PSP_RETCODE reports EXTYPE_CTRLC, BASIC-DOS also signals CTRL-C to the caller (without echoing it again), so a CTRL-C ripples up through every parent whose CTRL-C handler terminates it (eg, from MASM to MAKE to COMMAND, which then abandons any BAT or BAS files that were running and returns to its prompt).  The exit type is reset to EXTYPE_NORMAL first, so if the caller's handler restarts the call, it returns the exit code with EXTYPE_NORMAL.
 
-However a program terminates, any of vectors 01h, 03h, 08h, 09h, 1Bh, and 1Ch that still points into its memory is restored to the value it had when BASIC-DOS started, since some programs (eg, DEBUG and MSBASIC) hook those vectors directly and restore them only when they exit normally.
+A divide or overflow error (EXTYPE_DVERR or EXTYPE_OVERR) doesn't ripple that way: DOS has already reported it, so the parent gets the exit code (FFh) and continues (eg, a BAT or BAS file sees an ERRORLEVEL of 255).
+
+However a program terminates, any of vectors 00h, 01h, 03h, 08h, 09h, 1Bh, and 1Ch that still points into its memory is restored to the value it had when BASIC-DOS started, since some programs (eg, DEBUG, MSBASIC, and programs built with C or Pascal runtimes) hook those vectors directly and restore them only when they exit normally.
 
 ### Error Codes
 

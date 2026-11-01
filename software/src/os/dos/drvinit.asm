@@ -17,8 +17,8 @@
 
 DOS	segment word public 'CODE'
 
-	EXTNEAR	<find_cfg>
-	EXTWORD	<dos_seg>
+	EXTNEAR	<find_cfg,set_ddint,dos_call5>
+	EXTWORD	<dos_seg,call5_gate,mem_size>
 	EXTLONG	<dev_head>
 
 	ASSUME	CS:DOS, DS:NOTHING, ES:NOTHING, SS:NOTHING
@@ -50,7 +50,7 @@ DEFPROC	load_devices
 	push	bp
 	push	ds
 	push	es
-	push	cs
+	push	ss			; (our data; see sysinit_high)
 	pop	ds
 	ASSUME	DS:DOS
 	jmp	short ld1
@@ -168,7 +168,9 @@ ld8a:	EPRINTF	<"Warning: unable to %ls device %s">,<13,10>,ax,dx,cs,di
 	jmp	ld1
 ;
 ; Initialize the driver, with a DDPI on the stack.  DDPI_END defaults to the
-; end of the file, in case the driver doesn't set it.
+; end of the file, in case the driver doesn't set it.  The driver's block is
+; its data segment (or selector), and we call it (and link it) through a code
+; alias from CPU$ (see CPU_ALIAS), which in real mode is the same segment.
 ;
 ld10:	sub	sp,size DDPI
 	mov	bp,sp			; SS:BP -> DDPI
@@ -178,31 +180,40 @@ ld10:	sub	sp,size DDPI
 	mov	[bp].DDP_STATUS,0
 	mov	[bp].DDPI_END.OFF,cx
 	mov	[bp].DDPI_BUFPTR.OFF,si
-	mov	[bp].DDPI_BUFPTR.SEG,cs
+	mov	[bp].DDPI_BUFPTR.SEG,ds
 	mov	es:[DDH_DATA],es	; the driver's data segment
-	push	es			; create far pointer to DDH_REQUEST
-	push	es:[DDH_REQUEST]	; at [bp-4]
+	push	cx			; save the file size
+	push	es			; and the driver's data segment
+	mov	bx,es
+	mov	ax,(CPU_ALIAS SHL 8) OR MEMF_CODE
+	call	far ptr DDINT_CPU	; AX = code selector (or segment)
+	ASSERT	NC
+	push	ax			; create far pointer to DDH_REQUEST
+	push	es:[DDH_REQUEST]	; at [bp-8]
 	push	ss
 	pop	es
 	mov	bx,bp			; ES:BX -> DDPI
 	push	bp
 	push	di
 	push	ds
-	call	dword ptr [bp-4]
+	call	dword ptr [bp-8]
 	pop	ds
 	pop	di
 	pop	bp
 	pop	ax			; toss DDH_REQUEST offset
-	pop	es			; ES = driver segment
+	pop	dx			; DX = code selector (or segment)
+	pop	es			; ES = driver's data segment
+	pop	cx			; CX = file size
 	mov	ax,[bp].DDP_STATUS
 	mov	bx,[bp].DDPI_END.OFF
 	add	sp,size DDPI
 	test	ax,DDSTAT_ERROR
 	jz	ld10a
-	mov	ax,ERR_GENFAIL
+	mov	ax,ERR_GENFAIL		; (freeing the block frees the alias)
 	jmp	ld5
 ;
-; Release any memory beyond the driver's end, and add it to the driver list.
+; Release any memory beyond the driver's end, and add it to the driver list
+; (with its code selector, in DX).
 ;
 ld10a:	cmp	bx,cx
 	jae	ld11
@@ -215,24 +226,19 @@ ld10a:	cmp	bx,cx
 ; Name the driver's memory block after the device, and have the block own
 ; itself (like a resident program), so that MEM lists it by name.
 ;
-ld11:	push	ds
-	push	es
-	pop	ds
-	ASSUME	DS:NOTHING		; DS = driver segment
-	mov	ax,ds
-	dec	ax
-	mov	es,ax			; ES:0 -> MCB
-	mov	es:[MCB_OWNER],ds
-	mov	si,DDH_NAME
-	mov	di,MCB_NAME
-	mov	cx,size MCB_NAME
-	rep	movsb
+ld11:	push	dx
+	mov	cx,es
+	mov	bx,cx			; BX = owner (the block itself)
+	mov	dx,-1			; DX:CX = block
+	mov	si,DDH_NAME		; ES:SI -> name
+	mov	ax,(CPU_SETBLK SHL 8) OR MCBTYPE_NONE
+	call	far ptr DDINT_CPU
+	pop	dx			; DX = code selector (or segment)
 	push	ds
-	pop	es			; ES = driver segment again
 	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
-	mov	ax,es
+	mov	ax,dx
 	xchg	ax,[DD_LIST].SEG
 	mov	es:[DDH_NEXT_SEG],ax
 	sub	ax,ax
@@ -240,11 +246,10 @@ ld11:	push	ds
 	mov	es:[DDH_NEXT_OFF],ax
 	pop	ds
 	ASSUME	DS:DOS
-	mov	ax,es
 	mov	es,[dos_seg]
 	ASSUME	ES:DOS
 	mov	es:[dev_head].OFF,0	; keep dev_head in sync with DD_LIST
-	mov	es:[dev_head].SEG,ax
+	mov	es:[dev_head].SEG,dx
 	ASSUME	ES:NOTHING
 	jmp	ld1
 ENDPROC	load_devices
@@ -260,7 +265,7 @@ ENDPROC	load_devices
 ;
 ; Inputs:
 ;	SI = offset of the start, DI = offset of the end
-;	BP = address of the kernel (from DEVINIT)
+;	BP = address of the kernel (from devinit)
 ;	DS = kernel's data segment (or selector)
 ;
 ; Outputs:
@@ -283,7 +288,7 @@ DEFPROC	move_init
 	push	si
 	sub	si,si			; SI:DI = length
 	mov	bx,MCBOWNER_SYSTEM
-	mov	ax,(CPU_ALLOC SHL 8) OR SELF_LOW OR SELF_HIGH OR SELF_NONE
+	mov	ax,(CPU_ALLOC SHL 8) OR MEMF_LOW OR MEMF_HIGH OR MEMF_NONE
 	call	far ptr DDINT_CPU	; DX:CX = address
 	ASSERT	NC
 	mov	[init_addr].LOW,cx
@@ -305,9 +310,11 @@ DEFPROC	move_init
 	mov	ax,CPU_MAP SHL 8	; AL = 0 (a GDT data selector)
 	call	far ptr DDINT_CPU	; AX = data selector
 	ASSERT	NC
+	mov	es,ax
+	mov	es:[init_data],ax	; (in the new copy)
 	push	ax
 	xchg	bx,ax
-	mov	ax,(CPU_ALIAS SHL 8) OR SELF_CODE
+	mov	ax,(CPU_ALIAS SHL 8) OR MEMF_CODE
 	call	far ptr DDINT_CPU	; AX = code selector
 	ASSERT	NC
 	pop	dx
@@ -316,14 +323,63 @@ ENDPROC	move_init
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dos_size
+; mem_total
 ;
-; Changes the length of the kernel's block (from DEVINIT) to BX paragraphs,
-; or with BX = 0, to as much as possible, so that sysinit can build its
-; tables after the kernel and then give the rest back.
+; Records the total memory in mem_size (see DV_MEM_SIZE): the conventional
+; memory in AX, plus all the memory that CPU$ describes above 1Mb.
 ;
 ; Inputs:
-;	BX = paragraphs (or zero)
+;	AX = Kb of conventional memory
+;
+; Modifies:
+;	CX, DX
+;
+	ASSUME	DS:DOS
+DEFPROC	mem_total
+	push	ax
+	push	bx
+	push	si
+	push	di
+	push	es
+	sub	sp,size PMB
+	mov	di,sp
+	push	ss
+	pop	es			; ES:DI -> PMB buffer
+	xchg	si,ax			; SI = Kb so far
+	sub	bx,bx			; BX = PMB #
+mt1:	mov	ah,CPU_QUERY
+	call	far ptr DDINT_CPU
+	jc	mt9			; no more
+	cmp	es:[di].PMB_ADDR.HIW,10h; is the block above 1Mb?
+	jb	mt2			; no
+	mov	ax,es:[di].PMB_LEN.LOW
+	mov	dx,es:[di].PMB_LEN.HIW
+	mov	cx,1024
+	div	cx
+	add	si,ax			; add its Kb
+mt2:	inc	bx
+	jmp	mt1
+mt9:	mov	[mem_size],si
+	add	sp,size PMB
+	pop	es
+	pop	di
+	pop	si
+	pop	bx
+	pop	ax
+	ret
+ENDPROC	mem_total
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dos_size
+;
+; Changes the length of the kernel's block (from devinit) to BX bytes (ie,
+; the offset where its tables end), or with BX = 0, to as much as possible,
+; so that sysinit can build its tables after the kernel and then give the
+; rest back.
+;
+; Inputs:
+;	BX = length (or zero)
 ;
 ; Modifies:
 ;	AX
@@ -335,11 +391,7 @@ DEFPROC	dos_size
 	push	si
 	push	di
 	mov	di,bx
-	mov	si,bx
-	mov	cl,4
-	shl	di,cl
-	mov	cl,12
-	shr	si,cl			; SI:DI = length
+	sub	si,si			; SI:DI = length
 	test	bx,bx
 	jnz	dz1
 	dec	si			; (more than there could be)
@@ -361,6 +413,91 @@ dz9:	pop	di
 	pop	cx
 	ret
 ENDPROC	dos_size
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; map_buf
+;
+; Returns a segment (or selector) for a disk buffer (a BUFHDR followed by a
+; sector) from CPU$ (see CPU_MAP), so that the BUFHDR is at offset 0; with
+; map_dos, the buffer is at offset AX in the kernel's block.
+;
+; Inputs:
+;	CX = address of the buffer (in the first 64K), or AX = offset (map_dos)
+;
+; Outputs:
+;	AX = segment (or selector)
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	map_dos
+	mov	cx,cs:[dos_addr]
+	sub	dx,dx
+	add	cx,ax
+	adc	dx,dx			; DX:CX = address of the buffer
+	jmp	short mb1
+	DEFLBL	map_buf,near
+	sub	dx,dx			; DX:CX = address of the buffer
+mb1:	push	si
+	push	di
+	sub	si,si
+	mov	di,size BUFHDR + 512	; SI:DI = length
+	mov	ax,CPU_MAP SHL 8	; AL = 0 (a GDT data selector)
+	call	far ptr DDINT_CPU	; AX = selector
+	ASSERT	NC
+	pop	di
+	pop	si
+	ret
+ENDPROC	map_dos
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; set_call5
+;
+; INT_DOSCALL5 * 4 holds a far jump to dos_call5 rather than a vector (a
+; PSP's CALL 5 reaches it by wrapping around at 1Mb), so we store it through
+; a segment (or selector) for the first 64K from CPU$ (see CPU_MAP), which we
+; then give back (CPU_UNMAP).
+;
+; Modifies:
+;	AX, CX, DX, DI, ES
+;
+DEFPROC	set_call5
+	push	bx
+	push	si
+	sub	cx,cx
+	sub	dx,dx			; DX:CX = address 0
+	mov	si,1
+	sub	di,di			; SI:DI = 64K
+	mov	ax,CPU_MAP SHL 8	; AL = 0 (a GDT data selector)
+	call	far ptr DDINT_CPU	; AX = selector, CX = # of selectors
+	ASSERT	NC
+	mov	es,ax
+	mov	di,INT_DOSCALL5 * 4
+	mov	ax,offset dos_call5
+	call	set_ddint
+	mov	bx,es			; BX = selector to free
+	push	ds
+	pop	es			; (ES can't hold the selector we free)
+	test	bx,bx			; protected mode?
+	jz	sc9			; no (segment 0 needs no CPU_UNMAP)
+	mov	ah,CPU_UNMAP
+	call	far ptr DDINT_CPU
+	ASSERT	NC
+;
+; In protected mode, a PSP's CALL 5 goes through the SEL_CALL5 call gate to
+; the jump we just stored (see psp_setmem).
+;
+	ASSUME	DS:DOS
+	mov	es,[dos_seg]
+	ASSUME	ES:DOS
+	mov	es:[call5_gate],SEL_CALL5
+	ASSUME	DS:NOTHING, ES:NOTHING
+sc9:	pop	si
+	pop	bx
+	ret
+ENDPROC	set_call5
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -397,7 +534,7 @@ DEFPROC	init_free
 	sub	si,si
 	mov	di,ss:[init_len]	; SI:DI = length
 	mov	bx,MCBOWNER_SYSTEM
-	mov	ax,(CPU_ALLOC SHL 8) OR SELF_AT OR SELF_NONE
+	mov	ax,(CPU_ALLOC SHL 8) OR MEMF_AT OR MEMF_NONE
 	call	far ptr DDINT_CPU
 	ASSERT	NC
 if9:	ret
@@ -407,6 +544,7 @@ ENDPROC	init_free
 	DEFWORD	init_base,0		; offset of the start of our block
 	DEFWORD	init_len,0		; and its length
 	DEFLONG	init_addr,0		; and its address
+	DEFWORD	init_data,0		; and its data segment (or selector)
 init_pkt	MOVEPKT	<0,0,0>
 
 CFG_DEVICE	db	7,"DEVICE="

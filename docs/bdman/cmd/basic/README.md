@@ -68,7 +68,7 @@ Defines a function.  See [DEF](def/).
 
 > DEF SEG[=*segment*]
 
-Sets the segment that [PEEK](func/#peek) and [POKE](#poke) use.  Without a *segment*, BASIC-DOS's own data segment is used.
+Sets the segment that [PEEK](func/#peek) and [POKE](#poke) use.  Without a *segment*, BASIC-DOS's own data segment is used.  In protected mode, the segment is mapped to a selector for its 64K (see DOS_UTL_MAPSEG in [Utility Functions](../../../bdtech/util/#memory)), which is read-only unless it's video memory (segments A000h through BFFFh).
 
 ### DEFDBL
 
@@ -278,7 +278,7 @@ Sets the smallest subscript (0 or 1) of arrays dimensioned afterward.  The defau
 
 > POKE *offset*,*value*
 
-Stores *value* (0-255) at *offset* in the segment set by [DEF SEG](#def-seg).
+Stores *value* (0-255) at *offset* in the segment set by [DEF SEG](#def-seg).  In protected mode, a read-only segment (any except BASIC-DOS's own data segment and video memory) is an "Illegal function call".
 
 ### PRINT # {#print}
 

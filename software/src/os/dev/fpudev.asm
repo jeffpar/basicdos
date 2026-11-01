@@ -4205,93 +4205,12 @@ kAtnT	dw	-2,0E000h,-1,0B000h,0,9800h,1,9C00h
 
 SWCODE	ends
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Driver initialization
-;
-; If an 8087 is present, we keep the HWCODE functions and discard everything
-; from SWCODE onward; otherwise, we move the SWCODE functions down on top of
-; the HWCODE functions and discard everything after that.
-;
-; Inputs:
-;	ES:BX -> DDPI
-;
-; Outputs:
-;	DDPI's DDPI_END updated
-;
-; Modifies:
-;	AX, CX, DX, SI, DI, BP, DS
+; The driver's initialization (ddfpu_init) is in FPUINIT.ASM, which has room
+; for the definitions it needs to call CPU$.
 ;
 INIT	segment para public 'CODE'
-
-        ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
-
-DEFPROC	ddfpu_init,far
-	mov	ds,cs:[0].DDH_DATA
-	ASSUME	DS:DEV
-	mov	ds:[0].DDH_REQUEST,offset DEV:ddfpu_req
-;
-; Detect the 8087: after FNINIT, the low byte of its status word must be
-; zero and its control word must contain the FNINIT default bits (if there's
-; no 8087, then FNSTSW and FNSTCW should not modify our test word at all).
-;
-	mov	ax,-1
-	push	ax
-	mov	bp,sp			; SS:BP -> test word
-	fninit
-	fnstsw	word ptr [bp]
-	mov	dx,FPUTYPE_NONE SHL 8
-	cmp	byte ptr [bp],0
-	jne	ddi1
-	fnstcw	word ptr [bp]
-	mov	ax,[bp]
-	and	ax,103Fh
-	cmp	ax,003Fh
-	jne	ddi1
-	mov	dh,FPUTYPE_8087
-ddi1:	pop	ax
-	mov	dl,(size FPUTBL) SHR 1
-	mov	[fpuInfo],dx
-
-	mov	di,offset DEV:hwTable
-	mov	ax,di
-	mov	cl,4
-	shr	ax,cl
-	mov	si,cs
-	add	ax,si
-	mov	[fpuSeg],ax		; FPUTBL is at fpuSeg:0
-
-	mov	ax,offset DEV:swTable	; AX = end of HWCODE
-	test	dh,dh			; 8087 present?
-	jnz	ddi9			; yes
-	push	es
-	mov	es,cs:[0].DDH_DATA
-	mov	si,ax			; DS:SI -> SWCODE
-	mov	cx,((offset swEnd - offset swTable) + 1) SHR 1
-	rep	movsw			; move SWCODE down to HWCODE
-	pop	es
-	xchg	ax,di			; AX = end of moved SWCODE
-ddi9:	mov	es:[bx].DDPI_END.OFF,ax
-;
-; Fill in the far pointers that follow the retained FPUTBL, so that its
-; FPU_ATOD and FPU_DTOA functions can reach the shared code, and the far
-; pointers that the shared code uses to reach FPU_TODEC and FPU_FROMDEC.
-;
-	mov	si,offset DEV:hwComAtoD
-	mov	word ptr [si],offset DEV:comAtoD
-	mov	[si+2],cs
-	mov	word ptr [si+4],offset DEV:comDtoA
-	mov	[si+6],cs
-	mov	ax,[fpuSeg]
-	mov	[fpuToDec].SEG,ax
-	mov	[fpuFromDec].SEG,ax
-	mov	ax,word ptr [hwTable+FPU_TODEC]
-	mov	[fpuToDec].OFF,ax
-	mov	ax,word ptr [hwTable+FPU_FROMDEC]
-	mov	[fpuFromDec].OFF,ax
-	ret
-ENDPROC	ddfpu_init
-
+	EXTERNS	<ddfpu_init>,far
 INIT	ends
 
 DATA	segment para public 'DATA'

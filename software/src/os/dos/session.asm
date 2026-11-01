@@ -30,6 +30,7 @@ DOS	segment word public 'CODE'
 ;
 ; That is, thus far, the extent of our extremely simple scheduler.
 ;
+	EXTWORD	<dos_data>
 	EXTBYTE	<scb_locked,def_drive,bpb_total>
 	EXTWORD	<scb_active,scb_stoked,load_reserve>
 	EXTLONG	<scb_table>
@@ -102,8 +103,7 @@ DEFPROC	scb_load,DOS
 	lds	si,es:[di].SPB_CMDLINE
 	ASSUME	DS:NOTHING
 	call	load_command		; DS:SI -> command line
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	pop	cx			; CX = ENVSEG
 	pop	bx			; BX -> current SCB again
@@ -247,8 +247,7 @@ ENDPROC	scb_unlock
 DEFPROC	scb_release,DOS
 	ASSUME	DS:NOTHING, ES:NOTHING
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	dec	[scb_locked]
 	jge	scb_return
@@ -527,7 +526,7 @@ DEFPROC	scb_query,DOS
 	jz	sq1			; no program loaded
 	mov	ax,[bx].SCB_PSP
 sq1:	mov	[bp].REG_AX,ax
-	mov	[bp].REG_ES,cs
+	mov	[bp].REG_ES,ds
 	mov	bl,[bx].SCB_SFHOUT
 	call	sfb_from_sfh		; BX -> SFB
 	jnc	sq2

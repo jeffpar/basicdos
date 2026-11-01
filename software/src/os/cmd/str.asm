@@ -143,7 +143,8 @@ ENDPROC	allocStr
 ;	None
 ;
 ; Outputs:
-;	None
+;	None (but ES is zero if it was a block that was freed, since reloading
+;	a freed selector would fault in protected mode)
 ;
 ; Modifies:
 ;	None
@@ -169,7 +170,12 @@ cs1:	test	ax,ax
 	call	compactBlock
 	cmp	es:[BLK_FREE],size SBLK	; is the block empty now?
 	jne	cs2			; no
-	push	si
+	mov	bx,sp			; (DS = SS)
+	mov	ax,es
+	cmp	[bx+2],ax		; is it the caller's ES?
+	jne	cs1a			; no
+	mov	word ptr [bx+2],0	; yes, so return ES = 0 instead
+cs1a:	push	si
 	call	freeBlock		; free block ES in chain at DS:SI
 	pop	si
 cs2:	pop	ax

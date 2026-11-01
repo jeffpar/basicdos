@@ -77,6 +77,7 @@ CODE    SEGMENT
 ;
 DEFPROC	main
 	cld
+	mov	[data_seg],ds		; (for handlers; CS is read-only)
 	DOSUTIL	GETCSN			; CL = our session #
 	mov	dl,cl
 	sub	cx,cx			; CL = session # (from 0)
@@ -105,7 +106,7 @@ m1:	mov	dx,offset starting
 	mov	bx,cs
 	cmp	ax,bx
 	jne	m8
-	push	cs
+	push	ds
 	pop	es
 ;
 ; Test 1: RETRY, then FAIL
@@ -129,7 +130,7 @@ m1:	mov	dx,offset starting
 	jne	m8
 	cmp	word ptr es:[di].DDH_NAME+2,'$C'
 	jne	m8
-	push	cs
+	push	ds
 	pop	es
 ;
 ; Test 2: IGNORE (not allowed here, so it should be converted to FAIL)
@@ -232,7 +233,7 @@ dr1a:
 	int	21h
 	mov	[old_disk].OFF,bx
 	mov	[old_disk].SEG,es
-	push	cs
+	push	ds
 	pop	es
 	mov	dx,offset disk_handler
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 13h
@@ -434,7 +435,7 @@ vw8:	pushf
 	mov	es,[volseg]
 	mov	ah,DOS_MEM_FREE
 	int	21h
-	push	cs
+	push	ds
 	pop	es
 	popf
 	jc	vw9
@@ -614,7 +615,7 @@ DEFPROC	metadata_sector
 	je	ms9			; the recovered sector must match every byte
 	stc
 ms9:
-	push	cs
+	push	ds
 	pop	es
 	ret
 ENDPROC	metadata_sector
@@ -873,7 +874,7 @@ df5:	mov	[rwcmd],2
 df8:	mov	dx,offset deletefailed
 	call	print
 	stc
-df9:	push	cs
+df9:	push	ds
 	pop	es
 	ret
 ENDPROC	delete_failure
@@ -891,8 +892,7 @@ DEFPROC	disk_handler,far
 	cmp	dl,cs:[rwdrive]		; only the test file's BIOS drive
 	jne	dh9
 	push	ds
-	push	cs
-	pop	ds			; DS = CS (for the counters below)
+	mov	ds,cs:[data_seg]	; (for the counters below)
 	cmp	[rwlarge],0		; counting large volume writes?
 	je	dh0
 	cmp	ah,3			; leave reads to the real BIOS
@@ -943,8 +943,7 @@ ENDPROC	disk_handler
 ;
 DEFPROC	handler,far
 	push	ds
-	push	cs
-	pop	ds
+	mov	ds,cs:[data_seg]
 	mov	[regAX],ax
 	mov	[regDI],di
 	mov	[regDDH].OFF,si
@@ -982,6 +981,7 @@ failed		db	"HARDERR failed",13,10,'$'
 abortfail	db	"HARDERR abort failed",13,10,'$'
 skipped		db	"HARDERR skipped (other sessions are running)",13,10,'$'
 old_disk	dd	0
+data_seg	dw	0
 rwhandle	dw	0
 hooked		db	0
 rwcmd		db	0
