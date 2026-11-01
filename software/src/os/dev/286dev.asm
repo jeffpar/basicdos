@@ -9,7 +9,8 @@
 ;
 ; This is the first built-in driver, and the first of two CPU$ drivers (see
 ; cpu.inc); it stores the processor type in CPU_HWTYPE and CPU_TYPE, and on
-; an 80286 or later with at least 64K of extended memory, it enables A20,
+; an 80286 or later with at least 64K of extended memory (and 128K of
+; conventional memory, after any "MEMSIZE=" line), it enables A20,
 ; builds its PMB table, GDT, IDTs, and LDT in the system area (the first 64K
 ; of extended memory), checks that it can switch to protected mode and back,
 ; and stays, managing all of memory with its PMB table (see PMB in cpu.inc)
@@ -2736,8 +2737,14 @@ di1:	pushf
 	sbb	al,0			; AL = CPUTYPE_80286 or CPUTYPE_80386
 di2:	mov	[CPU_HWTYPE],al
 	popf				; was there a "CPU=8088" line?
-	jne	di2a			; no
-	mov	al,CPUTYPE_8086		; yes, so act as if this is an 8088
+	je	di2b			; yes
+;
+; Protected mode also needs at least 128K of conventional memory (after any
+; "MEMSIZE=" line), so with less, we act as if this is an 8088, too.
+;
+	cmp	[MEMORY_SIZE],128	; enough conventional memory?
+	jae	di2a			; yes
+di2b:	mov	al,CPUTYPE_8086		; no, so act as if this is an 8088
 di2a:	mov	[CPU_TYPE],al
 	cmp	al,CPUTYPE_80286	; protected mode available?
 	jb	di9			; no

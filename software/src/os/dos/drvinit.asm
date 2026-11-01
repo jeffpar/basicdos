@@ -18,7 +18,8 @@
 DOS	segment word public 'CODE'
 
 	EXTNEAR	<find_cfg,set_ddint,dos_call5>
-	EXTWORD	<dos_seg,call5_gate,mem_size>
+	EXTWORD	<dos_seg,call5_gate,mem_size,init_base,init_len,init_data>
+	EXTLONG	<init_addr>
 	EXTLONG	<dev_head>
 
 	ASSUME	CS:DOS, DS:NOTHING, ES:NOTHING, SS:NOTHING
@@ -499,59 +500,12 @@ sc9:	pop	si
 	ret
 ENDPROC	set_call5
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; init_free
-;
-; Frees the block that move_init allocated, or with AX nonzero, gives back
-; only the memory before offset AX (rounded down to a paragraph), by freeing
-; it and claiming the rest again.  This runs in that block (SS = its data).
-;
-; Inputs:
-;	AX = new offset of the start (or zero)
-;
-; Modifies:
-;	AX, BX, CX, DX, SI, DI
-;
-DEFPROC	init_free
-	push	ax
-	mov	cx,cs:[init_addr].LOW
-	mov	dx,cs:[init_addr].HIW
-	mov	ah,CPU_FREE
-	call	far ptr DDINT_CPU
-	ASSERT	NC
-	pop	ax
-	test	ax,ax
-	jz	if9
-	and	al,0F0h
-	sub	ax,cs:[init_base]	; AX = bytes to give back
-	add	ss:[init_base],ax
-	sub	ss:[init_len],ax
-	add	ss:[init_addr].LOW,ax
-	adc	ss:[init_addr].HIW,0
-	mov	cx,ss:[init_addr].LOW
-	mov	dx,ss:[init_addr].HIW
-	sub	si,si
-	mov	di,ss:[init_len]	; SI:DI = length
-	mov	bx,MCBOWNER_SYSTEM
-	mov	ax,(CPU_ALLOC SHL 8) OR MEMF_AT OR MEMF_NONE
-	call	far ptr DDINT_CPU
-	ASSERT	NC
-if9:	ret
-ENDPROC	init_free
-
 	DEFWORD	dos_addr,0		; kernel's address (see move_init)
-	DEFWORD	init_base,0		; offset of the start of our block
-	DEFWORD	init_len,0		; and its length
-	DEFLONG	init_addr,0		; and its address
-	DEFWORD	init_data,0		; and its data segment (or selector)
 init_pkt	MOVEPKT	<0,0,0>
 
 CFG_DEVICE	db	7,"DEVICE="
 VERB_FIND	db	"find",0
 VERB_LOAD	db	"load",0
-
-	DEFLBL	sysinit_end
 
 DOS	ends
 

@@ -27,9 +27,13 @@ DOS	segment word public 'CODE'
 	EXTLONG	<bpb_table,scb_table,sfb_table,cdir_table,clk_ptr,fpu_table>
 	EXTLONG	<dev_head>
 	EXTNEAR	<find_cfg,init_table,set_bpbtime,load_devices,sysinit_end>
-	EXTNEAR	<move_init,dos_size,init_free,map_buf,map_dos>
+	EXTNEAR	<move_init,dos_size,map_buf,map_dos>
 	EXTNEAR	<set_call5,mem_total>
 	EXTNEAR	<open_dev,open_warning,open_error>
+	EXTNEAR	<sysinit_tail,fatal_error,set_ddint>
+	EXTWORD	<dos_seg,dos_code,cfg_data,cfg_size>
+	EXTLONG	<pCacheInt21,con_fails>
+	EXTBYTE	<con_count>
 	EXTERNS	<cache_int21>,far
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>
 	EXTNEAR	<dos_term,dos_func,dos_exit,dos_ctrlc,dos_error,dos_default>
@@ -734,224 +738,11 @@ si14:	mov	dx,offset SYS_MSG
 	push	ss
 	pop	ds			; DS = our data again
 ;
-; For each SHELL definition, load the corresponding file into the next
-; available SCB.  The first time through, CFG_SHELL is used as a fallback,
-; so even if there are no SHELL definitions, at least one will be loaded.
-;
-; None of our code before this point will run again, so first we move our
-; stack up to sysinit_tail and give back the memory below it (see init_free),
-; so that the SHELLs can use that memory too.
+; Everything that sysinit still needs while it loads the SHELLs follows
+; sysinit_tail (see systail.asm), so that it can give back the rest first.
 ;
 	ASSERT	Z,<cmp sp,offset sysinit_start - 2>	; (after PUSHF)
-	mov	sp,offset sysinit_tail
-	DEFLBL	sysinit_tail,near
-	mov	ax,offset sysinit_tail - 200h
-	call	init_free
-
-	sub	sp,size SPB		; alloc SPB from the stack
-
-	mov	es,[dos_seg]
-	ASSUME	ES:DOS
-;
-; Lock the SCB until we're done: once a SHELL has been started, a yield in
-; any DOS call we make (eg, a deferred yield on a full unlock) would switch to
-; it, saving our stack in the active SCB, which could later resume it after
-; we're gone.  Waits still end normally, since locked yields simply return.
-;
-	inc	es:[scb_locked]		; LOCK_SCB (see the end of sysinit)
-	mov	al,es:[def_drive]
-	mov	[boot_drive],al
-	sub	dx,dx			; DX = SCB load count
-	mov	bx,offset SHELL_FILE	; BX = default shell
-si15:	mov	si,offset CFG_SHELL
-	call	find_cfg		; look for "SHELL="
-	jc	si16			; not found
-	mov	bx,di
-si16:	test	bx,bx			; do we still have a default?
-	jnz	si16b			; yes
-	jmp	si20			; no, done loading
-;
-; A SHELL whose file includes a drive (eg, "C:/COMMAND.COM") starts on that
-; drive; otherwise, it starts on the boot drive (see init_scb).
-;
-si16b:	mov	es,[dos_seg]
-	ASSUME	ES:DOS
-	mov	al,[boot_drive]
-	cmp	byte ptr [bx+1],':'	; does the SHELL specify a drive?
-	jne	si16c			; no
-	mov	al,[bx]
-	and	al,0DFh			; upper-case the drive letter
-	sub	al,'A'			; AL = drive #
-si16c:	mov	es:[def_drive],al
-;
-; Note that during the LOAD process, the SCB is locked and active, so that
-; the program file can be opened and read using the SCB's PSP.  It's unlocked
-; when the load finishes, but it won't start running until after START is set.
-;
-	push	ss
-	pop	es
-	mov	di,sp			; ES:DI -> SPB on stack
-	mov	ax,-1
-	stosw				; SPB_ENVSEG <- -1
-	xchg	ax,bx
-	stosw				; SPB_CMDLINE.OFF <- BX
-	mov	ax,ds
-	stosw				; SPB_CMDLINE.OFF <- DS
-	xchg	ax,bx			; AX = -1 again (aka SFH_NONE)
-	stosb				; SPB_SFHIN  <- SFH_NONE
-	stosb				; SPB_SFHOUT <- SFH_NONE
-	stosb				; SPB_SFHERR <- SFH_NONE
-	stosb				; SPB_SFHAUX <- SFH_NONE
-	stosb				; SPB_SFHPRN <- SFH_NONE
-	mov	bx,sp			; ES:BX -> SPB on stack
-	mov	cx,0FFh			; CL = invalid SCB # (in case of error),
-					; CH = no programs follow
-;
-; Skip the SHELL of a CONSOLE that couldn't be opened (see si11), and reject
-; any SHELL beyond the last console, since its session would have none.
-;
-	shr	[con_fails].SEG,1
-	rcr	[con_fails].OFF,1
-	jc	si17			; its CONSOLE failed
-	mov	ax,ERR_NOSESSION
-	cmp	dl,[con_count]
-	jae	si18
-	DOSUTIL	LOAD			; load specified SHELL into an SCB
-	jc	si18
-	test	ax,ax
-	jz	si16a
-	mov	[cbCacheData],ax
-	mov	[pCacheData].OFF,bx
-	mov	[pCacheData].SEG,es
-si16a:	DOSUTIL	START			; CL = SCB # (from the LOAD call)
-	inc	dx			; must be valid, so no error checking
-
-si17:	sub	bx,bx			; no default shell now
-	jmp	si15
-
-si18:	mov	si,sp			; SS:SI -> SPB
-	mov	si,ss:[si].SPB_CMDLINE.OFF
-;
-; Print the error on the console of the session we tried to load (CL), if
-; any; since there's no PSP yet, PRINTF would always use SFH 1 (ie, the first
-; session's console), so we use HPRINTF with that session's SFHOUT instead.
-;
-	push	ax			; save error code
-	mov	al,size SCB
-	mul	cl
-	push	es
-	mov	es,[dos_seg]
-	ASSUME	ES:DOS
-	add	ax,es:[scb_table].OFF
-	xchg	bx,ax			; BX -> SCB
-	mov	al,1			; default to SFH 1
-	cmp	bx,es:[scb_table].SEG	; valid SCB?
-	jae	$+6			; no
-	mov	al,es:[bx].SCB_SFHOUT	; (4 bytes)
-	pop	es
-	ASSUME	ES:NOTHING
-	xchg	bx,ax			; BL = SFH
-	pop	ax			; AX = error code
-;
-; The only ERR_BADFORMAT that loading a SHELL returns is load_command's
-; "tail too long" error, which leaves the whole SHELL line intact, so show
-; the start of it.
-;
-	cmp	ax,ERR_BADFORMAT	; SHELL line too long?
-	jne	si19			; no
-	ECCALL	DOS_UTL_HPRINTF,<"SHELL line too long: %.40s...">,<13,10>,ax,si
-	jmp	si17
-si19:	ECCALL	DOS_UTL_HPRINTF,<"Unable to load %s">,<13,10>,ax,si
-	jmp	si17
-;
-; Although it may appear every SCB was started immediately after loading,
-; nothing can ACTUALLY run until we obtain access to the CLOCK$ device and
-; re-vector all the hardware interrupt handlers that drive our scheduler.
-;
-si20:	add	sp,size SPB		; free SPB on the stack
-					; (somewhat moot, but let's stay tidy)
-	mov	cx,dx			; CX = SCB load count
-	lds	dx,[pCacheInt21]	; restore INT 21h vector
-	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 21h
-	int	21h
-	push	ss
-	pop	ds
-
-	test	cx,cx			; if no SCBs loaded, that's not good
-	jnz	si20a
-	mov	dx,offset HALTED+2	; (the errors were reported; see si18)
-	jmp	fe1
-si20a:
-;
-; Utility functions like SLEEP need access to the clock device, so we save
-; its address in clk_ptr.  While we could open the device normally and obtain
-; a system file handle, that would require the utility functions to use SFB
-; interfaces (sfb_get, sfb_read, etc) with no benefit.
-;
-	mov	dx,offset CLK_DEVICE
-	DOSUTIL	GETDEV
-	jnc	$+5
-	jmp	open_error
-	mov	ds,[dos_seg]
-	mov	[clk_ptr].OFF,di
-	mov	[clk_ptr].SEG,es
-;
-; "Revector" DDINT_ENTER and DDINT_LEAVE to int_enter and int_leave.
-;
-	mov	ax,BIOS
-	mov	es,ax
-	ASSUME	ES:BIOS
-	cli
-	mov	di,offset DDINT_ENTER + DDINT_BIAS
-	mov	ax,offset int_enter
-	call	set_ddint
-	mov	ax,offset int_leave
-	call	set_ddint
-	ASSUME	ES:NOTHING
-;
-; Now that every SHELL has been loaded, free the memory containing our code
-; and stack (which CPU$ merges with the free block before it, if any).
-; Interrupts are off, and nothing will allocate memory until we're gone.
-;
-	sub	ax,ax
-	call	init_free
-;
-; Save the vectors that programs commonly hook directly (00h, 01h, 03h, 08h,
-; 09h, 1Bh, and 1Ch), now that the drivers have hooked theirs (see
-; psp_restvec).
-;
-	mov	si,offset ivt_save	; DS:SI -> vector #s and saved vectors
-iv1:	lodsb				; AL = vector #
-	test	al,al			; end of the list (-1)?
-	js	iv2			; yes
-	call	far ptr DDINT_GETVEC	; DX:CX = vector
-	mov	[si].OFF,cx
-	mov	[si].SEG,dx
-	add	si,4
-	jmp	iv1
-iv2:
-;
-; Activate and start running the first session.  We must mimic scb_switch
-; rather than calling it, because we're not switching SCBs (sysinit is not
-; a session).
-;
-; The end of sysinit used to just turn on interrupts and spin, knowing that
-; the first scb_yield would never return here, but that required us to also
-; zero scb_active and include "null SCB" tests in scb_yield and scb_switch;
-; this approach eliminates the need for those special tests.
-;
-; Interrupts are still off, so we can release our SCB lock (see si15) without
-; scb_release; any deferred yield will occur on the session's next unlock.
-;
-	dec	[scb_locked]
-	mov	bx,[scb_table].OFF	; BX -> the first SCB
-	mov	[scb_active],bx		; make it active (for consistency)
-	mov	ss,[bx].SCB_STACK.SEG
-	mov	sp,[bx].SCB_STACK.OFF
-	push	cs:[dos_code]		; (the kernel's code segment, not DS)
-	mov	ax,offset dos_leave
-	push	ax
-	ret				; we let dos_leave turn interrupts on
+	jmp	sysinit_tail
 ENDPROC	sysinit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -982,67 +773,13 @@ ENDPROC	sysinit
 	pop	ds
 	mov	ah,DOS_TTY_PRINT
 	int	21h
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; fatal_error (print halt message and halt)
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	None (system halted)
-;
-	DEFLBL	fatal_error,near
-	mov	dx,offset HALTED
-fe1:	mov	ah,DOS_TTY_PRINT
-	int	21h
-	sti				; (so that a COM console can finish)
-	jmp	$			; "halt"
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; set_ddint
-;
-; Inputs:
-;	AX = offset of the target in the kernel (see dos_code)
-;	ES:DI -> where to store a far jump to it
-;
-; Outputs:
-;	ES:DI -> just past the far jump
-;
-; Modifies:
-;	AX, DI
-;
-DEFPROC	set_ddint
-	push	ax
-	mov	al,OP_JMPF
-	stosb
-	pop	ax
-	stosw
-	mov	ax,cs:[dos_code]
-	stosw
-	ret
-ENDPROC	set_ddint
+	jmp	fatal_error
 
 ;
-; Initialization variables (these follow sysinit_tail, since they're used
-; until we're done).
+; Initialization variables
 ;
 	DEFWORD	bpb_off
-	DEFWORD	dos_seg
-	DEFWORD	dos_code		; kernel's code segment (or selector)
-	DEFWORD	cfg_data
-	DEFWORD	cfg_size
-
-	DEFPTR	pCacheInt21
-	DEFPTR	pCacheData
-	DEFWORD	cbCacheData
-
 	DEFLONG	con_bit,1		; bit for the current CONSOLE line
-	DEFLONG	con_fails,0		; bits for CONSOLE lines that failed
-	DEFBYTE	con_count,1		; number of consoles opened
-	DEFBYTE	boot_drive		; default drive for each SHELL
 ;
 ; Initialization data
 ;
@@ -1075,17 +812,14 @@ CFG_FILES	db	6,"FILES="
 		dw	20,8,254
 CFG_SESSIONS	db	9,"SESSIONS="
 		dw	4,1,32		; TODO: Decide if 32 session limit OK
-CFG_SHELL	db	6,"SHELL="
 CFG_PATHCHAR	db	9,"PATHCHAR="
 CFG_SWITCHAR	db	9,"SWITCHAR="
 
 NUL_DEVICE	db	"NUL",0
 AUX_DEVICE	db	"COM1",0	; default AUX device
 PRN_DEVICE	db	"LPT1",0	; default PRN device
-CLK_DEVICE	db	"CLOCK$",0
 FPU_DEVICE	db	"FPU$",0
 DBG_DEVICE	db	"DEBUG$",0
-SHELL_FILE	db	"COMMAND.COM",0	; default SHELL file
 
 SYS_MSG		db	"BASIC-DOS "
 		VERSION_STR
@@ -1094,7 +828,6 @@ SYS_MSG		db	"BASIC-DOS "
 
 SYSERR		db	"System initialization error$"
 CONERR		db	"More consoles than SESSIONS$"
-HALTED		db	13,10,"System halted",13,10,'$'
 
 
 DOS	ends
