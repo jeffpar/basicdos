@@ -7,12 +7,12 @@ machines:
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
     autoMount:
-      A: "BASICDOS-360K-D40"
+      A: "BASIC-DOS 40-Column Demo"
   - id: ibm5150-3
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
     autoMount:
-      A: "BASICDOS-360K-D80"
+      A: "BASIC-DOS 80-Column Split Demo"
     autoType: RESTART\r
 ---
 

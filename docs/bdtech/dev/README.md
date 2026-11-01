@@ -51,7 +51,7 @@ In BASDEV.COM, each driver's DDH_NEXT_OFF initially contains the driver's length
 		ret
 	ENDPROC	ddnul_init
 
-A driver never writes through CS: whenever it writes to its own memory (eg, DDH_REQUEST above, or its variables in a request or interrupt handler), it loads DS (or ES) from DDH_DATA, as above.  In real mode, that's the driver's own segment; in protected mode, CS is the driver's code selector and DDH_DATA is a separate data selector for the same memory (see [Protected-Mode Boot](../mmu/#pmboot)).  Far pointers to a driver's code (eg, vectors and DDH_NEXT_SEG) use CS, and far pointers to its data use DDH_DATA.  An empty chain's far pointer (eg, a driver's list of waiting packets) is FFFFh:0000h, not -1:-1, so that loading it into a segment register before checking the offset is safe in protected mode.
+A driver never writes through CS: whenever it writes to its own memory (eg, DDH_REQUEST above, or its variables in a request or interrupt handler), it loads DS (or ES) from DDH_DATA, as above.  In real mode, that's the driver's own segment; in protected mode, CS is the driver's code selector and DDH_DATA is a separate data selector for the same memory (see [Protected-Mode Initialization](../mmu/#pminit)).  Far pointers to a driver's code (eg, vectors and DDH_NEXT_SEG) use CS, and far pointers to its data use DDH_DATA.  An empty chain's far pointer (eg, a driver's list of waiting packets) is FFFFh:0000h, not -1:-1, so that loading it into a segment register before checking the offset is safe in protected mode.
 
 The head of the driver chain is stored at 0:50Ah (DD_LIST), and DOS_UTL_GETDEV returns the header for a device name.
 

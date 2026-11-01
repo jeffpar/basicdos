@@ -7,8 +7,8 @@ machines:
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
     autoMount:
-      A: "BASICDOS-360K-S80"
-      B: "BASICDOS-360K-TESTS"
+      A: "BASIC-DOS 80-Column Demo"
+      B: "BASIC-DOS Tests"
     autoType: CD DEMOS\rDIR PRIMES.*\rB:\\TOOLS\\MSBASIC PRIMES\r
 ---
 
