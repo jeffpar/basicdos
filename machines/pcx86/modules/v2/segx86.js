@@ -394,10 +394,12 @@ export default class Segx86 {
      * @param {number} off is a segment-relative offset
      * @param {number} cb is number of bytes to check (1, 2 or 4)
      * @returns {number} corresponding linear address if valid, X86.ADDR_INVALID if not
+     *
+     * As on an 80286, a violation through SS is a stack fault, and any other is a general protection fault.
      */
     checkReadProtDisallowed(off, cb)
     {
-        X86.helpFault.call(this.cpu, X86.EXCEPTION.GP_FAULT, 0);
+        X86.helpFault.call(this.cpu, this.id == Segx86.ID.STACK? X86.EXCEPTION.SS_FAULT : X86.EXCEPTION.GP_FAULT, 0);
         return X86.ADDR_INVALID;
     }
 
@@ -448,10 +450,12 @@ export default class Segx86 {
      * @param {number} off is a segment-relative offset
      * @param {number} cb is number of bytes to check (1, 2 or 4)
      * @returns {number} corresponding linear address if valid, X86.ADDR_INVALID if not
+     *
+     * As on an 80286, a violation through SS is a stack fault, and any other is a general protection fault.
      */
     checkWriteProtDisallowed(off, cb)
     {
-        X86.helpFault.call(this.cpu, X86.EXCEPTION.GP_FAULT, 0);
+        X86.helpFault.call(this.cpu, this.id == Segx86.ID.STACK? X86.EXCEPTION.SS_FAULT : X86.EXCEPTION.GP_FAULT, 0);
         return X86.ADDR_INVALID;
     }
 
