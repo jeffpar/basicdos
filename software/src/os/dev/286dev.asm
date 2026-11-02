@@ -2566,7 +2566,7 @@ ENDPROC	to_fault
 ; cpu_fatal
 ;
 ; Reports an exception (or an interrupt that has no handler) with the BIOS,
-; as "CPU$ fault vv at cccc:iiii (DS=dddd ES=eeee EC=xxxx)", where EC is the
+; as "CPU fault vv at cccc:iiii (DS=dddd ES=eeee EC=xxxx)", where EC is the
 ; error code, and stops the machine (eg, for a debugger to examine).
 ;
 ; Inputs:
@@ -2604,7 +2604,7 @@ ENDPROC	cpu_fatal
 ; Each field is a # of digits (4, or 2 for the vector, in AH); 0 ends them.
 ;
 	DEFLBL	fatal_fields,byte
-	db	13,10,"CPU$ fault ",2," at ",4,":",4," (DS=",4," ES=",4
+	db	13,10,"CPU fault ",2," at ",4,":",4," (DS=",4," ES=",4
 	db	" EC=",4,")",13,10,0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

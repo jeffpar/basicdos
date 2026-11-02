@@ -60,7 +60,18 @@ INIT	segment para public 'CODE'
         ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 DEFPROC	ddfpu_init,far
-	mov	ds,cs:[0].DDH_DATA
+;
+; With 64K of memory or less, we'd take too much of what's left for BASIC
+; programs, so we keep nothing, as if CONFIG.SYS had SKIP=FPU$.
+;
+	mov	ax,BIOS
+	mov	ds,ax
+	ASSUME	DS:BIOS
+	cmp	[MEMORY_SIZE],64	; more than 64K of memory?
+	ja	ddi0			; yes
+	mov	es:[bx].DDPI_END.OFF,0	; no, so keep nothing
+	ret
+ddi0:	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:DEV
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddfpu_req
 ;

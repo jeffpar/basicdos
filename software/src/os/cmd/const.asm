@@ -79,7 +79,6 @@ CODE    SEGMENT
 	DEFSTR	PERIOD,<".",0>
 	DEFSTR	VER_DEBUG,<" DEBUG">
 	DEFSTR	VER_FINAL,<0>		; (also ends VER_DEBUG)
-	DEFSTR	HELP_FILE,<"HELP.TXT",0>
 	DEFSTR	PIPE_NAME,<"PIPE$",0>
 	DEFSTR	FPU_NAME,<"FPU$",0>
 	DEFSTR	STR_ON,<"ON",0>
@@ -247,13 +246,11 @@ KEYWORDS	macro	PASS
 	PASS	GET,    75, genGet
 	PASS	GOSUB,  59, genGosub,PUB
 	PASS	GOTO,   48, genGoto,PUB
-	PASS	HELP,    2, cmdHelp
 	PASS	IF,     49  genIf
 	PASS	INPUT,  89, genInput,PUB
 	PASS	INT,   106
 	PASS	IOCTL,  98, genIoctl,PUB
 	PASS	KEY,    67, genKey
-	PASS	KEYS,    3, cmdKeys
 	PASS	LET,    50, genLet
 	PASS	LINE,   76, genLine
 	PASS	LIST,    4, cmdList

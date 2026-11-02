@@ -316,6 +316,7 @@ EXTYPE_KEEP	equ	3	; INT 21h AH=31h (keep process)
 EXTYPE_DVERR	equ	4	; BASIC-DOS: divide error
 EXTYPE_OVERR	equ	5	; BASIC-DOS: overflow error
 EXTYPE_ABORT	equ	6	; BASIC-DOS: abort session (via CTRL-ALT-DEL)
+EXTYPE_FAULT	equ	7	; BASIC-DOS: CPU fault (see dos_fault)
 
 	IFDEF	DOSFFB
 ;

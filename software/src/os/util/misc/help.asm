@@ -1,5 +1,5 @@
 ;
-; BASIC-DOS HELP Command
+; BASIC-DOS Help Utility
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
 ; @copyright (c) 2020-2026 Jeff Parsons
@@ -7,21 +7,28 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+; Usage: HELP [keyword|ALL|BASIC|CORE|DISK|EXT|FUNC|SYSTEM]
+;
+; Displays help for a keyword, or lists the keywords in a category, from
+; HELP.TXT in the EXT folder of the drive that COMMAND.COM was loaded from
+; (normally the boot drive), so HELP works from any directory.  The exit code
+; is 1 if there's no help for the keyword (or HELP.TXT can't be read).
+;
+	DOSPSP equ 1
 	DOSFUNC equ 1
-	include	cmd.inc
+	include	macros.inc
+	include	devapi.inc
+	include	dosapi.inc
 
 CODE    SEGMENT
 
-	EXTNEAR	<getToken,printEOL,printCRLF>
-	EXTNEAR	<openInput,readInput,seekInput,closeInput>
-	EXTBYTE	<CMD_PATH>
-	EXTSTR	<HELP_FILE>
+	org	100h
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; cmdHelp
+; main
 ;
 ; If a keyword is specified, display help for that keyword, or if it's a
 ; category (ALL, BASIC, DISK, EXT, FUNC, or SYSTEM), list the keywords in
@@ -31,45 +38,86 @@ CODE    SEGMENT
 ; so a category hides any keyword with the same name (which is why the
 ; system category is SYSTEM, rather than SYS, the name of a utility).
 ;
-; Names passed to findHelp must be in DS (eg, a token), and HELP_CATS must be
-; read with CS, since only the copy that owns the shared code has DS = CS.
-;
-; Inputs:
-;	BX -> CMDHEAP
-;	DI -> TOKENBUF
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	Any
-;
 HELP_TEXTLEN	equ	256
 
-DEFPROC	cmdHelp
-	mov	dl,[bx].CMD_ARG		; is there a non-switch argument?
-	call	getToken
-	jnc	hp0			; yes
-	mov	dl,0			; no, so use the command's own name
-	call	getToken		; (ie, "HELP")
-	jmp	short doHelp
+DEFPROC	main
+;
+; Get the console width (80 if STDOUT doesn't support GETDIM), and the switch
+; and path chars, which the help text uses (see printChars).
+;
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETDIM
+	mov	bx,STDOUT
+	int	21h			; DL = # columns
+	jnc	m1
+	mov	dl,80
+m1:	mov	[CON_COLS],dl
+	mov	ax,DOS_MSC_GETSWC
+	int	21h			; DL = switch char
+	mov	[SWITCH_CHAR],dl
+	mov	ax,DOS_MSC_GETPCH
+	int	21h			; DL = path char
+	mov	[PATH_CHAR],dl
+;
+; HELP.TXT is in the EXT folder of the drive that COMMAND.COM was loaded
+; from, which COMMAND puts first in the environment, as COMSPEC (see buildEnv
+; in COMMAND); if there's no COMSPEC, we use the current drive.
+;
+	mov	di,offset HELP_PATH
+	mov	[di+2],dl
+	mov	[di+6],dl
+	mov	ah,DOS_DSK_GETDRV
+	int	21h
+	add	al,'A'			; AL = current drive letter
+	mov	cx,ds:[PSP_ENVSEG]
+	jcxz	m2			; no environment
+	push	di
+	mov	es,cx
+	sub	di,di			; ES:DI -> environment
+	mov	si,offset COMSPEC
+	mov	cx,COMSPEC_LEN
+	repe	cmpsb			; does it start with COMSPEC?
+	jne	m1a			; no
+	mov	al,es:[di]		; yes, so use its drive letter
+m1a:	push	ds
+	pop	es
+	pop	di
+m2:	mov	[di],al
+;
+; Find the first argument (SI) and its length (CX).
+;
+	mov	si,PSP_CMDTAIL+1
+m3:	lodsb
+	cmp	al,CHR_RETURN		; end of the tail?
+	je	m4			; yes
+	cmp	al,CHR_SPACE		; whitespace?
+	jbe	m3			; yes
+m4:	dec	si
+	mov	di,si			; DI -> argument, if any
+m5:	lodsb
+	cmp	al,CHR_SPACE		; (CHR_RETURN ends it, too)
+	ja	m5
+	dec	si
+	xchg	cx,si
+	sub	cx,di			; CX = length of argument
+	mov	si,di
+	jcxz	m9			; no argument
 ;
 ; If the argument is a category, list the entries tagged with the category's
 ; first letter in lower case (eg, "b" for BASIC), or for ALL, every entry.
 ;
-hp0:	mov	di,offset HELP_CATS
-hpc1:	mov	ah,cs:[di]		; AH = 1st letter of the next category
+	mov	di,offset HELP_CATS
+hpc1:	mov	ah,[di]			; AH = 1st letter of the next category
 	test	ah,ah			; any more?
-	jz	doHelp			; no
+	jz	m8			; no
 	push	cx
 	push	si
 hpc2:	lodsb
 	and	al,0DFh			; (upper-case the argument)
-	cmp	al,cs:[di]
+	cmp	al,[di]
 	jne	hpc4
 	inc	di
 	loop	hpc2
-	cmp	cs:[di],cl		; does the category end here, too?
+	cmp	[di],cl			; does the category end here, too?
 	jne	hpc4			; no
 	pop	si
 	pop	cx
@@ -80,63 +128,67 @@ hpc2:	lodsb
 hpc3:	mov	ch,ah
 	mov	cl,0			; CL = 0 to list entries, CH = tag
 	cmp	ch,'c'			; CORE?
-	jne	doHelp			; no
-	push	bx
+	jne	m8			; no
 	push	cx
 	mov	cx,4			; yes, so display help for CORE (the
 	call	doHelp			; argument at SI) first
 	pop	cx
-	pop	bx
-	jmp	short doHelp
+	jmp	short m8
 hpc4:	pop	si
 	pop	cx
 hpc5:	inc	di
-	cmp	byte ptr cs:[di-1],0	; skip the rest of the category
+	cmp	byte ptr [di-1],0	; skip the rest of the category
 	jne	hpc5
 	jmp	hpc1
 ;
-; Look up the second token (DS:SI) with length CX in the HELP file.
+; Without an argument, display help for HELP (the name in HELP_PATH).
 ;
-	DEFLBL	doHelp,near
-	push	si
-	push	cx
+m9:	mov	si,offset HELP_PATH+7
+	mov	cx,4
+m8:	call	doHelp
+	mov	ax,DOS_PSP_RETURN SHL 8
+	adc	al,0			; exit code 1 if carry is set
+	int	21h
+ENDPROC	main
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; HELP.TXT is in the root of the drive that COMMAND.COM was loaded from (see
-; CMD_PATH), so build that filename (eg, "A:\HELP.TXT") on the stack.
+; doHelp
 ;
-	sub	sp,14
-	mov	di,sp
-	mov	al,cs:[CMD_PATH]
-	mov	ah,':'
-	stosw
-	mov	al,[bx].PATH_CHAR
-	stosb
-	mov	si,offset HELP_FILE
-hp1:	lods	byte ptr cs:[si]
-	stosb
-	test	al,al
-	jnz	hp1
-	mov	si,sp			; DS:SI -> filename
-	call	openInput
-	lahf
-	add	sp,14
-	sahf
-	pop	cx
-	pop	si
-	jc	h3
+; Inputs:
+;	DS:SI -> name
+;	CL = length of name (zero to list entries), CH = tag (zero for all)
+;
+; Outputs:
+;	Carry set if there was no entry (or an error), clear otherwise
+;
+; Modifies:
+;	Any
+;
+DEFPROC	doHelp
+	mov	dx,offset HELP_PATH
+	mov	ax,DOS_HDL_OPENRO
+	int	21h
+	jnc	h0
+	mov	cx,offset VERB_FIND
+	jmp	fileError
+h0:	xchg	bx,ax			; BX = handle
 	push	cx
 	call	findHelp		; DX = offset, CX = length
 	pop	ax
 	jnc	h1
-	push	ax
-	call	closeInput
-	pop	ax
-	test	al,al			; were we just listing entries?
-	jz	h9			; yes
-	jmp	short h3
+	xchg	cx,ax			; CL = length of name
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	test	cl,cl			; were we just listing entries?
+	jz	h9			; yes (and carry is clear)
+	PRINTF	<"No help available",13,10>
+	stc
+h9:	ret
 h1:	push	cx
 	sub	cx,cx
-	call	seekInput		; seek to 0:DX
+	mov	ax,DOS_HDL_SEEKBEG
+	int	21h			; seek to 0:DX
 	pop	cx			; CX = # bytes left to read
 ;
 ; Entries can be larger than our stack, so we read them in pieces, into a
@@ -153,7 +205,7 @@ h1:	push	cx
 ; Keep track of the current line's available characters (DL) and maximum
 ; characters (DH), and print only whole words that will fit.
 ;
-	mov	dl,[bx].CON_COLS	; DL = # available chars
+	mov	dl,[CON_COLS]		; DL = # available chars
 	dec	dx			; DL = # available chars - 1
 	mov	dh,dl
 h2:	call	fillHelp		; buffer more text if needed
@@ -173,21 +225,10 @@ h2b:	call	printEOL
 	jmp	h2
 
 h2c:	add	sp,HELP_TEXTLEN+4	; deallocate the buffer
-	call	closeInput
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
 	ret
-
-h3:	PRINTF	<"No help available",13,10>
-	stc
-	ret
-h9:	ret
-ENDPROC	cmdHelp
-
-;
-; HELP_CATS contains the categories (see cmdHelp), whose first letters (in
-; lower case) are the tags in HELP.TXT, except for CORE (see findHelp).
-;
-HELP_CATS	db	"ALL",0,"BASIC",0,"CORE",0,"DISK",0,"EXT",0,"FUNC",0
-		db	"SYSTEM",0,0
+ENDPROC	doHelp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -198,7 +239,7 @@ HELP_CATS	db	"ALL",0,"BASIC",0,"CORE",0,"DISK",0,"EXT",0,"FUNC",0
 ; buffer and fill the rest of the buffer.
 ;
 ; Inputs:
-;	BX -> CMDHEAP
+;	BX = handle
 ;	CX = # bytes left to read
 ;	SI -> next char in buffer (which follows our return address)
 ;
@@ -222,11 +263,7 @@ DEFPROC	fillHelp
 	xchg	cx,ax
 	inc	cx			; include the previous char
 	dec	si
-	push	es
-	push	ds
-	pop	es
 	rep	movsb			; move it to the start of the buffer
-	pop	es
 	pop	cx
 	mov	si,sp
 	add	si,3			; SI -> next char (at buffer + 1)
@@ -268,10 +305,12 @@ ENDPROC	fillHelp
 ;
 ; An entry can begin with tags in brackets (eg, "[b+]"), which aren't part of
 ; the entry: a category (a lower-case letter, such as "b" for BASIC; see
-; cmdHelp), and "+" if it isn't in COMMAND's core.  A listing of one category (or of tag "c", for CORE, the
-; entries tagged "+") lists only the entries that have that tag.
+; main), and "+" if it isn't in COMMAND's core.  A listing of one category
+; (or of tag "c", for CORE, the entries tagged "+") lists only the entries
+; that have that tag.
 ;
 ; Inputs:
+;	BX = handle
 ;	DS:SI -> name
 ;	CL = length of name (zero to list entries), CH = tag (zero for all)
 ;
@@ -297,7 +336,7 @@ DEFPROC	findHelp
 	sub	sp,HELP_BUFLEN
 	sub	di,di			; DI = offset of next character
 	mov	dx,-1			; DX = offset of matching entry (none)
-	mov	al,dl			; AL = # name chars matched (-1 if none)
+	mov	al,dl			; AL = # chars matched (-1 if none)
 fh1:	push	ax
 	push	dx
 	mov	si,sp
@@ -416,7 +455,7 @@ fh14:	push	ax
 	jnz	fh14			; no
 	mov	ah,[bp-10]
 	add	ah,16
-	cmp	ah,[bx].CON_COLS	; is there room for another name?
+	cmp	ah,[CON_COLS]		; is there room for another name?
 	jb	fh15			; yes
 	push	ax
 	push	cx
@@ -430,8 +469,9 @@ fh15:	jmp	fh7
 ;
 ; At the start of an entry, skip its tags and their brackets, recording the
 ; tags in [bp-9] (the category letter, and bit 7 for "+"), and since the next
-; character may be a tag, too, it's also the start of the entry.  After the tags, if we're
-; listing one category (or the "+" entries), skip the entry if it isn't in it.
+; character may be a tag, too, it's also the start of the entry.  After the
+; tags, if we're listing one category (or the "+" entries), skip the entry if
+; it isn't in it.
 ;
 fh16:	cmp	ah,'+'			; not in the core?
 	jne	fh16a			; no
@@ -465,6 +505,39 @@ fh16e:	mov	byte ptr [bp-9],0
 	mov	al,0			; start matching
 	jmp	fh4
 ENDPROC	findHelp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; readInput
+;
+; Inputs:
+;	BX = handle
+;	CX = # bytes to read
+;	DS:SI -> buffer
+;
+; Outputs:
+;	If carry clear, AX = # bytes read
+;	If carry set, an error message was printed
+;
+; Modifies:
+;	AX, CX (on error), DX
+;
+DEFPROC	readInput
+	mov	dx,si
+	mov	ah,DOS_HDL_READ
+	int	21h
+	jnc	ri9
+	mov	cx,offset VERB_READ
+;
+; fileError reports the error (AX) that the operation (CX -> verb) on
+; HELP.TXT returned (eg, "Unable to find A:\EXT\HELP.TXT"), and sets carry.
+;
+	DEFLBL	fileError,near
+	mov	dx,offset HELP_PATH
+	EPRINTF	<"Unable to %s %s">,<13,10>,ax,cx,dx
+	stc
+ri9:	ret
+ENDPROC	readInput
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -525,7 +598,6 @@ ENDPROC	printChar
 ;
 ; Inputs:
 ;	AL = character count
-;	BX -> CMDHEAP
 ;	DS:SI -> characters to print
 ;	DL = avail characters on line
 ;	DH = maximum characters on line
@@ -552,9 +624,9 @@ pr1:	lodsb
 	ret
 ;
 ; HELP.TXT separates directory names with backslashes (which is correct when
-; PATHCHAR is '\'), so we print each one as the current PATH_CHAR.
+; the path char is '\'), so we print each one as the current path char.
 ;
-pr1a:	mov	al,[bx].PATH_CHAR
+pr1a:	mov	al,[PATH_CHAR]
 	jmp	short pr2
 ;
 ; HELP.TXT starts each switch with a tilde (eg, ~P), so we print each one as
@@ -562,7 +634,7 @@ pr1a:	mov	al,[bx].PATH_CHAR
 ;
 pr1b:	cmp	al,'~'
 	jne	pr1c
-	mov	al,[bx].SWITCH_CHAR
+	mov	al,[SWITCH_CHAR]
 	jmp	short pr2
 ;
 ; Asterisks around words (eg, *path*) are skipped, but an asterisk that isn't
@@ -583,7 +655,7 @@ pr1c:	cmp	al,'*'
 	jne	pr8
 pr2:	call	printChar
 pr8:	loop	pr1
-pr9:	pop	cx
+	pop	cx
 	pop	ax
 	sub	dl,al			; reduce available chars on line
 	ret
@@ -632,9 +704,56 @@ ps7a:	cmp	al,CHR_CTRLZ		; end of text?
 	ja	ps8			; yes
 	jmp	ps7			; keep looping
 ps8:	dec	si
-ps9:	ret
+	ret
 ENDPROC	printSpace
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; printEOL
+;
+; Inputs:
+;	DL = avail characters on line
+;	DH = maximum characters on line
+;
+; Outputs:
+;	DL = DH
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	printEOL
+	mov	dl,dh			; reset available characters in DL
+	DEFLBL	printCRLF,near
+	PRINTF	<13,10>			; print CHR_RETURN, CHR_LINEFEED
+	ret
+ENDPROC	printEOL
+
+;
+; HELP_CATS contains the categories (see main), whose first letters (in
+; lower case) are the tags in HELP.TXT, except for CORE (see findHelp).
+;
+HELP_CATS	db	"ALL",0,"BASIC",0,"CORE",0,"DISK",0,"EXT",0,"FUNC",0
+		db	"SYSTEM",0,0
+;
+; main updates HELP_PATH's drive and path chars, and with no argument, looks
+; up "HELP" in it.
+;
+HELP_PATH	db	"A:\EXT\HELP.TXT",0
+COMSPEC		db	"COMSPEC="
+COMSPEC_LEN	equ	$ - COMSPEC
+VERB_FIND	db	"find",0
+VERB_READ	db	"read",0
+CON_COLS	db	?
+SWITCH_CHAR	db	?
+PATH_CHAR	db	?
+
+;
+; COMHEAP 0 means we don't need a heap, but BASIC-DOS will still allocate a
+; minimum amount of heap space, because that's where our initial stack lives
+; (with room for the buffers that doHelp and findHelp put there).
+;
+	COMHEAP	0		; COMHEAP (heap size) must be the last item
 
 CODE	ENDS
 
-	end
+	end	main

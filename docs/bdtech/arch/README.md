@@ -18,7 +18,7 @@ BASIC-DOS consists of a boot sector and three files, which must be in the root d
 | BASDOS.COM | The DOS kernel, followed by its initialization code (sysinit) |
 | COMMAND.COM | The BASIC-DOS Command Shell (the default SHELL) |
 
-The startup diskette may also contain CONFIG.SYS (see [Configuring BASIC-DOS](../../bdman/cfg/)) and HELP.TXT (used by the HELP command).
+The startup diskette may also contain CONFIG.SYS (see [Configuring BASIC-DOS](../../bdman/cfg/)) and an EXT directory with the external utilities, including HELP.COM and HELP.TXT (see [HELP](../../bdman/cmd/external/#help)), which reads HELP.TXT from the EXT directory of the drive that COMMAND.COM was loaded from.
 
 Unlike PC DOS, there is no separate BIOS-level file (IO.SYS or IBMBIO.COM); BASIC-DOS relies on the ROM BIOS for low-level services, and its device drivers fill the role of IBMBIO.COM.  The initialization code at the end of BASDEV.COM and BASDOS.COM is discarded once it's done, and its memory is reused.
 

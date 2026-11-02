@@ -1,6 +1,6 @@
-REM 64K demonstration with one session and no FPU$ or PIPE$ drivers
-REM Drivers for missing hardware (eg, COM ports) are automatically skipped
-SKIP=FPU$,PIPE$
+REM 64K demonstration with one session and no PIPE$ driver
+REM FPU$ (at 64K) and drivers for missing hardware skip themselves
+SKIP=PIPE$
 BUFFERS=2
 FILES=8
 SESSIONS=1

@@ -74,7 +74,7 @@ mem9:	cmp	word ptr cs:[FPU_TABLE].SEG,0; is the FPU$ driver loaded?
 mem10:	mov	ax,ss:[PSP_CODESIZE]	; was only COMMAND's core loaded?
 	cmp	ax,offset DGROUP:CORE_END
 	ja	mem11			; no
-	PRINTF	<"Core functions only (see HELP CORE)",13,10>
+	PRINTF	<"Core features only (see HELP CORE)",13,10>
 mem11:	clc
 	ret
 	DEFLBL	toBytes,near	; converts paras in AX to bytes in DX:AX

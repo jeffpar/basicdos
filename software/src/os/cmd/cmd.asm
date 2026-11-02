@@ -15,7 +15,7 @@ CODE    SEGMENT
 	IF DETOK
 	EXTNEAR	<chkExt,getCwd,chkColon,splitCmd,findProgram>
 	EXTNEAR	<openInput,openError,closeInput>
-	EXTNEAR	<openHandle,syncFiles,openPipe,addPipe,endPipes,doHelp>
+	EXTNEAR	<openHandle,syncFiles,openPipe,addPipe,endPipes>
 	EXTNEAR	<pipeStages>
 	ENDIF
 	EXTNEAR	<freeAllText,genCode,keepCode,freeAllVars,cmdLoad>
@@ -1714,41 +1714,21 @@ ENDPROC	cmdExit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; printEOL
+; printCRLF
 ;
 ; Inputs:
-;	DL = avail characters on line
-;	DH = maximum characters on line
-;
-; Outputs:
-;	DL = DH
-;
-; Modifies:
-;	AX, DX
-;
-DEFPROC	printEOL
-	mov	dl,dh			; reset available characters in DL
-	DEFLBL	printCRLF,near
-	PRINTF	<13,10>			; print CHR_RETURN, CHR_LINEFEED
-	ret
-ENDPROC	printEOL
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; cmdKeys
-;
-; Inputs:
-;	DI -> TOKENBUF
+;	None
 ;
 ; Outputs:
 ;	None
 ;
 ; Modifies:
-;	Any
+;	AX
 ;
-DEFPROC	cmdKeys
-	jmp	doHelp
-ENDPROC	cmdKeys
+DEFPROC	printCRLF
+	PRINTF	<13,10>			; print CHR_RETURN, CHR_LINEFEED
+	ret
+ENDPROC	printCRLF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

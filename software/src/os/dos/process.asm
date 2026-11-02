@@ -75,8 +75,8 @@ DEFPROC	psp_term,DOS
 	sti
 	jmp	msc_sigctrlc		; signal CTRLC (does not return)
 ;
-; EXTYPE_ERROR through EXTYPE_OVERR (nothing uses EXTYPE_KEEP yet) are the
-; errors that abort.
+; EXTYPE_ERROR and up (nothing uses EXTYPE_KEEP yet, and EXTYPE_ABORT was
+; handled above) are the errors that abort.
 ;
 pt0:	cmp	ah,EXTYPE_ERROR		; an error ABORT?
 	jb	pt0a			; no

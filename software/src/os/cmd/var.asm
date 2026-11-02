@@ -440,7 +440,16 @@ er1:	cmp	es:[BLK_SIG],SIG_CBLK	; code block?
 	push	di
 	add	ax,size CBLK + 5
 	xchg	dx,ax			; DX = minimum size of new block
-	mov	cx,CBLKLEN		; CX = preferred size
+;
+; A code block's MCB, header, and JMPF, plus the CODE_ROOM that always goes
+; unused at its end, cost almost 200 bytes, so when memory is low (and the
+; quarter rule in allocBlockMin shrinks each new block), blocks smaller than
+; allocBlock's minimum would hold more overhead than code.
+;
+	cmp	dx,MIN_BLKSIZE		; less than allocBlock's minimum?
+	jae	er1a			; no
+	mov	dx,MIN_BLKSIZE
+er1a:	mov	cx,CBLKLEN		; CX = preferred size
 	cmp	cx,dx
 	jae	er2
 	mov	cx,dx

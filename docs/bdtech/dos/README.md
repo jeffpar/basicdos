@@ -218,10 +218,11 @@ DOS_PSP_RETCODE returns one of these exit types in AH:
 | 4 | EXTYPE_DVERR | Terminated by a divide error (BASIC-DOS only) |
 | 5 | EXTYPE_OVERR | Terminated by an overflow error (BASIC-DOS only) |
 | 6 | EXTYPE_ABORT | Session aborted with CTRL-ALT-DEL (BASIC-DOS only) |
+| 7 | EXTYPE_FAULT | Terminated by a CPU fault in protected mode (BASIC-DOS only) |
 
 When DOS_PSP_RETCODE reports EXTYPE_CTRLC, BASIC-DOS also signals CTRL-C to the caller (without echoing it again), so a CTRL-C ripples up through every parent whose CTRL-C handler terminates it (eg, from MASM to MAKE to COMMAND, which then abandons any BAT or BAS files that were running and returns to its prompt).  The exit type is reset to EXTYPE_NORMAL first, so if the caller's handler restarts the call, it returns the exit code with EXTYPE_NORMAL.
 
-A divide or overflow error (EXTYPE_DVERR or EXTYPE_OVERR) doesn't ripple that way: DOS has already reported it, so the parent gets the exit code (FFh) and continues (eg, a BAT or BAS file sees an ERRORLEVEL of 255).
+A divide or overflow error or a CPU fault (EXTYPE_DVERR, EXTYPE_OVERR, or EXTYPE_FAULT) doesn't ripple that way: DOS has already reported it, so the parent gets the exit code (FFh) and continues (eg, a BAT or BAS file sees an ERRORLEVEL of 255).
 
 However a program terminates, any of vectors 00h, 01h, 03h, 08h, 09h, 1Bh, and 1Ch that still points into its memory is restored to the value it had when BASIC-DOS started, since some programs (eg, DEBUG, MSBASIC, and programs built with C or Pascal runtimes) hook those vectors directly and restore them only when they exit normally.
 

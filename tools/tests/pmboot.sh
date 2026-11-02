@@ -5,7 +5,7 @@
 # Boots BASIC-DOS on a 2Mb machine (an IBM PC AT by default) from a floppy whose CONFIG.SYS has no "CPU=8088" line,
 # so that devinit switches to protected mode after CPU$ initializes (see CPU_PMODE in software/src/os/dev/286dev.asm,
 # and docs/bdtech/mmu), initializes the rest of the drivers in protected mode, and jumps to sysinit in protected mode,
-# with BASIC-DOS's console on COM1 (ie, this terminal).  An exception that CPU$ can't handle prints "CPU$ fault" and
+# with BASIC-DOS's console on COM1 (ie, this terminal).  An exception that CPU$ can't handle prints "CPU fault" and
 # stops the machine.
 #
 # Before booting, this lists the linear addresses of some protected-mode entry points (CPU$ is the first driver, at

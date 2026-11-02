@@ -3,9 +3,9 @@
 # Copies the BASIC-DOS test binaries and batch files into the specified configuration folder
 # (eg, software/src/configs/console/serial/fpe) before boot.sh (in the repository root) or another script in tools/tests boots it.
 #
-# The files come from software/manifest.txt: HELP.TXT from ROOT (pc.js adds the system files, and each configuration
-# has its own CONFIG.SYS and, if needed, AUTOEXEC.BAT), utilities from EXT in EXT, the DEMOS and TESTS files together in TESTS
-# (only TESTS on a diskette; see below),
+# The files come from software/manifest.txt (nothing from ROOT, since pc.js adds the system files, and each configuration
+# has its own CONFIG.SYS and, if needed, AUTOEXEC.BAT): utilities (and HELP.TXT) from EXT in EXT, the DEMOS and TESTS
+# files together in TESTS (only TESTS on a diskette; see below),
 # the TESTS/REGRESS files (the regression tests) in TESTS\REGRESS, the TESTS/MISC files (other test programs) in
 # TESTS\MISC, and the TOOLS files (except MSBASIC) in TOOLS.  A test configuration's CONFIG.SYS sets PATH$ to all of
 # them except the TESTS subfolders (eg, "A:\;A:\EXT;A:\TESTS;A:\TOOLS"); the tests in TESTS\REGRESS are run by
@@ -33,7 +33,6 @@ manifest() {
         echo "$root"/$f
     done
 }
-files_root=($(manifest ROOT | grep -v -e '/CONFIG\.SYS$' -e '\.COM$'))
 files_ext=($(manifest EXT))
 files_tests=($(manifest DEMOS) $(manifest TESTS))
 #
@@ -55,8 +54,8 @@ files_tools=($(manifest TOOLS | grep -v '/MSBASIC\.EXE$'))
 #
 # copy [subfolder] [files...]
 #
-# Older versions of this script copied everything into the root, so we also remove any root copy of a file
-# that now belongs in a subfolder.
+# Older versions of this script copied everything into the root (including HELP.TXT, which is now in EXT), so we
+# also remove any root copy of a file that now belongs in a subfolder.
 #
 copy() {
     local sub="$1"; shift
@@ -71,7 +70,6 @@ copy() {
         fi
     done
 }
-copy "" "${files_root[@]}"
 #
 # Older versions of this script also used BASIC, BIN (now EXT), and SAMPLES folders, so remove those copies; EXT,
 # TESTS, and TOOLS are recreated, since older versions put the test programs (and the tools) in other folders, and EXT

@@ -163,7 +163,7 @@ Returns the number of characters in *string* (0-255).
 
 Returns *n* characters of *string*, beginning at position *start* (or the rest of *string* if *n* is omitted).
 
-> MID$(*variable$*,*start*[,*n*]) = *string*
+> MID$(*variable$*,*start*[,*n*])=*string*
 
 The MID$ statement replaces characters of a string variable (or array element), beginning at position *start*, with the characters of *string*, but never more than *n* characters (if specified) or more than fit, since the variable's length doesn't change (eg, after `A$ = "HELLO WORLD" : MID$(A$,7) = "THERE"`, A$ is "HELLO THERE").  As in Microsoft BASIC, *start* must be 1 to 255 and no greater than the variable's length, and *n* must be 0 to 255, or an "Illegal function call" occurs.  The MID$ statement isn't available on low memory systems (see [Low Memory](../../../lang/#low-memory)).
 
@@ -267,9 +267,9 @@ PC DOS batch files use `IF EXIST` (and `IF NOT EXIST`) for the same purpose.
 
 #### INPUT$ {#input}
 
-> INPUT$(*n*[,[#]*f*])
+> INPUT$(*n*[,#*f*])
 
-Returns *n* characters (1-255) read from file *f*, which must be open for INPUT or be a device opened without FOR (see [OPEN](../#open)), or if *f* is omitted, from the keyboard.  Unlike [INPUT](../#input), keys aren't displayed, and every key is a character (eg, ENTER is CHR$(13)); an extended key is two characters, a null and the key's scan code, as with [INKEY$](#inkey).  INPUT$ waits until all *n* characters have been read (from the keyboard, or from a serial port; use [LOC](#loc) to find out how many are waiting).  Reading past the end of a file is an "Input past end" error (62).
+Returns *n* characters (1-255) read from file *f* (the # is optional), which must be open for INPUT or be a device opened without FOR (see [OPEN](../#open)), or if *f* is omitted, from the keyboard.  Unlike [INPUT](../#input), keys aren't displayed, and every key is a character (eg, ENTER is CHR$(13)); an extended key is two characters, a null and the key's scan code, as with [INKEY$](#inkey).  INPUT$ waits until all *n* characters have been read (from the keyboard, or from a serial port; use [LOC](#loc) to find out how many are waiting).  Reading past the end of a file is an "Input past end" error (62).
 
 	PRINT "Continue (Y/N)?";
 	K$ = INPUT$(1) : PRINT K$
@@ -372,7 +372,7 @@ Returns the next mouse button event (*n* = 0), the position of that event (1 and
 #### PATH$ {#path}
 
 > PATH$
-> PATH$ = *string*
+> PATH$=*string*
 
 Returns (or sets) the directories, separated by semicolons, that are searched for a program (or a file to [LOAD](../../disk/#load)) that isn't in the current directory (eg, `PATH$ = "A:\;A:\EXT;A:\DEMOS;A:\SAMPLES"`); see [Running Programs](../../../intro/#running-programs).  Unlike other variables, PATH$ keeps its value when variables are cleared (eg, by [NEW](../../system/#new) or [CLEAR](../#clear)), and each session has its own.  It's usually set on a [SHELL](../../../cfg/#shell) line in CONFIG.SYS, and it's limited to 120 characters.
 

@@ -13,7 +13,7 @@ BASIC programs can use any BASIC-DOS [command](../) in combination with the BASI
 - Error handling: [ERROR](#error), [ON ERROR](#on-error), [RESUME](#resume)
 - Data: [DATA](#data), [READ](#read), [RESTORE](#restore)
 - Input: [INPUT](#input), [LINE INPUT](#line-input)
-- Files: [OPEN](#open), [CLOSE](#close), [INPUT #](#input), [LINE INPUT #](#line-input), [PRINT #](#print), [WRITE](#write), and the [file functions](func/#file-functions)
+- Files: [OPEN](#open), [CLOSE](#close), [INPUT #](#input), [LINE INPUT #](#line-input), [PRINT #](../device/screen/#print), [PRINTF #](../device/screen/#printf), [WRITE #](#write), and the [file functions](func/#file-functions)
 - Random access files: [FIELD](#field), [GET #](#get), [PUT #](#put), [LSET](#lset), [RSET](#lset)
 - Memory and DOS: [DEF SEG](#def-seg), [POKE](#poke), [DOS](#dos)
 - Remarks: [REM](#rem)
@@ -42,9 +42,9 @@ Resets all numeric variables to zero and all string variables to empty strings, 
 
 ### CLOSE
 
-> CLOSE [[#]*n*[,[#]*n*]...]
+> CLOSE [#*n*][,#*n*]...
 
-Closes the specified files, or all files if none are specified (see [OPEN](#open)).  Closing a file that isn't open does nothing.
+Closes the specified files, or all files if none are specified (see [OPEN](#open)); the # is optional.  Closing a file that isn't open does nothing.
 
 A DOS close or metadata commit failure raises "Device I/O error" (57).  The affected file is closed even when this error occurs.
 
@@ -60,7 +60,7 @@ Defines items for [READ](#read) to assign to variables.  DATA statements aren't 
 
 ### DEF
 
-> DEF *function*[(*parameters*)]=*expression*
+> DEF *name*[(*parameter*[,*parameter*]...)]=*expression*
 
 Defines a function.  See [DEF](def/).
 
@@ -100,7 +100,7 @@ Using a subscript outside an array's bounds causes a "Subscript out of range" er
 
 ### DOS {#dos}
 
-> DOS *ax*[,*bx*[,*cx*[,*dx*|*string*]]]
+> DOS *ax*[,*bx*[,*cx*[,*dx*\|*string*]]]
 
 Calls DOS (INT 21h) with the values in registers AX, BX, CX, and DX (omitted values are zero), so that a program can use [DOS functions](../../../bdtech/dos/) that BASIC-DOS has no statement for (eg, 43h, to get or set a file's attributes).  The last value can be a *string* instead, which DOS gets a null-terminated copy of in DS:DX (eg, a filename).  The [DOS](func/#dos) function returns the registers that DOS returned.
 
@@ -130,9 +130,9 @@ Simulates error *n* (1-255).  If an [ON ERROR](#on-error) handler is active, it'
 
 ### FIELD
 
-> FIELD [#]*n*,*width* AS *variable$*[,*width* AS *variable$*]...
+> FIELD #*n*,*width* AS *variable$*[,*width* AS *variable$*]...
 
-Divides each record of random access file *n* into fields (up to 16), which must fit in the record length (see [OPEN](#open)), or it's a "FIELD overflow" error (50).  [GET #](#get) then sets each variable to its part of the record, and [PUT #](#put) writes each variable to its part of the record, padded with spaces (or truncated) to its width; use [LSET](#lset) or [RSET](#lset) to set the variables.  Unlike Microsoft BASIC, the variables are ordinary string variables (assigning one with LET doesn't detach it from its field), and only one FIELD statement per file is in effect at a time.
+Divides each record of random access file *n* (the # is optional) into fields (up to 16), which must fit in the record length (see [OPEN](#open)), or it's a "FIELD overflow" error (50).  [GET #](#get) then sets each variable to its part of the record, and [PUT #](#put) writes each variable to its part of the record, padded with spaces (or truncated) to its width; use [LSET](#lset) or [RSET](#lset) to set the variables.  Unlike Microsoft BASIC, the variables are ordinary string variables (assigning one with LET doesn't detach it from its field), and only one FIELD statement per file is in effect at a time.
 
 ### FOR
 
@@ -149,9 +149,9 @@ NEXT without a *variable* ends the innermost FOR loop; otherwise, it ends the FO
 
 ### GET # {#get}
 
-> GET [#]*n*[,*record*]
+> GET #*n*[,*record*]
 
-Reads the specified record of random access file *n* (or the record after the last one used, if *record* is omitted) and sets each [FIELD](#field) variable to its part of the record.  Records are numbered from 1; any part of a record past the end of the file is zeros.  An invalid *record* is a "Bad record number" error (63).  `GET (x1,y1)-(x2,y2),array` is the [graphics GET](../device/graphics/#get).
+Reads the specified record of random access file *n* (or the record after the last one used, if *record* is omitted) and sets each [FIELD](#field) variable to its part of the record; the # is optional.  Records are numbered from 1; any part of a record past the end of the file is zeros.  An invalid *record* is a "Bad record number" error (63).  `GET (x1,y1)-(x2,y2),array` is the [graphics GET](../device/graphics/#get).
 
 A DOS seek or read failure raises "Device I/O error" (57), preserving the FIELD variables and last completed record number.
 
@@ -181,20 +181,20 @@ Executes statements based on the value of an expression.  See [IF](if/).
 
 ### INPUT {#input}
 
-> INPUT [*prompt*;|,]*variable*[,*variable*]...  
+> INPUT [*prompt*;]*variable*[,*variable*]...  
 > INPUT #*n*,*variable*[,*variable*]...
 
 Reads the next item of file *n* (which must be open for INPUT) into each variable, as [READ](#read) does with DATA items.  Leading spaces, tabs, and line breaks are skipped, and an item ends at a comma or line break, or for a numeric variable, at a space or tab, too.  A quoted item ends at its closing quote, and can contain commas.  This means INPUT # can read back what PRINT # (or [WRITE](#write)) wrote.  Reading past the end of the file is an "Input past end" error (see [EOF](func/#eof)).
 
-Without #*n*, INPUT displays the *prompt* (if any), followed by "? " (unless a comma follows the prompt), reads a line from the keyboard, and takes the items from that line the same way.  Unlike Microsoft BASIC, missing items are simply empty (or zero), and extra items are ignored, instead of displaying "Redo from start".
+Without #*n*, INPUT displays the *prompt* (if any), followed by "? " (unless the prompt is followed by a comma instead of a semicolon), reads a line from the keyboard, and takes the items from that line the same way.  Unlike Microsoft BASIC, missing items are simply empty (or zero), and extra items are ignored, instead of displaying "Redo from start".
 
 	INPUT "Name and age"; N$, A
 
 ### IOCTL # {#ioctl}
 
-> IOCTL [#]*n*,*code*[,*value*|*string*[,*value*]]
+> IOCTL #*n*,*code*[,*value*\|*string*[,*value*]]
 
-Sends an IOCTL request (INT 21h function 44h) with the specified *code* to the device or volume open as file *n*: a numeric *value* is passed in CX (and a second *value* in DX), or a *string*'s data is passed with the request (with its length in CX).  What each code does is up to the driver (see [IOCTL Functions](../../../bdtech/dev/#ioctl-functions)); for example, FORMAT.BAS gives a volume its parameters with the diskette driver's IOCTL_SETPARMS (&HF1) request, and formats each track with IOCTL_FORMAT (&HF2).
+Sends an IOCTL request (INT 21h function 44h) with the specified *code* to the device or volume open as file *n* (the # is optional): a numeric *value* is passed in CX (and a second *value* in DX), or a *string*'s data is passed with the request (with its length in CX).  What each code does is up to the driver (see [IOCTL Functions](../../../bdtech/dev/#ioctl-functions)); for example, FORMAT.BAS gives a volume its parameters with the diskette driver's IOCTL_SETPARMS (&HF1) request, and formats each track with IOCTL_FORMAT (&HF2).
 
 A failure is a runtime error that [ON ERROR](#on-error) can handle: "Illegal function call" (5) for a request the driver doesn't support, "Permission denied" (70) for a write-protected diskette, "Disk not ready" (71), "Disk media error" (72), or "Device I/O error" (57).  To receive data from a driver, use the [IOCTL$](func/#ioctl) function.
 
@@ -223,8 +223,7 @@ Sets the variable to *string*, left-justified (LSET) or right-justified (RSET), 
 
 ### ON
 
-> ON *expression* GOTO *label*[,*label*]...  
-> ON *expression* GOSUB *label*[,*label*]...
+> ON *expression* GOTO\|GOSUB *label*[,*label*]...
 
 Transfers program control to (or calls) the Nth label, where N is the value of the *expression*.  If N is zero or greater than the number of labels, the program continues with the next statement.
 
@@ -248,13 +247,13 @@ Error numbers are the same as Microsoft BASIC's (eg, 5 for "Illegal function cal
 
 ### OPEN
 
-> OPEN *file* [FOR INPUT|OUTPUT|APPEND|RANDOM] AS [#]*n* [LEN=*reclen*]
+> OPEN *file* [FOR INPUT\|OUTPUT\|APPEND\|RANDOM] AS #*n* [LEN=*reclen*]
 
-Opens *file* as file number *n* (1-4): FOR INPUT reads an existing file, FOR OUTPUT creates the file (or truncates it if it exists), and FOR APPEND adds to the end of the file (creating it if necessary).  FOR RANDOM (or no FOR at all) opens the file for random access (creating it if necessary), with records of *reclen* bytes (1-255; the default is 128), using [FIELD](#field), [GET #](#get), and [PUT #](#put); a device opened without FOR (see below) can be both read and written instead.  A read-only file (see [ATTRIB](../external/#attrib)) can't be opened FOR OUTPUT or APPEND ("Path/File access error"), but FOR RANDOM opens it for reading only, as MSBASIC does, so a PUT # to it is a "Permission denied" error (70).  Files that a program leaves open are closed when it ends.  A file can be open for INPUT more than once, but a file open for OUTPUT or APPEND can't be opened again, in this session or any other ("File already open").
+Opens *file* as file number *n* (1-4; the # is optional): FOR INPUT reads an existing file, FOR OUTPUT creates the file (or truncates it if it exists), and FOR APPEND adds to the end of the file (creating it if necessary).  FOR RANDOM (or no FOR at all) opens the file for random access (creating it if necessary), with records of *reclen* bytes (1-255; the default is 128), using [FIELD](#field), [GET #](#get), and [PUT #](#put); a device opened without FOR (see below) can be both read and written instead.  A read-only file (see [ATTRIB](../external/#attrib)) can't be opened FOR OUTPUT or APPEND ("Path/File access error"), but FOR RANDOM opens it for reading only, as MSBASIC does, so a PUT # to it is a "Permission denied" error (70).  Files that a program leaves open are closed when it ends.  A file can be open for INPUT more than once, but a file open for OUTPUT or APPEND can't be opened again, in this session or any other ("File already open").
 
 A *file* that is only a drive letter and colon (eg, `"C:"`) opens the drive's entire volume, so that its sectors can be read (and written, FOR RANDOM) as records: with a record length of 128, for example, sector *n* begins at record *n* * 4 + 1.  FOR OUTPUT opens the volume for writing as a stream, starting with its first sector (nothing is truncated), which is how FORMAT.BAS writes a new diskette's boot sector, FATs, and root directory.  A volume can be opened FOR INPUT only if no file on it is open for writing, and for writing only if no file on it is open at all; while the volume is open, conflicting opens, as well as creating, deleting, or renaming files and directories on it, fail.  Since record numbers range from 1 to 65535, only the first 65535 records of a volume are accessible.  A volume whose media is unknown (eg, an unformatted diskette) can still be opened (without a critical error prompt), with a size of zero until the driver is given its parameters (see [IOCTL #](#ioctl)).
 
-A *file* can also be a device (eg, `"LPT1:"` or `"CON"`).  As in Microsoft BASIC, `"SCRN:"` is the screen (the session's console, CON), and a serial port's name can be followed by its settings, *baud*[,*parity*[,*data*[,*stop*]]], which are set when the port is opened (eg, `OPEN "COM1:300,E,7,1" AS #1`; see [MODE](../external/#mode)).  A device opened without FOR can be used for both input and output: [PRINT #](#print), [WRITE #](#write), [INPUT #](#input), [LINE INPUT #](#line-input), and the [INPUT$](func/#input) function, and for a serial port, [EOF](func/#eof) is true if no characters are waiting, and [LOC](func/#loc) returns how many are waiting (up to 255).  A device name (four letters and a colon, eg, `"COM2:"`) that can't be opened, because there's no such device, is a "Device unavailable" error (68).
+A *file* can also be a device (eg, `"LPT1:"` or `"CON"`).  As in Microsoft BASIC, `"SCRN:"` is the screen (the session's console, CON), and a serial port's name can be followed by its settings, *baud*[,*parity*[,*data*[,*stop*]]], which are set when the port is opened (eg, `OPEN "COM1:300,E,7,1" AS #1`; see [MODE](../external/#mode)).  A device opened without FOR can be used for both input and output: [PRINT #](../device/screen/#print), [WRITE #](#write), [INPUT #](#input), [LINE INPUT #](#line-input), and the [INPUT$](func/#input) function, and for a serial port, [EOF](func/#eof) is true if no characters are waiting, and [LOC](func/#loc) returns how many are waiting (up to 255).  A device name (four letters and a colon, eg, `"COM2:"`) that can't be opened, because there's no such device, is a "Device unavailable" error (68).
 
 Errors are runtime errors that [ON ERROR](#on-error) can handle: "FIELD overflow" (50), "Bad file number" (52) for a number other than 1-4 or a file that isn't open, "File not found" (53), "Bad file mode" (54) for using a file in a way its mode doesn't allow (eg, reading a file opened for output), "File already open" (55), "Input past end" (62), "Bad record number" (63), "Device unavailable" (68), and "Path/File access error" (75).  An invalid record length is an "Illegal function call" (5).
 
@@ -270,7 +269,7 @@ Errors are runtime errors that [ON ERROR](#on-error) can handle: "FIELD overflow
 
 ### OPTION BASE
 
-> OPTION BASE 0|1
+> OPTION BASE 0\|1
 
 Sets the smallest subscript (0 or 1) of arrays dimensioned afterward.  The default is 0.
 
@@ -280,23 +279,11 @@ Sets the smallest subscript (0 or 1) of arrays dimensioned afterward.  The defau
 
 Stores *value* (0-255) at *offset* in the segment set by [DEF SEG](#def-seg).  In protected mode, a read-only segment (any except BASIC-DOS's own data segment and video memory) is an "Illegal function call".
 
-### PRINT # {#print}
-
-> PRINT #*n*,[*expression*][;|,][*expression*]...
-
-Writes values to file *n* (which must be open for OUTPUT or APPEND, or be a device opened without FOR) exactly as [PRINT](../device/screen/#print) would display them.  As in Microsoft BASIC, the space before the `#` is optional (eg, `PRINT#1,X`), here and in the other file statements.
-
-### PRINTF # {#printf}
-
-> PRINTF #*n*,USING *format*;[*value*][,|;][*value*]...
-
-Writes values to file *n* (which must be open for OUTPUT or APPEND) exactly as [PRINTF](../device/screen/#printf) would display them.
-
 ### PUT # {#put}
 
-> PUT [#]*n*[,*record*]
+> PUT #*n*[,*record*]
 
-Writes each [FIELD](#field) variable to its part of the specified record of random access file *n* (or the record after the last one used, if *record* is omitted), padded with spaces.  `PUT (x,y),array` is the [graphics PUT](../device/graphics/#put).
+Writes each [FIELD](#field) variable to its part of the specified record of random access file *n* (or the record after the last one used, if *record* is omitted), padded with spaces; the # is optional.  `PUT (x,y),array` is the [graphics PUT](../device/graphics/#put).
 
 An incomplete write raises "Disk full" (61); a DOS seek or write failure raises "Device I/O error" (57).  A failed PUT does not advance the last completed record number returned by LOC.
 

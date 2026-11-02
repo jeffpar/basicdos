@@ -10,13 +10,13 @@ Keyboard commands include:
 
 - [KEY](#key)
 
-To read keys from a BASIC program, use the [INKEY$](../../basic/func/#inkey) function.  For a summary of the keys used to edit commands, see [Typing Commands](../../../intro/#typing-commands) or type [KEYS](../../system/#keys).
+To read keys from a BASIC program, use the [INKEY$](../../basic/func/#inkey) function.  For a summary of the keys used to edit commands, see [Typing Commands](../../../intro/#typing-commands) or type [HELP KEYS](../../external/#help).
 
 To read a line from the keyboard, use the [INPUT](../../basic/#input) or [LINE INPUT](../../basic/#line-input) statement.
 
 ### KEY
 
-> KEY ON|OFF  
+> KEY ON\|OFF  
 > KEY *n*,*string*
 
 KEY ON and KEY OFF are accepted for compatibility with Microsoft BASIC, but do nothing, since BASIC-DOS doesn't display function keys.

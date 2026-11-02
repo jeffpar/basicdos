@@ -13,7 +13,7 @@ machines:
   - id: ibm5170
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5170-cga-2mb.json
-    debugger: true
+    debugger: available
     connection: com2->vt100.serialPort
     autoMount:
       A: "BASIC-DOS Protected Mode Demo"

@@ -12,56 +12,55 @@ BASIC-DOS has a single command shell for both DOS commands (eg, DIR) and BASIC s
 - [BASIC Functions](basic/func/): numeric, string, and system functions, and predefined constants
 - [Device Commands](device/): clock, keyboard, screen, graphics, and sound
 - [Disk Commands](disk/): copying, deleting, listing, loading, and displaying files
-- [External Commands](external/): COM, EXE, BAT, and BAS programs
-- [System Commands](system/): help, memory, program management, and system control
+- [External Commands](external/): COM, EXE, BAT, and BAS programs (including [HELP](external/#help))
+- [System Commands](system/): memory, program management, and system control
 
-In the descriptions that follow, *italics* indicate values that you supply, brackets (`[` `]`) indicate optional items, and a vertical bar (`|`) separates alternatives.
+In the descriptions that follow, *italics* indicate values that you supply, brackets (`[` `]`) indicate optional items, a vertical bar (`|`) separates alternatives, and `...` means that the item before it can be repeated.  A statement with more than one form shows each form on a line of its own.  A file number is written #*n*: in OPEN, CLOSE, FIELD, GET, PUT, IOCTL, and INPUT$, the # is optional, and as in Microsoft BASIC, the space before a # is optional, too (eg, `PRINT#1,X`).
 
-As in MS-DOS, a DOS command typed as one word with a path (eg, `CD\`, `CD\EXT`, or `DIR\HELP.TXT`) doesn't need a space before the path.  Unlike MS-DOS, however, a command followed by a path that begins with `.` (eg, `CD..`) still needs a space (eg, `CD ..`).
+As in MS-DOS, a DOS command typed as one word with a path (eg, `CD\`, `CD\EXT`, or `DIR\EXT`) doesn't need a space before the path.  Unlike MS-DOS, however, a command followed by a path that begins with `.` (eg, `CD..`) still needs a space (eg, `CD ..`).
 
 ### Commands A-Z
 
 | Command | Category | Command | Category |
 |---------|----------|---------|----------|
-| [AUTO](system/#auto) | System | [LOAD](disk/#load) | Disk |
-| [CD](disk/#cd) | Disk | [LOCATE](device/screen/#locate) | Screen |
-| [CHAIN](basic/#chain) | BASIC | [LPRINT](device/screen/#lprint) | Screen |
-| [CIRCLE](device/graphics/#circle) | Graphics | [MD](disk/#md) | Disk |
-| [CLEAR](basic/#clear) | BASIC | [MEM](system/#mem) | System |
-| [CLS](device/screen/#cls) | Screen | [MERGE](disk/#merge) | Disk |
-| [COLOR](device/screen/#color) | Screen | [MOUSE](device/mouse/#mouse) | Mouse |
-| [COPY](disk/#copy) | Disk | [NEW](system/#new) | System |
-| [DATA](basic/#data) | BASIC | [NEXT](basic/#for) | BASIC |
-| [DATE](device/clock/#date) | Clock | [ON](basic/#on) | BASIC |
-| [DEF](basic/def/) | BASIC | [OPTION BASE](basic/#option-base) | BASIC |
-| [DEF SEG](basic/#def-seg) | BASIC | [PAINT](device/graphics/#paint) | Graphics |
-| [DEFDBL](basic/#defdbl) | BASIC | [PLAY](device/sound/#play) | Sound |
-| [DEFINT](basic/#defint) | BASIC | [POKE](basic/#poke) | BASIC |
-| [DEFSTR](basic/#defstr) | BASIC | [PRESET](device/graphics/#preset) | Graphics |
-| [DEL](disk/#del) | Disk | [PRINT](device/screen/#print) | Screen |
-| [DELETE](system/#delete) | System | [PSET](device/graphics/#pset) | Graphics |
-| [DIM](basic/#dim) | BASIC | [PUT](device/graphics/#put) | Graphics |
-| [DIR](disk/#dir) | Disk | [RD](disk/#rd) | Disk |
-| [DRAW](device/graphics/#draw) | Graphics | [READ](basic/#read) | BASIC |
-| [ECHO](device/screen/#echo) | Screen | [REM](basic/#rem) | BASIC |
-| [EDIT](system/#edit) | System | [REN](disk/#ren) | Disk |
-| [END](basic/#end) | BASIC | [RESTART](system/#restart) | System |
-| [ERASE](basic/#erase) | BASIC | [RESTORE](basic/#restore) | BASIC |
-| [ERROR](basic/#error) | BASIC | [RESUME](basic/#resume) | BASIC |
-| [EXIT](system/#exit) | System | [RETURN](basic/return/) | BASIC |
-| [FOR](basic/#for) | BASIC | [RUN](system/#run) | System |
-| [GET](device/graphics/#get) | Graphics | [SAVE](disk/#save) | Disk |
-| [GOSUB](basic/#gosub) | BASIC | [SCREEN](device/screen/#screen) | Screen |
-| [GOTO](basic/goto/) | BASIC | [SOUND](device/sound/#sound) | Sound |
-| [HELP](system/#help) | System | [STOP](basic/#end) | BASIC |
+| [AUTO](system/#auto) | System | [LOCATE](device/screen/#locate) | Screen |
+| [CD](disk/#cd) | Disk | [LPRINT](device/screen/#lprint) | Screen |
+| [CHAIN](basic/#chain) | BASIC | [MD](disk/#md) | Disk |
+| [CIRCLE](device/graphics/#circle) | Graphics | [MEM](system/#mem) | System |
+| [CLEAR](basic/#clear) | BASIC | [MERGE](disk/#merge) | Disk |
+| [CLS](device/screen/#cls) | Screen | [MOUSE](device/mouse/#mouse) | Mouse |
+| [COLOR](device/screen/#color) | Screen | [NEW](system/#new) | System |
+| [COPY](disk/#copy) | Disk | [NEXT](basic/#for) | BASIC |
+| [DATA](basic/#data) | BASIC | [ON](basic/#on) | BASIC |
+| [DATE](device/clock/#date) | Clock | [OPTION BASE](basic/#option-base) | BASIC |
+| [DEF](basic/def/) | BASIC | [PAINT](device/graphics/#paint) | Graphics |
+| [DEF SEG](basic/#def-seg) | BASIC | [PLAY](device/sound/#play) | Sound |
+| [DEFDBL](basic/#defdbl) | BASIC | [POKE](basic/#poke) | BASIC |
+| [DEFINT](basic/#defint) | BASIC | [PRESET](device/graphics/#preset) | Graphics |
+| [DEFSTR](basic/#defstr) | BASIC | [PRINT](device/screen/#print) | Screen |
+| [DEL](disk/#del) | Disk | [PSET](device/graphics/#pset) | Graphics |
+| [DELETE](system/#delete) | System | [PUT](device/graphics/#put) | Graphics |
+| [DIM](basic/#dim) | BASIC | [RD](disk/#rd) | Disk |
+| [DIR](disk/#dir) | Disk | [READ](basic/#read) | BASIC |
+| [DRAW](device/graphics/#draw) | Graphics | [REM](basic/#rem) | BASIC |
+| [ECHO](device/screen/#echo) | Screen | [REN](disk/#ren) | Disk |
+| [EDIT](system/#edit) | System | [RESTART](system/#restart) | System |
+| [END](basic/#end) | BASIC | [RESTORE](basic/#restore) | BASIC |
+| [ERASE](basic/#erase) | BASIC | [RESUME](basic/#resume) | BASIC |
+| [ERROR](basic/#error) | BASIC | [RETURN](basic/return/) | BASIC |
+| [EXIT](system/#exit) | System | [RUN](system/#run) | System |
+| [FOR](basic/#for) | BASIC | [SAVE](disk/#save) | Disk |
+| [GET](device/graphics/#get) | Graphics | [SCREEN](device/screen/#screen) | Screen |
+| [GOSUB](basic/#gosub) | BASIC | [SOUND](device/sound/#sound) | Sound |
+| [GOTO](basic/goto/) | BASIC | [STOP](basic/#end) | BASIC |
 | [IF](basic/if/) | BASIC | [TIME](device/clock/#time) | Clock |
 | [IOCTL](basic/#ioctl) | BASIC | [TYPE](disk/#type) | Disk |
 | [KEY](device/keyboard/#key) | Keyboard | [VER](system/#ver) | System |
-| [KEYS](system/#keys) | System | [VIEW](device/graphics/#view) | Graphics |
-| [LET](basic/let/) | BASIC | [WEND](basic/#while) | BASIC |
-| [LINE](device/graphics/#line) | Graphics | [WHILE](basic/#while) | BASIC |
-| [LIST](system/#list) | System | [WIDTH](device/screen/#width) | Screen |
-| [LLIST](system/#llist) | System | [WINDOW](device/graphics/#window) | Graphics |
+| [LET](basic/let/) | BASIC | [VIEW](device/graphics/#view) | Graphics |
+| [LINE](device/graphics/#line) | Graphics | [WEND](basic/#while) | BASIC |
+| [LIST](system/#list) | System | [WHILE](basic/#while) | BASIC |
+| [LLIST](system/#llist) | System | [WIDTH](device/screen/#width) | Screen |
+| [LOAD](disk/#load) | Disk | [WINDOW](device/graphics/#window) | Graphics |
 See [BASIC Functions](basic/func/) for the list of functions and predefined constants.
 
 ### Not Yet Supported

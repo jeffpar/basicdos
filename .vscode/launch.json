@@ -57,7 +57,7 @@
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS with a Serial Debugger",
-      "url": "http://localhost:4040/demos/debug/at/debugger/",
+      "url": "http://localhost:4040/demos/debug/at/",
       "webRoot": "${workspaceFolder}"
     },
     {

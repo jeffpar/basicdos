@@ -7,7 +7,7 @@
 #   ROOT     the root directory, in order; "CONFIG.SYS" stands for each disk's own
 #            CONFIG.SYS (followed by AUTOEXEC.BAT, if its SHELL lines run one)
 #   EXT      all the external BASIC-DOS utilities (including BASIC programs) and
-#            device drivers (distribution)
+#            device drivers, and HELP.TXT, which HELP displays (distribution)
 #   DEMOS    demo programs (distribution)
 #   SAMPLES  the PC DOS 1.00 BASIC samples (distribution)
 #   TESTS    BENCH.BAS, STRESS.BAT, and REGRESS.BAT (which runs the tests in
@@ -35,7 +35,6 @@ CONFIG.SYS
 software/src/os/dev/obj/BASDEV.COM
 software/src/os/dos/obj/BASDOS.COM
 software/src/os/cmd/obj/COMMAND.COM
-software/src/os/cmd/HELP.TXT
 
 [EXT]
 software/src/os/util/misc/obj/*.COM
@@ -53,6 +52,7 @@ software/src/os/util/bas/MODE.BAS
 software/src/os/util/bas/SYS.BAS
 software/src/os/util/bas/TREE.BAS
 software/src/os/util/bas/VOL.BAS
+software/src/os/cmd/HELP.TXT
 
 [DEMOS]
 software/src/tests/misc/DIR.BAS
@@ -98,6 +98,7 @@ software/src/tests/misc/VARS.BAS
 software/src/tests/bin/ASSERT.COM
 software/src/tests/bin/CPUTEST.COM
 software/src/tests/bin/DBGTEST.COM
+software/src/tests/bin/FAULT.COM
 software/src/tests/misc/GFXTEST.BAS
 software/src/tests/misc/MICRO.BAS
 software/src/tests/primes/PRIMES.BAT

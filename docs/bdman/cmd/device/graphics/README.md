@@ -72,7 +72,7 @@ Stores the pixels of the specified rectangle in an integer or double *array* (eg
 
 ### LINE
 
-> LINE [(*x1*,*y1*)]-(*x2*,*y2*)[,[*color*][,B|BF]]
+> LINE [(*x1*,*y1*)]-(*x2*,*y2*)[,[*color*][,B\|BF]]
 
 Draws a line from (*x1*,*y1*) to (*x2*,*y2*), or with B, a box with those corners, or with BF, a filled box.  If the first point is omitted, the last point drawn is used.
 
@@ -103,7 +103,8 @@ Physical coordinates are relative to the viewport, unless it was defined with VI
 
 ### POINT
 
-> POINT(*x*,*y*) or POINT(*n*)
+> POINT(*x*,*y*)  
+> POINT(*n*)
 
 Returns the color of the pixel at (*x*,*y*), or -1 if it's off the screen (or outside the viewport).  POINT(*n*) returns the physical x (*n* = 0) or y (*n* = 1) coordinate of the last point referenced (eg, by PSET or DRAW), or its world x (*n* = 2) or y (*n* = 3) coordinate (see [WINDOW](#window)), rounded to an integer; without WINDOW, POINT(2) and POINT(3) are the same as POINT(0) and POINT(1).  POINT doesn't change the last point.
 
@@ -121,7 +122,7 @@ Draws a point, using the foreground color if no *color* is specified.
 
 ### PUT
 
-> PUT (*x*,*y*),*array*[,PSET|PRESET|XOR|OR|AND]
+> PUT (*x*,*y*),*array*[,PSET\|PRESET\|XOR\|OR\|AND]
 
 Draws an image stored by [GET](#get) (`PUT #n` writes a record of a random access file; see [PUT #](../../basic/#put)) with its top left corner at (*x*,*y*), combining it with the screen using XOR, unless another action is specified:
 

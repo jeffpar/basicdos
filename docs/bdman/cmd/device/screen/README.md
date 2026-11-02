@@ -12,7 +12,9 @@ Screen commands include:
 - [COLOR](#color)
 - [ECHO](#echo)
 - [LOCATE](#locate)
+- [LPRINT](#lprint)
 - [PRINT](#print)
+- [PRINTF](#printf)
 - [SCREEN](#screen)
 - [WIDTH](#width)
 
@@ -43,7 +45,7 @@ The colors are:
 
 ### ECHO
 
-> ECHO [ON|OFF]
+> ECHO [ON\|OFF]
 
 Controls the echo of lines in a BAT file.  After ECHO ON, a BAT file echoes each line before running it, until ECHO OFF is used; a line beginning with `@` is never echoed (eg, `@ECHO ON`).  Echoed lines are displayed with a `@` in front (eg, `@REM Starting`), where PC DOS would display a prompt.  ECHO without ON or OFF displays the current setting.
 
@@ -57,9 +59,11 @@ Moves the cursor to the specified *row* and *col* (starting at 1,1), and hides (
 
 ### PRINT
 
-> PRINT [*expression*][;|,][*expression*]...
+> PRINT [#*n*,][*expression*][*separator*][*expression*]...
 
-Prints a series of values, separated by semicolons or commas.  A semicolon prints the next value immediately after the previous one, and a comma prints a tab.  Numbers are printed with a leading space (or minus sign) and a trailing space.  If the list ends with a semicolon or comma, the cursor remains on the same line; otherwise, PRINT moves to the next line.  [PRINT #](../../basic/#print) writes the same output to a file.
+Prints a series of values.  Each *separator* is a semicolon, which prints the next value immediately after the previous one, or a comma, which prints a tab; a space or tab between values works like a semicolon.  Numbers are printed with a leading space (or minus sign) and a trailing space.  If the list ends with a semicolon or comma, the cursor remains on the same line; otherwise, PRINT moves to the next line.
+
+With #*n*, PRINT writes the same output to file *n*, which must be open for OUTPUT or APPEND, or be a device opened without FOR (see [OPEN](../../basic/#open)).  As in Microsoft BASIC, the space before the # is optional (eg, `PRINT#1,X`).  The # form isn't available on low memory systems.
 
 	PRINT "A"; 1; "B", 2
 	A 1 B	 2
@@ -68,9 +72,9 @@ On the PC's display, as in PC DOS, control characters other than BELL (7, which 
 
 ### PRINTF
 
-> PRINTF USING *format*;[*value*][,|;][*value*]...
+> PRINTF [#*n*,]USING *format*;[*value*][*separator*][*value*]...
 
-Prints the values using the C-style specifiers in *format*, as a simpler alternative to the PRINT USING of other BASICs.  Each `%` specifier takes the next value: `%d` or `%u` prints a number (`%x` in hexadecimal, and `%#d` with a leading space for positive numbers, like PRINT), `%f` prints a double (BASIC-style unless a precision is given), `%s` prints a string, and `%c` prints a character (from a number or the first character of a string).  Specifiers accept the `-` flag (left-justify), a width, and a precision (eg, `%5d`, `%-8.3s`, `%.2f`), and `%%` prints a percent sign.  Other specifiers print part of a number that holds a packed DOS date or time (eg, from a [DIR$](../../basic/func/#dir) entry): `%M`, `%D`, and `%Y` print a date's month, day, and year (`%X` prints the year with 2 digits), `%F` and `%W` print the names of its month and day of the week (eg, `%.3F` prints `Oct`), and `%H`, `%N`, and `%S` print a time's hour, minute, and second (`%G` prints a 12-hour hour, and `%A` prints `a` or `p`).  Since the values carry their own types, size modifiers like `l` are unnecessary, and a value of the wrong type prints its specifier unchanged.  As with PRINT, the cursor moves to the next line unless the list ends with a semicolon or comma.  [PRINTF #](../../basic/#printf) writes the same output to a file.
+Prints the values using the C-style specifiers in *format*, as a simpler alternative to the PRINT USING of other BASICs.  Each `%` specifier takes the next value: `%d` or `%u` prints a number (`%x` in hexadecimal, and `%#d` with a leading space for positive numbers, like PRINT), `%f` prints a double (BASIC-style unless a precision is given), `%s` prints a string, and `%c` prints a character (from a number or the first character of a string).  Specifiers accept the `-` flag (left-justify), a width, and a precision (eg, `%5d`, `%-8.3s`, `%.2f`), and `%%` prints a percent sign.  Other specifiers print part of a number that holds a packed DOS date or time (eg, from a [DIR$](../../basic/func/#dir) entry): `%M`, `%D`, and `%Y` print a date's month, day, and year (`%X` prints the year with 2 digits), `%F` and `%W` print the names of its month and day of the week (eg, `%.3F` prints `Oct`), and `%H`, `%N`, and `%S` print a time's hour, minute, and second (`%G` prints a 12-hour hour, and `%A` prints `a` or `p`).  Since the values carry their own types, size modifiers like `l` are unnecessary, and a value of the wrong type prints its specifier unchanged.  Each *separator* is a semicolon, comma, space, or tab (only *format* determines what's printed), and as with PRINT, the cursor moves to the next line unless the list ends with a semicolon or comma.  With #*n*, PRINTF writes the same output to file *n*, which must be open for OUTPUT or APPEND.
 
 	PRINTF USING "%-6s|%5d|%.2f"; "abc", 42, 3.14159
 	abc   |   42|3.14
@@ -115,9 +119,9 @@ and now prints it with:
 
 ### LPRINT
 
-> LPRINT [*expression*][;|,][*expression*]...
+> LPRINT [*expression*][*separator*][*expression*]...
 
-Prints like [PRINT](#print), but to the printer (PRN, which is the first parallel port, LPT1, unless [PRN=](../../../cfg/#prn) in CONFIG.SYS chooses another device).  If there's no PRN device (eg, the machine has no parallel port), a "Device unavailable" error occurs after the statement, and a printer can report "Device timeout" (eg, if it's offline), "Out of paper", or "Device fault"; [PRINT #](../../basic/#print) to a printer (eg, a file opened as "PRN" or "LPT2") reports the same errors.  See also [LLIST](../../system/#llist) and [LPOS](../../basic/func/#lpos).  LPRINT USING isn't supported; to format output for the printer, open PRN as a file and use PRINTF #*n* (see [How to replace PRINT USING](#how-to-replace-print-using)).  LPRINT isn't available on low memory systems.
+Prints like [PRINT](#print), but to the printer (PRN, which is the first parallel port, LPT1, unless [PRN=](../../../cfg/#prn) in CONFIG.SYS chooses another device).  If there's no PRN device (eg, the machine has no parallel port), a "Device unavailable" error occurs after the statement, and a printer can report "Device timeout" (eg, if it's offline), "Out of paper", or "Device fault"; [PRINT #](#print) to a printer (eg, a file opened as "PRN" or "LPT2") reports the same errors.  See also [LLIST](../../system/#llist) and [LPOS](../../basic/func/#lpos).  LPRINT USING isn't supported; to format output for the printer, open PRN as a file and use PRINTF #*n* (see [How to replace PRINT USING](#how-to-replace-print-using)).  LPRINT isn't available on low memory systems.
 
 	LPRINT "Total:"; T
 
@@ -137,7 +141,7 @@ While a session is in any mode other than its original mode (eg, a graphics mode
 
 ### WIDTH
 
-> WIDTH 40|80  
+> WIDTH 40\|80  
 > WIDTH *device*,*width*
 
 Sets the number of columns in text mode (which clears the screen).  In SCREEN 1, WIDTH 80 selects SCREEN 2, and in SCREEN 2, WIDTH 40 selects SCREEN 1.

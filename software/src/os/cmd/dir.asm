@@ -1652,32 +1652,6 @@ ENDPROC	readInput
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; seekInput
-;
-; Seek to the specified position of the input file.
-;
-; Inputs:
-;	BX -> CMDHEAP
-;	CX:DX = absolute position
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX
-;
-DEFPROC	seekInput
-	push	bx
-	ASSERT	STRUCT,[bx],CMD
-	mov	bx,[bx].HDL_INPUT
-	mov	ax,DOS_HDL_SEEKBEG
-	int	21h
-	pop	bx
-	ret
-ENDPROC	seekInput
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; writeOutput
 ;
 ; Write CX bytes to the default file from the buffer at DS:SI.

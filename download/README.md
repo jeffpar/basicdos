@@ -15,8 +15,8 @@ machines:
 
 The BASIC-DOS release diskette is a bootable 360K diskette with everything you need to try BASIC-DOS:
 
-- The root directory contains the system files (BASDEV.COM, BASDOS.COM, and COMMAND.COM), **CONFIG.SYS**, and **HELP.TXT**
-- **EXT** contains the external BASIC-DOS utilities (eg, ATTRIB, CHKDSK, COMP, DISKCOPY, FORMAT, MODE, SYS, TREE, VI, and the [filters](/docs/bdman/cmd/external/#filters)) and DEBUG.COM
+- The root directory contains the system files (BASDEV.COM, BASDOS.COM, and COMMAND.COM) and **CONFIG.SYS**
+- **EXT** contains the external BASIC-DOS utilities (eg, ATTRIB, CHKDSK, COMP, DISKCOPY, FORMAT, HELP, MODE, SYS, TREE, VI, and the [filters](/docs/bdman/cmd/external/#filters)), DEBUG.COM, and HELP.TXT
 - **DEMOS** contains a few demo programs: DIR.BAS, FIBO.BAT, HELLO.BAT, PAINT.BAS, PIPES.BAT, and PRIMES.BAS
 - **SAMPLES** contains the BASIC samples from the IBM PC DOS 1.00 diskette (eg, DONKEY.BAS)
 

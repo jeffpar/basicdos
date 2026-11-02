@@ -30,7 +30,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<move_init,dos_size,map_buf,map_dos>
 	EXTNEAR	<set_call5,mem_total>
 	EXTNEAR	<open_dev,open_warning,open_error>
-	EXTNEAR	<sysinit_tail,fatal_error,set_ddint>
+	EXTNEAR	<sysinit_tail,fatal_error,set_ddint,set_fault>
 	EXTWORD	<dos_seg,dos_code,cfg_data,cfg_size>
 	EXTLONG	<pCacheInt21,con_fails>
 	EXTBYTE	<con_count>
@@ -242,12 +242,14 @@ si3:	mov	ax,[DD_LIST].OFF	; copy the device driver list head
 	mov	[key_boot],ax
 ;
 ; Now grow the kernel's block (see dos_size) as much as possible; the hard
-; error stack (see dev_error) goes in the next paragraph after our original
-; code and stack, and the first resident table follows it (see init_table).
+; error stack (see dev_error) goes in the next paragraph after our resident
+; code (see set_fault) and stack, and the first resident table follows it
+; (see init_table).
 ;
 si3a:	sub	bx,bx
 	call	dos_size
-	mov	ax,offset sysinit_start + 15
+	call	set_fault		; AX = end of the resident code
+	add	ax,15
 	and	al,0F0h			; AX = DS-relative offset of the stack
 	add	ax,ERR_STACK_SIZE
 	mov	[err_stack],ax		; record the top of the stack

@@ -21,10 +21,14 @@
 ; be a 16-bit register name (eg, DB DS:DX).
 ;
 ; Ctrl-C or a serial BREAK stops the machine as soon as it arrives (via the
-; port's hardware interrupt), as do breakpoints, single-steps (T and P), any
-; other INT 1 or INT 3, and divide errors (INT 0).  The monitor displays the
-; registers and the current instruction, and then accepts commands (? lists
-; them) until G, P, or T.
+; port's hardware interrupt), as do breakpoints, single-steps (T and P), and
+; any other INT 1 or INT 3.  Every exception is hooked (INT 00h and, in the
+; driver, INT 04h, and in protected mode, the rest through CPU_SETFAULT), but
+; one stops the machine only if VT traps its vector (VL lists them, and VC
+; clears them); otherwise, it's passed on (eg, to DOS, which ends the
+; program), as GT passes on a trapped one.  The monitor
+; displays the registers and the current instruction, and then accepts
+; commands (? lists them) until G, GT, P, or T.
 ;
 ; Memory is read and written through CPU$ (see CPU_RWMEM), which checks every
 ; address, and can store breakpoints in code segments (but not in the parts
@@ -107,11 +111,15 @@ NUM_BPS		equ	10
 TRACE_BRIEF	equ	01h	; display only the instruction (no R)
 TRACE_OVER	equ	02h	; step over CALL, INT, LOOP, and REP (P)
 ;
-; vec_save holds our INT 00h, 01h, and 03h handlers, which dbginit.asm's
-; swap_vecs exchanges with the vectors, so once they're hooked, it holds the
-; previous handlers (eg, DOS's INT 00h handler, for cmd_g).
+; vec_save holds our INT 00h, 04h, 01h, and 03h handlers, which dbginit.asm's
+; swap_vecs (or for INT 04h, which only the driver hooks, dbgdev_init)
+; exchanges with the vectors, so once they're hooked, it holds the previous
+; handlers (eg, DOS's INT 00h handler, for GT), and the offset of INT 00h's
+; and INT 04h's is the vector (see dbg_int0 and cmd_gt).
 ;
-	DEFWORD	vec_save,<dbg_int0,0,dbg_int1,0,dbg_int3,0>
+	DEFWORD	vec_save,<dbg_int0,0,dbg_int4,0,dbg_int1,0,dbg_int3,0>
+	DEFPTR	old_fault		; previous fault handler (DOS's)
+	DEFBYTE	trap_vecs,0,4		; a bit for each vector that VT traps
 	DEFPTR	old_com			; original COM interrupt handler
 	DEFWORD	com_port,0		; UART base port
 	DEFWORD	dos_seg,0		; DOS's segment (see hook_vecs)
@@ -140,8 +148,8 @@ TRACE_OVER	equ	02h	; step over CALL, INT, LOOP, and REP (P)
 	DEFBYTE	in_head,0		; next byte to read from in_buf
 	DEFBYTE	in_tail,0		; next byte to write in in_buf
 	DEFBYTE	why,0			; 1, 3 (INT 1, INT 3), -1 (fault),
-					; -2 (divide error), or 0
-	DEFBYTE	fault_vec,0		; a fault's vector (see dbg_fault)
+					; -2 (INT 0 or INT 4), or 0
+	DEFBYTE	fault_vec,0		; the vector of a fault (or INT 0 or 4)
 	DEFBYTE	brk_skip,0		; nonzero to resume past a DBGBRK
 	DEFWORD	fault_ec,0		; and its error code
 	DEFBYTE	tracing,0		; 1 for T or P, 2 for G past a BP
@@ -177,18 +185,24 @@ FLAG_MASK	equ	0ED5h	; OF, DF, IF, SF, ZF, AF, PF, and CF
 	db	"DS sel",9,9,"dump selector",13,10
 	db	"E addr [list]",9,"edit memory",13,10
 	db	"G [addr]",9,"go (to address)",13,10
+	db	"GT",9,9,"go, passing on the trap",13,10
 	db	"LN [addr]",9,"list nearest block",13,10
 	db	"P[R] [count]",9,"step over (R: registers)",13,10
 	db	"R [reg | F]",9,"display or edit registers",13,10
 	db	"T[R] [count]",9,"trace (R: registers)",13,10
-	db	"U [range]",9,"unassemble",13,10,0
+	db	"U [range]",9,"unassemble",13,10
+	db	"VC n|*",9,9,"clear vector trap(s)",13,10
+	db	"VL",9,9,"list vector traps",13,10
+	db	"VT n",9,9,"trap vector (n. = decimal)",13,10,0
 
 	DEFLBL	ASSERT_MSG,byte
 	db	"Assertion failure",0
 	DEFLBL	DIV_MSG,byte
 	db	"Division error",0
+	DEFLBL	OVF_MSG,byte
+	db	"Overflow error",0
 	DEFLBL	FAULT_MSG,byte
-	db	"CPU$ fault ",0
+	db	"CPU fault ",0
 	DEFLBL	EC_MSG,byte
 	db	" (EC=",0
 ;
@@ -228,6 +242,8 @@ PM_FLAG_MASK	equ	0FD5h	; OF, DF, IF, TF, SF, ZF, AF, PF, and CF
 	dw	cmd_t
 	db	'U'
 	dw	cmd_u
+	db	'V'
+	dw	cmd_v
 	db	'?'
 	dw	cmd_help
 	DEFLBL	CMD_Q,byte
@@ -339,6 +355,9 @@ ENDPROC	dbgdev_com
 ;	Interrupt frame on SS:SP (with interrupts disabled), which for
 ;	dbg_fault (see CPU_SETFAULT) follows the vector and error code
 ;
+; An exception (dbg_fault, dbg_int0, or dbg_int4) whose vector VT doesn't
+; trap (see chk_trap) goes to the previous handler instead, as it was.
+;
 DEFPROC	dbgdev_enter,far
 	DEFLBL	dbg_fault,near
 	push	bp
@@ -347,7 +366,9 @@ DEFPROC	dbgdev_enter,far
 	push	ds
 	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
-	mov	ax,[bp+2]
+	mov	ax,[bp+2]		; AX = vector
+	call	chk_trap		; is it trapped?
+	jnc	df9			; no
 	mov	[fault_vec],al
 	mov	ax,[bp+4]
 	mov	[fault_ec],ax
@@ -359,9 +380,32 @@ DEFPROC	dbgdev_enter,far
 	push	ax
 	mov	al,-1			; (a fault)
 	jmp	short de1
+df9:	pop	ds
+	pop	ax
+	pop	bp
+	jmp	cs:[old_fault]		; pass it on
 	DEFLBL	dbg_int0,near
 	push	ax
-	mov	al,-2			; (a divide error)
+	mov	al,0
+	jmp	short di1
+	DEFLBL	dbg_int4,near
+	push	ax
+	mov	al,4
+di1:	push	ds
+	mov	ds,cs:[0].DDH_DATA
+	ASSUME	DS:CODE
+	cbw				; AX = vector
+	call	chk_trap		; is it trapped?
+	mov	[fault_vec],al
+	pop	ds
+	ASSUME	DS:NOTHING
+	jc	di3			; yes
+	test	al,al			; INT 00h?
+	pop	ax
+	jnz	di2			; no
+	jmp	dword ptr cs:[vec_save]	; pass it on
+di2:	jmp	dword ptr cs:[vec_save+4]
+di3:	mov	al,-2			; (INT 00h or INT 04h)
 	jmp	short de1
 	DEFLBL	dbg_int1,near
 	push	ax
@@ -496,17 +540,21 @@ mon2:	sub	ax,ax
 	call	newline
 	jmp	short mon3
 ;
-; A divide error gets the same message that DOS displays (see cmd_g).
+; A trapped INT 00h or INT 04h gets the same message that DOS displays.
 ;
 mon2a:	mov	si,offset DIV_MSG
-	cmp	al,-2			; a divide error?
+	cmp	al,-2			; INT 00h or INT 04h?
+	jne	mon2d			; no
+	cmp	[fault_vec],0		; INT 00h (a divide error)?
 	je	mon2c			; yes
+	mov	si,offset OVF_MSG
+	jmp	short mon2c
 ;
 ; An INT 3 that isn't a breakpoint (disarm clears why for those) and follows
 ; a NOP is an ASSERT, so say so; any other is a DBGBRK, which a driver loaded
 ; without /H resumes past, as G would (see dbgdev_init).
 ;
-	cmp	al,3			; INT 3 other than a breakpoint?
+mon2d:	cmp	al,3			; INT 3 other than a breakpoint?
 	jne	mon3			; no
 	call	ip_mem			; DI -> byte after the INT 3
 	dec	di
@@ -796,14 +844,18 @@ ENDPROC	store_list
 ;
 ; G [addr] removes any breakpoint at CS:IP, steps past it, and then sets all
 ; the breakpoints (including the temporary one, which addr replaces) and
-; resumes.  After a divide error, G without an addr passes the error to the
-; previous INT 00h handler instead (eg, DOS's, which ends the program), since
-; resuming would only run the DIV again on an 80286 or later (which report
-; the DIV's address).
+; resumes.  GT instead passes the trapped exception that stopped us (see VT)
+; on to its previous handler (eg, DOS's, which ends the program), as if it
+; hadn't been trapped, since resuming would only run the instruction again
+; (eg, an 80286 or later reports a DIV's address, not the next one).
 ;
 DEFPROC	cmd_g
+	lodsb
+	cmp	al,'T'			; GT?
+	je	cmd_gt			; yes
+	dec	si
 	call	end_command
-	jnc	cg0
+	jnc	cg1
 	mov	bx,offset bp_tab
 	call	set_bp
 	jc	cg9
@@ -814,16 +866,191 @@ cg1:	call	arm
 	mov	[tracing],al
 	or	byte ptr regs[R_FL+1],01h	; set TF
 cg8:	jmp	resume
-cg0:	cmp	[why],-2		; did a divide error stop us?
-	jne	cg1			; no
+cmd_gt:	call	end_command
+	jc	cg9
+	mov	al,[why]
+	cmp	al,-2			; INT 00h or INT 04h?
+	je	gt1			; yes
+	cmp	al,-1			; a fault?
+	stc
+	jne	cg9			; no, so there's nothing to pass on
 	call	arm			; (one at CS:IP isn't needed)
 	mov	di,regs[R_IP]
-	mov	cx,[vec_save]
-	mov	dx,[vec_save+2]		; DX:CX = previous INT 00h handler
+	mov	cx,[old_fault].OFF
+	mov	dx,[old_fault].SEG
+	call	sim_int			; ES:BX -> the frame it pushed
+	sub	bx,4
+	mov	regs[R_SP],bx
+	mov	al,[fault_vec]
+	cbw
+	mov	es:[bx],ax		; push the vector
+	mov	ax,[fault_ec]
+	mov	es:[bx+2],ax		; and the error code
+	jmp	resume
+gt1:	call	arm
+	mov	bl,[fault_vec]
+	mov	bh,0			; BX = vector (0 or 4)
+	mov	di,regs[R_IP]
+	mov	cx,vec_save[bx]
+	mov	dx,vec_save[bx+2]	; DX:CX = previous handler
 	call	sim_int
 	jmp	resume
 cg9:	ret
 ENDPROC	cmd_g
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmd_v
+;
+; VT traps the listed vectors (00h-1Fh), so that their exceptions stop the
+; machine instead of being passed on (see dbgdev_enter); VC clears the listed
+; traps (or * for all); VL lists the trapped vectors.  A vector is hex, or
+; decimal with a trailing period (eg, 0D or 13.).  Single-steps (01h) and
+; breakpoints (03h) always stop the machine.
+;
+DEFPROC	cmd_v
+	lodsb
+	cmp	al,'L'
+	je	cmd_vl
+	xchg	dx,ax			; DL = 'T' or 'C'
+	cmp	dl,'T'
+	je	cv1
+	cmp	dl,'C'
+	stc
+	jne	cv9
+cv1:	call	skip_space
+	lodsb
+	test	al,al			; end of the list?
+	jz	cv9			; yes (carry clear)
+	cmp	al,'*'			; all of them?
+	jne	cv2			; no
+	cmp	dl,'C'			; (only VC accepts *)
+	stc
+	jne	cv9
+	sub	ax,ax
+	mov	word ptr [trap_vecs],ax
+	mov	word ptr [trap_vecs+2],ax
+	jmp	cv1
+cv2:	dec	si
+	push	dx
+	call	parse_vec		; AX = vector
+	pop	dx
+	jc	cv9
+	call	vec_bit			; BX = byte, AL = bit
+	or	trap_vecs[bx],al
+	cmp	dl,'T'			; VT?
+	je	cv1			; yes
+	xor	trap_vecs[bx],al	; no, so clear it
+	jmp	cv1
+cmd_vl:	call	end_command
+	jc	cv9
+	sub	ax,ax
+cv3:	call	chk_trap		; is this vector trapped?
+	jnc	cv3a			; no
+	push	ax
+	call	hex_byte
+	call	space
+	pop	ax
+cv3a:	inc	ax
+	cmp	al,32
+	jb	cv3
+	call	newline
+	clc
+cv9:	ret
+ENDPROC	cmd_v
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; parse_vec
+;
+; Parses a vector that VT can trap (00h-1Fh): hex, or decimal with a
+; trailing period (eg, 13.), as FAULT.COM numbers them.
+;
+; Inputs:
+;	SI -> command text
+;
+; Outputs:
+;	If carry clear, AX = vector, and SI -> next character
+;	If carry set, it's invalid
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	parse_vec
+	call	parse_hex		; AX = value (as hex)
+	jc	vp9
+	cmp	byte ptr [si],'.'	; decimal?
+	jne	vp8			; no
+	inc	si
+	cmp	ax,32h			; more than two digits, or 32 or more?
+	jae	vp7			; yes
+	mov	cl,4
+	mov	ah,al
+	shr	ah,cl			; AH = tens digit
+	and	al,0Fh			; AL = ones digit
+	cmp	al,10			; is it a decimal digit?
+	jae	vp7			; no
+	aad				; AX = AH * 10 + AL
+vp8:	cmp	ax,32			; can it be trapped?
+	cmc				; (carry set if not)
+vp9:	ret
+vp7:	stc
+	ret
+ENDPROC	parse_vec
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_trap
+;
+; Inputs:
+;	AX = vector
+;	DS = our data
+;
+; Outputs:
+;	Carry set if VT traps the vector
+;
+; Modifies:
+;	None
+;
+DEFPROC	chk_trap
+	cmp	ax,32			; can VT trap it?
+	jae	ctr9			; no (carry clear)
+	push	ax
+	push	bx
+	push	cx
+	call	vec_bit
+	test	trap_vecs[bx],al	; (clears carry)
+	jz	ctr8
+	stc
+ctr8:	pop	cx
+	pop	bx
+	pop	ax
+ctr9:	ret
+ENDPROC	chk_trap
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; vec_bit
+;
+; Inputs:
+;	AX = vector (00h-1Fh)
+;
+; Outputs:
+;	BX = offset of its byte in trap_vecs, AL = its bit
+;
+; Modifies:
+;	AL, BX, CL
+;
+DEFPROC	vec_bit
+	mov	bx,ax
+	mov	cl,3
+	shr	bx,cl
+	mov	cl,al
+	and	cl,7
+	mov	al,1
+	shl	al,cl
+	ret
+ENDPROC	vec_bit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

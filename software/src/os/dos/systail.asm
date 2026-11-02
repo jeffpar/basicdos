@@ -27,7 +27,7 @@ DOS	segment word public 'CODE'
 	EXTBYTE	<def_drive,scb_locked>
 	EXTWORD	<scb_active,ivt_save>
 	EXTLONG	<scb_table,clk_ptr>
-	EXTNEAR	<dos_leave,int_enter,int_leave>
+	EXTNEAR	<dos_leave,int_enter,int_leave,dos_fault,sysinit_start>
 
 	ASSUME	CS:DOS, DS:DOS, ES:NOTHING, SS:NOTHING
 
@@ -298,6 +298,36 @@ DEFPROC	set_ddint
 	stosw
 	ret
 ENDPROC	set_ddint
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; set_fault
+;
+; In protected mode, has CPU$ give us any exception that it can't handle (see
+; dos_fault), before any DEVICE= driver (eg, DEBUG.COM) can take them, so that
+; a debugger can pass them on to us.  Otherwise, exceptions go through the
+; vectors, so the kernel doesn't need dos_fault, which is the last of its
+; resident code.
+;
+; Outputs:
+;	AX = offset of the end of the kernel's resident code
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	set_fault
+	mov	ah,CPU_GETINFO
+	call	far ptr DDINT_CPU	; AH = CPUF_* flags
+	test	ah,CPUF_PM		; protected mode?
+	mov	ax,offset dos_fault
+	jz	sf9			; no
+	xchg	cx,ax
+	mov	dx,cs:[dos_code]	; DX:CX -> dos_fault
+	mov	ah,CPU_SETFAULT
+	call	far ptr DDINT_CPU
+	mov	ax,offset sysinit_start
+sf9:	ret
+ENDPROC	set_fault
 
 ;
 ; Initialization variables (these follow sysinit_tail, since they're used

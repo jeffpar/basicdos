@@ -35,11 +35,11 @@ A BAT or BAS file can run other BAT or BAS files (no CALL command is required) a
 In the root directory:
 
 - [COMMAND.COM](command/): the BASIC-DOS Command Shell
-- HELP.TXT: the text displayed by the [HELP](../system/#help) command
 
 In the **EXT** directory (see [Running Programs](../../intro/#running-programs) for the layout of a BASIC-DOS disk):
 
 - FIND.COM, MORE.COM, SED.COM, SORT.COM, TEE.COM, TR.COM, UNIQ.COM, and WC.COM: filters (see below)
+- HELP.COM and HELP.TXT: displays help for commands and functions (see [HELP](#help) below)
 - SLEEP.COM: waits the specified number of seconds (eg, `SLEEP 5`); CTRL-C stops it early (source: [sleep.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/sleep.asm))
 - VI.COM: a full-screen text editor (see [VI](#vi) below)
 - ATTRIB.BAS: displays or changes the attributes of files (see [ATTRIB](#attrib) below)
@@ -62,7 +62,7 @@ A filter reads lines of input, which normally come from a pipe (eg, `DIR | SORT`
 
 #### FIND
 
-	FIND [/C] [/I] [/N] [/R] [/V] string [file...]
+> FIND [/C] [/I] [/N] [/R] [/V] *string* [*file*]...
 
 Displays the lines of input (or of each *file*, or with wildcards (`?` and `*`), every matching file) that contain *string* (eg, `DIR | FIND BAS`).  When files are specified, the lines from each file follow a line containing its name.
 
@@ -80,7 +80,7 @@ Source: [find.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os
 
 #### MORE
 
-	MORE [file]
+> MORE [*file*]
 
 Displays input (or *file*) one screen at a time (eg, `TYPE README.TXT | MORE`).  After each screen, it displays `-- More --` and waits for a key (read from STDERR, since STDIN is the pipe or file); press CTRL-C to stop.
 
@@ -88,7 +88,7 @@ Source: [more.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os
 
 #### SED
 
-	SED [/I] [/N] script [file]
+> SED [/I] [/N] *script* [*file*]
 
 Runs the commands in *script* on each line of input (or *file*), and then displays the line, unless `/N` is given, like a simple version of the UNIX `sed` command (eg, `DIR | SED s/BAS/BAK/`).  As with FIND's *string*, *script* needs quotes only if it contains spaces or starts with the switch character (eg, `DIR | SED "/^D/d"`), and it can be a string variable.  The commands are separated by semicolons, and each has the form:
 
@@ -138,7 +138,7 @@ Source: the `UTILRE` section of [utilproc.inc](https://github.com/jeffpar/basicd
 
 #### SORT
 
-	SORT [/R] [/+n] [file]
+> SORT [/R] [/+*n*] [*file*]
 
 Displays the lines of input (or *file*) in sorted order, ignoring case (eg, `DIR | SORT`).  `/R` sorts in reverse order, and `/+n` sorts on the characters starting at column *n* (eg, `DIR | SORT /+10` sorts a directory listing by extension).  Up to 64K of text can be sorted.
 
@@ -146,7 +146,7 @@ Source: [sort.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os
 
 #### TEE
 
-	TEE [/A] file
+> TEE [/A] *file*
 
 Copies input to its output and to *file* (eg, `DIR | TEE DIR.TXT | MORE`).  *file* is replaced, or with `/A`, appended to (and created if it doesn't exist).  ERRORLEVEL is set to 0, or 2 if *file* couldn't be opened or written.
 
@@ -154,7 +154,7 @@ Source: [tee.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/
 
 #### TR
 
-	TR [/C] [/D] [/S] set1 [set2]
+> TR [/C] [/D] [/S] *set1* [*set2*]
 
 Copies input to output, replacing each character in *set1* with the matching character in *set2*; if *set2* is shorter, its last character repeats.  /D deletes the characters in *set1* instead, /C uses every character *not* in *set1* (in ascending order), and /S squeezes each run of a character in the last set given into a single character.  A set can contain ranges (eg, `a-z`) and the escapes `\t` (TAB), `\n` (LF), `\r` (CR), and `\` before any other character for that character (eg, `\-` or `\\`); a set that contains spaces must be quoted.  ERRORLEVEL is set to 0, or 2 if a set is missing (or only *set1* is given, without /D or /S).
 
@@ -166,7 +166,7 @@ Source: [tr.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/u
 
 #### UNIQ
 
-	UNIQ [/C] [/D] [/I] [/U] [file]
+> UNIQ [/C] [/D] [/I] [/U] [*file*]
 
 Displays input (or *file*), with each run of identical lines displayed only once, like the UNIX `uniq` command.  Only adjacent lines are compared, so input is usually sorted first (eg, `SORT NAMES.TXT | UNIQ`, or since SORT ignores case, `SORT NAMES.TXT | UNIQ /I`).
 
@@ -181,7 +181,7 @@ Source: [uniq.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os
 
 #### WC
 
-	WC [/L] [/W] [/C] [file...]
+> WC [/L] [/W] [/C] [*file*]...
 
 Displays the number of lines, words, and bytes of input (or of each *file*, or with wildcards (`?` and `*`), every matching file, followed by their totals if there's more than one), along with each file's name (eg, `DIR | WC /L` or `WC *.BAS`).  `/L`, `/W`, and `/C` display only the line, word, or byte counts, respectively (without any of them, all three are displayed).  Lines are counted by their line feeds, and words are separated by spaces and control characters (eg, tabs and line breaks).  ERRORLEVEL is set to 0, or 2 if a file couldn't be opened.
 
@@ -191,7 +191,7 @@ Filters can be chained (eg, `TYPE FILE | SORT | MORE`), but every command after 
 
 ### ATTRIB
 
-	ATTRIB [+R|-R] [+H|-H] [+S|-S] [+A|-A] [filespec]
+> ATTRIB [+R\|-R] [+H\|-H] [+S\|-S] [+A\|-A] [*filespec*]
 
 Displays the attributes of each file matching *filespec* (or every file in the current directory), including hidden and system files, with an `A` (archive), `S` (system), `H` (hidden), or `R` (read-only) in its column for each attribute it has, followed by the file's name.  Attributes given with `+` are set first, and those given with `-` are cleared, and one `+` or `-` can be followed by several attributes (eg, `ATTRIB +RS *.COM`).  A read-only file can't be opened for writing, replaced, or deleted, and only a hidden file is left out of DIR listings (unless [DIR /A](../disk/#dir) is used).  ATTRIB sets attributes with DOS function 4301h (see [DOS](../basic/#dos)), so a file whose attributes can't be changed (eg, while its volume is open) is a "Permission denied" error.
 
@@ -200,14 +200,13 @@ Displays the attributes of each file matching *filespec* (or every file in the c
 	     SHR     BASDEV.COM
 	     SHR     BASDOS.COM
 	     S R     COMMAND.COM
-	  A          HELP.TXT
 	ATTRIB -R COMMAND.COM
 
 Source: [ATTRIB.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/ATTRIB.BAS)
 
 ### CHKDSK
 
-	CHKDSK [drive:] [/V]
+> CHKDSK [*drive*:] [/V]
 
 Checks the FAT and directories of *drive* (or the current drive): every file's and directory's cluster chain is followed, and CHKDSK reports a chain that's cross-linked with another (sharing a cluster), that doesn't match its file's size, or that contains an invalid cluster, and finally, lost clusters (in use, but in no file's chain).  Then it reports the volume label (with its date and time) and the space on the drive: the total, the bad sectors, the hidden files, directories, and user files (each in whole clusters), the lost clusters, and the space available.  `/V` lists the name of every file and directory as it's checked.
 
@@ -227,7 +226,7 @@ Source: [CHKDSK.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/
 
 ### COMP
 
-	COMP file1 file2
+> COMP *file1* *file2*
 
 Compares each file matching *file1* (which can contain wildcards, but doesn't match hidden files) with *file2*, or if *file2* is a drive or directory, with the file there that has the same name.  As in PC DOS, files of different sizes aren't compared, and each difference is reported with its offset (in hex) and the byte from each file, until 10 differences have been found; otherwise, COMP reports `Files compare ok`.
 
@@ -237,7 +236,7 @@ Source: [COMP.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os
 
 ### DISKCOPY
 
-	DISKCOPY [drive1: [drive2:]]
+> DISKCOPY [*drive1*: [*drive2*:]]
 
 Copies the diskette in *drive1* (or the current drive) to the diskette in *drive2* (or *drive1*), track by track, formatting each of the target's tracks (with the source's parameters) as it goes, so the target doesn't have to be formatted first.  If both drives are the same, DISKCOPY reads as many tracks as memory allows, then asks for the target diskette, writes them, and asks for the source diskette again, until the whole diskette has been copied.  DISKCOPY copies diskettes of any size its drives support, including PC DOS 1.x diskettes (whose sizes come from the media ID in their FATs), and it refuses hard disks.
 
@@ -245,7 +244,7 @@ Source: [DISKCOPY.BAS](https://github.com/jeffpar/basicdos/blob/main/software/sr
 
 ### FORMAT
 
-	FORMAT drive: [/S] [/V[:label]] [/F:size] [/1] [/8]
+> FORMAT *drive*: [/S] [/V[:*label*]] [/F:*size*] [/1] [/8]
 
 Formats the diskette in *drive* (A: or B:) as a 360K diskette (40 cylinders, 2 sides, 9 sectors per track), or with `/1` as a single-sided diskette (180K), or with `/8` with 8 sectors per track (320K, or 160K with `/1`, for PC DOS 1.x).  `/F:720` formats a 720K diskette (80 cylinders, 9 sectors per track) in a 3.5-inch drive, and `/F:1200` a 1.2M diskette (80 cylinders, 15 sectors per track) in a high-capacity 5.25-inch drive; without `/F`, FORMAT uses the drive's own size, which the BIOS of a PC AT (or later) reports, and a PC or XT doesn't (so 360K), and a 1.44M drive formats 720K diskettes.  `/S` then copies BASDEV.COM, BASDOS.COM, and COMMAND.COM from the root directory of the current drive, making the diskette bootable, and makes BASDEV.COM and BASDOS.COM read-only hidden system files and COMMAND.COM a read-only system file, and `/V` gives the new volume a label (up to 11 characters, which FORMAT asks for, unless it's given as `/V:label`).  FORMAT prompts for the diskette, formats and verifies every track (with the diskette driver's [IOCTL](../basic/#ioctl) requests), writes the boot sector (a copy of the current drive's, with the new diskette's parameters), the two FATs, and the root directory, reports the space on the diskette, and asks whether to format another.  Cluster sizes and root directory sizes follow the PC DOS 2.x rules (eg, 1K clusters and 112 root entries for 360K and 720K diskettes), with 12-bit FATs, except that 1.2M diskettes get PC DOS 3.x's layout (512-byte clusters and 224 root entries).
 
@@ -257,7 +256,7 @@ Source: [FORMAT.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/
 
 ### HEXDUMP
 
-	HEXDUMP file [/S offset] [/N length]
+> HEXDUMP *file* [/S *offset*] [/N *length*]
 
 Displays the bytes of *file*, 16 per line, in the same format as DEBUG's DB command: an address, the bytes in hexadecimal (with a dash after the 8th), and the same bytes as characters (with a period for each byte outside 20h-7Eh).  The address is the file offset, written as a segment and an offset, where the segment is 1000h for each 64K (eg, offset 65536 is `1000:0000`).  `/S` starts at a decimal *offset* (by default, 0), and `/N` displays at most *length* bytes (by default, the rest of the file).  As with DB, lines begin at multiples of 16, so the first and last lines can be partial.
 
@@ -266,10 +265,22 @@ Displays the bytes of *file*, 16 per line, in the same format as DEBUG's DB comm
 
 Source: [HEXDUMP.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/HEXDUMP.BAS)
 
+### HELP
+
+> HELP [*keyword*\|ALL\|BASIC\|CORE\|DISK\|EXT\|FUNC\|SYSTEM]
+
+Displays help for *keyword* (eg, `HELP MID$`), or lists the keywords in a category: ALL (every keyword), BASIC (BASIC statements and commands), DISK (disk commands, like DIR), EXT (external commands and drivers, like FORMAT), FUNC (functions, like MID$), or SYSTEM (system commands, like MEM); HELP CORE explains low memory systems and lists the keywords they don't support, and HELP KEYS lists the keys for editing command lines (see [Typing Commands](../../intro/#typing-commands)).  HELP alone displays help for HELP.  If there's no help for *keyword*, HELP displays `No help available`, and the exit code (ERRORLEVEL) is 1.
+
+The help text comes from HELP.TXT, in the EXT directory of the drive that COMMAND.COM was loaded from (normally the boot drive), so HELP works from any directory.  HELP finds that drive in the COMSPEC environment variable, which COMMAND.COM passes to every program (if there isn't room for the environment, HELP uses the current drive).  In HELP.TXT, each entry begins with a lower-case letter for its category, in brackets (eg, `[b]PRINT` or `[f]MID$`), followed by `+` if it isn't available on low memory systems (eg, `[b+]CIRCLE`), which HELP doesn't display; an entry without a category (eg, CORE or KEYS) is listed only by HELP ALL.  HELP wraps words to the console's width, displays each line of an entry as a paragraph (followed by a blank line) unless it ends with `\`, and indents a line that starts with a tab.
+
+HELP was a COMMAND.COM command (along with KEYS, which is now `HELP KEYS`) until it became an external command, so that low memory systems have more room for BASIC programs.
+
+Source: [help.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/help.asm)
+
 ### LABEL and VOL {#label}
 
-	LABEL [drive:][label]
-	VOL [drive:]
+> LABEL [*drive*:][*label*]  
+> VOL [*drive*:]
 
 LABEL gives *drive* (or the current drive) a volume label of up to 11 characters, which can include spaces, but not `* ? / \ | . , ; : + = [ ] < >` or `"`.  Without a *label*, LABEL displays the current label and asks for a new one; pressing ENTER deletes the current label (after asking).  VOL displays the label, as DIR does at the start of a listing.  The label is a root directory entry with the volume attribute, which LABEL writes directly (see [OPEN](../basic/#open)), so the drive can't have any files open.
 
@@ -279,7 +290,7 @@ Source: [LABEL.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/o
 
 ### LS
 
-	LS [/1alRrSt] [filespec]...
+> LS [/1alRrSt] [*filespec*]...
 
 Lists files and directories like the UNIX `ls` command.  Each *filespec* that's a directory (eg, `LS \EXT`, `LS ..`, or `LS A:`) lists the files in that directory, and without one, the current directory is listed.  Any other *filespec* lists the files that match it (and with wildcards, the directories that match it, too), with the *filespec*'s drive and path in front of each name, as a UNIX shell would expand them (eg, `LS \EXT\T*.COM` lists `\EXT\TEE.COM  \EXT\TR.COM`); those files are listed first, all together, and then each directory, after a line with its name and a colon if more than one *filespec* was given.  A *filespec* that matches nothing is reported (eg, `Unable to find X.BAS`).
 
@@ -298,14 +309,14 @@ Options start with the switch character (`/`, unless [SWITCHAR](../../cfg/#switc
 Files with the same size or time are sorted by name.  A listing can have up to 512 names (more is a "Subscript out of range" error).
 
 	LS \EXT
-	ATTRIB.BAS    FIND.COM      MORE.COM      TEE.COM       VOL.BAS
-	CHKDSK.BAS    FORMAT.BAS    SED.COM       TR.COM        WC.COM
-	COMP.BAS      LABEL.BAS     SLEEP.COM     TREE.BAS
-	DEBUG.COM     LS.BAS        SORT.COM      UNIQ.COM
-	DISKCOPY.BAS  MODE.BAS      SYS.BAS       VI.COM
+	ATTRIB.BAS    FIND.COM      LABEL.BAS     SLEEP.COM     TREE.BAS
+	CHKDSK.BAS    FORMAT.BAS    LS.BAS        SORT.COM      UNIQ.COM
+	COMP.BAS      HELP.COM      MODE.BAS      SYS.BAS       VI.COM
+	DEBUG.COM     HELP.TXT      MORE.COM      TEE.COM       VOL.BAS
+	DISKCOPY.BAS  HEXDUMP.BAS   SED.COM       TR.COM        WC.COM
 	LS \
-	AUTOEXEC.BAT  CONFIG.SYS    HELP.TXT      TOOLS\
-	COMMAND.COM   EXT\          TESTS\
+	AUTOEXEC.BAT  CONFIG.SYS    TESTS\
+	COMMAND.COM   EXT\          TOOLS\
 	LS /lt \EXT\T*.*
 	-rwx     533 Oct 24 11:22 \EXT\TEE.COM
 	-rwx     579 Oct 24 11:22 \EXT\TR.COM
@@ -315,9 +326,9 @@ Source: [LS.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/u
 
 ### MODE
 
-	MODE 40|80|BW40|BW80|CO40|CO80
-	MODE COMn:baud[,parity[,data[,stop]]]
-	MODE LPTn:[cols][,lines]
+> MODE 40\|80\|BW40\|BW80\|CO40\|CO80  
+> MODE COM*n*:*baud*[,*parity*[,*data*[,*stop*]]]  
+> MODE LPT*n*:[*cols*][,*lines*]
 
 Sets the display to 40 or 80 columns (BW turns color off, as `SCREEN 0,0` does, and CO turns it on), sets a serial port's baud rate (two digits abbreviate a rate, eg, 96 for 9600), parity (N, O, or E; the default is N), data bits (default 8), and stop bits (default 1), or sends an IBM/Epson printer its condensed (132 columns) or normal (80 columns) print codes and its 8 or 6 lines per inch codes.  A serial port is set by opening it with its parameters and an input buffer length of 0 (see [COM](../../cfg/#console)), which initializes the port and releases it again, so a port that's already open (eg, the console) isn't changed.
 
@@ -325,7 +336,7 @@ Source: [MODE.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os
 
 ### SYS
 
-	SYS drive:
+> SYS *drive*:
 
 Makes *drive* bootable without reformatting it: SYS copies BASDEV.COM, BASDOS.COM, and COMMAND.COM from the root directory of the current drive to the root directory of *drive* (replacing any copies already there), makes them read-only system files (and BASDEV.COM and BASDOS.COM hidden), and gives *drive*'s boot sector the current drive's boot code, keeping *drive*'s disk parameters.  Since the boot code follows the system files' cluster chains, they don't have to be the first files on the drive, or contiguous, so SYS works on any FAT volume with room for them (including one formatted by another DOS).
 
@@ -333,7 +344,7 @@ Source: [SYS.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/
 
 ### TREE
 
-	TREE [drive:][path] [/F] [/A]
+> TREE [*drive*:][*path*] [/F] [/A]
 
 Displays the directories below *path* (or the current directory), each one connected to its parent by line-drawing characters, or with `/A`, by ASCII characters (eg, for a printer); `/F` lists each directory's files, too, before its subdirectories.  If there are no subdirectories, TREE says so.
 
@@ -355,7 +366,7 @@ Source: [TREE.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os
 
 ### VI
 
-	VI [/WS] [file]
+> VI [/WS] [*file*]
 
 A full-screen text editor with a subset of the commands of the UNIX *vi* editor.  It works on VKD$ consoles and on serial consoles with ANSI or VT100 terminals (but not GENERIC terminals), and it can edit files of up to 64K, using only as much memory as the file needs.  Files are saved with CR/LF at the end of every line.
 

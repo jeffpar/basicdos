@@ -1,6 +1,6 @@
 REM 64K demonstration with no video: one session on a VT100 connected to COM1
-REM Drivers for missing hardware (eg, other COM ports) are automatically skipped
-SKIP=VKD$,FPU$,PIPE$
+REM FPU$ (at 64K) and drivers for missing hardware skip themselves
+SKIP=VKD$,PIPE$
 BUFFERS=2
 FILES=8
 SESSIONS=1

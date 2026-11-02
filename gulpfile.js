@@ -55,9 +55,10 @@ function checkOutput(task, outputFile)
 
 /*
  * The files on every BASIC-DOS disk come from software/manifest.txt, which lists the files for each folder (ROOT, EXT,
- * DEMOS, SAMPLES, and TESTS).  Every demo diskette gets ROOT (the system files, its own CONFIG.SYS and AUTOEXEC.BAT,
- * if any, and HELP.TXT), followed by EXT, DEMOS, and SAMPLES, so each demo diskette differs only in its CONFIG.SYS,
- * which sets PATH$ on each SHELL line (eg, SHELL=COMMAND.COM PATH$="A:/;A:/EXT;A:/DEMOS;A:/SAMPLES").
+ * DEMOS, SAMPLES, and TESTS).  Every demo diskette gets ROOT (the system files, and its own CONFIG.SYS and
+ * AUTOEXEC.BAT, if any), followed by EXT (which includes HELP.TXT), DEMOS, and SAMPLES, so each demo diskette
+ * differs only in its CONFIG.SYS, which sets PATH$ on each SHELL line (eg, SHELL=COMMAND.COM
+ * PATH$="A:/;A:/EXT;A:/DEMOS;A:/SAMPLES").
  *
  * The release diskette, BASICDOS-360K, is the same, but its build also writes a raw image of it (marked "img"),
  * BASICDOS-360K.img, which the home page offers for download, and its title includes the version (eg, "BASIC-DOS 2.01
@@ -68,12 +69,13 @@ function checkOutput(task, outputFile)
  * bootable, so it has no root files, and it can be loaded in drive B: of any demo.
  *
  * A hard disk image (a demo with no diskettes) is marked "hd", and pc.js builds it (with --sys=bd:2, so it's bootable,
- * and pc.js adds the system files and HELP.TXT itself).  A disk can list its own "folders" instead of the diskette
- * folders (see BASICDOS-10MB), where each folder is either a list of files, a directory (whose contents are copied,
- * including any OBJ directories), or a function that returns a list of files from other disk images (see diskFiles()).
- * A folder named FOLDER/SUBFOLDER is a subfolder (eg, DEMOS/WOLF3D), and a file spec of the form IMAGE.json/PATH
- * names a file (or files) inside a disk image, which diskimage.js extracts first (eg, the WOLF3D files come from the
- * COMPAQ331-WOLF3D hard disk in the pcjs-harddisks repository, via the same /harddisks/ path that pcjs.org uses).
+ * and pc.js adds the system files itself, and with --order, so its root entries are in the same order as a diskette's,
+ * rather than sorted by name).  A disk can list its own "folders" instead of the diskette folders (see BASICDOS-10MB),
+ * where each folder is either a list of files, a directory (whose contents are copied, including any OBJ directories),
+ * or a function that returns a list of files from other disk images (see diskFiles()).  A folder named
+ * FOLDER/SUBFOLDER is a subfolder (eg, DEMOS/WOLF3D), and a file spec of the form IMAGE.json/PATH names a file (or
+ * files) inside a disk image, which diskimage.js extracts first (eg, the WOLF3D files come from the COMPAQ331-WOLF3D
+ * hard disk in the pcjs-harddisks repository, via the same /harddisks/ path that pcjs.org uses).
  *
  * A SAMPLES folder's files get the timestamps of the matching files on the PC DOS 1.00 diskette (PCDOS100).
  *
@@ -247,6 +249,7 @@ function stageDisk(diskName)
      */
     if (disk.hd && FINAL) {
         fs.writeFileSync(path.join(dirStage, "MKFINAL"), "");
+        entries.push(path.join(dirStage, "MKFINAL"));
     }
     let folders = disk.folders || diskFolders;
     for (let folder in folders) {
@@ -302,7 +305,8 @@ function buildDisk(diskName, diskImage)
         let label = disks[diskName].label || diskName.replace(/^BASICDOS-(360K-)?/, "BD-");
         let cmd;
         if (disks[diskName].hd) {
-            cmd = "node ./tools/pc/pc.js ibm5160 ./tools/pc/disks/" + diskName + " --sys=bd:2 --target=10M --normalize --bare --label=" + label + " --save=" + diskImage;
+            cmd = "node ./tools/pc/pc.js ibm5160 ./tools/pc/disks/" + diskName + " --sys=bd:2 --target=10M --normalize --bare --label=" + label +
+                  " --order=" + entries.map(entry => path.basename(entry)).join(",") + " --save=" + diskImage;
         } else {
             cmd = "node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" --files " + entries.join(",") +
                   (disks[diskName].data? "" : " --boot " + SRC + "/os/boot/obj/BOOT1.COM --attr=" + SYSATTRS) +

@@ -1,8 +1,8 @@
 These machines have no diskettes loaded; instead, they boot BASIC-DOS from a 10Mb hard disk (drive C:) and run one full-screen 80x25 session.
 
-The hard disk has the system files, CONFIG.SYS and HELP.TXT in the root directory, along with these subdirectories:
+The hard disk has the system files and CONFIG.SYS in the root directory, along with these subdirectories:
 
-- **EXT** contains the BASIC-DOS utilities (eg, FIND, MORE, and SORT) and DEBUG.COM
+- **EXT** contains the BASIC-DOS utilities (eg, FIND, MORE, and SORT), DEBUG.COM, and HELP.COM and HELP.TXT
 - **DEMOS** contains the programs that the demos run (eg, HELLO.BAT, FIBO.BAT, PAINT.BAS, PRIMES.BAS, and JIVE.EXE), and its WOLF3D subdirectory contains the shareware version of Wolfenstein 3D (type `WOLF3D` to run it)
 - **SAMPLES** contains DONKEY.BAS and the other PC DOS BASIC samples
 - **SRC** contains the BASIC-DOS source code and its build outputs (type `CD \SRC` and then `MK` to rebuild whatever has changed, or `MK FINAL CLEAN` to rebuild everything)

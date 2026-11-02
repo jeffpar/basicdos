@@ -34,7 +34,7 @@ CODE	segment word public 'CODE'
 	EXTNEAR	<dc_0f>
 	EXTBYTE	<CMD_Q,OPTAB,com_flow,command,brk_skip>
 	EXTWORD	<com_port,dos_seg,vec_save>
-	EXTLONG	<old_com>
+	EXTLONG	<old_com,old_fault>
 
 CMD_TAIL	equ	80h	; PSP_CMDTAIL (see com_main)
 
@@ -100,8 +100,9 @@ din0a:	test	al,al			; end of the arguments?
 din0b:	mov	dx,bx			; DS:DX -> COM descriptor
 	mov	ax,DOS_HDL_OPENRW OR MODE_DENY_RW
 	int	21h			; open the port for exclusive access
-	jc	din9
-	xchg	bx,ax			; BX = handle
+	jnc	din0c
+	jmp	din9
+din0c:	xchg	bx,ax			; BX = handle
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_COMDEBUG
 	int	21h
 	jc	din8
@@ -113,14 +114,20 @@ din0b:	mov	dx,bx			; DS:DX -> COM descriptor
 	xor	dl,al
 	mov	[com_port],dx
 ;
-; Nothing else can fail, so install the hooks: INT 00h, INT 01h, INT 03h, and
-; the port's hardware interrupt (chosen by port, as the COM driver does: IRQ4
-; for 3xxh, IRQ3 for 2xxh), and then have the UART interrupt us when data
-; (or a BREAK) arrives, and have CPU$ give us any fatal exception, too (see
-; CPU_SETFAULT).
+; Nothing else can fail, so install the hooks: INT 00h, INT 04h, INT 01h,
+; INT 03h, and the port's hardware interrupt (chosen by port, as the COM
+; driver does: IRQ4 for 3xxh, IRQ3 for 2xxh), and then have the UART
+; interrupt us when data (or a BREAK) arrives, and have CPU$ give us any
+; fatal exception, too (see CPU_SETFAULT), keeping the previous handler
+; (DOS's), which gets the exceptions that VT doesn't trap (see dbg_fault).
 ;
 	call	set_dos
 	call	hook_vecs
+	push	dx
+	mov	bx,offset vec_save+4
+	mov	al,04h
+	call	sv1			; hook INT 04h, too
+	pop	dx
 	mov	al,INT_HW_COM1
 	cmp	dh,03h			; port 3xxh?
 	je	din1			; yes
@@ -141,7 +148,9 @@ din1:	push	dx
 	mov	cx,offset dbg_fault
 	mov	dx,cs			; DX:CX -> dbg_fault
 	mov	ah,CPU_SETFAULT
-	call	far ptr DDINT_CPU
+	call	far ptr DDINT_CPU	; DX:CX = previous handler
+	mov	[old_fault].OFF,cx
+	mov	[old_fault].SEG,dx
 	mov	si,offset BANNER
 	call	put_string
 	mov	es:[di].DDPI_END.OFF,offset resident_end
@@ -372,8 +381,10 @@ ENDPROC	set_cpu
 ; hook_vecs, swap_vecs
 ;
 ; Exchange the INT 00h, INT 01h, and INT 03h vectors with vec_save (in the
-; resident code, since cmd_g uses the previous INT 00h handler), which
-; hook_vecs first points at our handlers.
+; resident code, since dbg_int0 and cmd_g use the previous INT 00h handler),
+; which hook_vecs first points at our handlers.  INT 04h's entry is skipped,
+; since only the driver hooks it (see dbgdev_init): DOS restores the others if
+; a program ends with them hooked (see psp_restvec), but not INT 04h.
 ;
 ; Inputs:
 ;	DS = our data (DDH_DATA)
@@ -386,6 +397,7 @@ DEFPROC	hook_vecs
 	mov	[vec_save+2],cs
 	mov	[vec_save+6],cs
 	mov	[vec_save+10],cs
+	mov	[vec_save+14],cs
 ENDPROC	hook_vecs			; fall into swap_vecs
 
 DEFPROC	swap_vecs
@@ -394,6 +406,7 @@ DEFPROC	swap_vecs
 	mov	bx,offset vec_save
 	mov	al,00h
 	call	sv1
+	add	bx,4			; (skip INT 04h)
 	mov	al,01h
 	call	sv1
 	mov	al,03h

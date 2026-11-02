@@ -12,8 +12,6 @@ BASIC-DOS system commands include:
 - [DELETE](#delete)
 - [EDIT](#edit)
 - [EXIT](#exit)
-- [HELP](#help)
-- [KEYS](#keys)
 - [LIST](#list)
 - [LLIST](#llist)
 - [MEM](#mem)
@@ -53,21 +51,10 @@ Displays the specified program line (with its line number) for editing, using th
 
 Exits the command shell if there is a previously loaded copy (see [COMMAND.COM](../external/command/)).
 
-### HELP
-
-> HELP [*keyword*|ALL|BASIC|CORE|DISK|EXT|FUNC|SYSTEM]
-
-Displays help for *keyword* (eg, `HELP MID$`), or lists the keywords in a category: ALL (every keyword), BASIC (BASIC statements and commands), DISK (disk commands, like DIR), EXT (external commands and drivers, like FORMAT), FUNC (functions, like MID$), or SYSTEM (system commands, like MEM), and HELP CORE explains low memory systems and lists the keywords they don't support.  HELP alone displays help for HELP.  The help text comes from HELP.TXT, in the root directory of the drive that COMMAND.COM was loaded from (so HELP works from any directory), where each entry begins with a lower-case letter for its category, in brackets (eg, `[b]PRINT` or `[f]MID$`), followed by `+` if it isn't available on low memory systems (eg, `[b+]CIRCLE`), which HELP doesn't display.
-
-### KEYS
-
-> KEYS
-
-Displays a summary of the special keys that can be used when typing commands (see [Typing Commands](../../intro/#typing-commands)).
-
 ### LIST
 
-> LIST [*line*][-[*line*]] | VARS
+> LIST [*line*][-[*line*]]  
+> LIST VARS
 
 Lists all lines of the currently loaded BAS or BAT program, or the specified range of lines (eg, `LIST 100`, `LIST 100-200`, `LIST 100-`, or `LIST -200`).  Lines without line numbers are listed with the numbered line that precedes them.  Each line is listed as [SAVE](../disk/#save) writes it (a line number is followed by one space), so the listing lines up the same way as the saved file does with [TYPE](../disk/#type) (eg, a line indented with a tab starts at the next tab stop).
 
@@ -85,7 +72,7 @@ Lists all lines (or the specified range of lines) like [LIST](#list), but to the
 
 Displays the total memory ("bytes total") and the memory available for running external programs ("bytes available"), followed by the memory available for BASIC programs ("bytes for BASIC") when that's less.  The difference between the last two is the transient portion of COMMAND.COM, which is set aside while an external program runs, but which BASIC programs need (it compiles and runs them).  When more than one session is running, every session shares the same COMMAND.COM code, so the transient portion can't be set aside, and MEM omits the "bytes for BASIC" line, since the available memory is the same for both.
 
-A line follows for anything that's unavailable: `Floating-point disabled` when the FPU$ driver was skipped or couldn't be loaded, and `Core functions only (see HELP CORE)` when there wasn't enough memory for all of COMMAND.COM (see [Low Memory](../../lang/#low-memory) for what's left out).
+A line follows for anything that's unavailable: `Floating-point disabled` when the FPU$ driver was skipped or couldn't be loaded, and `Some features disabled (see HELP CORE)` when there wasn't enough memory for all of COMMAND.COM (see [Low Memory](../../lang/#low-memory) for what's left out).
 
 To see every device driver and memory block, use the DM command of [DEBUG.COM](../../cfg/#device).
 
@@ -102,7 +89,7 @@ Erases the loaded program, functions, and variables.
 
 ### RESTART
 
-> RESTART [SYSTEM | *session*]
+> RESTART [SYSTEM\|*session*]
 
 `RESTART` alone lists every session: its number, its console, and its program, or `Unused` if it has none (the number of sessions comes from `SESSIONS=` in CONFIG.SYS, which defaults to 4), with `*` marking the current session:
 
