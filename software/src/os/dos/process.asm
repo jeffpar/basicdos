@@ -24,7 +24,7 @@ DOS	segment word public 'CODE'
 	EXTLONG	<scb_table,sfb_table>
 	EXTNEAR	<sfh_add_ref,pfh_close,sfh_close,sfb_close,reset_keys>
 	EXTNEAR	<mcb_getsize,mcb_free_all,mcb_findpsp,scb_endio>
-	EXTNEAR	<mem_alias>
+	EXTNEAR	<mem_alias,mem_pmode,load_ne>
 	EXTNEAR	<dos_check,dos_leave,dos_leave2,dos_ctrlc,dos_error>
 	EXTNEAR	<mcb_setname,scb_getnum,scb_release,scb_close,scb_yield>
 	EXTNEAR	<msc_sigctrlc,msc_retctrlc>
@@ -787,6 +787,7 @@ lp3:	add	ax,15
 	cmp	ax,[bp].TMP_DX		; can the segment accommodate that?
 	jbe	lp3a			; yes
 	jmp	lpm			; no, but the code may be shared
+lpne:	jmp	load_ne			; (see lp6a)
 lp3a:
 	sub	cx,cx
 	sub	dx,dx
@@ -818,6 +819,13 @@ lpf1:	jmp	lpf
 
 lp6a:	cmp	ax,size EXEHDR
 	jb	lpc2			; file too small
+;
+; In protected mode, an MZ program's relocations can't work, but an NE
+; program's can, so load_ne loads it instead, and then continues at
+; load_done (or load_fail).
+;
+	call	mem_pmode		; protected mode?
+	jc	lpne			; yes (see neload.asm)
 ;
 ; Load the EXE file.  First, we move all the header data we've already read
 ; to the top of the allocated memory, then determine how much more header data
@@ -1158,6 +1166,7 @@ lp7f:	shl	ax,cl			; DS:AX -> top of the segment
 	DPRINTF	<"New PSP %04x, %04x paras, stack @%08lx\r\n">,ds,bx,ax,ds
 	ENDIF
 
+	DEFLBL	load_done,near
 lp8:	mov	ah,DOS_MEM_REALLOC	; resize ES memory block to BX paras
 	int	21h
 	jnc	lp8a
@@ -1275,6 +1284,7 @@ lpx2:	les	di,ds:[PSP_STACK]	; ES:DI -> stack (NOT PSP)
 ;
 ; Error paths (eg, close the file handle, free the memory for the new PSP)
 ;
+	DEFLBL	load_fail,near
 lpc:	push	ax
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
@@ -1285,9 +1295,9 @@ lpf:	push	ax
 	ASSUME	DS:DOS
 	call	psp_close
 	call	get_psp
-	mov	es,ax
-	mov	ah,DOS_MEM_FREE
-	int	21h
+	push	ds
+	pop	es			; (ES can't hold a selector we free)
+	call	mcb_free_all		; free its block (and any NE segments)
 	pop	ax
 	pop	dx			; DX = original PSP
 	xchg	ax,dx			; AX = original PSP, DX = error code

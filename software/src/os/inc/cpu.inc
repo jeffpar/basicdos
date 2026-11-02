@@ -61,7 +61,8 @@ CPU_SEGINFO	equ	0Dh	; AL = ADDR_SEL or 0, BX = segment or selector
 CPU_RWMEM	equ	0Eh	; AL = ADDR_*, BX:SI = address, CX, ES:DI
 CPU_SYSREGS	equ	0Fh	; ES:DI -> 12-byte buffer (GDTR and IDTR)
 CPU_SETFAULT	equ	10h	; DX:CX = fault handler (0:0 for none)
-CPU_MAXFUNC	equ	10h
+CPU_SETSTACK	equ	11h	; DX:CX = ring 0 stack (SS:SP)
+CPU_MAXFUNC	equ	11h
 
 ;
 ; CPU_ALIAS with just MEMF_CODE, for the selector that CPU_ALLOC returned for a
@@ -99,15 +100,36 @@ CPU_MAXFUNC	equ	10h
 ;	in real mode); the 8086 driver returns ERR_INVALID instead.
 ;
 ; CPU_SETFAULT sets the handler that a fatal protected-mode exception goes to
-; (eg, a debugger's), instead of the 80286 driver reporting it and stopping
-; the machine, unless it occurred in CPU$ or in the handler's own code, and
+; (eg, a debugger's), before the 80286 driver reports it and stops the
+; machine, unless it occurred in CPU$ or in the handler's own code, and
 ; returns the previous handler in DX:CX.  The handler is entered with the
-; registers as they were, interrupts disabled, and SS:SP -> the vector, the
-; error code, and an interrupt frame for the faulting instruction: for a
-; software interrupt with no handler, its vector (0FFh if unknown), the
-; caller's AX, and the INT itself.  The 8086 driver keeps the handler too,
-; but never calls it, since real-mode exceptions go through the vectors.
+; registers as they were, interrupts disabled, and SS:SP -> a far return
+; address, the vector, the error code, and an interrupt frame for the
+; faulting instruction: for a software interrupt with no handler, its vector
+; (0FFh if unknown), the caller's AX, and the INT itself.  A handler that
+; can't handle the exception declines it by returning (RETF) with the
+; registers and stack as they were, and then CPU$ reports it ("CPU fault vv
+; (EC=xxxx) at cccc:iiii" and "System halted").  A handler that passes the
+; exception on to the previous one can replace the return address with its
+; own, to see whether it was declined.  Before stopping the machine, CPU$
+; offers the halt to the handler, as the same exception with FAULT_HALTED in
+; the vector's high byte: a debugger can accept it by never returning (eg,
+; by keeping control with interrupts disabled), and any other handler must
+; decline it.  The 8086 driver keeps the handler too, but never calls it,
+; since real-mode exceptions go through the vectors.
 ;
+FAULT_HALTED	equ	80h	; CPU_SETFAULT: vector's high byte for a halt
+
+;
+; CPU_SETSTACK sets the ring 0 stack (SS:SP) that the processor switches to
+; when an interrupt takes ring 3 code to ring 0, and returns the previous one
+; in DX:CX.  The 80286 driver keeps it in its TSS, which CPU_PMODE loads;
+; until a caller sets one, there's none (0:0), so nothing can run at ring 3.
+; Software interrupts have DPL 3 gates, so ring 3 code can issue them (eg,
+; INT 21h), but exceptions and IRQs have DPL 0 gates (see pm_setvec).  The
+; 8086 driver returns ERR_INVALID, since there's no ring 3 in real mode.
+;
+
 ADDR_SEL	equ	01h	; the segment is a selector
 ADDR_WRITE	equ	02h	; CPU_RWMEM: copy from ES:DI to BX:SI
 ADDR_PHYS	equ	04h	; the "segment" is bits 16-31 of an address

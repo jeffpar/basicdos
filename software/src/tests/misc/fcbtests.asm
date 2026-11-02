@@ -41,7 +41,19 @@ FCALL	macro	func,faddr
 	int	21h
 	endm
 
-FILELEN	equ	16643
+;
+; The test file has NRECS records of RECLEN bytes (enough to cross the
+; 128-record block boundary, at any record size), followed by a partial
+; record of 3 bytes; it's small, since the test floppy has little room.
+;
+RECLEN	equ	16
+NRECS	equ	130
+FILELEN	equ	NRECS*RECLEN+3
+;
+; Each buffer (see COMHEAP) also holds an FCB for every device reference
+; (SFB_REFS is a byte) when ot2 fills the SFB table, so it's larger.
+;
+BUFLEN	equ	256*(size FCBF)
 
 CODE	segment
 	ASSUME	CS:CODE,DS:CODE,ES:CODE,SS:CODE
@@ -129,18 +141,19 @@ fill:
 	CHECK	je,<word ptr [fcbtest+FCB_RECSIZE]>,128
 	CHECK	je,<word ptr [fcbtest+FCBF_FILESIZE]>,0
 ;
-; 130 sequential 128-byte records cross the 128-record block boundary.
+; NRECS sequential records cross the 128-record block boundary.
 ;
+	mov	word ptr [fcbtest+FCB_RECSIZE],RECLEN
 	mov	byte ptr [fcbtest+FCBF_CURREC],0
 	mov	bx,offset expect
-	mov	si,130
+	mov	si,NRECS
 seqwr:
 	mov	dx,bx
 	mov	ah,1Ah
 	int	21h
 	FCALL	DOS_FCB_SWRITE
 	CHECK	je,al,0
-	add	bx,128
+	add	bx,RECLEN
 	dec	si
 	jnz	seqwr
 	CHECK	je,<word ptr [fcbtest+FCB_CURBLK]>,1
@@ -149,8 +162,8 @@ seqwr:
 ; Change record size to 1 and write the final three bytes sequentially.
 ;
 	mov	word ptr [fcbtest+FCB_RECSIZE],1
-	mov	word ptr [fcbtest+FCB_CURBLK],130
-	mov	byte ptr [fcbtest+FCBF_CURREC],0
+	mov	word ptr [fcbtest+FCB_CURBLK],(NRECS*RECLEN) SHR 7
+	mov	byte ptr [fcbtest+FCBF_CURREC],(NRECS*RECLEN) AND 127
 	mov	si,3
 smallwr:
 	mov	dx,bx
@@ -217,7 +230,7 @@ smallwr:
 	mov	word ptr [fcbtest+FCB_RECSIZE],128
 	FCALL	DOS_FCB_SIZE
 	CHECK	je,al,0
-	CHECK	je,<word ptr [fcbtest+FCBF_RELREC]>,131
+	CHECK	je,<word ptr [fcbtest+FCBF_RELREC]>,(FILELEN+127)/128
 	FCALL	DOS_FCB_OPEN
 	CHECK	je,al,0
 	CHECK	je,<word ptr [fcbtest+FCBF_FILESIZE]>,FILELEN
@@ -249,15 +262,15 @@ dataok:
 ;
 ; Verify all complete records sequentially and cross the block boundary.
 ;
-	mov	word ptr [fcbtest+FCB_RECSIZE],128
+	mov	word ptr [fcbtest+FCB_RECSIZE],RECLEN
 	mov	word ptr [fcbtest+FCB_CURBLK],0
 	mov	byte ptr [fcbtest+FCBF_CURREC],0
 	mov	si,offset expect
-	mov	bx,130
+	mov	bx,NRECS
 seqrd:	FCALL	DOS_FCB_SREAD
 	CHECK	je,al,0
 	mov	di,offset actual
-	mov	cx,128
+	mov	cx,RECLEN
 	repe	cmpsb
 	je	seqok
 	jmp	failed
@@ -268,21 +281,21 @@ seqok:	dec	bx
 ;
 ; Random read of a partial record pads its tail, without advancing.
 ;
-	mov	word ptr [fcbtest+FCB_RECSIZE],128
-	mov	word ptr [fcbtest+FCBF_RELREC],130
+	mov	word ptr [fcbtest+FCB_RECSIZE],RECLEN
+	mov	word ptr [fcbtest+FCBF_RELREC],NRECS
 	FCALL	DOS_FCB_RREAD
 	CHECK	je,al,3
 	CHECK	je,<word ptr [fcbtest+FCB_CURBLK]>,1
 	CHECK	je,<byte ptr [fcbtest+FCBF_CURREC]>,2
-	CHECK	je,<word ptr [fcbtest+FCBF_RELREC]>,130
-	mov	si,offset expect+16640
+	CHECK	je,<word ptr [fcbtest+FCBF_RELREC]>,NRECS
+	mov	si,offset expect+NRECS*RECLEN
 	mov	di,offset actual
 	mov	cx,3
 	repe	cmpsb
 	je	partok
 	jmp	failed
 partok:
-	mov	cx,125
+	mov	cx,RECLEN-3
 	xor	ax,ax
 	repe	scasb
 	je	padded
@@ -299,7 +312,7 @@ padded:
 ;
 ; DTA crossing a segment boundary fails without transferring a record.
 ;
-	mov	dx,0FFF0h
+	mov	dx,-(RECLEN/2)		; DS:DX -> half a record below 64K
 	mov	ah,1Ah
 	int	21h
 	mov	word ptr [fcbtest+FCBF_RELREC],0
@@ -991,12 +1004,12 @@ findfcb	db	size FCBF dup(0)
 fcbtwo	db	size FCBF dup(0)
 xfcb	db	0FFh,6 dup(0),size FCBF dup(0)
 ;
-; The two FILELEN-byte buffers and the stack are in the heap that BASIC-DOS
+; The two BUFLEN-byte buffers and the stack are in the heap that BASIC-DOS
 ; allocates after the image (see COMHEAP), so they take no room on disk.
 ;
-	COMHEAP	<FILELEN*2+512>	; COMHEAP (heap size) must be the last item
+	COMHEAP	<BUFLEN*2+512>	; COMHEAP (heap size) must be the last item
 expect	equ	$
-actual	equ	expect+FILELEN
-stktop	equ	actual+FILELEN+512
+actual	equ	expect+BUFLEN
+stktop	equ	actual+BUFLEN+512
 CODE	ends
 	end	main

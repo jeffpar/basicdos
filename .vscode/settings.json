@@ -667,6 +667,7 @@
     "GENPUSHB",
     "gensys",
     "gentok",
+    "GETATTR",
     "getchar",
     "GETCLEN",
     "getclr",

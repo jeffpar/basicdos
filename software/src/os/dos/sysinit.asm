@@ -199,13 +199,14 @@ si2d:	cli
 ; scb_active to that same region, so that any DOS or DOSUTIL calls we make
 ; will not barf due to the lack of an active SCB.  That region still holds
 ; the original copy of this init code, so zero it first (eg, SCB_INDOS must
-; start at zero).
+; start at zero), starting at SP before the PUSH, since the resident code
+; ends just below it (see dos_fault).
 ;
+	mov	di,sp
 	push	es
 	push	ds
 	pop	es
 	ASSUME	ES:DOS
-	mov	di,sp
 	mov	cx,size SCB
 	mov	al,0
 	rep	stosb

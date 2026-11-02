@@ -10,8 +10,8 @@
 ; This is the first built-in driver, and the first of two CPU$ drivers (see
 ; cpu.inc); it stores the processor type in CPU_HWTYPE and CPU_TYPE, and on
 ; an 80286 or later with at least 64K of extended memory (and 128K of
-; conventional memory, after any "MEMSIZE=" line), it enables A20,
-; builds its PMB table, GDT, IDTs, and LDT in the system area (the first 64K
+; conventional memory, after any "MEMSIZE=" line), it enables A20, builds
+; its PMB table, GDT, IDTs, LDT, and TSS in the system area (the first 64K
 ; of extended memory), checks that it can switch to protected mode and back,
 ; and stays, managing all of memory with its PMB table (see PMB in cpu.inc)
 ; through DDINT_CPU.  Otherwise (or with a "CPU=8088" line in CONFIG.SYS,
@@ -55,7 +55,15 @@ IDT_MAX		equ	256
 SYS_PIDT	equ	SYS_IDT + IDT_MAX * 8
 SYS_LDT		equ	SYS_PIDT + IDT_MAX * 8
 LDT_MAX		equ	1024
-SYS_END		equ	SYS_LDT + LDT_MAX * 8
+;
+; The TSS (80286 format) is only for its ring 0 stack (SS0:SP0; see
+; CPU_SETSTACK), which the processor switches to when an interrupt takes ring
+; 3 code to ring 0; we never switch tasks, so the rest of it stays zero.
+;
+SYS_TSS		equ	SYS_LDT + LDT_MAX * 8
+TSS_SP0		equ	2	; ring 0 SP (followed by SS)
+TSS_LEN		equ	44
+SYS_END		equ	SYS_TSS + TSS_LEN
 SEL_VIDEO	equ	0A000h	; first identity selector (data)
 SEL_ROM		equ	0C000h	; first identity code selector
 SEL_IDSTEP	equ	0800h	; identity selectors are every 800h
@@ -112,6 +120,7 @@ ACC_DPL3	equ	60h	; DPL 3 (added to another ACC_* value)
 ACC_LDT		equ	82h	; present, LDT
 ACC_CALLGATE	equ	84h	; present, DPL 0, 80286 call gate
 ACC_INTGATE	equ	86h	; present, DPL 0, 80286 interrupt gate
+ACC_TSS		equ	81h	; present, DPL 0, available 80286 TSS
 
 SEL_TI		equ	04h	; table indicator (set for LDT selectors)
 ;
@@ -130,7 +139,8 @@ SEL_TMP2	equ	48h	; data: scratch (see pm_ptr)
 SEL_DDINT	equ	50h	; code: segment 50h (DDINT)
 SEL_C5CODE	equ	58h	; code: the CALL 5 jump (0:00C0h)
 ;		equ	60h	; SEL_CALL5 (in cpu.inc): call gate to it
-GDT_FIXED	equ	0Dh	; number of fixed GDT entries
+SEL_TSS		equ	68h	; TSS (see CPU_SETSTACK)
+GDT_FIXED	equ	0Eh	; number of fixed GDT entries
 FL_RESULTS	equ	FL_CARRY OR FL_ZERO OR FL_SIGN OR FL_OVFL
 
 DEV	group	CODE,DATA
@@ -150,7 +160,7 @@ CPU	DDH	<offset DEV:ddcpu_end+16,,DDATTR_CHAR,offset DEV:ddcpu_init,-1,202020202
 	dw	ddcpu_unmap, ddcpu_query, ddcpu_alias, ddcpu_pmode
 	dw	ddcpu_realloc, ddcpu_move, ddcpu_setblk, ddcpu_freeall
 	dw	ddcpu_setlim, ddcpu_seginfo, ddcpu_rwmem, ddcpu_sysregs
-	dw	ddcpu_setfault
+	dw	ddcpu_setfault, ddcpu_setstack
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -779,17 +789,25 @@ ENDPROC	ddcpu_sysregs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcpu_setfault (CPU_SETFAULT)
+; ddcpu_setfault (CPU_SETFAULT) and ddcpu_setstack (CPU_SETSTACK)
 ;
 ; Inputs:
-;	DX:CX = fault handler (0:0 for none; see to_fault)
+;	DX:CX = fault handler (0:0 for none; see to_fault), or the ring 0
+;	stack (SS:SP) for interrupts from ring 3 (see SYS_TSS)
 ;
 ; Outputs:
-;	Carry clear: DX:CX = previous handler
+;	Carry clear: DX:CX = previous handler (or stack)
+;
+; Modifies:
+;	BX (which cpu_entry restores), CX, DX
 ;
 DEFPROC	ddcpu_setfault
-	xchg	cx,ds:[SYS_VARS].SV_FAULT.OFF
-	xchg	dx,ds:[SYS_VARS].SV_FAULT.SEG
+	mov	bx,SYS_VARS + SV_FAULT
+	jmp	short sf1
+	DEFLBL	ddcpu_setstack,near
+	mov	bx,SYS_TSS + TSS_SP0
+sf1:	xchg	cx,ds:[bx].OFF
+	xchg	dx,ds:[bx].SEG
 	clc
 	ret
 ENDPROC	ddcpu_setfault
@@ -1928,8 +1946,9 @@ ENDPROC	pm_fault
 ; Switches to protected mode for good.  The caller's CS, DS, ES, and SS become
 ; selectors for the same memory (see seg_sel), interrupts go through the
 ; protected-mode IDT (see sw_int and irq_common), with the master PIC moved
-; to 78h, and DDINT_CPU, DDINT_GETVEC, and DDINT_SETVEC go to our protected-
-; mode code.
+; to 78h, DDINT_CPU, DDINT_GETVEC, and DDINT_SETVEC go to our protected-mode
+; code, and our TSS (see SYS_TSS) is loaded, for ring 3 code (once there's a
+; ring 0 stack; see CPU_SETSTACK).
 ;
 ; Inputs:
 ;	cpu_entry's frame on the stack (see below)
@@ -2012,6 +2031,8 @@ dp2:	mov	ss,dx
 	mov	ds,ax
 	mov	ax,SEL_LDTD
 	lldt	ax
+	mov	al,SEL_TSS		; (AH is still zero)
+	ltr	ax
 	xchg	ax,si			; AX = data selector for caller's CS
 	clc
 	ret
@@ -2218,6 +2239,7 @@ ex3:	popa
 	add	sp,2			; discard the error code
 	iret
 ex8:	mov	cx,bx			; CX = error code
+	mov	al,0
 	call	to_fault		; (unless there's a fault handler)
 	jmp	cpu_fatal
 ENDPROC	exc_common
@@ -2312,6 +2334,7 @@ si1:	mov	al,ah
 si8:	sub	[bp+26],bx		; back the caller's IP up to the INT
 	mov	cx,[bp+14]		; CX = caller's AX
 	lea	si,[bp+26]		; SS:SI -> caller's IP and CS
+	mov	al,0
 	call	to_fault		; (unless there's a fault handler)
 	jmp	cpu_fatal
 ENDPROC	sw_int
@@ -2345,7 +2368,9 @@ ENDPROC	si_ret
 ; A vector is its IDT gate (for vectors 08h-0Fh, the gates for IRQs 0-7, at
 ; 78h-7Fh), unless the gate is one of our defaults, in which case it's the
 ; real-mode vector, if that's in the ROM, or 0:0 if not (see get_vec), and
-; setting a vector replaces its gate.
+; setting a vector replaces its gate's selector and offset, keeping its DPL
+; (see idt_default): 3 for software interrupts, which ring 3 code may issue
+; (eg, INT 21h), and 0 for exceptions and IRQs, which it may not.
 ;
 ; Inputs:
 ;	AL = vector #
@@ -2373,7 +2398,6 @@ DEFPROC	pm_setvec,far
 	call	idt_gate		; DS:BX -> gate
 	pop	[bx].DESC_LIMIT		; new offset
 	pop	[bx].DESC_BASE		; and selector
-	mov	[bx].DESC_ACC,ACC_INTGATE + ACC_DPL3
 	pop	ds
 	pop	bx
 	popf
@@ -2505,12 +2529,13 @@ ENDPROC	sel_base
 ; Gives a fatal exception to the fault handler (see CPU_SETFAULT), if there
 ; is one, unless the exception occurred in CPU$ or in the handler's own code
 ; segment.  The stack below the faulting instruction's frame is rebuilt as the
-; PUSHA frame, a word of padding, the handler's address, the vector, and the
-; error code, and then the registers are restored and we "return" to the
-; handler.
+; PUSHA frame, the handler's address, our return address (tf_ret, where a
+; handler that declines the exception returns, or for cpu_fatal's offer of
+; the halt, cpu_halt), the vector, and the error code, and then the
+; registers are restored and we "return" to the handler.
 ;
 ; Inputs:
-;	AH = vector, CX = error code
+;	AH = vector, AL = 0 (or FAULT_HALTED, from cpu_fatal), CX = error code
 ;	SS:BP -> PUSHA frame (at or above SI-26)
 ;	SS:SI -> IP, CS, and FLAGS of the faulting instruction
 ;	DS and ES as they were
@@ -2534,7 +2559,7 @@ DEFPROC	to_fault
 	je	tf9			; yes
 	cmp	bx,SEL_CPUCODE		; or ours?
 	je	tf9			; yes
-	lea	bx,[si-26]		; BX -> new PUSHA frame (<= BP)
+	lea	bx,[si-28]		; BX -> new PUSHA frame (< BP)
 	sub	di,di
 tf1:	mov	dx,[bp+di]
 	mov	ss:[bx+di],dx
@@ -2544,45 +2569,64 @@ tf1:	mov	dx,[bp+di]
 	jb	tf1
 	mov	sp,bx
 	mov	ss:[si-2],cx		; error code
-	mov	al,ah
-	mov	ah,0
-	mov	ss:[si-4],ax		; vector
+	xchg	al,ah
+	mov	ss:[si-4],ax		; vector (and FAULT_HALTED, if set)
+	mov	dx,offset DEV:tf_ret
+	test	ah,ah			; is it cpu_fatal's offer?
+	jz	tf2			; no
+	mov	dx,offset DEV:cpu_halt
+tf2:	mov	ss:[si-8],dx
+	mov	ss:[si-6],cs		; our return address
 	push	ds
 	mov	dx,SEL_SYS
 	mov	ds,dx
 	mov	dx,ds:[SYS_VARS].SV_FAULT.OFF
-	mov	ss:[si-8],dx
+	mov	ss:[si-12],dx
 	mov	dx,ds:[SYS_VARS].SV_FAULT.SEG
-	mov	ss:[si-6],dx
+	mov	ss:[si-10],dx
 	pop	ds
 	popa
-	add	sp,2			; skip the padding
 	db	OP_RETF			; "return" to the handler
 tf9:	ret
-ENDPROC	to_fault
+;
+; A handler that declines the exception returns here, with the registers as
+; they were, and SS:SP -> the vector, the error code, and the faulting
+; instruction's frame.
+;
+	DEFLBL	tf_ret,near
+	pusha				; (for cpu_fatal's offer)
+	mov	bp,sp
+	mov	ah,[bp+16]		; AH = vector
+	mov	cx,[bp+18]		; CX = error code
+	lea	si,[bp+20]		; SS:SI -> IP, CS, and FLAGS
+ENDPROC	to_fault			; fall into cpu_fatal
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; cpu_fatal
 ;
 ; Reports an exception (or an interrupt that has no handler) with the BIOS,
-; as "CPU fault vv at cccc:iiii (DS=dddd ES=eeee EC=xxxx)", where EC is the
-; error code, and stops the machine (eg, for a debugger to examine).
+; as "CPU fault vv (EC=xxxx) at cccc:iiii", where EC is the error code,
+; followed by "System halted", and then offers the halt to the fault handler
+; (see to_fault), with FAULT_HALTED in the vector's high byte, so that a
+; debugger can keep control; if the handler declines it (or there's none, or
+; it can't be used), we stop the machine for good.
 ;
 ; Inputs:
 ;	AH = vector (0FFh for an unknown software interrupt)
 ;	CX = error code (or the caller's AX, for a software interrupt)
-;	SS:SI -> IP and CS
+;	SS:BP -> PUSHA frame (see to_fault)
+;	SS:SI -> IP, CS, and FLAGS
 ;	DS and ES as they were
 ;
 DEFPROC	cpu_fatal
-	push	cx
-	push	es
-	push	ds
+	push	si
+	push	bp
 	push	word ptr ss:[si]	; IP
 	push	word ptr ss:[si+2]	; CS
+	push	cx
 	push	ax			; AH = vector
-	mov	bp,sp			; BP -> vector, CS, IP, DS, ES, error
+	mov	bp,sp			; BP -> vector, error code, CS, and IP
 	mov	si,offset DEV:fatal_fields
 	sub	di,di
 cft1:	lods	byte ptr cs:[si]
@@ -2590,7 +2634,7 @@ cft1:	lods	byte ptr cs:[si]
 	ja	cft2			; no, a character
 	cbw
 	xchg	cx,ax			; CX = # of digits
-	jcxz	cft9			; the end
+	jcxz	cft8			; the end
 	mov	ax,[bp+di]
 	call	pr_hex
 	inc	di
@@ -2598,14 +2642,22 @@ cft1:	lods	byte ptr cs:[si]
 	jmp	cft1
 cft2:	call	pr_char
 	jmp	cft1
-cft9:	HALT_FATAL
+cft8:	pop	ax			; AH = vector
+	pop	cx			; CX = error code
+	add	sp,4
+	pop	bp
+	pop	si
+	mov	al,FAULT_HALTED
+	call	to_fault		; (unless there's a fault handler)
+	DEFLBL	cpu_halt,near
+	HALT_FATAL
 ENDPROC	cpu_fatal
 ;
 ; Each field is a # of digits (4, or 2 for the vector, in AH); 0 ends them.
 ;
 	DEFLBL	fatal_fields,byte
-	db	13,10,"CPU fault ",2," at ",4,":",4," (DS=",4," ES=",4
-	db	" EC=",4,")",13,10,0
+	db	"CPU fault ",2," (EC=",4,") at ",4,":",4,13,10
+	db	"System halted",13,10,0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -3160,6 +3212,7 @@ ENDPROC	idt_default
 	DESC	<0FFFFh,BIOS_DATA+100h,0,ACC_CODE,0>	; SEL_DDINT
 	DESC	<INT_DOSCALL5*4+4,0,0,ACC_CODE,0>	; SEL_C5CODE
 	DESC	<INT_DOSCALL5*4,SEL_C5CODE,0,ACC_CALLGATE,0>
+	DESC	<TSS_LEN-1,SYS_TSS-10h,SYS_BASE16,ACC_TSS,0>	; SEL_TSS
 	DEFLBL	gdt_init_end,byte
 	ASSERT	<offset gdt_init_end - offset gdt_init>,EQ,<(GDT_FIXED-1)*8>
 

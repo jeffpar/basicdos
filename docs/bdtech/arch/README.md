@@ -75,7 +75,7 @@ All the disk buffers form a circular chain, ordered from most to least recently 
 
 The memory pool is managed by the CPU$ driver (see [Protected Mode](../mmu/)): on an 8088 (or with `CPU=8088`), it's a chain of Memory Control Blocks (see [MCB](../data/#mcb)), as in PC DOS, and on an 80286, a table of physical memory blocks.  [DOS_MEM_ALLOC](../dos/#memory) normally allocates from the bottom of the first free block that's big enough, but with MCBTYPE_HIGH (80h) set in AL, it allocates from the top of the last one.  COMMAND.COM allocates its code, text, variable, and string blocks from the top, so that the memory it frees before running a program stays contiguous.
 
-Unlike PC DOS, BASIC-DOS doesn't give a program all available memory: a COM program gets its file size plus a heap (at least MINHEAP, or 1K, or more if the program requests it; see [COMDATA](../data/#comdata)), or at least half of the available memory if it has no COMDATA, and an EXE program gets its image size plus the minimum its header requests (EXE_PARASMIN), plus as much of the maximum (EXE_PARASMAX) as is available, up to 64K (or the minimum, if larger).  This leaves memory available for other sessions, while still giving programs like LINK.EXE (which sizes its stack from the memory it's given) enough room to run.
+Unlike PC DOS, BASIC-DOS doesn't give a program all available memory: a COM program gets its file size plus a heap (at least MINHEAP, or 1K, or more if the program requests it; see [COMDATA](../data/#comdata)), or at least half of the available memory if it has no COMDATA, and an EXE program gets its image size plus the minimum its header requests (EXE_PARASMIN), plus as much of the maximum (EXE_PARASMAX) as is available, up to 64K (or the minimum, if larger).  This leaves memory available for other sessions, while still giving programs like LINK.EXE (which sizes its stack from the memory it's given) enough room to run.  In protected mode, an NE program gets a block for each of its segments, the size its segment table gives (plus the heap and stack for DGROUP), and its PSP gets a block of its own (see [Code Aliases](../mmu/#aliases)).
 
 ### Sessions
 
@@ -91,7 +91,7 @@ Each session has its own console context (if it was given one by a CON= line), a
 
 | Vector | Use |
 |--------|-----|
-| 00h, 04h | Divide error and overflow: DOS displays "Division error" or "Overflow error" (with the address, in DEBUG builds) and terminates the program (exit types EXTYPE_DVERR and EXTYPE_OVERR), as MS-DOS ends a program after "Divide overflow"; the parent isn't aborted, too (unlike a CTRL-C), and a session's last program (eg, COMMAND) gets a CTRL-C signal instead.  DEBUG.COM (as a driver or a program) stops on a divide error first |
+| 00h, 04h | Divide error and overflow: DOS displays "Division error" or "Overflow error" (followed by "at cccc:iiii", in DEBUG builds) and terminates the program (exit types EXTYPE_DVERR and EXTYPE_OVERR), as MS-DOS ends a program after "Divide overflow"; the parent isn't aborted, too (unlike a CTRL-C), and a session's last program (eg, COMMAND) gets a CTRL-C signal instead.  DEBUG.COM (as a driver or a program) stops on a divide error first |
 | 01h, 03h | Single-step and breakpoint (used by DEBUG builds, where an INT 3 preceded by a NOP is an assertion failure, which is reported and halts the system, while any other INT 3, such as a DBGBRK, is ignored) |
 | 20h | Terminate program |
 | 21h | DOS functions (see [DOS Functions](../dos/)) |

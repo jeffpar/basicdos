@@ -17,8 +17,8 @@
 ; everything, which must leave the arena as it was.  Along the way, it names a
 ; block (CPU_SETBLK), finds it by its selector (CPU_QUERY), and frees all the
 ; blocks of an owner (CPU_FREEALL), and tests the functions for debuggers
-; (see debugfns).  Exits with code 0 if every check passes, or 1 if any
-; fails.
+; (see debugfns), and in protected mode, runs code at ring 3 (see ring3).
+; Exits with code 0 if every check passes, or 1 if any fails.
 ;
 	DOSPSP equ 1
 	DOSFUNC equ 1
@@ -28,6 +28,7 @@
 	include	cpu.inc
 
 STR_LEN	equ	9			; length of str1 (see move)
+R0_STACK equ	1024			; size of the ring 0 stack (see ring3)
 
 CODE	segment
 	ASSUME	CS:CODE, DS:CODE, ES:CODE, SS:CODE
@@ -68,7 +69,8 @@ m1:	mov	[pmflag],ah
 ;
 ; Allocate 100000 bytes with GDT selectors, and 4K with an LDT selector.
 ;
-m2:	inc	bp
+m2:	call	ring3
+	inc	bp
 	mov	al,0
 	mov	si,1
 	mov	di,86A0h		; SI:DI = 100000
@@ -282,6 +284,10 @@ DEFPROC	realmode
 	jne	rm8
 	PRINTF	<"Map and alias: %#x",13,10>,ax
 	inc	bp
+	mov	[experr],ERR_INVALID
+	mov	ah,CPU_SETSTACK		; (there's no ring 3 in real mode)
+	call	cpu_err
+	inc	bp
 	mov	[experr],ERR_BADADDR
 	mov	cx,1234h
 	sub	dx,dx
@@ -405,6 +411,142 @@ al2:	mov	[sel5],ax
 	call	cpu_ok
 	ret
 ENDPROC	aliases
+
+;
+; ring3
+;
+; Gives CPU$ a ring 0 stack of our own (CPU_SETSTACK), and runs r3code at ring
+; 3, through DPL 3 aliases (MEMF_USER) of our PSP block: its INT 21h (a DPL 3
+; gate) must reach DOS on the ring 0 stack and return to ring 3, and its INT
+; 0Dh (a DPL 0 gate) must fault, which our fault handler (CPU_SETFAULT) takes
+; as the way back to ring 0.  Then we restore the previous fault handler and
+; ring 0 stack (which must return ours), and free everything.
+;
+DEFPROC	ring3
+	inc	bp
+	mov	al,0
+	sub	si,si
+	mov	di,R0_STACK
+	call	alloc			; AX = selector, DX:CX = address
+	mov	[sel2],ax
+	mov	[addr1].LOW,cx
+	mov	[addr1].HIW,dx
+	xchg	dx,ax
+	mov	cx,R0_STACK		; DX:CX = the ring 0 stack
+	mov	ah,CPU_SETSTACK
+	call	cpu_ok			; DX:CX = the previous one
+	push	dx
+	push	cx
+	inc	bp
+	mov	al,MEMF_CODE OR MEMF_USER
+	mov	bx,ds
+	mov	ah,CPU_ALIAS
+	call	cpu_ok
+	mov	[sel4],ax		; ring 3 code alias
+	mov	al,MEMF_USER
+	mov	ah,CPU_ALIAS
+	call	cpu_ok
+	mov	[sel5],ax		; ring 3 data alias
+	mov	dx,cs
+	mov	cx,offset r3fault
+	mov	ah,CPU_SETFAULT
+	call	cpu_ok			; DX:CX = the previous handler
+	push	dx
+	push	cx
+	inc	bp
+	call	r3go			; (see r3fault for the results)
+	push	ss
+	pop	ds
+	push	ss
+	pop	es
+	sti
+	sub	di,di			; DI = 0 if every check passes
+	cmp	cx,0Dh			; did INT 0Dh fault?
+	jne	r3b
+	cmp	dx,0Dh*8+2		; with its IDT entry as the error code?
+	jne	r3b
+	cmp	si,ax			; at ring 3's CS?
+	jne	r3b
+	cmp	bx,SIG_BASICDOS		; after INT 21h worked there?
+	jne	r3b
+	and	al,3
+	cmp	al,3			; and was that CS at ring 3?
+	je	r3c
+r3b:	inc	di
+r3c:	PRINTF	<"Ring 3 at %#x: INT 21h %#x, INT 0Dh EC %#x",13,10>,si,bx,dx
+	pop	cx
+	pop	dx
+	mov	ah,CPU_SETFAULT
+	call	cpu_ok			; restore the previous fault handler
+	pop	cx
+	pop	dx
+	mov	ah,CPU_SETSTACK
+	call	cpu_ok			; and ring 0 stack
+	test	di,di			; did every check pass?
+	jnz	r3x			; no
+	cmp	cx,R0_STACK		; and did we get our stack back?
+	jne	r3x
+	cmp	dx,[sel2]
+	jne	r3x
+	inc	bp
+	mov	bx,[sel4]
+	sub	cx,cx
+	mov	ah,CPU_UNMAP
+	call	cpu_ok
+	mov	bx,[sel5]
+	sub	cx,cx
+	mov	ah,CPU_UNMAP
+	call	cpu_ok
+	mov	cx,[addr1].LOW
+	mov	dx,[addr1].HIW
+	mov	ah,CPU_FREE
+	jmp	cpu_ok
+r3x:	jmp	m8
+ENDPROC	ring3
+
+;
+; r3go
+;
+; Enters ring 3 at r3code with the aliases and our current stack, and
+; "returns" from r3fault.
+;
+DEFPROC	r3go
+	mov	[r0stk].OFF,sp		; SS:SP -> our return address
+	mov	[r0stk].SEG,ss
+	mov	ax,[sel5]
+	or	al,3			; AX = data alias, with RPL 3
+	push	ax			; SS
+	push	[r0stk].OFF		; SP
+	pushf
+	mov	bx,[sel4]
+	or	bl,3
+	push	bx			; CS = code alias, with RPL 3
+	mov	bx,offset r3code
+	push	bx			; IP
+	mov	ds,ax			; (IRET would leave DPL 0 data
+	mov	es,ax			; selectors null at ring 3)
+	iret
+r3code:	mov	ah,DOS_MSC_GETVER
+	int	21h			; BX = SIG_BASICDOS
+	mov	ax,cs			; AX = our CS
+	int	0Dh			; (a DPL 0 gate, so this must fault)
+;
+; CPU$ calls r3fault (see CPU_SETFAULT) at ring 0 with interrupts disabled,
+; the registers as they were (eg, AX and BX from r3code, and DS = our data
+; alias), and SS:SP -> its return address, the vector, the error code, and
+; the faulting instruction's frame, which we return with CX = vector, DX =
+; error code, and SI = CS, after switching back to our stack.
+;
+	DEFLBL	r3fault,near
+	add	sp,4			; discard the return address
+	pop	cx			; CX = vector
+	pop	dx			; DX = error code
+	pop	si
+	pop	si			; SI = CS
+	mov	ss,[r0stk].SEG
+	mov	sp,[r0stk].OFF
+	ret
+ENDPROC	r3go
 
 ;
 ; blocks
@@ -636,6 +778,7 @@ ENDPROC	arena
 	DEFLONG	addr1,0
 	DEFLONG	addr2,0
 	DEFLONG	addr6,0
+	DEFLONG	r0stk,0			; our SS:SP while at ring 3
 	even
 mvpkt	MOVEPKT	<>
 	DEFLBL	name1,byte

@@ -27,13 +27,21 @@ replaced (see the next section):
 Microsoft C Compiler, Version 4.00 (June 27, 1986)
 --------------------------------------------------
 
-One file was taken from this product:
+Two files were taken from this product:
 
     MAKE     EXE     23418  06-27-86   Program Maintenance Utility 4.02
+    LINK4    EXE     60006  07-18-86   Segmented-Executable Linker 5.00.12
 
-It replaces the MASM package's MAKE 4.00, which runs every command through
-COMMAND /C; MAKE 4.02 runs programs directly, which is faster and needs less
-memory.
+MAKE 4.02 replaces the MASM package's MAKE 4.00, which runs every command
+through COMMAND /C; MAKE 4.02 runs programs directly, which is faster and
+needs less memory.
+
+LINK4 comes from the product's eighth diskette ("C WINDOWS"), which updated
+the Windows Software Development Kit 1.01 for C 4.00.  It links "new
+executable" (NE) programs, which list each segment's type (code or data),
+size, and relocations, as a protected-mode loader needs.  It builds
+TESTS\BIN\PRIMES.EXE (see TESTS\PRIMES\PRIMES.DEF), with the MS-DOS program
+that LINK builds as its stub, so the file runs in real mode, too.
 
 Microsoft MS-DOS, Version 3.20 (July 7, 1986)
 ---------------------------------------------

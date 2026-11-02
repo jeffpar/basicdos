@@ -17,7 +17,8 @@
 ; paragraph before it.  Our functions are the same as the first driver's: a
 ; selector is a segment, there are no descriptors to map or unmap, CPU_QUERY
 ; describes each MCB with a PMB, CPU_SEGINFO and CPU_RWMEM accept only real-
-; mode addresses, and CPU_SYSREGS fails (there are no system registers).
+; mode addresses, and CPU_SYSREGS and CPU_SETSTACK fail (there are no system
+; registers, and no ring 3).
 ;
 	include	macros.inc
 	include	8086.inc
@@ -44,7 +45,7 @@ mv_pkt	MOVEPKT	<0,0,0>			; CPU_MOVE's packet, as it goes
 	dw	ddcpu_unmap, ddcpu_query, ddcpu_alias, cpu_inval
 	dw	ddcpu_realloc, ddcpu_move, ddcpu_setblk, ddcpu_freeall
 	dw	ddcpu_unmap, ddcpu_seginfo, ddcpu_rwmem, cpu_inval
-	dw	ddcpu_setfault
+	dw	ddcpu_setfault, cpu_inval
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

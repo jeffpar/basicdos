@@ -98,7 +98,7 @@ Loads *program* (a full filename) without starting it, displays its registers, a
 On an 80286 (without CPU=8088), an address may start with & (real mode) or # (protected mode), and DS *selector* displays a selector's descriptor.  An address may also be a physical address that starts with % (eg, %100000).  LN [*address*] shows an address (by default, CS:IP), its linear address, and the name of the memory block it's in.
 DEBUG.COM can also be loaded as a device driver and used to debug the system from a terminal via a serial port.  For example, this CONFIG.SYS line connects DEBUG.COM to a VT100 terminal on COM2:\
 	DEVICE=EXT\DEBUG.COM COM2:9600,N,8,1,VT100
-Adding ~H after the port settings will cause the debugger to halt; use the G command to continue booting.
+Adding ~H after the port settings will cause the debugger to halt; use the G command to continue booting.  The driver also stops for any protected-mode fault that would halt the system (eg, in a driver), whether or not VT traps it; GT then halts the system, but the debugger keeps control (press CTRL-C for its prompt).
 
 [b]DEF *name*[(*parameter*[,*parameter*]...)][=*expression*]
 Defines a function expression or function block.  Function expressions must fit on a single line and can be defined at any time.

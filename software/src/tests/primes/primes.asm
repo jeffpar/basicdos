@@ -12,7 +12,13 @@
 	include	macros.inc
 	include	dosapi.inc
 
-CODE    SEGMENT
+;
+; LINK4 builds PRIMES.EXE as an NE program (see PRIMES.DEF), whose segments
+; are code only if their class is 'CODE', and which needs an automatic data
+; segment (DGROUP), so DGROUP holds the stack.  Neither changes the MS-DOS
+; program that LINK builds, which is PRIMES.EXE's stub.
+;
+CODE    SEGMENT PUBLIC 'CODE'
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:STACK
 DEFPROC	main
@@ -101,5 +107,7 @@ CODE	ENDS
 STACK	SEGMENT	STACK
 	dw	512 dup (?)
 STACK	ENDS
+
+DGROUP	GROUP	STACK
 
 	end	main

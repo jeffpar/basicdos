@@ -10,9 +10,9 @@
 ; To save MASM symbol space, parts of this file are optional: modules that call
 ; DOS (including through the DOSUTIL, PRINTF, or DPRINTF macros) must define
 ; DOSFUNC to get the INT 21h and INT 32h function numbers, modules that use
-; the PSP, EPB, SPB, EXE header, or COMDATA/COMHEAP must define DOSPSP, modules
-; that use the full or extended FCBs must define DOSFCB, and modules that use
-; the FFB must define DOSFFB.
+; the PSP, EPB, SPB, EXE header, or COMDATA/COMHEAP must define DOSPSP (and
+; DOSNE, too, for the NE header), modules that use the full or extended FCBs
+; must define DOSFCB, and modules that use the FFB must define DOSFFB.
 ;
 
 ;
@@ -466,6 +466,90 @@ EXE_OVERLAY	dw	?	; 1Ah: 0 for main program
 EXEHDR		ends
 
 SIG_EXE		equ	5A4Dh	; "MZ"
+
+	IFDEF	DOSNE
+;
+; NE ("new executable") File Header, which follows an MS-DOS program (its
+; "stub") in the file: an EXE header whose EXE_OFFRELOC is at least 40h has
+; the NE header's file offset (a dword) at EXE_NEHDR.  The kernel loads only
+; NE programs with NEF_PROTMODE set, in protected mode (see load_ne).
+;
+EXE_NEHDR	equ	3Ch	; dword: file offset of the NE header
+
+NEHDR		struc
+NE_SIG		dw	?	; 00h: SIG_NE
+		dw	?	; 02h: linker version
+		dw	?	; 04h: offset of entry table
+		dw	?	; 06h: length of entry table
+		dd	?	; 08h: file CRC
+NE_FLAGS	dw	?	; 0Ch: NEF_* flags
+NE_AUTODATA	dw	?	; 0Eh: automatic data segment # (DGROUP)
+NE_HEAP		dw	?	; 10h: heap size (added to DGROUP)
+NE_STACK	dw	?	; 12h: stack size (added to DGROUP)
+NE_START	dd	?	; 14h: initial CS:IP (segment #:offset)
+NE_STACKPTR	dd	?	; 18h: initial SS:SP (segment #:offset)
+NE_NSEGS	dw	?	; 1Ch: # of segment table entries (NESEG)
+NE_NMODS	dw	?	; 1Eh: # of module references (imports)
+		dw	?	; 20h: size of nonresident name table
+NE_SEGTAB	dw	?	; 22h: offset of segment table
+		dw	?	; 24h: offset of resource table
+		dw	?	; 26h: offset of resident name table
+		dw	?	; 28h: offset of module reference table
+		dw	?	; 2Ah: offset of imported name table
+		dd	?	; 2Ch: file offset of nonresident name table
+		dw	?	; 30h: # of moveable entry points
+NE_SHIFT	dw	?	; 32h: segment alignment shift (0 means 9)
+		dw	?	; 34h: # of resource segments
+		db	?	; 36h: target operating system
+		db	?	; 37h: other flags
+		dw	4 dup(?); 38h: (fast-load area and Windows version)
+NEHDR		ends		; 40h
+
+SIG_NE		equ	454Eh	; "NE"
+
+NEF_PROTMODE	equ	0008h	; protected mode only
+NEF_SELFLOAD	equ	0800h	; self-loading (not supported)
+NEF_ERRORS	equ	2000h	; the linker reported errors
+NEF_LIBRARY	equ	8000h	; library module (not supported)
+
+;
+; NE Segment Table Entry, followed in the file (if NESF_RELOCS is set) by
+; the segment's data, a word with the # of relocation records, and then the
+; records (NEREL).
+;
+NESEG		struc
+NES_SECTOR	dw	?	; 00h: file offset of data (in alignment units)
+NES_LENGTH	dw	?	; 02h: length of data in file (0 means 64K)
+NES_FLAGS	dw	?	; 04h: NESF_* flags
+NES_SIZE	dw	?	; 06h: allocation size (0 means 64K)
+NESEG		ends
+
+NESF_DATA	equ	0001h	; data segment (otherwise code)
+NESF_ITERATED	equ	0008h	; iterated data (not supported)
+NESF_MOVEABLE	equ	0010h	; moveable (not supported)
+NESF_RELOCS	equ	0100h	; relocation records follow the data
+
+;
+; NE Relocation Record: a target (for an internal reference, a segment #
+; and offset) to store at the source (an offset in the segment): unless
+; NERF_ADDITIVE is set, the source contains the offset of the next source
+; for the same target, and so on, until FFFFh.
+;
+NEREL		struc
+NER_TYPE	db	?	; 00h: NERT_* source type
+NER_FLAGS	db	?	; 01h: NERF_* flags
+NER_SOURCE	dw	?	; 02h: offset of the (first) source
+NER_SEG		dw	?	; 04h: target segment # (internal reference)
+NER_OFFSET	dw	?	; 06h: target offset
+NEREL		ends
+
+NERT_SEL	equ	2	; 16-bit selector
+NERT_FAR	equ	3	; 32-bit pointer (offset and selector)
+NERT_OFF	equ	5	; 16-bit offset
+
+NERF_TARGET	equ	03h	; target type (0 for an internal reference)
+NERF_ADDITIVE	equ	04h	; add the target offset to the source
+	ENDIF	; DOSNE
 
 	ENDIF	; DOSPSP
 

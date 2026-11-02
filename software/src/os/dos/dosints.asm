@@ -44,11 +44,15 @@ DEFPROC	dos_dverr,DOSFAR
 	PRINTF	<"Division error",13,10>
 	ELSE
 ;
-; Print the 32-bit return address on the stack, and since it's already on
-; the stack, we don't have to push it, which means PRINTF won't try to pop it
-; either.
+; Print the return address on the stack, after putting its segment first, so
+; that we don't have to push it, which means PRINTF won't try to pop it
+; either (we're ending the program, so its frame doesn't matter).
 ;
-	PRINTF	<"Division error @%08lx",13,10>
+	pop	ax
+	pop	dx
+	push	ax
+	push	dx
+	PRINTF	<"Division error at %04x:%04x",13,10>
 	ENDIF
 	mov	ah,EXTYPE_DVERR
 	jmp	dos_abort
@@ -85,7 +89,7 @@ DEFPROC	dos_brkpt,DOSFAR
 	dec	si			; DS:SI -> the INT 3
 	cmp	byte ptr [si-1],OP_NOP	; an ASSERT?
 	jne	bk9			; no
-	PRINTF	<"Assertion failure @%08lx",13,10>,si,ds
+	PRINTF	<"Assertion failure at %04x:%04x",13,10>,ds,si
 ;
 ; Lock the session, so that no other session runs, but leave interrupts on,
 ; so that a COM console can finish (as sysinit's fatal_error does).
@@ -118,7 +122,11 @@ DEFPROC	dos_oferr,DOSFAR
 	IFNDEF	DEBUG
 	PRINTF	<"Overflow error",13,10>
 	ELSE
-	PRINTF	<"Overflow error @%08lx",13,10>
+	pop	ax
+	pop	dx
+	push	ax
+	push	dx			; (see dos_dverr)
+	PRINTF	<"Overflow error at %04x:%04x",13,10>
 	ENDIF
 	mov	ah,EXTYPE_OVERR
 	jmp	dos_abort

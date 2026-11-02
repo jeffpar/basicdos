@@ -1,0 +1,18 @@
+;
+; BASIC-DOS Primes Demo: module definitions for LINK4, which builds PRIMES.EXE
+; as an NE program whose stub is the MS-DOS program that LINK builds (see the
+; TESTS makefile).  PROTMODE marks the NE program as protected-mode only, and
+; FIXED segments make its relocations refer to segment numbers (instead of
+; entry table ordinals).
+;
+; @author Jeff Parsons <Jeff@pcjs.org>
+; @copyright (c) 2026 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
+;
+; This file is part of PCjs, a computer emulation software project at pcjs.org
+;
+NAME	PRIMES
+STUB	'OBJ\PRIMES.EXE'
+PROTMODE
+CODE	FIXED
+DATA	FIXED

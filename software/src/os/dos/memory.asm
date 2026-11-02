@@ -347,6 +347,26 @@ ENDPROC	mem_alias
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; mem_pmode
+;
+; Returns carry set in protected mode, where segment arithmetic doesn't work
+; (eg, an EXE file's relocations, so load_program can't load one; see
+; docs/bdtech/mmu).
+;
+; Modifies:
+;	CX, DX
+;
+DEFPROC	mem_pmode,DOS
+	push	ax
+	mov	ah,CPU_GETINFO
+	call	far ptr DDINT_CPU	; AH = CPUF_* flags
+	shr	ah,1			; carry = CPUF_PM (01h)
+	pop	ax
+	ret
+ENDPROC	mem_pmode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; utl_alias (AH = 27h)
 ;
 ; Returns the code alias of a memory block (see mem_alias), which a program
@@ -390,11 +410,9 @@ ENDPROC	utl_alias
 DEFPROC	utl_mapseg,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
-	mov	ah,CPU_GETINFO
-	call	far ptr DDINT_CPU	; AH = CPUF_* flags
 	mov	bx,[bp].REG_BX		; BX = segment
-	test	ah,CPUF_PM		; protected mode?
-	jz	ums9			; no (the segment is its own selector)
+	call	mem_pmode		; protected mode?
+	jnc	ums9			; no (the segment is its own selector)
 	mov	ax,bx
 	mov	cl,4
 	shl	ax,cl

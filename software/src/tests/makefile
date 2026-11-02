@@ -9,6 +9,11 @@
 #
 ASM=MASM
 LINK=LINK
+#
+# LINK4 builds NE programs (see PRIMES.EXE below).  It's named by its path in
+# TOOLS, since the MS-DOS build disk (see mkdos.sh) doesn't have it on PATH.
+#
+LINK4=..\TOOLS\LINK4
 EXE2BIN=EXE2BIN
 MAPSYM=MAPSYM
 AFLAGS=/MX /R /D$(REL) /I..\OS\INC
@@ -122,10 +127,16 @@ BIN\IOERR.COM: MISC\IOERR.ASM OBJ\INCS
 	DEL BIN\$*.OBJ
 	DEL BIN\$*.EXE
 
-BIN\PRIMES.EXE: PRIMES\PRIMES.ASM OBJ\INCS
+#
+# PRIMES.EXE is an NE program (see PRIMES.DEF) whose stub is the MS-DOS
+# program that LINK builds (OBJ\PRIMES.EXE), so it runs in real mode, too.
+#
+BIN\PRIMES.EXE: PRIMES\PRIMES.ASM PRIMES\PRIMES.DEF OBJ\INCS
 	$(ASM) $(AFLAGS) PRIMES\$*.ASM,BIN\$*.OBJ,$(LST);
-	$(LINK) BIN\$*.OBJ,BIN\$*.EXE;
+	$(LINK) BIN\$*.OBJ,OBJ\$*.EXE;
+	$(LINK4) BIN\$*.OBJ,$@/ALIGN:16,NUL,,PRIMES\$*.DEF;
 	DEL BIN\$*.OBJ
+	DEL OBJ\$*.EXE
 
 OBJ\BDLIB.OBJ: LIB\BDLIB.ASM OBJ\INCS
 	$(ASM) $(AFLAGS) LIB\$*.ASM,OBJ\$*.OBJ,$(LST);

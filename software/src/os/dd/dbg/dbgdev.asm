@@ -26,9 +26,15 @@
 ; driver, INT 04h, and in protected mode, the rest through CPU_SETFAULT), but
 ; one stops the machine only if VT traps its vector (VL lists them, and VC
 ; clears them); otherwise, it's passed on (eg, to DOS, which ends the
-; program), as GT passes on a trapped one.  The monitor
-; displays the registers and the current instruction, and then accepts
-; commands (? lists them) until G, GT, P, or T.
+; program), as GT passes on a trapped one.  A fault that DOS declines (which
+; would stop the machine; see CPU_SETFAULT) stops it here first, as if it
+; were trapped, and GT then has CPU$ report it and offer us the halt, which
+; we keep: we display the same "System halted" message and wait for CTRL-C
+; (or BREAK).  G, P, and T then resume at CS:IP (eg, after a fix), and GT
+; keeps it halted (displaying the same message and waiting again), so that we
+; never give up control.  The monitor displays the registers and the
+; current instruction, and then accepts commands (? lists them) until G, GT,
+; P, or T.
 ;
 ; Memory is read and written through CPU$ (see CPU_RWMEM), which checks every
 ; address, and can store breakpoints in code segments (but not in the parts
@@ -119,6 +125,7 @@ TRACE_OVER	equ	02h	; step over CALL, INT, LOOP, and REP (P)
 ;
 	DEFWORD	vec_save,<dbg_int0,0,dbg_int4,0,dbg_int1,0,dbg_int3,0>
 	DEFPTR	old_fault		; previous fault handler (DOS's)
+	DEFPTR	fault_ret		; CPU$'s return address for a fault
 	DEFBYTE	trap_vecs,0,4		; a bit for each vector that VT traps
 	DEFPTR	old_com			; original COM interrupt handler
 	DEFWORD	com_port,0		; UART base port
@@ -147,8 +154,11 @@ TRACE_OVER	equ	02h	; step over CALL, INT, LOOP, and REP (P)
 	DEFBYTE	paused,0		; set by XOFF, cleared by XON
 	DEFBYTE	in_head,0		; next byte to read from in_buf
 	DEFBYTE	in_tail,0		; next byte to write in in_buf
-	DEFBYTE	why,0			; 1, 3 (INT 1, INT 3), -1 (fault),
-					; -2 (INT 0 or INT 4), or 0
+	DEFBYTE	why,0			; 1, 3 (INT 1, INT 3), -1 (trapped
+					; fault), -2 (declined fault; see
+					; dbg_fatal), -3 (halted; see
+					; FAULT_HALTED), -4 (INT 0 or INT 4),
+					; or 0
 	DEFBYTE	fault_vec,0		; the vector of a fault (or INT 0 or 4)
 	DEFBYTE	brk_skip,0		; nonzero to resume past a DBGBRK
 	DEFWORD	fault_ec,0		; and its error code
@@ -202,9 +212,8 @@ FLAG_MASK	equ	0ED5h	; OF, DF, IF, SF, ZF, AF, PF, and CF
 	DEFLBL	OVF_MSG,byte
 	db	"Overflow error",0
 	DEFLBL	FAULT_MSG,byte
-	db	"CPU fault ",0
-	DEFLBL	EC_MSG,byte
-	db	" (EC=",0
+	db	"CPU fault ",0," (EC=",0,") at ",0	; (consecutive strings)
+	db	"System halted",0
 ;
 ; The names of the registers that show_regs displays in protected mode after
 ; SS, in order (A20 is always enabled then), and the flags' letters there.
@@ -353,37 +362,14 @@ ENDPROC	dbgdev_com
 ;
 ; Inputs:
 ;	Interrupt frame on SS:SP (with interrupts disabled), which for
-;	dbg_fault (see CPU_SETFAULT) follows the vector and error code
+;	dbg_fault (see CPU_SETFAULT) follows a return address, the vector,
+;	and the error code (and for dbg_fatal, just the vector and error code)
 ;
 ; An exception (dbg_fault, dbg_int0, or dbg_int4) whose vector VT doesn't
-; trap (see chk_trap) goes to the previous handler instead, as it was.
+; trap (see chk_trap) goes to the previous handler instead, as it was, except
+; that a fault's return address is replaced with dbg_fatal.
 ;
 DEFPROC	dbgdev_enter,far
-	DEFLBL	dbg_fault,near
-	push	bp
-	mov	bp,sp
-	push	ax
-	push	ds
-	mov	ds,cs:[0].DDH_DATA
-	ASSUME	DS:CODE
-	mov	ax,[bp+2]		; AX = vector
-	call	chk_trap		; is it trapped?
-	jnc	df9			; no
-	mov	[fault_vec],al
-	mov	ax,[bp+4]
-	mov	[fault_ec],ax
-	pop	ds
-	ASSUME	DS:NOTHING
-	pop	ax
-	pop	bp
-	add	sp,4			; discard the vector and error code
-	push	ax
-	mov	al,-1			; (a fault)
-	jmp	short de1
-df9:	pop	ds
-	pop	ax
-	pop	bp
-	jmp	cs:[old_fault]		; pass it on
 	DEFLBL	dbg_int0,near
 	push	ax
 	mov	al,0
@@ -405,7 +391,7 @@ di1:	push	ds
 	jnz	di2			; no
 	jmp	dword ptr cs:[vec_save]	; pass it on
 di2:	jmp	dword ptr cs:[vec_save+4]
-di3:	mov	al,-2			; (INT 00h or INT 04h)
+di3:	mov	al,-4			; (INT 00h or INT 04h)
 	jmp	short de1
 	DEFLBL	dbg_int1,near
 	push	ax
@@ -418,6 +404,54 @@ di3:	mov	al,-2			; (INT 00h or INT 04h)
 	DEFLBL	dbg_brk,near
 	push	ax
 	mov	al,0
+	jmp	short de1
+	DEFLBL	dbg_fault,near
+	push	bp
+	mov	bp,sp
+	push	ax
+	push	ds
+	mov	ds,cs:[0].DDH_DATA
+	ASSUME	DS:CODE
+	mov	ax,offset dbg_fatal
+	xchg	ax,[bp+2]
+	mov	[fault_ret].OFF,ax
+	mov	ax,cs
+	xchg	ax,[bp+4]
+	mov	[fault_ret].SEG,ax	; (see cmd_gt)
+	mov	ax,[bp+6]		; AX = vector
+	call	chk_trap		; is it trapped?
+	mov	al,-1			; (a trapped fault)
+	jc	df1			; yes
+	test	ah,FAULT_HALTED		; is CPU$ offering us its halt?
+	mov	al,-3			; (a halt)
+	jnz	df1			; yes, so we keep control
+	pop	ds
+	ASSUME	DS:NOTHING
+	pop	ax
+	pop	bp
+	jmp	cs:[old_fault]		; no, so pass it on
+;
+; A fault that the previous handler declines returns here (which would stop
+; the machine; see CPU_SETFAULT), so we stop for it, as if it were trapped.
+;
+	DEFLBL	dbg_fatal,near
+	sub	sp,4			; (where the return address was)
+	push	bp
+	mov	bp,sp
+	push	ax
+	push	ds
+	mov	ds,cs:[0].DDH_DATA
+	ASSUME	DS:CODE
+	mov	al,-2			; (a declined fault)
+df1:	mov	ah,[bp+6]
+	mov	[fault_vec],ah
+	push	word ptr [bp+8]
+	pop	[fault_ec]
+	pop	ds
+	ASSUME	DS:NOTHING
+	pop	word ptr [bp+8]		; (the interrupted AX, for de1)
+	pop	bp
+	add	sp,6			; discard the return address and vector
 de1:	push	bx
 	push	cx
 	push	dx
@@ -445,7 +479,7 @@ de1:	push	bx
 	mov	[why],dl
 	push	es
 	pop	ss
-	DEFLBL	mon_sp			; (com_main changes this stack)
+	DEFLBL	mon_sp,near		; (com_main changes this stack)
 	mov	sp,offset mon_stack_end
 	jmp	monitor
 ENDPROC	dbgdev_enter
@@ -514,7 +548,8 @@ mon1:	mov	bx,offset bp_tab
 	and	al,BP_STEP
 	or	dl,al
 mon1a:	test	dl,dl			; is a T or P step done?
-	jnz	mon3			; yes
+	jz	mon2			; no
+	jmp	mon3			; yes
 mon2:	sub	ax,ax
 	mov	[trace_cnt],ax		; no more steps
 	mov	[trace_mode],al		; (and show_step shows the registers)
@@ -522,28 +557,45 @@ mon2:	sub	ax,ax
 	mov	[in_head],al
 	mov	[paused],0
 ;
-; A fault (see dbg_fault) gets a message like the one CPU$ would display.
+; A fault (see dbg_fault) gets the same message that CPU$ displays, including
+; "System halted" for a halt.
 ;
 	mov	al,[why]
-	cmp	al,-1			; a fault?
-	jne	mon2a			; no
+	cmp	al,-3			; a fault (trapped, declined, or halt)?
+	jb	mon2a			; no
 	mov	si,offset FAULT_MSG
 	call	put_string
 	mov	al,[fault_vec]
 	call	hex_byte
-	mov	si,offset EC_MSG
-	call	put_string
+	call	put_string		; (SI -> the next string)
 	mov	ax,[fault_ec]
 	call	hex_word
-	mov	al,')'
+	call	put_string
+	mov	ax,regs[R_CS]
+	call	hex_word
+	mov	al,':'
 	call	put_char
+	mov	ax,regs[R_IP]
+	call	hex_word
 	call	newline
+	cmp	[why],-3		; a halt?
+	jne	mon3			; no
+	call	put_string		; "System halted"
+	call	newline
+;
+; A halt then waits, as a halted machine would, until CTRL-C (or BREAK) brings
+; back the monitor (polling the port, since interrupts are still disabled).
+;
+mon2h:	call	poll_rx
+	jz	mon2h
+	cmp	al,CHR_CTRLC		; CTRL-C (or BREAK)?
+	jne	mon2h			; no
 	jmp	short mon3
 ;
 ; A trapped INT 00h or INT 04h gets the same message that DOS displays.
 ;
 mon2a:	mov	si,offset DIV_MSG
-	cmp	al,-2			; INT 00h or INT 04h?
+	cmp	al,-4			; INT 00h or INT 04h?
 	jne	mon2d			; no
 	cmp	[fault_vec],0		; INT 00h (a divide error)?
 	je	mon2c			; yes
@@ -847,7 +899,11 @@ ENDPROC	store_list
 ; resumes.  GT instead passes the trapped exception that stopped us (see VT)
 ; on to its previous handler (eg, DOS's, which ends the program), as if it
 ; hadn't been trapped, since resuming would only run the instruction again
-; (eg, an 80286 or later reports a DIV's address, not the next one).
+; (eg, an 80286 or later reports a DIV's address, not the next one); for a
+; fault, the handler returns to dbg_fatal if it declines it.  GT after a
+; declined fault returns it to CPU$, which reports it and offers us the halt,
+; after which GT just keeps it halted (see mon2h), so that we never give up
+; control.
 ;
 DEFPROC	cmd_g
 	lodsb
@@ -866,26 +922,39 @@ cg1:	call	arm
 	mov	[tracing],al
 	or	byte ptr regs[R_FL+1],01h	; set TF
 cg8:	jmp	resume
+cg9:	ret
 cmd_gt:	call	end_command
 	jc	cg9
 	mov	al,[why]
-	cmp	al,-2			; INT 00h or INT 04h?
+	cmp	al,-4			; INT 00h or INT 04h?
 	je	gt1			; yes
-	cmp	al,-1			; a fault?
-	stc
-	jne	cg9			; no, so there's nothing to pass on
-	call	arm			; (one at CS:IP isn't needed)
+	cmp	al,-3			; a halt?
+	jb	cg9			; not a fault (nothing to pass on)
+	jne	gt0			; no
+	jmp	mon_sp			; yes, so we stay halted
+gt0:	call	arm			; (one at CS:IP isn't needed)
 	mov	di,regs[R_IP]
 	mov	cx,[old_fault].OFF
-	mov	dx,[old_fault].SEG
-	call	sim_int			; ES:BX -> the frame it pushed
+	mov	dx,[old_fault].SEG	; DX:CX = previous handler
+	mov	si,offset dbg_fatal	; SI = its return address
+	cmp	[why],-1		; a trapped fault?
+	je	gt0a			; yes
+	mov	cx,[fault_ret].OFF
+	mov	dx,[fault_ret].SEG	; DX:CX = CPU$
+	sub	si,si			; (which needs no return address)
+gt0a:	call	sim_int			; ES:BX -> the frame it pushed
 	sub	bx,4
-	mov	regs[R_SP],bx
 	mov	al,[fault_vec]
 	cbw
 	mov	es:[bx],ax		; push the vector
 	mov	ax,[fault_ec]
 	mov	es:[bx+2],ax		; and the error code
+	test	si,si			; and a return address?
+	jz	gt0b			; no
+	sub	bx,4
+	mov	es:[bx],si
+	mov	es:[bx+2],cs
+gt0b:	mov	regs[R_SP],bx
 	jmp	resume
 gt1:	call	arm
 	mov	bl,[fault_vec]
@@ -895,7 +964,6 @@ gt1:	call	arm
 	mov	dx,vec_save[bx+2]	; DX:CX = previous handler
 	call	sim_int
 	jmp	resume
-cg9:	ret
 ENDPROC	cmd_g
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

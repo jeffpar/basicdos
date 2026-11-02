@@ -306,8 +306,8 @@ ENDPROC	set_ddint
 ; In protected mode, has CPU$ give us any exception that it can't handle (see
 ; dos_fault), before any DEVICE= driver (eg, DEBUG.COM) can take them, so that
 ; a debugger can pass them on to us.  Otherwise, exceptions go through the
-; vectors, so the kernel doesn't need dos_fault, which is the last of its
-; resident code.
+; vectors, so the kernel doesn't need dos_fault or the NE loader that follows
+; it (see neload.asm), and its resident code ends at dos_fault.
 ;
 ; Outputs:
 ;	AX = offset of the end of the kernel's resident code

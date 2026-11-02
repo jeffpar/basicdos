@@ -7,12 +7,14 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Usage: FAULT vector (0, 1, 3-6, 12, or 13)
+; Usage: FAULT vector (-1, 0, 1, 3-6, 12, or 13)
 ;
 ; Causes the processor exception with the given (decimal) vector, to see how
 ; BASIC-DOS responds and recovers, especially in protected mode (eg, FAULT 13
 ; on the Protected Mode demo):
 ;
+;	-1	a fatal fault (a null pointer to a filename, which the
+;		kernel faults reading in protected mode)
 ;	0	divide error (DIV by zero)
 ;	1	single-step trap (TF set for one instruction)
 ;	3	breakpoint (INT 3)
@@ -49,9 +51,12 @@ DEFPROC	main
 	call	skip_ws			; AL = next character
 	cmp	al,CHR_RETURN		; is there anything after the vector?
 	jne	m8			; yes
-	test	dx,dx			; is the vector too large?
+	inc	bx			; (the faults table starts at -1)
+	jnz	m1
+	inc	dx			; (so -1 becomes 0:0)
+m1:	test	dx,dx			; is the vector out of range?
 	jnz	m8			; yes
-	cmp	bx,FAULT_MAX		; is it beyond the table?
+	cmp	bx,FAULT_MAX+1		; is it beyond the table?
 	ja	m8			; yes
 	mov	al,[faults][bx]		; AL = offset of its code from main
 	test	al,al			; is it a vector we can cause?
@@ -59,9 +64,10 @@ DEFPROC	main
 	mov	ah,0
 	add	ax,offset main
 	call	ax			; (each one leaves BX alone)
+	dec	bx			; BX = vector
 	PRINTF	<"FAULT %d done",13,10>,bx
 	int	20h
-m8:	PRINTF	<"Usage: FAULT vector (0, 1, 3-6, 12, or 13)",13,10>
+m8:	PRINTF	<"Usage: FAULT vector (-1, 0, 1, 3-6, 12, or 13)",13,10>
 	mov	ax,(DOS_PSP_RETURN SHL 8) OR 1
 	int	21h
 ENDPROC	main
@@ -70,6 +76,19 @@ ENDPROC	main
 ; Each of these causes the exception for its vector, and returns if that
 ; resumes.
 ;
+; We can load a null selector into DS, but the kernel faults reading a
+; filename through it, which it can't recover from (in real mode, 0:0 is the
+; interrupt vectors, which aren't a filename that DOS can find).
+;
+fm1:	push	ds
+	sub	ax,ax
+	cwd
+	mov	ds,ax			; DS:DX = 0:0
+	mov	ax,DOS_DSK_GETATTR
+	int	21h
+	pop	ds
+	ret
+
 f0:	sub	cx,cx
 	div	cx			; divide by zero
 	ret
@@ -141,9 +160,10 @@ DEFPROC	skip_ws
 	ret
 ENDPROC	skip_ws
 ;
-; Each vector's code, as an offset from main (or 0 if we can't cause it).
+; Each vector's code (from -1 on), as an offset from main (or 0 if we can't
+; cause it).
 ;
-faults	db	f0-main,f1-main,0,f3-main,f4-main,f5-main,f6-main
+faults	db	fm1-main,f0-main,f1-main,0,f3-main,f4-main,f5-main,f6-main
 	db	0,0,0,0,0,f12-main,f13-main
 
 	COMHEAP	0		; COMHEAP (heap size) must be the last item

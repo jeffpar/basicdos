@@ -26,17 +26,19 @@ DOS	segment word public 'CODE'
 ; In protected mode, CPU$ gives us any exception that it can't handle (unless
 ; it occurred in CPU$ or in DOS), and a debugger passes on the ones it doesn't
 ; trap (eg, DEBUG.COM, unless its VT command traps the vector).  If it
-; occurred in the current program's own code, we report it and end the
-; program, as dos_dverr does; otherwise, we stop giving exceptions to any
-; handler and retry the instruction, so that CPU$ reports the exception and
-; stops the machine.
+; occurred in the current program's own code (including any block of code
+; that it owns), we report it and end the program, as dos_dverr does (or for
+; a session's last program, such as its shell, signal a CTRLC; see psp_term);
+; otherwise, we decline it by returning, so that the debugger (if any) can
+; stop for it, or CPU$ reports it and stops the machine (and CPU$'s offer of
+; the halt, with FAULT_HALTED, is declined, too, since we found it fatal).
 ;
-; This is the last of the kernel's resident code, since only protected mode
-; needs it: otherwise, sysinit's tables start here (see set_fault).
+; Only protected mode needs this and the NE loader that follows it (see
+; neload.asm), so in real mode, sysinit's tables start here (see set_fault).
 ;
 ; Inputs:
-;	SS:SP -> vector, error code, and the faulting instruction's IP, CS,
-;	and FLAGS
+;	SS:SP -> return address, vector, error code, and the faulting
+;	instruction's IP, CS, and FLAGS
 ;
 DEFPROC	dos_fault,DOSFAR
 	push	ax
@@ -44,38 +46,58 @@ DEFPROC	dos_fault,DOSFAR
 	push	es
 	mov	bx,sp
 	call	get_psp			; AX = current PSP (ZF set if none)
-	jz	df8
+	jz	df9
 	mov	es,ax
-	mov	ax,ss:[bx+12]		; AX = faulting CS
-	cmp	es:[PSP_START].SEG,ax	; is it the program's own code?
-	jne	df8			; no
-	pop	es
-	pop	bx
-	pop	ax
-	IFNDEF	DEBUG
-	PRINTF	<"CPU fault %02x",13,10>
-	ELSE
+	mov	ax,ss:[bx+16]		; AX = faulting CS
+	cmp	es:[PSP_START].SEG,ax	; is it the program's code?
+	je	df1			; yes
 ;
-; As in dos_dverr, the values to print (the vector, error code, and address)
-; are already on the stack.
+; It's also the program's own code if it's in a block that the program owns
+; (eg, one of COMMAND's code blocks), which CPU$ finds from the selector (a
+; program that shares another copy's code has it in PSP_START, although the
+; other copy owns it; see load_program).
 ;
-	PRINTF	<"CPU fault %02x (EC=%04x) @%08lx",13,10>
-	ENDIF
-	mov	ah,EXTYPE_FAULT
-	jmp	dos_abort
-df8:	push	cx
+	push	bx
+	push	cx
 	push	dx
-	sub	cx,cx
-	sub	dx,dx			; DX:CX = no handler
-	mov	ah,CPU_SETFAULT
-	call	far ptr DDINT_CPU
+	push	di
+	sub	sp,size PMB
+	mov	di,sp
+	push	ss
+	pop	es			; ES:DI -> PMB buffer
+	xchg	cx,ax			; CX = faulting CS
+	mov	bx,-1
+	mov	dx,bx			; DX = -1 (CX is a selector)
+	mov	ah,CPU_QUERY
+	call	far ptr DDINT_CPU	; PMB of the block at CX
+	jc	df0			; there's none (AX = a nonzero error)
+	call	get_psp			; AX = current PSP
+	sub	ax,es:[di].PMB_OWNER	; AX = 0 if the program owns the block
+df0:	add	sp,size PMB
+	pop	di
 	pop	dx
 	pop	cx
+	pop	bx
+	test	ax,ax			; is it the program's own code?
+	jnz	df9			; no
+;
+; As in dos_dverr, the values to print (the vector, error code, and address)
+; are already on the stack, once CS precedes IP.
+;
+df1:	mov	ax,ss:[bx+14]
+	xchg	ax,ss:[bx+16]
+	mov	ss:[bx+14],ax
 	pop	es
 	pop	bx
 	pop	ax
-	add	sp,4			; discard the vector and error code
-	iret
+	add	sp,4			; discard the return address
+	PRINTF	<"CPU fault %02x (EC=%04x) at %04x:%04x",13,10>
+	mov	ah,EXTYPE_FAULT
+	jmp	dos_abort
+df9:	pop	es
+	pop	bx
+	pop	ax
+	ret
 ENDPROC	dos_fault
 
 DOS	ends
