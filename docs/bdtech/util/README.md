@@ -139,7 +139,7 @@ Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-
 
 **DOS_UTL_WAITEND (17h)**: CL = session number.  Waits for all programs in the session to end.
 
-**DOS_UTL_QRYSCB (12h)**: CL = session number.  Returns AX = the PSP of the session's program (zero if none), and ES:DI -> the name (11 characters) of the session's console device (its STDOUT), or DI = 0 if it has none (eg, a session that has never been used), or carry set if the session number is invalid.  COMMAND.COM uses this for LIST SESSIONS, so that it doesn't depend on the kernel's internal session structures.
+**DOS_UTL_QRYSCB (12h)**: CL = session number, ES:DI -> 16-byte buffer.  Returns AX = the PSP of the session's program (zero if none), and fills the buffer with the name (8 characters) of the session's console device (its STDOUT), followed by the name (8 characters) of the session's program, each all zeros if there isn't one (eg, a session that has never been used); or carry set if the session number is invalid.  The names are copied, rather than returned as pointers, since a program at ring 3 can't read the kernel's memory, and in protected mode, a program's name can't be found through its PSP (PSP-1 isn't an MCB).  COMMAND.COM uses this for LIST SESSIONS, so that it doesn't depend on the kernel's internal session structures.
 
 ### Scheduling
 
@@ -191,7 +191,7 @@ Free memory is also useful for data that can be recreated if it's overwritten.  
 
 **DOS_UTL_GETDATE (22h)**: Same outputs as DOS_MSC_GETDATE (CX = year, DH = month, DL = day, AL = day of week), plus AX = packed date: bits 15-9 = year - 1980, bits 8-5 = month, bits 4-0 = day.  Carry is unchanged.
 
-**DOS_UTL_GETTIME (23h)**: Same outputs as DOS_MSC_GETTIME (CH = hours, CL = minutes, DH = seconds, DL = hundredths), plus AX = packed time: bits 15-11 = hours, bits 10-5 = minutes, bits 4-0 = seconds / 2.  Carry is unchanged.
+**DOS_UTL_GETTIME (23h)**: AL = 0.  Same outputs as DOS_MSC_GETTIME (CH = hours, CL = minutes, DH = seconds, DL = hundredths), plus AX = packed time: bits 15-11 = hours, bits 10-5 = minutes, bits 4-0 = seconds / 2.  Carry is unchanged.  With AL = 1, it returns the ROM BIOS tick count (about 18.2 ticks per second, since midnight) in DX:AX instead, which a program at ring 3 can't read from the BIOS data area itself (COMMAND.COM uses it for RANDOMIZE TIMER, SOUND, and PLAY).
 
 **DOS_UTL_INCDATE (24h)**: CX = year, DH = month, DL = day.  Returns the date advanced by one day.
 

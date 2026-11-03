@@ -62,7 +62,8 @@ CPU_RWMEM	equ	0Eh	; AL = ADDR_*, BX:SI = address, CX, ES:DI
 CPU_SYSREGS	equ	0Fh	; ES:DI -> 12-byte buffer (GDTR and IDTR)
 CPU_SETFAULT	equ	10h	; DX:CX = fault handler (0:0 for none)
 CPU_SETSTACK	equ	11h	; DX:CX = ring 0 stack (SS:SP)
-CPU_MAXFUNC	equ	11h
+CPU_SETLDT	equ	12h	; AL = session # (selects its LDT)
+CPU_MAXFUNC	equ	12h
 
 ;
 ; CPU_ALIAS with just MEMF_CODE, for the selector that CPU_ALLOC returned for a
@@ -126,8 +127,9 @@ FAULT_HALTED	equ	80h	; CPU_SETFAULT: vector's high byte for a halt
 ; in DX:CX.  The 80286 driver keeps it in its TSS, which CPU_PMODE loads;
 ; until a caller sets one, there's none (0:0), so nothing can run at ring 3.
 ; Software interrupts have DPL 3 gates, so ring 3 code can issue them (eg,
-; INT 21h), but exceptions and IRQs have DPL 0 gates (see pm_setvec).  The
-; 8086 driver returns ERR_INVALID, since there's no ring 3 in real mode.
+; INT 21h), and so does INT 0 (eg, FPU$ signals a divide error with it), but
+; other exceptions and IRQs have DPL 0 gates (see pm_setvec).  The 8086
+; driver returns ERR_INVALID, since there's no ring 3 in real mode.
 ;
 
 ADDR_SEL	equ	01h	; the segment is a selector
@@ -138,7 +140,8 @@ ADDR_RIGHTS	equ	08h	; CPU_SEGINFO: AX = access rights, not limit
 ;
 ; In protected mode, a PSP's CALL 5 (a far call to PSP_FCSEG:PSP_SIZE) can't
 ; use the real-mode segment that reaches 0:00C0h, so PSP_FCSEG is SEL_CALL5,
-; a call gate (which ignores the offset) to the far jump at 0:00C0h.
+; a call gate (which ignores the offset) to the far jump at 0:00C0h, with DPL
+; 3, so that ring 3 programs can use it too (see r3_call5).
 ;
 SEL_CALL5	equ	60h	; call gate for CALL 5 (see psp_setmem)
 
@@ -178,9 +181,14 @@ CPUF_HWTYPE	equ	0C0h	; CPU_HWTYPE (in bits 6-7)
 ; MEMF_HIGH, the top of the last one, anywhere in memory (conventional or
 ; extended), unless MEMF_LOW (below 1Mb) or MEMF_AT is set.
 ;
+; MEMF_CONFORM (with MEMF_CODE) makes conforming code, which code at any ring
+; can call, and which runs at the caller's ring (eg, FPU$'s functions, which
+; the kernel calls at ring 0 and programs at ring 3).
+;
 MEMF_LDT	equ	01h	; LDT selector(s) (otherwise GDT)
 MEMF_CODE	equ	02h	; code (execute/read), not data (read/write)
 MEMF_NONE	equ	04h	; CPU_ALLOC only: no selector (AX = 0)
+MEMF_CONFORM	equ	04h	; CPU_MAP and CPU_ALIAS only: conforming code
 MEMF_RDONLY	equ	08h	; read-only data (or execute-only code)
 MEMF_USER	equ	10h	; DPL 3, for programs (otherwise DPL 0)
 MEMF_LOW	equ	20h	; CPU_ALLOC only: below 1Mb (eg, for real mode)
@@ -215,7 +223,8 @@ PMB_NSEL	dw	?	; 0Eh: number of selectors
 PMB_MCBTYPE	db	?	; 10h: MCBTYPE_*, or 0
 		db	?	; 11h: (reserved)
 PMB_CODE	dw	?	; 12h: code alias (see CPU_ALIAS), or 0
-		db	4 dup(?); 14h: (reserved)
+PMB_LDT		dw	?	; 14h: LDT active when the owner was set
+		db	2 dup(?); 16h: (reserved)
 PMB_NAME	db	8 dup(?); 18h: name of process (zero if none)
 PMB		ends
 

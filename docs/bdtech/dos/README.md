@@ -128,19 +128,19 @@ An FCB opens a file read-only, so any number of FCBs (and handles opened for rea
 
 | AH | Name | Inputs | Outputs |
 |----|------|--------|---------|
-| 25h | DOS_MSC_SETVEC | AL = vector #, DS:DX = address | If DS is the program's PSP block, the vector uses the block's code segment (in protected mode, its code alias; see [Code Aliases](../mmu/#aliases)) |
+| 25h | DOS_MSC_SETVEC | AL = vector #, DS:DX = address | If DS is the program's PSP block, the vector uses the block's code segment (in protected mode, its code alias; see [Code Aliases](../mmu/#aliases)); a ring 3 program's handler is reflected to (see [Running Programs at Ring 3](../mmu/#ring3)) |
 | 2Ah | DOS_MSC_GETDATE | | CX = year (1980-2099), DH = month, DL = day, AL = day of week (0 = Sunday) |
 | 2Bh | DOS_MSC_SETDATE | CX = year, DH = month, DL = day | AL = 0 if valid, FFh if not |
 | 2Ch | DOS_MSC_GETTIME | | CH = hours, CL = minutes, DH = seconds, DL = hundredths |
 | 2Dh | DOS_MSC_SETTIME | CH = hours, CL = minutes, DH = seconds, DL = hundredths | AL = 0 if valid, FFh if not |
 | 30h | DOS_MSC_GETVER | | See [DOS_MSC_GETVER](#dos_msc_getver) |
 | 33h | DOS_MSC_CTRLC | AL = 0 to get, 1 to set (from DL) | DL = CTRL-C checking state |
-| 35h | DOS_MSC_GETVEC | AL = vector # | ES:BX = address |
+| 35h | DOS_MSC_GETVEC | AL = vector # | ES:BX = address (for a ring 3 program, unless it's its own session's handler, the address of a stub that chains to it) |
 | 3700h | DOS_MSC_GETSWC | | DL = switch character |
 | 3704h | DOS_MSC_GETPCH | | DL = path character (BASIC-DOS only; fixed at boot, so programs need to get it only once) |
 
 The path character is set at boot by CONFIG.SYS's PATHCHAR setting (`\` by default, or `/`), which also determines the default switch character: `/`, or `-` with `PATHCHAR=/`.  CONFIG.SYS's SWITCHAR setting (`-` or `/`), or a `-` boot key, can also change the switch character, but never to the path character, so the two are never the same.  Both are fixed at boot; unlike PC DOS, BASIC-DOS doesn't support AX = 3701h (set switch character), so CONFIG.SYS (or the boot key) is the only way to change them.
-| 52h | DOS_MSC_GETVARS | | ES:BX -> [DOSVARS](../data/#dosvars) |
+| 52h | DOS_MSC_GETVARS | | ES:BX -> [DOSVARS](../data/#dosvars), AX = total memory, in Kb |
 
 ### Differences from PC DOS
 
@@ -197,6 +197,8 @@ When a block device request fails (eg, a diskette drive isn't ready, or a disket
 The handler returns its response in AL: 0 (CRERR_IGNORE) to treat the request as completed, 1 (CRERR_RETRY) to reissue it (the driver resumes at the failing sector), 2 (CRERR_ABORT) to terminate the program, or 3 (CRERR_FAIL) to fail the DOS function with the error code in [Error Codes](#error-codes) (19-31).  IGNORE is allowed only for read and write requests (eg, not when the drive's BPB can't be built); if the handler returns IGNORE when it isn't allowed, or any other unrecognized response, the request fails.  ABORT ends the program with exit type EXTYPE_ERROR and exit code 255 (0FFh) as soon as the DOS function returns, so DOS unwinds normally first; if the program is a session's shell, which can't be terminated, ABORT behaves like CTRL-C (without the echo).
 
 The handler is called on a DOS stack (ERR_STACK_SIZE, 512 bytes, in dos.inc), since the stack of the program that called DOS may have little room to spare, and with the session locked, so no other session runs until the handler returns; a critical error inside the handler itself fails immediately.  As in PC DOS, a handler should limit itself to console functions (01h-0Ch) and must not call functions that use the disk; a CTRL-C typed while the handler is running ends the handler with an ABORT response.
+
+In protected mode, programs run at ring 3 (unless CONFIG.SYS has `RING=0`; see [RING](../../bdman/cfg/#ring)), and a handler that a ring 3 program installs runs at ring 3, on the stack of the program that called DOS rather than a DOS stack (which ring 3 code can't use), with BP:SI pointing to a copy of the device driver header on that stack (since ring 3 code can't read the driver's memory either).  The handler's own DOS calls run on DOS's stack, so the program's stack needs room only for the copy (18 bytes), the handler's 6-byte return address, and whatever the handler itself pushes.  A ring 3 program's CTRL-C handler also runs at ring 3, on the program's stack, as in PC DOS.
 
 The default handler displays the traditional message and prompt on the session's console and reads the response (A, R, I, or F; CTRL-C is ABORT); for example:
 

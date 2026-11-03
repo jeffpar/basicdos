@@ -24,10 +24,11 @@
 
 DOS	segment word public 'CODE'
 
-	EXTBYTE	<def_drive,scb_locked>
-	EXTWORD	<scb_active,ivt_save>
+	EXTBYTE	<def_drive,scb_locked,prog_user,r3_stubs>
+	EXTWORD	<scb_active,ivt_save,sprintf_hook,r3_code,r3_stseg,r3_vsel>
 	EXTLONG	<scb_table,clk_ptr>
 	EXTNEAR	<dos_leave,int_enter,int_leave,dos_fault,sysinit_start>
+	EXTNEAR	<r3_sprintf,init_fpu>
 
 	ASSUME	CS:DOS, DS:DOS, ES:NOTHING, SS:NOTHING
 
@@ -249,7 +250,30 @@ iv2:
 	dec	[scb_locked]
 	mov	bx,[scb_table].OFF	; BX -> the first SCB
 	mov	[scb_active],bx		; make it active (for consistency)
-	mov	ss,[bx].SCB_STACK.SEG
+;
+; With a ring 3 first program, make its session's LDT active and set its ring
+; 0 stack now (as scb_switch would), since this first start doesn't go through
+; scb_switch, and the processor needs the stack the moment the program's first
+; interrupt arrives.  We use CPU$ directly, rather than near calls to r3_setldt
+; and r3_sp0, which aren't in this block (see sysinit_high); a first program
+; has no parent, so its stack is the top of its session's (see r3_top).
+;
+	cmp	[prog_user],0		; ring 3 programs?
+	je	stt1			; no
+	mov	al,[bx].SCB_NUM		; DS:BX -> the first SCB
+	push	ax
+	mov	ah,CPU_SETLDT
+	call	far ptr DDINT_CPU	; load the first session's LDT
+	pop	ax
+	inc	ax
+	mov	ah,R3_STACK_SIZE SHR 8
+	mul	ah
+	mov	ch,al
+	mov	cl,0			; CX = (SCB_NUM + 1) * R3_STACK_SIZE
+	mov	dx,[r3_stseg]		; DX:CX = the session's ring 0 stack
+	mov	ah,CPU_SETSTACK
+	call	far ptr DDINT_CPU
+stt1:	mov	ss,[bx].SCB_STACK.SEG
 	mov	sp,[bx].SCB_STACK.OFF
 	push	cs:[dos_code]		; (the kernel's code segment, not DS)
 	mov	ax,offset dos_leave
@@ -325,9 +349,90 @@ DEFPROC	set_fault
 	mov	dx,cs:[dos_code]	; DX:CX -> dos_fault
 	mov	ah,CPU_SETFAULT
 	call	far ptr DDINT_CPU
+;
+; Programs run at ring 3 (see ring3.asm), unless a "RING=0" line keeps them
+; at ring 0.
+;
+	push	si
+	push	di
+	mov	si,offset CFG_RING
+	call	find_cfg		; look for "RING="
+	jc	sf7			; none, so ring 3
+	cmp	byte ptr ss:[di],'0'	; RING=0? (find_cfg's data is in SS)
+	je	sf8			; yes
+sf7:	mov	[prog_user],MEMF_USER
+	mov	[sprintf_hook],offset r3_sprintf
+	push	bx
+	mov	bx,cs:[dos_code]
+	mov	ax,(CPU_ALIAS SHL 8) OR MEMF_CODE OR MEMF_RDONLY OR MEMF_USER
+	call	far ptr DDINT_CPU
+	pop	bx
+	or	al,3
+	mov	[r3_code],ax		; (see r3_stub)
+;
+; The vector stubs (see RVEC) get a readable code selector of their own, since
+; a ring 3 program gets their address in ES:BX, and r3_code (execute-only, for
+; the whole kernel) can't be loaded into ES.
+;
+	push	bx
+	mov	bx,cs:[dos_code]
+	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_SEL
+	call	far ptr DDINT_CPU	; DX:CX = the kernel's base
+	pop	bx
+	add	cx,offset r3_stubs
+	adc	dx,0			; DX:CX -> r3_stubs
+	sub	si,si
+	mov	di,R3_RVECS * 2		; SI:DI = their length
+	mov	ax,(CPU_MAP SHL 8) OR MEMF_CODE OR MEMF_USER
+	call	far ptr DDINT_CPU	; AX = their selector
+	jc	sf8			; (none, so no stubs)
+	or	al,3
+	mov	[r3_vsel],ax
+sf8:	pop	di
+	pop	si
 	mov	ax,offset sysinit_start
 sf9:	ret
 ENDPROC	set_fault
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; init_sess
+;
+; Allocates what every session needs one of: with programs at ring 3 (see
+; set_fault), a ring 0 stack (see r3_top), and then an FPU state (see
+; init_fpu).  If there's no room for the stacks, programs run at ring 0.
+;
+; Inputs:
+;	AL = # of sessions, DH = FPU type (FPUTYPE_*, from IOCTL_GETFPU)
+;	ES = DOS
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+	ASSUME	ES:DOS
+DEFPROC	init_sess
+	cmp	es:[prog_user],0	; ring 3 programs?
+	je	is9			; no
+	push	ax
+	push	dx
+	mov	ah,R3_STACK_SIZE SHR 8
+	mul	ah
+	mov	ah,al
+	mov	al,0
+	xchg	di,ax
+	sub	si,si			; SI:DI = sessions * R3_STACK_SIZE
+	mov	bx,MCBOWNER_SYSTEM
+	mov	ax,CPU_ALLOC SHL 8	; AL = 0 (a GDT data selector)
+	call	far ptr DDINT_CPU	; AX = selector
+	jnc	is1
+	sub	ax,ax
+	mov	es:[prog_user],al	; no room, so programs run at ring 0
+is1:	mov	es:[r3_stseg],ax
+	pop	dx
+	pop	ax
+is9:	jmp	init_fpu
+ENDPROC	init_sess
+	ASSUME	ES:NOTHING
 
 ;
 ; Initialization variables (these follow sysinit_tail, since they're used
@@ -350,6 +455,7 @@ ENDPROC	set_fault
 	DEFBYTE	boot_drive		; default drive for each SHELL
 
 CFG_SHELL	db	6,"SHELL="
+CFG_RING	db	5,"RING="
 CLK_DEVICE	db	"CLOCK$",0
 SHELL_FILE	db	"COMMAND.COM",0	; default SHELL file
 HALTED		db	13,10,"System halted",13,10,'$'

@@ -1057,7 +1057,12 @@ export default class Segx86 {
             break;
 
         case Segx86.ID.STACK:
-            if (!selMasked || type < X86.DESC.ACC.TYPE.SEG || (type & (X86.DESC.ACC.TYPE.CODE | X86.DESC.ACC.TYPE.WRITABLE)) != X86.DESC.ACC.TYPE.WRITABLE) {
+            /**
+             * A null selector (table offset zero) is invalid for SS, but ONLY in the GDT: an LDT selector with
+             * index zero (ie, with the TI bit set) is perfectly valid, so we must not treat it as null here (the
+             * CODE case above makes the same GDT-only distinction when it zeroes "type" for a null selector).
+             */
+            if ((!selMasked && !(sel & X86.SEL.LDT)) || type < X86.DESC.ACC.TYPE.SEG || (type & (X86.DESC.ACC.TYPE.CODE | X86.DESC.ACC.TYPE.WRITABLE)) != X86.DESC.ACC.TYPE.WRITABLE) {
                 X86.helpFault.call(cpu, X86.EXCEPTION.GP_FAULT, sel & X86.ERRCODE.SELMASK);
                 return X86.ADDR_INVALID;
             }

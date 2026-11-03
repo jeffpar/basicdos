@@ -555,10 +555,12 @@ CODE	ends
 ;
 ; 8087 (hardware) functions
 ;
-; Since multiple sessions may be using the FPU, and there's currently no
-; FPU state saved or restored on context switches, every function disables
-; interrupts while it has values on the FPU stack.  The functions are also
-; designed to leave the FPU stack empty and all its exceptions cleared.
+; Multiple sessions may be using the FPU, so the kernel saves and restores
+; its state when it switches sessions (see scb_switch), and these functions
+; never disable interrupts (which ring 3 code can't do).  They also run at
+; the caller's ring (see ddfpu_init), so they never touch our own data or any
+; ports.  The functions are designed to leave the FPU stack empty and all its
+; exceptions cleared.
 ;
 ; Most of these functions run with BX -> the caller's return address
 ; (on the SS stack), so the top operand is at SS:[BX+4].
@@ -925,7 +927,6 @@ DEFPROC	hwCvtLD,FAR
 	DEFLBL	hwCvtL2D,near
 	mov	bx,8
 hwCvtL:	add	bx,sp			; SS:BX -> long
-	cli
 	fild	dword ptr ss:[bx]
 	fstp	qword ptr es:[di]
 	call	hwDone
@@ -950,7 +951,6 @@ ENDPROC	hwCvtLD
 ;
 DEFPROC	hwCvt2LD,FAR
 	mov	bx,sp
-	cli
 	fild	dword ptr ss:[bx+8]	; ST(0) = A
 	fstp	qword ptr es:[di]
 	fild	dword ptr ss:[bx+4]	; ST(0) = B
@@ -1245,14 +1245,12 @@ DEFPROC	hwToDec,FAR
 	sub	sp,12			; room for BCD and a temp word
 	mov	bx,sp			; SS:BX -> BCD
 	mov	ch,0			; CX = N
-	cli
 	fld	qword ptr [si]
 	fabs				; ST(0) = x
 	ftst
 	call	hwStat
 	jne	ht1
 	fstp	st(0)			; x is zero
-	sti
 	sub	ax,ax
 	sub	cx,cx
 	jmp	ht9
@@ -1297,7 +1295,6 @@ ht3:	fstp	st(1)			; ST(0) = y
 	fbstp	tbyte ptr ss:[bx]
 	fwait
 	fclex
-	sti
 	xchg	ax,dx			; AX = e
 	jcxz	ht7
 ;
@@ -1358,7 +1355,6 @@ DEFPROC	hwFromDec,FAR
 	push	bp
 	push	ax			; room for each digit
 	mov	bp,sp
-	cli
 	fldz				; ST(0) = mantissa
 	jcxz	hf2
 hf1:	lodsb
@@ -1378,7 +1374,6 @@ hf2:	pop	ax
 hf3:	fstp	qword ptr es:[di]
 	call	hwStat
 	fclex
-	sti
 	test	al,SW_IE OR SW_OE OR SW_ZE
 	jz	hf9			; carry clear
 	stc
@@ -1389,9 +1384,9 @@ ENDPROC	hwFromDec
 ;
 ; hwLoad2, hwLoadA, hwLoadT
 ;
-; Disables interrupts and loads doubles (by way of the far pointers on the
-; stack): hwLoad2 loads both doubles (B, and then A), hwLoadA loads only the
-; 2nd (deeper) entry (A), and hwLoadT loads only the top entry.
+; Loads doubles (by way of the far pointers on the stack): hwLoad2 loads both
+; doubles (B, and then A), hwLoadA loads only the 2nd (deeper) entry (A), and
+; hwLoadT loads only the top entry.
 ;
 ; Inputs:
 ;	2 stack entries (or 1 for hwLoadT), followed by FAR and NEAR return
@@ -1407,20 +1402,17 @@ ENDPROC	hwFromDec
 DEFPROC	hwLoad2
 	mov	bx,sp
 	push	ds
-	cli
 	lds	si,ss:[bx+6]		; DS:SI -> B
 	fld	qword ptr [si]
 	jmp	short hwLdA
 	DEFLBL	hwLoadA,near
 	mov	bx,sp
 	push	ds
-	cli
 hwLdA:	lds	si,ss:[bx+10]		; DS:SI -> A
 	jmp	short hwLd
 	DEFLBL	hwLoadT,near
 	mov	bx,sp
 	push	ds
-	cli
 	lds	si,ss:[bx+6]		; DS:SI -> top double
 hwLd:	fld	qword ptr [si]
 	pop	ds
@@ -1459,8 +1451,8 @@ ENDPROC	hwStat
 ;
 ; hwDone
 ;
-; Re-enables interrupts and checks for exceptions, signaling a divide error
-; or overflow error as appropriate.
+; Checks for exceptions, signaling a divide error or overflow error as
+; appropriate.
 ;
 ; Inputs:
 ;	None
@@ -1473,7 +1465,6 @@ ENDPROC	hwStat
 ;
 DEFPROC	hwDone
 	call	hwStat
-	sti
 	test	al,SW_ZE
 	jnz	hdn1
 	test	al,SW_IE OR SW_OE

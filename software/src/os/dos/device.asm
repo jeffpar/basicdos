@@ -20,9 +20,9 @@ DOS	segment word public 'CODE'
 
 	EXTWORD	<dos_data>
 	EXTNEAR	<copy_name,sfb_from_sfh,sfb_read,sfb_write,strlen>
-	EXTNEAR	<scb_release>
+	EXTNEAR	<scb_release,r3_error>
 	EXTWORD	<scb_active,err_stack>
-	EXTBYTE	<err_active,scb_locked>
+	EXTBYTE	<err_active,scb_locked,prog_user>
 	EXTLONG	<bpb_table>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -544,7 +544,13 @@ he2:	mov	ah,cl			; AH = flags
 	ASSERT	ERR_FRAME,EQ,8
 	inc	[err_active]
 	mov	bp,es			; BP:SI -> DDH
-	pushf
+	cmp	[prog_user],0		; ring 3 programs?
+	je	he2a			; no
+	test	byte ptr [bx].SCB_ERROR.SEG,3	; a ring 3 handler?
+	jz	he2a			; no
+	call	r3_error		; yes, at ring 3
+	jmp	short err_jump
+he2a:	pushf
 	call	[bx].SCB_ERROR		; call the session's ERROR handler
 	DEFLBL	err_jump,near		; (AL = CRERR_ABORT via msc_sigctrlc)
 	mov	ds,cs:[dos_data]

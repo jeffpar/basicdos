@@ -28,7 +28,7 @@ DOS	segment word public 'CODE'
 	EXTLONG	<dev_head>
 	EXTNEAR	<find_cfg,init_table,set_bpbtime,load_devices,sysinit_end>
 	EXTNEAR	<move_init,dos_size,map_buf,map_dos>
-	EXTNEAR	<set_call5,mem_total>
+	EXTNEAR	<set_call5,mem_total,init_sess>
 	EXTNEAR	<open_dev,open_warning,open_error>
 	EXTNEAR	<sysinit_tail,fatal_error,set_ddint,set_fault>
 	EXTWORD	<dos_seg,dos_code,cfg_data,cfg_size>
@@ -692,7 +692,8 @@ si11a:	inc	[con_count]
 
 ;
 ; Get the address of the FPU$ driver's function table (FPUTBL), if any, for
-; sprintf's %f formatter.
+; sprintf's %f formatter, and if FPU$ uses an FPU, a place for every
+; session's FPU state (see init_fpu).
 ;
 si12:	mov	dx,offset FPU_DEVICE
 	mov	ax,DOS_HDL_OPENRO
@@ -704,10 +705,16 @@ si12:	mov	dx,offset FPU_DEVICE
 	pop	ds
 	mov	si,offset fpu_table	; DS:SI -> fpu_table
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETFPU
-	int	21h
+	cwd				; DX = 0 (unchanged if the IOCTL fails)
+	int	21h			; DH = FPU type
 	pop	ds
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
+	mov	ax,es:[scb_table].SEG
+	sub	ax,es:[scb_table].OFF
+	mov	dl,size SCB
+	div	dl			; AL = # of sessions
+	call	init_sess
 
 ;
 ; If the DEBUG.COM driver is installed, open its DEBUG$ device for DPRINTF

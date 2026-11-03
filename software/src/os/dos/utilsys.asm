@@ -19,7 +19,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<scb_load,scb_start,scb_stop,scb_end,scb_waitend,scb_abort>
 	EXTNEAR	<scb_yield,scb_release,scb_wait,scb_endwait,scb_intwait>
 	EXTNEAR	<scb_query,mem_query,msc_getdate,msc_gettime,psp_termcode>
-	EXTNEAR	<add_date,read_line,flush_buffers>
+	EXTNEAR	<add_date,read_line,flush_buffers,get_ticks>
 
 	EXTBYTE	<scb_locked>
 	EXTWORD	<scb_active>
@@ -401,11 +401,15 @@ ENDPROC	utl_qrymem
 ;
 ; Inputs:
 ;	REG_CL = session (SCB) #
+;	REG_ES:REG_DI -> 16-byte buffer
 ;
 ; Outputs:
 ;	On success, carry clear:
 ;		REG_AX = PSP of the session's program (zero if none)
-;		REG_ES:REG_DI -> name of the session's console device
+;		REG_ES:REG_DI buffer filled with the names of the session's
+;		console device and program (8 bytes each, zeros if none),
+;		which a ring 3 program couldn't read in our memory, and which
+;		(unlike PSP-1) are valid to address in protected mode
 ;	On failure, carry set (ie, invalid session #)
 ;
 DEFPROC	utl_qryscb,DOS
@@ -488,11 +492,12 @@ ENDPROC	utl_getdate
 ;
 ; utl_gettime (AH = 23h)
 ;
-; Identical to msc_gettime, but also returns the "packed" date in AX
-; and does not modify carry.
-
+; Identical to msc_gettime, but also returns the "packed" time in AX
+; and does not modify carry; or with REG_AL = 1, returns the BIOS tick
+; count instead (see get_ticks).
+;
 ; Inputs:
-;	None
+;	REG_AL = 0 for the time, or 1 for the BIOS tick count
 ;
 ; Outputs:
 ;	REG_AX = time in "packed" format:
@@ -507,9 +512,14 @@ ENDPROC	utl_getdate
 ;	REG_DH = seconds (0-59)
 ;	REG_DL = hundredths
 ;
+;	or with REG_AL = 1, REG_DX:REG_AX = BIOS tick count
+;
 DEFPROC	utl_gettime,DOS
 	sti
-	call	msc_gettime
+	cmp	byte ptr [bp].REG_AL,1; the BIOS tick count instead?
+	jne	gt1			; no
+	jmp	get_ticks
+gt1:	call	msc_gettime
 	mov	[bp].REG_AX,ax
 	clc
 	ret

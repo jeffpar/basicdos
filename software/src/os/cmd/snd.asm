@@ -15,7 +15,6 @@
 	DOSFUNC equ 1
 	include	cmd.inc
 	include	gen.inc
-	include	bios.inc
 
 CODE    SEGMENT
 
@@ -534,11 +533,7 @@ DEFPROC	doSound,FAR
 	div	bx			; AX = PIT divisor
 	call	sndWait
 	push	ax
-	push	es
-	mov	ax,BIOS
-	mov	es,ax
-	mov	ax,es:[TIMER_LOW]
-	pop	es
+	DOSUTIL	GETTIME,1		; AX = BIOS tick count (low word)
 	add	ax,cx
 	mov	bx,ss:[PSP_HEAP]
 	mov	ss:[bx].SND_END,ax
@@ -569,19 +564,17 @@ ENDPROC	doSound
 DEFPROC	sndWait
 	push	ax
 	push	bx
-	push	es
+	push	dx
 	mov	bx,ss:[PSP_HEAP]
 	cmp	byte ptr ss:[bx].SND_BUSY,0
 	je	sw9
-	mov	ax,BIOS
-	mov	es,ax
-sw1:	mov	ax,es:[TIMER_LOW]
+sw1:	DOSUTIL	GETTIME,1		; AX = BIOS tick count (low word)
 	sub	ax,ss:[bx].SND_END	; has the end tick been reached?
 	jns	sw8			; yes
 	DOSUTIL	YIELD
 	jmp	sw1
 sw8:	mov	byte ptr ss:[bx].SND_BUSY,0
-sw9:	pop	es
+sw9:	pop	dx
 	pop	bx
 	pop	ax
 	ret
@@ -590,6 +583,10 @@ ENDPROC	sndWait
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; speakerOn
+;
+; Programs don't use the timer and speaker ports themselves (with IOPL 0,
+; ring 3 code can't), so the CLOCK$ driver turns the speaker on, for 65535
+; ticks (about an hour), which is effectively until speakerOff.
 ;
 ; Inputs:
 ;	AX = PIT divisor
@@ -601,17 +598,11 @@ ENDPROC	sndWait
 ;	AX
 ;
 DEFPROC	speakerOn
-	push	ax
-	mov	al,0B6h			; PIT channel 2, mode 3, LSB then MSB
-	out	43h,al
-	pop	ax
-	out	42h,al
-	mov	al,ah
-	out	42h,al
-	in	al,61h
-	or	al,03h			; enable the speaker
-	out	61h,al
-	ret
+	push	cx
+	push	dx
+	xchg	dx,ax			; DX = PIT divisor
+	mov	cx,-1			; CX = # of ticks
+	jmp	short spk1
 ENDPROC	speakerOn
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -629,10 +620,18 @@ ENDPROC	speakerOn
 ;
 DEFPROC	speakerOff
 	push	ax
-	in	al,61h
-	and	al,0FCh			; disable the speaker
-	out	61h,al
+	push	cx
+	push	dx
+	sub	dx,dx			; DX = 0 (turn the sound off)
+	DOSUTIL	SOUND
+	pop	dx
+	pop	cx
 	pop	ax
+	ret
+	DEFLBL	spk1,near
+	DOSUTIL	SOUND
+	pop	dx
+	pop	cx
 	ret
 ENDPROC	speakerOff
 

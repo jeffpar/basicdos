@@ -127,3 +127,9 @@ FPU_MAXCHARS	equ	24
 
 FPUTYPE_NONE	equ	0	; no FPU (functions emulated in software)
 FPUTYPE_8087	equ	1	; 8087 FPU detected
+
+;
+; With an FPU, the kernel keeps each session's FPU state (FPU_STATE bytes,
+; as FSAVE stores it), and switches them with the sessions (see scb_switch).
+;
+FPU_STATE	equ	94

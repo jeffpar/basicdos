@@ -26,7 +26,7 @@ Open the FPU$ device and issue IOCTL_GETFPU (E1h), with DS:SI pointing to a doub
 
 DH returns the FPU type (FPUTYPE_NONE, 0, for software emulation, or FPUTYPE_8087, 1), and DL returns the number of FPUTBL entries, so that callers can tell when newer functions are available.
 
-Each FPUTBL entry is the offset of a function, relative to the segment of the FPUTBL pointer, so every function must be called with a far call using that segment.  The FPUTBL is at the start of the paragraph where the driver's functions begin, so that segment isn't the driver's: FPU$ gets it from CPU$ at initialization (CPU_MAP with MEMF_CODE, for that paragraph's address; see fpuinit.asm, which LINK puts after fpudev.asm), which in protected mode is a code selector of its own.
+Each FPUTBL entry is the offset of a function, relative to the segment of the FPUTBL pointer, so every function must be called with a far call using that segment.  The FPUTBL is at the start of the paragraph where the driver's functions begin, so that segment isn't the driver's: FPU$ gets it from CPU$ at initialization (CPU_MAP with MEMF_CODE and MEMF_CONFORM, for that paragraph's address; see fpuinit.asm, which LINK puts after fpudev.asm), which in protected mode is a conforming code selector of its own, so code at any privilege level can call the functions, and they run at the caller's (the kernel calls them at ring 0, for sprintf's `%f`, and programs at ring 3; see [Running Programs at Ring 3](../mmu/#ring3)).  The shared code that FPU_ATOD and FPU_DTOA jump to gets a conforming selector too.
 
 ### Calling Conventions
 
@@ -95,8 +95,8 @@ The first 12 entries are in the same order as the code generator's operator inde
 - FPU_TODEC converts the absolute value of the (finite) double at DS:SI to CL (0 to 15) significant digits at ES:DI, rounded to nearest, returning CX = # of digits stored (0 if the value is zero) and AX = the decimal exponent of the first digit.  When CL is zero, the value is rounded to either zero (CX = 0) or one digit ("1") at the next higher decimal exponent.  Modifies AX, BX, CX, and DX.
 - FPU_FROMDEC converts CX digits at DS:SI (up to 19), multiplied by 10 raised to the power in AX, to a double at ES:DI, negated if bit 7 of BL is set.  Carry is set if the value is out of range.  Modifies AX, CX, DX, and SI.
 
-### Limitations
+### Sessions
 
-The 8087's state isn't saved and restored on session switches yet, so FPU$ functions currently disable interrupts while they run.
+Since the functions run at the caller's privilege level, they never disable interrupts (which ring 3 code can't do), and never touch FPU$'s own data or any ports.  With an 8087 (or 80287), the kernel keeps every session's FPU state instead: at boot, if FPU$ reports an FPU, sysinit allocates FPU_STATE (94) bytes per session (`init_fpu`), each holding the state that FNINIT sets, and `scb_switch` saves the previous session's state (FSAVE) and restores the next one's (FRSTOR) whenever it switches sessions, so a session switch in the middle of a function can't disturb another session's values.  When a program ends, the kernel resets the FPU (FNINIT), in case an ABORT ended it in the middle of a function.
 
 {% include footer.html prev="Device Drivers:../dev/" next="Data Structures:../data/" %}

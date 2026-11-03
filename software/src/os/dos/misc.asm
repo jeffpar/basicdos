@@ -22,11 +22,12 @@ DOS	segment word public 'CODE'
 	EXTWORD	<dos_data>
 	EXTNEAR	<dos_check,dos_restart,dev_request,write_handle>
 	EXTNEAR	<sfb_get,flush_console,err_jump,get_psp,mem_alias>
-	EXTBYTE	<err_active>
-	EXTWORD	<err_stack>
+	EXTNEAR	<r3_ctrlc,r3_cbabort,r3_getvec,r3_setvec>
+	EXTBYTE	<err_active,prog_user>
+	EXTWORD	<err_stack,r3_cbsp>
 	EXTSTR	<STR_CTRLC>
 
-	EXTWORD	<mcb_head>
+	EXTWORD	<mcb_head,mem_size>
 	EXTLONG	<clk_ptr>
 	EXTWORD	<scb_active>
 
@@ -72,7 +73,13 @@ msv0:	pop	ax
 	xchg	di,ax			; DI -> vector, if it's in the SCB
 	pop	ax
 	jnc	msv1
-	call	far ptr DDINT_SETVEC	; it's in the IVT
+	cmp	[prog_user],0		; ring 3 programs?
+	je	msv0a			; no
+	test	byte ptr [bp].REG_CS,3	; and a ring 3 caller?
+	jz	msv0a			; no
+	call	r3_setvec		; yes (see RVEC)
+	jmp	short msv9
+msv0a:	call	far ptr DDINT_SETVEC	; it's in the IVT
 	jmp	short msv9
 msv1:	cli
 	mov	[di].OFF,cx
@@ -238,6 +245,32 @@ ENDPROC	msc_gettime
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; get_ticks
+;
+; utl_gettime comes here when REG_AL is 1, for the BIOS tick count, which a
+; program can't always read for itself (a ring 3 program can't address the
+; BIOS segment; see ring3.asm).
+;
+; Outputs:
+;	REG_DX:REG_AX = BIOS tick count
+;
+DEFPROC	get_ticks,DOS
+	mov	ax,BIOS
+	mov	es,ax
+	ASSUME	ES:BIOS
+	cli
+	mov	ax,[TIMER_LOW]
+	mov	dx,[TIMER_HIGH]
+	sti
+	ASSUME	ES:NOTHING
+	mov	[bp].REG_AX,ax
+	mov	[bp].REG_DX,dx
+	clc
+	ret
+ENDPROC	get_ticks
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; msc_settime (REG_AH = 2Dh)
 ;
 ; Inputs:
@@ -400,10 +433,13 @@ msg1:	cmp	[err_active],0		; inside a hard error handler?
 ; response: discard everything on the hard error stack above dev_error's
 ; frame and resume there (see err_jump).
 ;
-	mov	ss,cs:[dos_data]
+	mov	al,CRERR_ABORT
+	cmp	[r3_cbsp],0		; a ring 3 ERROR handler?
+	je	msg1b			; no
+	jmp	r3_cbabort		; yes (see r3_error)
+msg1b:	mov	ss,cs:[dos_data]
 	mov	sp,[err_stack]
 	sub	sp,ERR_FRAME
-	mov	al,CRERR_ABORT
 	jmp	err_jump
 
 msg1a:	IF REG_CHECK
@@ -448,8 +484,12 @@ msg2:
 	mov	[bp].REG_WS.JMP_CS,ax
 	mov	ax,[bx].SCB_CTRLC.OFF
 	mov	[bp].REG_WS.JMP_IP,ax
-
-	mov	sp,bp
+	cmp	[prog_user],0		; ring 3 programs?
+	je	msg3			; no
+	test	byte ptr [bx].SCB_CTRLC.SEG,3	; a ring 3 handler?
+	jz	msg3			; no
+	call	r3_ctrlc		; yes, so it runs at ring 3
+msg3:	mov	sp,bp
 	pop	bp
 	pop	di
 	pop	es
@@ -521,7 +561,13 @@ DEFPROC	msc_getvec,DOS
 	xchg	si,ax			; SI -> vector, if it's in the SCB
 	pop	ax
 	jnc	mgv1
-	call	far ptr DDINT_GETVEC	; it's in the IVT
+	cmp	[prog_user],0		; ring 3 programs?
+	je	mgv0			; no
+	test	byte ptr [bp].REG_CS,3	; and a ring 3 caller?
+	jz	mgv0			; no
+	call	r3_getvec		; yes (see RVEC)
+	jmp	short mgv2
+mgv0:	call	far ptr DDINT_GETVEC	; it's in the IVT
 	jmp	short mgv2
 mgv1:	mov	cx,[si].OFF
 	mov	dx,[si].SEG
@@ -586,6 +632,8 @@ ENDPROC	msc_getswc
 ;
 ; Outputs:
 ;	REG_ES:REG_BX-2 -> mcb_head
+;	REG_AX = total memory, in Kb (BASIC-DOS only, since a ring 3 program
+;	can't read the DV_MEM_SIZE that follows mcb_head; see ring3.asm)
 ;
 ; Modifies:
 ;	None
@@ -593,6 +641,8 @@ ENDPROC	msc_getswc
 DEFPROC	msc_getvars,DOS
 	mov	[bp].REG_ES,ds
 	mov	[bp].REG_BX,offset mcb_head + 2
+	mov	ax,[mem_size]
+	mov	[bp].REG_AX,ax
 	ret
 ENDPROC	msc_getvars
 

@@ -14,6 +14,9 @@
 	include	bios.inc
 	include	dos.inc
 	include	dosapi.inc
+	include	fpu.inc
+
+	.8087
 
 DOS	segment word public 'CODE'
 
@@ -30,13 +33,14 @@ DOS	segment word public 'CODE'
 ;
 ; That is, thus far, the extent of our extremely simple scheduler.
 ;
-	EXTWORD	<dos_data>
-	EXTBYTE	<scb_locked,def_drive,bpb_total>
+	EXTWORD	<dos_data,fpu_seg>
+	EXTBYTE	<scb_locked,def_drive,bpb_total,prog_user,load_user>
 	EXTWORD	<scb_active,scb_stoked,load_reserve>
 	EXTLONG	<scb_table>
-	EXTNEAR	<dos_check,dos_leave,load_command,psp_termcode>
+	EXTNEAR	<dos_check,dos_leave,load_command,psp_termcode,r3_sp0,r3_load>
+	EXTNEAR	<r3_setldt,stage_cmdline>
 	EXTNEAR	<sfh_add_ref,sfh_context,sfh_close,get_cdir>
-	EXTNEAR	<sfb_from_sfh,sfb_read,sfb_write>
+	EXTNEAR	<sfb_from_sfh,sfb_read,sfb_write,get_pname>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -84,13 +88,17 @@ ENDPROC	scb_getnum
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	scb_load,DOS
+	mov	al,[prog_user]
+	or	al,1			; nonzero while loading (see mem_alloc)
+	mov	[load_user],al		; and MEMF_USER for ring 3 programs
 	mov	cl,[bp].REG_CH		; CL = programs the caller will load next
 	mov	ch,0
 	mov	[load_reserve],cx	; (see load_program)
 	mov	cl,-1
 	call	scb_lock		; lock a free SCB
-	jc	sl8
-	push	ax			; save previous SCB
+	jnc	sl0a			; got one
+	jmp	sl8			; (a near jump, since sl8 is now far)
+sl0a:	push	ax			; save previous SCB
 	mov	dl,[bx].SCB_NUM		; (init_scb needs AX intact)
 	mov	[bp].REG_CL,dl		; REG_CL = session (SCB) #
 	mov	di,[bp].REG_BX
@@ -102,20 +110,38 @@ DEFPROC	scb_load,DOS
 	push	bx			; BX = ENVSEG, if any
 	lds	si,es:[di].SPB_CMDLINE
 	ASSUME	DS:NOTHING
-	call	load_command		; DS:SI -> command line
+;
+; With programs at ring 3, the command line is in the caller's LDT, which is
+; no longer addressable once we switch to the loaded session's LDT; so we copy
+; it to a kernel buffer first, then make the target session's LDT active, so
+; load_command allocates the program's memory there (see stage_cmdline, which
+; leaves DS:SI and ES addressable across the switch, and CPU_SETLDT).
+;
+	cmp	cs:[prog_user],0	; ring 3 programs?
+	je	sl3			; no
+	call	stage_cmdline		; DS:SI -> a kernel copy of it
+	mov	al,[bp].REG_CL		; AL = target session #
+	call	r3_setldt		; make its LDT active
+sl3:	call	load_command		; DS:SI -> command line
 	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	pop	cx			; CX = ENVSEG
 	pop	bx			; BX -> current SCB again
 	jc	sl6			; release session references on load error
 ;
-; If successful, load_command returns the initial program stack in DX:AX.
+; If successful, load_command returns the initial program stack in DX:AX
+; (which, for a ring 3 program, r3_load moves to the session's ring 0 stack).
 ;
 ; In addition, it records cache information in the TMP registers, which most
 ; most callers can/will ignore, but which sysinit uses to speed up successive
 ; LOAD requests.
 ;
-	mov	[bx].SCB_STACK.OFF,ax	; DX:AX == initial stack
+	cmp	[prog_user],0		; ring 3 programs?
+	je	sl5			; no
+	push	cx
+	call	r3_load
+	pop	cx
+sl5:	mov	[bx].SCB_STACK.OFF,ax	; DX:AX == initial stack
 	mov	[bx].SCB_STACK.SEG,dx
 	or	[bx].SCB_STATUS,SCSTAT_LOAD
 	mov	[bx].SCB_ENVSEG,cx
@@ -149,10 +175,24 @@ sl6a:	pop	bx
 	stc
 
 sl7:	pop	cx			; recover previous SCB
-	call	scb_unlock		; unlock
+	call	scb_unlock		; unlock (BX -> previous SCB)
+;
+; Preserve the load result (carry) across the LDT restore: both the prog_user
+; test below and r3_setldt (via CPU_SETLDT) clobber the carry that tells our
+; caller whether the load failed (eg, with a sharing violation).
+;
+	pushf
+	cmp	[prog_user],0		; ring 3 programs?
+	je	sl7a			; no
+	push	ax
+	mov	al,[bx].SCB_NUM		; restore the caller's LDT
+	call	r3_setldt
+	pop	ax
+sl7a:	popf
 sl8:	jnc	sl9
 	mov	[bp].REG_AX,ax		; return error code to caller
-sl9:	ret
+sl9:	mov	[load_user],0		; (see mem_alloc)
+	ret
 ENDPROC	scb_load
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -501,15 +541,18 @@ ENDPROC	scb_waitend
 ;
 ; Inputs:
 ;	CL = SCB #
+;	REG_ES:REG_DI -> 16-byte buffer
 ;
 ; Outputs:
 ;	On success, carry clear:
 ;		REG_AX = PSP of the session's program (zero if none)
-;		REG_ES:REG_DI -> name of the session's console device (zero if none)
+;		REG_ES:REG_DI buffer: the first 8 bytes are the name of the
+;		session's console device, the next 8 the name of its program
+;		(each zero-filled if absent)
 ;	On failure, carry set (ie, invalid SCB #)
 ;
 ; Modifies:
-;	AX, BX
+;	AX, BX, CX, DX, SI, DI, ES
 ;
 DEFPROC	scb_query,DOS
 	ASSUMES	<DS,DOS>,<ES,DOS>
@@ -526,13 +569,20 @@ DEFPROC	scb_query,DOS
 	jz	sq1			; no program loaded
 	mov	ax,[bx].SCB_PSP
 sq1:	mov	[bp].REG_AX,ax
-	mov	[bp].REG_ES,ds
 	mov	bl,[bx].SCB_SFHOUT
 	call	sfb_from_sfh		; BX -> SFB
-	jnc	sq2
-	sub	bx,bx			; no console
-sq2:	ASSERT	<SFB_NAME>,EQ,0
-	mov	[bp].REG_DI,bx		; REG_ES:REG_DI -> SFB_NAME
+	les	di,dword ptr [bp].REG_DI; ES:DI -> the caller's buffer
+	ASSUME	ES:NOTHING
+	mov	cx,4			; (8 bytes)
+	ASSERT	<SFB_NAME>,EQ,0
+	mov	si,bx			; DS:SI -> SFB_NAME
+	jnc	sq2			; (the console's name)
+	sub	ax,ax
+	rep	stosw			; or zeros, if there's no console
+	jmp	short sq2b
+sq2:	rep	movsw			; (the console's name)
+sq2b:	mov	ax,[bp].REG_AX		; AX = PSP (zero if none)
+	call	get_pname		; then the program's name (8 bytes)
 	clc
 sq9:	ret
 ENDPROC	scb_query
@@ -597,6 +647,17 @@ sy8:	dec	[scb_locked]
 	sti
 sy9:	ASSERT	NC
 	ret
+;
+; scb_yield and scb_switch both end here when the session (BX) is already the
+; active one, returning carry set if it has an ABORT pending (here, rather
+; than after scb_switch, so that both can reach it with short jumps).
+;
+	DEFLBL	scb_test,near
+	test	[bx].SCB_STATUS,SCSTAT_ABORT
+	jz	sw9
+sw8:	stc
+sw9:	sti
+	ret
 ENDPROC	scb_yield
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -628,7 +689,29 @@ DEFPROC	scb_switch,DOS
 	dec	[scb_locked]
 	cmp	bx,[scb_active]		; is this SCB already active?
 	je	scb_test		; yes
-	mov	ax,bx
+;
+; With an FPU, save the previous session's FPU state and restore this one's
+; (see init_fpu), since FPU$'s functions don't disable interrupts.
+;
+	mov	cx,[fpu_seg]
+	jcxz	sw1			; no FPU
+	mov	es,cx
+	mov	di,[scb_active]
+	mov	al,FPU_STATE
+	mul	[di].SCB_NUM
+	xchg	di,ax			; ES:DI -> previous session's FPU state
+	fsave	es:[di]
+	mov	al,FPU_STATE
+	mul	[bx].SCB_NUM
+	xchg	di,ax			; ES:DI -> this session's FPU state
+	frstor	es:[di]
+sw1:	cmp	[prog_user],0		; ring 3 programs?
+	je	sw2			; no
+	mov	al,[bx].SCB_NUM		; make its LDT active first, since
+	call	r3_setldt		; its PSP (for r3_sp0) is in that LDT
+	mov	ax,[bx].SCB_PSP
+	call	r3_sp0			; this session's ring 0 stack
+sw2:	mov	ax,bx
 	xchg	bx,[scb_active]		; BX -> previous SCB
 	ASSERT	STRUCT,[bx],SCB
 	add	sp,2			; toss 1 near-call return address
@@ -640,13 +723,6 @@ DEFPROC	scb_switch,DOS
 	mov	sp,[bx].SCB_STACK.OFF
 	ASSERT	NC
 	jmp	dos_leave		; we let dos_leave turn interrupts on
-
-	DEFLBL	scb_test,near
-	test	[bx].SCB_STATUS,SCSTAT_ABORT
-	jz	sw9
-sw8:	stc
-sw9:	sti
-	ret
 ENDPROC	scb_switch
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

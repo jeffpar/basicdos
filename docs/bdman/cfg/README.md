@@ -36,6 +36,7 @@ The recognized keywords are:
 - [MEMSIZE](#memsize)
 - [PATHCHAR](#pathchar)
 - [PRN](#prn)
+- [RING](#ring)
 - [SESSIONS](#sessions)
 - [SHELL](#shell)
 - [SKIP](#skip)
@@ -186,6 +187,14 @@ Limits the memory that BASIC-DOS uses to *n* kilobytes (16-640), assuming the ma
 Sets the device that PRN refers to (eg, `PRN=LPT2`, or a serial printer, `PRN=COM2:1200,N,8,1`), which [LPRINT](../cmd/device/screen/#lprint) and [LLIST](../cmd/system/#llist) print on.  The default is LPT1.  PRN isn't a driver, but a name for the device, which every session shares, along with its handle STDPRN (4).
 
 PRN is opened after any [DEVICE](#device) drivers are loaded, so it can't be a port that a driver has claimed.  If a PRN line's device can't be opened, a warning is displayed; then, as when there's no LPT1, there's no PRN device: PRN can't be opened, and writing to STDPRN (including LPRINT and LLIST) fails.
+
+### RING
+
+> RING=0
+
+In protected mode (on an 80286 or later, without [CPU](#cpu)=8088), BASIC-DOS runs COMMAND.COM, every BASIC program, and every program they run (COM and EXE files alike) at ring 3, the processor's least privileged level, rather than at ring 0 with BASIC-DOS itself, so that a program can't write to memory that isn't its own (including another session's), or use privileged instructions (eg, IN, OUT, CLI, and STI); a program that tries is ended with a `CPU fault` message, as an error such as a divide by zero ends it.  RING=0 runs them all at ring 0 instead.  In real mode, everything runs at ring 0, and the line has no effect.
+
+A program's interrupt handlers (eg, an INT 21h hook that passes the calls it doesn't handle on to DOS) run at ring 3, too, for the interrupts that programs in its own session issue, but not for those that BASIC-DOS, its drivers, or the ROM BIOS issue, so some programs don't work at ring 3 yet, and need RING=0: programs that hook such an interrupt (eg, the BIOS disk interrupt, or the timer tick), programs that call CPU$ or the ROM BIOS disk functions directly, and DEBUG.COM run as a program (its driver, loaded with [DEVICE](#device), can debug ring 3 programs).  Programs with their own CTRL-C or critical error handlers work, since those handlers run at ring 3, too.
 
 ### SESSIONS
 

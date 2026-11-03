@@ -16,15 +16,18 @@
 	include	dos.inc
 	include	dosapi.inc
 
+	.8087
+
 DOS	segment word public 'CODE'
 
 	EXTWORD	<dos_data,call5_gate>
-	EXTBYTE	<scb_locked>
+	EXTBYTE	<scb_locked,prog_user,load_user>
 	EXTWORD	<mcb_limit,scb_active,load_reserve>
 	EXTLONG	<scb_table,sfb_table>
 	EXTNEAR	<sfh_add_ref,pfh_close,sfh_close,sfb_close,reset_keys>
 	EXTNEAR	<mcb_getsize,mcb_free_all,mcb_findpsp,scb_endio>
-	EXTNEAR	<mem_alias,mem_pmode,load_ne>
+	EXTNEAR	<mem_alias,mem_pmode,load_ne,r3_start,r3_sp0>
+	EXTNEAR	<r3_setldt,r3_endvec>
 	EXTNEAR	<dos_check,dos_leave,dos_leave2,dos_ctrlc,dos_error>
 	EXTNEAR	<mcb_setname,scb_getnum,scb_release,scb_close,scb_yield>
 	EXTNEAR	<msc_sigctrlc,msc_retctrlc>
@@ -52,6 +55,12 @@ DEFPROC	psp_term,DOS
 	pop	ax
 	ASSUME	ES:NOTHING
 	mov	bx,[scb_active]		; BX -> SCB
+;
+; FPU$'s functions don't disable interrupts, so an ABORT could have ended the
+; program in the middle of one, leaving values on the FPU stack; reset it
+; (which is harmless without an FPU).
+;
+	fninit
 	mov	si,es:[PSP_PARENT]
 	test	si,si			; if program has a parent
 	jnz	pt1			; then the SCB is still healthy
@@ -87,7 +96,10 @@ pt0a:	ret
 ; Close process file handles.
 ;
 pt1:	push	ax			; save exit code/type on stack
-	cmp	es:[PSP_RAWKEYS],0	; did the program leave raw keys on?
+	cmp	[prog_user],0		; ring 3 programs?
+	je	pt1z			; no
+	call	r3_endvec		; free the program's RVECs (see RVEC)
+pt1z:	cmp	es:[PSP_RAWKEYS],0	; did the program leave raw keys on?
 	je	pt1a			; no
 	call	reset_keys		; yes, so turn them off
 pt1a:	call	psp_close		; close all the process file handles
@@ -153,6 +165,13 @@ pt1b:	LOCK_SCB
 pt7:	ret
 
 pt8:	mov	es,ax			; ES = PSP of parent
+	cmp	[prog_user],0		; ring 3 programs?
+	je	pt8a			; no
+	mov	bx,[scb_active]
+	call	r3_sp0			; the parent's ring 0 stack
+	mov	al,es:[PSP_SCB]		; and its LDT (the parent may be in a
+	call	r3_setldt		; different session; see dos_leave2)
+pt8a:
 	pop	dx
 	pop	cx			; we now have PSP_EXIT in CX:DX
 	pop	ax			; AX = exit code (saved on entry above)
@@ -245,8 +264,15 @@ DEFPROC	psp_exec,DOS
 	mov	cl,[bp].REG_CH		; yes, CL = programs that will follow
 	mov	al,ch			; and AL = 0 (a valid subfunction)
 px0:	mov	[load_reserve],cx
+;
+; A program that we load (subfunction 0 or 1) runs at ring 3 if programs do
+; (see prog_user), so its memory gets DPL 3 selectors while we load it (see
+; mem_alloc and mem_alias).
+;
+	mov	ah,[prog_user]
 	cmp	al,2			; valid subfunction?
 	je	px5
+	mov	[load_user],ah		; MEMF_USER (or zero)
 	cmc
 	mov	ax,ERR_INVALID
 	jc	pxx			; AX = error code if not
@@ -265,7 +291,10 @@ px0:	mov	[load_reserve],cx
 ; This was a DOS_PSP_EXEC call, and unlike scb_load, it's a synchronous
 ; operation, meaning we launch the program directly from this call.
 ;
-px1:	cli
+px1:	cmp	cs:[prog_user],0	; ring 3 programs?
+	je	px1a			; no
+	jmp	r3_start		; (which may start it at ring 3)
+px1a:	cli
 	mov	ss,dx			; switch to the new program's stack
 	mov	sp,ax
 	jmp	dos_leave		; and let dos_leave turn interrupts on
@@ -296,7 +325,13 @@ px3:	dec	bx			; restore BX pointer to EPB
 ; new stack is supposed to contain only the initial value for REG_AX, which
 ; we take care of below.
 ;
-px4:	IF REG_CHECK
+px4:	push	ds
+	mov	ds,cs:[dos_data]
+	ASSUME	DS:DOS
+	mov	[load_user],0		; (see mem_alias)
+	pop	ds
+	ASSUME	DS:NOTHING
+	IF REG_CHECK
 	add	ax,REG_CHECK
 	ENDIF
 	mov	di,ax
@@ -354,6 +389,9 @@ px7:	xchg	ax,si			; DX:AX -> REG_FRAME
 	jmp	px1
 
 px9:	mov	[bp].REG_AX,ax		; return any error code in REG_AX
+	mov	ds,cs:[dos_data]
+	ASSUME	DS:DOS
+	mov	[load_user],0
 	stc
 	ret
 ENDPROC	psp_exec

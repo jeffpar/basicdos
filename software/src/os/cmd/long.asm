@@ -7,6 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	DOSFUNC equ 1
 	include	cmd.inc
 
 CODE    SEGMENT
@@ -1253,40 +1254,13 @@ DEFPROC	randomize,FAR
 	mov	bx,[wSeedTicks]
 	test	bl,bl			; use the BIOS tick count?
 	jz	rz1			; no
-	call	getTicks		; DX:AX = BIOS tick count
+	DOSUTIL	GETTIME,1		; DX:AX = BIOS tick count
 rz1:	mov	bx,ss:[PSP_HEAP]
 	mov	ss:[bx].RND_SEED.LOW,ax
 	mov	ss:[bx].RND_SEED.HIW,dx
 	LEAVE
 	RETURN
 ENDPROC	randomize
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; getTicks
-;
-; Moved here from snd.asm, which isn't part of COMMAND's core (see CMD.LRF).
-; The BIOS segment and its offsets are written out, since this module doesn't
-; include bios.inc (see BIOS, TIMER_LOW, and TIMER_HIGH there).
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	DX:AX = BIOS tick count
-;
-; Modifies:
-;	AX, DX
-;
-DEFPROC	getTicks
-	push	ds
-	mov	ax,40h			; BIOS
-	mov	ds,ax
-	mov	ax,ds:[6Ch]		; TIMER_LOW
-	mov	dx,ds:[6Eh]		; TIMER_HIGH
-	pop	ds
-	ret
-ENDPROC	getTicks
 
 CODE	ENDS
 

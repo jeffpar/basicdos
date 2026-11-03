@@ -21,9 +21,9 @@ DOS	segment word public 'CODE'
 	EXTWORD	<FUNCTBL>
 	EXTABS	<FUNCTBL_SIZE,UTILTBL_SIZE>
 	EXTWORD	<scb_active>
-	EXTBYTE	<scb_locked,int_level>
+	EXTBYTE	<scb_locked,int_level,prog_user>
 	EXTNEAR	<msc_readctrlc,scb_wait,scb_endwait>
-	EXTNEAR	<scb_hotkey,scb_release>
+	EXTNEAR	<scb_hotkey,scb_release,r3_call5,r3_cbret>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -323,7 +323,10 @@ ENDPROC	dos_func
 ; dos_exit (INT 22h handler)
 ;
 DEFPROC	dos_exit,DOSFAR
-	ASSERT	NEVER			; assert that we never get here
+	cmp	cs:[prog_user],0	; ring 3 programs?
+	je	dx9			; no
+	jmp	r3_cbret		; yes (see r3_stub)
+dx9:	ASSERT	NEVER			; assert that we never get here
 	jmp	near ptr dos_term
 ENDPROC	dos_exit
 
@@ -394,7 +397,12 @@ ENDPROC	dos_tsr
 DEFPROC	dos_call5,DOSFAR
 	push	bp
 	mov	bp,sp
-	mov	ax,[bp+6]
+	cmp	cs:[prog_user],0	; ring 3 programs?
+	je	dcf1			; no
+	test	byte ptr [bp+4],3	; and is the caller one?
+	jz	dcf1			; no
+	jmp	r3_call5		; yes (the call gate switched stacks)
+dcf1:	mov	ax,[bp+6]
 	mov	[bp+2],ax
 	pushf				; since we didn't arrive here via INT,
 	pop	[bp+6]			; these flags should have interrupts on

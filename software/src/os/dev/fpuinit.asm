@@ -114,10 +114,13 @@ ddi1:	pop	ax
 ddi9:	mov	es:[bx].DDPI_END.OFF,ax
 ;
 ; The FPUTBL's offsets are relative to hwTable's paragraph, so its functions
-; need a code segment of their own, which CPU_MAP (with MEMF_CODE) returns
-; for the paragraph's address: in real mode, a segment, and in protected
-; mode, a code selector for the functions we keep.  If there's no selector,
-; we keep nothing.
+; need a code segment of their own, which CPU_MAP returns for the paragraph's
+; address: in real mode, a segment, and in protected mode, a conforming code
+; selector (MEMF_CONFORM) for the functions we keep, which code at any ring
+; can call, and which then run at the caller's ring (the kernel calls them at
+; ring 0, and programs at ring 3).  The shared code (in CODE) that their
+; FPU_ATOD and FPU_DTOA jump to gets a conforming selector, too.  If either
+; can't be mapped, we keep nothing.
 ;
 	push	bx
 	sub	ax,offset DEV:hwTable
@@ -131,13 +134,22 @@ ddi9:	mov	es:[bx].DDPI_END.OFF,ax
 ddi9a:	mov	ah,CPU_SEGINFO
 	mov	bx,cs
 	call	far ptr DDINT_CPU	; DX:CX = our address
+	push	dx
+	push	cx
+	sub	si,si
+	mov	di,offset DEV:hwTable	; SI:DI = length of the shared code
+	mov	ax,(CPU_MAP SHL 8) OR MEMF_CODE OR MEMF_CONFORM
+	call	far ptr DDINT_CPU	; AX = its segment (or selector)
+	xchg	bp,ax			; BP = shared code's segment
+	pop	cx
+	pop	dx
+	pop	di			; SI:DI = length of the functions
+	jc	ddi9x
 	add	cx,offset DEV:hwTable
 	adc	dx,0			; DX:CX = FPUTBL's address
-	pop	di
-	sub	si,si			; SI:DI = length
-	mov	ax,(CPU_MAP SHL 8) OR MEMF_CODE
+	mov	ax,(CPU_MAP SHL 8) OR MEMF_CODE OR MEMF_CONFORM
 	call	far ptr DDINT_CPU	; AX = FPUTBL's segment (or selector)
-	pop	bx
+ddi9x:	pop	bx
 	jnc	ddi9b
 	mov	es:[bx].DDPI_END.OFF,0	; keep nothing
 ddi9b:	mov	[fpuSeg],ax		; FPUTBL is at fpuSeg:0
@@ -148,9 +160,9 @@ ddi9b:	mov	[fpuSeg],ax		; FPUTBL is at fpuSeg:0
 ;
 	mov	si,offset DEV:hwComAtoD
 	mov	word ptr [si],offset DEV:comAtoD
-	mov	[si+2],cs
+	mov	[si+2],bp
 	mov	word ptr [si+4],offset DEV:comDtoA
-	mov	[si+6],cs
+	mov	[si+6],bp
 	mov	ax,[fpuSeg]
 	mov	[fpuToDec].SEG,ax
 	mov	[fpuFromDec].SEG,ax

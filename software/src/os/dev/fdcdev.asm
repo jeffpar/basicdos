@@ -1275,16 +1275,16 @@ pr3:	mov	es,bx
 	call	int_rw			; AX and carry are from the ROM
 	pop	bx			; BX = selector (or BIOS)
 	pop	es			; (ES can't hold a freed selector)
+	pushf				; (TEST would clear the ROM's carry)
 	test	di,80h			; a hard disk?
 	jz	pr8			; no
 	push	ax
-	pushf
 	mov	ah,CPU_UNMAP
 	sub	cx,cx			; CX = 0 (one selector)
 	call	far ptr DDINT_CPU
-	popf
 	pop	ax
-pr8:	mov	cx,si
+pr8:	popf
+	mov	cx,si
 	mov	dx,di			; CX and DX again
 pr9:	pop	di
 	pop	si

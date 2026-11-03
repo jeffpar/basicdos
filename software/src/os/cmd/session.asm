@@ -39,37 +39,39 @@ CODE    SEGMENT
 ;	AX, BX, CX, DX, SI, DI, ES
 ;
 DEFPROC	listSessions
+	sub	sp,16
+	mov	di,sp
+	push	ss
+	pop	es			; ES:DI -> buffer for the names
 	DOSUTIL	GETCSN			; CL = current session #
 	mov	dl,cl			; DL = current session #
 	sub	cx,cx			; CL = session # (from 0)
-lss1:	DOSUTIL	QRYSCB			; AX = PSP, ES:DI -> console name
+lss1:	DOSUTIL	QRYSCB			; AX = PSP, buffer = console + program
 	jc	lss9			; no more sessions
 	mov	bl,' '
 	cmp	cl,dl			; is it the current session?
-	jne	lss2			; no
+	jne	lss3			; no
 	mov	bl,'*'			; BL = marker
-lss2:	test	di,di			; does the session have a console?
-	jnz	lss3			; yes
-	push	cs
-	pop	es
-	mov	di,offset NO_NAME	; ES:DI -> empty name
 lss3:	mov	si,cx
 	inc	si			; SI = session # (from 1)
 	push	dx
 	test	ax,ax			; does the session have a program?
 	jz	lss4			; no
-	dec	ax			; AX = program's MCB
-	mov	dx,offset MCB_NAME	; AX:DX -> program's name
-	PRINTF	<"%c%2d %-8.8ls %-8.8ls",13,10>,bx,si,di,es,dx,ax
+;
+; The console name is at the buffer (ES:DI) and the program name follows it,
+; both in our stack segment; unlike PSP-1, those are valid to address in
+; protected mode (see scb_query).
+;
+	lea	dx,[di+8]		; ES:DX -> the program's name
+	PRINTF	<"%c%2d %-8.8ls %-8.8ls",13,10>,bx,si,di,es,dx,es
 	jmp	short lss8
 lss4:	PRINTF	<"%c%2d %-8.8ls Unused",13,10>,bx,si,di,es
 lss8:	pop	dx
 	inc	cx
 	jmp	lss1
-lss9:	ret
+lss9:	add	sp,16
+	ret
 ENDPROC	listSessions
-
-NO_NAME	db	0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

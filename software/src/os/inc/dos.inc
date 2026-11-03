@@ -125,6 +125,21 @@ SCSTAT_ABORT	equ	08h	; set if session abort (CTRL-ALT-DEL) signalled
 ;
 ERR_STACK_SIZE	equ	512
 ERR_FRAME	equ	8
+;
+; With programs at ring 3, sysinit also allocates a ring 0 stack for each
+; session (see init_sess and r3_top), whose size must be a multiple of 256.
+;
+R3_STACK_SIZE	equ	1024
+;
+; A ring 3 program's interrupt handlers go in RVECs (see ring3.asm), which
+; R3_RVECS limits.
+;
+R3_RVECS	equ	8
+;
+; CMDLINE_MAX bounds the command line that scb_load stages to a kernel buffer
+; before switching to the loaded session's LDT (see stage_cmdline).
+;
+CMDLINE_MAX	equ	144
 
 LOCK_SCB macro
 	inc	[scb_locked]

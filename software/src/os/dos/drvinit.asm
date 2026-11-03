@@ -14,11 +14,15 @@
 	include	devapi.inc
 	include	dosapi.inc
 	include	cpu.inc
+	include	fpu.inc
+
+	.8087
 
 DOS	segment word public 'CODE'
 
 	EXTNEAR	<find_cfg,set_ddint,dos_call5>
 	EXTWORD	<dos_seg,call5_gate,mem_size,init_base,init_len,init_data>
+	EXTWORD	<fpu_seg>
 	EXTLONG	<init_addr>
 	EXTLONG	<dev_head>
 
@@ -499,6 +503,52 @@ sc9:	pop	si
 	pop	bx
 	ret
 ENDPROC	set_call5
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; init_fpu
+;
+; If FPU$ uses an FPU, we allocate a block for every session's FPU state
+; (FPU_STATE bytes each, in SCB_NUM order), store FNINIT's state in each, and
+; record the block's segment (or selector) in fpu_seg, so that scb_switch
+; switches FPU states with the sessions.  If the block can't be allocated,
+; the sessions share one FPU state (so they could disturb each other's FPU
+; operations).
+;
+; Inputs:
+;	AL = # of sessions, DH = FPU type (FPUTYPE_*, from IOCTL_GETFPU)
+;	ES = DOS
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+	ASSUME	ES:DOS
+DEFPROC	init_fpu
+	cmp	dh,FPUTYPE_8087		; does FPU$ use an FPU?
+	jne	if9			; no
+	mov	ah,FPU_STATE
+	mul	ah
+	xchg	di,ax
+	sub	si,si			; SI:DI = length of the states
+	mov	bx,MCBOWNER_SYSTEM
+	mov	ax,CPU_ALLOC SHL 8	; AL = 0 (a GDT data selector)
+	call	far ptr DDINT_CPU	; AX = segment (or selector)
+	jc	if9
+	mov	es:[fpu_seg],ax
+	push	es
+	mov	es,ax
+	ASSUME	ES:NOTHING
+	mov	cx,di			; CX = length
+	sub	di,di
+	fninit
+if1:	fsave	es:[di]			; (which also does an FNINIT)
+	add	di,FPU_STATE
+	cmp	di,cx
+	jb	if1
+	fwait
+	pop	es
+if9:	ret
+ENDPROC	init_fpu
 
 	DEFWORD	dos_addr,0		; kernel's address (see move_init)
 init_pkt	MOVEPKT	<0,0,0>

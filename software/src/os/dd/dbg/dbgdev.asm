@@ -90,7 +90,9 @@ IN_MASK		equ	127	; in_buf is a ring buffer, with one slot unused
 ; The interrupted registers are copied from the interrupted stack to regs,
 ; where the monitor can change them (even SS:SP), and then copied back (see
 ; resume).  These are their offsets, in the order they're pushed, from last
-; to first; SP and SS are saved as they were before the interrupt.
+; to first; SP and SS are saved as they were before the interrupt, which for
+; code interrupted at another ring (ie, a ring 3 program, while we're at ring
+; 0) are in the interrupt frame (see chk_ring).
 ;
 R_SP		equ	0
 R_SS		equ	2
@@ -148,6 +150,7 @@ TRACE_OVER	equ	02h	; step over CALL, INT, LOOP, and REP (P)
 	DEFWORD	sys_regs,0,9
 	DEFWORD	trace_cnt,0		; T or P steps remaining
 	DEFWORD	regs,0,REGS_LEN/2	; saved registers
+	DEFPTR	frame_ptr		; end of the interrupt frame's FLAGS
 	DEFBYTE	bp_tab,0,BP_SIZE*NUM_BPS
 	DEFLBL	bp_end
 	DEFBYTE	com_flow,0		; COMDBG_XON and/or COMDBG_RTS
@@ -477,6 +480,8 @@ de1:	push	bx
 	pop	ds
 	ASSUME	DS:CODE
 	mov	[why],dl
+	mov	[frame_ptr].OFF,ax
+	mov	[frame_ptr].SEG,ss
 	push	es
 	pop	ss
 	DEFLBL	mon_sp,near		; (com_main changes this stack)
@@ -508,7 +513,13 @@ DEFPROC	monitor
 	or	al,CPU_DUAL
 	mov	bl,al
 mon0:	mov	[cpu_mode],bl
-	call	disarm
+	call	chk_ring		; interrupted at another ring?
+	jz	mon0d			; no
+	les	bx,[frame_ptr]
+	les	ax,es:[bx]
+	mov	regs[R_SP],ax
+	mov	regs[R_SS],es		; yes, so get its SS:SP from the frame
+mon0d:	call	disarm
 	mov	dl,0			; DL = nonzero if a T or P step is done
 	mov	al,0
 	xchg	al,[tracing]
@@ -662,11 +673,16 @@ ENDPROC	monitor
 ; resume
 ;
 ; Copy regs to the (possibly new) stack, below the saved SS:SP, and then
-; restore them all and IRET.
+; restore them all and IRET; to resume another ring, they go below its SS:SP
+; in the interrupt frame instead, since the IRET pops those, too.
 ;
 DEFPROC	resume
 	les	di,dword ptr regs[R_SP]
-	sub	di,REGS_LEN
+	call	chk_ring		; resuming another ring?
+	jz	rs1			; no
+	call	put_sssp		; yes, ES:BX -> its SS:SP in the frame
+	mov	di,bx
+rs1:	sub	di,REGS_LEN
 	push	di
 	mov	si,offset regs
 	mov	cx,REGS_LEN/2
@@ -687,6 +703,50 @@ DEFPROC	resume
 	pop	ax
 	iret
 ENDPROC	resume
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_ring
+;
+; In protected mode, an interrupt from code at another ring than ours (ie, a
+; ring 3 program, while we're a driver at ring 0) switched stacks, and pushed
+; the interrupted SS:SP before the FLAGS, CS, and IP (see frame_ptr), and an
+; IRET to that ring pops them again.
+;
+; Outputs:
+;	ZF clear if regs are from another ring
+;
+; Modifies:
+;	AX
+;
+DEFPROC	chk_ring
+	test	[cpu_mode],ADDR_SEL	; protected mode?
+	jz	ck9			; no
+	mov	ax,cs
+	xor	al,byte ptr regs[R_CS]
+	test	al,3			; is it our ring?
+ck9:	ret
+ENDPROC	chk_ring
+
+;
+; put_sssp
+;
+; Stores regs' SS:SP in the interrupt frame (see chk_ring).
+;
+; Outputs:
+;	ES:BX -> SS:SP in the frame
+;
+; Modifies:
+;	AX, BX, ES
+;
+DEFPROC	put_sssp
+	les	bx,[frame_ptr]
+	mov	ax,regs[R_SP]
+	mov	es:[bx],ax
+	mov	ax,regs[R_SS]
+	mov	es:[bx+2],ax
+	ret
+ENDPROC	put_sssp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1204,7 +1264,8 @@ ENDPROC	cmd_p
 ;
 ; Simulate an interrupt into DX:CX, as the processor would, by pushing an
 ; interrupt frame (CS:DI and the flags) on the interrupted stack and clearing
-; IF and TF.
+; IF and TF; from another ring, the frame goes below its SS:SP in the
+; original frame (see chk_ring), and the handler runs on that stack.
 ;
 ; Inputs:
 ;	DX:CX = handler, DI = return offset (in the interrupted CS)
@@ -1214,7 +1275,11 @@ ENDPROC	cmd_p
 ;
 DEFPROC	sim_int
 	les	bx,dword ptr regs[R_SP]
-	sub	bx,6
+	call	chk_ring		; from another ring?
+	jz	si1			; no
+	call	put_sssp		; yes, ES:BX -> its SS:SP in the frame
+	mov	regs[R_SS],es
+si1:	sub	bx,6
 	mov	regs[R_SP],bx
 	mov	es:[bx],di		; push the return address
 	mov	ax,regs[R_CS]

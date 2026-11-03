@@ -194,7 +194,7 @@ The CPU$ driver manages memory (see [Protected Mode](../mmu/)), and only its 808
 
 ### DOSVARS
 
-DOS_MSC_GETVARS returns ES:BX -> DOSVARS.  As in PC DOS, the word before it is for the first memory segment, but it's always zero, since there's no MCB chain for programs to walk (CPU$ manages memory); the rest of the structure is BASIC-DOS-specific.
+DOS_MSC_GETVARS returns ES:BX -> DOSVARS.  As in PC DOS, the word before it is for the first memory segment, but it's always zero, since there's no MCB chain for programs to walk (CPU$ manages memory); the rest of the structure is BASIC-DOS-specific.  A program at ring 3 can't read the kernel's memory, so DOS_MSC_GETVARS also returns DV_MEM_SIZE in AX (MEM uses that).
 
 | Offset | Field | Description |
 |--------|-------|-------------|

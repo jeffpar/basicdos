@@ -54,13 +54,22 @@ SYS_IDT		equ	SYS_PMBS + PMB_MAX * (size PMB)
 IDT_MAX		equ	256
 SYS_PIDT	equ	SYS_IDT + IDT_MAX * 8
 SYS_LDT		equ	SYS_PIDT + IDT_MAX * 8
-LDT_MAX		equ	1024
+;
+; With programs at ring 3, every session has its own LDT (see CPU_SETLDT), so
+; that its programs' selectors (MEMF_LDT) can't name another session's memory;
+; SYS_LDT is the base of an array of LDT_SESSIONS of them, each LDT_MAX entries
+; (the whole array must still fit below the identity selectors at A000h).  The
+; active session's LDT offset is in SV_LDT, which the descriptor helpers use.
+;
+LDT_MAX		equ	96
+LDT_SESSIONS	equ	32
+LDT_BYTES	equ	LDT_MAX * 8
 ;
 ; The TSS (80286 format) is only for its ring 0 stack (SS0:SP0; see
 ; CPU_SETSTACK), which the processor switches to when an interrupt takes ring
 ; 3 code to ring 0; we never switch tasks, so the rest of it stays zero.
 ;
-SYS_TSS		equ	SYS_LDT + LDT_MAX * 8
+SYS_TSS		equ	SYS_LDT + LDT_SESSIONS * LDT_BYTES
 TSS_SP0		equ	2	; ring 0 SP (followed by SS)
 TSS_LEN		equ	44
 SYS_END		equ	SYS_TSS + TSS_LEN
@@ -96,6 +105,7 @@ SV_IDTR		dw	3 dup (?) ; pm_call's IDT limit and base (for LIDT)
 SV_PIDTR	dw	3 dup (?) ; protected mode's IDT limit and base
 SV_RMIDTR	dw	3 dup (?) ; real-mode IDT limit and base
 SV_FAULT	dd	?	; fault handler (see CPU_SETFAULT and to_fault)
+SV_LDT		dw	?	; active session's LDT offset (see CPU_SETLDT)
 SYSVARS		ends
 SIG_SYSVARS	equ	'PC'
 	ASSERT	<SYS_VARS + size SYSVARS>,LE,SYS_CALL5
@@ -115,6 +125,7 @@ DESC		ends
 ACC_DATA	equ	92h	; present, DPL 0, read/write data
 ACC_CODE	equ	9Ah	; present, DPL 0, execute/read code
 ACC_RW		equ	02h	; writable data (or readable code)
+ACC_CONFORM	equ	04h	; conforming code (added to ACC_CODE)
 ACC_PRESENT	equ	80h	; present (in every ACC_* value but ACC_DPL3)
 ACC_DPL3	equ	60h	; DPL 3 (added to another ACC_* value)
 ACC_LDT		equ	82h	; present, LDT
@@ -160,7 +171,7 @@ CPU	DDH	<offset DEV:ddcpu_end+16,,DDATTR_CHAR,offset DEV:ddcpu_init,-1,202020202
 	dw	ddcpu_unmap, ddcpu_query, ddcpu_alias, ddcpu_pmode
 	dw	ddcpu_realloc, ddcpu_move, ddcpu_setblk, ddcpu_freeall
 	dw	ddcpu_setlim, ddcpu_seginfo, ddcpu_rwmem, ddcpu_sysregs
-	dw	ddcpu_setfault, ddcpu_setstack
+	dw	ddcpu_setfault, ddcpu_setstack, ddcpu_setldt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -310,6 +321,8 @@ DEFPROC	ddcpu_alloc
 	mov	ds:[bx].PMB_TYPE,PMBTYPE_USED
 	mov	ax,ds:[SYS_VARS].SV_OWNER
 	mov	ds:[bx].PMB_OWNER,ax
+	mov	ax,ds:[SYS_VARS].SV_LDT	; (see ddcpu_freeall)
+	mov	ds:[bx].PMB_LDT,ax
 	call	blk_sel			; AX = selector (or segment)
 	jnc	ca1
 	call	pmb_free		; no descriptors, so free it again
@@ -376,6 +389,10 @@ ENDPROC	ddcpu_free
 ; Frees every block that BX owns; since freeing a block can merge PMBs, we
 ; start over after each one.
 ;
+; An owner that's an LDT selector (eg, a ring 3 program's PSP) names a PSP
+; only in its own session's LDT, and other sessions can use the same selector,
+; so it owns only the blocks whose PMB_LDT is the active LDT.
+;
 ; Inputs:
 ;	BX = owner
 ;
@@ -390,7 +407,12 @@ fa2:	cmp	ds:[bx].PMB_TYPE,PMBTYPE_USED
 	jne	fa3
 	cmp	ds:[bx].PMB_OWNER,dx	; does DX own this block?
 	jne	fa3			; no
-	push	dx
+	test	dl,SEL_TI		; is the owner an LDT selector?
+	jz	fa2a			; no
+	mov	ax,ds:[SYS_VARS].SV_LDT
+	cmp	ds:[bx].PMB_LDT,ax	; and is the block from the active LDT?
+	jne	fa3			; no (another session's owner)
+fa2a:	push	dx
 	call	pmb_free
 	pop	dx
 	jmp	fa1
@@ -543,7 +565,8 @@ DEFPROC	ddcpu_alias
 	jz	cl1
 ;
 ; A block's code alias (just MEMF_CODE, for the block's own selector) is
-; created only once, and kept in its PMB (see pmb_free).
+; created only once, and kept in its PMB (see pmb_free), with the same DPL
+; as the block's selector (eg, DPL 3 for a ring 3 program's block).
 ;
 	cmp	al,MEMF_CODE		; just a code alias?
 	jne	cl0b			; no
@@ -553,14 +576,22 @@ DEFPROC	ddcpu_alias
 	call	pmb_used		; BX -> its PMB, if any
 	pop	ax			; AX = selector to alias
 	jc	cl0a			; it isn't a block's
+	and	al,NOT 3		; (with any RPL)
 	cmp	ds:[bx].PMB_SEL,ax	; is it the block's own selector?
 	jne	cl0a			; no
 	cmp	ds:[bx].PMB_CODE,0	; does the block have its alias yet?
 	jne	cl0			; yes
 	push	bx
 	xchg	bx,ax			; BX = selector to alias
+	call	sel_desc		; SI -> its descriptor
 	mov	al,MEMF_CODE
-	call	pm_alias		; AX = new alias
+	test	ds:[si].DESC_ACC,ACC_DPL3	; a DPL 3 block (MEMF_USER)?
+	jz	cl0c			; no
+	or	al,MEMF_USER		; yes, so its alias is DPL 3 too
+cl0c:	test	bl,SEL_TI		; an LDT block (a ring 3 program)?
+	jz	cl0d			; no
+	or	al,MEMF_LDT		; yes, so its alias is in the same LDT
+cl0d:	call	pm_alias		; AX = new alias
 	pop	bx
 	jc	cl9
 	mov	ds:[bx].PMB_CODE,ax
@@ -660,7 +691,7 @@ sg1:	mov	si,bx
 	jz	sg2			; no
 	cmp	si,LDT_MAX * 8		; is it within the LDT?
 	jae	sg8			; no
-	add	si,SYS_LDT
+	add	si,ds:[SYS_VARS].SV_LDT	; the active session's LDT
 	jmp	short sg3
 sg2:	cmp	si,GDT_LIMIT		; is it within the GDT?
 	ja	sg8			; no
@@ -814,6 +845,41 @@ ENDPROC	ddcpu_setfault
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; ddcpu_setldt (CPU_SETLDT)
+;
+; Makes the LDT of the session in AL the active one, so that its programs'
+; selectors (MEMF_LDT) are the ones the descriptor helpers allocate and
+; resolve (see SV_LDT); each session's LDT is LDT_BYTES into the array at
+; SYS_LDT, and the LDTR's descriptor (SEL_LDTD) is repointed at it.  In real
+; mode there are no LDTs, so there's nothing to do.
+;
+; Inputs:
+;	AL = session #
+;
+; Outputs:
+;	Carry clear
+;
+; Modifies:
+;	AX, CX, DX (and BX, which cpu_entry restores)
+;
+DEFPROC	ddcpu_setldt
+	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM	; protected mode?
+	jz	stl9			; no, so nothing to do
+	mov	ah,0
+	mov	dx,LDT_BYTES
+	mul	dx			; AX = session # * LDT_BYTES
+	add	ax,SYS_LDT		; AX = the session's LDT offset
+	mov	ds:[SYS_VARS].SV_LDT,ax
+	sub	ax,10h			; (see SYS_BASE16)
+	mov	ds:[SYS_GDT + SEL_LDTD].DESC_BASE,ax
+	mov	ax,SEL_LDTD
+	lldt	ax			; reload LDTR from its new descriptor
+stl9:	clc
+	ret
+ENDPROC	ddcpu_setldt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; ddcpu_pmode (CPU_PMODE)
 ;
 ; Switches to protected mode (see pm_pmode), if this is an 80286 or later
@@ -878,6 +944,8 @@ DEFPROC	ddcpu_setblk
 	pop	cx			; CX = owner
 	jc	bk9
 	mov	ds:[bx].PMB_OWNER,cx
+	mov	dx,ds:[SYS_VARS].SV_LDT	; (see ddcpu_freeall)
+	mov	ds:[bx].PMB_LDT,dx
 	mov	ds:[bx].PMB_MCBTYPE,al
 	lea	di,[bx].PMB_NAME
 	mov	cx,size PMB_NAME
@@ -1642,7 +1710,8 @@ DEFPROC	sel_desc
 	mov	dx,GDT_MAX
 	test	bl,SEL_TI
 	jz	sd1
-	add	si,SYS_LDT - SYS_GDT
+	sub	si,SYS_GDT
+	add	si,ds:[SYS_VARS].SV_LDT	; the active session's LDT
 	mov	dx,LDT_MAX
 sd1:	cmp	cx,dx			; is the index within the table?
 	jae	sd8			; no
@@ -1755,7 +1824,7 @@ DEFPROC	desc_alloc
 	mov	dx,GDT_MAX - GDT_FIXED
 	test	al,MEMF_LDT
 	jz	da1
-	mov	bx,SYS_LDT
+	mov	bx,ds:[SYS_VARS].SV_LDT	; the active session's LDT
 	mov	dx,LDT_MAX
 da1:	sub	si,si			; SI = free entries found so far
 da2:	dec	dx
@@ -1777,7 +1846,9 @@ da8:	stc
 da5:	mov	ah,ACC_DATA
 	test	al,MEMF_CODE
 	jz	da6
-	mov	ah,ACC_CODE
+	mov	ah,al
+	and	ah,MEMF_CONFORM		; conforming code? (the same bit)
+	or	ah,ACC_CODE
 da6:	test	al,MEMF_RDONLY
 	jz	da6a
 	and	ah,NOT ACC_RW		; read-only data (or execute-only code)
@@ -1795,9 +1866,11 @@ da7:	mov	ds:[di].DESC_ACC,ah
 	jnz	da9
 	sub	ax,SYS_GDT		; GDT selector = offset within GDT
 	ret
-da9:	sub	ax,SYS_LDT - SEL_TI	; LDT selector = offset within LDT + TI
+da9:	sub	ax,ds:[SYS_VARS].SV_LDT	; LDT selector = offset within its LDT
+	or	al,SEL_TI		; + TI (the offset is 8-aligned)
 	ret
 ENDPROC	desc_alloc
+	ASSERT	MEMF_CONFORM,EQ,ACC_CONFORM
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1816,7 +1889,8 @@ DEFPROC	desc_free
 	add	di,SYS_GDT
 	test	al,SEL_TI
 	jz	df1
-	add	di,SYS_LDT - SYS_GDT
+	sub	di,SYS_GDT
+	add	di,ds:[SYS_VARS].SV_LDT	; the active session's LDT
 df1:	push	es
 	push	ds
 	pop	es
@@ -2369,8 +2443,9 @@ ENDPROC	si_ret
 ; 78h-7Fh), unless the gate is one of our defaults, in which case it's the
 ; real-mode vector, if that's in the ROM, or 0:0 if not (see get_vec), and
 ; setting a vector replaces its gate's selector and offset, keeping its DPL
-; (see idt_default): 3 for software interrupts, which ring 3 code may issue
-; (eg, INT 21h), and 0 for exceptions and IRQs, which it may not.
+; (see idt_default): 3 for software interrupts (and INT 0), which ring 3 code
+; may issue (eg, INT 21h), and 0 for other exceptions and IRQs, which it may
+; not.
 ;
 ; Inputs:
 ;	AL = vector #
@@ -2514,7 +2589,8 @@ DEFPROC	sel_base
 	add	bx,SYS_GDT
 	test	al,SEL_TI
 	jz	sb1
-	add	bx,SYS_LDT - SYS_GDT
+	sub	bx,SYS_GDT
+	add	bx,ds:[SYS_VARS].SV_LDT	; the active session's LDT
 sb1:	mov	ax,[bx].DESC_BASE
 	mov	dl,[bx].DESC_BASE16
 	mov	dh,0
@@ -2870,6 +2946,7 @@ di3:	mov	di,10h
 	mov	es:[di].SV_PIDTR+2,SYS_PIDT - 10h
 	mov	byte ptr es:[di].SV_PIDTR+4,SYS_BASE16
 	mov	es:[di].SV_RMIDTR,3FFh
+	mov	es:[di].SV_LDT,SYS_LDT	; session 0's LDT (see CPU_SETLDT)
 	mov	ax,offset DEV:ddcpu_init
 	call	init_arena
 
@@ -2888,7 +2965,9 @@ di3:	mov	di,10h
 	mov	es:[SYS_GDT+SEL_CPUCODE].DESC_BASE16,dl
 ;
 ; The identity selectors: data for video memory (A000h-B800h) and code for
-; the adapter and system ROMs (C000h-F800h).
+; the adapter and system ROMs (C000h-F800h).  Video memory is DPL 3, so that
+; ring 3 programs can draw directly, too (eg, COMMAND.COM's graphics, with
+; the selector from the CONSOLE driver's IOCTL_GETMODE).
 ;
 	mov	bx,SEL_VIDEO
 di4a:	lea	di,[bx+SYS_GDT]
@@ -2899,7 +2978,7 @@ di4a:	lea	di,[bx+SYS_GDT]
 	stosw				; base bits 15-0
 	mov	ax,bx
 	shr	ax,12			; AL = base bits 23-16
-	mov	ah,ACC_DATA
+	mov	ah,ACC_DATA + ACC_DPL3
 	cmp	bx,SEL_ROM
 	jb	di4b
 	mov	ah,ACC_CODE
@@ -3165,7 +3244,8 @@ ENDPROC	pm_test
 ; Returns the default gate for an entry in the protected-mode IDT: exceptions
 ; (00h-02h and 06h-0Fh) go to exc_stubs, hardware interrupts (70h-7Fh) to
 ; irq_stubs, and everything else (software interrupts, which ring 3 may use)
-; to sw_int.
+; to sw_int.  Ring 3 may also issue INT 0 (eg, FPU$ signals a divide error
+; with it), since its frame is the same as a divide error's.
 ;
 ; Inputs:
 ;	BL = IDT entry
@@ -3190,7 +3270,10 @@ idd1:	mov	al,bl
 	jb	idd1a
 	cmp	al,INT_UD		; 03h-05h are software interrupts
 	jb	idd2
-idd1a:	mov	ah,5			; each exception stub is 5 bytes
+idd1a:	test	al,al			; INT 0?
+	jnz	idd1b			; no
+	mov	dh,ACC_INTGATE + ACC_DPL3
+idd1b:	mov	ah,5			; each exception stub is 5 bytes
 	mul	ah
 	add	ax,offset DEV:exc_stubs
 	ret
@@ -3211,7 +3294,7 @@ ENDPROC	idt_default
 	DESC	<0,0,0,0,0>				; (unused)
 	DESC	<0FFFFh,BIOS_DATA+100h,0,ACC_CODE,0>	; SEL_DDINT
 	DESC	<INT_DOSCALL5*4+4,0,0,ACC_CODE,0>	; SEL_C5CODE
-	DESC	<INT_DOSCALL5*4,SEL_C5CODE,0,ACC_CALLGATE,0>
+	DESC	<INT_DOSCALL5*4,SEL_C5CODE,0,ACC_CALLGATE+ACC_DPL3,0>
 	DESC	<TSS_LEN-1,SYS_TSS-10h,SYS_BASE16,ACC_TSS,0>	; SEL_TSS
 	DEFLBL	gdt_init_end,byte
 	ASSERT	<offset gdt_init_end - offset gdt_init>,EQ,<(GDT_FIXED-1)*8>

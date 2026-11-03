@@ -165,7 +165,7 @@ DOS_UTL_QRYMEM	equ	1Fh	; query memory block N (CX) of type (DL)
 DOS_UTL_TERM	equ	20h	; terminate with exit code (DL) and type (DH)
 DOS_UTL_RESTART	equ	21h	; restart ("reboot") the system
 DOS_UTL_GETDATE	equ	22h	; get date (AX) in "packed" format
-DOS_UTL_GETTIME	equ	23h	; get time (AX) in "packed" format
+DOS_UTL_GETTIME	equ	23h	; get time (AX) in "packed" format (or ticks)
 DOS_UTL_INCDATE	equ	24h	; increment date (CX=year, DH=month, DL=day)
 DOS_UTL_EDITLN	equ	25h	; edit line (DS:DX)
 DOS_UTL_SOUND	equ	26h	; sound (DX = PIT divisor) for CX ticks

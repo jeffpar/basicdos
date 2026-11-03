@@ -81,7 +81,7 @@ Unlike PC DOS, BASIC-DOS doesn't give a program all available memory: a COM prog
 
 Each session is described by a Session Control Block (see [SCB](../data/#scb)), which records the session's console context, standard file handles, current PSP, stack, DTA, CTRL-C and exit handlers, and wait state.
 
-Sessions are scheduled preemptively: hardware interrupt handlers (eg, the CLOCK$ driver's timer handler) exit through DDINT_LEAVE, which can switch to another runnable session.  A session that's waiting for something (eg, keyboard input or a timer) calls DOS_UTL_WAIT with a wait ID, which makes it non-runnable until a driver calls DOS_UTL_ENDWAIT with the same ID.
+Sessions are scheduled preemptively: hardware interrupt handlers (eg, the CLOCK$ driver's timer handler) exit through DDINT_LEAVE, which can switch to another runnable session.  A session that's waiting for something (eg, keyboard input or a timer) calls DOS_UTL_WAIT with a wait ID, which makes it non-runnable until a driver calls DOS_UTL_ENDWAIT with the same ID.  With an 8087 (or 80287), each session also has its own FPU state, which the switch saves and restores (see [Floating-Point Interface](../fpu/)).
 
 Code that must not be interrupted by a session switch can use DOS_UTL_LOCK and DOS_UTL_UNLOCK; a switch requested while the session is locked is deferred until it's unlocked.
 

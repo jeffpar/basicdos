@@ -24,7 +24,7 @@ DOS	segment word public 'CODE'
 	EXTWORD	<dos_data,scb_active>
 	EXTNEAR	<get_psp,scb_release>
 
-	EXTBYTE	<scb_locked>
+	EXTBYTE	<scb_locked,load_user,prog_user>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -54,14 +54,34 @@ ma1:	xchg	bx,ax			; BX = owner
 	mov	ax,[bp].REG_BX
 	call	para_len		; SI:DI = length
 	mov	ax,CPU_ALLOC SHL 8
-	test	dl,MCBTYPE_HIGH
+;
+; With ring 3 programs, a block is DPL 3 (MEMF_USER) for a program that's
+; being loaded for ring 3 (load_user is MEMF_USER, or 1 for ring 0; see
+; psp_exec and scb_load), or otherwise, for a caller at ring 3.
+;
+	cmp	[prog_user],0		; ring 3 programs?
+	je	ma1a			; no
+	mov	al,[load_user]
+	test	al,al			; loading a program?
+	jnz	ma1b			; yes
+	test	byte ptr [bp].REG_CS,3	; a ring 3 caller?
+	jz	ma1a			; no
+	mov	al,MEMF_USER		; yes, so DPL 3
+ma1b:	and	al,MEMF_USER
+	jz	ma1a			; not a ring 3 program block
+	or	al,MEMF_LDT		; its memory goes in the session's LDT
+ma1a:	test	dl,MCBTYPE_HIGH
 	jz	ma2
 	or	al,MEMF_HIGH
-ma2:	push	dx
+ma2:	mov	dh,al			; DH = MEMF_* flags
+	push	dx
 	call	far ptr DDINT_CPU	; AX = segment, DX:CX = address
-	pop	si			; SI = type
+	pop	si			; SI = type (and flags)
 	jc	ma8
-	mov	[bp].REG_AX,ax
+	test	si,MEMF_USER SHL 8	; DPL 3?
+	jz	ma3			; no
+	or	al,3			; yes, so RPL 3 too (eg, for SS)
+ma3:	mov	[bp].REG_AX,ax
 	xchg	ax,si
 	and	al,NOT MCBTYPE_HIGH	; AL = type
 	sub	si,si			; SI = 0 (no name)
@@ -276,6 +296,51 @@ ENDPROC	mem_pmb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; get_pname
+;
+; Copies the 8-byte name of the program whose PSP is in AX to the caller's
+; buffer at ES:DI (filled with zeros if there's no program, or no block for
+; it), so that a caller (eg, RESTART, via scb_query) needn't treat PSP-1 as
+; an MCB segment, which isn't a valid selector in protected mode.
+;
+; Inputs:
+;	AX = PSP (zero if none)
+;	ES:DI -> 8-byte buffer
+;	DS = DOS
+;
+; Outputs:
+;	ES:DI buffer filled; ES:DI advanced by 8
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+DEFPROC	get_pname,DOS
+	test	ax,ax			; is there a program?
+	jz	gpn8			; no
+	push	es
+	push	di			; save the caller's buffer
+	mov	cx,ax
+	mov	dx,-1			; DX:CX = the PSP's block
+	mov	bx,-1			; BX = -1 (query the block at DX:CX)
+	push	ds
+	pop	es
+	mov	di,offset pmb_buf	; ES:DI -> our PMB buffer
+	call	mem_pmb
+	pop	di
+	pop	es			; ES:DI -> the caller's buffer again
+	jc	gpn8			; no such block, so no name
+	mov	si,offset pmb_buf + PMB_NAME
+	mov	cx,4
+	rep	movsw			; DS:SI (our PMB) -> ES:DI (caller)
+	ret
+gpn8:	sub	ax,ax
+	mov	cx,4
+	rep	stosw			; no name, so zero the 8 bytes
+	ret
+ENDPROC	get_pname
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; mcb_setname
 ;
 ; Makes the PSP at DX the owner of its block, and gives the block a name.
@@ -320,7 +385,12 @@ ENDPROC	mcb_setname
 ; selector for the same memory as the block's selector, which CPU$ creates
 ; only once and frees with the block (see CPU_ALIAS); in real mode, the
 ; block's own segment.  load_program uses it for a COM program's CS, and
-; programs get it with DOS_UTL_ALIAS (see utl_alias).
+; programs get it with DOS_UTL_ALIAS (see utl_alias).  When programs run at
+; ring 3 (see prog_user), the alias has RPL 3 while psp_exec loads a ring 3
+; program (see load_user), or for a ring 3 caller, which is how psp_exec
+; knows to start the program at ring 3 (see r3_start); it also keeps the
+; PCjs emulator, which takes a gate's new CPL from its selector's RPL, from
+; trying to enter a ring 3 program's interrupt handler at ring 0.
 ;
 ; Inputs:
 ;	AX = block's segment (or selector)
@@ -339,7 +409,19 @@ DEFPROC	mem_alias,DOS
 	xchg	bx,ax
 	mov	ax,(CPU_ALIAS SHL 8) OR MEMF_CODE
 	call	far ptr DDINT_CPU
-	pop	dx
+	jc	mas9
+	cmp	cs:[prog_user],0	; ring 3 programs?
+	je	mas9			; no
+	mov	cl,cs:[load_user]
+	test	cl,cl			; loading a program (see mem_alloc)?
+	jnz	mas8			; yes
+	test	byte ptr [bp].REG_CS,3	; a ring 3 caller?
+	jz	mas9			; no
+	mov	cl,MEMF_USER
+mas8:	test	cl,MEMF_USER		; for ring 3?
+	jz	mas9			; no
+	or	al,3			; yes, so RPL 3
+mas9:	pop	dx
 	pop	cx
 	pop	bx
 	ret

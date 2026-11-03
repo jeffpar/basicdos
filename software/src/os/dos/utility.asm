@@ -20,6 +20,7 @@ DOS	segment word public 'CODE'
 
 	EXTNEAR	<sfb_from_sfh,sfb_write>
 	EXTNEAR	<atoi,atoi_len,atoi_base,itoa,sprintf,write_string>
+	EXTWORD	<sprintf_hook>
 
 	EXTBYTE	<sfh_debug>
 	EXTWORD	<scb_active>
@@ -243,7 +244,7 @@ up1:	mov	bl,0
 	mov	bx,[bp].REG_BX		; yes
 	mov	ds,[bp].REG_DS
 hp1:	push	ax			; save the flags
-	call	sprintf
+	call	cs:[sprintf_hook]	; (see r3_sprintf)
 	mov	[bp].REG_AX,ax		; update REG_AX with count in AX
 	pop	dx
 	test	dl,SPF_TYPED		; was the format inline?
@@ -339,7 +340,7 @@ DEFPROC	utl_sprintf,DOS
 	mov	es,[bp].REG_ES
 	ASSUME	DS:NOTHING, ES:NOTHING
 	mov	bx,[bp].REG_BX		; DS:BX -> format string
-	call	sprintf
+	call	cs:[sprintf_hook]	; (see r3_sprintf)
 	mov	[bp].REG_AX,ax		; update REG_AX with count in AX
 	mov	[bp].REG_IP,bx		; update REG_IP with final address
 	ret

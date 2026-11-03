@@ -14,6 +14,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<ctrlc,restoreMode,firstBlock,nextBlock,codeSeg>
+	EXTWORD	<CODE_DS>
 	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -233,7 +234,19 @@ DEFPROC	getFPUFunc
 	lds	si,cs:[FPU_TABLE]
 	mov	ax,[si+bx]
 	mov	dx,ds
-	pop	si
+;
+; FPU$'s functions are conforming code (any ring can call them; see FPUTBL),
+; but fpuOp reaches them with a RETF, which faults unless the selector's RPL
+; is at least our CPL, so in protected mode (when CS, a code alias, isn't the
+; same as CODE_DS), we set its RPL to our CPL (from CS).  A real-mode
+; segment's low bits aren't an RPL, so they must not change DX.
+;
+	mov	si,cs
+	cmp	si,cs:[CODE_DS]		; real mode?
+	je	gf9			; yes
+	and	si,3
+	or	dx,si
+gf9:	pop	si
 	pop	ds
 	ret
 ENDPROC	getFPUFunc

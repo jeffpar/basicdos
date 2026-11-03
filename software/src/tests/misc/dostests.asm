@@ -159,7 +159,12 @@ m6:	call	result
 	call	test_load
 	call	result
 	mov	dx,offset reservetest
-	call	print
+	mov	ax,cs
+	mov	bx,ds
+	cmp	ax,bx			; real mode (where CS = DS)?
+	je	m6a			; yes
+	mov	dx,offset mzexetest	; no (see test_reserve)
+m6a:	call	print
 	call	test_reserve
 	call	result
 m7:
@@ -666,10 +671,14 @@ ENDPROC	load_refcheck
 ; test_reserve
 ;
 ; EXEC and EXEC1 must ignore CH, while EXEC6 must reserve memory for the CH
-; programs to follow.  A tiny EXE requests all available memory and reports
-; its allocation into this process before exiting.  Compare EXEC with CH=0
-; and FFh, EXEC1 with CH=FFh, and EXEC6 with CH=0 and 1, starting each
-; loaded child with EXEC2.
+; programs to follow (eg, the rest of a pipeline).  A tiny EXE requests all
+; available memory and reports its allocation into this process before
+; exiting.  Compare EXEC with CH=0 and FFh, EXEC1 with CH=FFh, and EXEC6 with
+; CH=0 and 1, starting each loaded child with EXEC2.
+;
+; In protected mode, where an MZ EXE can't be loaded (see load_ne), the EXEC
+; must refuse the fixture instead, with ERR_NOMEMORY ("Unable to load X"),
+; and leave no memory allocated.
 ;
 DEFPROC	test_reserve
 	mov	[reserveparent],ds
@@ -699,6 +708,10 @@ rv0:	mov	ah,DOS_HDL_CLOSE
 	mov	[execparms].EPB_CMDTAIL.SEG,ds
 	mov	[execparms].EPB_FCB1.SEG,ds
 	mov	[execparms].EPB_FCB2.SEG,ds
+	mov	ax,cs
+	mov	bx,ds
+	cmp	ax,bx			; real mode (where CS = DS)?
+	jne	rv9			; no
 	xor	cx,cx
 	mov	ax,DOS_PSP_EXEC
 	call	reserve_exec
@@ -736,7 +749,39 @@ rv8:	pushf
 	int	21h
 	popf
 	ret
+rv9:	call	max_paras
+	push	bx
+	xor	cx,cx
+	mov	ax,DOS_PSP_EXEC
+	call	reserve_exec
+	pop	dx			; DX = the largest block before
+	cmc				; carry set if it loaded
+	jc	rv8
+	cmp	ax,ERR_NOMEMORY		; refused as expected?
+	jne	rv7			; no
+	call	max_paras
+	cmp	bx,dx			; with nothing left allocated?
+	je	rv8			; yes (and carry is clear)
+	jmp	rv7
 ENDPROC	test_reserve
+
+;
+; max_paras
+;
+; Returns BX = the size of the largest block that DOS_MEM_ALLOC could
+; allocate (FFFFh for any size, eg, with extended memory).
+;
+DEFPROC	max_paras
+	mov	bx,0FFFFh
+	mov	ah,DOS_MEM_ALLOC
+	int	21h
+	jc	mp9			; BX = the largest
+	mov	es,ax
+	mov	ah,DOS_MEM_FREE
+	int	21h
+	mov	bx,0FFFFh
+mp9:	ret
+ENDPROC	max_paras
 
 ;
 ; reserve_exec
@@ -832,7 +877,8 @@ loadchild	db		"LOADTEST.COM",0
 ;
 loadimage	db		0CDh,20h
 
-reservetest	db		"EXEC reservation test $"
+reservetest	db		"pipeline reservation test $"
+mzexetest	db		"MZ EXE refusal test $"
 reservefile	db		"EXECTEST.EXE",0
 reservebase	dw		0
 reserveparas	dw		0

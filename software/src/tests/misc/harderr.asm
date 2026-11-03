@@ -14,6 +14,7 @@
 	include	devapi.inc
 	include	8086.inc
 	include	bios.inc
+	include	cpu.inc
 
 RW_SIZE equ	4096
 
@@ -52,8 +53,10 @@ CODE    SEGMENT
 ;
 ; Metadata tests then fail writes to each FAT copy and to the directory,
 ; returning FAIL from INT 24h.  A second disk reset must try the write again.
-; After a successful reset, BIOS reads verify the saved metadata on disk,
-; and reopening the file verifies its size, cluster chain, and contents.
+; After a successful reset, BIOS reads verify the saved metadata on disk (in
+; real mode only, since in protected mode, the diskette BIOS can't reach our
+; memory), and reopening the file verifies its size, cluster chain, and
+; contents.
 ;
 ; Finally, fail FAT reads while locating a cluster after a seek.  The read
 ; must return the error without changing the destination or advancing the
@@ -66,6 +69,10 @@ CODE    SEGMENT
 ; Large volume writes check unsigned byte counts around 32K and 64K.
 ; The BIOS hook counts these writes and reports success without writing
 ; the disk, so the volume's contents are preserved.
+;
+; A program running at ring 3 (see RING= in CONFIG.SYS) can't hook INT 13h,
+; since FDC$ issues INT 13h at ring 0, so it skips the tests that need the
+; hook.
 ;
 ; "HARDERR passed" is printed before the ABORT test, so a BAT file (or script)
 ; should check for both that message and ERRORLEVEL 255.
@@ -81,6 +88,7 @@ DEFPROC	main
 	DOSUTIL	GETCSN			; CL = our session #
 	mov	dl,cl
 	sub	cx,cx			; CL = session # (from 0)
+	mov	di,ds:[PSP_HEAP]	; ES:DI -> buffer for console names
 m0:	DOSUTIL	QRYSCB			; AX = session's PSP (zero if none)
 	jc	m1			; no more sessions
 	cmp	cl,dl			; is it our session?
@@ -142,9 +150,7 @@ m1:	mov	dx,offset starting
 	jne	m8
 	cmp	[count],1
 	jne	m8
-	call	data_retries
-	jc	m8
-	call	volume_writes
+	call	hook_tests
 	jc	m8
 	mov	dx,offset passed
 	call	print
@@ -181,6 +187,32 @@ DEFPROC	trigger
 	int	21h
 	ret
 ENDPROC	trigger
+
+;
+; hook_tests
+;
+; Runs the tests that need the INT 13h hook (data_retries and volume_writes,
+; which include the metadata and seek tests), unless we're running at ring 3,
+; where we print "HARDERR hook tests skipped" instead.
+;
+; Outputs:
+;	Carry set if any test failed
+;
+DEFPROC	hook_tests
+	mov	ax,cs
+	cmp	ax,[data_seg]		; real mode (where CS = DS)?
+	je	ht1			; yes
+	test	al,3			; ring 3?
+	jnz	ht8			; yes
+ht1:	call	data_retries
+	jc	ht9
+	call	volume_writes
+ht9:	ret
+ht8:	mov	dx,offset hookskip
+	call	print
+	clc
+	ret
+ENDPROC	hook_tests
 
 ;
 ; data_retries
@@ -587,9 +619,15 @@ ENDPROC	check_metadata
 ;
 ; Read the failed sector through the BIOS and compare it with the snapshot.
 ; Align the destination on a physical 512-byte boundary inside the second
-; heap buffer, so that this read cannot cross a DMA boundary.
+; heap buffer, so that this read cannot cross a DMA boundary.  In protected
+; mode, ES must be a selector and our memory is beyond the diskette BIOS's
+; reach (see pm_rw in fdcdev.asm), so we skip the read.
 ;
 DEFPROC	metadata_sector
+	mov	ah,CPU_GETINFO
+	call	far ptr DDINT_CPU	; AH = CPUF_* flags
+	test	ah,CPUF_PM		; protected mode?
+	jnz	ms9			; yes (and carry is clear)
 	mov	ax,cs
 	mov	dx,ds:[PSP_HEAP]
 	add	dx,RW_SIZE+512+15
@@ -815,13 +853,17 @@ DEFPROC	delete_failure
 	jnc	df0a
 df0:	jmp	df8
 ;
-; The two original BIOS buffers remain in the circular buffer chain.
-; Find the fixture's entry in a cached directory sector before deleting it.
+; The two original BIOS buffers remain in the circular buffer chain, so
+; start with the buffer after FAT_BUFHDR, whose BUF_NEXT is a segment in real
+; mode and a selector in protected mode.  Find the fixture's entry in a cached
+; directory sector before deleting it.
 ;
-df0a:	mov	ax,offset FAT_BUFHDR + BIOS_DATA
-	mov	cl,4
-	shr	ax,cl
-	mov	bp,ax			; BP = first buffer's paragraph
+df0a:	mov	ax,BIOS
+	mov	es,ax
+	ASSUME	ES:BIOS
+	mov	ax,[FAT_BUFHDR].BUF_NEXT
+	ASSUME	ES:CODE
+	mov	bp,ax			; BP = first buffer's segment/selector
 df1:	mov	es,ax
 	cmp	es:[BUF_TYPE],((offset DIR_BUFHDR)-(offset FAT_BUFHDR)) AND 0FFh
 	jne	df4			; inspect only directory buffers
@@ -1017,6 +1059,7 @@ metaresponses	db	CRERR_FAIL,CRERR_FAIL
 metapassed	db	"HARDERR metadata passed",13,10,'$'
 metafailed	db	"HARDERR metadata failed",13,10,'$'
 seekpassed	db	"HARDERR seek passed",13,10,'$'
+hookskip	db	"HARDERR hook tests skipped (ring 3)",13,10,'$'
 seekfailed	db	"HARDERR seek failed",13,10,'$'
 deletepassed	db	"HARDERR delete passed",13,10,'$'
 deletefailed	db	"HARDERR delete failed",13,10,'$'

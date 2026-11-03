@@ -98,7 +98,7 @@ DEFPROC	cmdTime
 	TESTSW	<'D'>			; /D present?
 	jz	tm3			; no
 
-	DOSUTIL	GETTIME
+	DOSUTIL	GETTIME,0
 	push	cx			; CX:DX = current time
 	push	dx
 	push	bx
@@ -148,7 +148,7 @@ tm7:	clc
 
 	DEFLBL	promptTime,near
 	jnc	tm8
-	DOSUTIL	GETTIME			; GETTIME returns packed time
+	DOSUTIL	GETTIME,0		; GETTIME returns packed time
 	mov	[bx].PREV_TIME.LOW,dx
 	mov	[bx].PREV_TIME.HIW,cx
 

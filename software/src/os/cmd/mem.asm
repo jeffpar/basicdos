@@ -23,7 +23,7 @@ CODE    SEGMENT
 ; cmdMem
 ;
 ; Prints memory usage: the total memory (all of it, including any extended
-; memory; see DV_MEM_SIZE), the available memory (which includes COMMAND's
+; memory; see DOS_MSC_GETVARS), the available memory (which includes COMMAND's
 ; transient portion, if it can be discarded; see transParas), and if it can,
 ; the memory available for BASIC programs, followed by a line for anything
 ; that's unavailable: floating-point, if the FPU$ driver isn't loaded (see
@@ -41,8 +41,7 @@ CODE    SEGMENT
 ;
 DEFPROC	cmdMem
 	mov	ah,DOS_MSC_GETVARS
-	int	21h			; ES:BX -> DOSVARS + 2
-	mov	ax,es:[bx-2].DV_MEM_SIZE
+	int	21h			; AX = total memory (in Kb)
 	mov	cx,1024
 	mul	cx			; DX:AX = total memory (in bytes)
 	PRINTF	<"%8ld bytes total",13,10>,ax,dx

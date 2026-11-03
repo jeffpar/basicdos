@@ -9,6 +9,7 @@
 ;
 	include	macros.inc
 	include	devapi.inc
+	include	dos.inc
 
 	EXTNEAR	<sysinit>
 
@@ -51,6 +52,18 @@ DOS	segment word public 'CODE'
 	DEFWORD	dos_data,0		; our data segment (see sysinit)
 	DEFBYTE	err_active,0
 	DEFWORD	call5_gate,0		; CALL 5 call gate (see set_call5)
+	DEFWORD	fpu_seg,0		; sessions' FPU states (see init_fpu)
+	DEFBYTE	prog_user,0		; MEMF_USER for ring 3 (see set_fault)
+	DEFBYTE	load_user,0		; nonzero while loading (mem_alloc)
+	DEFWORD	r3_code,0		; ring 3 code alias (see r3_stub)
+	DEFWORD	r3_vsel,0		; ring 3 vector stubs (see RVEC)
+	DEFWORD	r3_cbsp,0		; ring 3 ERROR handler (see r3_error)
+	DEFPTR	r3_cbsp0
+	DEFWORD	r3_stseg,0		; sessions' ring 0 stacks (see r3_top)
+	DEFLBL	cmdline_buf,byte	; scb_load stages a command line
+	db	CMDLINE_MAX dup(?)	; here (see stage_cmdline)
+	EXTNEAR	sprintf
+	DEFWORD	sprintf_hook,<offset sprintf>	; (see r3_sprintf)
 
 	DEFBYTE	bpb_total,0		; total number of BPBs
 	DEFBYTE	sfh_debug,-1		; system file handle for DEBUG device
