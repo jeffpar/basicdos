@@ -800,6 +800,7 @@ DEFPROC	reserve_exec
 	jc	re9
 	test	dl,dl			; loaded but not started?
 	jz	re8
+	sub	dx,dx			; DX = 0 (not a debugger single-step)
 	mov	ax,DOS_PSP_EXEC2
 	int	21h
 	jc	re9

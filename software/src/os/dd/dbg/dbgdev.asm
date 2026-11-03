@@ -18,7 +18,11 @@
 ; program's termination) exits.  Without a program, the registers are as of
 ; DEBUG's own start (PSP:0100h, where a RET makes G exit).  A switch performs
 ; one command and exits (eg, DEBUG /DB 40:0 or DEBUG /DM).  Any value may also
-; be a 16-bit register name (eg, DB DS:DX).
+; be a 16-bit register name (eg, DB DS:DX).  In protected mode, where programs
+; run at ring 3 (unless CONFIG.SYS has RING=0), the program and DEBUG both do,
+; and DEBUG can't call CPU$, so it reaches memory only through selectors that
+; ring 3 can use, and it has no DM, DS, LN, & or # addresses, system
+; registers, or fault traps (see r3_cpu in dbginit.asm).
 ;
 ; Ctrl-C or a serial BREAK stops the machine as soon as it arrives (via the
 ; port's hardware interrupt), as do breakpoints, single-steps (T and P), and
@@ -36,9 +40,10 @@
 ; current instruction, and then accepts commands (? lists them) until G, GT,
 ; P, or T.
 ;
-; Memory is read and written through CPU$ (see CPU_RWMEM), which checks every
-; address, and can store breakpoints in code segments (but not in the parts
-; of CPU$ that we call, such as DDINT_CPU itself).  When CPU$ is the
+; Memory is read and written through CPU$ (see CPU_RWMEM, and cpu_call, which
+; every CPU$ call goes through), which checks every address, and can store
+; breakpoints in code segments (but not in the parts of CPU$ that we call,
+; such as DDINT_CPU itself).  When CPU$ is the
 ; 80286 driver (see CPU_SYSREGS), we work in either mode: the prompt is #
 ; in protected mode (- in real mode), an address may start with & (real
 ; mode) or # (protected mode), and otherwise has the processor's current
@@ -67,7 +72,8 @@ CODE	segment para public 'CODE'
 
 	EXTNEAR	<com_main,com_quit,dbgdev_init>
 	EXTNEAR	<chk_over,dis_line>
-	public	gl1,mon3a,mon4,mon4a	; (patched by dbginit.asm)
+	public	gl1,mon3a,mon4,mon4a,ct1v,cg1	; (patched by dbginit.asm)
+	public	ct2a
 
 ;
 ; When run as a program, execution begins at the DDH, so DDH_NEXT_OFF holds a
@@ -110,6 +116,8 @@ REGS_LEN	equ	28
 BP_SET		equ	02h	; breakpoint is set
 BP_ARMED	equ	04h	; breakpoint's INT 3 is in memory
 BP_STEP		equ	08h	; temporary breakpoint ends a P step
+BP_GO		equ	10h	; temporary breakpoint resumes (see r3_go)
+	public	BP_SET,BP_GO	; (see com_main)
 CPU_DUAL	equ	80h	; cpu_mode: CPU$ is the 80286 driver
 BP_SIZE		equ	6
 NUM_BPS		equ	10
@@ -164,6 +172,8 @@ TRACE_OVER	equ	02h	; step over CALL, INT, LOOP, and REP (P)
 					; or 0
 	DEFBYTE	fault_vec,0		; the vector of a fault (or INT 0 or 4)
 	DEFBYTE	brk_skip,0		; nonzero to resume past a DBGBRK
+	DEFBYTE	notstart,0		; loaded, not yet started (prog mode)
+	DEFWORD	start_hook,0		; -> com_exec2 (see com_main)
 	DEFWORD	fault_ec,0		; and its error code
 	DEFBYTE	tracing,0		; 1 for T or P, 2 for G past a BP
 	DEFBYTE	trace_mode,0		; TRACE_* flags (0 after other stops)
@@ -244,6 +254,7 @@ PM_FLAG_MASK	equ	0FD5h	; OF, DF, IF, TF, SF, ZF, AF, PF, and CF
 	dw	cmd_e
 	db	'G'
 	dw	cmd_g
+	DEFLBL	CMD_LN,byte		; (program mode at ring 3 changes this)
 	db	'L'
 	dw	cmd_l
 	db	'P'
@@ -254,6 +265,7 @@ PM_FLAG_MASK	equ	0FD5h	; OF, DF, IF, TF, SF, ZF, AF, PF, and CF
 	dw	cmd_t
 	db	'U'
 	dw	cmd_u
+	DEFLBL	CMD_VEC,byte		; (program mode at ring 3 changes this)
 	db	'V'
 	dw	cmd_v
 	db	'?'
@@ -503,7 +515,7 @@ DEFPROC	monitor
 	pop	es
 	mov	di,offset sys_regs	; ES:DI -> GDTR and IDTR buffer
 	mov	ah,CPU_SYSREGS
-	call	far ptr DDINT_CPU	; AX = MSW, CX = LDTR, DX = TR
+	call	cpu_call		; AX = MSW, CX = LDTR, DX = TR
 	mov	bl,0
 	jc	mon0			; it's not the 80286 driver
 	mov	sys_regs[12],ax
@@ -548,7 +560,8 @@ mon0b:	call	arm			; no, G past a breakpoint
 mon0c:	call	disarm			; (DL is zero, since arm zeroes it)
 ;
 ; Reaching the temporary breakpoint, however we got there, clears it, and if
-; P set it, the P step is done.
+; P set it, the P step is done; if G set it after an INT at ring 3 (BP_GO),
+; we resume.
 ;
 mon1:	mov	bx,offset bp_tab
 	call	bp_mem
@@ -556,7 +569,10 @@ mon1:	mov	bx,offset bp_tab
 	jne	mon1a			; no
 	mov	al,0
 	xchg	al,[bx+5]		; yes, so clear it
-	and	al,BP_STEP
+	test	al,BP_GO		; and resume (see r3_go)?
+	jz	mon1b			; no
+	jmp	cg1
+mon1b:	and	al,BP_STEP
 	or	dl,al
 mon1a:	test	dl,dl			; is a T or P step done?
 	jz	mon2			; no
@@ -677,7 +693,11 @@ ENDPROC	monitor
 ; in the interrupt frame instead, since the IRET pops those, too.
 ;
 DEFPROC	resume
-	les	di,dword ptr regs[R_SP]
+	cmp	[notstart],0		; a loaded program not yet started?
+	jz	rsa			; no
+	mov	[notstart],0		; yes, so start it (see com_exec2)
+	jmp	[start_hook]
+rsa:	les	di,dword ptr regs[R_SP]
 	call	chk_ring		; resuming another ring?
 	jz	rs1			; no
 	call	put_sssp		; yes, ES:BX -> its SS:SP in the frame
@@ -1221,7 +1241,11 @@ ct1:	mov	[trace_cnt],ax
 	cmp	al,0CDh			; INT n?
 	jne	ct2			; no
 	mov	al,ah
-	call	far ptr DDINT_GETVEC	; DX:CX = vector
+;
+; Program mode at ring 3 makes this a JMP to ct2a, which steps over an INT n,
+; since tracing into its ring 0 handler would trap where we can't stop.
+;
+ct1v:	call	far ptr DDINT_GETVEC	; DX:CX = vector
 	jc	ct2			; there's none (eg, in protected mode)
 	mov	ax,cs
 	cmp	dx,ax			; is it one of ours (eg, INT 3)?
@@ -1448,14 +1472,13 @@ ENDPROC	cmd_l
 ; DM displays memory in address order, as CPU$ describes it (see CPU_QUERY):
 ; each block's address, length, owner, and name (or type), after any memory
 ; below the first block (see ma_low), with each of the system's blocks shown
-; as the drivers in it (see ma_drvs).
+; as the drivers in it (see ma_drvs).  If CPU$ describes no blocks (eg, at
+; ring 3, where we can't call it), DM is invalid.
 ;
 DEFPROC	dump_blocks
 	call	end_command
-	jnc	ma0
+	jnc	ma_walk
 	ret
-ma0:	mov	si,offset MA_HDR
-	call	put_string
 	DEFLBL	ma_walk,near		; (see put_name)
 	sub	sp,size PMB
 	mov	di,sp
@@ -1463,10 +1486,12 @@ ma0:	mov	si,offset MA_HDR
 	pop	es			; ES:DI -> PMB buffer
 	sub	bx,bx			; BX = PMB #
 ma1:	mov	ah,CPU_QUERY
-	call	far ptr DDINT_CPU
+	call	cpu_call
 	jc	ma9			; no more blocks
 	test	bx,bx			; the first block?
 	jnz	ma2			; no
+	mov	si,offset MA_HDR
+	call	put_string
 	call	ma_low
 ma2:	call	ma_sys			; a block of the system's?
 	jnc	ma6			; yes (and it's displayed)
@@ -1496,7 +1521,7 @@ ma5:	call	ma_name
 ma6:	inc	bx
 	jmp	ma1
 ma9:	add	sp,size PMB
-	clc
+	cmp	bx,1			; were there any blocks (carry if not)?
 	ret
 ENDPROC	dump_blocks
 
@@ -2050,7 +2075,7 @@ ENDPROC	at_ip
 DEFPROC	lin_addr
 	and	al,ADDR_SEL OR ADDR_PHYS
 	mov	ah,CPU_SEGINFO
-	call	far ptr DDINT_CPU	; DX:CX = base address
+	call	cpu_call		; DX:CX = base address
 	jc	la9
 	add	cx,di
 	adc	dx,0			; (carry is clear)
@@ -2519,7 +2544,7 @@ ENDPROC	put_dtr
 DEFPROC	put_desc
 	xchg	bx,ax
 	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_SEL
-	call	far ptr DDINT_CPU	; DX:CX = base, AX = limit
+	call	cpu_call		; DX:CX = base, AX = limit
 	jc	pd9
 	DEFLBL	put_bl,near
 	push	ax
@@ -3109,13 +3134,13 @@ DEFPROC	dump_sel
 	push	ax
 	or	al,ADDR_RIGHTS
 	mov	ah,CPU_SEGINFO
-	call	far ptr DDINT_CPU	; AX = access rights (zero if none)
+	call	cpu_call		; AX = access rights (zero if none)
 	pop	si
 	jnc	dsl0a
 dsl0:	ret
 dsl0a:	xchg	si,ax			; SI = rights, AL = mode
 	mov	ah,CPU_SEGINFO
-	call	far ptr DDINT_CPU	; DX:CX = base, AX = limit
+	call	cpu_call		; DX:CX = base, AX = limit
 	mov	bx,si			; BL = access rights, BH = extended
 	push	ax			; save the limit (or offset)
 	mov	si,offset SELS_BASE	; "base=" and " limit="
@@ -3306,7 +3331,7 @@ DEFPROC	mem_io
 	pop	es
 	mov	di,offset mem_val	; ES:DI -> mem_val
 	mov	ah,CPU_RWMEM
-	call	far ptr DDINT_CPU
+	call	cpu_call
 	mov	ax,[mem_val]
 	jnc	mi9
 	mov	ax,-1
@@ -3318,6 +3343,20 @@ mi9:	pop	es
 	pop	bx
 	ret
 ENDPROC	mem_io
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cpu_call
+;
+; Every CPU$ call goes through here, so that program mode at ring 3, where
+; CPU$ can't be called, can make this a JMP to r3_cpu instead (see com_main).
+; Since a near CALL is relative, com_sels and com_free can use it, too, from
+; CS before (or after) it's rebased.
+;
+DEFPROC	cpu_call
+	call	far ptr DDINT_CPU
+	ret
+ENDPROC	cpu_call
 
 CODE	ends
 

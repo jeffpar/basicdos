@@ -23,17 +23,17 @@ INT_DOSFUNC	equ	21h	; DOS function interface
 INT_DOSEXIT	equ	22h	; exit return address
 INT_DOSCTRLC	equ	23h	; CTRL-C notification address
 INT_DOSERROR	equ	24h	; critical error notification address
-INT_DISKREAD	equ	25h	; absolute disk read
-INT_DISKWRITE	equ	26h	; absolute disk write
-INT_DOSTSR	equ	27h	; terminate-and-stay-resident
-INT_DOSIDLE	equ	28h	; idle notification
+INT_DISKREAD	equ	25h	; absolute disk read (not supported)
+INT_DISKWRITE	equ	26h	; absolute disk write (not supported)
+INT_DOSTSR	equ	27h	; terminate-and-stay-resident (not supported)
+INT_DOSIDLE	equ	28h	; idle notification (not supported)
 INT_FASTCON	equ	29h	; fast console I/O (VKD$, else dos_fastcon)
-INT_DOSNET	equ	2Ah	; network check
+INT_DOSNET	equ	2Ah	; network check (not supported)
 INT_DOSRES1	equ	2Bh	; reserved
 INT_DOSRES2	equ	2Ch	; reserved
 INT_DOSRES3	equ	2Dh	; reserved
-INT_DOSCMD	equ	2Eh	; COMMAND.COM operation
-INT_DOSMULTI	equ	2Fh	; multiplex function interface
+INT_DOSCMD	equ	2Eh	; COMMAND.COM operation (not supported)
+INT_DOSMULTI	equ	2Fh	; multiplex function interface (not supported)
 INT_DOSCALL5	equ	30h	; vector w/FAR JMP (overwrites vector 31h, too)
 INT_DOSUTIL	equ	32h	; DOS utility interface
 

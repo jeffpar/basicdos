@@ -7,10 +7,11 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; With a "RING=3" line in CONFIG.SYS (see set_fault), protected mode runs the
-; programs that EXEC starts at ring 3 (see psp_exec and prog_user), with DPL
-; 3 selectors (see mem_alloc).  This module, like dos_fault before it, is
-; resident only in protected mode.
+; In protected mode, unless a "RING=0" line in CONFIG.SYS keeps them at ring 0
+; (see set_fault), every session's first program (eg, COMMAND.COM) and the
+; programs that EXEC starts run at ring 3 (see r3_load, r3_start, and
+; prog_user), with DPL 3 selectors (see mem_alloc).  This module, like
+; dos_fault and the NE loader before it, is resident only in protected mode.
 ;
 ; A ring 3 program's ring 0 stack (CPU_SETSTACK) is its parent's stack, just
 ; below the parent's REG_FRAME (which the parent's PSP_STACK records), since

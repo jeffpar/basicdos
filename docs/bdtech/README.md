@@ -27,7 +27,13 @@ The BASIC-DOS Technical Reference describes BASIC-DOS's internal architecture an
 	- [Built-in Drivers](dev/#built-in-drivers)
 5. [Floating-Point Interface](fpu/) (FPU$)
 6. [Data Structures](data/)
-7. [Protected Mode and Memory Management](mmu/) (CPU$; a design for work in progress)
+7. [Protected Mode and Memory Management](mmu/) (CPU$)
+	- [The CPU$ Drivers](mmu/#cpu)
+	- [Physical Memory Arena](mmu/#arena)
+	- [Protected-Mode Initialization](mmu/#pminit)
+	- [Protected-Mode Interrupts](mmu/#interrupts)
+	- [Running Programs at Ring 3](mmu/#ring3)
+	- [Limitations](mmu/#limits)
 
 The definitions referred to throughout are found in the BASIC-DOS source code, primarily in these include files (in `software/src/os/inc`):
 

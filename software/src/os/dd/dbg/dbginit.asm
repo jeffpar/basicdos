@@ -27,14 +27,18 @@
 
 CODE	segment word public 'CODE'
 
-	EXTNEAR	<dbg_brk,dbg_fault,dbgdev_com,disarm>
+	EXTNEAR	<arm,cg1,cpu_call,ct1v,ct2a,dbg_brk,dbg_fault,dbgdev_com>
+	EXTNEAR	<cmd_help,cmd_l,disarm,ip_mem,peek_b,resume,skip_space,step>
 	EXTNEAR	<end_command>
 	EXTNEAR	<get_char,gl1,hex_digit,mon3a,mon4,mon4a,mon_sp,newline>
 	EXTNEAR	<put_char,put_raw,put_string>
 	EXTNEAR	<dc_0f>
-	EXTBYTE	<CMD_Q,OPTAB,com_flow,command,brk_skip>
-	EXTWORD	<com_port,dos_seg,vec_save>
+	EXTBYTE	<CMD_LN,CMD_Q,CMD_VEC,HELP_MSG,OPTAB,bp_tab,com_flow,command>
+	EXTBYTE	<brk_skip,mute,notstart,tracing>
+	EXTWORD	<start_hook>
+	EXTWORD	<com_port,dos_seg,mem_seg,vec_save>
 	EXTLONG	<old_com,old_fault>
+	EXTABS	<BP_SET,BP_GO>
 
 CMD_TAIL	equ	80h	; PSP_CMDTAIL (see com_main)
 
@@ -148,7 +152,7 @@ din1:	push	dx
 	mov	cx,offset dbg_fault
 	mov	dx,cs			; DX:CX -> dbg_fault
 	mov	ah,CPU_SETFAULT
-	call	far ptr DDINT_CPU	; DX:CX = previous handler
+	call	cpu_call		; DX:CX = previous handler
 	mov	[old_fault].OFF,cx
 	mov	[old_fault].SEG,dx
 	mov	si,offset BANNER
@@ -273,6 +277,7 @@ ENDPROC	skip_h
 	DEFBYTE	sw_char,0		; switch char
 	DEFBYTE	sw_halt,0		; nonzero after /H (or for our G)
 	DEFBYTE	sw_last,CHR_RETURN	; last byte from sw_get
+	DEFBYTE	com_r3,0		; nonzero at ring 3 (see com_sels)
 	DEFLBL	G_CMD,byte
 	db	"G",0
 
@@ -346,7 +351,7 @@ DEFPROC	set_cpu
 	push	cx
 	push	dx
 	mov	ah,CPU_GETINFO
-	call	far ptr DDINT_CPU	; AH = CPUF_* flags
+	call	cpu_call		; AH = CPUF_* flags
 	test	ah,CPUF_HWTYPE		; an 8086 or 8088?
 	jnz	sc9			; no
 	push	si
@@ -386,6 +391,12 @@ ENDPROC	set_cpu
 ; since only the driver hooks it (see dbgdev_init): DOS restores the others if
 ; a program ends with them hooked (see psp_restvec), but not INT 04h.
 ;
+; At ring 3, DOS gets and sets them instead, which reflects an interrupt from
+; ring 3 code in our session to our handler (see RVEC in ring3.asm), and gets
+; us a stub in place of the previous handler (which chains to it); setting
+; the stub again restores it.  INT 00h isn't hooked there, since only VT
+; needs it.
+;
 ; Inputs:
 ;	DS = our data (DDH_DATA)
 ;
@@ -403,11 +414,14 @@ ENDPROC	hook_vecs			; fall into swap_vecs
 DEFPROC	swap_vecs
 	push	cx
 	push	dx
+	mov	bx,offset vec_save+8
+	cmp	[com_r3],0		; at ring 3 (where there's no VT)?
+	jne	sw1			; yes, so INT 00h isn't hooked
 	mov	bx,offset vec_save
 	mov	al,00h
 	call	sv1
 	add	bx,4			; (skip INT 04h)
-	mov	al,01h
+sw1:	mov	al,01h
 	call	sv1
 	mov	al,03h
 	call	sv1
@@ -416,11 +430,32 @@ DEFPROC	swap_vecs
 	ret
 sv1:	mov	cx,[bx].OFF
 	mov	dx,[bx].SEG
+	cmp	[com_r3],0		; at ring 3?
+	jne	sv2			; yes
 	call	far ptr DDINT_SETVEC	; DX:CX = previous vector
-	mov	[bx].OFF,cx
+sv1a:	mov	[bx].OFF,cx
 	mov	[bx].SEG,dx
 	add	bx,4
 	ret
+sv2:	push	es
+	push	bx
+	push	ax
+	mov	ah,DOS_MSC_GETVEC
+	int	21h			; ES:BX = previous vector
+	pop	ax
+	push	es
+	push	bx
+	push	ds
+	mov	ds,dx
+	mov	dx,cx			; DS:DX = new vector
+	mov	ah,DOS_MSC_SETVEC
+	int	21h
+	pop	ds
+	pop	cx
+	pop	dx			; DX:CX = previous vector
+	pop	bx
+	pop	es
+	jmp	sv1a
 ENDPROC	swap_vecs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -460,6 +495,17 @@ ENDPROC	swap_vecs
 ; INT 00h, 01h, and 03h aren't hooked, so that a dump shows their vectors as
 ; they are.
 ;
+; We load a program with DOS_PSP_EXEC1 (load without starting), which fills
+; in its initial SS:SP and CS:IP and leaves its PSP current, and enter the
+; monitor as if the program's first instruction had been interrupted, so no
+; breakpoint is needed to stop it there.
+;
+; The L command loads one that way after we've started (see com_l), and ?
+; lists our commands with the monitor's (see com_help).  At ring 3 (see
+; com_sels), we change some JMPs (see COM_JMPS): CPU$ calls go to r3_cpu, T
+; steps over an INT n (see ct1v), and we don't disable interrupts (which ring
+; 3 can't); DM, DS, GT, LN, VC, VL, and VT are invalid, as ? shows.
+;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	com_main,far
 	mov	bp,cs			; BP = our PSP's code segment
@@ -471,19 +517,30 @@ DEFPROC	com_main,far
 cm1:	mov	ds,dx
 	ASSUME	DS:CODE
 	mov	ds:[0].DDH_DATA,dx
+	mov	[com_sp],sp		; com_main's stack (see com_exec2)
+	mov	[com_ss],ss
 	mov	[com_cs],bp
 	inc	[com_runs]
-	call	set_dos
-	mov	bx,offset put_raw
-	mov	ax,offset dos_put
-	call	set_jmp
-	mov	bx,offset get_char
-	mov	ax,offset dos_get
-	call	set_jmp
 	mov	[CMD_Q],'Q'
+	mov	[start_hook],offset com_exec2
+	mov	word ptr [CMD_LN+1],offset com_l
+	mov	si,offset COM_JMPS
+	mov	cx,COM_NJMPS
+	cmp	[com_r3],0		; at ring 3?
+	jne	cm1a			; yes
+	call	set_dos			; (which calls CPU$)
+	jmp	short cm1r
+cm1a:	mov	cl,COM_NJMPS + R3_NJMPS
+	mov	word ptr [CMD_VEC+1],offset rc8	; (VC, VL, and VT fail)
+cm1r:	lodsw
+	xchg	bx,ax			; BX -> instruction
+	lodsw				; AX = its new target
+	call	set_jmp
+	loop	cm1r
 	mov	ax,sp
 	sub	ax,330h			; leave the program room, and rebase
 	mov	word ptr [mon_sp+1],ax
+	DEFLBL	cm1t,near		; (com_l re-enters here; see com_l)
 	mov	ax,DOS_MSC_GETSWC
 	int	21h			; DL = switch char
 	mov	si,CMD_TAIL+1		; ES:SI -> command tail (ES = PSP)
@@ -535,7 +592,7 @@ cm6b:	mov	byte ptr [di],0
 	mov	bx,offset mon4
 	mov	ax,offset cm9c
 	call	set_jmp
-	jmp	short cm5a
+	jmp	cm5a
 cm4:	mov	byte ptr [di],0
 	cmp	di,offset command	; was there a name?
 	je	cm5			; no
@@ -558,15 +615,19 @@ cm4:	mov	byte ptr [di],0
 	int	21h			; load it (termination returns here)
 	mov	ds,cs:[0].DDH_DATA
 	jc	cm7			; it couldn't be loaded
-	cmp	[com_runs],1		; did we just load it?
-	jne	cm8			; no, it terminated
-	inc	[com_runs]
+	cmp	[com_runs],1		; did we just load it (0 for L)?
+	jbe	cm4c			; yes
+	jmp	cm8			; no, it terminated
+cm4c:	mov	[com_runs],2
+	mov	[notstart],1		; stop at the entry; start it on resume
 	mov	ah,DOS_PSP_GET
 	int	21h			; BX = the program's PSP
 	pushf
 	pop	cx			; CX = flags (with interrupts enabled)
+	cmp	[com_r3],0		; at ring 3 (where we can't CLI)?
+	jne	cm4t			; yes (and interrupts land on SP0)
 	cli
-	mov	ss,[epb_sp].SEG
+cm4t:	mov	ss,[epb_sp].SEG		; (MOV SS holds interrupts for MOV SP)
 	mov	sp,[epb_sp].OFF
 	pop	ax			; AX = the program's initial AX
 	push	cx
@@ -580,7 +641,7 @@ cm4:	mov	byte ptr [di],0
 	mov	si,bx
 	mov	di,bx
 	mov	bp,bx
-	jmp	dbg_brk
+	jmp	short cm5c
 	ASSUME	DS:CODE
 cm5:	call	hook_vecs
 cm5a:	mov	byte ptr es:[100h],0C3h	; RET
@@ -594,7 +655,7 @@ cm5a:	mov	byte ptr es:[100h],0C3h	; RET
 	mov	ax,100h
 	push	ax
 	sub	ax,ax			; (AX = 0 in the frame)
-	cli
+cm5c:	cli				; (a JMP to dbg_brk at ring 3)
 	jmp	dbg_brk
 	ASSUME	DS:CODE
 cm7:	mov	si,offset FIND_MSG
@@ -628,7 +689,10 @@ cm8:	cmp	[com_runs],2		; did the program terminate itself?
 	mov	si,offset TERM_MSG
 	call	put_string
 cm9a:	call	newline
-	jmp	short cm9b
+	cmp	[com_runs],1		; did an L command fail to load one?
+	jae	cm9b			; no
+	jmp	com_lf			; yes, so we keep running
+
 ;
 ; Exit (Q, or at cm9c, the end of a switch's command).  If a program is
 ; loaded, terminate it first, which brings us back to cm8, and then exit with
@@ -645,6 +709,8 @@ cm9c:	mov	ah,DOS_PSP_GET
 	int	21h			; BX = our PSP
 	mov	ah,DOS_PSP_RETCODE
 	int	21h			; AL = the program's exit code (or 0)
+	cmp	[com_r3],0		; at ring 3?
+	jne	cm9e			; yes (DOS frees our copy)
 ;
 ; Free the segments (or selectors) from com_sels, after switching SS, DS,
 ; and ES to our PSP, and CS to the PSP's code segment, since reloading a
@@ -668,7 +734,7 @@ cm9d:	push	ax
 	mov	bx,cx
 	call	com_free
 	pop	ax
-	mov	ah,DOS_PSP_RETURN
+cm9e:	mov	ah,DOS_PSP_RETURN
 	int	21h
 ENDPROC	com_main
 
@@ -699,6 +765,160 @@ ENDPROC	com_quit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; com_exec2
+;
+; The monitor's first resume (G, T, or P) of a just-loaded program comes here
+; (see resume and notstart in dbgdev.asm), to start the program, rather than
+; IRET to it: we start it with DOS_PSP_EXEC2, which, unlike an IRET, blocks us
+; as its parent, so that when it terminates, DOS returns here, and we go to
+; cm8 (exactly as a program loaded on our command line does).  Breakpoints and
+; single-steps stop it meanwhile (nested, as usual), and resume with an IRET.
+;
+; We run on com_main's stack (see cm1), not the monitor's small one, since the
+; EXEC2 call (and, in real mode, the program it runs) needs the room; and if
+; the monitor was tracing (T or P), we start the program single-stepping (its
+; trap flag), which psp_exec keeps, so no breakpoint is written (eg, in an NE
+; program's code).  A register the user changed before this first resume isn't
+; applied (the program starts at its loaded entry).
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	com_exec2
+	cmp	[com_r3],0		; at ring 3 (where we can't CLI)?
+	jne	cx1			; yes
+	cli
+cx1:	mov	ss,[com_ss]		; (MOV SS holds interrupts for MOV SP)
+	mov	sp,[com_sp]		; com_main's stack (see cm1)
+	cmp	[com_r3],0
+	jne	cx2			; (ring 3 keeps interrupts on)
+	sti
+cx2:	sub	dx,dx			; DX = 0 (no trap flag)
+	cmp	[tracing],0		; a T or P (single-step the first)?
+	jz	cx3			; no
+	mov	dx,0100h		; yes, so ask psp_exec to set FL_TRAP
+cx3:	push	ds
+	pop	es
+	mov	bx,offset epb		; ES:BX -> EPB
+	mov	ax,DOS_PSP_EXEC2
+	int	21h			; start it (termination returns here)
+	mov	ds,cs:[0].DDH_DATA
+	jmp	cm8
+ENDPROC	com_exec2
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; com_l
+;
+; Program mode's L command (in place of cmd_l): L file [arguments] loads a
+; program, if none is loaded, as if our command line had named it.  The rest
+; of the line becomes our PSP's command tail, and with the vectors unhooked
+; (since com_main hooks them again), com_main parses it on its original
+; stack; if the program can't be loaded, com_main comes back to com_lf, which
+; stops again, as it does with no program.  LN is still cmd_l's, except at
+; ring 3, where it needs CPU$.
+;
+DEFPROC	com_l
+	cmp	byte ptr [si],'N'	; LN?
+	jne	ld1			; no
+	cmp	[com_r3],0		; at ring 3?
+	jne	ld9			; yes (no LN)
+	jmp	cmd_l
+ld1:	cmp	[com_runs],1		; is a program loaded?
+	jne	ld9			; yes
+	call	skip_space
+	mov	ax,DOS_MSC_GETSWC
+	int	21h			; DL = switch char
+	mov	al,[si]
+	cmp	al,dl			; a switch?
+	je	ld9			; yes (L takes only a program)
+	cmp	al,1			; no program at all?
+	jb	ld9			; no
+	mov	ah,DOS_PSP_GET
+	int	21h			; BX = our PSP
+	mov	es,bx
+	mov	di,CMD_TAIL+1
+ld2:	lodsb
+	stosb				; copy the rest of the line
+	test	al,al
+	jnz	ld2
+	mov	byte ptr es:[di-1],CHR_RETURN
+	xchg	ax,di
+	sub	al,CMD_TAIL+2
+	mov	es:[CMD_TAIL],al	; AL = its length
+	call	swap_vecs		; (cm4 hooks them again)
+	mov	[com_runs],0		; (an L command is loading it)
+;
+; Re-enter com_main's command parsing (cm2) to load the program as if we were
+; invoked with it, on com_main's stack rather than the monitor's small one
+; (see cm1 and com_exec2), with interrupts on, as com_main has them.
+;
+	cmp	[com_r3],0		; at ring 3 (where we can't CLI)?
+	jne	ld3			; yes
+	cli
+ld3:	mov	ss,[com_ss]		; (MOV SS holds interrupts for MOV SP)
+	mov	sp,[com_sp]		; com_main's stack (see cm1)
+	cmp	[com_r3],0
+	jne	ld4			; (ring 3 keeps interrupts on)
+	sti
+ld4:	jmp	cm1t
+ld9:	stc
+	ret
+;
+; com_lf
+;
+; com_main comes here when an L command's program couldn't be loaded, to stop
+; with no program, as at cm5a (where the vectors are hooked).
+;
+	DEFLBL	com_lf,near
+	inc	[com_runs]		; (running, with no program)
+	mov	ah,DOS_PSP_GET
+	int	21h			; BX = our PSP
+	mov	es,bx
+	jmp	cm5a
+ENDPROC	com_l
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; com_help
+;
+; Program mode's ? command (in place of cmd_help): HELP_MSG's lines, then our
+; own (com_lines, for L and Q), except at ring 3, the lines for the commands
+; that we don't support there (R3_NOHELP), which are skipped.
+;
+DEFPROC	com_help
+	push	ds
+	pop	es
+	cld
+	mov	si,offset HELP_MSG
+ch1:	cmp	byte ptr [si],0		; end of HELP_MSG?
+	je	ch5			; yes
+	cmp	[com_r3],0		; at ring 3?
+	je	ch3			; no, so display the line
+	mov	ax,[si]			; AX = the line's first two characters
+	push	di
+	mov	di,offset R3_NOHELP
+	mov	cx,R3_NNOHELP
+	repne	scasw			; one we don't support at ring 3?
+	pop	di
+	jne	ch3			; no, so display it
+	inc	[mute]			; yes, so skip it
+	call	ch_line
+	dec	[mute]
+	jmp	ch1
+ch3:	call	ch_line			; display the line
+	jmp	ch1
+ch5:	mov	si,offset com_lines
+	call	put_string		; our own commands (L and Q)
+	clc
+	ret
+ch_line:lodsb				; display (unless muted) up to a LF
+	call	put_char
+	cmp	al,CHR_LINEFEED
+	jne	ch_line
+	ret
+ENDPROC	com_help
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; com_sels
 ;
 ; Returns a code segment (or selector) and a data segment (or selector) for
@@ -707,6 +927,11 @@ ENDPROC	com_quit
 ; exit.  This runs before com_main switches to them (so it can't use any
 ; absolute addresses), and exits if CPU$ has no selectors.
 ;
+; At ring 3 (only in protected mode, where CS is a code alias, not DS), we
+; can't call CPU$, so we copy ourselves (from PSP:0100h up to our stack) to
+; offset 0 of a block of our own instead, which DOS frees when we exit, and
+; return its selector and code alias, with com_r3 set in the copy.
+;
 ; Outputs:
 ;	AX = code segment, DX = data segment
 ;
@@ -714,15 +939,21 @@ ENDPROC	com_quit
 ;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	com_sels
-	mov	ah,CPU_GETINFO
-	call	far ptr DDINT_CPU	; AH = CPUF_* flags
+	mov	ax,cs
+	mov	dx,ds
+	cmp	ax,dx			; is CS our PSP (real mode)?
+	je	csl0			; yes
+	test	al,3			; ring 3?
+	jnz	csl2			; yes
+csl0:	mov	ah,CPU_GETINFO
+	call	cpu_call		; AH = CPUF_* flags
 	mov	al,0
 	test	ah,CPUF_PM		; is CS a selector?
 	jz	csl1			; no
 	mov	al,ADDR_SEL		; yes
 csl1:	mov	bx,cs
 	mov	ah,CPU_SEGINFO
-	call	far ptr DDINT_CPU	; DX:CX = our PSP's address
+	call	cpu_call		; DX:CX = our PSP's address
 	add	cx,100h
 	adc	dx,0			; DX:CX = PSP:0100h
 	mov	si,1
@@ -730,19 +961,41 @@ csl1:	mov	bx,cs
 	push	dx
 	push	cx
 	mov	ax,(CPU_MAP SHL 8) OR MEMF_CODE
-	call	far ptr DDINT_CPU	; AX = code segment
+	call	cpu_call		; AX = code segment
 	pop	cx
 	pop	dx
 	jc	csl9
 	push	ax
 	mov	ax,CPU_MAP SHL 8	; (a data segment)
-	call	far ptr DDINT_CPU	; AX = data segment
+	call	cpu_call		; AX = data segment
 	xchg	dx,ax
 	pop	ax
 	jc	csl9
 	ret
+csl2:	mov	bx,sp
+	mov	cl,4
+	shr	bx,cl			; BX = paras (up to our stack)
+	mov	ah,DOS_MEM_ALLOC
+	int	21h			; AX = the block's selector
+	jc	csl9
+	mov	es,ax
+	mov	si,100h
+	sub	di,di
+	mov	cx,sp
+	sub	cx,si
+	shr	cx,1
+	cld
+	rep	movsw			; copy PSP:0100h up to our stack
+	inc	es:[com_r3]
+	push	ds
+	pop	es			; (ES = PSP again)
+	xchg	bx,ax			; BX = the copy's selector
+	DOSUTIL	ALIAS			; AX = its code alias
+	mov	dx,bx
+	jnc	csl8
 csl9:	mov	ax,(DOS_PSP_RETURN SHL 8) OR 1
 	int	21h			; (we can't run without them)
+csl8:	ret
 ENDPROC	com_sels
 
 ;
@@ -754,10 +1007,132 @@ DEFPROC	com_free
 	push	cx
 	sub	cx,cx			; (one selector)
 	mov	ah,CPU_UNMAP
-	call	far ptr DDINT_CPU
+	call	cpu_call
 	pop	cx
 	ret
 ENDPROC	com_free
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; r3_cpu
+;
+; At ring 3, CPU$ calls come here (see cpu_call), since ring 3 code can't call
+; CPU$: CPU_RWMEM accesses the memory itself (see r3_rwmem), and CPU_SEGINFO
+; returns a selector (with RPL 3) in place of its base, so that at_ip can
+; still compare addresses; anything else fails (eg, CPU_SYSREGS, so that the
+; monitor works as it does with the 8086 CPU$, and CPU_QUERY, so DM fails).
+;
+; Inputs and outputs:
+;	The same as CPU$'s (but a failure leaves AX unchanged)
+;
+	.286p
+DEFPROC	r3_cpu
+	cmp	ah,CPU_RWMEM
+	je	r3_rwmem
+	cmp	ah,CPU_SEGINFO
+	jne	rc8
+	test	al,ADDR_PHYS OR ADDR_RIGHTS	; (which we can't tell)
+	jnz	rc8
+	mov	dx,bx
+	or	dl,3
+	sub	cx,cx			; DX:CX = the selector, as an address
+	ret
+rc8:	stc
+	ret
+ENDPROC	r3_cpu
+
+;
+; r3_rwmem copies CX bytes from BX:SI to ES:DI (or with ADDR_WRITE, from ES:DI
+; to BX:SI), if LSL, VERR, and VERW say that the selector allows it (so that
+; we don't fault).  A code selector isn't writable, so if it's the code alias
+; of the current program's PSP block (eg, its CS, for a breakpoint or an E),
+; we write through the PSP instead.  It preserves only DS (mem_io, the only
+; caller, saves the rest).
+;
+DEFPROC	r3_rwmem
+	push	ds
+	mov	dx,cx
+	dec	dx
+	add	dx,si			; DX = offset of the last byte
+	jc	rw8			; (it wraps)
+	push	ax
+	lsl	ax,bx			; AX = the segment's limit
+	jnz	rw7			; (there's no such segment)
+	cmp	dx,ax			; is the last byte within it?
+	pop	ax
+	ja	rw8			; no
+	test	al,ADDR_WRITE		; a write?
+	jnz	rw2			; yes
+	verr	bx			; can we read it?
+	jnz	rw8			; no
+	mov	ds,bx			; DS:SI -> memory (ES:DI -> buffer)
+	jmp	short rw4
+rw2:	verw	bx			; can we write it?
+	jz	rw3			; yes
+	push	bx
+	mov	ah,DOS_PSP_GET
+	int	21h			; BX = the current PSP
+	DOSUTIL	ALIAS			; AX = its block's code alias
+	pop	dx
+	jc	rw8
+	or	al,3
+	or	dl,3
+	cmp	ax,dx			; is that the selector?
+	jne	rw8			; no
+rw3:	push	es
+	pop	ds			; DS:DI -> buffer
+	mov	es,bx
+	xchg	si,di			; DS:SI -> buffer, ES:DI -> memory
+rw4:	rep	movsb
+	clc
+	jmp	short rw9
+rw7:	pop	ax
+rw8:	stc
+rw9:	pop	ds
+	ret
+ENDPROC	r3_rwmem
+	.8086
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; r3_go
+;
+; At ring 3, G, P, and T resume through here (in place of cg1).  To go past a
+; breakpoint at CS:IP, cg1 single-steps its instruction (with TF), but for an
+; INT n, the single-step trap would come from the INT's ring 0 handler, where
+; we can't see it (and where a debugger loaded as a driver would stop).  So
+; at an INT n, if the temporary breakpoint is free, we put it after the INT
+; (with BP_GO, so that reaching it resumes; see mon1), and resume without
+; TF, as we do if P put it there.
+;
+DEFPROC	r3_go
+	call	ip_mem			; mem_seg:DI -> CS:IP
+	call	peek_b			; AL = its opcode
+	cmp	al,0CDh			; INT n?
+	jne	rg8			; no
+	inc	di
+	inc	di			; mem_seg:DI -> the next instruction
+	test	bp_tab[5],BP_SET	; is the temporary breakpoint free?
+	jnz	rg1			; no
+	mov	word ptr bp_tab[0],di
+	mov	ax,[mem_seg]
+	mov	word ptr bp_tab[2],ax
+	mov	al,BP_SET
+	or	al,BP_GO
+	mov	bp_tab[5],al
+rg1:	cmp	word ptr bp_tab[0],di	; is it after the INT (eg, for P)?
+	jne	rg8			; no (eg, for G addr)
+	mov	ax,[mem_seg]
+	cmp	word ptr bp_tab[2],ax
+	jne	rg8
+	call	arm
+	jmp	short rg9		; (with no TF)
+rg8:	call	arm			; (as cg1 does)
+	mov	al,2
+	jnc	rg9
+	jmp	step
+rg9:	jmp	resume
+ENDPROC	r3_go
 
 	IFDEF DEBUG
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -809,8 +1184,28 @@ DEFPROC	dos_get
 	ret
 ENDPROC	dos_get
 
-	DEFBYTE	com_runs,0		; 1 running, 2 program loaded, 3 Q
+	DEFBYTE	com_runs,0		; 0 L, 1 running, 2 program loaded, 3 Q
 	DEFWORD	com_cs,0		; our PSP's code segment (see com_main)
+	DEFWORD	com_ss,0		; com_main's stack (see com_exec2)
+	DEFWORD	com_sp,0		; com_main's entry SP (see com_l)
+;
+; Program mode's own commands, for com_help, and the commands that need CPU$,
+; which com_help skips at ring 3 (each as two characters).
+;
+	DEFLBL	com_lines,byte
+	db	"L file [args]",9,"load program",13,10
+	db	"Q",9,9,"quit",13,10,0
+	DEFLBL	R3_NOHELP,byte
+	db	"DMDSGTLNVCVLVT"
+R3_NNOHELP	equ	7
+;
+; The instructions that com_main makes JMPs (see set_jmp), each paired with
+; its new target: COM_NJMPS of them in any mode, and R3_NJMPS more at ring 3.
+;
+	DEFWORD	COM_JMPS,<put_raw,dos_put,get_char,dos_get,cmd_help,com_help>
+	dw	cpu_call,r3_cpu,ct1v,ct2a,cg1,r3_go,cm5c,dbg_brk
+COM_NJMPS	equ	3
+R3_NJMPS	equ	4
 ;
 ; The EPB for DOS_PSP_EXEC1 (we define DOSHEAP, not DOSPSP, so this is laid
 ; out by hand, and CMD_TAIL is PSP_CMDTAIL).

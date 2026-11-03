@@ -15,7 +15,7 @@
 ; (x86dev.asm) stays, and manages memory with a chain of MCBs, as DOS always
 ; has.  Their functions are the same, and are called through DDINT_CPU (see
 ; bios.inc) with a function number in AH; until CPU$ is loaded, DDINT_CPU
-; returns with carry set.  See docs/bdtech/mmu for the design.
+; returns with carry set.  See docs/bdtech/mmu for details.
 ;
 
 ;

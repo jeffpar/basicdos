@@ -1,5 +1,5 @@
-REM Protected-mode development: no CPU=8088 line, so CPU$ uses extended memory
-BUFFERS=4
-SESSIONS=3
+REM No CPU=8088, so 80286, protected-mode, and extended memory supported
+BUFFERS=16
+SESSIONS=8
 DEVICE=EXT\DEBUG.COM COM2:9600,N,8,1,VT100
 SHELL=C:COMMAND.COM PATH$="C:\;C:\EXT;C:\DEMOS;C:\SAMPLES;C:\TESTS;C:\TOOLS"

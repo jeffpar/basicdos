@@ -360,7 +360,15 @@ px5:	mov	ds,[bp].REG_ES
 	les	di,[bx].EPB_INIT_IP	; ES:DI = REG_CS:REG_IP for program
 	lds	si,[bx].EPB_INIT_SP	; DS:SI -> stack (@REG_FL)
 	sub	si,size REG_FRAME-2	; DS:SI -> REG_FRAME
-	mov	[si].REG_FL,FL_DEFAULT	; fix REG_FL
+;
+; Set the trap flag in REG_FL if the caller asked for it in DX, so that a
+; debugger (eg, DEBUG) can start the program single-stepping; other callers
+; (eg, COMMAND) clear DX, so they leave it off.
+;
+	mov	ax,[bp].REG_DX
+	and	ax,FL_TRAP
+	or	ax,FL_DEFAULT
+	mov	[si].REG_FL,ax		; fix REG_FL
 	mov	[si].REG_CS,es
 	mov	[si].REG_IP,di		; update REG_CS:REG_IP on frame
 	mov	dx,ds

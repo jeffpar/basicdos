@@ -987,6 +987,7 @@ DEFPROC	cmdExec
 	int	21h
 	lea	bx,[bp].EXECDATA
 	DEFLBL	cmdStart,near
+	sub	dx,dx			; DX = 0 (not a debugger single-step)
 	mov	ax,DOS_PSP_EXEC2
 	int	21h			; start program specified by ES:BX
 	DEFLBL	cmdDone,near

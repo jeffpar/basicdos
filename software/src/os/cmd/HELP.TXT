@@ -11,7 +11,7 @@ Returns the character code (0-255) of the first character of *string*.  As in MS
 Returns the arctangent of *x*, in radians.
 
 [e]ATTRIB [+R|-R] [+H|-H] [+S|-S] [+A|-A] [*filespec*]
-Displays the attributes of each file matching *filespec* (or every file), including hidden and system files: A (archive), S (system), H (hidden), and R (read-only).  Attributes given with + are set first, and those given with - are cleared (eg, ATTRIB +R *.BAS).  A read-only file can't be changed or deleted, and only a hidden file is left out of DIR listings.
+Displays the attributes of each file matching *filespec* (or every file), including hidden and system files: A (archive), S (system), H (hidden), and R (read-only).  Attributes given with + are set first, and those given with - are cleared (eg, ATTRIB +R *.BAS).
 
 [b+]AUTO [*line*][,*increment*]
 Prompts for program lines, starting with *line* (default 10) and adding *increment* (default 10) after each one.  If a line already exists, it's displayed for editing.  To stop, press ENTER on a line with nothing after its number, or press CTRL-C.
@@ -23,10 +23,10 @@ Changes the current directory of *drive* (or the current drive) to *path*, where
 Returns *x* as a double.  CSNG is the same, since all floating-point values are double-precision.
 
 [b+]CHAIN [MERGE] *file*[,[*line*][,ALL]]
-Replaces the running program with the specified BAS file (searching PATH$ if necessary) and runs it, starting at *line* if given.  Variables are cleared unless ALL is given.  With MERGE, the file's numbered lines are added to the program instead, replacing any lines with the same numbers.  Any GOSUBs, FOR and WHILE loops, and ON ERROR handler in progress are ended.  COMMON and the DELETE option are not supported.
+Replaces the running program with the specified BAS file (searching PATH$ if necessary) and runs it, starting at *line* if given.  Variables are cleared unless ALL is given.  With MERGE, the file's numbered lines are added to the program instead, replacing any lines with the same numbers.  COMMON and the DELETE option are not supported.
 
 [e]CHKDSK [*drive*:] [~V]
-Checks the FAT and directories of *drive* (or the current drive), following every file's and directory's cluster chain, and reports chains that are cross-linked, don't match a file's size, or contain invalid clusters, and lost clusters, and then the space used by hidden files, directories, and user files, and the space available.  ~V lists every file.  Problems are reported, not fixed.
+Checks the FAT and directories of *drive* (or the current drive), reports any problems (eg, cross-linked chains, file sizes that don't match, and lost clusters), and then the space used and available.  ~V lists every file.  Problems are reported, not fixed.
 
 [f]CHR$(*code*)
 Returns a one-character string containing the character with the specified *code* (0-255).
@@ -94,11 +94,10 @@ If D or Y are omitted, current values are assumed.
 Returns the current date as a string in the form MM-DD-YYYY.
 
 [e]DEBUG [~H] [*program* [*arguments*]] or DEBUG ~*command*
-Loads *program* (a full filename) without starting it, displays its registers, and accepts debugger commands (type ? to list them, G to run, and Q to quit).  The DB, DW, DM, and DS commands can also be switches, which DEBUG performs before exiting (eg, DEBUG ~DB 40:0 or DEBUG ~DM).  Exceptions (eg, a divide error) are passed on to DOS, which ends the program, unless VT *vector* traps them (a vector is hex, or decimal with a trailing period, eg, VT 13.; VL lists the traps, and VC *vector* or VC * clears them); after a trapped exception, GT passes it on, while G, T, or P resumes at CS:IP (eg, after changing IP with R).
-On an 80286 (without CPU=8088), an address may start with & (real mode) or # (protected mode), and DS *selector* displays a selector's descriptor.  An address may also be a physical address that starts with % (eg, %100000).  LN [*address*] shows an address (by default, CS:IP), its linear address, and the name of the memory block it's in.
+Loads *program* (a full filename) without starting it, displays its registers, and accepts debugger commands (type ? to list them, G to run, and Q to quit).  The DB, DW, DM, and DS commands can also be switches, which DEBUG performs before exiting (eg, DEBUG ~DB 40:0 or DEBUG ~DM).
 DEBUG.COM can also be loaded as a device driver and used to debug the system from a terminal via a serial port.  For example, this CONFIG.SYS line connects DEBUG.COM to a VT100 terminal on COM2:\
 	DEVICE=EXT\DEBUG.COM COM2:9600,N,8,1,VT100
-Adding ~H after the port settings will cause the debugger to halt; use the G command to continue booting.  The driver also stops for any protected-mode fault that would halt the system (eg, in a driver), whether or not VT traps it; GT then halts the system, but the debugger keeps control (press CTRL-C for its prompt).
+Adding ~H after the port settings will cause the debugger to halt; use the G command to continue booting.
 
 [b]DEF *name*[(*parameter*[,*parameter*]...)][=*expression*]
 Defines a function expression or function block.  Function expressions must fit on a single line and can be defined at any time.
@@ -181,7 +180,7 @@ Returns e (2.71828...) raised to the power of *x*.
 Divides each record of random access file *n* into fields (up to 16): GET # sets each variable to its field, and PUT # writes each variable to its field (see LSET and RSET).
 
 [e]FIND [~C] [~I] [~N] [~R] [~V] *string* [*file*]...
-Displays the lines of input (or of each *file*, or with wildcards (? and *), every matching file) that contain *string* (eg, DIR | FIND BAS).  *string* needs quotes only if it contains spaces, and it can be a string variable (eg, FIND S$ *.TXT).  ~C displays only the number of lines, ~I ignores case, ~N adds line numbers, ~R treats *string* as a regular expression (see SED; eg, DIR | FIND ~R "^[A-M]"), and ~V displays the lines that do NOT contain *string*.
+Displays the lines of input (or of each *file*, or with wildcards (? and *), every matching file) that contain *string* (eg, DIR | FIND BAS).  *string* needs quotes only if it contains spaces, and it can be a string variable (eg, FIND S$ *.TXT).  ~C displays only the number of lines, ~I ignores case, ~N adds line numbers, ~R treats *string* as a regular expression (described in the user manual; eg, DIR | FIND ~R "^[A-M]"), and ~V displays the lines that do NOT contain *string*.
 ERRORLEVEL is set to 0 if any lines were displayed (or counted), 1 if none, and 2 if a *file* couldn't be opened or the expression is invalid.
 
 [f]FIX(*x*)
@@ -192,7 +191,7 @@ Executes the lines up to the matching NEXT repeatedly, adding *step* (default 1)
 If the *start* is already past the *limit*, the lines are skipped.
 
 [e]FORMAT *drive*: [~S] [~V[:*label*]] [~F:*size*] [~1] [~8]
-Formats the diskette or hard disk volume in the specified *drive*.  ~S copies the system files from the current drive (making the volume bootable), and ~V gives the volume a label (asking for one, unless it's given).  A diskette is formatted as 360K, 720K, or 1.2M (~F:360, ~F:720, or ~F:1200; by default, the drive's own size, which a PC or XT can't report, so 360K); for 360K, ~1 formats one side, and ~8 formats 8 sectors per track (for PC DOS 1.x).
+Formats the diskette or hard disk volume in the specified *drive*.  ~S copies the system files from the current drive (making the volume bootable), and ~V gives the volume a label (asking for one, unless it's given).  A diskette is formatted as 360K, 720K, or 1.2M (~F:360, ~F:720, or ~F:1200; by default, the drive's size, or 360K on a PC or XT); for 360K, ~1 formats one side, and ~8 formats 8 sectors per track (for PC DOS 1.x).
 
 [f]FRE(*x*)
 Compacts string memory and returns the number of bytes available, or if *x* is negative (eg, FRE(-1)), the number of bytes owned by this session, which other sessions can't change.
@@ -223,7 +222,7 @@ Evaluates the *expression*, and if it is TRUE (non-zero), executes the statement
 Returns the next key pressed, without waiting (an empty string if no key was pressed).  Extended keys (eg, cursor keys) return two characters: a null and the key's scan code.
 
 [b]INPUT [*prompt*;]*variable*[,*variable*]... or INPUT #*n*,*variable*[,*variable*]...
-Reads a line from the keyboard (after displaying the prompt, followed by "? " unless a comma follows the prompt), or with #*n*, from file *n*, and assigns the next item to each variable.  Leading spaces and line breaks are skipped, and an item ends at a comma or line break (or for a number, a space).  A quoted item can contain commas.  Missing keyboard items are empty (or zero).
+Reads a line from the keyboard (after displaying the prompt, followed by "? " unless a comma follows the prompt), or with #*n*, from file *n*, and assigns the next item to each variable.  Items are separated by commas (quote an item that contains one), and missing keyboard items are empty (or zero).
 
 [f+]INPUT$(*n*[,#*f*])
 Returns *n* (1-255) characters read from file *f*, or if *f* is omitted, from the keyboard, waiting for each key without displaying it (an extended key is a null and the key's scan code).  Reading past the end of a file is an "Input past end" error.
@@ -235,7 +234,7 @@ Returns the position of *string2* within *string1*, searching from position *sta
 Returns the largest integer less than or equal to *x* (eg, INT(-2.5) is -3).  See also FIX.
 
 [b+]IOCTL #*n*,*code*[,*value*|*string*[,*value*]]
-Sends an IOCTL request with the specified *code* to the device or volume open as file *n*: a numeric *value* is passed in CX (and a second *value* in DX), or a *string*'s data is passed with the request (with its length in CX).  The driver determines what each code does (eg, FORMAT uses the diskette driver's &HF1 and &HF2 requests to set a volume's parameters and format a track); a request the driver doesn't support is an "Illegal function call".
+Sends an IOCTL request with the specified *code* to the device or volume open as file *n*: a numeric *value* is passed in CX (and a second *value* in DX), or a *string*'s data is passed with the request (with its length in CX).  The driver determines what each code does; a request the driver doesn't support is an "Illegal function call".
 
 [f+]IOCTL$(*n*,*code*[,*value*])
 Sends an IOCTL request with the specified *code* (and *value* in DX) to the device or volume open as file *n*, and returns the data (up to 255 bytes) that the driver stored in response (eg, a hard disk's partition table, with the diskette driver's &HF3 request); an empty string if the driver stored nothing.
@@ -275,7 +274,7 @@ LINE INPUT [*prompt*;]*variable$* (or LINE INPUT #*n*,*variable$*) reads a whole
 
 [b]LIST [*line*][-[*line*]] or LIST VARS
 Lists all lines (or the specified range of lines) of the currently loaded BAS or BAT program, as SAVE would write them.
-LIST VARS lists preserved strings (including PATH$), then ordinary variable values with type suffixes and quoted strings, and array bounds without their elements.  Function definitions are omitted.  Use LIST VARS | MORE to page the listing.
+LIST VARS lists the variables and their values.  Use LIST VARS | MORE to page the listing.
 To add a line to the program (or replace the line with the same number), type the line with its line number at the prompt.
 
 [b+]LLIST [*line*][-[*line*]]
@@ -369,7 +368,7 @@ If N is zero or greater than the number of labels, the program continues with th
 ON ERROR GOTO *label* transfers program control to the label when a runtime error occurs (eg, "Division by zero"; see ERR and RESUME), and ON ERROR GOTO 0 disables it.
 
 [b+]OPEN *file* [FOR INPUT|OUTPUT|APPEND|RANDOM] AS #*n* [LEN=*reclen*]
-Opens *file* as file number *n* (1-4) for reading (INPUT), for writing (OUTPUT, which creates or truncates the file), for adding to the end (APPEND), or without FOR, for random access to records of *reclen* (1-255, default 128) bytes.  *file* can be a device: "SCRN:" is the screen, and a serial port can include its settings (eg, "COM1:9600,N,8,1"; see MODE).  A device opened without FOR can be both read and written (eg, with PRINT #, EOF, LOC, and INPUT$), and a device that can't be opened is a "Device unavailable" error.  See also CLOSE, EOF, INPUT #, LINE INPUT #, PRINT #, and WRITE, and for random access, FIELD, GET #, PUT #, LSET, and RSET.
+Opens *file* as file number *n* (1-4) for reading (INPUT), for writing (OUTPUT, which creates or truncates the file), for adding to the end (APPEND), or without FOR, for random access to records of *reclen* (1-255, default 128) bytes.  *file* can be a device (eg, "SCRN:" for the screen, or "COM1:9600,N,8,1" for a serial port; see MODE), which can be both read and written if opened without FOR.
 
 [b]OPTION BASE 0|1
 Sets the smallest subscript (0 or 1) of arrays dimensioned afterward.  The default is 0.
@@ -430,7 +429,7 @@ Used for program remarks.  The rest of the line is not executed.  An apostrophe 
 Renames or moves one file or directory on the same drive.  The destination can be a new filename or an existing directory (which keeps the source filename).  Existing destination files are not overwritten; open files, cross-drive moves, and wildcards are rejected.
 
 [s]RESTART [SYSTEM|*session*]
-RESTART alone lists every session's number, console, and program (or "Unused" if it has none), marking the current session with an *.  RESTART SYSTEM restarts the system.  RESTART *session* (a number from that list) stops the program running in that session, as CTRL-ALT-DEL does on its console, even if the program is stuck in a loop; a session running only its shell returns to its prompt.
+RESTART alone lists every session's number, console, and program (or "Unused" if it has none), marking the current session with an *.  RESTART SYSTEM restarts the system.  RESTART *session* (a number from that list) stops the program running in that session, as CTRL-ALT-DEL does on its console.
 
 [b]RESTORE [*line*]
 Makes the first DATA item (or the first DATA item at or after *line*) the next item for READ.
@@ -455,8 +454,6 @@ Same as LSET, but right-justified.
 
 [b]RUN [*file*]
 Runs the currently loaded BAS or BAT file, or loads BAS *file* (searching PATH$ if necessary) and runs it.  In a program, RUN restarts the program, or with *file*, replaces it, as CHAIN does; either way, its variables are cleared and any open files are closed.  RUN *file* and RUN in a program aren't available on low memory systems.
-Program files can also be run without the RUN command.
-If no file extension is specified, files with COM, EXE, BAT, and BAS extensions are checked, in that order.
 
 [b]SAVE *file*
 Saves the currently loaded program as a text file (if no file extension is specified, BAS is used).
@@ -469,8 +466,7 @@ SCREEN(*row*,*col*[,*z*])
 Returns the character code at *row* and *col*, or its attributes if *z* is non-zero.
 
 [e]SED [~I] [~N] *script* [*file*]
-Runs the commands in *script* (separated by ;) on each line of input (or *file*), and then displays the line, unless ~N is given (eg, DIR | SED s/BAS/BAK/).  *script* needs quotes only if it contains spaces.  A command can start with an address (a line number, $ for the last line, or /*regex*/ for each line that *regex* matches), or with two addresses separated by a comma, for each range of lines from one that the first selects to one that the second selects; a ! after the addresses selects the other lines instead.  The commands are: s/*regex*/*text*/ replaces the first match of *regex* with *text* (or every match, with g after the last /), in which & is the match and \1 to \9 are the parts of *regex* marked by \( and \) (and p after the last / displays the result); d deletes the line and skips the rest of the commands, p displays the line, q quits (after displaying the line, unless ~N), and = displays the line number.
-In a *regex*, . matches any character, [*chars*] any of the *chars* or ranges (eg, [a-z0-9]), and [^*chars*] any other character; * after any of those matches it zero or more times, ^ at the start matches the start of the line and $ at the end its end, and \ makes the next character ordinary (eg, \. or \/).  An empty *regex* reuses the previous one, and ~I ignores case.
+Runs the commands in *script* (separated by ;) on each line of input (or *file*), and then displays the line, unless ~N is given (eg, DIR | SED s/BAS/BAK/).  *script* needs quotes only if it contains spaces.  A command can start with an address (a line number, $, or /*regex*/), or with two addresses separated by a comma for a range of lines, and ! after the addresses selects the other lines.  The commands are s/*regex*/*text*/ (replaces the first match, or every match with g after the last /), d (deletes the line), p (displays the line), q (quits), and = (displays the line number).  ~I ignores case.  The user manual describes the regular expressions, which FIND ~R also uses.
 ERRORLEVEL is set to 0, or 2 if *script* is missing or invalid, or *file* couldn't be opened.
 
 [f]SGN(*x*)
@@ -579,7 +575,7 @@ Executes the lines up to the matching WEND repeatedly, as long as the *expressio
 [b]WIDTH 40|80 or WIDTH *device*,*width*
 Sets the number of columns in text mode (which clears the screen).
 In SCREEN 1, WIDTH 80 selects SCREEN 2, and in SCREEN 2, WIDTH 40 selects SCREEN 1.
-WIDTH "SCRN:",*width* is the same as WIDTH *width*; for any other device (eg, WIDTH "COM1:",255), the *width* (1-255) is accepted for compatibility with MSBASIC, but output to a device is never broken into lines (not available on low memory systems).
+WIDTH "SCRN:",*width* is the same as WIDTH *width*; any other *device* is accepted for compatibility with MSBASIC, but its output is never broken into lines (not available on low memory systems).
 
 [b+]WINDOW [[SCREEN] (*x1*,*y1*)-(*x2*,*y2*)]
 Defines the world coordinates of the viewport (or screen) for graphics commands, where x increases to the right and y increases upward (or with SCREEN, downward).  Requires floating-point (see MEM).  WINDOW alone ends world coordinates.

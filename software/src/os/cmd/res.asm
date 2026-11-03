@@ -93,6 +93,7 @@ DEFPROC	runTransient
 	mov	ax,DOS_PSP_EXEC1
 	int	21h			; load the program at DS:DX
 	jc	rt1
+	sub	dx,dx			; DX = 0 (not a debugger single-step)
 	mov	ax,DOS_PSP_EXEC2
 	int	21h			; and run it
 	clc

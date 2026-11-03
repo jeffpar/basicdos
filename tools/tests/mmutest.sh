@@ -2,7 +2,7 @@
 #
 # Usage: tools/tests/mmutest.sh [8088] [real] [pm] [r3]
 #
-# Runs quick.sh's floppy tests (FPUTESTS through PRINTF), followed by CPUTEST, on the mmu branch's test machines:
+# Runs quick.sh's floppy tests (FPUTESTS through PRINTF), followed by CPUTEST, on these test machines:
 #
 #   8088    an IBM PC XT (ibm5160), where CPU$ keeps only what an 8088 needs
 #   real    a 2Mb IBM PC AT (ibm5170), where the fpe configuration's "CPU=8088" line makes CPU$ act as it does on an
