@@ -65,19 +65,13 @@ DEFPROC	psp_term,DOS
 	test	si,si			; if program has a parent
 	jnz	pt1			; then the SCB is still healthy
 ;
-; TODO: Ordinarily, when the last program in a session terminates, we also
-; close the session, but until we have UI for restarting predefined sessions
-; (ie, those defined in CONFIG.SYS and started by sysinit), we're going to
-; temporarily prevent them from being closed -- which means refusing to
-; terminate the session's lone remaining program.
-;
-	cmp	[bx].SCB_ENVSEG,-1	; should we allow the session to close?
-	jne	pt1			; yes
-;
-; Since we can't terminate the program, an ABORT (CTRL-ALT-DEL) must be
-; converted into a CTRLC signal instead; otherwise, it would be ignored.  The
-; same goes for a critical error ABORT (see dev_error) and a divide or
-; overflow error (see dos_dverr), minus the echo, since each was reported.
+; A session's last program (eg, its shell) isn't ended by an ABORT
+; (CTRL-ALT-DEL), a critical error ABORT (see dev_error), or a divide,
+; overflow, or CPU fault (see dos_dverr and dos_fault): each becomes a CTRLC
+; signal instead (minus the echo for the errors, since each was reported),
+; which a shell's CTRLC handler answers by returning to its prompt.  Any other
+; exit (eg, EXIT, or a CTRLC its handler doesn't catch) ends the program, and
+; its session closes (see pt1b); when no session is left, the system halts.
 ;
 	cmp	ah,EXTYPE_ABORT		; ABORT request?
 	jne	pt0			; no
@@ -88,10 +82,9 @@ DEFPROC	psp_term,DOS
 ; handled above) are the errors that abort.
 ;
 pt0:	cmp	ah,EXTYPE_ERROR		; an error ABORT?
-	jb	pt0a			; no
+	jb	pt1			; no
 	sti
 	jmp	msc_retctrlc		; signal CTRLC quietly (never returns)
-pt0a:	ret
 ;
 ; Close process file handles.
 ;
@@ -141,7 +134,23 @@ pt1a:	call	psp_close		; close all the process file handles
 ;
 	test	si,si			; parent-less program?
 	jnz	pt1b			; no
-	push	es
+;
+; If no other session has started, this one's exit ends the system, so say so
+; on its console (while its handles are still open) and stop.
+;
+	mov	di,[scb_table].OFF	; DI -> the first SCB
+pt1c:	cmp	di,bx			; this session?
+	je	pt1d			; yes, skip it
+	test	[di].SCB_STATUS,SCSTAT_START
+	jnz	pt1e			; another session is running
+pt1d:	add	di,size SCB
+	cmp	di,[scb_table].SEG
+	jb	pt1c
+	mov	bl,[bx].SCB_SFHOUT	; BL = the session's console SFH
+	CCALL	DOS_UTL_HPRINTF,<13,10,"System halted",13,10>
+	sti
+	jmp	$			; "halt"
+pt1e:	push	es
 	call	scb_endio		; BX -> SCB
 	pop	es
 pt1b:	LOCK_SCB

@@ -169,7 +169,7 @@ DOS_UTL_GETTIME	equ	23h	; get time (AX) in "packed" format (or ticks)
 DOS_UTL_INCDATE	equ	24h	; increment date (CX=year, DH=month, DL=day)
 DOS_UTL_EDITLN	equ	25h	; edit line (DS:DX)
 DOS_UTL_SOUND	equ	26h	; sound (DX = PIT divisor) for CX ticks
-DOS_UTL_ALIAS	equ	27h	; code alias (AX) of memory block (BX)
+DOS_UTL_ALIAS	equ	27h	; code alias (AX) of block (BX) (or reverse)
 DOS_UTL_MAPSEG	equ	28h	; selector (AX) for real-mode segment (BX)
 DOS_UTL_HDLCTL	equ	(DOS_HDL_IOCTL + 80h)
 	ENDIF	; DOSFUNC

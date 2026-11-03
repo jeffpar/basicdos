@@ -17,7 +17,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTNEAR	<get_psp,dos_abort>
+	EXTNEAR	<get_psp,psp_owner,dos_abort>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -46,8 +46,12 @@ DEFPROC	dos_fault,DOSFAR
 	push	es
 	mov	bx,sp
 	call	get_psp			; AX = current PSP (ZF set if none)
-	jz	df9
-	mov	es,ax
+	jnz	df0a			; (df9 is here, in reach of every jump)
+df9:	pop	es
+	pop	bx
+	pop	ax
+	ret
+df0a:	mov	es,ax
 	mov	ax,ss:[bx+16]		; AX = faulting CS
 	cmp	es:[PSP_START].SEG,ax	; is it the program's code?
 	je	df1			; yes
@@ -55,7 +59,8 @@ DEFPROC	dos_fault,DOSFAR
 ; It's also the program's own code if it's in a block that the program owns
 ; (eg, one of COMMAND's code blocks), which CPU$ finds from the selector (a
 ; program that shares another copy's code has it in PSP_START, although the
-; other copy owns it; see load_program).
+; other copy owns it; see load_program); the block's owner is compared with
+; the program's owner ID (see psp_owner), which at ring 3 isn't its PSP.
 ;
 	push	bx
 	push	cx
@@ -71,8 +76,12 @@ DEFPROC	dos_fault,DOSFAR
 	mov	ah,CPU_QUERY
 	call	far ptr DDINT_CPU	; PMB of the block at CX
 	jc	df0			; there's none (AX = a nonzero error)
+	push	es:[di].PMB_OWNER	; save the block's owner
 	call	get_psp			; AX = current PSP
-	sub	ax,es:[di].PMB_OWNER	; AX = 0 if the program owns the block
+	call	psp_owner		; AX = its owner ID
+	pop	cx			; CX = the block's owner
+	jc	df0			; no PSP block (AX = a nonzero error)
+	sub	ax,cx			; AX = 0 if the program owns the block
 df0:	add	sp,size PMB
 	pop	di
 	pop	dx
@@ -94,10 +103,6 @@ df1:	mov	ax,ss:[bx+14]
 	PRINTF	<"CPU fault %02x (EC=%04x) at %04x:%04x",13,10>
 	mov	ah,EXTYPE_FAULT
 	jmp	dos_abort
-df9:	pop	es
-	pop	bx
-	pop	ax
-	ret
 ENDPROC	dos_fault
 
 DOS	ends

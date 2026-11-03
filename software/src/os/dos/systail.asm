@@ -122,13 +122,38 @@ si16c:	mov	es:[def_drive],al
 	jae	si18
 	DOSUTIL	LOAD			; load specified SHELL into an SCB
 	jc	si18
-	test	ax,ax
-	jz	si16a
-	mov	[cbCacheData],ax
-	mov	[pCacheData].OFF,bx
-	mov	[pCacheData].SEG,es
-si16a:	DOSUTIL	START			; CL = SCB # (from the LOAD call)
-	inc	dx			; must be valid, so no error checking
+	push	ax
+	DOSUTIL	START			; CL = SCB # (from the LOAD call)
+	pop	ax			; must be valid, so no error checking
+	inc	dx
+	test	ax,ax			; any program data to cache?
+	jz	si17			; no
+	mov	si,bx			; SI = its offset
+	mov	bx,es			; BX = its segment (or selector)
+	call	cache_free		; free the previous alias, if any
+	cmp	es:[prog_user],0	; ring 3 programs?
+	je	si16a			; no
+;
+; A ring 3 program's selectors are in its session's LDT, which isn't active
+; while another session's SHELL loads (see scb_load), so cache_int21 needs a
+; GDT alias of the data, which we make with the loaded session's LDT active.
+;
+	push	ax
+	push	dx
+	mov	al,cl			; AL = the loaded session #
+	mov	ah,CPU_SETLDT
+	call	far ptr DDINT_CPU	; make its LDT active
+	sub	al,al			; AL = MEMF_* for a DPL 0 data alias
+	mov	ah,CPU_ALIAS
+	call	far ptr DDINT_CPU	; AX = an alias of the selector in BX
+	pop	dx
+	xchg	bx,ax			; BX = the alias (carry unchanged)
+	pop	ax
+	jnc	si16a
+	sub	si,si			; no alias, so no cache
+si16a:	mov	[cbCacheData],ax
+	mov	[pCacheData].OFF,si
+	mov	[pCacheData].SEG,bx
 
 si17:	sub	bx,bx			; no default shell now
 	jmp	si15
@@ -174,6 +199,7 @@ si19:	ECCALL	DOS_UTL_HPRINTF,<"Unable to load %s">,<13,10>,ax,si
 ;
 si20:	add	sp,size SPB		; free SPB on the stack
 					; (somewhat moot, but let's stay tidy)
+	call	cache_free		; and the cache data's alias, if any
 	mov	cx,dx			; CX = SCB load count
 	lds	dx,[pCacheInt21]	; restore INT 21h vector
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 21h
@@ -654,6 +680,26 @@ ENDPROC	cache_int21
 	DEFLBL	open_error,near
 	EPRINTF	<"Unable to open %s">,,ax,dx
 	jmp	fatal_error
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cache_free (free the cache data's GDT alias, if any; see si16a)
+;
+; Outputs:
+;	ES = DOS data segment
+;
+	DEFLBL	cache_free,near
+	mov	es,[dos_seg]
+	cmp	es:[prog_user],0	; ring 3 programs (so an alias)?
+	je	cf9			; no
+	push	bx
+	mov	bx,[pCacheData].SEG
+	test	bx,bx			; is there one yet?
+	jz	cf8			; no
+	mov	ah,CPU_UNMAP
+	call	far ptr DDINT_CPU	; free it
+cf8:	pop	bx
+cf9:	ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

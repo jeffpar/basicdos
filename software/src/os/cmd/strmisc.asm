@@ -281,28 +281,24 @@ ENDPROC	put2Digits
 DEFPROC	strFre,FAR
 	RETVAR	retFre,dword
 	ARGVAR	freArg,dword
-	LOCVAR	freOwner,word
+	LOCVAR	freType,word
 	ENTER
 	push	ds
 	call	compactStrs
-	sub	ax,ax			; AX = owner of free blocks
+	mov	ax,1			; AX = 1 (free blocks)
 	cmp	[freArg].HIW,0		; negative argument?
 	jge	fr0			; no
-	mov	ah,DOS_PSP_GET
-	int	21h
-	xchg	ax,bx			; AX = owner of our blocks
-fr0:	mov	[freOwner],ax
+	mov	al,3			; AX = 3 (our own blocks)
+fr0:	mov	[freType],ax
 	sub	cx,cx			; CX = memory block #
 	mov	[retFre].LOW,cx
 	mov	[retFre].HIW,cx		; total bytes (none yet)
-fr1:	mov	dl,0			; DL = 0 (any block)
-	DOSUTIL	QRYMEM			; AX = owner, SI:DX = size (in bytes)
+fr1:	mov	dx,[freType]		; DL = type of block
+	DOSUTIL	QRYMEM			; SI:DX = size (in bytes)
 	jc	fr8
-	cmp	ax,[freOwner]		; one of the blocks to total?
-	jne	fr2			; no
 	add	[retFre].LOW,dx
 	adc	[retFre].HIW,si
-fr2:	inc	cx
+	inc	cx
 	jmp	fr1
 fr8:	pop	ds
 	LEAVE

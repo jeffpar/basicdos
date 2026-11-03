@@ -171,7 +171,8 @@ Constant equal to the return code from the last program executed, or for an inte
 Returns -1 (true) if a file or directory matching *filespec* exists, or 0 (false) if not; *filespec* may contain wildcards (eg, EXISTS("C:\SAMPLES\*.BAS")).  For example, a batch file can create a directory only if it doesn't exist with IF NOT EXISTS("OBJ") THEN MD OBJ.
 
 [s]EXIT
-Exits the command shell if there is a previously loaded copy.
+Exits the command shell; a session's last shell closes the session, and the
+system halts when no session is left.
 
 [f]EXP(*x*)
 Returns e (2.71828...) raised to the power of *x*.

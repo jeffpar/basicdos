@@ -142,7 +142,7 @@ ab2a:	mov	al,[si].BDEF_SIG
 	jne	ab3			; no
 ab2b:	mov	bx,es
 	mov	es:[CBLK_DATA],bx	; (FBLKs have it, too)
-	DOSUTIL	ALIAS
+	DOSUTIL	ALIAS,0
 	jnc	ab3
 	mov	ah,DOS_MEM_FREE
 	int	21h			; free the block (in ES)
@@ -601,7 +601,7 @@ DEFPROC	codeSeg
 	push	ax
 	push	bx
 	mov	bx,dx
-	DOSUTIL	ALIAS			; AX = code alias (which can't fail)
+	DOSUTIL	ALIAS,0			; AX = code alias (which can't fail)
 	ASSERT	NC
 	xchg	dx,ax
 	pop	bx

@@ -49,7 +49,7 @@ Displays the specified program line (with its line number) for editing, using th
 
 > EXIT
 
-Exits the command shell if there is a previously loaded copy (see [COMMAND.COM](../external/command/)).
+Exits the command shell (see [COMMAND.COM](../external/command/)), returning to the copy that loaded it, if any; otherwise its session closes, and when no session is left, the system halts.
 
 ### LIST
 

@@ -62,7 +62,7 @@ Device drivers can also call DOS_UTL_WAIT, DOS_UTL_ENDWAIT, DOS_UTL_HOTKEY, DOS_
 | 24h | [DOS_UTL_INCDATE](#date-and-time) | Advances a date by one day |
 | 25h | [DOS_UTL_EDITLN](#console) | Reads an edited line of console input |
 | 26h | [DOS_UTL_SOUND](#sound) | Plays a sound for a number of clock ticks |
-| 27h | [DOS_UTL_ALIAS](#memory) | Returns a code segment for a memory block |
+| 27h | [DOS_UTL_ALIAS](#memory) | Returns a code segment for a memory block, or the reverse |
 | 28h | [DOS_UTL_MAPSEG](#memory) | Returns a selector for a real-mode segment |
 
 ### Strings
@@ -164,12 +164,12 @@ Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-
 Inputs:
 
 - CX = memory block # (0-based)
-- DL = block type: 0 for any block, 1 for free blocks, or 2 for used blocks
+- DL = block type: 0 for any block, 1 for free blocks, 2 for used blocks, or 3 for the blocks that the current PSP owns (eg, for FRE(-1))
 
 Outputs (carry clear if a block was found; carry set if there are no more blocks of the requested type):
 
 - BX = segment (in protected mode, the block's selector, or 0 for a free block)
-- AX = owner (eg, a PSP segment, 8 for the system, or 0 if free)
+- AX = owner ID (eg, a PSP segment, 8 for the system, or 0 if free; in protected mode, a ring 3 program's ID is its session number plus 80h, then its LDT index, eg, 8000h; see [Owner IDs](../mmu/#owners))
 - SI:DX = size, in bytes
 - ES:DI -> name of the owning program or block type, if any
 
@@ -177,7 +177,7 @@ The MEM command uses this function to total the free memory blocks.
 
 Free memory is also useful for data that can be recreated if it's overwritten.  For example, while a program runs, COMMAND.COM keeps a copy of its transient portion in a block that it allocates at the top of free memory (DOS_MEM_ALLOC with MCBTYPE_HIGH) and then frees.  When the program ends, it allocates the same size there again, which is the same memory unless something else has allocated it in the meantime, and checks the copy's checksum.  It can't simply keep the freed block's segment, since in protected mode a freed block's selector isn't valid.  Since the block is free while the program runs, another session can allocate it at any time, so a caller should use DOS_UTL_LOCK and DOS_UTL_UNLOCK around any code that writes to the block or relies on its contents (eg, from the first allocation through the copy, and from the second allocation through copying it back).
 
-**DOS_UTL_ALIAS (27h)**: BX = segment (or selector) of a memory block.  Returns AX = a code segment (or selector) for the same memory, so that a program can run code that it writes into the block (eg, COMMAND.COM's compiled BASIC code).  In real mode, it's the block's own segment; in protected mode, it's the block's code alias (see CPU_ALIAS), which CPU$ creates the first time it's requested and frees with the block, so it's no longer valid once the block is freed.  Carry is set if there's no selector for it (AX = error code).
+**DOS_UTL_ALIAS (27h)**: AL = 0, BX = segment (or selector) of a memory block.  Returns AX = a code segment (or selector) for the same memory, so that a program can run code that it writes into the block (eg, COMMAND.COM's compiled BASIC code).  In real mode, it's the block's own segment; in protected mode, it's the block's code alias (see CPU_ALIAS), which CPU$ creates the first time it's requested and frees with the block, so it's no longer valid once the block is freed.  Carry is set if there's no selector for it (AX = error code).  With AL = 1, BX = a block's code alias (eg, a program's CS), and it returns the block's own segment (or selector, with the alias's RPL) in AX, so that a program can change code that it runs through the alias (eg, DEBUG.COM storing a breakpoint at ring 3, where code selectors aren't writable); in real mode, it's BX itself.  Carry is set if BX isn't the start of a block (AX = error code).
 
 **DOS_UTL_MAPSEG (28h)**: BX = real-mode segment.  Returns AX = a segment (or selector) for that segment's 64K, for programs that read and write memory by segment (eg, BASIC's DEF SEG, PEEK, and POKE).  In real mode, it's the segment itself.  In protected mode, it's a selector that the session keeps until its next DOS_UTL_MAPSEG call (which frees it, and like DOS_MEM_FREE, returns 0 in ES or DS if either held it): writable for video memory (segments A000h through BFFFh), and read-only everywhere else, so that a program can read low memory (eg, the BIOS data area) and the ROMs, but not change them.  Carry is set if there's no selector for it (AX = error code).
 

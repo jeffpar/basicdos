@@ -990,7 +990,7 @@ csl2:	mov	bx,sp
 	push	ds
 	pop	es			; (ES = PSP again)
 	xchg	bx,ax			; BX = the copy's selector
-	DOSUTIL	ALIAS			; AX = its code alias
+	DOSUTIL	ALIAS,0			; AX = its code alias
 	mov	dx,bx
 	jnc	csl8
 csl9:	mov	ax,(DOS_PSP_RETURN SHL 8) OR 1
@@ -1045,9 +1045,9 @@ ENDPROC	r3_cpu
 ; r3_rwmem copies CX bytes from BX:SI to ES:DI (or with ADDR_WRITE, from ES:DI
 ; to BX:SI), if LSL, VERR, and VERW say that the selector allows it (so that
 ; we don't fault).  A code selector isn't writable, so if it's the code alias
-; of the current program's PSP block (eg, its CS, for a breakpoint or an E),
-; we write through the PSP instead.  It preserves only DS (mem_io, the only
-; caller, saves the rest).
+; of a block (eg, a COM program's CS, or an NE program's code segment, for a
+; breakpoint or an E), we write through the block's own selector instead.  It
+; preserves only DS (mem_io, the only caller, saves the rest).
 ;
 DEFPROC	r3_rwmem
 	push	ds
@@ -1069,16 +1069,11 @@ DEFPROC	r3_rwmem
 	jmp	short rw4
 rw2:	verw	bx			; can we write it?
 	jz	rw3			; yes
-	push	bx
-	mov	ah,DOS_PSP_GET
-	int	21h			; BX = the current PSP
-	DOSUTIL	ALIAS			; AX = its block's code alias
-	pop	dx
-	jc	rw8
-	or	al,3
-	or	dl,3
-	cmp	ax,dx			; is that the selector?
-	jne	rw8			; no
+	DOSUTIL	ALIAS,1			; AX = the block it's a code alias of
+	jc	rw8			; (it's not)
+	verw	ax			; can we write that?
+	jnz	rw8			; no
+	xchg	bx,ax			; BX = the block's selector
 rw3:	push	es
 	pop	ds			; DS:DI -> buffer
 	mov	es,bx

@@ -41,7 +41,7 @@ Call DDINT_CPU with a function number in AH.  Physical addresses and lengths are
 | AH | Function | Inputs | Outputs |
 |----|----------|--------|---------|
 | 00h | CPU_GETINFO | | AL = CPU type, AH = CPUF_* flags (bits 6-7 = CPU_HWTYPE), DX:CX = length of largest free block |
-| 01h | CPU_ALLOC | AL = MEMF_* flags, BX = owner, SI:DI = length | AX = first selector (0 if MEMF_NONE), DX:CX = address |
+| 01h | CPU_ALLOC | AL = MEMF_* flags, BX = owner (see [Owner IDs](#owners)), SI:DI = length | AX = first selector (0 if MEMF_NONE), DX:CX = address |
 | 02h | CPU_FREE | DX:CX = block | |
 | 03h | CPU_MAP | AL = MEMF_* flags, DX:CX = address, SI:DI = length | AX = first selector, CX = number of selectors |
 | 04h | CPU_UNMAP | BX = first selector, CX = number of selectors (0 = 1) | |
@@ -51,7 +51,7 @@ Call DDINT_CPU with a function number in AH.  Physical addresses and lengths are
 | 08h | CPU_REALLOC | DX:CX = block, SI:DI = new length | |
 | 09h | CPU_MOVE | ES:BX -> MOVEPKT (source address, destination address, and length, all dwords) | |
 | 0Ah | CPU_SETBLK | DX:CX = block, AL = MCBTYPE_*, BX = owner (non-zero), ES:SI -> 8-character name (SI = 0 for none) | |
-| 0Bh | CPU_FREEALL | BX = owner | |
+| 0Bh | CPU_FREEALL | BX = owner (see [Owner IDs](#owners)) | |
 | 0Ch | CPU_SETLIM | BX = selector, SI:DI = new length (1 to 64K) | |
 | 0Dh | CPU_SEGINFO | AL = ADDR_* flags, BX = selector (or segment) | DX:CX = base address, AX = limit (or with ADDR_RIGHTS, AL = access rights, AH = extended byte) |
 | 0Eh | CPU_RWMEM | AL = ADDR_* flags, BX:SI = address, CX = length, ES:DI -> buffer | |
@@ -63,6 +63,7 @@ Call DDINT_CPU with a function number in AH.  Physical addresses and lengths are
 Every function works the same way in either driver and in either mode, so callers needn't check which is which: in real mode, CPU_ALLOC, CPU_MAP, and CPU_ALIAS return the memory's segment instead of a selector (CPU_ALLOC returns 0 for a block above 1Mb, and CPU_MAP needs memory below 1Mb that's paragraph-aligned), a segment is its own alias, and CPU_UNMAP has nothing to do.  Errors are ERR_INVALID (eg, a bad function, a zero length, or a selector that isn't in use), ERR_NOMEMORY (no block big enough, with DX:CX = the length of the largest free block; or no free PMB or descriptors), and ERR_BADADDR (a block that CPU_ALLOC didn't return).
 
 - **Blocks**: a *block* (DX:CX) is the address that CPU_ALLOC returned, or DX = -1 and CX = the selector (or segment) that it returned, which is what DOS has (eg, in ES for DOS_MEM_FREE).  CPU_ALLOC rounds lengths up to a multiple of 16, so every block starts on a paragraph boundary, and a block of more than 64K gets one selector for every 64K (each 8 more than the last).  CPU_REALLOC shrinks a block, or grows it into the free block after it (without changing its selectors), and CPU_MOVE copies memory between any two physical addresses (below 1Mb, in real mode), even if they overlap.  CPU_SETBLK records a block's owner, type, and name for DOS (as an MCB does), which MEM and DEBUG's DM show, and CPU_FREEALL frees every block an owner has (DOS uses it when a program ends).
+- **Owner IDs** {#owners}: an owner is a PSP (or a driver's segment, or MCBOWNER_SYSTEM), which the 80286 driver stores as an *owner ID* (PMB_OWNER).  In protected mode, a ring 3 program's PSP is an LDT selector, which another session's program can share (see [Ring 3](#ring3)), so its ID is 80h plus its session number in the high byte and its LDT index in the low byte (eg, 8000h for session 0's COMMAND.COM, whose PSP is selector 0007h, and 8100h for session 1's), which is unique, and above MCBOWNER_SYSTEM, like a PSP segment; any other owner is its own ID.  CPU_QUERY returns the IDs (eg, to MEM and DEBUG's DM, which display them), and CPU_FREEALL takes an owner, as CPU_ALLOC and CPU_SETBLK do.  DOS compares a block's owner with a program's ID, which it gets from the program's own block (every PSP block owns itself), when it needs to know whether the program owns the block (eg, for a fault in the program's code, or FRE(-1); see DOS_UTL_QRYMEM).
 - **Memory flags**: MEMF_LDT (01h) requests LDT selectors instead of GDT selectors, MEMF_CODE (02h) code segments instead of data segments, MEMF_NONE (04h) a block without any selectors (for CPU_MAP and CPU_ALIAS, the same bit is MEMF_CONFORM, which makes conforming code, which code at any ring can call, and which runs at the caller's ring, as FPU$'s functions do), MEMF_RDONLY (08h) read-only data (or execute-only code), and MEMF_USER (10h) DPL 3 selectors, for programs at ring 3.  CPU_ALLOC also takes MEMF_LOW (20h) to allocate below 1Mb, MEMF_HIGH (40h) to allocate from the top of the last free block that's big enough, and MEMF_AT (80h) to allocate the memory at DX:CX; otherwise, it allocates from the first free block that's big enough, conventional or extended.
 - **Selectors**: CPU_MAP maps existing memory, CPU_ALIAS creates another selector for the same memory as an existing one, with different access rights (see [Code Aliases](#aliases)), CPU_UNMAP frees either, and CPU_SETLIM changes the length that a selector covers, keeping the selector.
 - **Debuggers**: CPU_SEGINFO, CPU_RWMEM, and CPU_SYSREGS never change CPU$'s state, so they work even when CPU$ itself was interrupted.  An address is in real-mode form unless ADDR_SEL (01h) says its segment is a protected-mode selector (in either mode) or ADDR_PHYS (04h) says it's a physical address (its "segment" holds bits 16-31).  CPU_SEGINFO returns a segment's base address and limit, or with ADDR_RIGHTS (08h), its descriptor's access rights and extended byte.  CPU_RWMEM copies CX bytes from the address to ES:DI, or with ADDR_WRITE (02h), from ES:DI to the address, which must be within the segment's limit; it can write to a code segment (eg, to store a breakpoint).  CPU_SYSREGS stores the GDTR and IDTR (as SGDT and SIDT do), and returns the MSW, LDTR, and TR; the 8086 driver returns ERR_INVALID, which tells a debugger that the processor has only one mode.
@@ -142,7 +143,7 @@ The 80286 driver's arena is a table of Physical Memory Blocks (PMBs) in address 
 |-------|------|----------|
 | PMB_SIG | byte | 'M', or 'Z' for the last PMB |
 | PMB_TYPE | byte | PMBTYPE_* |
-| PMB_OWNER | word | Owner (from CPU_ALLOC's BX), or zero |
+| PMB_OWNER | word | Owner ID (see [Owner IDs](#owners)), or zero |
 | PMB_ADDR | dword | Physical address |
 | PMB_LEN | dword | Length, in bytes |
 | PMB_SEL | word | First selector (if any) |
@@ -150,8 +151,7 @@ The 80286 driver's arena is a table of Physical Memory Blocks (PMBs) in address 
 | PMB_MCBTYPE | byte | Block type (MCBTYPE_*, as in an MCB), or zero |
 | (reserved) | byte | |
 | PMB_CODE | word | The block's code alias (see [Code Aliases](#aliases)), or zero |
-| PMB_LDT | word | The LDT that was active when the owner was set |
-| (reserved) | 2 bytes | |
+| (reserved) | 4 bytes | |
 | PMB_NAME | 8 bytes | Name of the process (as in an MCB), or zero |
 
 Unlike MCBs, PMBs aren't stored in front of the memory they describe:
@@ -240,7 +240,7 @@ COMMAND.COM runs at ring 3, so it uses only selectors that the kernel gives it, 
 
 A protected-mode segment is either code (executable, and at most readable) or data (readable, and perhaps writable), so memory that's both written and executed needs two selectors.  CPU_ALIAS creates the second one: given a selector, it returns a new selector for the same base and limit, with the access rights selected by MEMF_CODE, MEMF_RDONLY, and MEMF_USER, and CPU_UNMAP frees it.
 
-A block's own code alias (CPU_ALIAS with just MEMF_CODE, for the selector that CPU_ALLOC returned for the block) is created only once, with the block's DPL, and is freed with the block, so nothing else has to keep track of it (and it must never be freed with CPU_UNMAP).  Programs get it from DOS_UTL_ALIAS (27h; see [Utility Functions](../util/#memory)), since ring 3 code can't call CPU$; in real mode, a block's code alias is its segment.
+A block's own code alias (CPU_ALIAS with just MEMF_CODE, for the selector that CPU_ALLOC returned for the block) is created only once, with the block's DPL, and is freed with the block, so nothing else has to keep track of it (and it must never be freed with CPU_UNMAP).  Programs get it from DOS_UTL_ALIAS (27h; see [Utility Functions](../util/#memory)), since ring 3 code can't call CPU$, and with AL = 1, the same function does the reverse, returning the block's own selector for its code alias, since a code selector isn't writable (eg, so that a debugger can store a breakpoint in a program's code); in real mode, a block's code alias is its segment.
 
 COMMAND.COM compiles BASIC into code blocks that it allocates as data, and runs them (and transfers from one to another) through their code aliases.  Generated code that writes to its own block (eg, a double's result) gets the block's data selector from the block itself, rather than from CS.
 
@@ -263,13 +263,13 @@ DEF SEG accepts any segment, which in protected mode isn't a selector, so COMMAN
 In protected mode, unless CONFIG.SYS has `RING=0` (see [CONFIG.SYS](../../bdman/cfg/#ring)), every session's first program (eg, COMMAND.COM) and every program that the DOS_PSP_EXEC functions start runs at ring 3, with CPU$, the drivers, and the kernel at ring 0, so that a program can use only the memory it's given, and can't use privileged instructions.
 
 - **Selectors**: the blocks that DOS_MEM_ALLOC allocates for a ring 3 program (including the blocks that a program is loaded into) have DPL 3 selectors (MEMF_USER) in its session's LDT (MEMF_LDT), and a program's CS has RPL 3, which is how DOS knows to start it at ring 3.
-- **LDTs**: each session has its own LDT, so a program can't name another session's memory; the kernel makes a session's LDT the active one (CPU_SETLDT) whenever it switches sessions.  Selectors repeat from one session's LDT to the next, so CPU$ records which LDT was active when each block's owner was set (PMB_LDT), and CPU_FREEALL frees only the blocks in the active LDT.
+- **LDTs**: each session has its own LDT, so a program can't name another session's memory; the kernel makes a session's LDT the active one (CPU_SETLDT) whenever it switches sessions.  Selectors repeat from one session's LDT to the next, so a ring 3 program's PSP doesn't identify it on its own, and CPU$ stores the owner of each of its blocks as an [owner ID](#owners) that includes the session number, which is what CPU_FREEALL frees by.
 - **Ring 0 stacks**: the TSS is used only for its ring 0 stack (CPU_SETSTACK), which the processor switches to when an interrupt takes ring 3 code to ring 0.  A program's ring 0 stack is its parent's stack, where the parent waits for it to end, so nested programs need no stacks of their own; a session's first program, which has no parent, uses a 1K ring 0 stack that the kernel allocates for each session.
 - **DOS calls**: a DOS call's parameters on the caller's stack (eg, for DOS_UTL_PRINTF and DOS_UTL_SPRINTF) are read through a ring 0 alias of the caller's stack, and a CALL 5 works at ring 3, too, since SEL_CALL5 is a DPL 3 gate.
 - **CTRL-C and critical error handlers** (INT 23h and INT 24h) run at ring 3, on the stack of the program that called DOS, and return to the kernel through a ring 3 stub.  A critical error handler gets a copy of the device header (since it can't read the driver's memory), and a CTRL-C handler can continue the DOS call (with any registers it changed) or end the program, as at ring 0; either way, the kernel makes sure the program stays at ring 3, with IOPL 0.
 - **Interrupt vectors**: the IDT is shared by every session and by ring 0 code, so a ring 3 program's handler can't go in a gate.  Instead, when a ring 3 program sets a vector (other than INT 22h-24h, which each session has its own of), the kernel puts a gate of its own there, which reflects the interrupts that ring 3 code in the program's session issues to the program's handler, at ring 3, and passes all others to the previous handler.  A ring 3 program that gets a vector (eg, to chain to it) gets the address of a ring 3 stub that passes the interrupt to the previous handler.  The kernel removes the program's handlers when it ends.  So, for example, an INT 21h hook sees the DOS calls of the programs it runs, but not the kernel's own.
 - **FPU$**: its functions are mapped with conforming code selectors, so the kernel and programs at ring 3 call them through the same FPUTBL, and they run at the caller's ring (see [Floating-Point Interface](../fpu/)).
-- **DEBUG.COM** as a driver (at ring 0) can stop and resume ring 3 programs with every command.  As a program at ring 3, it can't call CPU$, so it uses DOS functions and the 80286's unprivileged instructions instead (see [Installable Drivers](../dev/#installable-drivers)), and it can reach only the memory that ring 3 can (eg, the program's own, not DOS's, the drivers', or the BIOS data area); it has no DM, DS (selector), or LN commands, no `&`, `#`, or `%` addresses, and no system registers, its breakpoints and E change code only in a COM program's block (not in an NE program's code segments), and T steps over an INT, as P does.
+- **DEBUG.COM** as a driver (at ring 0) can stop and resume ring 3 programs with every command.  As a program at ring 3, it can't call CPU$, so it uses DOS functions and the 80286's unprivileged instructions instead (see [Installable Drivers](../dev/#installable-drivers)), and it can reach only the memory that ring 3 can (eg, the program's own, not DOS's, the drivers', or the BIOS data area); it has no DM, DS (selector), or LN commands, no `&`, `#`, or `%` addresses, and no system registers, and T steps over an INT, as P does.
 
 ### The Protected Mode Demo {#pmdemo}
 

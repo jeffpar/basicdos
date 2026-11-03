@@ -226,6 +226,8 @@ When DOS_PSP_RETCODE reports EXTYPE_CTRLC, BASIC-DOS also signals CTRL-C to the 
 
 A divide or overflow error or a CPU fault (EXTYPE_DVERR, EXTYPE_OVERR, or EXTYPE_FAULT) doesn't ripple that way: DOS has already reported it, so the parent gets the exit code (FFh) and continues (eg, a BAT or BAS file sees an ERRORLEVEL of 255).
 
+When a session's last program (eg, its shell) ends, its session closes, and when no session is left, DOS displays "System halted" and stops.  An ABORT (CTRL-ALT-DEL), a critical error ABORT, or a divide, overflow, or CPU fault doesn't end a session's last program, though: it becomes a CTRL-C signal to the program instead, which a shell answers by returning to its prompt.
+
 However a program terminates, any of vectors 00h, 01h, 03h, 08h, 09h, 1Bh, and 1Ch that still points into its memory is restored to the value it had when BASIC-DOS started, since some programs (eg, DEBUG, MSBASIC, and programs built with C or Pascal runtimes) hook those vectors directly and restore them only when they exit normally.
 
 ### Error Codes

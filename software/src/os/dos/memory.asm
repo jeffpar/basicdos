@@ -209,12 +209,13 @@ ENDPROC	para_len
 ;
 ; Inputs:
 ;	CX = memory block # (0-based)
-;	DL = memory block type (0 for any, 1 for free, 2 for used)
+;	DL = memory block type (0 for any, 1 for free, 2 for used, or 3 for
+;	the blocks that the current PSP owns; eg, for FRE(-1))
 ;
 ; Outputs:
 ;	On success, carry clear:
 ;		REG_BX = segment
-;		REG_AX = owner ID (eg, PSP)
+;		REG_AX = owner ID (eg, PSP; see CPU_SETBLK)
 ;		REG_SI:REG_DX = size (in bytes)
 ;		REG_ES:REG_DI -> name of process or type, if any
 ;	On failure, carry set (ie, no more blocks of the requested type)
@@ -228,10 +229,24 @@ DEFPROC	mem_query,DOS
 	push	ds
 	pop	es
 	mov	di,offset pmb_buf	; ES:DI -> PMB buffer
-	sub	bx,bx			; BX = PMB #
+	sub	si,si			; SI = owner ID to match (none)
+	cmp	dl,3			; the current PSP's blocks?
+	jne	q0			; no
+	push	cx
+	call	get_psp			; AX = PSP
+	call	psp_owner		; AX = its owner ID
+	pop	cx
+	jc	q9			; no such block (and carry is set)
+	xchg	si,ax			; SI = owner ID to match
+	mov	dl,0			; DL = 0 (any block that it owns)
+q0:	sub	bx,bx			; BX = PMB #
 q1:	call	mem_pmb			; get PMB # BX
 	jc	q9			; no more (and carry is set)
-	test	dl,dl			; any block?
+	test	si,si			; only one owner's blocks?
+	jz	q1a			; no
+	cmp	[pmb_buf].PMB_OWNER,si	; one of them?
+	jne	q4			; no
+q1a:	test	dl,dl			; any block?
 	jz	q3			; yes
 	mov	al,1			; AL = 1 (free)
 	cmp	[pmb_buf].PMB_TYPE,PMBTYPE_FREE
@@ -338,6 +353,40 @@ gpn8:	sub	ax,ax
 	rep	stosw			; no name, so zero the 8 bytes
 	ret
 ENDPROC	get_pname
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; psp_owner
+;
+; Returns the owner ID of the PSP in AX, which is the owner of its own block
+; (as CPU$ stores it; see CPU_SETBLK), for comparing with other blocks' owners
+; (eg, from CPU_QUERY), since in protected mode a ring 3 program's PSP is an
+; LDT selector, which isn't its ID.
+;
+; Inputs:
+;	AX = PSP
+;	ES:DI -> PMB buffer
+;
+; Outputs:
+;	Carry clear if successful: AX = owner ID (and ES:DI -> the PSP's PMB)
+;	Carry set if there's no such block (AX = error code)
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	psp_owner,DOS
+	ASSUME	DS:NOTHING, ES:NOTHING
+	push	bx
+	xchg	cx,ax
+	mov	bx,-1
+	mov	dx,bx			; DX:CX = the PSP's block (BX = -1)
+	mov	ah,CPU_QUERY
+	call	far ptr DDINT_CPU	; its PMB (or carry set, AX = error)
+	pop	bx
+	jc	po9
+	mov	ax,es:[di].PMB_OWNER	; AX = its owner ID
+po9:	ret
+ENDPROC	psp_owner
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -453,21 +502,44 @@ ENDPROC	mem_pmode
 ;
 ; Returns the code alias of a memory block (see mem_alias), which a program
 ; needs to execute code that it writes into the block (eg, COMMAND.COM's code
-; blocks).
+; blocks), or with REG_AL = 1, the reverse: the block's own selector, with
+; the alias's RPL, which a program needs to change code that it runs through
+; the alias (eg, DEBUG.COM storing a breakpoint at ring 3, where code isn't
+; writable).  In real mode, a segment is its own alias.
 ;
 ; Inputs:
-;	REG_BX = block's segment (or selector)
+;	REG_AL = 0 for a block's code alias, or 1 for a code alias's block
+;	REG_BX = block's segment (or selector), or with REG_AL = 1, its alias
 ;
 ; Outputs:
-;	Carry clear if successful: REG_AX = code segment (or selector)
+;	Carry clear if successful: REG_AX = code segment (or selector), or
+;	with REG_AL = 1, the block's segment (or selector)
 ;	Carry set if error: REG_AX = error code
 ;
 DEFPROC	utl_alias,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
 	mov	ax,[bp].REG_BX
+	cmp	byte ptr [bp].REG_AL,1	; a code alias's block instead?
+	je	ua1			; yes
 	call	mem_alias
-	mov	[bp].REG_AX,ax		; (carry is unchanged)
+	jmp	short ua9
+ua1:	call	mem_pmode		; protected mode?
+	jnc	ua9			; no (a segment is its own alias)
+	LOCK_SCB			; (for pmb_buf)
+	push	ds
+	pop	es
+	mov	di,offset pmb_buf	; ES:DI -> PMB buffer
+	push	ax
+	call	psp_owner		; the PMB of the block at AX's base
+	pop	cx			; CX = the alias
+	jc	ua8			; there's none (AX = error code)
+	mov	ax,[pmb_buf].PMB_SEL
+	and	cl,3
+	or	al,cl			; AX = its selector (with alias's RPL)
+ua8:	mov	[bp].REG_AX,ax
+	UNLOCK_SCB_RET
+ua9:	mov	[bp].REG_AX,ax		; (carry is unchanged)
 	ret
 ENDPROC	utl_alias
 

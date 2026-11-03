@@ -75,6 +75,13 @@ CPU_MAXFUNC	equ	12h
 ; MCBTYPE_*), and its name (8 characters at ES:SI, or SI = 0 for none), for
 ; DOS (see PMB_MCBTYPE and PMB_NAME); CPU_FREE and CPU_FREEALL clear them.
 ;
+; An owner (for CPU_ALLOC, CPU_SETBLK, and CPU_FREEALL) is a PSP (or a driver's
+; segment, or MCBOWNER_SYSTEM), which the 80286 driver stores as an owner ID
+; (PMB_OWNER): in protected mode, a ring 3 program's PSP is an LDT selector,
+; which another session's program can share, so its ID is 80h plus its session
+; # (see CPU_SETLDT) in the high byte and its LDT index in the low byte (eg,
+; 8000h for session 0's COMMAND.COM); any other owner is its own ID.
+;
 
 ;
 ; CPU_SEGINFO, CPU_RWMEM, and CPU_SYSREGS are for debuggers, so they never
@@ -215,7 +222,7 @@ MEMF_AT		equ	80h	; CPU_ALLOC only: at address DX:CX
 PMB		struc
 PMB_SIG		db	?	; 00h: PMBSIG_NEXT or PMBSIG_LAST
 PMB_TYPE	db	?	; 01h: PMBTYPE_*
-PMB_OWNER	dw	?	; 02h: owner (from CPU_ALLOC), or 0
+PMB_OWNER	dw	?	; 02h: owner ID (see CPU_SETBLK), or 0
 PMB_ADDR	dd	?	; 04h: physical address
 PMB_LEN		dd	?	; 08h: length, in bytes
 PMB_SEL		dw	?	; 0Ch: first selector, if any
@@ -223,8 +230,7 @@ PMB_NSEL	dw	?	; 0Eh: number of selectors
 PMB_MCBTYPE	db	?	; 10h: MCBTYPE_*, or 0
 		db	?	; 11h: (reserved)
 PMB_CODE	dw	?	; 12h: code alias (see CPU_ALIAS), or 0
-PMB_LDT		dw	?	; 14h: LDT active when the owner was set
-		db	2 dup(?); 16h: (reserved)
+		db	4 dup(?); 14h: (reserved)
 PMB_NAME	db	8 dup(?); 18h: name of process (zero if none)
 PMB		ends
 

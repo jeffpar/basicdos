@@ -59,7 +59,10 @@ SYS_LDT		equ	SYS_PIDT + IDT_MAX * 8
 ; that its programs' selectors (MEMF_LDT) can't name another session's memory;
 ; SYS_LDT is the base of an array of LDT_SESSIONS of them, each LDT_MAX entries
 ; (the whole array must still fit below the identity selectors at A000h).  The
-; active session's LDT offset is in SV_LDT, which the descriptor helpers use.
+; active session's LDT offset is in SV_LDT, which the descriptor helpers use,
+; and since a ring 3 program's PSP (an LDT selector) can be the same as another
+; session's, a block's owner is stored as an ID that includes the session #
+; (SV_SESS; see enc_owner).
 ;
 LDT_MAX		equ	96
 LDT_SESSIONS	equ	32
@@ -92,7 +95,7 @@ SV_TYPE		db	?	; CPU type
 SV_FLAGS	db	?	; CPUF_* flags
 SV_NPMBS	dw	?	; number of PMBs
 SV_ARG		db	?	; CPU_ALLOC: MEMF_* flags
-		db	?
+SV_SESS		db	?	; active session # (see CPU_SETLDT)
 SV_OWNER	dw	?	; CPU_ALLOC: owner
 SV_LEN		dd	?	; CPU_ALLOC, CPU_REALLOC, CPU_MOVE: length
 SV_SRC		dd	?	; CPU_MOVE: source
@@ -320,9 +323,8 @@ DEFPROC	ddcpu_alloc
 	call	pmb_split		; BX -> PMB of length SV_LEN
 	mov	ds:[bx].PMB_TYPE,PMBTYPE_USED
 	mov	ax,ds:[SYS_VARS].SV_OWNER
+	call	enc_owner		; AX = its owner ID
 	mov	ds:[bx].PMB_OWNER,ax
-	mov	ax,ds:[SYS_VARS].SV_LDT	; (see ddcpu_freeall)
-	mov	ds:[bx].PMB_LDT,ax
 	call	blk_sel			; AX = selector (or segment)
 	jnc	ca1
 	call	pmb_free		; no descriptors, so free it again
@@ -386,12 +388,8 @@ ENDPROC	ddcpu_free
 ;
 ; ddcpu_freeall (CPU_FREEALL)
 ;
-; Frees every block that BX owns; since freeing a block can merge PMBs, we
-; start over after each one.
-;
-; An owner that's an LDT selector (eg, a ring 3 program's PSP) names a PSP
-; only in its own session's LDT, and other sessions can use the same selector,
-; so it owns only the blocks whose PMB_LDT is the active LDT.
+; Frees every block that BX owns (by its owner ID; see enc_owner); since
+; freeing a block can merge PMBs, we start over after each one.
 ;
 ; Inputs:
 ;	BX = owner
@@ -400,19 +398,16 @@ ENDPROC	ddcpu_free
 ;	Carry clear
 ;
 DEFPROC	ddcpu_freeall
-	mov	dx,bx			; DX = owner
+	xchg	ax,bx
+	call	enc_owner
+	xchg	dx,ax			; DX = owner ID
 fa1:	mov	bx,SYS_PMBS
 	mov	si,ds:[SYS_VARS].SV_NPMBS
 fa2:	cmp	ds:[bx].PMB_TYPE,PMBTYPE_USED
 	jne	fa3
 	cmp	ds:[bx].PMB_OWNER,dx	; does DX own this block?
 	jne	fa3			; no
-	test	dl,SEL_TI		; is the owner an LDT selector?
-	jz	fa2a			; no
-	mov	ax,ds:[SYS_VARS].SV_LDT
-	cmp	ds:[bx].PMB_LDT,ax	; and is the block from the active LDT?
-	jne	fa3			; no (another session's owner)
-fa2a:	push	dx
+	push	dx
 	call	pmb_free
 	pop	dx
 	jmp	fa1
@@ -865,6 +860,7 @@ ENDPROC	ddcpu_setfault
 DEFPROC	ddcpu_setldt
 	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM	; protected mode?
 	jz	stl9			; no, so nothing to do
+	mov	ds:[SYS_VARS].SV_SESS,al	; (see enc_owner)
 	mov	ah,0
 	mov	dx,LDT_BYTES
 	mul	dx			; AX = session # * LDT_BYTES
@@ -927,7 +923,8 @@ ENDPROC	ddcpu_query
 ;
 ; ddcpu_setblk (CPU_SETBLK)
 ;
-; Sets the owner, type, and name in a block's PMB.
+; Sets the owner (as its owner ID; see enc_owner), type, and name in a
+; block's PMB.
 ;
 ; Inputs:
 ;	DX:CX = block, AL = MCBTYPE_*, BX = owner
@@ -940,13 +937,12 @@ DEFPROC	ddcpu_setblk
 	push	bx
 	push	ax
 	call	pmb_used		; BX -> PMB
-	pop	ax
-	pop	cx			; CX = owner
+	pop	cx			; CL = type
+	pop	ax			; AX = owner
 	jc	bk9
-	mov	ds:[bx].PMB_OWNER,cx
-	mov	dx,ds:[SYS_VARS].SV_LDT	; (see ddcpu_freeall)
-	mov	ds:[bx].PMB_LDT,dx
-	mov	ds:[bx].PMB_MCBTYPE,al
+	call	enc_owner		; AX = its owner ID
+	mov	ds:[bx].PMB_OWNER,ax
+	mov	ds:[bx].PMB_MCBTYPE,cl
 	lea	di,[bx].PMB_NAME
 	mov	cx,size PMB_NAME
 	push	es
@@ -1335,6 +1331,35 @@ pu8:	mov	ax,ERR_BADADDR
 	stc
 pu9:	ret
 ENDPROC	pmb_used
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; enc_owner
+;
+; Returns the owner ID that a block's PMB_OWNER holds for an owner.  In
+; protected mode, an LDT selector (a ring 3 program's PSP) becomes 80h plus
+; its session # (see CPU_SETLDT) in AH and its LDT index in AL, so that it's
+; unique even though another session's program can have the same selector,
+; and so that it's above MCBOWNER_SYSTEM, like a PSP segment (see MEM and
+; DEBUG's DM).  Any other owner (a segment, a GDT selector, or the system) is
+; its own ID.
+;
+; Inputs:
+;	AX = owner
+;
+; Outputs:
+;	AX = owner ID
+;
+DEFPROC	enc_owner
+	test	al,SEL_TI		; an LDT selector?
+	jz	eo9			; no
+	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM
+	jz	eo9			; no (a real-mode segment)
+	shr	ax,3			; AL = its LDT index (and AH = 0)
+	mov	ah,ds:[SYS_VARS].SV_SESS
+	or	ah,80h			; AH = 80h + its session #
+eo9:	ret
+ENDPROC	enc_owner
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
