@@ -14,7 +14,7 @@ Read the [Blog](blog/), check out the [Preview](preview/), see a few of the orig
 
 The first BASIC-DOS release diskette is a bootable 360K diskette with BASIC-DOS, a "basic" set of utilities, a collection of BASIC samples (all from PC DOS 1.00), and a few demo programs.  See it running on the [BASIC-DOS Release](download/) page, or download [BASICDOS-360K](software/disks/BASICDOS-360K.img), a diskette image that most PC emulators can boot, or which can be written to a genuine 360K diskette.
 
-When we say that BASIC-DOS comes with a "basic" set of utilities, we mean that both figuratively and literally, because while some are written in assembly language, most are in fact written in BASIC, including [CHKDSK](docs/bdman/cmd/external/#chkdsk), [FORMAT](docs/bdman/cmd/external/#format), [MODE](docs/bdman/cmd/external/#mode), and more.  BASIC-DOS takes it commitment to BASIC integration, performance, and ease-of-use very seriously.
+When we say that BASIC-DOS comes with a "basic" set of utilities, we mean that both figuratively and literally, because while some are written in assembly language, most are in fact written in BASIC, including [CHKDSK](docs/bdman/cmd/external/#chkdsk), [FORMAT](docs/bdman/cmd/external/#format), [MODE](docs/bdman/cmd/external/#mode), and more.  BASIC-DOS takes its commitment to BASIC integration, performance, and ease-of-use very seriously.
 
 ## Project Status
 
@@ -29,7 +29,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] Boot sector that loads the BASIC-DOS drivers, kernel, and interpreter
 - [x] Boot prompt when a hard disk is detected (press **Esc** within 2 seconds to boot from it)
 - [x] Booting BASIC-DOS from a hard disk partition (eg, a disk built with `pc.js --sys=bd:2`), which becomes the default drive
-- [x] CONFIG.SYS support for AUX, BUFFERS, CON, DEVICE, FILES, MEMSIZE, PATHCHAR, PRN, SESSIONS, SHELL, SKIP, and SWITCHAR
+- [x] CONFIG.SYS support for AUX, BUFFERS, CON, CPU, DEVICE, FILES, MEMSIZE, PATHCHAR, PRN, RING, SESSIONS, SHELL, SKIP, and SWITCHAR
 - [x] CON, AUX, and PRN are names for each session's console, AUX, and PRN devices rather than drivers: [CON=](docs/bdman/cfg/#con) defines each session's console (VKD$ or a serial port), and [AUX=](docs/bdman/cfg/#aux) and [PRN=](docs/bdman/cfg/#prn) choose any device (COM1 and LPT1 by default); without one (eg, no LPT1), opening the name fails, and its handle stays reserved
 - [x] SKIP= lists built-in drivers (by their exact device names, separated by commas) that should not be loaded (eg, `SKIP=VKD$,FPU$`); a skipped driver is never initialized, and its memory is reclaimed (CPU$, which manages memory, can't be skipped)
 - [x] Installable device drivers (DEVICE=)
@@ -39,25 +39,38 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 
 - [x] VKD$ (video and keyboard), with multiple console contexts (one per session)
 - [x] COM, LPT, NUL, CLOCK$, and PIPE$ devices
-- [x] *partial*: CPU$, loaded first, as two drivers of which one stays: the first records the processor type (8086, 80186, 80286, or 80386) in CPU_TYPE, and on an 80286 or later with extended memory, enables A20 and manages all memory with a table of physical memory blocks, along with protected-mode descriptors (GDT and LDT selectors for allocated or existing memory); otherwise, the second manages all memory with an MCB chain.  Both have the same functions, which work the same way in either mode, and keep each block's owner, type, and name for DOS, plus functions for debuggers (reading and writing memory at a real-mode or protected-mode address, a selector's base and limit, the system registers, and taking faults), and the arena's address in CPU_ARENA (so the PCjs Debugger's `d dos` can list the arena as DEBUG's DM does, in either mode); devinit and sysinit claim, map, and move their memory (and the kernel) through them, as do DOS's memory functions, MEM, and DEBUG's DM; on an 80286, devinit switches to protected mode, and the drivers, the kernel, and COMMAND.COM (including BASIC programs, through code aliases of their code blocks) run in protected mode from then on (and most of the regression tests pass there), but MZ EXE files don't run in protected mode (NE programs, such as PRIMES.EXE, do), and COMMAND.COM and every program run at ring 3 (unless CONFIG.SYS has `RING=0`), on a TSS ring 0 stack, with DPL 3 selectors in their session's own LDT (so CPU$ identifies a ring 3 program's blocks by an owner ID made of its session number and LDT entry, which MEM and DEBUG's DM show instead of its PSP), including their own CTRL-C and critical error handlers, and interrupt handlers for their session's own ring 3 calls (eg, an INT 21h hook that passes other calls on to DOS), and DEBUG.COM's driver shows and resumes them (DEBUG.COM run as a program works at ring 3, too, with fewer commands); `CPU=8088` in CONFIG.SYS (or less than 128K of conventional memory) makes CPU$ act as it does on an 8088 (see [Protected Mode](docs/bdtech/mmu/) and the [Protected Mode demo](demos/mmu/))
+- [x] CPU$, loaded first, detects the processor and manages all memory, with the same functions in either mode: using a table of physical memory blocks and protected-mode descriptors on an 80286 or later with extended memory, and otherwise an MCB chain (see [The CPU$ Drivers](docs/bdtech/mmu/#cpu))
 - [x] CLOCK$ starts with the BIOS time of day and, on a PC AT, the real-time clock's date
-- [x] Loadable character drivers via `DEVICE=` in CONFIG.SYS, including [DEBUG.COM on a serial port](demos/debug/at/), with an 80286 disassembler (showing the effective address of a memory operand at CS:IP, and the format string that follows a DOS utility PRINTF call), single-stepping (T, or TR with the registers, and P to step over calls, interrupts, loops, and repeated string instructions), CTRL-A to repeat the last command, 9 breakpoints plus a temporary one (for G and P), SYMDEB-style memory dumps, memory and register editing, and exclusive ownership of its COM port; LN ("list near") to show which driver, program, or system memory an address is in; on an 80286, it works in either mode (addresses can start with `&` or `#`, or `%` for a physical address, DS displays a selector's descriptor, and R also displays the MSW, GDTR, IDTR, LDTR, TR, and segment bases and limits), and in protected mode, it loads as a driver and gets CPU$'s fatal exceptions; it also stops on divide errors, which G then passes to DOS
-- [x] Protected-mode exceptions: the kernel's fault handler (CPU_SETFAULT) ends the program with `CPU fault nn (EC=nnnn) at nnnn:nnnn` (ERRORLEVEL 255, EXTYPE_FAULT) when the fault is in the program's own code (including any code block it owns, such as COMMAND's BASIC code), as it does for a divide error, and otherwise declines it, so that CPU$ prints the same line, followed by `System halted`, and stops the machine; DEBUG.COM hooks every exception but stops only for the vectors that VT traps (VL lists them and VC clears them, like BP, BL, and BC; `VT 13.` is decimal), passing the rest on, and GT passes on a trapped one; a fault that DOS declines stops DEBUG.COM first, whether or not VT traps it (G retries it, and GT halts the system), and CPU$ then offers DEBUG.COM the halt, so it keeps control (it waits for CTRL-C, as a halted machine would, and then G can still resume, eg, after a fix, while GT keeps it halted)
+- [x] [DEBUG.COM](docs/bdman/cfg/#device), which loads as a driver on a serial port (see the [demo](demos/debug/at/)) or runs as a program (`DEBUG [program [arguments]]`), with an 80286 disassembler, single-stepping (T, TR, and P), 9 breakpoints plus a temporary one, exception traps (VT), SYMDEB-style memory dumps, memory and register editing, and on an 80286, support for either mode
 - [x] MOUSE$, a serial mouse driver (loaded only if a Microsoft-compatible mouse responds on a COM port at boot), with a minimal INT 33h interface (functions 00h-04h, 07h, 08h, and a BASIC-DOS function that returns queued button events), and a pointer drawn in MDA and CGA modes that preserves anything drawn over it
 - [x] Interrupt-driven, asynchronous I/O for VKD$ and COM (COM ports also report how many bytes are waiting, with IOCTL_INSTATUS, for BASIC's EOF, LOC, and INPUT$)
 - [x] Non-ASCII keys (eg, cursor and function keys) are returned as a zero followed by the key's scan code, as in PC DOS (for VKD$, and for VT100 terminals on COM ports), so INKEY$ sees them as BASICA programs expect (eg, F10 in COMM.BAS); the DOS line editor maps the keys it uses to its editing keys, and raw keys mode only turns hotkeys like CTRL-C into ordinary keys
 - [x] Floppy disk reads, including multi-track requests and requests that cross 64K boundaries
 - [x] Floppy disk writes
 - [x] Media check and BPB rebuilds (reads PC DOS 1.x and 2.x diskettes)
-- [x] *partial*: Hard disk reads and writes (HDC$), for the FAT12 primary partitions of up to two PC XT or PC AT hard disks, which become drives C:, D:, etc. (drives A: and B: are always reserved for diskettes); a disk with no FAT partitions (eg, a new disk) is still given a drive letter (with "unknown media"), and IOCTLs return its geometry and partition table (IOCTL_GETPART) and write a new MBR with the driver's own boot code (IOCTL_SETPART), so that FORMAT can partition it
+- [x] *partial*: Hard disk reads and writes (HDC$), for the FAT12 and FAT16 primary partitions of up to two PC XT or PC AT hard disks, which become drives C:, D:, etc. (drives A: and B: are always reserved for diskettes); a disk with no FAT partitions (eg, a new disk) is still given a drive letter (with "unknown media"), and IOCTLs return its geometry and partition table (IOCTL_GETPART) and write a new MBR with the driver's own boot code (IOCTL_SETPART), so that FORMAT can partition it
 - [x] Diskette formatting: IOCTL_SETPARMS gives a volume its BPB (so that an unformatted diskette can be written) and IOCTL_FORMAT formats and verifies a track, with the DPT's sectors per track set from the BPB (for every diskette transfer, so 8-sector diskettes read correctly, too); see FORMAT.BAS under [Utilities](#utilities)
+
+### Protected Mode
+
+On an 80286 or later, BASIC-DOS runs in protected mode; it's built and tested for the IBM PC AT, and an 80386 runs the same code.  See [Protected Mode](docs/bdtech/mmu/) for details, and the [Protected Mode demo](demos/mmu/) to try it.
+
+- [x] BASIC-DOS switches to protected mode while its drivers initialize, and stays there, given at least 128K of conventional memory and 64K of extended memory; otherwise, or with `CPU=8088` in CONFIG.SYS, it runs in real mode, as on an 8088
+- [x] COMMAND.COM, BASIC programs, and every program they run at ring 3 (unless CONFIG.SYS has `RING=0`), with each session's memory in its own LDT, so a program can't write to memory that isn't its own
+- [x] A ring 3 program's CTRL-C, critical error, and interrupt handlers run at ring 3, too (interrupt handlers see only the interrupts that ring 3 code in its session issues)
+- [x] COM and NE programs (eg, PRIMES.EXE) run in protected mode
+- [x] Exceptions: a fault in a program's own code ends that program with `CPU fault nn (EC=nnnn) at nnnn:nnnn` (ERRORLEVEL 255), as a divide error does; anywhere else, CPU$ prints the same line and `System halted`, and stops the machine, unless DEBUG.COM is loaded as a driver and takes over (see [Faults](docs/bdtech/mmu/#faults))
+- [x] DEBUG.COM as a driver can stop and resume ring 3 programs with all of its commands; as a program, it runs at ring 3 with fewer commands
+- [ ] Ring 3 for the programs that still need `RING=0`: those that hook an interrupt issued by ring 0 code (eg, INT 1Ch or INT 13h), call CPU$ (eg, CPUTESTS), or use IN, OUT, CLI, or STI
+- [ ] MZ EXE files in protected mode, which fail with "Unable to load" (currently NOT under consideration for inclusion in BASIC-DOS, since NE programs take their place; see [Limitations](docs/bdtech/mmu/#limits))
+- [ ] 80386 features: virtual-8086 mode, paging, and 32-bit segments
 
 ### Kernel: Processes, Memory, and Sessions
 
 - [x] COM and EXE program loading, PSPs, EXEC, and exit codes
 - [x] Memory allocation (through CPU$, which uses MCBs on an 8088), from all of memory (on an 80286 in protected mode, conventional and extended memory alike, and MEM and FRE count all of it), including per-program heap requests, and allocation from the top of memory (MCBTYPE_HIGH), which the interpreter uses for its own blocks so that the memory below them stays contiguous
 - [x] DOS_UTL_QRYMEM queries any memory block (its size in bytes, since a block can be 1Mb or more)
-- [x] INT 2Bh utility functions numbered contiguously (00h-24h) and grouped by purpose (see the [Technical Reference](docs/bdtech/util/))
+- [x] INT 2Bh utility functions numbered contiguously (00h-28h) and grouped by purpose (see the [Technical Reference](docs/bdtech/util/))
 - [x] Preemptive multitasking of multiple sessions; a session closes when its last program ends (eg, EXIT in its shell), and the system halts when no session is left
 - [x] CTRL-C/CTRL-Break handling, CTRL-ALT-DEL session aborts, and divide and overflow errors, which end the program (as MS-DOS does) without aborting its parent (vectors 00h, 08h, 09h, 1Bh, and 1Ch that a terminated program left hooked, like MSBASIC's, are restored)
 - [x] Session END: abort the current program in a specified session, interrupting any pending wait; WAITEND waits for the session to close
@@ -98,10 +111,9 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] A BAT or BAS file can be the first command of a pipeline (eg, `LS | MORE`): like a built-in command, it runs once the rest of the pipeline has started, so it can't fill the pipe before anything reads it, and its ARG$ ends at the `|`; a deferred command that fails (eg, `TYPE NOFILE | SORT`) sets ERRORLEVEL to 1.  A BAT or BAS file can't come after a `|` (it would have to run in the first command's session), so that's an error (eg, `DIR | TEST.BAS` reports "Unable to open TEST.BAS")
 - [x] COPY creates (or truncates) the output file, and refuses to copy a file onto itself
 - [x] A DOS command (internal or external) ends at a colon that begins a word, so other commands can follow it on the same line (eg, `DIR *.BAS : PRINT "done"`), at the prompt and in BAT and BAS files
-- [x] A command that fails (internal or external, eg, "Unable to find" or "Unable to open") ends a BAT or BAS file; a program's non-zero exit code doesn't (use ERRORLEVEL)
+- [x] A command that fails (internal or external, eg, "Unable to find" or "Unable to open") displays its message and sets ERRORLEVEL to 1, and a BAT or BAS file continues with its next command, as in PC DOS; a successful command sets ERRORLEVEL to 0, and a program's non-zero exit code isn't a failure (see [Error Handling](docs/bdman/lang/#error-handling))
 - [x] Any DOS command that accepts a file name (eg, COPY, DEL, DIR, LOAD, SAVE, TYPE, CD, MD, RD), and any redirection (`<`, `>`, `>>`, or `:>`), also accepts a string variable whose value is the file name (eg, `DIR D$`, `COPY CON NAME$`, or `DIR > F$`), and quoted file names (eg, `TYPE "TEST$"`); expressions aren't evaluated, so DEL reports a syntax error for anything after the file name (eg, `DEL "TEMP" + N$`); see [Command Arguments](docs/bdman/lang/#command-arguments) for how BASIC statements and external commands differ
 - [x] External commands receive the values of string variables in their arguments (eg, `FORMAT D$` or `FIND S$ *.TXT`), quoted if they contain spaces
-- [x] DEL/ERASE
 - [x] ECHO ON/OFF and the `@` prefix in BAT files: every BAT file starts with ECHO OFF (unlike PC DOS, so BAT files behave like BAS files unless ECHO ON is used), echoed lines are displayed with a `@` in front, and a leading `@` is ignored at the prompt, too
 - [x] A BAS file run from the command prompt remains loaded when it ends, along with its variables (like MSBASIC), so it can be LIST'ed or RUN again; RUN reuses the program's compiled code once it has all been compiled (even if CTRL-C stopped the last run), unless the program or its variables have changed since, so it starts immediately
 - [x] Resident and transient portions: before running a COM or EXE file, COMMAND.COM frees idle variable blocks and discards its transient portion (about 23K), restoring it when the program ends (from a copy at the top of free memory, if the program didn't overwrite it, or else from COMMAND.COM); MEM includes the transient portion in its bytes available, and displays the smaller bytes for BASIC separately
@@ -130,6 +142,7 @@ Utilities live in the EXT directory of every BASIC-DOS disk.  The filters, HELP,
 - [x] Consistent BAS utility arguments: switches start with the switch character (eg, `-` after SWITCHAR=-), and a missing or invalid argument, such as an unknown switch (which CHKDSK, FORMAT, and TREE used to ignore), displays the utility's usage
 - [x] MODE.BAS: display columns and color (MODE 40, 80, BW40, BW80, CO40, CO80), serial ports (eg, MODE COM1:9600,N,8,1, which sets the port by opening it with those parameters and no input buffer), and printer columns and lines per inch (MODE LPT1:132,8)
 - [x] HELP.COM: HELP is an external command, which reads HELP.TXT from the EXT directory of the drive COMMAND.COM was loaded from (normally the boot drive), so that COMMAND.COM's core is 963 bytes smaller and low memory systems have more room for BASIC programs; KEYS is now `HELP KEYS`
+- [x] [VI.COM](docs/bdman/cmd/external/#vi): a full-screen text editor with a subset of the commands of the UNIX *vi* editor (and WordStar keys with /WS), for VKD$ consoles and ANSI or VT100 serial consoles, and files of up to 64K
 - [ ] Additional FORMAT features: adding volumes to a partitioned disk, verifying hard disk sectors, and marking bad clusters
 - [ ] Other PC DOS-inspired utilities possibly written in BASIC: DISKCOMP and PRINT (background printing, using a session), and CHKDSK /F (ASSIGN, BACKUP, EDLIN, JOIN, RESTORE, and SUBST are currently NOT under consideration for inclusion in BASIC-DOS)
 - [ ] Additional third-party tools (eg, PKZIP and PKUNZIP) added to the TOOLS directory
@@ -201,7 +214,7 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] Fast software emulation: doubles are unpacked and packed in registers, division uses the 8086's DIV (16 bits at a time), multiplication sums its partial products a column at a time, and SIN, COS, TAN, ATN, LOG, and EXP use fdlibm's minimax polynomials; arithmetic results match the 8087 bit for bit, and math functions are within 1 ulp (see the [benchmarks](preview/part6/))
 - [x] STR$ formats integer values directly, without floating-point conversions
 - [x] Unused floating-point utility function stubs (DOS_UTL_ATOF64, DOS_UTL_I32F64, and DOS_UTL_OPF64) removed, since FPU$ supersedes them
-- [ ] Saving and restoring 8087 state on session switches (FPU$ functions currently disable interrupts instead), and better error reporting for FPU exceptions
+- [ ] Better error reporting for FPU exceptions
 
 ### DONKEY.BAS
 
@@ -217,7 +230,7 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] ON ERROR GOTO (and GOTO 0), RESUME *line*, ERROR, and ERR, with MSBASIC's error numbers for runtime errors
 - [x] PLAY (notes, N, O, <, >, L, P, T, MN/ML/MS, X, dots, and semicolons; MF/MB are ignored, since music always plays in the foreground)
 - [x] SOUND *frequency*,*duration*
-- [x] CHAIN *file* (now replaces the running program; see CHAIN MERGE below)
+- [x] CHAIN *file* (now replaces the running program; see CHAIN MERGE above)
 - [x] PSET, PRESET, LINE (including `LINE -(x,y)`, B, BF, and an omitted color), PAINT, and DRAW (U, D, L, R, E, F, G, H, M, B, N, C, and S), drawing directly into CGA memory in modes 4-6
 - [x] GET and PUT (PSET, PRESET, XOR, OR, and AND), using integer arrays (passed by name) in BASICA's image format, with one 16-bit word per element, so programs that build images by hand (like DONKEY.BAS's `B%`) work
 - [x] Syntax errors report the program's line number (eg, "Syntax error in line 1160") instead of the line's position in the file
@@ -253,7 +266,8 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] RUNFILE: RUN tests (a missing file, and replacing or restarting the program, which clears its variables and closes its files)
 - [x] MOVES: file and directory moves, destination growth, sharing, and ancestry checks
 - [x] HARDERR: INT 24h compatibility tests (handler inputs, the stack switch, Retry, Fail, Ignore conversion, and Abort), using an empty drive B:
-- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUN, STRPOOL, ARRAYS, FLOW, EXPRERR, CMDS, VARS, FILEIO, RUNFILE, MOVES, FCBTESTS, HARDERR, and PRINTF, and reports whether the tests passed)
+- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, and from a hard disk, runs FPUTESTS, DOSTESTS, STRFUN, STRPOOL, ARRAYS, FLOW, EXPRERR, CMDS, VARS, FILEIO, RUNFILE, PRTUSING, MOVES, ATTRS, FCBTESTS, HARDERR, IOERR, and PRINTF, and reports whether the tests passed)
+- [x] `tools/tests/mmutest.sh` runs the same floppy tests, plus CPUTESTS, on a PC XT, a PC AT with `CPU=8088`, and a PC AT in protected mode, with and without `RING=0` (at ring 3, CPUTESTS and HARDERR's interrupt hook tests are skipped)
 - [x] CMDS: command tests (pipes, redirection, including to quoted and string variable file names, string variables and unquoted strings in external command arguments, TYPE, DEL, DEL's extra arguments, TIME /D, HELP, SOUND, remarks, and hex constants)
 - [x] `tools/tests/chkdsk.sh` runs MS-DOS 3.20 CHKDSK on a diskette image saved by a test session (see `QUIT /S` in `pc.js`)
 - [x] BENCH.BAS and MICRO.BAS benchmarks, which run unchanged in BASIC-DOS, BASICA, and GW-BASIC (see the [results](preview/part6/)); `tools/tests/bench.sh` runs BENCH.BAS in all six configurations (each with and without an 8087) and prints the results in seconds
@@ -261,7 +275,7 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] [Demos](demos/) for the IBM PC, PC XT, PC AT, and COMPAQ DeskPro 386, with one page per demo and machine, including a Monochrome demo on a 64K [IBM PC](demos/m64/pc/) and on a 640K [IBM PC XT](demos/m64/xt/) with the 10Mb hard disk, and a Terminal Only demo with no video adapter, whose only console is a VT100 on COM1, on a 64K [IBM PC](demos/term/pc/) and on a 640K [IBM PC XT](demos/term/xt/) with the 10Mb hard disk
 - [x] [BASIC-DOS Manual](docs/bdman/): using BASIC-DOS, all commands and functions, programming, and configuration
 - [x] One syntax notation throughout the manual and HELP.TXT: *italics* for values you supply, `[ ]` for optional items, `|` between alternatives, `...` for repetition, one line per form, and file numbers written #*n* (statements with both forms, like PRINT and PRINTF, have one entry with an optional [#*n*,])
-- [x] [BASIC-DOS Technical Reference](docs/bdtech/): architecture, DOS functions, utility functions, device drivers, the FPU$ interface, and internal structures
+- [x] [BASIC-DOS Technical Reference](docs/bdtech/): architecture, DOS functions, utility functions, device drivers, the FPU$ interface, internal structures, and protected mode
 - [ ] More tests (eg, BASIC language and COMMAND.COM tests)
 
 ## Non-features
@@ -272,7 +286,7 @@ These aren't project goals:
 - INT 25h and INT 26h (absolute disk reads and writes), since opening a volume (eg, `C:`) as a file gives the same access to its sectors; see [File Handles](docs/bdtech/dos/#handles).
 - RESUME without a line number (or with 0) and RESUME NEXT, which resume at or after the statement with an error, since BASIC-DOS compiles programs, and finding where the statement with an error (or the next one) begins would require recording where every statement's code begins, making programs larger; RESUME *line* is supported, and a handler can use ERL to choose the line.  The COMM.BAS sample on BASIC-DOS disks uses RESUME *line* instead; see [RESUME](docs/bdman/cmd/basic/#resume).
 - PRINT USING and LPRINT USING, since PRINTF USING covers the same needs with C-style `%` specifiers; see [How to replace PRINT USING](docs/bdman/cmd/device/screen/#how-to-replace-print-using) for the equivalents of its template formats (eg, `###.##` is `%6.2f`).  The MORTGAGE.BAS sample on BASIC-DOS disks uses PRINTF USING instead.
-- CTTY (introduced in PC DOS 2.0), since BASIC-DOS already provides the ability to define multiple terminal-based sessions on serial ports using [CON=](docs/bdman/cfg/#con) in CONFIG.SYS; allowing a session change its "personality" on the fly would cause more problems than it would solve, and would probably work about as well as CTTY did (ie, poorly).
+- CTTY (introduced in PC DOS 2.0), since BASIC-DOS already provides the ability to define multiple terminal-based sessions on serial ports using [CON=](docs/bdman/cfg/#con) in CONFIG.SYS; allowing a session to change its "personality" on the fly would cause more problems than it would solve, and would probably work about as well as CTTY did (ie, poorly).
 - LOAD inside a running BAS or BAT file (it's an error, "Not allowed in a program", since it would replace the running file's own text); programs that run other programs use RUN *file* or CHAIN instead.
 
 ## Roadmap
@@ -282,7 +296,7 @@ These are the next steps, roughly in priority order:
 1. Remaining string and input/output features (comma print zones)
 2. The rest of runtime error handling (messages for numeric errors other than "Division by zero", such as "Overflow")
 3. Common BASICA features that BASIC-DOS lacks: BEEP and COMMON
-4. The rest of protected mode on an 80286 or 80386: ring 3 for the programs that still need `RING=0` (interrupt hooks that DOS or the ROM BIOS calls, and CPUTESTS), and MZ EXE files (see [Limitations](docs/bdtech/mmu/#limits))
+4. The rest of protected mode on an 80286 or 80386: ring 3 for the programs that still need `RING=0` (interrupt hooks that DOS or the ROM BIOS calls, and CPUTESTS); see [Limitations](docs/bdtech/mmu/#limits)
 
 ## License
 
@@ -303,7 +317,7 @@ If you also want successful builds to update the BASIC-DOS demo disks, you'll ne
     git clone https://github.com/jeffpar/pcjs
     export PCJS="$HOME/pcjs"
 
-Now you're ready to build BASIC-DOS, using the `mkdos.sh` script, which runs `pc.js` with MS-DOS 3.20 and the build tools on drive C and a 30Mb disk containing the BASIC-DOS source code on drive D, and builds the binaries selected by the `config.release` property in package.json (`final` or `debug`, currently `debug`), unless you specify `mkdos.sh final` or `mkdos.sh debug`.  The major and minor numbers of package.json's `version` property (eg, 2.0 of "2.0.0") are the BASIC-DOS version, which the script copies to `software/src/os/inc/version.inc` when they change.  Each mode keeps its own build outputs (the other mode's are saved in `tools/pc/disks/objs`), so switching between release and DEBUG modes rebuilds only what has changed since that mode's last build:
+Now you're ready to build BASIC-DOS, using the `mkdos.sh` script, which runs `pc.js` with MS-DOS 3.20 and the build tools on drive C and a 30Mb disk containing the BASIC-DOS source code on drive D, and builds the binaries selected by the `config.release` property in package.json (`final` or `debug`, currently `debug`), unless you specify `mkdos.sh final` or `mkdos.sh debug`.  The major and minor numbers of package.json's `version` property (eg, 2.10 of "2.10.0") are the BASIC-DOS version, which the script copies to `software/src/os/inc/version.inc` when they change.  Each mode keeps its own build outputs (the other mode's are saved in `tools/pc/disks/objs`), so switching between release and DEBUG modes rebuilds only what has changed since that mode's last build:
 
     $ ./mkdos.sh
     [Press CTRL-D to enter command mode]
@@ -322,11 +336,11 @@ Any files that the build modifies are written back to the `software/src` directo
 
 Once `mkdos.sh` has built the system files, `mk.sh` (usage is `mk.sh [FINAL or DEBUG] [CLEAN]`, like MK.BAT, with the same package.json defaults as `mkdos.sh`) builds BASIC-DOS on BASIC-DOS itself, with the same build tools (see [software/src](software/src/README.md) for details).
 
-The `boot.sh` script then builds a 360K floppy containing the BASIC-DOS boot sector and system files, along with the files in the `configs/console/serial/fpe` folder (including CONFIG.SYS) and the test binaries that `tools/tests/prep.sh` copies there, and boots it on a 640K IBM PC AT (`ibm5170`), whose real-time clock sets the date and time:
+The `boot.sh` script then builds a 360K floppy containing the BASIC-DOS boot sector and system files, along with the files in the `configs/console/serial/fpe` folder (including CONFIG.SYS) and the test binaries that `tools/tests/prep.sh` copies there, and boots it on a 2Mb IBM PC AT (`ibm5170`), whose real-time clock sets the date and time, in real mode (each configuration's CONFIG.SYS has `CPU=8088`):
 
     $ ./boot.sh
     [Press CTRL-D to enter command mode]
-    BASIC-DOS 2.00
+    BASIC-DOS 2.10
     Copyright (c) PCJS.ORG 1981-2026
     BASIC-DOS Command Shell
 
@@ -346,7 +360,7 @@ The `tools/tests/testhd.sh` script instead builds a BASIC-DOS boot diskette (fro
 
 That hard disk is formatted by MS-DOS 3.20 (so it also contains hidden MS-DOS system files).  With either script, changes to the hard disk are not saved back to the directory.
 
-Finally, `tools/tests/quick.sh` boots both configurations unattended, runs the test programs (FPUTESTS, DOSTESTS, and the BASIC tests, including CMDS.BAT, which tests pipes and redirection), and reports whether the tests passed.
+Finally, `tools/tests/quick.sh` boots BASIC-DOS unattended (from a diskette, with and without an 8087, and from a hard disk), runs the test programs (FPUTESTS, DOSTESTS, and the BASIC tests, including CMDS.BAT, which tests pipes and redirection), and reports whether the tests passed.
 
 ## Tool Trivia
 
