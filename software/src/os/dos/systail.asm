@@ -686,19 +686,27 @@ ENDPROC	cache_int21
 ; cache_free (free the cache data's GDT alias, if any; see si16a)
 ;
 ; Outputs:
-;	ES = DOS data segment
+;	ES = DOS data segment (all other registers are preserved, since
+;	the SHELL loop still needs AX, CX, and DX, which CPU_UNMAP changes)
 ;
 	DEFLBL	cache_free,near
 	mov	es,[dos_seg]
 	cmp	es:[prog_user],0	; ring 3 programs (so an alias)?
 	je	cf9			; no
+	push	ax
 	push	bx
+	push	cx
+	push	dx
 	mov	bx,[pCacheData].SEG
 	test	bx,bx			; is there one yet?
 	jz	cf8			; no
+	sub	cx,cx			; CX = 0 (one selector)
 	mov	ah,CPU_UNMAP
 	call	far ptr DDINT_CPU	; free it
-cf8:	pop	bx
+cf8:	pop	dx
+	pop	cx
+	pop	bx
+	pop	ax
 cf9:	ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

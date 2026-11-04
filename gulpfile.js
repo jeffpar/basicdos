@@ -155,6 +155,7 @@ let disks = {
     "BASICDOS-360K-D40": { config: "./demos/d40/CONFIG.SYS", title: "BASIC-DOS 40-Column Demo" },
     "BASICDOS-360K-D80": { config: "./demos/d80/CONFIG.SYS", title: "BASIC-DOS 80-Column Split Demo" },
     "BASICDOS-360K-P80": { config: "./demos/p80/CONFIG.SYS", title: "BASIC-DOS Multi-Page Demo" },
+    "BASICDOS-360K-P80PM": { config: "./demos/p80/pm/CONFIG.SYS", title: "BASIC-DOS PM Multi-Page Demo" },
     "BASICDOS-360K-DUAL": { config: "./demos/dual/CONFIG.SYS", title: "BASIC-DOS Dual Monitor Demo" },
     "BASICDOS-360K-MULTI": { config: "./demos/dual/multi/CONFIG.SYS", title: "BASIC-DOS Multi-Session Demo" },
     "BASICDOS-360K-SERIAL": { config: "./demos/serial/CONFIG.SYS", title: "BASIC-DOS HD Serial Port Demo" },
@@ -332,19 +333,27 @@ function buildDisk(diskName, diskImage)
  * writeDiskettes(done)
  *
  * Writes the titled diskettes (see "disks" above) to machines/pcx86/basicdos-diskettes.json, which maps each diskette
- * path to its title; since Jekyll's data_dir is "machines", _includes/machine.html adds them to every FDC's list.
+ * path to its title; since Jekyll's data_dir is "machines", _includes/machine.html adds them to every FDC's list.  It
+ * also writes machines/pcx86/basicdos-configs.json, which maps each disk's name to its CONFIG.SYS, for the pages whose
+ * machines boot a disk whose CONFIG.SYS is in another folder (eg, {{ site.data.pcx86.basicdos-configs.BASICDOS-10MB }}
+ * on the Wolfenstein 3D pages), since include_relative can't reach another folder.
  *
  * @param {function(Error=)} done
  */
 function writeDiskettes(done)
 {
-    let diskettes = {};
+    let diskettes = {}, configs = {};
     for (let diskName in disks) {
-        if (disks[diskName].title) diskettes["/software/disks/" + diskName + ".json"] = disks[diskName].title;
+        let disk = disks[diskName];
+        if (disk.title) diskettes["/software/disks/" + diskName + ".json"] = disk.title;
+        if (disk.config) configs[diskName] = fs.readFileSync(disk.config, "utf8");
     }
-    let file = "./machines/pcx86/basicdos-diskettes.json";
-    let text = JSON.stringify(diskettes, null, 2) + "\n";
-    if (!fs.existsSync(file) || fs.readFileSync(file, "utf8") != text) fs.writeFileSync(file, text);
+    let writeData = function(file, data) {
+        let text = JSON.stringify(data, null, 2) + "\n";
+        if (!fs.existsSync(file) || fs.readFileSync(file, "utf8") != text) fs.writeFileSync(file, text);
+    };
+    writeData("./machines/pcx86/basicdos-diskettes.json", diskettes);
+    writeData("./machines/pcx86/basicdos-configs.json", configs);
     done();
 }
 gulp.task("diskettes", writeDiskettes);

@@ -11,3 +11,9 @@ PAINT.BAS reads the current mouse position and buttons with `MOUSE(3)`, `MOUSE(4
 ```
 {% include_relative PAINT.BAS %}
 ```
+
+### **CONFIG.SYS** from the BASIC-DOS 80-Column Demo Diskette
+
+```
+{{ site.data.pcx86.basicdos-configs["BASICDOS-360K-S80"] }}
+```

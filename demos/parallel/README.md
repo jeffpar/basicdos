@@ -35,3 +35,9 @@ Type `LPRINT "Hello from LPT1"`, or enter a few program lines and type `LLIST`, 
 Press any key at the boot prompt (or wait 2 seconds) to start the diskette, or press **Esc** to boot from the [hard disk](../hd/xt/) instead.
 
 If there's no printer (eg, on a machine without a parallel port), LPRINT, LLIST, and PRINT # to PRN report "Device timeout", as in Microsoft BASIC.
+
+### **CONFIG.SYS** from the BASIC-DOS 80-Column Demo Diskette
+
+```
+{{ site.data.pcx86.basicdos-configs["BASICDOS-360K-S80"] }}
+```
