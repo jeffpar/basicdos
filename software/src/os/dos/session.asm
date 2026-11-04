@@ -80,7 +80,7 @@ ENDPROC	scb_getnum
 ;	Carry clear if successful:
 ;		REG_CL = session (SCB) #
 ;		REG_AX = program size (if SPB_ENVSEG is -1)
-;		REG_ES:REG_BX -> program data (if SPB_ENVSEG is -1)
+;		REG_DI:REG_BX -> program data (if SPB_ENVSEG is -1)
 ;	Carry set if error, AX = error code (eg, no SCB, no program, etc),
 ;		and REG_CL = session (SCB) # if an SCB was available
 ;
@@ -157,8 +157,12 @@ sl5:	mov	[bx].SCB_STACK.OFF,ax	; DX:AX == initial stack
 	mov	[bp].REG_AX,ax		; REG_AX = program size
 	mov	ax,[bp].TMP_BX
 	mov	[bp].REG_BX,ax
+;
+; For a ring 3 program, that's a selector in the loaded session's LDT, which
+; isn't ours again by the time we return, so it can't be returned in REG_ES.
+;
 	mov	ax,[bp].TMP_ES
-	mov	[bp].REG_ES,ax		; REG_ES:REG_BX -> program data
+	mov	[bp].REG_DI,ax		; REG_DI:REG_BX -> program data
 	jmp	short sl7
 ;
 ; Undo init_scb's handle references, preserving the original load error.

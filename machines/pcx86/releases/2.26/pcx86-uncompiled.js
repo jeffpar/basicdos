@@ -26069,6 +26069,16 @@ class Segx86 {
                 X86.helpFault.call(cpu, X86.EXCEPTION.NP_FAULT, (sel & X86.ERRCODE.SELMASK) | (fIDT? X86.ERRCODE.IDT : 0));
                 return X86.ADDR_INVALID;
             }
+            /**
+             * A RETF or IRET to an offset past the new segment's limit must fault here, while CS is unchanged and
+             * helpRETF() or helpIRET() can still undo any stack switch above, so that the fault is reported at the
+             * return instruction, at its own privilege level.  If it were left to the first opcode fetch, a return
+             * to an outer privilege level would appear to have faulted at that outer level.
+             */
+            if (fCall === false && (this.offIP >>> 0) > (limit >>> 0)) {
+                X86.helpFault.call(cpu, X86.EXCEPTION.GP_FAULT, 0);
+                return X86.ADDR_INVALID;
+            }
             break;
 
         case Segx86.ID.DATA:
@@ -79617,6 +79627,12 @@ class Debuggerx86 extends DbgLib {
         let getByte = function(addr) { return cpu.probeAddr(addr, 1) & 0xff; };
         let getShort = function(addr) { return cpu.probeAddr(addr, 2) & 0xffff; };
         let getLong = function(addr) { return cpu.probeAddr(addr, 4) >>> 0; };
+        /**
+         * @param {number} sel
+         * @param {number} off
+         * @param {number} [type] (default is based on current CPU mode)
+         * @returns {number} (is the corresponding linear address, or X86.ADDR_INVALID)
+         */
         let getLinear = function(sel, off, type) { return dbg.getAddr(dbg.newAddr(off, sel, undefined, type)); };
         let getName = function(addr) {
             let s = "";

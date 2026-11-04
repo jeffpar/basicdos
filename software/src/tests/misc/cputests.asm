@@ -436,9 +436,12 @@ ENDPROC	aliases
 ; then issues INT 21h (a DPL 3 gate), which must reach DOS on the ring 0 stack
 ; and return to ring 3, INT 0 (also DPL 3), which we hook (see r3int0), and
 ; INT 0Dh (a DPL 0 gate), which must fault, and which our fault handler
-; (CPU_SETFAULT) takes as the way back to ring 0.  Then we restore the fault
+; (CPU_SETFAULT) takes as the way back to ring 0; the handler runs through a
+; ring 0 code alias, since CPU$ won't call a handler for a fault in its own
+; code segment, and returns to our usual CS.  Then we restore the fault
 ; handler, vector 0, and the ring 0 stack (which must return ours), check
-; the results, and free everything.
+; the results, and free everything.  First, though, the fault handler lets us
+; test returns to an invalid IP (see r3limit).
 ;
 DEFPROC	ring3
 	inc	bp
@@ -465,6 +468,11 @@ DEFPROC	ring3
 	mov	ah,CPU_ALIAS
 	call	cpu_ok
 	mov	[sel5],ax		; ring 3 data alias
+	mov	bx,ax			; (DS would just return our CS)
+	mov	al,MEMF_CODE
+	mov	ah,CPU_ALIAS
+	call	cpu_ok
+	mov	[sel7],ax		; ring 0 code alias (for r3fault)
 	call	r3fpu			; fpu_fn -> FPU_DTOA (if any)
 	mov	ax,(DOS_MSC_GETVEC SHL 8) OR INT_DV
 	int	21h			; ES:BX = vector 0
@@ -475,13 +483,16 @@ DEFPROC	ring3
 	mov	dx,offset r3int0	; DS:DX -> r3int0
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR INT_DV
 	int	21h
-	mov	dx,cs
+	mov	dx,[sel7]
 	mov	cx,offset r3fault
 	mov	ah,CPU_SETFAULT
 	call	cpu_ok			; DX:CX = the previous handler
 	push	dx
 	push	cx
 	inc	bp
+	call	r3limit
+	inc	bp
+	push	cs
 	call	r3go			; (see r3fault for the results)
 	push	ss
 	pop	ds
@@ -505,6 +516,9 @@ DEFPROC	ring3
 	cmp	cx,R0_STACK		; did we get our stack back?
 	jne	r3x
 	cmp	dx,[sel2]
+	jne	r3x
+	inc	bp
+	cmp	byte ptr [r3lim],0	; did those returns fault correctly?
 	jne	r3x
 	inc	bp
 	cmp	[r3vec],0Dh		; did INT 0Dh fault?
@@ -547,6 +561,10 @@ r3b:	inc	bp
 	sub	cx,cx
 	mov	ah,CPU_UNMAP
 	call	cpu_ok
+	mov	bx,[sel7]
+	sub	cx,cx
+	mov	ah,CPU_UNMAP
+	call	cpu_ok
 	mov	cx,[addr1].LOW
 	mov	dx,[addr1].HIW
 	mov	ah,CPU_FREE
@@ -554,12 +572,65 @@ r3b:	inc	bp
 ENDPROC	ring3
 
 ;
+; r3limit
+;
+; A RETF or IRET to an IP past the limit of the new CS must fault at that
+; instruction, with CS, SS, and SP as they were, rather than at the new IP
+; (which, after an IRET to ring 3, would be at ring 3).  We try an IRET to ring
+; 3 and a RETF within ring 0, each of which r3fault returns from, and set r3lim
+; if either goes wrong (ring3 checks it once it has restored everything).
+;
+DEFPROC	r3limit
+	mov	bx,0FFFFh		; BX = an IP past the limit of our CS
+	push	cs
+	call	r3enter			; IRET to it
+	mov	ax,offset r3iret	; AX = where that must have faulted
+	mov	cx,12			; CX = 5 words + the fault's flags
+	call	rl1
+	push	cs
+	call	rl8			; RETF to it
+	mov	ax,offset r3retf
+	mov	cx,6			; (2 words + the fault's flags)
+rl1:	push	ss
+	pop	ds
+	push	ss
+	pop	es
+	sti
+	cmp	[r3fip],ax		; did it fault at the instruction?
+	jne	rl7
+	cmp	[r3vec],0Dh		; with a general protection fault?
+	jne	rl7
+	cmp	[r3ec],0		; whose error code is 0?
+	jne	rl7
+	mov	ax,cs
+	cmp	[r3fcs],ax		; with CS unchanged?
+	jne	rl7
+	mov	ax,ss
+	cmp	[r3fss],ax		; and SS?
+	jne	rl7
+	mov	ax,[r0stk].OFF
+	sub	ax,cx
+	cmp	[r3fsp],ax		; and SP?
+	je	rl9
+rl7:	inc	byte ptr [r3lim]
+rl9:	ret
+rl8:	mov	[r0stk].OFF,sp		; SS:SP -> our return address
+	mov	[r0stk].SEG,ss
+	push	cs
+	push	bx			; CS:IP
+	DEFLBL	r3retf,near
+	db	OP_RETF
+ENDPROC	r3limit
+
+;
 ; r3go
 ;
-; Enters ring 3 at r3code with the aliases and our current stack, and
-; "returns" from r3fault.
+; Enters ring 3 at r3code (or, at r3enter, at BX) with the aliases and our
+; current stack, and "returns" (far) from r3fault.
 ;
 DEFPROC	r3go
+	mov	bx,offset r3code
+	DEFLBL	r3enter,near
 	mov	[r0stk].OFF,sp		; SS:SP -> our return address
 	mov	[r0stk].SEG,ss
 	mov	ax,[sel5]
@@ -567,13 +638,13 @@ DEFPROC	r3go
 	push	ax			; SS
 	push	[r0stk].OFF		; SP
 	pushf
-	mov	bx,[sel4]
-	or	bl,3
-	push	bx			; CS = code alias, with RPL 3
-	mov	bx,offset r3code
+	mov	cx,[sel4]
+	or	cl,3
+	push	cx			; CS = code alias, with RPL 3
 	push	bx			; IP
 	mov	ds,ax			; (IRET would leave DPL 0 data
 	mov	es,ax			; selectors null at ring 3)
+	DEFLBL	r3iret,near
 	iret
 r3code:	mov	cx,[fpu_fn].SEG
 	jcxz	r3c1			; no FPU$
@@ -599,14 +670,16 @@ r3c1:	mov	ah,DOS_MSC_GETVER
 	add	sp,4			; discard the return address
 	pop	[r3vec]
 	pop	[r3ec]
-	pop	cx			; (IP)
+	pop	[r3fip]
 	pop	[r3fcs]
+	mov	[r3fss],ss
+	mov	[r3fsp],sp		; (which leaves the fault's flags)
 	mov	[r3cs],ax
 	mov	[r3bx],bx
 	mov	[r3di],di
 	mov	ss,[r0stk].SEG
 	mov	sp,[r0stk].OFF
-	ret
+	db	OP_RETF			; (from the alias, back to our CS)
 ;
 ; r3code's INT 0 comes here, at ring 0 (on the ring 0 stack).
 ;
@@ -868,6 +941,7 @@ ENDPROC	arena
 	DEFWORD	sel4,0
 	DEFWORD	sel5,0
 	DEFWORD	sel6,0
+	DEFWORD	sel7,0
 	DEFLONG	free0,0
 	DEFLONG	addr1,0
 	DEFLONG	addr2,0
@@ -879,11 +953,15 @@ ENDPROC	arena
 ;
 	DEFWORD	r3vec,0			; the fault's vector
 	DEFWORD	r3ec,0			; and error code
+	DEFWORD	r3fip,0			; and IP
 	DEFWORD	r3fcs,0			; and CS
+	DEFWORD	r3fss,0			; and SS
+	DEFWORD	r3fsp,0			; and SP
 	DEFWORD	r3cs,0			; ring 3's CS
 	DEFWORD	r3bx,0			; BX from INT 21h
 	DEFWORD	r3di,0			; DI from FPU_DTOA
 	DEFBYTE	r3flag,0		; 1 if INT 0 reached r3int0
+	DEFBYTE	r3lim,0			; nonzero if r3limit failed
 	even
 mvpkt	MOVEPKT	<>
 	DEFLBL	dbl_2_5,word

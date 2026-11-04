@@ -133,7 +133,7 @@ si16c:	mov	es:[def_drive],al
 	test	ax,ax			; any program data to cache?
 	jz	si17			; no
 	mov	si,bx			; SI = its offset
-	mov	bx,es			; BX = its segment (or selector)
+	mov	bx,di			; BX = its segment (or selector)
 	call	cache_free		; free the previous alias, if any
 	cmp	es:[prog_user],0	; ring 3 programs?
 	je	si16a			; no
