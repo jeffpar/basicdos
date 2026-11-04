@@ -1,9 +1,9 @@
 REM REGRESS.BAT: runs the regression tests in \TESTS\REGRESS (run it
 REM from \TESTS).  Each test prints "failed" (or "passed") messages, and
 REM the tests that return an exit code are checked here.  The programs in
-REM \TESTS\MISC aren't run: DBGTEST.COM (it needs DEBUG.COM and a debugger
+REM \TESTS\MISC aren't run: DBGTESTS.COM (it needs DEBUG.COM and a debugger
 REM terminal), ASSERT.COM (it fakes an assertion failure, for a debugger to
-REM stop on), GFXTEST.BAS (it needs a CGA), and MICRO.BAS (a benchmark).
+REM stop on), GFXTESTS.BAS (it needs a CGA), and MICRO.BAS (a benchmark).
 IF NOT EXISTS("REGRESS\DOSTESTS.COM") THEN PRINT "Run REGRESS from \TESTS" : END
 D$ = LEFT$(CURDIR$, 1)
 CD REGRESS

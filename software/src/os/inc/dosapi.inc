@@ -9,7 +9,7 @@
 ;
 ; To save MASM symbol space, parts of this file are optional: modules that call
 ; DOS (including through the DOSUTIL, PRINTF, or DPRINTF macros) must define
-; DOSFUNC to get the INT 21h and INT 32h function numbers, modules that use
+; DOSFUNC to get the INT 21h and INT 2Bh function numbers, modules that use
 ; the PSP, EPB, SPB, EXE header, or COMDATA/COMHEAP must define DOSPSP (and
 ; DOSNE, too, for the NE header), modules that use the full or extended FCBs
 ; must define DOSFCB, and modules that use the FFB must define DOSFFB.
@@ -29,13 +29,12 @@ INT_DOSTSR	equ	27h	; terminate-and-stay-resident (not supported)
 INT_DOSIDLE	equ	28h	; idle notification (not supported)
 INT_FASTCON	equ	29h	; fast console I/O (VKD$, else dos_fastcon)
 INT_DOSNET	equ	2Ah	; network check (not supported)
-INT_DOSRES1	equ	2Bh	; reserved
-INT_DOSRES2	equ	2Ch	; reserved
-INT_DOSRES3	equ	2Dh	; reserved
+INT_DOSUTIL	equ	2Bh	; DOS utility interface
+INT_DOSRES1	equ	2Ch	; reserved
+INT_DOSRES2	equ	2Dh	; reserved
 INT_DOSCMD	equ	2Eh	; COMMAND.COM operation (not supported)
 INT_DOSMULTI	equ	2Fh	; multiplex function interface (not supported)
 INT_DOSCALL5	equ	30h	; vector w/FAR JMP (overwrites vector 31h, too)
-INT_DOSUTIL	equ	32h	; DOS utility interface
 
 	IFDEF	DOSFUNC
 ;
@@ -136,8 +135,8 @@ DOS_UTL_STRUPR	equ	02h	; upper-case string (DS:SI)
 DOS_UTL_PRINTF	equ	03h	; printf to console
 DOS_UTL_HPRINTF	equ	04h	; printf to SFH (BL), like DOS_UTL_PRINTF
 DOS_UTL_DPRINTF	equ	05h	; printf to DEBUG context, if any
-DOS_UTL_TPRINTF	equ	06h	; printf (DS:BX) to console, typed parameters
-DOS_UTL_SPRINTF	equ	07h	; sprintf to buffer (ES:DI)
+DOS_UTL_SPRINTF	equ	06h	; sprintf to buffer (ES:DI)
+DOS_UTL_TPRINTF	equ	07h	; printf (DS:BX) to console, typed parameters
 DOS_UTL_ITOA	equ	08h	; convert number (DX:SI) to string (ES:DI)
 DOS_UTL_ATOI16	equ	09h	; convert string (DS:SI) to 16-bit int (AX)
 DOS_UTL_ATOI32	equ	0Ah	; convert string (DS:SI) to 32-bit int (DX:AX)
@@ -312,7 +311,7 @@ CRERR_IGNOREOK	equ	20h	; set if IGNORE is allowed
 EXTYPE_NORMAL	equ	0	; normal termination
 EXTYPE_CTRLC	equ	1	; CTRLC termination
 EXTYPE_ERROR	equ	2	; critical error termination
-EXTYPE_KEEP	equ	3	; INT 21h AH=31h (keep process)
+EXTYPE_KEEP	equ	3	; INT 21h AH=31h (keep process; not supported)
 EXTYPE_DVERR	equ	4	; BASIC-DOS: divide error
 EXTYPE_OVERR	equ	5	; BASIC-DOS: overflow error
 EXTYPE_ABORT	equ	6	; BASIC-DOS: abort session (via CTRL-ALT-DEL)

@@ -101,7 +101,7 @@ If the program isn't in the current directory, and its name doesn't include a dr
 
 and its CONFIG.SYS sets PATH$ to the root, EXT, DEMOS, and SAMPLES (eg, `A:\;A:\EXT;A:\DEMOS;A:\SAMPLES`), so you can type `PRIMES` or `DIR | SORT` from any directory.
 
-Test programs are on a separate diskette, BASIC-DOS Tests: the regression tests are in its **TESTS\REGRESS** directory (eg, DOSTESTS.COM; REGRESS.BAT in **TESTS** runs them all), other test programs (eg, GFXTEST.BAS) are in **TESTS\MISC**, and BENCH.BAS is in **TESTS**, with MSBASIC.EXE and SYMDEB.EXE in its **TOOLS** directory; load it in drive B: and type (for example) `B:\TOOLS\MSBASIC`, or `B:`, `CD \TESTS`, and `REGRESS`.  Most of the tests can run while other sessions are busy, but HARDERR skips its tests if any other session is running a program (its disk hook would affect them).
+Test programs are on a separate diskette, BASIC-DOS Tests: the regression tests are in its **TESTS\REGRESS** directory (eg, DOSTESTS.COM; REGRESS.BAT in **TESTS** runs them all), other test programs (eg, GFXTESTS.BAS) are in **TESTS\MISC**, and BENCH.BAS is in **TESTS**, with MSBASIC.EXE and SYMDEB.EXE in its **TOOLS** directory; load it in drive B: and type (for example) `B:\TOOLS\MSBASIC`, or `B:`, `CD \TESTS`, and `REGRESS`.  Most of the tests can run while other sessions are busy, but HARDERR skips its tests if any other session is running a program (its disk hook would affect them).
 
 The [hard disk demo](/demos/hd/at/) adds three more directories: **TESTS** (the same tests as the BASIC-DOS Tests diskette), **SRC** (the BASIC-DOS source code), and **TOOLS** (MASM and the other build tools, plus MSBASIC.EXE and SYMDEB.EXE).
 

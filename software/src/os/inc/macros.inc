@@ -541,11 +541,10 @@ DOSUTIL	macro	func,option
 ;
 ; Use the PRINTF macro to simplify calls to the DOS_UTL_PRINTF function.
 ;
-; There's no SPRINTF macro, but you can use CCALL to call DOS_UTL_SPRINTF;
-; pass your format string in DS:BX (don't use the macro's format parameter),
-; and set ES:DI and CX to the address and length of your output buffer.
-;
-;	CCALL	DOS_UTL_SPRINTF,,arg1,arg2,...
+; There's no SPRINTF macro: DOS_UTL_SPRINTF's format string follows the INT,
+; as PRINTF's does, but DS:BX must point to it, too, and ES:DI and CX must
+; give the address and length of your output buffer (see fputests.asm's
+; TESTF macro).
 ;
 PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	CCALL	DOS_UTL_PRINTF,<format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12

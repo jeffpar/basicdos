@@ -345,7 +345,7 @@ ENDPROC	dos_ctrlc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dos_default (currently used for INT 28h and INT 2Ah-2Fh)
+; dos_default (currently used for INT 28h, INT 2Ah, and INT 2Ch-2Fh)
 ;
 DEFPROC	dos_default,DOSFAR
 	iret
@@ -375,7 +375,7 @@ ENDPROC	disk_write
 ;
 ; dos_tsr (INT 27h)
 ;
-; TODO
+; Not supported.
 ;
 DEFPROC	dos_tsr,DOSFAR
 	iret
@@ -413,7 +413,7 @@ ENDPROC	dos_call5
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dos_util (INT 32h)
+; dos_util (INT 2Bh)
 ;
 ; We could jump straight to dos_func after adjusting the function number,
 ; but if a breakpoint has been set on dos_func, we'd rather not have dos_util
@@ -515,9 +515,9 @@ ENDPROC	int_leave
 ;
 ; Only these functions are supported, because they take their inputs in
 ; registers and return only carry (or, for LOCK, AX); most other utility
-; functions rely on the REG_FRAME that INT 32h creates (eg, to return values
+; functions rely on the REG_FRAME that INT 2Bh creates (eg, to return values
 ; in REG_AX or to access arguments on the caller's stack), and int_util
-; deliberately creates none.  Drivers may still use INT 32h (ie, DOSUTIL) for
+; deliberately creates none.  Drivers may still use INT 2Bh (ie, DOSUTIL) for
 ; any utility function, including these.
 ;
 ; Inputs:
@@ -530,7 +530,7 @@ ENDPROC	int_leave
 ;	AX = CONSOLE context for the active SCB (LOCK only)
 ;	Carry clear if successful, set if not (or if AH is not one of the
 ;	supported functions); all other flags (eg, the interrupt flag) are
-;	preserved, as with INT 32h
+;	preserved, as with INT 2Bh
 ;
 ; Modifies:
 ;	AX (LOCK only)

@@ -2,16 +2,16 @@
 #
 # Usage: tools/tests/mmutest.sh [8088] [real] [pm] [r3]
 #
-# Runs quick.sh's floppy tests (FPUTESTS through PRINTF), followed by CPUTEST, on these test machines:
+# Runs quick.sh's floppy tests (FPUTESTS through PRINTF), followed by CPUTESTS, on these test machines:
 #
 #   8088    an IBM PC XT (ibm5160), where CPU$ keeps only what an 8088 needs
 #   real    a 2Mb IBM PC AT (ibm5170), where the fpe configuration's "CPU=8088" line makes CPU$ act as it does on an
 #           8088, so BASIC-DOS runs in real mode
 #   pm      a 2Mb IBM PC AT without that line, where CPU$ manages extended memory and BASIC-DOS runs in protected
-#           mode, with a "RING=0" line, so that programs run at ring 0 and every test runs (including CPUTEST and
+#           mode, with a "RING=0" line, so that programs run at ring 0 and every test runs (including CPUTESTS and
 #           HARDERR's INT 13h hook tests)
 #   r3      the same machine without the "RING=0" line, so that programs (and COMMAND.COM) run at ring 3, as they do
-#           by default, where CPUTEST and HARDERR's hook tests print that they were skipped instead
+#           by default, where CPUTESTS and HARDERR's hook tests print that they were skipped instead
 #
 # By default, it runs all four.  The "pm" and "r3" machines boot a copy of the fpe configuration without the
 # "CPU=8088" line, in tools/pc/disks/tmp-mmupm, which is deleted afterward.  The exit code is non-zero if any test
@@ -24,7 +24,7 @@ tools/tests/prep.sh $fpe || exit 1
 ok='IF ERRORLEVEL = 0 THEN PRINT "EXITOK" ELSE PRINT "EXITBAD"'
 abort='IF ERRORLEVEL = 255 THEN PRINT "ABORTOK" ELSE PRINT "ABORTBAD"'
 m='\TESTS\REGRESS\'
-cmds="VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;\\TESTS\\MISC\\CPUTEST;$ok;SLEEP 1;QUIT"
+cmds="VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;\\TESTS\\MISC\\CPUTESTS;$ok;SLEEP 1;QUIT"
 log=$(mktemp)
 failed=
 for name in ${@:-8088 real pm r3}; do
@@ -39,7 +39,7 @@ for name in ${@:-8088 real pm r3}; do
                 if [ $name = pm ]; then
                     echo RING=0 >> $tmp/CONFIG.SYS
                 else
-                    cpu="CPUTEST skipped"; meta="HARDERR hook tests skipped"; seek=$meta
+                    cpu="CPUTESTS skipped"; meta="HARDERR hook tests skipped"; seek=$meta
                 fi ;;
         *)      echo "usage: $0 [8088] [real] [pm] [r3]" >&2; exit 1 ;;
     esac

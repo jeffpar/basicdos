@@ -29,7 +29,7 @@ CODE	segment word public 'CODE'
 
 	EXTNEAR	<arm,cg1,cpu_call,ct1v,ct2a,dbg_brk,dbg_fault,dbgdev_com>
 	EXTNEAR	<cmd_help,cmd_l,disarm,ip_mem,peek_b,resume,skip_space,step>
-	EXTNEAR	<end_command>
+	EXTNEAR	<chk_over,end_command>
 	EXTNEAR	<get_char,gl1,hex_digit,mon3a,mon4,mon4a,mon_sp,newline>
 	EXTNEAR	<put_char,put_raw,put_string>
 	EXTNEAR	<dc_0f>
@@ -1097,16 +1097,16 @@ ENDPROC	r3_rwmem
 ; INT n, the single-step trap would come from the INT's ring 0 handler, where
 ; we can't see it (and where a debugger loaded as a driver would stop).  So
 ; at an INT n, if the temporary breakpoint is free, we put it after the INT
-; (with BP_GO, so that reaching it resumes; see mon1), and resume without
-; TF, as we do if P put it there.
+; (or after the string that follows it; see chk_over), with BP_GO, so that
+; reaching it resumes (see mon1), and resume without TF, as we do if P put
+; it there.
 ;
 DEFPROC	r3_go
 	call	ip_mem			; mem_seg:DI -> CS:IP
 	call	peek_b			; AL = its opcode
 	cmp	al,0CDh			; INT n?
 	jne	rg8			; no
-	inc	di
-	inc	di			; mem_seg:DI -> the next instruction
+	call	chk_over		; mem_seg:DI -> the next instruction
 	test	bp_tab[5],BP_SET	; is the temporary breakpoint free?
 	jnz	rg1			; no
 	mov	word ptr bp_tab[0],di

@@ -1,4 +1,4 @@
-10 REM GFXTEST.BAS: graphics tests (STEP, POINT, DRAW A, TA, P, and X, GET and
+10 REM GFXTESTS.BAS: graphics tests (STEP, POINT, DRAW A, TA, P, and X, GET and
 20 REM PUT with double arrays, PLAY's semicolons and X, VIEW, WINDOW, PMAP, and PAINT tiles)
 30 SCREEN 1 : CLS : FAILS = 0 : F$ = ""
 40 PSET (10,10),1 : IF POINT(10,10) <> 1 THEN F$ = F$ + " PSET"
@@ -45,5 +45,5 @@
 433 LINE (10,170)-(30,190),3,B : PAINT (20,180),CHR$(&H19)+CHR$(&H24),3 : IF POINT(13,180) <> 1 OR POINT(14,180) <> 2 OR POINT(13,181) <> 2 OR POINT(14,181) <> 1 OR POINT(29,189) <> 2 OR POINT(31,180) <> 0 THEN F$ = F$ + " PAINT-TILE"
 436 LINE (40,170)-(60,190),3,B : PAINT (50,180),CHR$(&H55)+CHR$(0),3 : IF POINT(50,188) <> 1 OR POINT(50,172) <> 1 OR POINT(50,181) <> 0 THEN F$ = F$ + " PAINT-BACK"
 440 SCREEN 0
-450 IF F$ <> "" THEN PRINT "Failed:";F$ : PRINT "GFXTEST failed" ELSE PRINT "GFXTEST passed"
+450 IF F$ <> "" THEN PRINT "Failed:";F$ : PRINT "GFXTESTS failed" ELSE PRINT "GFXTESTS passed"
 460 WHILE INKEY$ = "" : WEND

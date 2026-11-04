@@ -182,7 +182,7 @@ DOS	segment word public 'CODE'
 
 	DEFLBL	UTILTBL,word
 	dw	utl_strlen,  utl_strstr,  utl_strupr,  utl_printf	;00-03
-	dw	utl_hprintf, utl_dprintf, utl_tprintf, utl_sprintf	;04-07
+	dw	utl_hprintf, utl_dprintf, utl_sprintf, utl_tprintf	;04-07
 	dw	utl_itoa,    utl_atoi16,  utl_atoi32,  utl_atoi32d	;08-0B
 	dw	utl_tokify,  utl_tokify,  utl_tokid,   utl_parsesw	;0C-0F
 	dw	utl_getdev,  utl_getcsn,  utl_qryscb,  utl_load		;10-13

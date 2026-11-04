@@ -13,7 +13,9 @@
 ; its own only for MASM's symbol space (its mnemonics alone define about 120
 ; equates).
 ;
+	DOSFUNC equ 1
 	include	macros.inc
+	include	dosapi.inc
 
 CODE	segment word public 'CODE'
 
@@ -369,10 +371,13 @@ ENDPROC	next_insn
 ; chk_over
 ;
 ; P steps over a CALL, INT, LOOP (or LOOPZ or LOOPNZ), or string instruction
-; with a REP prefix (REPNZ or REPZ), and traces any other instruction.
+; with a REP prefix (REPNZ or REPZ), and traces any other instruction.  The
+; INT_DOSUTIL functions DOS_UTL_PRINTF through DOS_UTL_SPRINTF return after
+; the null-terminated string that follows the INT (see CCALL), so the next
+; instruction is there.
 ;
 ; Inputs:
-;	mem_seg:DI -> instruction
+;	mem_seg:DI -> instruction (at CS:IP)
 ;
 ; Outputs:
 ;	DI -> next instruction; carry set to step over the instruction
@@ -382,7 +387,25 @@ ENDPROC	next_insn
 ;
 DEFPROC	chk_over
 	call	next_insn
-	mov	al,[mnemonic]
+	cmp	[opcode],0CDh		; INT n?
+	jne	co1			; no
+	dec	di
+	call	fetch			; AL = n
+	cmp	al,INT_DOSUTIL		; a DOS utility function?
+	jne	co8			; no
+	mov	al,8			; (AX, as in REGNAMES)
+	call	reg_val
+	mov	al,ah
+	sub	al,DOS_UTL_PRINTF
+	cmp	al,DOS_UTL_SPRINTF-DOS_UTL_PRINTF
+	ja	co8			; not one with a string after the INT
+co2:	call	fetch			; skip the string that follows the INT
+	jc	co8			; (the address isn't valid)
+	test	al,al
+	jnz	co2
+co8:	stc
+	ret
+co1:	mov	al,[mnemonic]
 	sub	al,M_MOVS
 	cmp	al,M_LOOP+1-M_MOVS	; a string op, CALL, INT, or LOOP?
 	jae	co9			; no (carry clear)

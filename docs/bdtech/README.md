@@ -19,7 +19,7 @@ The BASIC-DOS Technical Reference describes BASIC-DOS's internal architecture an
 	- [Function Summary](dos/#function-summary)
 	- [Differences from PC DOS](dos/#differences-from-pc-dos)
 	- [Error Codes](dos/#error-codes)
-3. [Utility Functions](util/) (INT 32h)
+3. [Utility Functions](util/) (INT 2Bh)
 4. [Device Drivers](dev/)
 	- [Driver Headers](dev/#driver-headers)
 	- [Request Packets](dev/#request-packets)

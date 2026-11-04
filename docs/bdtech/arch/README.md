@@ -99,12 +99,13 @@ Each session has its own console context (if it was given one by a CON= line), a
 | 23h | CTRL-C handler address |
 | 24h | Critical error handler address (see [Critical Errors](../dos/#critical-errors)) |
 | 25h, 26h | Absolute disk read and write (not supported; open the volume as a file instead, as described in [File Handles](../dos/#handles)) |
-| 27h | Terminate and stay resident (not implemented yet) |
-| 28h | Idle notification (default handler only) |
+| 27h | Terminate and stay resident (not supported) |
+| 28h | Idle notification (not supported) |
 | 29h | Fast console output (installed by the VKD$ driver; otherwise, a default handler that writes with the BIOS) |
-| 2Ah-2Fh | Reserved (default handlers only) |
+| 2Ah | Reserved (default handler only) |
+| 2Bh | BASIC-DOS utility functions (see [Utility Functions](../util/)) |
+| 2Ch-2Fh | Reserved (default handlers only) |
 | 30h | CALL 5 far jump (overlaps vector 31h) |
-| 32h | BASIC-DOS utility functions (see [Utility Functions](../util/)) |
 
 Programs should use DOS_MSC_SETVEC (25h) to set vectors 22h, 23h, and 24h, which BASIC-DOS stores in the current session's SCB, rather than writing the vector table directly.
 

@@ -216,7 +216,7 @@ DOS_PSP_RETCODE returns one of these exit types in AH:
 | 0 | EXTYPE_NORMAL | Normal termination |
 | 1 | EXTYPE_CTRLC | Terminated by CTRL-C |
 | 2 | EXTYPE_ERROR | Terminated by a critical error |
-| 3 | EXTYPE_KEEP | Terminated and stayed resident |
+| 3 | EXTYPE_KEEP | Terminated and stayed resident (not supported)|
 | 4 | EXTYPE_DVERR | Terminated by a divide error (BASIC-DOS only) |
 | 5 | EXTYPE_OVERR | Terminated by an overflow error (BASIC-DOS only) |
 | 6 | EXTYPE_ABORT | Session aborted with CTRL-ALT-DEL (BASIC-DOS only) |

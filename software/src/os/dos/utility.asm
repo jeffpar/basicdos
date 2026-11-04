@@ -214,7 +214,7 @@ ENDPROC	upper
 ; (eg, sysinit uses it to print to a specific session's console before any
 ; PSP exists, when STDOUT is always SFH 1).
 ;
-; utl_tprintf (AH = 06h) prints to STDOUT like utl_printf, but the format
+; utl_tprintf (AH = 07h) prints to STDOUT like utl_printf, but the format
 ; string is at DS:BX and the parameters are typed (see sprintf.asm), which
 ; is how COMMAND implements "PRINTF USING".
 ;
@@ -313,15 +313,17 @@ ENDPROC	utl_dprintf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_sprintf (AH = 07h)
+; utl_sprintf (AH = 06h)
 ;
 ; A CDECL-style calling convention is assumed, where all parameters EXCEPT
 ; for the format string are pushed from right to left, so that the first
-; (left-most) parameter is the last one pushed.  The next instruction should
-; be an "ADD SP,N*2", assuming N word parameters.
+; (left-most) parameter is the last one pushed.  As with utl_printf, the
+; format string follows the INT XX, and we return after it, so DS:BX must
+; point to it, too; the next instruction should be an "ADD SP,N*2", assuming
+; N word parameters.
 ;
 ; Inputs:
-;	DS:BX -> format string
+;	DS:BX -> format string (following the INT XX)
 ;	ES:DI -> output buffer
 ;	CX = length of buffer
 ;	all other parameters must be pushed onto the stack, right to left

@@ -149,10 +149,6 @@ si2a:	lodsw				; AX = offset of the next handler
 	jmp	si2a
 ;
 si2b:	call	set_call5
-	mov	al,INT_DOSUTIL
-	mov	cx,offset dos_util
-	mov	dx,cs:[dos_code]
-	call	far ptr DDINT_SETVEC
 ;
 ; Unless a driver (eg, VKD$) has installed an INT 29h handler (ie, one in RAM),
 ; point INT 29h at dos_fastcon, so that write_handle's fallback never calls a
@@ -804,7 +800,7 @@ ENDPROC	sysinit
 	dw	dos_term,dos_func,dos_exit,dos_ctrlc
 	dw	dos_error,disk_read,disk_write,dos_tsr,dos_default,0
 	dw	INT_DOSNET		; 2Ah
-	dw	dos_default,dos_default,dos_default
+	dw	dos_default,dos_util,dos_default
 	dw	dos_default,dos_default,dos_default,0
 	dw	-1			; end of tables
 	DEFLBL	INT_TABLES_END

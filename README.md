@@ -57,7 +57,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] COM and EXE program loading, PSPs, EXEC, and exit codes
 - [x] Memory allocation (through CPU$, which uses MCBs on an 8088), from all of memory (on an 80286 in protected mode, conventional and extended memory alike, and MEM and FRE count all of it), including per-program heap requests, and allocation from the top of memory (MCBTYPE_HIGH), which the interpreter uses for its own blocks so that the memory below them stays contiguous
 - [x] DOS_UTL_QRYMEM queries any memory block (its size in bytes, since a block can be 1Mb or more)
-- [x] INT 32h utility functions numbered contiguously (00h-24h) and grouped by purpose (see the [Technical Reference](docs/bdtech/util/))
+- [x] INT 2Bh utility functions numbered contiguously (00h-24h) and grouped by purpose (see the [Technical Reference](docs/bdtech/util/))
 - [x] Preemptive multitasking of multiple sessions; a session closes when its last program ends (eg, EXIT in its shell), and the system halts when no session is left
 - [x] CTRL-C/CTRL-Break handling, CTRL-ALT-DEL session aborts, and divide and overflow errors, which end the program (as MS-DOS does) without aborting its parent (vectors 00h, 08h, 09h, 1Bh, and 1Ch that a terminated program left hooked, like MSBASIC's, are restored)
 - [x] Session END: abort the current program in a specified session, interrupting any pending wait; WAITEND waits for the session to close
@@ -282,7 +282,7 @@ These are the next steps, roughly in priority order:
 1. Remaining string and input/output features (comma print zones)
 2. The rest of runtime error handling (messages for numeric errors other than "Division by zero", such as "Overflow")
 3. Common BASICA features that BASIC-DOS lacks: BEEP and COMMON
-4. The rest of protected mode on an 80286 or 80386: ring 3 for the programs that still need `RING=0` (interrupt hooks that DOS or the ROM BIOS calls, and CPUTEST), and MZ EXE files (see [Limitations](docs/bdtech/mmu/#limits))
+4. The rest of protected mode on an 80286 or 80386: ring 3 for the programs that still need `RING=0` (interrupt hooks that DOS or the ROM BIOS calls, and CPUTESTS), and MZ EXE files (see [Limitations](docs/bdtech/mmu/#limits))
 
 ## License
 

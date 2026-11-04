@@ -13,7 +13,7 @@
 #   TESTS    BENCH.BAS, STRESS.BAT, and REGRESS.BAT (which runs the tests in
 #            TESTS/REGRESS)
 #   TESTS/REGRESS  the regression tests (which tools/tests/quick.sh runs, too)
-#   TESTS/MISC  other test programs (eg, GFXTEST.BAS, which needs a CGA, and
+#   TESTS/MISC  other test programs (eg, GFXTESTS.BAS, which needs a CGA, and
 #            the BAT and EXE versions of PRIMES)
 #   TOOLS    tools used for testing (DISKREAD, DISKWRIT, SYMDEB, and MSBASIC)
 #
@@ -96,10 +96,10 @@ software/src/tests/misc/VARS.BAS
 
 [TESTS/MISC]
 software/src/tests/bin/ASSERT.COM
-software/src/tests/bin/CPUTEST.COM
-software/src/tests/bin/DBGTEST.COM
+software/src/tests/bin/CPUTESTS.COM
+software/src/tests/bin/DBGTESTS.COM
 software/src/tests/bin/FAULT.COM
-software/src/tests/misc/GFXTEST.BAS
+software/src/tests/misc/GFXTESTS.BAS
 software/src/tests/misc/MICRO.BAS
 software/src/tests/primes/PRIMES.BAT
 software/src/tests/bin/PRIMES.EXE

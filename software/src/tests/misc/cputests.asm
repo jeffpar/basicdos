@@ -8,20 +8,20 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 ; Prints the CPU type (and the processor's own, CPUF_HWTYPE) and the CPU$
-; driver's memory arena, and then tests its
-; functions: an allocation from the top of conventional memory, resized with
-; CPU_REALLOC, copies with CPU_MOVE (including an overlapping one), and in
-; protected mode, allocations with GDT and LDT selectors, a mapping of video
-; memory, and aliases (code and read-only), or in real mode, the segments
-; that CPU_MAP and CPU_ALIAS return instead; then invalid requests, and freeing
-; everything, which must leave the arena as it was.  Along the way, it names a
-; block (CPU_SETBLK), finds it by its selector (CPU_QUERY), and frees all the
-; blocks of an owner (CPU_FREEALL), and tests the functions for debuggers
-; (see debugfns), and in protected mode, runs code at ring 3 (see ring3).
-; Exits with code 0 if every check passes, or 1 if any fails.
+; driver's memory arena, and then tests its functions: an allocation from
+; the top of conventional memory, resized with CPU_REALLOC, copies with
+; CPU_MOVE (including an overlapping one), and in protected mode, allocations
+; with GDT and LDT selectors, a mapping of video memory, and aliases (code
+; and read-only), or in real mode, the segments that CPU_MAP and CPU_ALIAS
+; return instead; then invalid requests, and freeing everything, which must
+; leave the arena as it was.  Along the way, it names a block (CPU_SETBLK),
+; finds it by its selector (CPU_QUERY), and frees all the blocks of an owner
+; (CPU_FREEALL), and tests the functions for debuggers (see debugfns), and
+; in protected mode, runs code at ring 3 (see ring3).  Exits with code 0
+; if every check passes, or 1 if any fails.
 ;
 ; CPU$ is for the kernel and drivers (DDINT_CPU is DPL 0), so at ring 3 (the
-; default in protected mode; see RING= in CONFIG.SYS), we print "CPUTEST
+; default in protected mode; see RING= in CONFIG.SYS), we print "CPUTESTS
 ; skipped" and exit with code 0, rather than fault.
 ;
 	DOSPSP equ 1
@@ -48,7 +48,7 @@ DEFPROC	main
 	je	m0			; yes
 	test	al,3			; ring 3?
 	jz	m0			; no
-	PRINTF	<"CPUTEST skipped (needs RING=0)",13,10>
+	PRINTF	<"CPUTESTS skipped (needs RING=0)",13,10>
 	jmp	m9
 m0:	mov	ah,CPU_GETINFO
 	call	far ptr DDINT_CPU	; AH = CPUF_* flags
@@ -172,10 +172,10 @@ m7:	inc	bp
 	call	arena
 	cmp	bx,[npmbs]		; and the number of blocks?
 	jne	m8
-	PRINTF	<"CPUTEST passed",13,10>
+	PRINTF	<"CPUTESTS passed",13,10>
 m9:	mov	ax,DOS_PSP_RETURN SHL 8
 	int	21h
-m8:	PRINTF	<"CPUTEST failed (step %d)",13,10>,bp
+m8:	PRINTF	<"CPUTESTS failed (step %d)",13,10>,bp
 	mov	ax,(DOS_PSP_RETURN SHL 8) OR 1
 	int	21h
 ENDPROC	main
@@ -889,7 +889,7 @@ mvpkt	MOVEPKT	<>
 	DEFLBL	dbl_2_5,word
 	dw	0,0,0,4004h		; 2.5 (a double)
 	DEFLBL	name1,byte
-	db	"CPUTEST "
+	db	"CPUTESTS"
 	DEFLBL	fpu_name,byte
 	db	"FPU$",0
 	DEFLBL	str1,byte

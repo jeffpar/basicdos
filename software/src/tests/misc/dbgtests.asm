@@ -7,8 +7,8 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Run B:\TESTS\MISC\DBGTEST on BASICDOS-360K-DEBUG, with BASICDOS-360K-TESTS in
-; drive B:.  Resume both traps with G on the debugger terminal.
+; Run B:\TESTS\MISC\DBGTESTS on BASICDOS-360K-DEBUG, with BASICDOS-360K-TESTS
+; in drive B:.  Resume both traps with G on the debugger terminal.
 ;
 	DOSPSP equ 1
 	DOSFUNC equ 1
@@ -75,11 +75,11 @@ DEFPROC	main
 ; INT 1 has the same preservation/inspection interface as INT 3.
 ;
 	int	1
-	PRINTF	<"DBGTEST passed",13,10>
+	PRINTF	<"DBGTESTS passed",13,10>
 	mov	ax,DOS_PSP_RETURN SHL 8
 	int	21h
 failed:	cld
-	PRINTF	<"DBGTEST failed",13,10>
+	PRINTF	<"DBGTESTS failed",13,10>
 	mov	ax,(DOS_PSP_RETURN SHL 8) OR 1
 	int	21h
 ENDPROC	main
@@ -97,7 +97,7 @@ DEFPROC	check_port
 	mov	bx,ax
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
-	PRINTF	<"DBGTEST requires DEVICE=DEBUG.COM COM2:... in CONFIG.SYS",13,10>
+	PRINTF	<"DBGTESTS requires DEVICE=DEBUG.COM COM2:... in CONFIG.SYS",13,10>
 	mov	ax,(DOS_PSP_RETURN SHL 8) OR 1
 	int	21h
 cp1:	CHECK	ax,ERR_SHARE

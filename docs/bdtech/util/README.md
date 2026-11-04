@@ -7,17 +7,17 @@ permalink: /docs/bdtech/util/
 
 {% include header.html %}
 
-BASIC-DOS provides a set of utility functions through INT 32h, with the function number in AH.  The `DOS_UTL_*` names are defined in dosapi.inc (define DOSFUNC before including it), and the DOSUTIL macro (in macros.inc) generates the calls:
+BASIC-DOS provides a set of utility functions through INT 2Bh, with the function number in AH.  The `DOS_UTL_*` names are defined in dosapi.inc (define DOSFUNC before including it), and the DOSUTIL macro (in macros.inc) generates the calls:
 
-	DOSUTIL	STRLEN			; MOV AH,DOS_UTL_STRLEN / INT 32h
+	DOSUTIL	STRLEN			; MOV AH,DOS_UTL_STRLEN / INT 2Bh
 
 Utility functions differ from DOS functions in a few ways, because some of them are called from interrupt handlers:
 
 - They don't enable interrupts, clear carry, or check for CTRL-C on entry; functions that can fail set carry on failure and clear it on success, and others leave carry unchanged unless noted
 - Function numbers beyond the end of the table return immediately, without setting carry
-- INT 32h with AH set to a DOS function number plus 80h calls that DOS function without the usual entry processing; DOS_UTL_HDLCTL (C4h) is DOS_HDL_IOCTL (44h) called this way
+- INT 2Bh with AH set to a DOS function number plus 80h calls that DOS function without the usual entry processing; DOS_UTL_HDLCTL (C4h) is DOS_HDL_IOCTL (44h) called this way
 
-Device drivers can also call DOS_UTL_WAIT, DOS_UTL_ENDWAIT, DOS_UTL_HOTKEY, DOS_UTL_LOCK, and DOS_UTL_UNLOCK with a far call to DDINT_UTIL (0050:0049h), with AH set to the function number, which avoids the stack overhead of an INT 32h call.
+Device drivers can also call DOS_UTL_WAIT, DOS_UTL_ENDWAIT, DOS_UTL_HOTKEY, DOS_UTL_LOCK, and DOS_UTL_UNLOCK with a far call to DDINT_UTIL (0050:0049h), with AH set to the function number, which avoids the stack overhead of an INT 2Bh call.
 
 ### Function Summary
 
@@ -29,8 +29,8 @@ Device drivers can also call DOS_UTL_WAIT, DOS_UTL_ENDWAIT, DOS_UTL_HOTKEY, DOS_
 | 03h | [DOS_UTL_PRINTF](#formatted-output) | printf to the console (STDOUT) |
 | 04h | [DOS_UTL_HPRINTF](#formatted-output) | printf to a system file handle |
 | 05h | [DOS_UTL_DPRINTF](#formatted-output) | printf to the DEBUG$ device, if any |
-| 06h | [DOS_UTL_TPRINTF](#formatted-output) | printf to the console with typed parameters (used by PRINTF USING) |
-| 07h | [DOS_UTL_SPRINTF](#formatted-output) | sprintf to a buffer |
+| 06h | [DOS_UTL_SPRINTF](#formatted-output) | sprintf to a buffer |
+| 07h | [DOS_UTL_TPRINTF](#formatted-output) | printf to the console with typed parameters (used by PRINTF USING) |
 | 08h | [DOS_UTL_ITOA](#numbers) | Converts a 32-bit number to a string |
 | 09h | [DOS_UTL_ATOI16](#numbers) | Converts a string to a validated 16-bit number |
 | 0Ah | [DOS_UTL_ATOI32](#numbers) | Converts a string to a 32-bit number |
@@ -75,7 +75,7 @@ Device drivers can also call DOS_UTL_WAIT, DOS_UTL_ENDWAIT, DOS_UTL_HOTKEY, DOS_
 
 ### Formatted Output
 
-**DOS_UTL_PRINTF (03h)** prints to STDOUT, using a format string stored in the code segment immediately after the INT 32h instruction (DOS skips over it when returning).  All other parameters are pushed on the stack from right to left, and removed by the caller after the call (eg, with ADD SP,N*2).  Returns AX = # of characters printed.  The PRINTF macro takes care of all of this:
+**DOS_UTL_PRINTF (03h)** prints to STDOUT, using a format string stored in the code segment immediately after the INT 2Bh instruction (DOS skips over it when returning).  All other parameters are pushed on the stack from right to left, and removed by the caller after the call (eg, with ADD SP,N*2).  Returns AX = # of characters printed.  The PRINTF macro takes care of all of this:
 
 	PRINTF	<"%d files, %ld bytes",13,10>,cx,ax,dx
 
@@ -83,9 +83,9 @@ Device drivers can also call DOS_UTL_WAIT, DOS_UTL_ENDWAIT, DOS_UTL_HOTKEY, DOS_
 
 **DOS_UTL_DPRINTF (05h)** is the same, but prints to the DEBUG$ device (the port of the [DEBUG.COM](../dev/) driver), if it's installed, and only in a DEBUG build of BASDOS.COM (otherwise, the format string is skipped).  The DPRINTF macro generates these calls, in DEBUG builds only.
 
-**DOS_UTL_TPRINTF (06h)**: DS:BX -> format string, with "typed" parameters pushed right to left: each is a type word (VAR_LONG, VAR_STR, or VAR_DOUBLE; see parser.inc) followed by a 4-byte value, so a specifier's size modifiers are ignored.  Numeric and date/time specifiers take a VAR_LONG, `%s` takes a VAR_STR (a far pointer to a length-prefixed string, or null if empty), `%f` takes a VAR_DOUBLE (a far pointer), and `%c` takes a VAR_LONG or the first character of a VAR_STR; a value of any other type prints the specifier unchanged.  Prints to STDOUT and returns AX = # of characters printed.  COMMAND's PRINTF USING uses this.
+**DOS_UTL_SPRINTF (06h)**: like DOS_UTL_PRINTF, its format string follows the INT 2Bh instruction (DOS returns after it), but DS:BX must point to it, too; ES:DI -> output buffer, CX = buffer length, and parameters pushed as above.  Returns AX = # of characters generated.
 
-**DOS_UTL_SPRINTF (07h)**: DS:BX -> format string, ES:DI -> output buffer, CX = buffer length, and parameters pushed as above.  Returns AX = # of characters generated.
+**DOS_UTL_TPRINTF (07h)**: DS:BX -> format string, with "typed" parameters pushed right to left: each is a type word (VAR_LONG, VAR_STR, or VAR_DOUBLE; see parser.inc) followed by a 4-byte value, so a specifier's size modifiers are ignored.  Numeric and date/time specifiers take a VAR_LONG, `%s` takes a VAR_STR (a far pointer to a length-prefixed string, or null if empty), `%f` takes a VAR_DOUBLE (a far pointer), and `%c` takes a VAR_LONG or the first character of a VAR_STR; a value of any other type prints the specifier unchanged.  Prints to STDOUT and returns AX = # of characters printed.  COMMAND's PRINTF USING uses this.
 
 Supported format specifiers include:
 
