@@ -12,7 +12,7 @@ When BASIC-DOS starts, it automatically allocates enough memory for:
 
 - Up to 20 open files at a time
 - Up to 4 active sessions at a time
-- 2 disk buffers (one for FAT sectors and one for directory sectors)
+- 3 disk buffers (which hold recently used FAT, directory, and file sectors)
 
 and it creates a single 80-column, 25-row console, running COMMAND.COM.
 
@@ -54,7 +54,7 @@ AUX is opened after any [DEVICE](#device) drivers are loaded, so it can't be a p
 
 > BUFFERS=*n*
 
-Sets the number of disk buffers, each of which holds one 512-byte sector of a FAT or a directory, so that recently used sectors don't have to be read again.  The default is 2 (the minimum), and *n* can range from 2 to 32.  Each additional buffer uses 528 bytes of memory, so more buffers mainly help systems with multiple sessions (eg, sessions working in different directories) and memory to spare.  File data isn't buffered; it's transferred directly by the disk drivers.
+Sets the number of disk buffers, each of which holds one 512-byte sector of a FAT, a directory, or a file, so that recently used sectors don't have to be read again.  The default is 3, and *n* can range from 2 to 32.  Each buffer beyond the first two uses 528 bytes of memory.  More than 3 mainly help systems with multiple sessions (eg, sessions working in different directories) and memory to spare.  `BUFFERS=2` saves memory on a 64K machine, but programs that read small amounts from two or more files at once (eg, COMP) become much slower.  For file data, only reads of part of a sector use the buffers; whole sectors and all writes are transferred directly by the disk drivers.
 
 ### CON
 
@@ -121,56 +121,7 @@ Makes BASIC-DOS treat an 80286 or later processor as an 8088: the processor type
 
 Loads an installable device driver, passing it any *arguments*.  DEVICE lines are processed in order, after the first console has been opened (so that any errors can be reported) and before any other consoles (and [AUX](#aux) and [PRN](#prn)) are opened.  If a driver can't be loaded, a warning is displayed (eg, `Warning: unable to find device DEBUG.COM`) and startup continues.
 
-BASIC-DOS includes one installable driver, DEBUG.COM (in the EXT directory), a simple debugger that runs on a terminal connected to a serial port; its argument is the port's settings, using the same format as a COM [CON](#con) (eg, `DEVICE=EXT\DEBUG.COM COM2:9600,N,8,1,VT100`).  The debugger claims the port, so no other program or console can open it.
-
-Any switches after the port's settings (using the current [SWITCHAR](#switchar)) are commands, which the debugger performs on the terminal as soon as it's installed, before startup continues; eg, `DEVICE=EXT\DEBUG.COM COM2:9600,N,8,1,VT100 /BP 70:100` sets a breakpoint.  Breakpoints should be set only in code that's already loaded (eg, in other device drivers or the operating system), since loading a program over one replaces it.
-
-/H stops the machine after those commands, instead of continuing startup, so that more commands can be typed (G resumes it), and makes the debugger stop at a DBGBRK, too (an INT 3 that DEBUG builds of BASIC-DOS can use to mark a spot).  Without /H, it stops only at its breakpoints, an assertion failure, an exception that VT traps or that would stop the machine (see below), or a CTRL-C (or BREAK).  /G is ignored.
-
-On the terminal, CTRL-C (or BREAK) stops the machine as soon as it arrives, as do breakpoints, single-steps, any other INT 1 or INT 3, and the exceptions that VT traps.  The debugger then displays the registers and the instruction at CS:IP (preceded by "Assertion failure" if the INT 3 was a failed assertion in a DEBUG build, "Division error" for a divide error, or `CPU fault vv (EC=xxxx) at cccc:iiii` for a protected-mode fault, with its vector and error code), and waits for commands.
-
-All numbers in commands are hexadecimal, and any number may also be a 16-bit register name, such as DS or DX.  An *address* is [*segment*:]*offset* (eg, `DS:DX`), and a *range* is *address* [*end* | L *count*].  Bytes that can't be read (eg, past the end of a segment) are displayed as `??`.
-
-On an 80286 or later (without [CPU](#cpu)=8088), the debugger works in either of the processor's modes: an *address* may start with `&` for a real-mode segment (eg, `&40:0`) or `#` for a protected-mode selector (eg, `#20:0`), and otherwise has the processor's current mode, and every address it displays starts with `&` or `#`.  On any processor, an *address* may also be any 32-bit physical address, preceded by `%` (eg, `%100000`, or on an 8088, any address below 1Mb), which D, E, LN, and U accept (but BP and G don't, since a breakpoint needs a segment).
-
-The commands are:
-
-- BP[*n*] *address* to set breakpoint *n* (1-9, or 0 for the temporary breakpoint), or the first free one (1-9), at *address*
-- BC *n* [*n*...] to clear breakpoints (0 is the temporary one), or BC \* to clear them all
-- BL to list the breakpoints, including the temporary one (0), with the instruction at each
-- DB [*range*] to display memory as hex bytes, and DW [*range*] as hex words (128 bytes by default, continuing from the last D); D [*range*] uses the last format (initially bytes)
-- DM to display memory in address order, as the CPU$ driver describes it: each block's address, length (in bytes), and owner (a PSP, or in protected mode, a ring 3 program's session number plus 80h, then its program number; eg, 8000 for session 0's COMMAND.COM), and its name (eg, COMMAND or DEBUG$) or type (eg, FREE, SYS, RSVD for video memory and ROMs, CPU$ for the CPU$ system area in extended memory, one of COMMAND's VAR, STR, TEXT, or CODE blocks, ENV for the environment COMMAND builds for programs, or DATA for any other memory a program allocated); the system's memory is shown as a row for each driver in it (eg, CPU$, VKD$, or FDC$, from the driver chain), DOS for the memory DOS is in, and SYS for the rest, including, on an 8088 (or with [CPU](#cpu)=8088), the memory below the blocks (the interrupt vectors, the BIOS data, and BASIC-DOS's low memory)
-- DS *selector* to display a selector's descriptor, as the PCjs Debugger's DS command does: its base and limit (or for a gate, its selector and offset), its type and what that means, the 80386 flags in its extended byte, and its DPL (eg, `base=000970 limit=FFFF type=1B (code,readable,accessed) ext=0000 dpl=00`); in real mode (or on an 8088), a segment has only a base and limit
-- E *address* [*list*] to store a list of bytes and quoted strings at *address*; without a list, E displays each byte and prompts for its replacement (an empty line ends)
-- G [*address*] to resume, after setting the breakpoints; an *address* sets the temporary breakpoint (0) there, replacing any earlier one (see P), and the temporary breakpoint stays set until the debugger stops at its address, however it gets there
-- GT to pass on the exception that stopped the debugger (see below)
-- LN [*address*] ("list near") to display *address* (CS:IP by default), its linear address, and the name of the memory it's in, as DM shows it (eg, `0AC6:0100 00AD60 DEBUG`)
-- P[R] [*count*] to step as T (or TR) does, except that a CALL, INT, LOOP (or LOOPZ or LOOPNZ), or string instruction with a REP prefix (eg, REP MOVSB) runs to completion: P sets the temporary breakpoint after it (or for an INT 2Bh that prints, after the format string that follows it, as the PRINTF macro stores it) and resumes, with the other breakpoints set, too (so a stop at another one ends the P, and the temporary breakpoint stays set)
-- R to display the registers (on an 80286, also the MSW, GDTR, and IDTR, and in protected mode, in the PCjs Debugger's format: each segment register's base and limit, as `[base,limit]`, A20, the LDTR, GDTR, IDTR, TR, MSW, and the flags as 0 or 1, eg, `Z1`), and the instruction at CS:IP, followed, if it has a memory operand, by the operand's effective address, using any segment override (eg, `; EA = 0AC6:0120`)
-- R *reg* [*value*] to change a register (it prompts if there's no *value*)
-- R F to display the flags and prompt for new flag names (eg, `CY ZR`)
-- T[R] [*count*] to execute *count* instructions (default 1), displaying the next instruction after each (TR displays the registers, too, as R does); like DEBUG, T steps into an INT by simulating it, except that it steps over an INT 3 (or any other INT the debugger handles itself), as if it had returned
-- U [*range*] to disassemble instructions as the processor runs them: 80286 instructions on an 80286 or later (even with `CPU=8088`), and 8086 instructions on an 8088 or 8086 (where, for example, opcode 0Fh is POP CS); 32 bytes by default, continuing from the last U, or from CS:IP.  An INT 2Bh that prints (eg, from the PRINTF macro) is followed by a tab, a semicolon, and its format string in quotes (with `\r`, `\n`, `\t`, or `\x`*nn* for each character that isn't printable), and the next instruction starts after the string
-- VT *vector* [*vector*...] to trap exceptions with those vectors (00-1F), so that they stop the debugger instead of being passed on; a vector is hex, or decimal with a trailing period (eg, `VT 0D` or `VT 13.`)
-- VC *vector* [*vector*...] to clear those traps, or VC \* to clear them all
-- VL to list the trapped vectors
-- ? for help
-
-At an empty prompt, CTRL-A displays the last command and performs it again, so pressing CTRL-A repeatedly repeats a command (eg, T or P).
-
-An exception (eg, a divide error, or in protected mode, a general protection fault) is passed on to DOS, which ends the program (as it would without the debugger), unless VT traps its vector.  After a trapped exception, GT passes it on, since resuming would only run the instruction again (eg, a DIV, on an 80286 or later; an 8086 or 8088 reports the instruction after the DIV instead), while T, P, and G resume at CS:IP (eg, after changing IP with R).  A protected-mode fault that DOS can't handle (one outside the current program's own code, eg, in a driver or the operating system) would stop the machine, so the debugger stops for it first, whether or not VT traps it: G runs the instruction again (eg, after you fix the problem), and GT has the system report the fault and stop (`System halted`).  The debugger then keeps control, displaying the fault and `System halted`, and waits for CTRL-C (or BREAK) before displaying the registers and its prompt; G, P, and T then resume at CS:IP (eg, after you fix the problem), and GT keeps the system halted (the debugger displays the fault and `System halted` and waits again), so the debugger never gives up control.  Fixing the problem (eg, the register that the faulting instruction uses) is safer than skipping the code that faulted, which can leave the system in an inconsistent state.
-
-The driver's device name is DEBUG$, and data written to it is sent to the terminal; DEBUG builds of BASIC-DOS send their diagnostic (DPRINTF) messages there.
-
-DEBUG.COM can also be run from the prompt, without loading it as a driver, as `DEBUG [/H] [program [arguments]]` (eg, `DEBUG EXT\SLEEP.COM 5`).  It loads the program (which must be a full filename; PATH$ isn't searched) with its arguments as the command tail, displays the registers as of the program's start, and accepts the same commands on the console, along with Q to quit.  Since the console uses DOS, breakpoints in DOS itself should be set only with the driver.
-
-G runs the program, and when it terminates, DEBUG reports "Program terminated normally" and exits with the program's exit code.  Without a program, the registers are DEBUG's own, and since CS:IP holds a RET, G exits; the L command (`L program [arguments]`) then loads one, as if it had been named on DEBUG's command line.
-
-At the prompt, /H changes nothing, since DEBUG always halts there.  A command can also be given as a switch, which DEBUG performs (without displaying the registers) before exiting; eg, `DEBUG /DB 40:0` dumps the BIOS data area, and `DEBUG /DM` displays the memory map.
-
-In protected mode, DEBUG.COM run from the prompt runs at ring 3, as other programs do (unless CONFIG.SYS has [RING](#ring)=0), and so does the program it loads, so it can't use the CPU$ driver, and it has fewer commands than the driver: it can read and write only memory that a ring 3 program can (eg, the program's own memory, including its code, but not DOS's, the drivers', or the BIOS data area), R displays the registers as it does in real mode (with no system registers, or segment bases and limits), and there's no DM, DS, or LN, and no `&`, `#`, or `%` addresses.  T steps over an INT instruction, as P does, since the INT's handler runs at ring 0.  The driver has none of these limits, and can debug ring 3 programs, too.
-
-Source: [dbgdev.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/dd/dbg/dbgdev.asm), [dbgdis.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/dd/dbg/dbgdis.asm), and [dbginit.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/dd/dbg/dbginit.asm)
+BASIC-DOS includes one installable driver, [DEBUG.COM](../cmd/external/debug/) (in the EXT directory), a debugger that runs on a terminal connected to a serial port; its argument is the port's settings, using the same format as a COM [CON](#con) (eg, `DEVICE=EXT\DEBUG.COM COM2:9600,N,8,1,VT100`), and any switches after them are debugger commands.  The debugger claims the port, so no other program or console can open it.  See [Loading DEBUG as a Driver](../cmd/external/debug/#loading-debug-as-a-driver) for details.
 
 ### FILES
 
@@ -198,7 +149,7 @@ PRN is opened after any [DEVICE](#device) drivers are loaded, so it can't be a p
 
 In protected mode (on an 80286 or later, without [CPU](#cpu)=8088), BASIC-DOS runs COMMAND.COM, every BASIC program, and every program they run (COM and EXE files alike) at ring 3, the processor's least privileged level, rather than at ring 0 with BASIC-DOS itself, so that a program can't write to memory that isn't its own (including another session's), or use privileged instructions (eg, IN, OUT, CLI, and STI); a program that tries is ended with a `CPU fault` message, as an error such as a divide by zero ends it.  RING=0 runs them all at ring 0 instead.  In real mode, everything runs at ring 0, and the line has no effect.
 
-A program's interrupt handlers (eg, an INT 21h hook that passes the calls it doesn't handle on to DOS) run at ring 3, too, for the interrupts that programs in its own session issue, but not for those that BASIC-DOS, its drivers, or the ROM BIOS issue, so some programs don't work at ring 3 yet, and need RING=0: programs that hook such an interrupt (eg, the BIOS disk interrupt, or the timer tick), and programs that call CPU$ or the ROM BIOS disk functions directly.  DEBUG.COM run as a program works at ring 3, with fewer commands than at ring 0 (see [DEVICE](#device)), and its driver can debug ring 3 programs.  Programs with their own CTRL-C or critical error handlers work, since those handlers run at ring 3, too.
+A program's interrupt handlers (eg, an INT 21h hook that passes the calls it doesn't handle on to DOS) run at ring 3, too, for the interrupts that programs in its own session issue, but not for those that BASIC-DOS, its drivers, or the ROM BIOS issue, so some programs don't work at ring 3 yet, and need RING=0: programs that hook such an interrupt (eg, the BIOS disk interrupt, or the timer tick), and programs that call CPU$ or the ROM BIOS disk functions directly.  DEBUG.COM run as a program works at ring 3, with fewer commands than at ring 0 (see [DEBUG](../cmd/external/debug/#ring-3)), and its driver can debug ring 3 programs.  Programs with their own CTRL-C or critical error handlers work, since those handlers run at ring 3, too.
 
 ### SESSIONS
 

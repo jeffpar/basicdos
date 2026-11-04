@@ -14,7 +14,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<getFileName,getToken,chkStrVar,newStr>
-	EXTNEAR	<printCRLF,findFile,addString,releaseStr>
+	EXTNEAR	<printCRLF,findFile,addString,releaseStr,rtError>
 	EXTBYTE	<CMD_PATH>
 	EXTSTR	<DIR_DEF,PIPE_NAME,COM_EXT,BAS_EXT>
 
@@ -64,7 +64,9 @@ ch4:	call	getCwd			; DS:SI -> path
 	jc	ch8
 	PRINTF	<"%c:%c%s",13,10,13,10>,cx,dx,si
 	ret
-ch8:	EPRINTF	<"Unable to find %c:">,<13,10,13,10>,ax,cx
+ch8:	cmp	al,ERR_BADDRIVE		; no such drive?
+	je	ch1a			; right (fileError reports that)
+	EPRINTF	<"Unable to find %c:">,<13,10,13,10>,ax,cx
 	stc
 	ret
 ENDPROC	cmdChdir
@@ -299,6 +301,14 @@ ENDPROC	copyCat
 ; device), and then close the input.  Like DOS, CTRLZ ends the data from a
 ; device, and for TYPE (ie, when the output is STDOUT), from a file, too.
 ;
+; Unless the input is a device (or memory is short), the data goes through a
+; temporary block instead of the DTA, since reading or writing part of a sector
+; goes through the disk driver's one-sector buffer, and when the input and
+; output are on the same drive, they keep replacing each other there.  The
+; block's segment goes in EPB_ENVSEG (no program is running), so that freeEnv
+; frees it, even if a CTRLC ends the copy (see ctrlc).  Output to a device is
+; still written in small pieces, since DOS checks for CTRLC between writes.
+;
 ; Inputs:
 ;	BX -> CMDHEAP
 ;	HDL_INPUT and HDL_OUTPUT are open
@@ -309,27 +319,49 @@ ENDPROC	copyCat
 ; Modifies:
 ;	AX, CX, DX, SI, DI
 ;
+COPY_BUFLEN	equ	8000h		; largest temporary block
+
 DEFPROC	copyData
-	push	bx
-	mov	bx,[bx].HDL_INPUT
-	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETDATA
-	int	21h			; DX bit 7 set if input is a device
-	pop	bx
-	jnc	cf3a
-	sub	dx,dx
-cf3a:	and	dx,80h
+	push	bp
+	mov	si,[bx].HDL_INPUT
+	call	chkDevice		; DX = 80h if the input is a device
 	cmp	[bx].HDL_OUTPUT,STDOUT	; is this TYPE?
 	jne	cf3b			; no
 	inc	dx			; yes, so CTRLZ ends a file, too
-cf3b:	mov	di,dx			; DI is non-zero if CTRLZ ends the data
+cf3b:	mov	di,dx			; DI bits 0 and 7 are set if CTRLZ does
+	mov	si,[bx].HDL_OUTPUT
+	call	chkDevice		; DX = 80h if the output is a device
+	shr	dx,1
+	or	di,dx			; DI bit 6 is set if it's a device
 	mov	si,PSP_DTA		; SI -> DTA (used as a read buffer)
-cf4:	mov	cx,size PSP_DTA		; CX = number of bytes to read
+	mov	bp,size PSP_DTA		; BP = number of bytes to read
+	test	di,80h			; is the input a device?
+	jnz	cf4			; yes, so the DTA will do
+	push	bx
+	mov	bx,COPY_BUFLEN SHR 4	; BX = # paragraphs
+cd1:	mov	ax,DOS_MEM_ALLOC SHL 8
+	int	21h			; AX = segment of the block
+	jnc	cd2
+	shr	bx,1			; BX = half of the largest block
+	cmp	bx,512 SHR 4		; does that hold a sector?
+	jae	cd1			; yes
+	pop	bx			; no, so the DTA will have to do
+	jmp	short cf4
+cd2:	mov	cl,4
+	shl	bx,cl
+	mov	bp,bx			; BP = number of bytes to read
+	pop	bx
+	mov	[bx].EXECDATA.EPB_ENVSEG,ax
+	mov	ds,ax
+	mov	es,ax
+	sub	si,si			; DS:SI -> block
+cf4:	mov	cx,bp			; CX = number of bytes to read
 	call	readInput
-	jc	cy9
+	jc	cy7
 	test	ax,ax			; anything read?
-	jz	cy7			; no
+	jz	cy7			; no (and carry is clear)
 	xchg	cx,ax			; CX = number of bytes to write
-	test	di,di			; is input a device?
+	test	di,81h			; does CTRLZ end the data?
 	jz	cf6			; no
 	push	di
 	mov	di,si
@@ -342,14 +374,53 @@ cf4:	mov	cx,size PSP_DTA		; CX = number of bytes to read
 	sub	cx,dx			; yes, so write only bytes before it
 	dec	cx
 	mov	di,-1			; and then stop
-cf6:	call	writeOutput
-	jc	cy9
+cf6:	push	si
+cf6a:	push	cx			; save number of bytes left
+	test	di,40h			; is the output a device?
+	jz	cf6b			; no
+	cmp	cx,size PSP_DTA		; yes, so is this more than a piece?
+	jbe	cf6b			; no
+	mov	cx,size PSP_DTA		; yes
+cf6b:	call	writeOutput
+	pop	dx			; DX = number of bytes left
+	jc	cf6c
+	add	si,cx
+	sub	dx,cx			; (carry is clear)
+	mov	cx,dx
+	jnz	cf6a			; write the next piece
+cf6c:	pop	si
+	jc	cy7
 	test	di,di			; did input end with CTRLZ?
-	jns	cf4			; no
-cy7:	call	closeInput		; close the input
+	jns	cf4			; no (and carry is clear)
+cy7:	push	ss
+	pop	ds
+	push	ss
+	pop	es			; (they can't hold a freed segment)
+	pushf
+	mov	bp,bx
+	call	freeEnv			; free the block, if any
+	popf
+	pop	bp
+	jc	cy9
+	call	closeInput		; close the input
 	clc
 cy9:	ret
 ENDPROC	copyData
+
+;
+; chkDevice returns DX = 80h if the handle in SI is a device, otherwise zero.
+;
+DEFPROC	chkDevice
+	push	bx
+	mov	bx,si
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETDATA
+	int	21h			; DX bit 7 set if it's a device
+	pop	bx
+	jnc	$+4
+	sub	dx,dx
+	and	dx,80h
+	ret
+ENDPROC	chkDevice
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -718,9 +789,10 @@ ENDPROC	getExists
 ; Returns the first file or directory matching the filespec (which may contain
 ; wildcards), or if the filespec is omitted (or empty), the next match.  The
 ; result contains the match's attributes (1 byte), time (2), date (2), and
-; size (4), followed by its name; it's empty if there are no (more) matches.
-; The default attributes (16h) include hidden, system, and directory entries;
-; 8 finds the volume label.  eg:
+; size (4), followed by its name; it's empty if there are no (more) matches,
+; and an invalid drive is a runtime error ("Invalid drive").  The default
+; attributes (16h) include hidden, system, and directory entries; 8 finds the
+; volume label.  eg:
 ;
 ;	F$ = DIR$("*.BAS")
 ;	WHILE F$ <> "" : PRINT MID$(F$, 10) : F$ = DIR$ : WEND
@@ -753,8 +825,12 @@ sd1:	push	ss
 	mov	ah,DOS_DSK_FNEXT
 	int	21h
 sd2:	mov	cx,0			; CX = 0 (empty result) if no match
-	jc	sd3
-	mov	si,PSP_DTA + FFB_NAME
+	jnc	sd2a
+	cmp	al,ERR_BADDRIVE		; or was there no such drive to search?
+	jne	sd3			; no
+	mov	al,77			; "Invalid drive"
+	jmp	rtError
+sd2a:	mov	si,PSP_DTA + FFB_NAME
 	DOSUTIL	STRLEN			; AX = name length
 	add	ax,FFB_NAME - FFB_ATTR	; plus attributes, time, date, and size
 	xchg	cx,ax
@@ -1206,8 +1282,7 @@ tp1:	mov	di,si
 	mov	di,si
 	add	di,cx
 	mov	byte ptr [di],0		; every extension failed, so remove it
-	mov	ax,ERR_NOFILE
-	stc
+	stc				; (AX = the last extension's error)
 tp9:	ret
 tp8:	jmp	findFile
 ENDPROC	tryProgram
@@ -1362,8 +1437,9 @@ ENDPROC	openOutput
 ;
 ; Inputs:
 ;	AX = error # (ERR_NOTREADY is reported as "Drive not ready",
-;	ERR_NOSESSION as "No sessions available to run X", ERR_NOMEMORY as
-;	"Unable to load X", and ERR_NOFILE or ERR_NOPATH as "Unable to find X")
+;	ERR_BADDRIVE as "Invalid drive", ERR_NOSESSION as "No sessions
+;	available to run X", ERR_NOMEMORY as "Unable to load X", and
+;	ERR_NOFILE or ERR_NOPATH as "Unable to find X")
 ;	DS:SI -> filename
 ;	CS:DX -> verb (fileError only; eg, "delete")
 ;
@@ -1383,9 +1459,13 @@ DEFPROC	openError
 	push	ax
 	push	dx
 	cmp	ax,ERR_NOTREADY		; drive not ready?
-	jne	fer1			; no
+	jne	fer0			; no
 	PRINTF	<"Drive not ready",13,10,13,10>
-	jmp	fer2
+	jmp	short fer0a
+fer0:	cmp	ax,ERR_BADDRIVE		; no such drive?
+	jne	fer1			; no
+	PRINTF	<"Invalid drive",13,10,13,10>
+fer0a:	jmp	fer2
 fer1:	cmp	ax,ERR_NOSESSION	; no session for a pipeline command?
 	jne	fer3			; no
 	push	bx
@@ -1639,8 +1719,8 @@ ENDPROC	closeInput
 DEFPROC	readInput
 	push	bx
 	mov	dx,si
-	ASSERT	STRUCT,[bx],CMD
-	mov	bx,[bx].HDL_INPUT
+	ASSERT	STRUCT,ss:[bx],CMD
+	mov	bx,ss:[bx].HDL_INPUT
 	mov	ah,DOS_HDL_READ
 	int	21h
 	jnc	ri9

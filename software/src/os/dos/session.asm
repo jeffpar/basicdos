@@ -707,10 +707,9 @@ DEFPROC	scb_switch,DOS
 	frstor	es:[di]
 sw1:	cmp	[prog_user],0		; ring 3 programs?
 	je	sw2			; no
-	mov	al,[bx].SCB_NUM		; make its LDT active first, since
-	call	r3_setldt		; its PSP (for r3_sp0) is in that LDT
-	mov	ax,[bx].SCB_PSP
-	call	r3_sp0			; this session's ring 0 stack
+	mov	al,[bx].SCB_NUM
+	call	r3_setldt		; this session's LDT
+	call	r3_sp0			; and its ring 0 stack
 sw2:	mov	ax,bx
 	xchg	bx,[scb_active]		; BX -> previous SCB
 	ASSERT	STRUCT,[bx],SCB

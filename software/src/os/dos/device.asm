@@ -546,9 +546,7 @@ he2:	mov	ah,cl			; AH = flags
 	mov	bp,es			; BP:SI -> DDH
 	cmp	[prog_user],0		; ring 3 programs?
 	je	he2a			; no
-	test	byte ptr [bx].SCB_ERROR.SEG,3	; a ring 3 handler?
-	jz	he2a			; no
-	call	r3_error		; yes, at ring 3
+	call	r3_error		; yes (see r3_error)
 	jmp	short err_jump
 he2a:	pushf
 	call	[bx].SCB_ERROR		; call the session's ERROR handler

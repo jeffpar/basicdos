@@ -1071,7 +1071,7 @@ rwcases		dw	512,512
 		db	2,0
 		dw	1,1536
 		db	2,1
-		dw	0,128
+		dw	2048,128	; (a sector not in a disk buffer)
 		db	2,0
 		dw	512,512
 		db	3,0

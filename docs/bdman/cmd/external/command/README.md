@@ -12,11 +12,18 @@ Each session runs its own copy of COMMAND.COM, as specified by a [SHELL=](../../
 
 ### Startup Commands
 
-> COMMAND [*command*[:*command*]...]
+> COMMAND [*command*[:*command*]...]  
+> COMMAND /C *command*
 
 Any commands following COMMAND are run when it starts (eg, `SHELL=COMMAND.COM AUTOEXEC.BAT`).  There is no automatic AUTOEXEC.BAT; each session's startup commands must be given explicitly.
 
+`/C` runs *command*, without displaying a banner, and then exits, with ERRORLEVEL as its exit code (eg, `COMMAND /C PRINT 1+2`).  It's how the C runtime's system() function runs a command, so a program like MAKE can tell when one fails.  Unlike other switches, it can start with `/` even if [SWITCHAR](../../../cfg/#switchar) has changed the switch character.
+
 Running COMMAND.COM from the prompt starts another copy of the shell; type [EXIT](../../system/#exit) to return to the previous copy.
+
+### Commands
+
+COMMAND.COM performs all of the [BASIC](../../basic/), [device](../../device/), [disk](../../disk/), and [system](../../system/) commands in this manual itself, and runs everything else as an external command (see [Running Programs](../../../intro/#running-programs)).
 
 ### BASIC Compilation
 
@@ -26,8 +33,8 @@ When a BAS program ends, its compiled code is kept along with the program, if th
 
 ### Memory Usage
 
-COMMAND.COM has a *resident* portion and a *transient* portion (about 23K).  Before running a COM or EXE program, COMMAND.COM frees any variable blocks it doesn't need and discards its transient portion, leaving more memory for the program.  When the program ends, the transient portion is restored: from a copy that COMMAND.COM saves at the top of free memory, if the program didn't overwrite it, or else by reloading it from A:COMMAND.COM.
+COMMAND.COM has a *resident* portion and a *transient* portion (about 23K).  Before running a COM or EXE program, COMMAND.COM frees any variable blocks it doesn't need and discards its transient portion, leaving more memory for the program.  When the program ends, the transient portion is restored: from a copy that COMMAND.COM saves at the top of free memory, if the program didn't overwrite it, or else by reloading it from COMMAND.COM, in the root directory of the drive it was loaded from (asking for that disk, if it isn't there).
 
 The [MEM](../../system/#mem) command includes the transient portion in its total of available memory.
 
-{% include footer.html prev="External Commands:../" next="System Commands:../../system/" %}
+{% include footer.html prev="CHKDSK:../chkdsk/" next="COMP:../comp/" %}

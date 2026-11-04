@@ -105,7 +105,7 @@ The Session Control Block is internal to DOS; there's one for each session (see 
 
 | Offset | Field | Description |
 |--------|-------|-------------|
-| 00h | SCB_STATUS | Status (SCSTAT_INIT, SCSTAT_LOAD, SCSTAT_START, SCSTAT_ABORT) |
+| 00h | SCB_STATUS | Status (SCSTAT_INIT, SCSTAT_LOAD, SCSTAT_START, SCSTAT_ABORT, SCSTAT_FAULT) |
 | 01h | SCB_NUM | Session number |
 | 02h | SCB_SFHIN - SCB_SFHPRN | System file handles for STDIN, STDOUT, STDERR, STDAUX, and STDPRN |
 | 08h | SCB_ENVSEG | Environment segment |
@@ -129,6 +129,8 @@ The Session Control Block is internal to DOS; there's one for each session (see 
 | 31h | SCB_ABTYPE | Exit type (EXTYPE_ABORT or EXTYPE_ERROR) of a pending SCSTAT_ABORT |
 | 32h | SCB_DIRCLN | Directory (first cluster, or 0 for the root) of the filename buffer |
 | 34h | SCB_FILENAME | Filename buffer (drive # and 11-character name) |
+| 40h | SCB_MAPSEL | DOS_UTL_MAPSEG selector, if any |
+| 42h | SCB_SP0 | Ring 0 stack of the session's current program, at ring 3 (see [Ring 3](../mmu/#ring3)) |
 
 ### FFB
 

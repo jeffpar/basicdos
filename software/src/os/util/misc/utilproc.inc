@@ -589,6 +589,9 @@ DEFPROC	openFile
 	mov	[bp].UV_INEND,0		; and the input buffer is empty
 	ret
 	DEFLBL	openErr,near
+	mov	si,offset DRIVE_ERR
+	cmp	ax,ERR_BADDRIVE		; no such drive?
+	je	of8			; right (so no name is displayed)
 	push	dx
 	mov	si,offset FIND_ERR
 	cmp	ax,ERR_NOFILE		; file not found?
@@ -598,7 +601,7 @@ DEFPROC	openFile
 	mov	si,offset OPEN_ERR
 of9:	call	writeErr
 	pop	si
-	call	writeErr
+of8:	call	writeErr
 	mov	si,offset CRLF
 	call	writeErr
 	mov	[bp].UV_ERR,2
@@ -774,4 +777,5 @@ ENDPROC	exit
 
 OPEN_ERR	db	"Unable to open ",0
 FIND_ERR	db	"Unable to find ",0
+DRIVE_ERR	db	"Invalid drive",0
 CRLF		db	13,10,0

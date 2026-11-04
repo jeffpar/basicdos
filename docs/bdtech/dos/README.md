@@ -105,37 +105,37 @@ An FCB opens a file read-only, so any number of FCBs (and handles opened for rea
 | AH | Name | Inputs | Outputs |
 |----|------|--------|---------|
 | 48h | DOS_MEM_ALLOC | AL = block type (MCBTYPE_*, optionally with MCBTYPE_HIGH), BX = paragraphs | AX = segment; on failure, BX = largest available |
-| 49h | DOS_MEM_FREE | ES = segment | ES = 0, and DS = 0 if it was the same segment (the freed segment's selector no longer exists in protected mode) |
-| 4Ah | DOS_MEM_REALLOC | ES = segment, BX = new size in paragraphs | On failure, BX = largest available |
+| 49h | DOS_MEM_FREE | ES = segment | ES = 0, and DS = 0 if it was the same segment (the freed segment's selector no longer exists in protected mode); at ring 3, a block that the program doesn't own, or its PSP's, returns ERR_BADADDR (see [Ring 3](../mmu/#ring3)) |
+| 4Ah | DOS_MEM_REALLOC | ES = segment, BX = new size in paragraphs | On failure, BX = largest available; at ring 3, a block that the program doesn't own, or its PSP's, shrunk below the PSP, returns ERR_BADADDR (see [Ring 3](../mmu/#ring3)) |
 
 #### Processes {#processes}
 
 | AH | Name | Inputs | Outputs |
 |----|------|--------|---------|
 | 00h | DOS_PSP_TERM | | Terminates the program (same as INT 20h) |
-| 26h | DOS_PSP_COPY | DX = segment | Creates a PSP by copying the current PSP |
+| 26h | DOS_PSP_COPY | DX = segment | Creates a PSP by copying the current PSP; at ring 3, a block that the program doesn't own returns ERR_BADADDR |
 | 4B00h | DOS_PSP_EXEC | DS:DX -> program name, ES:BX -> [EPB](../data/#epb) | Loads and runs the program |
 | 4B01h | DOS_PSP_EXEC1 | DS:DX -> program name, ES:BX -> EPB | Loads the program without starting it; EPB_INIT_SP and EPB_INIT_IP are filled in |
 | 4B02h | DOS_PSP_EXEC2 | ES:BX -> EPB from DOS_PSP_EXEC1, DX = 0 (or FL_TRAP) | Starts the program loaded by DOS_PSP_EXEC1 (BASIC-DOS only) |
 | 4B06h | DOS_PSP_EXEC6 | DS:DX -> program name, ES:BX -> EPB, CH = programs the caller will load next | Same as DOS_PSP_EXEC1, but sets aside memory for the programs the caller will load next (BASIC-DOS only) |
 | 4Ch | DOS_PSP_RETURN | AL = exit code | Terminates the program |
 | 4Dh | DOS_PSP_RETCODE | | AL = exit code, AH = exit type (see [Exit Types](#exit-types)) |
-| 50h | DOS_PSP_SET | BX = PSP segment | Sets the current PSP |
+| 50h | DOS_PSP_SET | BX = PSP segment | Sets the current PSP; at ring 3, anything but a PSP in the same session returns ERR_BADADDR |
 | 51h | DOS_PSP_GET | | BX = current PSP segment |
-| 55h | DOS_PSP_CREATE | DX = segment | Creates a PSP, inheriting the parent's handles |
+| 55h | DOS_PSP_CREATE | DX = segment | Creates a PSP, inheriting the parent's handles; at ring 3, a block that the program doesn't own returns ERR_BADADDR |
 
 #### Miscellaneous {#misc}
 
 | AH | Name | Inputs | Outputs |
 |----|------|--------|---------|
-| 25h | DOS_MSC_SETVEC | AL = vector #, DS:DX = address | If DS is the program's PSP block, the vector uses the block's code segment (in protected mode, its code alias; see [Code Aliases](../mmu/#aliases)); a ring 3 program's handler is reflected to (see [Running Programs at Ring 3](../mmu/#ring3)) |
+| 25h | DOS_MSC_SETVEC | AL = vector #, DS:DX = address | If DS is the program's PSP block, the vector uses the block's code segment (in protected mode, its code alias; see [Code Aliases](../mmu/#aliases)); a ring 3 program's handler is reflected to, and a vector that it can't hook returns ERR_ACCDENIED (see [Running Programs at Ring 3](../mmu/#ring3)) |
 | 2Ah | DOS_MSC_GETDATE | | CX = year (1980-2099), DH = month, DL = day, AL = day of week (0 = Sunday) |
 | 2Bh | DOS_MSC_SETDATE | CX = year, DH = month, DL = day | AL = 0 if valid, FFh if not |
 | 2Ch | DOS_MSC_GETTIME | | CH = hours, CL = minutes, DH = seconds, DL = hundredths |
 | 2Dh | DOS_MSC_SETTIME | CH = hours, CL = minutes, DH = seconds, DL = hundredths | AL = 0 if valid, FFh if not |
 | 30h | DOS_MSC_GETVER | | See [DOS_MSC_GETVER](#dos_msc_getver) |
 | 33h | DOS_MSC_CTRLC | AL = 0 to get, 1 to set (from DL) | DL = CTRL-C checking state |
-| 35h | DOS_MSC_GETVEC | AL = vector # | ES:BX = address (for a ring 3 program, unless it's its own session's handler, the address of a stub that chains to it) |
+| 35h | DOS_MSC_GETVEC | AL = vector # | ES:BX = address (for a ring 3 program, unless it's its own session's handler, the address of a stub that chains to it, or 0:0 for a vector that it can't hook; see [Ring 3](../mmu/#ring3)) |
 | 3700h | DOS_MSC_GETSWC | | DL = switch character |
 | 3704h | DOS_MSC_GETPCH | | DL = path character (BASIC-DOS only; fixed at boot, so programs need to get it only once) |
 

@@ -48,7 +48,7 @@ FDC 	DDH	<offset DEV:ddfdc_end+16,,DDATTR_BLOCK+DDATTR_IOCTL,offset ddfdc_init,-
 
 	DEFBYTE	rw_drive,0		; BIOS drive # for readwrite_sectors
 	DEFBYTE	rw_pio,0		; 80h if hard disks don't use DMA
-	DEFBYTE	rw_pm,0			; 80h if requests need pm_rw
+	DEFBYTE	rw_pm,0			; # sectors in ddbuf if pm_rw is used
 	DEFBYTE	ddbuf_drv,-1
 	DEFWORD	ddbuf_lba,-1
 	DEFPTR	ddbuf_ptr,<offset pm_rw>; (see ddfdc_init)
@@ -297,149 +297,6 @@ ENDPROC	init_bpb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddfdc_read
-;
-; Inputs:
-;	ES:DI -> DDPRW
-;
-; Outputs:
-;	DDPRW updated appropriately
-;
-; Modifies:
-;	AX, BX, CX, DX, BP, SI, DS
-;
-	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
-DEFPROC	ddfdc_read
-	push	es
-	mov	cx,es:[di].DDPRW_LENGTH
-	test	cx,cx		; is length zero (ie, nothing to do)?
-	jnz	dcr1		; no
-	jmp	dcr8		; yes, all done
-;
-; If the offset is zero, then there's no need to read a partial first sector.
-;
-dcr1:	lds	si,es:[di].DDPRW_BPB
-	ASSUME	DS:NOTHING	; DS:SI -> BPB
-	mov	ax,es:[di].DDPRW_OFFSET
-	test	ax,ax
-	jz	dcr4
-;
-; As a preliminary matter, reduce offset and advance LBA until offset is
-; within the first sector to read; moreover, if this reduces offset to zero,
-; then once again, there's no need for a partial first sector read.
-;
-; We presume that DOS will not get carried here and generate ridiculously
-; large offsets, hence the simple loop; the most common scenario would be
-; requesting an offset beyond the first sector of a multi-sector cluster (but
-; still within the cluster).
-;
-dcr1a:	cmp	ax,[si].BPB_SECBYTES
-	jb	dcr1b
-	inc	es:[di].DDPRW_LBA
-	sub	ax,[si].BPB_SECBYTES
-	jz	dcr4
-	jmp	dcr1a
-dcr1b:	mov	es:[di].DDPRW_OFFSET,ax
-
-	mov	dx,es:[di].DDPRW_LBA
-	call	read_buffer	; read LBA (DX) into ddbuf
-	jc	dcr4a
-;
-; Reload the offset: copy bytes from ddbuf+offset to the target address.
-;
-dcr2:	mov	ax,es:[di].DDPRW_OFFSET
-	mov	cx,[si].BPB_SECBYTES
-	sub	cx,ax
-	mov	dx,es:[di].DDPRW_LENGTH
-	cmp	cx,dx		; partial read smaller than requested?
-	jb	dcr2a		; yes
-	mov	cx,dx		; no, limit it to the requested length
-dcr2a:	push	si
-	push	di
-	push	ds
-	push	es
-	lds	si,[ddbuf_ptr]	; DS:SI -> our own buffer
-	add	si,ax		; add offset
-	mov	ax,cx		; save byte transfer count in AX
-	les	di,es:[di].DDPRW_ADDR
-	shr	cx,1
-	rep	movsw		; transfer CX words from our own buffer
-	jnc	dcr2b
-	movsb
-dcr2b:	pop	es
-	pop	ds
-	pop	di
-	pop	si
-	inc	es:[di].DDPRW_LBA
-	add	es:[di].DDPRW_ADDR.OFF,ax
-	sub	es:[di].DDPRW_LENGTH,ax
-	ASSERT	NC
-	mov	cx,es:[di].DDPRW_LENGTH
-;
-; At this point, we know that the transfer offset is now zero, so we're free to
-; transfer as many whole sectors as remain in the request.
-; Save that offset in the packet so RETRY cannot advance the LBA again after
-; normalizing an offset that was an exact multiple of the sector size.
-;
-dcr4:	mov	es:[di].DDPRW_OFFSET,0
-	xchg	ax,cx		; convert length in AX to # sectors
-	sub	dx,dx		; (lengths can exceed 32K, so no CWD)
-	div	[si].BPB_SECBYTES
-	mov	cx,dx		; CX = final partial sector bytes, if any
-	test	al,al		; any whole sectors?
-	jz	dcr5		; no
-	push	es
-	mov	ah,FDC_READ
-	xchg	bx,ax		; BH = FDC cmd, BL = # sectors
-	mov	dx,es:[di].DDPRW_LBA
-	les	bp,es:[di].DDPRW_ADDR
-	call	readwrite_sectors
-	pop	es
-dcr4a:	jc	dcr8
-	mov	al,bl
-	cbw
-	add	es:[di].DDPRW_LBA,ax
-	mul	[si].BPB_SECBYTES
-	add	es:[di].DDPRW_ADDR.OFF,ax
-	sub	es:[di].DDPRW_LENGTH,ax
-;
-; And finally, the tail end of the request, if there are CX bytes remaining.
-;
-dcr5:	test	cx,cx		; anything remaining?
-	jz	dcr8		; no
-
-dcr6:	mov	dx,es:[di].DDPRW_LBA
-	call	read_buffer	; read LBA (DX) into ddbuf
-	jc	dcr8
-
-dcr7:	push	di
-	push	es
-	lds	si,[ddbuf_ptr]	; DS:SI -> our own buffer
-	les	di,es:[di].DDPRW_ADDR
-	mov	ax,cx
-	shr	cx,1
-	rep	movsw		; transfer words from our own buffer
-	jnc	dcr7a
-	movsb
-dcr7a:	pop	es
-	pop	di
-	add	es:[di].DDPRW_ADDR.OFF,ax
-	sub	es:[di].DDPRW_LENGTH,ax
-	ASSERT	Z,<cmp es:[di].DDPRW_LENGTH,cx>
-
-dcr8:	pop	es
-	mov	es:[di].DDP_STATUS,DDSTAT_DONE
-	jnc	dcr9
-;
-; Preserve the remaining length so DOS can reissue the request on RETRY.
-;
-	mov	ah,DDSTAT_ERROR SHR 8
-	mov	es:[di].DDP_STATUS,ax
-dcr9:	ret
-ENDPROC	ddfdc_read
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; ddfdc_write
 ;
 ; Inputs:
@@ -607,6 +464,42 @@ dcw8:	pop	es
 	mov	es:[di].DDP_STATUS,ax
 dcw9:	ret
 ENDPROC	ddfdc_write
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddfdc_read
+;
+; DOS reads partial sectors through its own buffers (see file_request), so a
+; read request is always for whole sectors, with an offset of zero; on an
+; error, the packet is unchanged, so RETRY simply reissues it.
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;	DDPRW updated appropriately
+;
+; Modifies:
+;	AX, BX, CX, DX, BP, SI, DS
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	ddfdc_read
+	push	es
+	ASSERT	Z,<cmp es:[di].DDPRW_OFFSET,0>
+	lds	si,es:[di].DDPRW_BPB
+	ASSUME	DS:NOTHING	; DS:SI -> BPB
+	mov	bl,byte ptr es:[di].DDPRW_LENGTH.HIB
+	shr	bl,1		; BL = # sectors
+	mov	bh,FDC_READ
+	mov	dx,es:[di].DDPRW_LBA
+	push	es
+	les	bp,es:[di].DDPRW_ADDR
+	call	readwrite_sectors
+	pop	es
+	jc	dcw8
+	mov	es:[di].DDPRW_LENGTH,0
+	jmp	short dcw8
+ENDPROC	ddfdc_read
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -921,7 +814,9 @@ ENDPROC	write_buffer
 ; I/O rather than DMA, and it normalizes ES:BX, so a single-track request can
 ; never cross a boundary it cares about (see rw_pio).  In protected mode,
 ; pm_dma supplies the buffer's address, and a buffer that the diskette BIOS
-; can't reach (see pm_rw) goes through our own buffer, a sector at a time.
+; can't reach (see pm_rw) goes through our own buffer, which holds a track
+; (see ddfdc_init), since a BIOS call per sector could cost a disk revolution
+; per sector.
 ;
 ; Inputs:
 ;	BH = BIOS cmd (FDC_READ or FDC_WRITE)
@@ -990,12 +885,12 @@ rw2:	inc	ah			; AH = sector ID
 	mov	cl,4
 	shl	bx,cl
 	add	bx,bp			; BX = low 16 bits of physical address
-	test	cs:[rw_pm],80h		; protected mode?
-	jz	rw2d			; no
+	cmp	cs:[rw_pm],0		; protected mode?
+	je	rw2d			; no
 	call	pm_dma			; yes, so BX comes from ES's base
+	jne	rw3a			; the BIOS can't reach ES:BP
 rw2d:	mov	cl,al			; CL = # sectors
 	mov	al,0			; AL = # sectors before the boundary
-	jnz	rw2b			; (pm_dma: the BIOS can't reach ES:BP)
 rw2a:	add	bx,512
 	jc	rw2b
 	inc	ax
@@ -1003,7 +898,9 @@ rw2a:	add	bx,512
 	jb	rw2a
 rw2b:	pop	cx
 	test	al,al			; any sectors before the boundary?
-	jz	rw4			; no
+	jnz	rw2c			; yes
+	inc	ax			; no, so AL = 1 sector
+	jmp	short rw4
 rw2c:	push	ax
 	mov	bx,bp			; ES:BX -> buffer
 	call	bios_rw			; AX and carry are from the ROM
@@ -1021,17 +918,20 @@ rw3:	pop	cx
 	add	bp,ax			; advance transfer address in BP
 	jmp	rw1
 ;
-; The next sector crosses a 64K boundary, so transfer it through our own
+; Either the BIOS can't reach the caller's buffer, so we transfer as much of
+; the track as our own buffer holds (see pm_dma), or the next sector crosses a
+; 64K boundary, so we transfer just that sector (AL = 1), through our own
 ; buffer (which no longer matches ddbuf_lba afterward).
 ;
-rw4:	mov	al,1			; AL = 1 sector
-	push	ax			; save BIOS cmd and # sectors
+rw3a:	pop	cx			; CX = cylinder and sector ID again
+rw4:	push	ax			; save BIOS cmd and # sectors
 	push	si
 	push	di
 	push	ds
 	push	es
 	push	cx
-	mov	cx,256			; CX = # words in a sector
+	mov	ch,al
+	mov	cl,0			; CX = # words in AL sectors
 	push	es
 	pop	ds
 	mov	si,bp			; DS:SI -> caller's buffer
@@ -1039,7 +939,7 @@ rw4:	mov	al,1			; AL = 1 sector
 	mov	es:[ddbuf_lba],-1	; which won't match ddbuf_lba
 	cmp	ah,FDC_READ		; reading?
 	je	rw4a			; yes
-	rep	movsw			; no, so copy the sector to our buffer
+	rep	movsw			; no, so copy the sectors to our buffer
 rw4a:	pop	cx			; CX = cylinder and sector ID again
 	mov	bx,cs:[ddbuf_ptr].OFF	; ES:BX -> our own buffer
 	call	bios_rw			; AX and carry are from the ROM
@@ -1047,7 +947,7 @@ rw4a:	pop	cx			; CX = cylinder and sector ID again
 	pop	ds
 	pop	di
 	pop	si
-	pop	bx			; BH = BIOS cmd, BL = 1
+	pop	bx			; BH = BIOS cmd, BL = # sectors
 	jc	rw4c
 	cmp	bh,FDC_READ		; reading?
 	jne	rw4c			; no (and carry is clear)
@@ -1057,8 +957,9 @@ rw4a:	pop	cx			; CX = cylinder and sector ID again
 	push	cx
 	lds	si,cs:[ddbuf_ptr]	; DS:SI -> our own buffer
 	mov	di,bp			; ES:DI -> caller's buffer
-	mov	cx,256
-	rep	movsw			; copy the sector to the caller
+	mov	ch,bl
+	mov	cl,0			; CX = # words in BL sectors
+	rep	movsw			; copy the sectors to the caller
 	pop	cx
 	pop	ds
 	pop	di
@@ -1098,8 +999,8 @@ ENDPROC	readwrite_sectors
 ;	AX
 ;
 DEFPROC	bios_rw
-	test	cs:[rw_pm],80h		; protected mode?
-	jnz	pm_rw			; yes
+	cmp	cs:[rw_pm],0		; protected mode?
+	jne	pm_rw			; yes
 	DEFLBL	int_rw,near
 	push	di
 	mov	di,ax			; DI = BIOS cmd and # sectors
@@ -1299,9 +1200,13 @@ ENDPROC	pm_rw
 ; Gets the address of ES:BP for readwrite_sectors' DMA boundary check, which
 ; in protected mode can't be computed from ES.
 ;
+; Inputs:
+;	AL = # sectors
+;
 ; Outputs:
 ;	BX = low 16 bits of ES:BP's address
-;	ZF set if the diskette BIOS can reach it (see pm_rw)
+;	ZF set if the diskette BIOS can reach it (see pm_rw); otherwise,
+;	ZF clear, AL = # sectors that fit in ddbuf
 ;
 DEFPROC	pm_dma
 	push	ax
@@ -1315,7 +1220,12 @@ DEFPROC	pm_dma
 	pop	dx
 	pop	cx
 	pop	ax
-	ret
+	jz	pd9
+	cmp	al,cs:[rw_pm]		; do they all fit in our buffer?
+	jbe	pd8			; yes
+	mov	al,cs:[rw_pm]		; no, so AL = as many as do
+pd8:	test	al,al			; (AL is non-zero, so ZF is clear)
+pd9:	ret
 ENDPROC	pm_dma
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1376,16 +1286,45 @@ DEFPROC	ddfdc_init,far
 ; overlays the code that only protected mode needs) unless we're in
 ; protected mode (AH is unchanged, ie, zero, if there's no CPU$).
 ;
+; In protected mode, ddbuf begins here instead, and it holds a track of the
+; drive with the most sectors per track, since most buffers go through it (see
+; readwrite_sectors); a drive that isn't there has no sectors, so it always
+; holds at least one.  The drivers are loaded well below 64K, so the diskette
+; BIOS can reach all of it (see pm_rw).
+;
 ddin0:	push	ax
 	mov	ah,CPU_GETINFO
 	call	far ptr DDINT_CPU	; AH = CPUF_* flags
+	mov	si,1			; SI = # sectors in ddbuf
 	test	ah,CPUF_PM		; protected mode?
-	jz	ddin1			; no
-	mov	[rw_pm],80h		; yes, so keep pm_rw (etc)
+	jz	ddin4			; no
 	mov	[ddbuf_ptr].OFF,offset ddfdc_init
-ddin1:	pop	ax
-	mov	cx,[ddbuf_ptr].OFF
-	add	cx,512
+	push	bx
+	push	es
+	mov	dx,1			; DL = BIOS drive #
+ddin1:	push	dx
+	mov	ah,HDC_GETPARMS
+	int	INT_FDC			; CL bits 0-5 = sectors per track
+	pop	dx
+	jc	ddin2
+	and	cx,3Fh
+	cmp	si,cx			; more than any other drive so far?
+	jae	ddin2			; no
+	mov	si,cx
+ddin2:	dec	dx
+	jns	ddin1
+	pop	es
+	pop	bx
+	cmp	si,FDC_BUFSECS		; more than devinit makes room for?
+	jbe	ddin3			; no
+	mov	si,FDC_BUFSECS
+ddin3:	mov	ax,si
+	mov	[rw_pm],al		; keep pm_rw (etc)
+ddin4:	pop	ax
+	mov	cx,si
+	xchg	ch,cl
+	shl	cx,1			; CX = length of ddbuf
+	add	cx,[ddbuf_ptr].OFF
 	mov	es:[bx].DDPI_END.OFF,cx
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddfdc_req
 	mov	[ddbuf_ptr].SEG,ds	; (our data segment)

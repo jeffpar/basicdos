@@ -230,7 +230,7 @@ Return the integer stored in the first 2 bytes of *string* by MKI$ (-32768 to 32
 
 > DIR$[(*filespec*[,*attributes*])]
 
-Returns the first file or directory matching *filespec* (which may contain wildcards), or if *filespec* is omitted (or empty), the next match.  An empty string means there are no (more) matches.  The default *attributes* (&H16) include hidden, system, and directory entries; use &H10 to skip hidden and system files as [DIR](../../disk/#dir) does, or 8 to find the volume label.
+Returns the first file or directory matching *filespec* (which may contain wildcards), or if *filespec* is omitted (or empty), the next match.  An empty string means there are no (more) matches, whereas a drive that doesn't exist is an "Invalid drive" error (77), which [ON ERROR](../#on-error) can handle.  The default *attributes* (&H16) include hidden, system, and directory entries; use &H10 to skip hidden and system files as [DIR](../../disk/#dir) does, or 8 to find the volume label.
 
 Each match is a string that contains the entry's directory information, followed by its name:
 

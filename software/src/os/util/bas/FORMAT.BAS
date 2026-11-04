@@ -179,7 +179,7 @@
 	IF ERR = 70 THEN PRINT "Write protect error" : END
 	IF ERR = 71 THEN PRINT "Drive not ready" : END
 	IF ERR = 72 AND Z THEN PRINT "Track"; C; "bad - disk unusable" : END
-	IF ERR = 75 THEN PRINT "Invalid drive specification" : END
+	IF ERR = 77 THEN PRINT "Invalid drive" : END
 	PRINT "Format failed (error"; ERR; ")"
 	END
 95	PRINT "Drive "; D$; " can't format" + STR$(FS) + "K diskettes" : END

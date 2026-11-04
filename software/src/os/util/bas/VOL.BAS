@@ -17,4 +17,4 @@
 	IF I THEN N$ = LEFT$(LEFT$(N$, I - 1) + SPACE$(8), 8) + MID$(N$, I + 1)
 	PRINT " Volume in drive "; LEFT$(D$, 1); " is "; N$
 	END
-90	PRINT "Invalid drive specification" : END
+90	PRINT "Invalid drive" : END

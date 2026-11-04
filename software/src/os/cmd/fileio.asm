@@ -150,6 +150,9 @@ of8:	mov	cl,ch			; CL = 68 for a device name
 	mov	cl,53			; "File not found"
 	cmp	al,ERR_NOFILE
 	je	of8a
+	mov	cl,77			; "Invalid drive"
+	cmp	al,ERR_BADDRIVE
+	je	of8a
 	mov	cl,75			; "Path/File access error"
 of8a:	xchg	ax,cx
 	jmp	rtError
@@ -1099,6 +1102,7 @@ ENDPROC	ioctlErr
 ;
 DOS_ERRS	db	ERR_INVALID,5, ERR_NOFILE,53, ERR_NOPATH,75
 		db	ERR_ACCDENIED,70, ERR_BADHANDLE,52, ERR_SHARE,70
+		db	ERR_BADDRIVE,77
 IOCTL_ERRS	db	19,70, ERR_NOTREADY,71, 22,5, 26,72, 27,72, 0,57
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1109,9 +1113,10 @@ IOCTL_ERRS	db	19,70, ERR_NOTREADY,71, 22,5, 26,72, 27,72, 0,57
 ; values in AX, BX, CX, and DX, or with DS:DX -> a null-terminated copy of the
 ; string (in LINEBUF).  The registers that DOS returns are saved in DOS_REGS
 ; for the DOS function (see getDos), and a failure (carry set) is a runtime
-; error: "File not found" (53), "Path/File access error" (75), "Permission
-; denied" (70), "Bad file number" (52), and "Illegal function call" (5) for
-; the corresponding DOS errors, and otherwise the same errors as IOCTL #.
+; error: "File not found" (53), "Path/File access error" (75), "Invalid drive"
+; (77), "Permission denied" (70), "Bad file number" (52), and "Illegal
+; function call" (5) for the corresponding DOS errors, and otherwise the same
+; errors as IOCTL #.
 ;
 ; Inputs:
 ;	32-bit AX value (popped)

@@ -18,7 +18,7 @@ BASIC-DOS consists of a boot sector and three files, which must be in the root d
 | BASDOS.COM | The DOS kernel, followed by its initialization code (sysinit) |
 | COMMAND.COM | The BASIC-DOS Command Shell (the default SHELL) |
 
-The startup diskette may also contain CONFIG.SYS (see [Configuring BASIC-DOS](../../bdman/cfg/)) and an EXT directory with the external utilities, including HELP.COM and HELP.TXT (see [HELP](../../bdman/cmd/external/#help)), which reads HELP.TXT from the EXT directory of the drive that COMMAND.COM was loaded from.
+The startup diskette may also contain CONFIG.SYS (see [Configuring BASIC-DOS](../../bdman/cfg/)) and an EXT directory with the external utilities, including HELP.COM and HELP.TXT (see [HELP](../../bdman/cmd/external/help/)), which reads HELP.TXT from the EXT directory of the drive that COMMAND.COM was loaded from.
 
 Unlike PC DOS, there is no separate BIOS-level file (IO.SYS or IBMBIO.COM); BASIC-DOS relies on the ROM BIOS for low-level services, and its device drivers fill the role of IBMBIO.COM.  The initialization code at the end of BASDEV.COM and BASDOS.COM is discarded once it's done, and its memory is reused.
 
@@ -71,7 +71,7 @@ In DEBUG builds, the [DOS_UTL_DPRINTF](../util/#formatted-output) messages are p
 | | Resident tables: SCBs, BPBs, current directories, SFBs, and any extra disk buffers (BUFFERS=) |
 | | Memory pool: the rest of CPU$'s arena (programs, COMMAND.COM blocks, and free memory) |
 
-All the disk buffers form a circular chain, ordered from most to least recently used.  Each buffer holds a FAT sector or a directory sector (file data goes directly through the disk drivers), and when a sector isn't already in a buffer, the least recently used buffer is reused, except that the most recently used buffer of the other kind (FAT or directory) is never reused, so that DOS can keep working with a directory entry while it updates the FAT (and vice versa).
+All the disk buffers form a circular chain, ordered from most to least recently used.  Each buffer holds a FAT sector, a directory sector, or a sector of a file that's being read in pieces smaller than a sector (whole sectors and all file writes go directly through the disk drivers, with one request for each run of clusters that are next to each other on disk), and when a sector isn't already in a buffer, the least recently used buffer is reused, except that the most recently used buffer of another kind is never reused, so that DOS can keep working with a directory entry while it updates the FAT (and vice versa).
 
 The memory pool is managed by the CPU$ driver (see [Protected Mode](../mmu/)): on an 8088 (or with `CPU=8088`), it's a chain of Memory Control Blocks (see [MCB](../data/#mcb)), as in PC DOS, and on an 80286, a table of physical memory blocks.  [DOS_MEM_ALLOC](../dos/#memory) normally allocates from the bottom of the first free block that's big enough, but with MCBTYPE_HIGH (80h) set in AL, it allocates from the top of the last one.  COMMAND.COM allocates its code, text, variable, and string blocks from the top, so that the memory it frees before running a program stays contiguous.
 

@@ -78,7 +78,11 @@ ENDPROC	zap_buffers
 ; and to ensure that a caller can keep using the most recent sector of one
 ; kind while reading sectors of the other kind (eg, keeping a DIRENT while
 ; reading the FAT), the most recently used buffer of the other kind is never
-; reused (so there must be at least two buffers).
+; reused (so there must be at least two buffers).  File data (see file_request)
+; is a third kind, so the buffers can hold a mix of all three.
+;
+; LBA 0 can be read (eg, through a volume handle), but no buffer keeps it,
+; since zero means that a buffer is invalid (see zap_buffers).
 ;
 ; new_buffer is the same, except that the sector is not read (the caller is
 ; going to fill the buffer and mark it dirty).
@@ -86,7 +90,8 @@ ENDPROC	zap_buffers
 ; Inputs:
 ;	AL = drive #
 ;	DX = LBA
-;	SI = offset FAT_BUFHDR or offset DIR_BUFHDR
+;	SI = offset FAT_BUFHDR, offset DIR_BUFHDR, or (for file data)
+;	offset FAT_BUFHDR + 1
 ;	DI -> BPB
 ;
 ; Outputs:
@@ -116,6 +121,8 @@ DEFPROC	read_buffer,DOS
 rb1:	mov	ds,si
 	cmp	ds:[BUF_DRIVE],al
 	jne	rb2
+	test	dx,dx			; LBA 0?
+	jz	rb2			; yes, so no buffer has it
 	cmp	ds:[BUF_LBA],dx
 	je	rb6			; we found the sector
 rb2:	cmp	ds:[BUF_LBA],0		; an invalid buffer

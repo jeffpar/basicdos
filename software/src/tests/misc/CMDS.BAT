@@ -107,6 +107,10 @@ A:\EXT\SLEEP.COM 0
 IF ERRORLEVEL THEN PRINT "drive path command failed" : FAILS = FAILS + 1
 SLEEP 0
 IF ERRORLEVEL THEN PRINT "bare command failed" : FAILS = FAILS + 1
+REM An invalid drive is reported the same way by commands and BAS utilities
+TYPE Z:X
+IF ERRORLEVEL = 0 THEN PRINT "invalid drive failed" : FAILS = FAILS + 1
+VOL Z:
 TIME /D
 HELP SQR
 IF FAILS THEN PRINT "CMDS failed" ELSE PRINT "CMDS passed"

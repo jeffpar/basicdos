@@ -29,18 +29,19 @@ CODE	segment word public 'CODE'
 
 	EXTNEAR	<arm,cg1,cpu_call,ct1v,ct2a,dbg_brk,dbg_fault,dbgdev_com>
 	EXTNEAR	<cmd_help,cmd_l,disarm,ip_mem,peek_b,resume,skip_space,step>
-	EXTNEAR	<chk_over,end_command>
+	EXTNEAR	<chk_over,end_command,parse_addr,parse_hex,poke_b>
 	EXTNEAR	<get_char,gl1,hex_digit,mon3a,mon4,mon4a,mon_sp,newline>
 	EXTNEAR	<put_char,put_raw,put_string>
 	EXTNEAR	<dc_0f>
 	EXTBYTE	<CMD_LN,CMD_Q,CMD_VEC,HELP_MSG,OPTAB,bp_tab,com_flow,command>
 	EXTBYTE	<HELP_END,brk_skip,mute,notstart,tracing>
-	EXTWORD	<start_hook>
+	EXTWORD	<VEC_DRV,dump_seg,start_hook>
 	EXTWORD	<com_port,dos_seg,mem_seg,vec_save>
 	EXTLONG	<old_com,old_fault>
 	EXTABS	<BP_SET,BP_GO>
 
 CMD_TAIL	equ	80h	; PSP_CMDTAIL (see com_main)
+SEC_BYTES	equ	512	; bytes per sector (see com_rd)
 
 	DEFLBL	resident_end
 
@@ -109,8 +110,9 @@ din0b:	mov	dx,bx			; DS:DX -> COM descriptor
 din0c:	xchg	bx,ax			; BX = handle
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_COMDEBUG
 	int	21h
-	jc	din8
-	mov	ds,cs:[0].DDH_DATA
+	jnc	din0d
+	jmp	din8
+din0d:	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	al,dl
 	and	al,COMDBG_XON OR COMDBG_RTS
@@ -119,8 +121,8 @@ din0c:	xchg	bx,ax			; BX = handle
 	mov	[com_port],dx
 ;
 ; Nothing else can fail, so install the hooks: INT 00h, INT 04h, INT 01h,
-; INT 03h, and the port's hardware interrupt (chosen by port, as the COM
-; driver does: IRQ4 for 3xxh, IRQ3 for 2xxh), and then have the UART
+; INT 03h, INT 13h, INT 21h, and the port's hardware interrupt (chosen by port,
+; as the COM driver does: IRQ4 for 3xxh, IRQ3 for 2xxh), and then have the UART
 ; interrupt us when data (or a BREAK) arrives, and have CPU$ give us any
 ; fatal exception, too (see CPU_SETFAULT), keeping the previous handler
 ; (DOS's), which gets the exceptions that VT doesn't trap (see dbg_fault).
@@ -131,6 +133,13 @@ din0c:	xchg	bx,ax			; BX = handle
 	mov	bx,offset vec_save+4
 	mov	al,04h
 	call	sv1			; hook INT 04h, too
+	mov	[vec_save+18],cs
+	mov	[vec_save+22],cs
+	mov	bx,offset vec_save+16
+	mov	al,INT_FDC
+	call	sv1			; and INT 13h
+	mov	al,INT_DOSFUNC
+	call	sv1			; and INT 21h
 	pop	dx
 	mov	al,INT_HW_COM1
 	cmp	dh,03h			; port 3xxh?
@@ -522,6 +531,7 @@ cm1:	mov	ds,dx
 	mov	[com_cs],bp
 	inc	[com_runs]
 	mov	[CMD_Q],'Q'
+	mov	[VEC_DRV],-1		; (we hook only INT 00h; see VEC_TAB)
 	mov	[start_hook],offset com_exec2
 	mov	word ptr [CMD_LN+1],offset com_l
 	mov	si,offset COM_JMPS
@@ -664,22 +674,9 @@ cm7:	mov	si,offset FIND_MSG
 	cmp	al,ERR_NOPATH		; path not found?
 	je	cm7b			; yes
 	mov	si,offset LOAD_MSG
-cm7b:
-	IFDEF DEBUG
-	push	ax			; save the error code
-	ENDIF
-	call	put_string
-	mov	si,offset command
-	call	put_string		; display the program name
-	IFDEF DEBUG
-	mov	si,offset ERRNUM_MSG
-	call	put_string
-	pop	ax
-	call	put_dec			; display the error code
-	mov	al,')'
-	call	put_char
-	ENDIF
-	jmp	short cm9a
+cm7b:	mov	bx,offset command	; BX -> the program name
+	call	put_err
+	jmp	short cm9r
 cm8:	cmp	[com_runs],2		; did the program terminate itself?
 	jne	cm9b			; no, Q did
 	mov	ah,DOS_PSP_RETCODE
@@ -689,7 +686,7 @@ cm8:	cmp	[com_runs],2		; did the program terminate itself?
 	mov	si,offset TERM_MSG
 	call	put_string
 cm9a:	call	newline
-	cmp	[com_runs],1		; did an L command fail to load one?
+cm9r:	cmp	[com_runs],1		; did an L command fail to load one?
 	jae	cm9b			; no
 	jmp	com_lf			; yes, so we keep running
 
@@ -739,10 +736,16 @@ cm9e:	mov	ah,DOS_PSP_RETURN
 ENDPROC	com_main
 
 
+	DEFLBL	UNABLE_MSG,byte
+	db	"Unable to ",0
 	DEFLBL	LOAD_MSG,byte
-	db	"Unable to load ",0
+	db	"load ",0
 	DEFLBL	FIND_MSG,byte
-	db	"Unable to find ",0
+	db	"find ",0
+	DEFLBL	READ_MSG,byte
+	db	"read ",0
+	DEFLBL	DRIVE_MSG,byte
+	db	"Invalid drive",0
 	IFDEF DEBUG
 	DEFLBL	ERRNUM_MSG,byte
 	db	" (",0
@@ -814,7 +817,8 @@ ENDPROC	com_exec2
 ; (since com_main hooks them again), com_main parses it on its original
 ; stack; if the program can't be loaded, com_main comes back to com_lf, which
 ; stops again, as it does with no program.  LN is still cmd_l's, except at
-; ring 3, where it needs CPU$.
+; ring 3, where it needs CPU$.  With a drive in place of a file, L reads
+; sectors instead (see com_rd), whether or not a program is loaded.
 ;
 DEFPROC	com_l
 	cmp	byte ptr [si],'N'	; LN?
@@ -822,9 +826,13 @@ DEFPROC	com_l
 	cmp	[com_r3],0		; at ring 3?
 	jne	ld9			; yes (no LN)
 	jmp	cmd_l
-ld1:	cmp	[com_runs],1		; is a program loaded?
+ld1:	call	skip_space
+	cmp	byte ptr [si+1],':'	; a drive letter and a colon?
+	jne	ld1a			; no
+	cmp	byte ptr [si+2],' '	; and no filename after them?
+	jbe	com_rd			; right
+ld1a:	cmp	[com_runs],1		; is a program loaded?
 	jne	ld9			; yes
-	call	skip_space
 	mov	ax,DOS_MSC_GETSWC
 	int	21h			; DL = switch char
 	mov	al,[si]
@@ -878,21 +886,170 @@ ENDPROC	com_l
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; com_rd
+;
+; L drive: sector count address reads sectors to memory, opening the drive as
+; a volume (a filename that's only a drive), whose file offsets are sector
+; numbers times SEC_BYTES (which all of our disk drivers assume), and closing
+; it afterward.  The default segment is the same as E's, and each sector goes
+; through sec_buf, so that it can be stored wherever E can store it.  A failure
+; leaves any sectors already stored.
+;
+; Inputs:
+;	SI -> drive letter, followed by a colon and then a space or null
+;
+; Outputs:
+;	Carry set if the command or the memory is invalid; otherwise, carry
+;	clear (after displaying any error)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, BP
+;
+DEFPROC	com_rd
+	mov	bx,si			; BX -> drive name
+	inc	si
+	inc	si
+	call	parse_hex		; AX = first sector
+	jc	ld9
+	xchg	di,ax			; DI = first sector
+	call	parse_hex		; AX = number of sectors
+	jc	ld9
+	push	ax
+	mov	bp,[dump_seg]
+	call	parse_addr		; BP:AX = address
+	pop	cx			; CX = number of sectors
+	jc	ld9
+	mov	[mem_seg],bp
+	xchg	bp,ax			; BP = offset
+	call	end_command		; anything else on the line?
+	jc	ld9			; yes
+	jcxz	ld9			; (there must be at least one sector)
+	mov	ax,SEC_BYTES
+	mul	cx			; DX:AX = number of bytes
+	add	ax,bp
+	adc	dx,0
+	sub	ax,1
+	sbb	dx,0			; DX:AX = offset of the last byte
+	jnz	ld9			; (it must be within the segment)
+	mov	byte ptr [bx+2],0	; (end the drive name)
+	mov	dx,bx			; DS:DX -> drive name
+	mov	ax,DOS_HDL_OPENRO
+	int	21h			; AX = handle
+	mov	si,offset READ_MSG
+	jc	put_err			; (eg, a file is open for writing)
+	push	bx			; save the drive name
+	xchg	bx,ax			; BX = handle
+	xchg	ax,di			; AX = first sector
+	mov	di,bp			; mem_seg:DI -> memory
+	mov	bp,cx			; BP = number of sectors
+	mov	cx,SEC_BYTES
+	mul	cx
+	xchg	cx,dx
+	xchg	dx,ax			; CX:DX = offset of the first sector
+	mov	ax,DOS_HDL_SEEKBEG
+	int	21h
+	jc	rd5
+rd2:	mov	cx,SEC_BYTES
+	mov	dx,offset sec_buf	; DS:DX -> sector buffer
+	mov	ah,DOS_HDL_READ
+	int	21h			; AX = bytes read
+	jc	rd5
+	cmp	ax,cx			; did the sector exist (read in full)?
+	jne	rd5			; no (AX is displayed as an error code)
+	mov	si,dx
+rd3:	lodsb
+	call	poke_b			; (carry set if the address is invalid)
+	jc	rd4
+	loop	rd3
+	dec	bp
+	jnz	rd2
+rd4:	sbb	si,si			; SI = -1 if not valid, or zero
+	jmp	short rd6
+rd5:	mov	si,offset READ_MSG
+rd6:	push	ax
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	pop	ax
+	pop	bx			; BX -> drive name
+	test	si,si			; were they all stored?
+	jz	rd9			; yes (carry clear)
+	jns	put_err			; no, a sector couldn't be read
+rd8:	stc				; no, the memory isn't valid
+rd9:	ret
+ENDPROC	com_rd
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; put_err
+;
+; Displays "Unable to", a verb, and a name, plus the error in DEBUG builds, or
+; if the error is ERR_BADDRIVE, simply "Invalid drive".
+;
+; Inputs:
+;	AX = error code
+;	SI -> verb (eg, LOAD_MSG)
+;	BX -> name
+;
+; Outputs:
+;	Carry clear
+;
+; Modifies:
+;	AX, SI (and CX and DX in DEBUG builds)
+;
+DEFPROC	put_err
+	cmp	ax,ERR_BADDRIVE		; no such drive?
+	jne	pe1			; no
+	mov	si,offset DRIVE_MSG
+	call	put_string
+	jmp	short pe9
+pe1:
+	IFDEF DEBUG
+	push	ax			; save the error code
+	ENDIF
+	push	si
+	mov	si,offset UNABLE_MSG
+	call	put_string
+	pop	si
+	call	put_string
+	mov	si,bx
+	call	put_string		; display the name
+	IFDEF DEBUG
+	mov	si,offset ERRNUM_MSG
+	call	put_string
+	pop	ax
+	call	put_dec			; display the error code
+	mov	al,')'
+	call	put_char
+	ENDIF
+pe9:	call	newline
+	clc
+	ret
+ENDPROC	put_err
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; com_help
 ;
-; Program mode's ? command (in place of cmd_help): HELP_MSG's lines, with our
-; own (com_lines, for L and Q) before its last (at HELP_END), except at ring
-; 3, the lines for the commands that we don't support there (R3_NOHELP),
-; which are skipped.
+; Program mode's ? command (in place of cmd_help): HELP_MSG's lines, merged in
+; order with our own (com_lines, for L and Q), except at ring 3, the lines for
+; the commands that we don't support there (R3_NOHELP), which are skipped.
 ;
 DEFPROC	com_help
 	push	ds
 	pop	es
 	cld
 	mov	si,offset HELP_MSG
-ch1:	cmp	si,offset HELP_END	; time for our own lines?
+	mov	bx,offset com_lines	; BX -> our next line
+ch1:	cmp	si,offset HELP_END	; the last line?
 	je	ch5			; yes
-	cmp	[com_r3],0		; at ring 3?
+	mov	al,[bx]
+	cmp	al,[si]			; does our next line come first?
+	ja	ch2			; no
+	xchg	bx,si
+	call	ch_line
+	xchg	bx,si
+	jmp	ch1
+ch2:	cmp	[com_r3],0		; at ring 3?
 	je	ch3			; no, so display the line
 	mov	ax,[si]			; AX = the line's first two characters
 	push	di
@@ -907,10 +1064,7 @@ ch1:	cmp	si,offset HELP_END	; time for our own lines?
 	jmp	ch1
 ch3:	call	ch_line			; display the line
 	jmp	ch1
-ch5:	mov	si,offset com_lines
-	call	put_string		; our own commands (L and Q)
-	mov	si,offset HELP_END
-	jmp	put_string		; (which returns carry clear)
+ch5:	jmp	put_string		; (which returns carry clear)
 ch_line:lodsb				; display (unless muted) up to a LF
 	call	put_char
 	cmp	al,CHR_LINEFEED
@@ -1185,12 +1339,14 @@ ENDPROC	dos_get
 	DEFWORD	com_ss,0		; com_main's stack (see com_exec2)
 	DEFWORD	com_sp,0		; com_main's entry SP (see com_l)
 ;
-; Program mode's own commands, for com_help, and the commands that need CPU$,
-; which com_help skips at ring 3 (each as two characters).
+; Program mode's own commands, in order, for com_help (0FFh comes after any
+; other line), and the commands that need CPU$, which com_help skips at ring 3
+; (each as two characters).
 ;
 	DEFLBL	com_lines,byte
 	db	"L file [args]",9,"load program",13,10
-	db	"Q",9,9,"quit",13,10,0
+	db	"L drv: s n addr",9,"load sectors",13,10
+	db	"Q",9,9,"quit",13,10,0FFh
 	DEFLBL	R3_NOHELP,byte
 	db	"DMDSGTLNVCVLVT"
 R3_NNOHELP	equ	7
@@ -1213,11 +1369,13 @@ R3_NJMPS	equ	4
 	DEFPTR	epb_sp			; EPB_INIT_SP (returned)
 	DEFPTR	epb_ip			; EPB_INIT_IP (returned)
 ;
-; The COMDATA tells the loader that we need only a small heap (for the stack
-; in program mode); without it, we'd get half of the available memory.  As a
-; driver, everything past resident_end is discarded anyway.
+; The COMDATA tells the loader that we need only a small heap (for com_rd's
+; sector buffer and the stack in program mode); without it, we'd get half of
+; the available memory.  As a driver, everything past resident_end is discarded
+; anyway.
 ;
-	COMHEAP	2048
+	COMHEAP	<SEC_BYTES+2048>
+sec_buf	equ	$
 
 CODE	ends
 

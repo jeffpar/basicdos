@@ -440,6 +440,7 @@
     "DIRPATH",
     "DIRREL",
     "diskapi",
+    "DISKCOMP",
     "DISKCOPY",
     "diskdump",
     "DISKFULL",

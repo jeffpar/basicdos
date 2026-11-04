@@ -476,7 +476,7 @@ si7a:	mov	dx,size SFB		; AX = new value
 ;
 	mov	si,offset CFG_BUFFERS
 	call	find_cfg		; look for "BUFFERS="
-	jc	sb1			; if not found, AX will be min value
+	jc	sb1			; if not found, AX will be default
 	xchg	si,di
 	push	cs
 	pop	es
@@ -809,8 +809,13 @@ CFG_CON		db	4,"CON="
 CON_DEVICE	db	"VKD$:80,25",0	; default CON configuration
 CFG_AUX		db	4,"AUX="
 CFG_PRN		db	4,"PRN="
+;
+; BUFFERS defaults to 3, which leaves two for file data, so that reading small
+; pieces of two files at once (eg, COMP) doesn't reread a sector per piece.
+; The 64K configurations use BUFFERS=2 to save the 528 bytes.
+;
 CFG_BUFFERS	db	8,"BUFFERS="
-		dw	2,2,32
+		dw	3,2,32
 ;
 ; FILES can't exceed 254, since SFH 0FEh is SFH_NODEV.
 ;

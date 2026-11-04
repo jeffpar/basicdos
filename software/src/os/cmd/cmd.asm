@@ -342,6 +342,8 @@ DEFPROC	ctrlc,FAR
 	mov	ah,DOS_HDL_WRITE
 	int	21h
 ctc:	call	cleanUp
+	mov	bp,bx
+	call	freeEnv			; free any block copyData was using
 	call	restoreMode		; restore the video mode, if necessary
 ;
 ; If any BAT or BAS files were running other BAT or BAS files, free all the
@@ -1060,16 +1062,13 @@ cf2:	cmp	cl,2			; two characters only?
 	jne	cf3			; no
 	cmp	byte ptr [si+1],':'
 	jne	cf3			; not a valid drive specification
-	mov	cl,[si]			; CL = drive letter
-	mov	dl,cl
+	mov	dl,[si]
 	sub	dl,'A'			; DL = drive number
-	cmp	dl,26
-	jae	cf2a			; out of range
 	mov	ah,DOS_DSK_SETDRV
 	int	21h			; attempt to set the drive number in DL
-	jnc	cf2x			; success
-cf2a:	PRINTF	<"Drive %c: invalid",13,10,13,10>,cx
-cf2x:	jmp	cf9
+	mov	ax,ERR_BADDRIVE		; (for openError, if DL is invalid)
+	jc	cf4a
+	jmp	cf9
 ;
 ; Not a drive letter, so presumably DS:SI contains a program name.  If a
 ; program is running it, compact its string pool first, since the pool is

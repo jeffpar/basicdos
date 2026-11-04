@@ -426,7 +426,9 @@ ENDPROC	ddcpu_freeall
 ; Changes the length of a block allocated by CPU_ALLOC (rounding it up to a
 ; multiple of 16): a shorter block frees its end, and a longer one takes what
 ; it needs from the block after it, which must be free and long enough.  Its
-; selectors, if any, don't change.
+; first selector and code alias, if any, stay the same, but they and any other
+; selectors change to fit its new length (see blk_fit); a block that needs
+; more selectors must have enough free descriptors after its last one.
 ;
 ; Inputs:
 ;	DX:CX = address of block, SI:DI = new length
@@ -457,25 +459,7 @@ DEFPROC	ddcpu_realloc
 	ja	cr2
 	jb	cr7
 	cmp	ds:[bx+size PMB].PMB_LEN.LOW,ax
-	jb	cr7			; it isn't long enough
-cr2:	mov	ds:[SYS_VARS].SV_LEN.LOW,ax
-	mov	ds:[SYS_VARS].SV_LEN.HIW,dx
-	add	bx,size PMB
-	call	pmb_split		; BX -> the part of it we need
-	lea	bx,[bx-size PMB]	; (LEA leaves carry alone)
-	jc	cr7
-	mov	ax,ds:[SYS_VARS].SV_LEN.LOW
-	add	ds:[bx].PMB_LEN.LOW,ax
-	mov	ax,ds:[SYS_VARS].SV_LEN.HIW
-	adc	ds:[bx].PMB_LEN.HIW,ax
-	jmp	pmb_drop		; remove the PMB after BX
-cr4:	call	pmb_split		; BX -> PMB of the new length
-	jc	cr7
-	add	bx,size PMB
-	sub	ax,ax			; (the selectors and code alias stay
-	mov	ds:[bx].PMB_NSEL,ax	; with the block)
-	mov	ds:[bx].PMB_CODE,ax
-	jmp	pmb_free		; free the rest
+	jae	cr2			; it's long enough
 cr7:	mov	cx,ds:[bx].PMB_LEN.LOW
 	mov	dx,ds:[bx].PMB_LEN.HIW
 	cmp	ds:[bx].PMB_SIG,PMBSIG_LAST
@@ -486,8 +470,29 @@ cr7:	mov	cx,ds:[bx].PMB_LEN.LOW
 	adc	dx,ds:[bx+size PMB].PMB_LEN.HIW
 cr7a:	mov	ax,ERR_NOMEMORY
 	stc
-	ret
 cr9:	ret
+cr2:	mov	ds:[SYS_VARS].SV_LEN.LOW,ax
+	mov	ds:[SYS_VARS].SV_LEN.HIW,dx
+	call	blk_room		; are there selectors for that length?
+	jc	cr9			; no
+	add	bx,size PMB
+	call	pmb_split		; BX -> the part of it we need
+	lea	bx,[bx-size PMB]	; (LEA leaves carry alone)
+	jc	cr7
+	mov	ax,ds:[SYS_VARS].SV_LEN.LOW
+	add	ds:[bx].PMB_LEN.LOW,ax
+	mov	ax,ds:[SYS_VARS].SV_LEN.HIW
+	adc	ds:[bx].PMB_LEN.HIW,ax
+	call	blk_fit
+	jmp	pmb_drop		; remove the PMB after BX
+cr4:	call	pmb_split		; BX -> PMB of the new length
+	jc	cr7
+	call	blk_fit
+	add	bx,size PMB
+	sub	ax,ax			; (the selectors and code alias stay
+	mov	ds:[bx].PMB_NSEL,ax	; with the block)
+	mov	ds:[bx].PMB_CODE,ax
+	jmp	pmb_free		; free the rest
 ENDPROC	ddcpu_realloc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1129,6 +1134,120 @@ ENDPROC	blk_sel
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; blk_room
+;
+; Checks that the block at BX can have the selectors that a longer length
+; needs (see map_block).  A block's selectors are consecutive, and the ones it
+; has can't change, so any more must be the descriptors after its last one.
+;
+; Inputs:
+;	BX -> PMB, SI:DI = new length
+;
+; Outputs:
+;	Carry clear if successful
+;	Carry set if not: AX = ERR_NOMEMORY, DX:CX = the longest it could be
+;
+; Modifies:
+;	AX, CX, DX, SI, DI, BP
+;
+DEFPROC	blk_room
+	mov	bp,ds:[bx].PMB_NSEL	; BP = # of selectors it has
+	test	bp,bp			; (clears carry)
+	jz	br9			; none, so it doesn't need any
+	call	len_sels		; CX = # of selectors it needs
+	mov	di,cx
+	sub	di,bp			; DI = # more that it needs
+	jbe	br8			; none
+	push	bx
+	mov	ax,bp
+	shl	ax,3
+	add	ax,ds:[bx].PMB_SEL
+	xchg	bx,ax			; BX = the selector after its last one
+br1:	call	sel_desc		; is it in use?
+	jnc	br7			; yes
+	cmp	cx,dx			; is it past the end of its table?
+	jae	br7			; yes
+	add	bx,size DESC
+	inc	bp
+	dec	di			; does it need any more?
+	jnz	br1			; yes
+	pop	bx
+br8:	clc
+br9:	ret
+br7:	pop	bx
+	mov	dx,bp
+	sub	cx,cx			; DX:CX = BP selectors' worth of memory
+	mov	ax,ERR_NOMEMORY
+	stc
+	ret
+ENDPROC	blk_room
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; blk_fit
+;
+; Makes the selectors of the block at BX fit its new length, so that they reach
+; all of the block and none of what follows it: selectors it no longer needs
+; are freed, new ones (see blk_room) get its first selector's access rights,
+; and all of their limits are set, along with its code alias's, which covers
+; the same memory as its first selector.
+;
+; Inputs:
+;	BX -> PMB
+;
+; Modifies:
+;	AX, CX, DX, SI, DI, BP
+;
+DEFPROC	blk_fit
+	mov	bp,ds:[bx].PMB_NSEL	; BP = # of selectors it has
+	test	bp,bp
+	jz	bf9			; none
+	push	bx
+	mov	di,ds:[bx].PMB_LEN.LOW
+	mov	si,ds:[bx].PMB_LEN.HIW	; SI:DI = its length
+	call	len_sels		; CX = # of selectors it needs
+	mov	ds:[bx].PMB_NSEL,cx
+	sub	bp,cx			; BP = # that it no longer needs
+	jbe	bf1			; none
+	mov	ax,cx
+	shl	ax,3
+	add	ax,ds:[bx].PMB_SEL	; AX = the first of them
+	mov	cx,bp
+	call	desc_free
+bf1:	mov	bx,ds:[bx].PMB_SEL
+	call	sel_desc		; SI -> its first descriptor
+	pop	bx
+	push	bx
+	push	si
+	mov	al,ds:[si].DESC_ACC
+	mov	cx,ds:[bx].PMB_NSEL
+	push	cx
+bf2:	mov	ds:[si].DESC_ACC,al
+	add	si,size DESC
+	loop	bf2
+	pop	cx
+	mov	bp,ds:[bx].PMB_ADDR.LOW
+	mov	dx,ds:[bx].PMB_ADDR.HIW	; DX:BP = its address
+	mov	di,ds:[bx].PMB_LEN.LOW
+	mov	si,ds:[bx].PMB_LEN.HIW	; SI:DI = its length
+	pop	bx
+	push	bx
+	call	desc_fill		; (BX -> its first descriptor)
+	pop	si
+	pop	bx
+	push	bx
+	mov	ax,ds:[si].DESC_LIMIT	; AX = its first selector's limit
+	mov	bx,ds:[bx].PMB_CODE
+	test	bx,bx			; does it have a code alias?
+	jz	bf8			; no
+	call	sel_desc		; SI -> its code alias's descriptor
+	mov	ds:[si].DESC_LIMIT,ax
+bf8:	pop	bx
+bf9:	ret
+ENDPROC	blk_fit
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; addr_seg
 ;
 ; Inputs:
@@ -1308,17 +1427,24 @@ DEFPROC	pmb_used
 	push	di
 	cmp	dx,-1			; is CX a selector (or segment)?
 	jne	pu1			; no
-	xchg	ax,cx
 	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM
 	jz	pu0
-	call	sel_base		; DX:AX = its base address
-	jmp	short pu0a
-pu0:	mov	dx,ax
-	shl	ax,4
-	shr	dx,12			; DX:AX = the segment's address
-pu0a:	xchg	cx,ax
+;
+; A selector that isn't in use has no block, even though an empty descriptor
+; (eg, the null selector's) has base address zero, where the first block is.
+;
+	mov	bx,cx
+	call	sel_desc		; SI -> its descriptor
+	jc	pu2			; it isn't in use
+	mov	cx,ds:[si].DESC_BASE
+	mov	dl,ds:[si].DESC_BASE16
+	mov	dh,0			; DX:CX = its base address
+	jmp	short pu1
+pu0:	mov	dx,cx
+	shl	cx,4
+	shr	dx,12			; DX:CX = the segment's address
 pu1:	call	pmb_find		; BX -> PMB containing DX:CX
-	pop	di
+pu2:	pop	di
 	pop	si
 	jc	pu8
 	cmp	ds:[bx].PMB_ADDR.LOW,cx
@@ -1795,10 +1921,7 @@ DEFPROC	map_block
 	push	cx
 	push	si
 	push	di
-	mov	cx,si
-	cmp	di,1
-	cmc
-	adc	cx,0			; CX = # of 64K pieces
+	call	len_sels		; CX = # of 64K pieces
 	call	desc_alloc		; AX = selector, BX -> DESC
 	pop	di
 	pop	si
@@ -1807,6 +1930,46 @@ DEFPROC	map_block
 	jc	mb9
 	push	ax
 	push	cx
+	call	desc_fill
+	pop	cx
+	pop	ax
+	clc
+mb9:	ret
+ENDPROC	map_block
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; len_sels
+;
+; Inputs:
+;	SI:DI = length (non-zero)
+;
+; Outputs:
+;	CX = # of selectors that it needs (one for every 64K, or part of it)
+;
+DEFPROC	len_sels
+	mov	cx,si
+	cmp	di,1
+	cmc
+	adc	cx,0
+	ret
+ENDPROC	len_sels
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; desc_fill
+;
+; Fills in the base and limit of consecutive descriptors, each covering the
+; next 64K of a block (the last one's limit covers whatever remains).
+;
+; Inputs:
+;	BX -> first DESC, CX = # of descriptors
+;	DX:BP = address, SI:DI = length (non-zero)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+DEFPROC	desc_fill
 mb1:	mov	ds:[bx].DESC_BASE,bp
 	mov	ds:[bx].DESC_BASE16,dl
 	mov	byte ptr ds:[bx].DESC_EXT,0
@@ -1821,11 +1984,8 @@ mb2:	dec	ax
 	dec	si
 	add	bx,size DESC
 	loop	mb1
-	pop	cx
-	pop	ax
-	clc
-mb9:	ret
-ENDPROC	map_block
+	ret
+ENDPROC	desc_fill
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2591,37 +2751,6 @@ ig1:	shl	bx,3
 	add	bx,SYS_PIDT
 	ret
 ENDPROC	idt_gate
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; sel_base
-;
-; Inputs:
-;	AX = selector
-;
-; Outputs:
-;	DX:AX = its base address
-;
-; Modifies:
-;	AX, BX, DX
-;
-DEFPROC	sel_base
-	push	ds
-	mov	bx,SEL_SYS
-	mov	ds,bx
-	mov	bx,ax
-	and	bx,NOT 7
-	add	bx,SYS_GDT
-	test	al,SEL_TI
-	jz	sb1
-	sub	bx,SYS_GDT
-	add	bx,ds:[SYS_VARS].SV_LDT	; the active session's LDT
-sb1:	mov	ax,[bx].DESC_BASE
-	mov	dl,[bx].DESC_BASE16
-	mov	dh,0
-	pop	ds
-	ret
-ENDPROC	sel_base
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

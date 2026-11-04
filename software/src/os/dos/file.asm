@@ -22,7 +22,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<get_bpb,get_cln,get_dirent,read_buffer,flush_buffers>
 	EXTNEAR	<alloc_cln,free_clns,chk_volopen,walk_cln,advance_cln>
 	EXTNEAR	<vol_io,drv_flush>
-	EXTNEAR	<dir_lba,get_dircln>
+	EXTNEAR	<dir_lba,get_dircln,merge_clns>
 	EXTNEAR	<get_cdir,get_dirpath,new_buffer,write_buffer,zap_buffers>
 
 	EXTBYTE	<scb_locked>
@@ -196,38 +196,28 @@ wf1:	jcxz	wf8			; nothing (more) to write
 	je	wf8			; yes, return the bytes written so far
 	jmp	wf7
 ;
-; Convert the cluster # (DX) and CURPOS into an LBA (BX) and offset (DX).
 ;
-wf2:	mov	[bx].SFB_CURCLN,dx
-	push	bx			; save SFB pointer
-	push	di			; save BPB pointer
-	push	cx			; save byte count
-	mov	ax,[di].BPB_CLUSBYTES
+; Like PC DOS, allocate any clusters the rest of the request needs first (by
+; finding the CLN of its last byte), so that the ones that are next to each
+; other on disk can be written with one request (see clns_request).  An error
+; isn't reported until we need a cluster that couldn't be allocated (see wf1).
+;
+wf2:	push	dx			; save CLN for CURPOS
+	push	[bx].SFB_CURPOS.LOW
+	push	[bx].SFB_CURPOS.HIW
+	mov	ax,cx
 	dec	ax
-	and	ax,[bx].SFB_CURPOS.LOW	; AX = offset within current cluster
-	mov	bx,dx
-	sub	bx,2
-	mov	cl,[di].BPB_CLUSLOG2
-	shl	bx,cl
-	add	bx,[di].BPB_LBADATA	; BX = LBA
-;
-; We're almost ready to write, except for the byte count in CX, which must be
-; limited to whatever fits in the current cluster.
-;
-	pop	cx			; CX = byte count
-	push	cx
-	mov	dx,[di].BPB_CLUSBYTES
-	sub	dx,ax			; DX = bytes available in cluster
-	cmp	cx,dx			; if CX <= DX, we're fine
-	jbe	wf3
-	mov	cx,dx			; reduce CX
-wf3:	xchg	dx,ax			; DX = offset within cluster
+	add	[bx].SFB_CURPOS.LOW,ax
+	adc	[bx].SFB_CURPOS.HIW,0
+	mov	[bx].SFB_CURCLN,0
+	call	get_wcln
+	pop	[bx].SFB_CURPOS.HIW
+	pop	[bx].SFB_CURPOS.LOW
+	pop	[bx].SFB_CURCLN
+	push	cx			; save byte count
 	mov	ah,DDC_WRITE
-	call	file_request
-	mov	dx,cx			; DX = bytes written (assuming no error)
+	call	clns_request		; DX = bytes written (if no error)
 	pop	cx			; restore byte count
-	pop	di			; BPB pointer restored
-	pop	bx			; SFB pointer restored
 	jc	wf9
 ;
 ; Time for some bookkeeping: adjust the SFB's CURPOS by DX, and if CURPOS
@@ -259,10 +249,75 @@ ENDPROC	write_file
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; clns_request
+;
+; Issue a read or write request for a file's next bytes, up to CX: whatever's
+; in the current cluster, and in any clusters that immediately follow it on
+; disk, so that one request can transfer them all (see merge_clns).
+;
+; Inputs:
+;	AH = DDC_READ or DDC_WRITE
+;	BX -> SFB (SFB_CURCLN = CLN for CURPOS)
+;	CX = byte count
+;	DI -> BPB
+;	TMP_ES:TMP_DX -> data buffer
+;
+; Outputs:
+;	On success, carry clear, DX = bytes transferred, SFB_CURCLN = last CLN
+;	On failure, carry set, AX = error code
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	clns_request,DOS
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
+	push	bx
+	push	di
+	push	es
+	push	ax			; save the request
+	mov	dx,[bx].SFB_CURPOS.LOW
+	mov	ax,[di].BPB_CLUSBYTES
+	dec	ax
+	and	dx,ax			; DX = offset within current cluster
+	call	merge_clns		; CX = bytes to transfer, SI = last CLN
+	pop	ax
+	push	si			; save last CLN
+	mov	bx,[bx].SFB_CURCLN
+
+	IFDEF	MAXDEBUG
+	DPRINTF	<"Accessing cluster %#05x...\r\n">,bx
+	ENDIF
+
+	sub	bx,2
+	jb	cq8			; invalid cluster #
+	push	cx
+	mov	cl,[di].BPB_CLUSLOG2
+	shl	bx,cl
+	pop	cx
+	add	bx,[di].BPB_LBADATA	; BX = LBA
+	call	file_request
+	mov	dx,cx			; DX = bytes transferred (if no error)
+cq8:	pop	si
+	pop	es
+	pop	di
+	pop	bx
+	jc	cq9
+	mov	[bx].SFB_CURCLN,si
+cq9:	ret
+ENDPROC	clns_request
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; file_request
 ;
 ; Issue a file or volume read/write request using the drive and device from
 ; the BPB and the data buffer saved in the caller's temporary workspace.
+;
+; A read of part of a sector goes through the disk buffers (as file data, so
+; it can't be mistaken for a directory sector; see read_buffer), and whole
+; sectors go straight to the driver, which only reads whole sectors.  Writes
+; are always written through, so any buffered copy of those sectors is now
+; stale.  File data is never dirty, so it's safe to read around it.
 ;
 ; Inputs:
 ;	AH = DDC_READ or DDC_WRITE
@@ -273,21 +328,110 @@ ENDPROC	write_file
 ;	TMP_ES:TMP_DX -> data buffer
 ;
 ; Outputs:
-;	On success, carry clear, AX = bytes transferred
+;	On success, carry clear
 ;	On failure, carry set, AX = error code
 ;
 ; Modifies:
 ;	AX, DX, SI, DI, ES
 ;
 DEFPROC	file_request,DOS
-	ASSUME	ES:NOTHING
-	mov	al,[di].BPB_DRIVE
-	les	di,[di].BPB_DEVICE
+	ASSUME	DS:NOTHING,ES:NOTHING
+	cmp	ah,DDC_READ		; reading?
+	je	fq2			; yes
+;
+; Any buffered copy of these sectors is about to be stale.  The count must be
+; exact, because zap_buffers discards unwritten data, and the next sector could
+; be part of a directory, with changes in a buffer.
+;
+	push	cx
+	push	dx
+	mov	si,cx
+	dec	si
+	add	si,dx			; SI = offset of the last byte
+	rcr	si,1
+	mov	cl,8
+	shr	si,cl
+	inc	si
+	mov	cx,si			; CX = # LBAs
+	mov	dx,bx			; DX = 1st LBA
+	mov	al,cs:[di].BPB_DRIVE
+	call	zap_buffers
+	pop	dx
+	pop	cx
+fq1:	mov	al,cs:[di].BPB_DRIVE
+	les	di,cs:[di].BPB_DEVICE
 	push	ds
 	mov	si,[bp].TMP_DX
 	mov	ds,[bp].TMP_ES		; DS:SI -> data buffer
-	ASSUME	DS:NOTHING
 	call	dev_request
+	pop	ds
+	ret
+
+fq2:	push	ds
+	push	bx
+	push	cx
+	push	[bp].TMP_DX
+	mov	al,dh
+	shr	al,1
+	cbw
+	add	bx,ax			; BX = LBA of the first sector
+	and	dh,1			; DX = offset within it
+fq3:	jcxz	fq9			; nothing left (and carry is clear)
+	test	dx,dx			; at the start of a sector?
+	jnz	fq4			; no
+	cmp	ch,512 SHR 8		; at least one whole sector?
+	jb	fq4			; no
+	push	cx
+	push	di
+	and	cx,NOT 511		; CX = bytes in whole sectors
+	mov	ah,DDC_READ
+	call	fq1
+	pop	di
+	mov	si,cx			; SI = bytes in whole sectors
+	pop	cx
+	jc	fq9			; (AX = error code)
+	add	[bp].TMP_DX,si
+	sub	cx,si
+	xchg	ax,si
+	mov	al,ah
+	shr	al,1
+	cbw
+	add	bx,ax			; BX = LBA of the next sector
+	jmp	fq3
+
+fq4:	mov	ax,512
+	sub	ax,dx			; AX = bytes left in the sector
+	cmp	ax,cx
+	jbe	fq5
+	mov	ax,cx			; AX = bytes to copy
+fq5:	push	cx
+	push	ax
+	push	dx
+	mov	dx,bx			; DX = LBA
+	mov	al,cs:[di].BPB_DRIVE
+	mov	si,offset FAT_BUFHDR + 1
+	call	read_buffer		; DS:SI -> sector data
+	pop	dx
+	pop	cx			; CX = bytes to copy
+	jc	fq8			; (AX = error code)
+	add	si,dx
+	push	di
+	mov	es,[bp].TMP_ES
+	mov	di,[bp].TMP_DX
+	add	[bp].TMP_DX,cx
+	mov	ax,cx
+	rep	movsb
+	pop	di
+	pop	cx
+	sub	cx,ax			; CX = bytes left (and carry is clear)
+	inc	bx			; BX = LBA of the next sector
+	sub	dx,dx			; DX = offset within it (carry clear)
+	jmp	fq3
+
+fq8:	pop	cx
+fq9:	pop	[bp].TMP_DX
+	pop	cx
+	pop	bx
 	pop	ds
 	ret
 ENDPROC	file_request

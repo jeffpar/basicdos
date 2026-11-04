@@ -160,6 +160,12 @@ FDCX_MBR	dw	?	; read/write MBR via FDC buffer (see fdc_mbr)
 FDCX		ends
 
 ;
+; In protected mode, the FDC driver's buffer holds a track, up to this many
+; sectors (see ddfdc_init), and devinit makes sure there's room for it.
+;
+FDC_BUFSECS	equ	18
+
+;
 ; The CLOCK$ driver's exports, which immediately follow its DDH, so that other
 ; drivers (which find the CLOCK$ driver with CLOCK_DEVICE) can use its timers
 ; (see ddclk_timer in clkdev.asm), instead of hooking the timer interrupt.

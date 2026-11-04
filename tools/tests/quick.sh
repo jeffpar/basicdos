@@ -1,5 +1,5 @@
 #!/bin/bash
-# echo This command boots a BASIC-DOS test floppy (like ./boot.sh), runs FPUTESTS, DOSTESTS, STRFUN, STRPOOL,
+# echo This command boots a BASIC-DOS test floppy (like ./boot.sh), runs FPUTESTS, DOSTESTS, BUFTESTS, STRFUN, STRPOOL,
 # ARRAYS, FLOW, EXPRERR (expression errors), CMDS (commands, pipes, redirection, and HELP), VARS (variable listings), FILEIO (sequential and random files),
 # RUNFILE (RUN file), PRTUSING (PRINTF USING), MOVES (file and directory moves), ATTRS (file attributes), FCBTESTS (FCB
 # functions), HARDERR (INT 24h hard error handling, using the empty drive B:; its ABORT test ends it with exit code 255),
@@ -72,7 +72,7 @@ run() {
     wait $pid
     tail -c +$((off + 1)) "$log"
 }
-run ibm5160 software/src/configs/console/serial/fpe "VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;SLEEP 1;QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync
+run ibm5160 software/src/configs/console/serial/fpe "VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}BUFTESTS;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;SLEEP 1;QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync
 run ibm5160 software/src/configs/console/serial/fpu "VER;MEM;${m}FPUTESTS;$ok;${m}VARS;${m}STRFUN;SLEEP 1;QUIT" --fpu --system=bd --version=2 --floppy --serial --normalize --nosync
 run ibm5160 software/src/configs/console/serial/hd "VER;CD TESTS\REGRESS;HARDERR;$abort;IOERR.COM;$ok;SLEEP 1;QUIT" --system=bd --version=2 --target=10M --serial --normalize --nosync
 if grep -q "Assertion failure" "$log" || grep -q "quick.sh: stopped" "$log" ||
@@ -81,9 +81,10 @@ if grep -q "Assertion failure" "$log" || grep -q "quick.sh: stopped" "$log" ||
    ! grep -q "ARRAYS passed" "$log" || ! grep -q "FLOW passed" "$log" || ! grep -q "EXPRERR passed" "$log" || ! grep -q "CMDS passed" "$log" ||
    [ "$(grep -c "VARS passed" "$log")" -lt 2 ] ||
    ! grep -Fq 'I% = -2147483647' "$log" || ! grep -Fq 'I# = 1.25' "$log" ||
+   [ "$(grep -c "Invalid drive" "$log")" -lt 2 ] ||
    ! grep -Fq 'S$ = "hello"' "$log" || ! grep -Fq 'E$ = ""' "$log" ||
    ! grep -Fq 'A%(0 TO 2, 0 TO 3)' "$log" || ! grep -Fq 'Q%(1 TO 3)' "$log" ||
-   ! grep -q "MOVES passed" "$log" || ! grep -q "ATTRS passed" "$log" || ! grep -q "FILEIO passed" "$log" || ! grep -q "RUNFILE passed" "$log" || ! grep -q "PRTUSING passed" "$log" || ! grep -q "FCBTESTS passed" "$log" ||
+   ! grep -q "BUFTESTS passed" "$log" || ! grep -q "MOVES passed" "$log" || ! grep -q "ATTRS passed" "$log" || ! grep -q "FILEIO passed" "$log" || ! grep -q "RUNFILE passed" "$log" || ! grep -q "PRTUSING passed" "$log" || ! grep -q "FCBTESTS passed" "$log" ||
    [ "$(grep -c "HARDERR passed" "$log")" -lt 2 ] || [ "$(grep -c "HARDERR metadata passed" "$log")" -lt 2 ] ||
    [ "$(grep -c "HARDERR seek passed" "$log")" -lt 2 ] ||
    [ "$(grep -c "IOERR passed" "$log")" -lt 2 ] ||

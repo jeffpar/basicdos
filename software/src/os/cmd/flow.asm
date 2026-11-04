@@ -437,6 +437,7 @@ ERR_MSGS label byte
 	db	71,"Disk not ready",0
 	db	72,"Disk media error",0
 	db	75,"Path/File access error",0
+	db	77,"Invalid drive",0
 	db	0,"Unknown error",0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

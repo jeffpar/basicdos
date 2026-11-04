@@ -26,9 +26,13 @@ DOS	segment word public 'CODE'
 
 	EXTBYTE	<def_drive,scb_locked,prog_user,r3_stubs>
 	EXTWORD	<scb_active,ivt_save,sprintf_hook,r3_code,r3_stseg,r3_vsel>
+	EXTWORD	<FUNCTBL,UTILTBL,r3_ksel>
 	EXTLONG	<scb_table,clk_ptr>
 	EXTNEAR	<dos_leave,int_enter,int_leave,dos_fault,sysinit_start>
-	EXTNEAR	<r3_sprintf,init_fpu>
+	EXTNEAR	<r3_sprintf,r3_free,r3_realloc,init_fpu>
+	EXTNEAR	<r3_term,r3_return,r3_uterm,r3_exec,r3_pspset>
+	EXTNEAR	<r3_pspcopy,r3_pspnew,r3_uload,r3_read,r3_write>
+	EXTNEAR	<r3_sread,r3_swrite,r3_rread,r3_rwrite,r3_rbread,r3_rbwrite>
 
 	ASSUME	CS:DOS, DS:DOS, ES:NOTHING, SS:NOTHING
 
@@ -281,8 +285,7 @@ iv2:
 ; 0 stack now (as scb_switch would), since this first start doesn't go through
 ; scb_switch, and the processor needs the stack the moment the program's first
 ; interrupt arrives.  We use CPU$ directly, rather than near calls to r3_setldt
-; and r3_sp0, which aren't in this block (see sysinit_high); a first program
-; has no parent, so its stack is the top of its session's (see r3_top).
+; and r3_sp0, which aren't in this block (see sysinit_high).
 ;
 	cmp	[prog_user],0		; ring 3 programs?
 	je	stt1			; no
@@ -291,11 +294,7 @@ iv2:
 	mov	ah,CPU_SETLDT
 	call	far ptr DDINT_CPU	; load the first session's LDT
 	pop	ax
-	inc	ax
-	mov	ah,R3_STACK_SIZE SHR 8
-	mul	ah
-	mov	ch,al
-	mov	cl,0			; CX = (SCB_NUM + 1) * R3_STACK_SIZE
+	mov	cx,[bx].SCB_SP0
 	mov	dx,[r3_stseg]		; DX:CX = the session's ring 0 stack
 	mov	ah,CPU_SETSTACK
 	call	far ptr DDINT_CPU
@@ -370,8 +369,9 @@ DEFPROC	set_fault
 	call	far ptr DDINT_CPU	; AH = CPUF_* flags
 	test	ah,CPUF_PM		; protected mode?
 	mov	ax,offset dos_fault
-	jz	sf9			; no
-	xchg	cx,ax
+	jnz	sf0			; yes
+	jmp	sf9			; no
+sf0:	xchg	cx,ax
 	mov	dx,cs:[dos_code]	; DX:CX -> dos_fault
 	mov	ah,CPU_SETFAULT
 	call	far ptr DDINT_CPU
@@ -385,16 +385,39 @@ DEFPROC	set_fault
 	call	find_cfg		; look for "RING="
 	jc	sf7			; none, so ring 3
 	cmp	byte ptr ss:[di],'0'	; RING=0? (find_cfg's data is in SS)
-	je	sf8			; yes
+	jne	sf7			; no
+	jmp	sf8			; yes
 sf7:	mov	[prog_user],MEMF_USER
 	mov	[sprintf_hook],offset r3_sprintf
+	mov	si,offset r3_funcs
+sf7c:	lods	word ptr cs:[si]
+	xchg	di,ax			; DI -> a function's table entry
+	lods	word ptr cs:[si]
+	mov	[di],ax			; (its ring 3 version)
+	cmp	si,offset r3_fend
+	jb	sf7c
 	push	bx
 	mov	bx,cs:[dos_code]
+	mov	[r3_ksel],bx
 	mov	ax,(CPU_ALIAS SHL 8) OR MEMF_CODE OR MEMF_RDONLY OR MEMF_USER
 	call	far ptr DDINT_CPU
-	pop	bx
 	or	al,3
 	mov	[r3_code],ax		; (see r3_stub)
+;
+; So that a fault in the kernel reaches dos_fault (see r3_end), dos_fault gets
+; a code selector of its own, since CPU$ won't call a fault handler for a
+; fault in the handler's own code segment; a fault in dos_fault itself is
+; still fatal.
+;
+	mov	ax,(CPU_ALIAS SHL 8) OR MEMF_CODE
+	call	far ptr DDINT_CPU	; AX = another selector for the kernel
+	pop	bx
+	jc	sf7a			; (none, so kernel faults stay fatal)
+	xchg	dx,ax
+	mov	cx,offset dos_fault	; DX:CX -> dos_fault
+	mov	ah,CPU_SETFAULT
+	call	far ptr DDINT_CPU
+sf7a:
 ;
 ; The vector stubs (see RVEC) get a readable code selector of their own, since
 ; a ring 3 program gets their address in ES:BX, and r3_code (execute-only, for
@@ -419,6 +442,30 @@ sf8:	pop	di
 	mov	ax,offset sysinit_start
 sf9:	ret
 ENDPROC	set_fault
+;
+; The DOS functions that have versions for ring 3 programs (see r3prog.asm), as
+; the address of each one's table entry and its ring 3 version.
+;
+	DEFLBL	r3_funcs,word
+	dw	FUNCTBL + DOS_MEM_FREE * 2,r3_free
+	dw	FUNCTBL + DOS_MEM_REALLOC * 2,r3_realloc
+	dw	FUNCTBL + DOS_PSP_TERM * 2,r3_term
+	dw	FUNCTBL + DOS_PSP_RETURN * 2,r3_return
+	dw	FUNCTBL + (DOS_PSP_EXEC SHR 8) * 2,r3_exec
+	dw	FUNCTBL + DOS_PSP_SET * 2,r3_pspset
+	dw	FUNCTBL + DOS_PSP_COPY * 2,r3_pspcopy
+	dw	FUNCTBL + DOS_PSP_CREATE * 2,r3_pspnew
+	dw	FUNCTBL + DOS_HDL_READ * 2,r3_read
+	dw	FUNCTBL + DOS_HDL_WRITE * 2,r3_write
+	dw	FUNCTBL + DOS_FCB_SREAD * 2,r3_sread
+	dw	FUNCTBL + DOS_FCB_SWRITE * 2,r3_swrite
+	dw	FUNCTBL + DOS_FCB_RREAD * 2,r3_rread
+	dw	FUNCTBL + DOS_FCB_RWRITE * 2,r3_rwrite
+	dw	FUNCTBL + DOS_FCB_RBREAD * 2,r3_rbread
+	dw	FUNCTBL + DOS_FCB_RBWRITE * 2,r3_rbwrite
+	dw	UTILTBL + DOS_UTL_TERM * 2,r3_uterm
+	dw	UTILTBL + DOS_UTL_LOAD * 2,r3_uload
+	DEFLBL	r3_fend,word
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

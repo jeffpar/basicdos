@@ -35,8 +35,9 @@ DEFPROC	main
 m1:	sub	cx,cx			; CX = attributes (none)
 	mov	ah,DOS_HDL_CREATE
 	int	21h
-	mov	si,offset OPEN_ERR
-	jc	m7
+	jnc	m2
+	call	openErr			; report the error (AX)
+	jmp	short m9
 m2:	xchg	si,ax			; SI = file handle
 	mov	bx,si
 	sub	cx,cx
@@ -72,7 +73,7 @@ m4:	sub	cx,dx			; CX = # bytes to write
 m9:	jmp	exit
 
 m6:	mov	si,offset WRITE_ERR
-m7:	call	writeErr
+	call	writeErr
 	mov	si,[bp].UV_FILES
 	call	writeErr
 	mov	si,offset CRLF

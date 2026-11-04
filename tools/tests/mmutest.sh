@@ -2,7 +2,7 @@
 #
 # Usage: tools/tests/mmutest.sh [8088] [real] [pm] [r3]
 #
-# Runs quick.sh's floppy tests (FPUTESTS through PRINTF), followed by CPUTESTS, on these test machines:
+# Runs quick.sh's floppy tests (FPUTESTS through PRINTF), followed by CPUTESTS and R3TESTS, on these test machines:
 #
 #   8088    an IBM PC XT (ibm5160), where CPU$ keeps only what an 8088 needs
 #   real    a 2Mb IBM PC AT (ibm5170), where the fpe configuration's "CPU=8088" line makes CPU$ act as it does on an
@@ -24,11 +24,11 @@ tools/tests/prep.sh $fpe || exit 1
 ok='IF ERRORLEVEL = 0 THEN PRINT "EXITOK" ELSE PRINT "EXITBAD"'
 abort='IF ERRORLEVEL = 255 THEN PRINT "ABORTOK" ELSE PRINT "ABORTBAD"'
 m='\TESTS\REGRESS\'
-cmds="VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;\\TESTS\\MISC\\CPUTESTS;$ok;SLEEP 1;QUIT"
+cmds="VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}BUFTESTS;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;\\TESTS\\MISC\\CPUTESTS;$ok;\\TESTS\\MISC\\R3TESTS;$ok;SLEEP 1;QUIT"
 log=$(mktemp)
 failed=
 for name in ${@:-8088 real pm r3}; do
-    meta="HARDERR metadata passed"; seek="HARDERR seek passed"
+    meta="HARDERR metadata passed"; seek="HARDERR seek passed"; above="BUFTESTS passed"; r3t="R3TESTS skipped"
     case $name in
         8088)   args="ibm5160 $fpe"; cpu="CPU type 0 (hardware 0)" ;;
         real)   args="ibm5170 $fpe --ram=2M"; cpu="CPU type 0 (hardware 2)" ;;
@@ -38,8 +38,9 @@ for name in ${@:-8088 real pm r3}; do
                 args="ibm5170 $tmp --ram=2M"; cpu="CPU type 2 (hardware 2)"
                 if [ $name = pm ]; then
                     echo RING=0 >> $tmp/CONFIG.SYS
+                    above="BUFTESTS block above 1Mb"
                 else
-                    cpu="CPUTESTS skipped"; meta="HARDERR hook tests skipped"; seek=$meta
+                    cpu="CPUTESTS skipped"; meta="HARDERR hook tests skipped"; seek=$meta; r3t="R3TESTS passed"
                 fi ;;
         *)      echo "usage: $0 [8088] [real] [pm] [r3]" >&2; exit 1 ;;
     esac
@@ -52,10 +53,11 @@ for name in ${@:-8088 real pm r3}; do
        ! grep -Fq 'I% = -2147483647' "$log" || ! grep -Fq 'I# = 1.25' "$log" ||
        ! grep -Fq 'S$ = "hello"' "$log" || ! grep -Fq 'E$ = ""' "$log" ||
        ! grep -Fq 'A%(0 TO 2, 0 TO 3)' "$log" || ! grep -Fq 'Q%(1 TO 3)' "$log" ||
+       ! grep -q "BUFTESTS passed" "$log" || ! grep -q "$above" "$log" ||
        ! grep -q "MOVES passed" "$log" || ! grep -q "ATTRS passed" "$log" || ! grep -q "FILEIO passed" "$log" ||
        ! grep -q "RUNFILE passed" "$log" || ! grep -q "PRTUSING passed" "$log" || ! grep -q "FCBTESTS passed" "$log" ||
        ! grep -q "HARDERR passed" "$log" || ! grep -q "$meta" "$log" ||
-       ! grep -q "$seek" "$log" || ! grep -q "IOERR passed" "$log" ||
+       ! grep -q "$seek" "$log" || ! grep -q "IOERR passed" "$log" || ! grep -q "$r3t" "$log" ||
        ! grep -q "ABORTOK" "$log" || grep -q "ABORTBAD" "$log" || ! grep -q "1 FILE(S)" "$log" ||
        ! grep -q "Elapsed time is" "$log" || ! grep -q "Returns the square root" "$log" ||
        ! grep -q "hello world!" "$log"; then

@@ -167,7 +167,7 @@ BUF_SIZE	dw	?	; 04h: size of buffer (in bytes)
 BUF_DRIVE	db	?	; 06h: drive number of buffer data
 BUF_SIG		db	?	; 07h: (holds SIG_BUF in DEBUG builds)
 BUF_DIRTY	db	?	; 08h: non-zero if buffer data must be written
-BUF_TYPE	db	?	; 09h: 0 for FAT data, 10h for DIR data
+BUF_TYPE	db	?	; 09h: 0 for FAT, 1 for file, 10h for DIR data
 BUF_LBA		dw	?	; 0Ah: LBA of buffer data
 BUF_DIRCLN	dw	?	; 0Ch: directory of data (DIR_BUF only)
 BUF_DIRREL	dw	?	; 0Eh: relative sector # (DIR_BUF only)

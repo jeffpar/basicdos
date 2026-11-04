@@ -1,0 +1,401 @@
+;
+; BASIC-DOS Ring 3 Tests
+;
+; @author Jeff Parsons <Jeff@pcjs.org>
+; @copyright (c) 2026 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
+;
+; This file is part of PCjs, a computer emulation software project at pcjs.org
+;
+; Usage: R3TESTS
+;
+; Checks that a ring 3 program can't harm the kernel, or stop the system, by
+; misusing DOS (see docs/bdtech/mmu).  Many of these tests are supposed to end
+; the program, so each one runs in its own copy (R3TESTS, plus a letter), and
+; we check how the copy ended: normally, or with a CPU fault, whose line it
+; prints.  A test that stops the system instead has failed, too.
+;
+; Anywhere but ring 3, it just prints that it was skipped.
+;
+	DOSPSP equ 1
+	DOSFUNC equ 1
+	include	macros.inc
+	include	8086.inc
+	include	dosapi.inc
+
+R3_USERINT	equ	60h		; a vector for programs to hook
+INT_IRQ0	equ	08h		; a vector that they can't
+F		equ	EXTYPE_FAULT
+
+CODE	segment
+	ASSUME	CS:CODE, DS:CODE, ES:CODE, SS:CODE
+
+	org	5
+	DEFLBL	CALL5,near
+	org	100h
+
+	.286p
+
+DEFPROC	main
+	mov	ax,cs
+	mov	bx,ds
+	cmp	ax,bx			; real mode (a COM's CS = DS)?
+	je	m0			; yes
+	test	al,3			; ring 3?
+	jnz	m1			; yes
+m0:	PRINTF	<"R3TESTS skipped (needs ring 3)",13,10>
+	int	20h
+;
+; BASIC-DOS puts COMSPEC first in the environment, and we're on the same drive.
+;
+m1:	mov	es,ds:[PSP_ENVSEG]
+	mov	al,es:[8]
+	mov	[progname],al
+	mov	[epbx].EPB_CMDTAIL.OFF,offset tail
+	mov	[epbx].EPB_CMDTAIL.SEG,ds
+	mov	[epbx].EPB_FCB1.OFF,-1
+	push	ds
+	pop	es
+	mov	al,ds:[PSP_CMDTAIL+2]	; AL = letter, if any
+	cmp	ds:[PSP_CMDTAIL],0	; are we a copy?
+	je	m2			; no
+	sub	al,'A'
+	cbw
+	add	ax,ax
+	xchg	bx,ax
+	jmp	tests[bx]		; run the test
+m2:	sub	si,si			; SI = test #
+m3:	mov	ax,si
+	add	al,'A'
+	mov	[tail+2],al
+	mov	dx,offset progname
+	mov	bx,offset epbx
+	mov	ax,DOS_PSP_EXEC
+	int	21h
+	jc	m7			; it couldn't be loaded
+	mov	ah,DOS_PSP_RETCODE
+	int	21h			; AL = exit code, AH = exit type
+	cmp	ah,[results][si]	; did it end as it should?
+	jne	m7			; no
+	test	ah,ah			; normally?
+	jnz	m4			; no
+	test	al,al			; with no errors?
+	jnz	m7			; no
+m4:	inc	si
+	mov	bx,si
+	add	bx,bx
+	cmp	tests[bx],0		; any more?
+	jne	m3			; yes
+	PRINTF	<"R3TESTS passed",13,10>
+	int	20h
+m7:	mov	al,[tail+2]
+	cbw
+	PRINTF	<"R3TESTS test %c failed",13,10>,ax
+	jmp	bad
+ENDPROC	main
+;
+; Copies end here, normally: "failif" is for a call that should have failed.
+;
+failif:	jnc	bad
+ok:	mov	ax,DOS_PSP_RETURN SHL 8
+	int	21h
+bad:	mov	ax,(DOS_PSP_RETURN SHL 8) OR 1
+	int	21h
+;
+; alloc allocates BX paragraphs in ES.
+;
+alloc:	mov	ax,DOS_MEM_ALLOC SHL 8
+	int	21h
+	jc	bad
+	mov	es,ax
+	ret
+;
+; The null selector has base address zero, as does a selector for segment 0.
+;
+ta:	sub	ax,ax
+	mov	es,ax
+	mov	ah,DOS_MEM_FREE
+	int	21h
+	jmp	failif
+tb:	sub	bx,bx
+	DOSUTIL	MAPSEG
+	mov	es,ax
+	mov	ah,DOS_MEM_FREE
+	int	21h
+	jmp	failif
+;
+; Our PSP's block, which the kernel needs until we end.
+;
+tc:	mov	ah,DOS_MEM_FREE
+	int	21h
+	jmp	failif
+;
+; A block's selector must follow its length, in both directions.
+;
+td:	mov	bx,1
+	call	alloc
+	inc	bx
+	mov	ah,DOS_MEM_REALLOC
+	int	21h
+	jc	bad
+	mov	word ptr es:[16],1	; (the new part)
+	jmp	ok
+te:	mov	bx,2
+	call	alloc
+	dec	bx
+	mov	ah,DOS_MEM_REALLOC
+	int	21h
+	mov	word ptr es:[16],1	; (the freed part, which should fault)
+	jmp	bad
+;
+; A block has a selector for every 64K, which it loses when it shrinks, and
+; gets back when it grows (which needs its next descriptor to be free).
+;
+tf:	mov	bx,2000h
+	call	alloc
+	mov	dx,es
+	add	dx,8			; DX = its next selector
+	mov	bx,1000h
+	mov	ah,DOS_MEM_REALLOC
+	int	21h
+	jc	tf2
+	lar	cx,dx			; is that selector gone?
+	jz	tf2			; no
+	mov	bx,1800h
+	mov	ah,DOS_MEM_REALLOC
+	int	21h
+	jc	tf2
+	lsl	cx,dx
+	cmp	cx,7FFFh		; does it cover the rest of the block?
+	jne	tf2
+tf1:	jmp	ok
+tf2:	jmp	bad
+;
+; DS in a selector that a shrink frees has to be 0 when DOS returns.
+;
+tg:	mov	bx,2000h
+	call	alloc
+	mov	ax,es
+	add	ax,8
+	mov	ds,ax
+	mov	bx,1
+	mov	ah,DOS_MEM_REALLOC
+	int	21h
+	mov	ax,ds
+	test	ax,ax
+	jz	tf1
+	jmp	bad
+;
+; INT 22h is only for the kernel's stubs, even with a stack it can't read, or a
+; return address that it can't use.
+;
+th:	mov	sp,-1
+	clc
+	int	INT_DOSEXIT
+	jmp	bad
+ti:	push	FL_INTS
+	push	1234h
+	push	5678h
+	clc
+	int	INT_DOSEXIT
+	jmp	bad
+;
+; A stub for a vector that isn't this program's (our INT 21h stub is first).
+;
+tj:	mov	ax,(DOS_MSC_GETVEC SHL 8) OR INT_DOSFUNC
+	int	21h
+	pushf
+	push	cs
+	push	offset bad
+	push	es
+	push	14			; (the last stub)
+	db	OP_RETF
+;
+; An interrupt that can't be reflected to a hook, and has no previous handler.
+;
+tk:	mov	dx,offset hook
+	mov	ax,(DOS_MSC_SETVEC SHL 8) OR R3_USERINT
+	int	21h
+	mov	sp,5
+	int	R3_USERINT
+	jmp	bad
+hook:	mov	ax,1234h
+	iret
+;
+; CALL 5 reads its return address from the caller's stack.
+;
+tl:	mov	cl,DOS_MSC_GETVER
+	mov	sp,-1
+	jmp	CALL5
+;
+; PRINTF on a stack with no room for it.
+;
+tm:	mov	bp,sp
+	mov	sp,16
+	PRINTF	<13,10>
+	mov	sp,bp
+	jmp	ok
+;
+; Freeing the memory that we're running in.
+;
+tn:	mov	bx,1
+	call	alloc
+	mov	si,offset stub
+	sub	di,di
+	mov	cx,stubend-stub
+	cld
+	rep	movsb
+	mov	bx,es
+	mov	ax,DOS_UTL_ALIAS SHL 8
+	int	INT_DOSUTIL		; AX = its code alias
+	push	ax
+	push	0
+	db	OP_RETF
+stub:	mov	ah,DOS_MEM_FREE
+	int	21h
+	mov	ax,(DOS_PSP_RETURN SHL 8) OR 1
+	int	21h
+stubend:
+;
+; Shrinking the PSP's block below the code that we're running.
+;
+to:	mov	bx,size PSP SHR 4
+	mov	ah,DOS_MEM_REALLOC
+	int	21h
+	jmp	bad
+;
+; Bad pointers: the kernel faults on the first, and we find the others first,
+; since the transfers don't respect limits, and a fault in a driver is fatal.
+;
+tp:	sub	dx,dx
+	mov	ds,dx
+	mov	ax,DOS_DSK_GETATTR
+	int	21h
+	jmp	bad
+tq:	mov	bx,1
+	call	alloc
+	mov	bx,STDOUT
+	mov	ah,DOS_HDL_WRITE
+	jmp	short tr1
+tr:	mov	bx,1
+	call	alloc
+	mov	bx,STDIN
+	mov	ah,DOS_HDL_READ
+tr1:	push	es
+	pop	ds
+	mov	dx,8
+	mov	cx,32			; (16 bytes past its limit)
+	int	21h
+	jmp	bad
+ts:	mov	bx,1
+	call	alloc
+	push	ds
+	push	es
+	pop	ds
+	mov	dx,8
+	mov	ah,DOS_DSK_SETDTA
+	int	21h			; (8 bytes from its limit)
+	pop	ds
+	mov	dx,offset fcbx
+	mov	ah,DOS_FCB_SREAD
+	int	21h
+	jmp	bad
+;
+; DOS_PSP_SET with our PSP, which must work, and with something that isn't one.
+;
+tt:	mov	bx,ds
+	mov	ah,DOS_PSP_SET
+	int	21h
+	jnc	tt1
+	jmp	bad
+tt1:	mov	bx,1234h
+	mov	ah,DOS_PSP_SET
+	int	21h
+	jmp	failif
+;
+; A hook of a vector that isn't on the list, and one that is.
+;
+tu:	mov	dx,offset hook
+	mov	ax,(DOS_MSC_SETVEC SHL 8) OR INT_IRQ0
+	int	21h
+	jc	tu1
+tu0:	jmp	bad
+tu1:	mov	ax,(DOS_MSC_GETVEC SHL 8) OR INT_IRQ0
+	int	21h
+	mov	ax,es
+	or	ax,bx			; 0:0, so there's nothing to chain to?
+	jnz	tu0
+	jmp	ok
+tv:	mov	dx,offset hook
+	mov	ax,(DOS_MSC_SETVEC SHL 8) OR R3_USERINT
+	int	21h
+	jc	tu0
+	sub	ax,ax
+	int	R3_USERINT
+	cmp	ax,1234h
+	jne	tu0
+	jmp	ok
+;
+; Overwriting what the kernel used to trust in our PSP, and in our parent's
+; (every test after these depends on the kernel ignoring it).
+;
+tw:	mov	word ptr ds:[PSP_PARENT],1234h
+	mov	word ptr ds:[PSP_STACK].OFF,2
+	mov	word ptr ds:[PSP_STACK].SEG,1234h
+	mov	word ptr ds:[PSP_EXIT].OFF,5678h
+	mov	word ptr ds:[PSP_EXIT].SEG,1234h
+	mov	byte ptr ds:[PSP_SCB],5
+	mov	ax,ds:[PSP_ERROR].SEG	; AX = the kernel's selector
+	mov	ds:[PSP_CTRLC].SEG,ax
+	mov	word ptr ds:[PSP_CTRLC].OFF,0FFF0h
+	mov	ds:[PSP_DTAPREV].SEG,ax
+	jmp	ok
+tx:	mov	es,ds:[PSP_PARENT]
+	mov	word ptr es:[PSP_STACK].OFF,2
+	mov	word ptr es:[PSP_STACK].SEG,1234h
+	mov	byte ptr es:[PSP_SCB],5
+	jmp	ok
+;
+; A selector in a register (DOS_PSP_CREATE), or in an EPB, that we can't use.
+;
+ty:	mov	dx,ds:[PSP_ERROR].SEG	; DX = the kernel's selector
+	mov	ah,DOS_PSP_CREATE
+	int	21h
+	jmp	failif
+tz:	mov	ax,ds:[PSP_ERROR].SEG	; AX = the kernel's selector
+	mov	[epbx].EPB_CMDTAIL.SEG,ax
+	mov	dx,offset progname
+	mov	bx,offset epbx
+	mov	ax,DOS_PSP_EXEC
+	int	21h
+	mov	ah,DOS_PSP_RETCODE
+	int	21h			; AH = exit type
+	cmp	ah,EXTYPE_FAULT		; did the kernel fault using it?
+	jne	tz1			; no
+	jmp	ok
+tz1:	jmp	bad
+;
+; An EXEC2 with nothing loaded.
+;
+tza:	mov	bx,offset epbx
+	sub	dx,dx
+	mov	ax,DOS_PSP_EXEC2
+	int	21h
+	jmp	failif
+
+tests	dw	ta,tb,tc,td,te,tf,tg,th,ti,tj,tk,tl,tm
+	dw	tn,to,tp,tq,tr,ts,tt,tu,tv,tw,tx,ty,tz,tza,0
+results	db	0,0,0,0,F,0,0,F,F,F,F,F,0
+	db	F,F,F,F,F,F,0,0,0,0,0,0,0,0
+
+progname db	"A:\TESTS\MISC\R3TESTS.COM",0
+tail	db	2," A",13
+fcbx	db	14 dup (0)		; (just FCB_RECSIZE matters)
+	dw	128
+	db	21 dup (0)
+epbx	EPB	<>
+
+	COMHEAP	1024		; COMHEAP (heap size) must be the last item
+
+CODE	ends
+	end	main

@@ -13,8 +13,9 @@
 ; BASIC-DOS responds and recovers, especially in protected mode (eg, FAULT 13
 ; on the Protected Mode demo):
 ;
-;	-1	a fatal fault (a null pointer to a filename, which the
-;		kernel faults reading in protected mode)
+;	-1	a null pointer to a filename, which the kernel faults reading
+;		in protected mode (which ends the program at ring 3, and is
+;		fatal with RING=0)
 ;	0	divide error (DIV by zero)
 ;	1	single-step trap (TF set for one instruction)
 ;	3	breakpoint (INT 3)
@@ -77,8 +78,8 @@ ENDPROC	main
 ; resumes.
 ;
 ; We can load a null selector into DS, but the kernel faults reading a
-; filename through it, which it can't recover from (in real mode, 0:0 is the
-; interrupt vectors, which aren't a filename that DOS can find).
+; filename through it (in real mode, 0:0 is the interrupt vectors, which aren't
+; a filename that DOS can find).
 ;
 fm1:	push	ds
 	sub	ax,ax

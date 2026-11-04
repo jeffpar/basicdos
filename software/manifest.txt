@@ -74,6 +74,7 @@ software/src/tests/misc/REGRESS.BAT
 software/src/tests/misc/STRESS.BAT
 
 [TESTS/REGRESS]
+software/src/tests/bin/BUFTESTS.COM
 software/src/tests/bin/DOSTESTS.COM
 software/src/tests/bin/FCBTESTS.COM
 software/src/tests/bin/FPUTESTS.COM
@@ -99,6 +100,7 @@ software/src/tests/bin/ASSERT.COM
 software/src/tests/bin/CPUTESTS.COM
 software/src/tests/bin/DBGTESTS.COM
 software/src/tests/bin/FAULT.COM
+software/src/tests/bin/R3TESTS.COM
 software/src/tests/misc/GFXTESTS.BAS
 software/src/tests/misc/MICRO.BAS
 software/src/tests/primes/PRIMES.BAT

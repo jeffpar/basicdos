@@ -22,7 +22,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<dev_request,scb_release>
 	EXTNEAR	<chk_devname,chk_filename>
 	EXTNEAR	<get_bpb,get_psp,find_cln,new_bpb>
-	EXTNEAR	<merge_clns,advance_cln,file_request>
+	EXTNEAR	<clns_request,advance_cln,file_request>
 	EXTNEAR	<flush_buffers>
 	EXTNEAR	<sfb_create,sfb_commit,write_file>
 	EXTNEAR	<msc_sigctrlc,msc_readctrlc,con_read>
@@ -788,46 +788,11 @@ sr1b:	mov	dx,[bx].SFB_CURCLN
 	jc	sr0e			; return the lookup error before using DX
 	mov	[bx].SFB_CURCLN,dx
 
-sr1a:	mov	dx,[bx].SFB_CURPOS.LOW
-	mov	ax,[di].BPB_CLUSBYTES
-	dec	ax
-	and	dx,ax			; DX = offset within current cluster
-;
-; Limit the byte count to whatever's in the current cluster, and in any
-; clusters that immediately follow it on disk, so that one request can read
-; them all (see merge_clns).
-;
-	push	cx			; save byte count
-	call	merge_clns		; CX = bytes to read, SI = last CLN
-	push	bx			; save SFB pointer
-	push	di			; save BPB pointer
-	push	es
-	push	si			; save last CLN
-
-	mov	bx,[bx].SFB_CURCLN
-
-	IFDEF	MAXDEBUG
-	DPRINTF	<"Reading cluster %#05x...\r\n">,bx
-	ENDIF
-
-	sub	bx,2
-	jb	sr3			; invalid cluster #
-	xchg	ax,cx			; save CX
-	mov	cl,[di].BPB_CLUSLOG2
-	shl	bx,cl
-	xchg	ax,cx			; restore CX
-	add	bx,[di].BPB_LBADATA	; BX = LBA
+sr1a:	push	cx			; save byte count
 	mov	ah,DDC_READ
-	call	file_request
-	mov	dx,cx			; DX = bytes read (assuming no error)
-
-sr3:	pop	si			; SI = last CLN read
-	pop	es
-	pop	di			; BPB pointer restored
-	pop	bx			; SFB pointer restored
+	call	clns_request		; DX = bytes read (assuming no error)
 	pop	cx			; restore byte count
 	jc	sr6
-	mov	[bx].SFB_CURCLN,si
 ;
 ; Time for some bookkeeping: adjust the SFB's CURPOS by DX.
 ;

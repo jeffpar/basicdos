@@ -77,8 +77,7 @@ msv0:	pop	ax
 	je	msv0a			; no
 	test	byte ptr [bp].REG_CS,3	; and a ring 3 caller?
 	jz	msv0a			; no
-	call	r3_setvec		; yes (see RVEC)
-	jmp	short msv9
+	jmp	r3_setvec		; yes (see RVEC)
 msv0a:	call	far ptr DDINT_SETVEC	; it's in the IVT
 	jmp	short msv9
 msv1:	cli
@@ -486,9 +485,7 @@ msg2:
 	mov	[bp].REG_WS.JMP_IP,ax
 	cmp	[prog_user],0		; ring 3 programs?
 	je	msg3			; no
-	test	byte ptr [bx].SCB_CTRLC.SEG,3	; a ring 3 handler?
-	jz	msg3			; no
-	call	r3_ctrlc		; yes, so it runs at ring 3
+	call	r3_ctrlc		; yes (see r3_ctrlc)
 msg3:	mov	sp,bp
 	pop	bp
 	pop	di

@@ -220,9 +220,9 @@ nl7:	pop	cx
 	add	si,size NESEG
 	loop	nl4
 ;
-; The program starts at CS:IP, which must be in a code segment, and its stack
-; (SS:SP, where SP 0 means the top of the segment) must be in a data segment,
-; with room below SP for the initial REG_FRAME (see load_program).
+; The program starts at CS:IP, which must be within a code segment, and its
+; stack (SS:SP, where SP 0 means the top of the segment) must be in a data
+; segment, with room below SP for the initial REG_FRAME (see load_program).
 ;
 	mov	ax,ds:[NEBUF].NE_START.SEG
 	call	ne_seg			; DS:DI -> CS's segment table entry
@@ -230,6 +230,9 @@ nl7:	pop	cx
 	test	[di].NES_FLAGS,NESF_DATA; is it a code segment?
 	jnz	nl9			; no
 	mov	ax,[di].NES_SIZE
+	lsl	cx,ax			; CX = limit of segment
+	cmp	ds:[NEBUF].NE_START.OFF,cx
+	ja	nl9			; IP isn't in it (its IRET would fault)
 	call	mem_alias		; AX = its code alias
 	jc	nl9a
 	mov	ds:[PSP_START].SEG,ax

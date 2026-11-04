@@ -40,7 +40,7 @@
 	F1$ = P$ + M$(NI) : F2$ = B$
 	C$ = RIGHT$(B$, 1) : IF C$ = ":" OR C$ = PC$ THEN F2$ = B$ + M$(NI)
 	PRINT F1$; " and "; F2$
-	IF NOT EXISTS(F2$) THEN PRINT "Unable to find "; F2$ : GOTO 70
+	IF DIR$(F2$, &H16) = "" THEN PRINT "Unable to find "; F2$ : GOTO 70
 	OPEN F1$ AS #1 LEN = 128 : FIELD #1, 128 AS R1$
 	OPEN F2$ AS #2 LEN = 128 : FIELD #2, 128 AS R2$
 	L = LOF(1)
@@ -64,6 +64,7 @@
 70	NEXT
 	END
 90	CLOSE
+	IF ERR = 77 THEN PRINT "Invalid drive" : END
 	' A file that's open for random access (read/write) can't be opened
 	' again, so a file can't be compared with itself, unless it's read-only
 	IF ERR = 55 THEN PRINT "Unable to open both files (the same file?)" : RESUME 70

@@ -17,6 +17,7 @@
 	include	cpu.inc
 
 DV_BUFLEN	equ	1024		; scratch buffer size (see DDPI_BUFPTR)
+DV_ROOM		equ	FDC_BUFSECS * 512 ; how far we move up (see chk_cpu)
 
 DEV	segment para public 'CODE'
 
@@ -376,6 +377,10 @@ ENDPROC	devinit
 ; block at the top of conventional memory, followed by a copy of the CFG_FILE
 ; data, for sysinit (see i9).
 ;
+; If protected mode is available, the FDC driver will grow by up to a track
+; (see ddfdc_init), moving the drivers after it up, so we move up first, and
+; include the room in the drivers' block (which i9 shrinks to fit).
+;
 ; Finally, if protected mode is available, we switch to it for good (see
 ; CPU_PMODE): our CS, DS, ES, and SS become selectors, and we give the link to
 ; each driver initialized so far (ie, CPU$) one, too; the rest get selectors
@@ -405,7 +410,28 @@ cu1:	push	si
 	pop	es
 	ASSUME	ES:DEV
 	mov	es:[drv_addr],si
-	mov	cx,si
+	test	ah,CPUF_PMOK		; is protected mode available?
+	jz	cu2			; no
+	add	di,DV_ROOM		; yes, so the drivers need more room
+	mov	cx,es:[dv_addr]
+	mov	es:[mv_pkt].MV_SRC.LOW,cx
+	add	cx,DV_ROOM
+	mov	es:[mv_pkt].MV_DST.LOW,cx
+	mov	es:[dv_addr],cx		; (the copy has our new address)
+	mov	cx,es:[buf_off]		; CX = our code and CFG_FILE length
+	mov	es:[mv_pkt].MV_LEN.LOW,cx
+	mov	bx,offset mv_pkt	; ES:BX -> MOVEPKT
+	mov	ah,CPU_MOVE
+	call	cpu_chk
+	mov	ax,cs
+	add	ax,DV_ROOM SHR 4
+	push	ax
+	mov	ax,offset cu1a
+	push	ax
+	db	OP_RETF			; continue with the copy
+cu1a:	push	cs
+	pop	es
+cu2:	mov	cx,si
 	sub	di,si			; DI = length of the drivers left
 	call	claim
 	mov	cx,es:[dv_addr]

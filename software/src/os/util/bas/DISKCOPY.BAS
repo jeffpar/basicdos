@@ -115,7 +115,7 @@
 	IF ERR = 70 THEN PRINT "Write protect error" : END
 	IF ERR = 71 THEN PRINT "Drive not ready" : END
 	IF ERR = 72 THEN PRINT "Unrecoverable read or format error" : END
-	IF ERR = 75 THEN PRINT "Invalid drive specification" : END
+	IF ERR = 77 THEN PRINT "Invalid drive" : END
 	PRINT "Copy failed (error"; ERR; ")"
 	END
 95	PRINT "Usage: DISKCOPY [drive1: [drive2:]]"

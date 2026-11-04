@@ -178,8 +178,11 @@ dc3:	mov	[di],cl			; null-terminate the name
 	DOSUTIL	STRUPR
 	mov	dx,offset BAS_EXT
 	call	findProgram		; LINEBUF = the file's name, if found
-	mov	al,53			; ("File not found")
 	jnc	dc4
+	cmp	al,ERR_BADDRIVE		; was there no such drive to search?
+	mov	al,77			; ("Invalid drive")
+	je	dc8			; right
+	mov	al,53			; ("File not found")
 dc8:	jmp	rtError
 ;
 ; We've found the file, so the current program is done: discard its stack

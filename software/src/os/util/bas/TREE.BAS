@@ -81,5 +81,5 @@
 	WEND
 	PRINT Y$
 	RETURN
-90	PRINT "Invalid drive specification" : END
+90	PRINT "Invalid drive" : END
 95	PRINT "Usage: TREE [drive:][path] ["; W$; "F] ["; W$; "A]"

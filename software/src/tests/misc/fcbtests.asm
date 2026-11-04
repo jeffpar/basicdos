@@ -845,16 +845,18 @@ DEFPROC	refcount
 	mov	ah,DOS_MSC_GETVARS
 	int	21h
 	sub	bx,2
+	xor	ax,ax
+	mov	cx,es
+	jcxz	rc2			; (ring 3 can't read DOS's tables)
 	mov	cx,es:[bx].DV_SFB_TABLE.SEG
 	mov	bx,es:[bx].DV_SFB_TABLE.OFF
-	xor	ax,ax
 rc1:	mov	dl,es:[bx].SFB_REFS
 	xor	dh,dh
 	add	ax,dx
 	add	bx,size SFB
 	cmp	bx,cx			; sum every SFB in the table
 	jb	rc1
-	pop	es
+rc2:	pop	es
 	ret
 ENDPROC	refcount
 

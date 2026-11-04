@@ -31,7 +31,9 @@
 	NEXT
 20	P$ = LEFT$(S$, I)
 	DEF FNA$(M, L$) = MID$(" " + L$, 1 - ((A AND M) <> 0), 1)
+	ON ERROR GOTO 80
 	F$ = DIR$(S$, 6)
+	ON ERROR GOTO 0
 	IF F$ = "" THEN PRINT "Unable to find "; S$ : END
 30	A = ASC(F$) : N$ = MID$(F$, 10)
 	B = (A AND NOT CM) OR SM
@@ -41,5 +43,6 @@
 	F$ = DIR$
 	IF F$ <> "" THEN GOTO 30
 	END
+80	PRINT "Invalid drive" : END
 90	PRINT "Usage: ATTRIB [+R|-R] [+H|-H] [+S|-S] [+A|-A] [filespec]"
 	END

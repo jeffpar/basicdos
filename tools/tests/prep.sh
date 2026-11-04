@@ -7,7 +7,7 @@
 # has its own CONFIG.SYS and, if needed, AUTOEXEC.BAT): utilities (and HELP.TXT) from EXT in EXT, the DEMOS and TESTS
 # files together in TESTS (only TESTS on a diskette; see below),
 # the TESTS/REGRESS files (the regression tests) in TESTS\REGRESS, the TESTS/MISC files (other test programs) in
-# TESTS\MISC, and the TOOLS files (except MSBASIC) in TOOLS.  A test configuration's CONFIG.SYS sets PATH$ to all of
+# TESTS\MISC, and the TOOLS files (except MSBASIC, and SYMDEB on a diskette) in TOOLS.  A test configuration's CONFIG.SYS sets PATH$ to all of
 # them except the TESTS subfolders (eg, "A:\;A:\EXT;A:\TESTS;A:\TOOLS"); the tests in TESTS\REGRESS are run by
 # REGRESS.BAT (in TESTS), by path, or after CD \TESTS\REGRESS.  There's no SAMPLES folder, since only the BASIC-DOS
 # disks built by gulpfile.js include the PC DOS BASIC samples.
@@ -48,9 +48,13 @@ files_regress=($(manifest TESTS/REGRESS))
 files_misc=($(manifest TESTS/MISC))
 #
 # MSBASIC.EXE isn't needed in a test configuration (bench.sh copies its own), and leaving it out keeps enough free
-# space on a 360K test floppy for FCBTESTS, which writes a 16643-byte file.
+# space on a 360K test floppy for FCBTESTS, which writes a 16643-byte file.  No test uses SYMDEB.EXE either, so a
+# diskette configuration leaves it out too, to keep enough free space for HARDERR, which extends a file to 12288 bytes.
 #
 files_tools=($(manifest TOOLS | grep -v '/MSBASIC\.EXE$'))
+if grep -q 'PATH\$="A:' "$dir/CONFIG.SYS"; then
+    files_tools=($(printf '%s\n' "${files_tools[@]}" | grep -v '/SYMDEB\.EXE$'))
+fi
 #
 # copy [subfolder] [files...]
 #

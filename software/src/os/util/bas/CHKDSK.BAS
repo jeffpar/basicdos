@@ -130,7 +130,7 @@
 85	PRINT "Drive "; D$; " doesn't have a FAT volume" : END
 90	CLOSE
 	IF ERR = 71 THEN PRINT "Drive not ready" : END
-	IF ERR = 75 THEN PRINT "Invalid drive specification" : END
+	IF ERR = 77 THEN PRINT "Invalid drive" : END
 	PRINT "Unable to check drive "; D$; " (error"; ERR; ")"
 	END
 95	PRINT "Usage: CHKDSK [drive:] ["; W$; "V]" : END

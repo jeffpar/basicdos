@@ -10,7 +10,7 @@ Keyboard commands include:
 
 - [KEY](#key)
 
-To read keys from a BASIC program, use the [INKEY$](../../basic/func/#inkey) function.  For a summary of the keys used to edit commands, see [Typing Commands](../../../intro/#typing-commands) or type [HELP KEYS](../../external/#help).
+To read keys from a BASIC program, use the [INKEY$](../../basic/func/#inkey) function.  For a summary of the keys used to edit commands, see [Typing Commands](../../../intro/#typing-commands) or type [HELP KEYS](../../external/help/).
 
 To read a line from the keyboard, use the [INPUT](../../basic/#input) or [LINE INPUT](../../basic/#line-input) statement.
 

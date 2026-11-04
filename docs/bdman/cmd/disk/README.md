@@ -51,7 +51,7 @@ Changes the current directory of *drive* (or the current drive) to *path*.  If n
 
 Copies the contents of the input file or device to the output file or device.  The output file is created, or truncated if it already exists, and like PC DOS, it gets the input file's date and time.  If the output is a drive or directory (or is omitted, which means the current directory), the input's filename (without any drive or path) is used.  With wildcards (? and *), every matching file is copied, and its name is displayed; the output must then be a drive or directory (or omitted).  A file cannot be copied onto itself, or onto a file that another session has open.  If the disk fills up, COPY reports "Insufficient disk space".  COPY stops at the first file it can't copy.
 
-Input files separated by `+` are combined (concatenated) into the output file, which must be specified (eg, `COPY A.BIN+B.BIN C.BIN`), and which gets the current date and time.  Files are always copied as binary data; to copy a text file only up to its first CTRL-Z, use [TYPE](#type) with redirection instead (eg, `TYPE A.TXT > B.TXT`).
+Input files separated by `+` are combined (concatenated) into the output file, which must be specified (eg, `COPY A.BIN+B.BIN C.BIN`), and which gets the current date and time.  Files are always copied as binary data; to copy a text file only up to its first CTRL-Z, use [TYPE](#type) with redirection instead (eg, `TYPE A.TXT > B.TXT`).  COPY reads and writes through a temporary block of up to 32K (or half of the largest free block, if that's smaller), which it frees when it's done.
 
 	COPY PRIMES.BAS B:
 	COPY B:\*.BAS
@@ -68,9 +68,9 @@ Deletes the specified file.  With the wildcards `?` and `*` (as in [DIR](#dir)),
 
 Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).  As in DOS 2.x, the listing begins with a blank line, the drive's volume label (eg, ` Volume in drive A is BD-S80`, or ` Volume in drive A has no label`), the full path of the directory (eg, ` Directory of A:\SAMPLES`), and another blank line.  The *filespec* can contain the wildcards `?` (any character) and `*` (any characters to the end of the name or extension).  Subdirectories are listed with `<DIR>` in place of a size, and if *filespec* is a directory (eg, `DIR SUBDIR` or `DIR /`), the files in that directory are listed.  Use `DIR | MORE` to pause after each screenful of output.
 
-Files with the hidden attribute (eg, BASDEV.COM and BASDOS.COM) are listed only with `/A`, with an asterisk after the name (eg, `BASDEV   COM*`).  Unlike PC DOS, DIR lists system files that aren't hidden (eg, COMMAND.COM); see [ATTRIB](../external/#attrib).  `/S` lists the matching files in every subdirectory, too (in hidden subdirectories only with `/A`): each directory with matches gets its own ` Directory of` line and totals, and the bytes free are displayed at the end.
+Files with the hidden attribute (eg, BASDEV.COM and BASDOS.COM) are listed only with `/A`, with an asterisk after the name (eg, `BASDEV   COM*`).  Unlike PC DOS, DIR lists system files that aren't hidden (eg, COMMAND.COM); see [ATTRIB](../external/attrib/).  `/S` lists the matching files in every subdirectory, too (in hidden subdirectories only with `/A`): each directory with matches gets its own ` Directory of` line and totals, and the bytes free are displayed at the end.
 
-`/W` lists only the names, each in a 16-character column, with as many columns as the console has room for (5 on an 80-column screen, or 2 on a 40-column screen).  Unlike PC DOS, each name is shown with its period (eg, `HELP.TXT`), and a subdirectory's name is followed by the path character (eg, `EXT\`) instead of `<DIR>`, even if the subdirectory is hidden; a hidden file's name is followed by an asterisk (eg, `BASDOS.COM*`).  For a Unix-style listing, see [LS](../external/#ls).
+`/W` lists only the names, each in a 16-character column, with as many columns as the console has room for (5 on an 80-column screen, or 2 on a 40-column screen).  Unlike PC DOS, each name is shown with its period (eg, `HELP.TXT`), and a subdirectory's name is followed by the path character (eg, `EXT\`) instead of `<DIR>`, even if the subdirectory is hidden; a hidden file's name is followed by an asterisk (eg, `BASDOS.COM*`).  For a Unix-style listing, see [LS](../external/ls/).
 
 	DIR *.BAS
 	DIR /S *.BAS
@@ -127,6 +127,6 @@ Saves the currently loaded program as a text file, which LOAD can load again.  I
 
 > TYPE *file*
 
-Displays the contents of the specified file, or with wildcards (? and *), the name and contents of every matching file.  A CTRL-Z ends the contents of each file.
+Displays the contents of the specified file, or with wildcards (? and *), the name and contents of every matching file.  A CTRL-Z ends the contents of each file.  Like COPY, TYPE reads through a temporary block of up to 32K.
 
 {% include footer.html prev="Sound Commands:../device/sound/" next="External Commands:../external/" %}

@@ -693,6 +693,11 @@ ENDPROC	mcb_getsize
 ; discards the transient portion of its code while running a program; see
 ; runTransient).
 ;
+; A ring 3 program's block doesn't match, since its owner ID isn't its selector
+; (see enc_owner), so programs at ring 3 don't share code; they can't, because
+; an LDT selector means something else in another session's LDT, and COMMAND's
+; shared code has variables (eg, CMD_REFS) that every copy must write.
+;
 ; Inputs:
 ;	AX = code size, DX = checksum
 ;

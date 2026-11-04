@@ -110,7 +110,8 @@ SCB_ABTYPE	db	?	; 31h: exit type of a pending ABORT (EXTYPE_*)
 SCB_DIRCLN	dw	?	; 32h: directory (1st cluster) for FILENAME
 SCB_FILENAME	db    12 dup (?); 34h: buffer for drive # and filename
 SCB_MAPSEL	dw	?	; 40h: DOS_UTL_MAPSEG selector, if any
-SCB		ends		; 42h bytes
+SCB_SP0		dw	?	; 42h: ring 0 stack of its program (see R3REC)
+SCB		ends		; 44h bytes
 
 SIG_SCB		equ	'S'
 
@@ -118,6 +119,7 @@ SCSTAT_INIT	equ	01h	; set if SCB initialized
 SCSTAT_LOAD	equ	02h	; set if session has loaded a program
 SCSTAT_START	equ	04h	; set if session program can be started
 SCSTAT_ABORT	equ	08h	; set if session abort (CTRL-ALT-DEL) signalled
+SCSTAT_FAULT	equ	10h	; set while a fault ends a program (see r3_end)
 ;
 ; The hard error stack (see dev_error) is reserved by sysinit, which records
 ; the DS-relative offset of its top in err_stack; ERR_FRAME is the number of

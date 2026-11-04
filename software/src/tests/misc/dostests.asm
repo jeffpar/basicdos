@@ -86,6 +86,7 @@ m3a:	mov	dx,offset progress
 	loop	m1
 	clc
 m4:	call	result
+	call	test_blocks
 ;
 ; Create a new file, write a string to it, close it, and then verify it.
 ;
@@ -173,6 +174,8 @@ m7:
 	mov	ax,DOS_HDL_OPENRO
 	int	21h		; open file (and neglect to close it)
 
+	push	ds
+	pop	es		; ES:BX -> EPB
 	mov	bx,offset execparms
 	mov	[bx].EPB_CMDTAIL.SEG,ds
 	mov	[bx].EPB_FCB1.SEG,ds
@@ -605,8 +608,10 @@ tl0a:	mov	[loadhandle],-1
 	int	21h
 	sub	bx,2			; ES:BX -> DOSVARS, including DV_MCB_HEAD
 	pop	ax
+	mov	cx,es
+	jcxz	tl0c			; (a ring 3 program can't read them)
 	add	ax,es:[bx].DV_SFB_TABLE.OFF
-	mov	[loadrefs].OFF,ax
+tl0c:	mov	[loadrefs].OFF,ax
 	mov	[loadrefs].SEG,es
 	mov	[loadspb].SPB_CMDLINE.SEG,ds
 	mov	[loadspb].SPB_CMDLINE.OFF,offset testfile
@@ -661,6 +666,9 @@ ENDPROC	load_session
 
 DEFPROC	load_refcheck
 	les	di,[loadrefs]
+	mov	ax,es
+	test	ax,ax			; can we read DOS's tables?
+	jz	lr9			; no (and carry is clear)
 	cmp	es:[di].SFB_REFS,1	; only the caller's handle may remain
 	je	lr9
 	stc
@@ -814,6 +822,65 @@ ENDPROC	reserve_exec
 ;
 ; Prints "passed" if carry is clear, "failed" if carry is set.
 ;
+;
+; test_blocks
+;
+; At ring 3, a program can't free the null selector (which would be the low
+; memory block) or its own PSP, and a block's selector must fit its length.
+;
+	.286p
+DEFPROC	test_blocks
+	mov	ax,cs
+	mov	bx,ds
+	cmp	ax,bx			; real mode (a COM's CS = DS)?
+	je	tb9			; yes
+	test	al,3			; ring 3?
+	jz	tb9			; no
+	mov	dx,offset blocktest
+	call	print
+	sub	ax,ax
+	mov	es,ax
+	mov	ah,DOS_MEM_FREE
+	int	21h			; free the null selector
+	cmc
+	jc	tb8			; it shouldn't have worked
+	push	ds
+	pop	es
+	mov	ah,DOS_MEM_FREE
+	int	21h			; free our PSP
+	cmc
+	jc	tb8			; it shouldn't have worked
+	mov	bx,1
+	mov	ax,DOS_MEM_ALLOC SHL 8
+	int	21h
+	jc	tb8
+	mov	es,ax
+	inc	bx			; BX = 2
+	mov	ah,DOS_MEM_REALLOC
+	int	21h			; lengthen it
+	jc	tb7
+	mov	ax,es
+	lsl	ax,ax
+	cmp	ax,1Fh			; does its limit cover the new part?
+	jne	tb6			; no
+	dec	bx			; BX = 1
+	mov	ah,DOS_MEM_REALLOC
+	int	21h			; shorten it
+	jc	tb7
+	mov	ax,es
+	lsl	ax,ax
+	cmp	ax,0Fh			; does it leave out the freed part?
+	je	tb7			; yes (and carry is clear)
+tb6:	stc
+tb7:	pushf
+	mov	ah,DOS_MEM_FREE
+	int	21h
+	popf
+tb8:	jmp	short result
+tb9:	ret
+ENDPROC	test_blocks
+	.8086
+
 DEFPROC	result
 	mov	dx,offset passed
 	jnc	rs9
@@ -878,6 +945,7 @@ loadchild	db		"LOADTEST.COM",0
 ;
 loadimage	db		0CDh,20h
 
+blocktest	db		"ring 3 block test $"
 reservetest	db		"pipeline reservation test $"
 mzexetest	db		"MZ EXE refusal test $"
 reservefile	db		"EXECTEST.EXE",0

@@ -59,6 +59,8 @@ DOS	segment word public 'CODE'
 	DEFWORD	r3_vsel,0		; ring 3 vector stubs (see RVEC)
 	DEFWORD	r3_cbsp,0		; ring 3 ERROR handler (see r3_error)
 	DEFPTR	r3_cbsp0
+	DEFBYTE	r3_cblock,0		; scb_locked for r3_cbabort to restore
+	DEFWORD	r3_ksel,0		; kernel's selector (see dos_fault)
 	DEFWORD	r3_stseg,0		; sessions' ring 0 stacks (see r3_top)
 	DEFLBL	cmdline_buf,byte	; scb_load stages a command line
 	db	CMDLINE_MAX dup(?)	; here (see stage_cmdline)

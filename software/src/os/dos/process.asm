@@ -26,7 +26,7 @@ DOS	segment word public 'CODE'
 	EXTLONG	<scb_table,sfb_table>
 	EXTNEAR	<sfh_add_ref,pfh_close,sfh_close,sfb_close,reset_keys>
 	EXTNEAR	<mcb_getsize,mcb_free_all,mcb_findpsp,scb_endio>
-	EXTNEAR	<mem_alias,mem_pmode,load_ne,r3_start,r3_sp0>
+	EXTNEAR	<mem_alias,mem_pmode,load_ne,r3_start,r3_resume>
 	EXTNEAR	<r3_setldt,r3_endvec>
 	EXTNEAR	<dos_check,dos_leave,dos_leave2,dos_ctrlc,dos_error>
 	EXTNEAR	<mcb_setname,scb_getnum,scb_release,scb_close,scb_yield>
@@ -177,7 +177,7 @@ pt8:	mov	es,ax			; ES = PSP of parent
 	cmp	[prog_user],0		; ring 3 programs?
 	je	pt8a			; no
 	mov	bx,[scb_active]
-	call	r3_sp0			; the parent's ring 0 stack
+	call	r3_resume		; the parent's ring 0 stack
 	mov	al,es:[PSP_SCB]		; and its LDT (the parent may be in a
 	call	r3_setldt		; different session; see dos_leave2)
 pt8a:

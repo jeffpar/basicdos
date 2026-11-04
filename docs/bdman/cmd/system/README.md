@@ -74,7 +74,7 @@ Displays the total memory ("bytes total") and the memory available for running e
 
 A line follows for anything that's unavailable: `Floating-point disabled` when the FPU$ driver was skipped or couldn't be loaded, and `Some features disabled (see HELP CORE)` when there wasn't enough memory for all of COMMAND.COM (see [Low Memory](../../lang/#low-memory) for what's left out).
 
-To see every device driver and memory block, use the DM command of [DEBUG.COM](../../cfg/#device).
+To see every device driver and memory block, use the DM command of [DEBUG.COM](../external/debug/#dm).
 
 	MEM
 	  131072 bytes total
@@ -124,4 +124,4 @@ Displays the BASIC-DOS version number.
 	VER
 	BASIC-DOS 2.00
 
-{% include footer.html prev="COMMAND.COM:../external/command/" next="BASIC-DOS Programming:../../lang/" %}
+{% include footer.html prev="WC:../external/wc/" next="BASIC-DOS Programming:../../lang/" %}

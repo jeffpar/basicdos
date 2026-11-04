@@ -12,7 +12,7 @@ BASIC-DOS has a single command shell for both DOS commands (eg, DIR) and BASIC s
 - [BASIC Functions](basic/func/): numeric, string, and system functions, and predefined constants
 - [Device Commands](device/): clock, keyboard, screen, graphics, and sound
 - [Disk Commands](disk/): copying, deleting, listing, loading, and displaying files
-- [External Commands](external/): COM, EXE, BAT, and BAS programs (including [HELP](external/#help))
+- [External Commands](external/): COM, EXE, BAT, and BAS programs (including [HELP](external/help/))
 - [System Commands](system/): memory, program management, and system control
 
 In the descriptions that follow, *italics* indicate values that you supply, brackets (`[` `]`) indicate optional items, a vertical bar (`|`) separates alternatives, and `...` means that the item before it can be repeated.  A statement with more than one form shows each form on a line of its own.  A file number is written #*n*: in OPEN, CLOSE, FIELD, GET, PUT, IOCTL, and INPUT$, the # is optional, and as in Microsoft BASIC, the space before a # is optional, too (eg, `PRINT#1,X`).

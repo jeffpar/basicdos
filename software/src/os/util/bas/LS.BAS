@@ -37,7 +37,7 @@
 	' per line
 	ON ERROR GOTO 95
 	DOS &H44D1, 1 : W = DOS(3) AND 255
-20	ON ERROR GOTO 0
+20	ON ERROR GOTO 96
 	' Dates after T0 (6 months before today, TD) up to today show the time
 	T$ = DATE$ : M = VAL(T$)
 	TD = (VAL(MID$(T$, 7)) - 1980) * 512 + M * 32 + VAL(MID$(T$, 4))
@@ -148,3 +148,5 @@
 90	PRINT "Usage: LS ["; S$; "1alRrSt] [filespec]..."
 	END
 95	O = -1 : RESUME 20
+96	IF ERR = 77 THEN PRINT "Invalid drive" : END
+	ERROR ERR

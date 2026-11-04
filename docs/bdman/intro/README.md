@@ -56,7 +56,7 @@ Other special key sequences that can be typed at any time include:
 - **Shift-Tab** switches to the next [session](#sessions)
 - **Ctrl-Alt-Del** terminates the program running in the current session (it does *not* restart the machine; use [RESTART SYSTEM](../cmd/system/#restart) for that, or RESTART with a session number to stop another session's program)
 
-You can also type [HELP KEYS](../cmd/external/#help) to display a brief summary of special keys.
+You can also type [HELP KEYS](../cmd/external/help/) to display a brief summary of special keys.
 
 A command line can contain more than one command, separated by colons (eg, `CLS:DIR`).  BASIC-DOS commands and BASIC statements can be freely mixed, so the following is a valid command line:
 
@@ -94,8 +94,8 @@ For example, if a disk contains both DONKEY.COM and DONKEY.BAS, typing `DONKEY` 
 
 If the program isn't in the current directory, and its name doesn't include a drive or directory, BASIC-DOS searches the directories listed in [PATH$](../cmd/basic/func/#path), in order.  Every bootable BASIC-DOS disk has the same layout:
 
-- The root directory contains BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, and AUTOEXEC.BAT (if any); BASDEV.COM and BASDOS.COM are read-only hidden system files (so only `DIR /A` lists them), and COMMAND.COM is a read-only system file (see [ATTRIB](../cmd/external/#attrib))
-- **EXT** contains the external BASIC-DOS utilities (eg, [FIND, MORE, and SORT](../cmd/external/#filters)), DEBUG.COM, and [HELP](../cmd/external/#help) (HELP.COM and HELP.TXT)
+- The root directory contains BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, and AUTOEXEC.BAT (if any); BASDEV.COM and BASDOS.COM are read-only hidden system files (so only `DIR /A` lists them), and COMMAND.COM is a read-only system file (see [ATTRIB](../cmd/external/attrib/))
+- **EXT** contains the external BASIC-DOS utilities (eg, [FIND, MORE, and SORT](../cmd/external/#filters), [DEBUG.COM](../cmd/external/debug/), and [HELP](../cmd/external/help/); see [Files Provided with BASIC-DOS](../cmd/external/#files-provided-with-basic-dos) for the complete list)
 - **DEMOS** contains demo programs (eg, HELLO.BAT, FIBO.BAT, PRIMES.BAS, and DIR.BAS, a DIR written in BASIC, using [DIR$](../cmd/basic/func/#dir))
 - **SAMPLES** contains the PC DOS BASIC samples (eg, DONKEY.BAS)
 
@@ -144,6 +144,6 @@ The number of sessions and the size of their consoles are defined in CONFIG.SYS 
 
 ### Getting Help
 
-The [HELP](../cmd/external/#help) command lists all commands, and `HELP` followed by the name of a command or function (eg, `HELP MID$`) displays a brief description of it.
+The [HELP](../cmd/external/help/) command lists all commands, and `HELP` followed by the name of a command or function (eg, `HELP MID$`) displays a brief description of it.
 
 {% include footer.html prev="Contents:../" next="BASIC-DOS Commands:../cmd/" %}

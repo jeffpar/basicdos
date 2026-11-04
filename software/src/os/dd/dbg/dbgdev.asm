@@ -40,6 +40,11 @@
 ; current instruction, and then accepts commands (? lists them) until G, GT,
 ; P, or T.
 ;
+; In a driver, VT can also trap a function of a software interrupt (eg, VT 1302
+; for INT 13h reads, or VT 213D for DOS opens), which displays a report of each
+; call and passes it on, instead of stopping the machine (see dbg_int13 and
+; dbg_int21).  What VT can trap, and the V commands, are in dbgvec.asm.
+;
 ; Memory is read and written through CPU$ (see CPU_RWMEM, and cpu_call, which
 ; every CPU$ call goes through), which checks every address, and can store
 ; breakpoints in code segments (but not in the parts of CPU$ that we call,
@@ -72,6 +77,8 @@ CODE	segment para public 'CODE'
 
 	EXTNEAR	<com_main,com_quit,dbgdev_init>
 	EXTNEAR	<chk_over,dis_line>
+	EXTNEAR	<chk_trap,cmd_v,put_vec,rpt_vec>
+	EXTBYTE	<DIV_MSG,OVF_MSG>
 	public	gl1,mon3a,mon4,mon4a,ct1v,cg1	; (patched by dbginit.asm)
 	public	ct2a
 
@@ -106,6 +113,7 @@ R_DS		equ	6
 R_IP		equ	22
 R_CS		equ	24
 R_FL		equ	26
+R_AX		equ	20
 REGS_LEN	equ	28
 ;
 ; Each breakpoint (BP_TAB entry) has an offset, segment, original byte, and
@@ -127,16 +135,16 @@ NUM_BPS		equ	10
 TRACE_BRIEF	equ	01h	; display only the instruction (no R)
 TRACE_OVER	equ	02h	; step over CALL, INT, LOOP, and REP (P)
 ;
-; vec_save holds our INT 00h, 04h, 01h, and 03h handlers, which dbginit.asm's
-; swap_vecs (or for INT 04h, which only the driver hooks, dbgdev_init)
-; exchanges with the vectors, so once they're hooked, it holds the previous
-; handlers (eg, DOS's INT 00h handler, for GT), and the offset of INT 00h's
-; and INT 04h's is the vector (see dbg_int0 and cmd_gt).
+; vec_save holds our INT 00h, 04h, 01h, 03h, 13h, and 21h handlers, which
+; dbginit.asm's swap_vecs (or for INT 04h, 13h, and 21h, which only the driver
+; hooks, dbgdev_init) exchanges with the vectors, so once they're hooked, it
+; holds the previous handlers (eg, DOS's INT 00h handler, for GT), and the
+; offset of INT 00h's and INT 04h's is the vector (see dbg_int0 and cmd_gt).
 ;
 	DEFWORD	vec_save,<dbg_int0,0,dbg_int4,0,dbg_int1,0,dbg_int3,0>
+	dw	dbg_int13,0,dbg_int21,0
 	DEFPTR	old_fault		; previous fault handler (DOS's)
 	DEFPTR	fault_ret		; CPU$'s return address for a fault
-	DEFBYTE	trap_vecs,0,4		; a bit for each vector that VT traps
 	DEFPTR	old_com			; original COM interrupt handler
 	DEFWORD	com_port,0		; UART base port
 	DEFWORD	dos_seg,0		; DOS's segment (see hook_vecs)
@@ -169,7 +177,8 @@ TRACE_OVER	equ	02h	; step over CALL, INT, LOOP, and REP (P)
 					; fault), -2 (declined fault; see
 					; dbg_fatal), -3 (halted; see
 					; FAULT_HALTED), -4 (INT 0 or INT 4),
-					; or 0
+					; 13h or 21h (see dbg_int13), or 0
+	DEFBYTE	trap_21,0		; nonzero if INT 21h has traps
 	DEFBYTE	fault_vec,0		; the vector of a fault (or INT 0 or 4)
 	DEFBYTE	brk_skip,0		; nonzero to resume past a DBGBRK
 	DEFBYTE	notstart,0		; loaded, not yet started (prog mode)
@@ -215,17 +224,13 @@ FLAG_MASK	equ	0ED5h	; OF, DF, IF, SF, ZF, AF, PF, and CF
 	db	"T[R] [count]",9,"trace instruction",13,10
 	db	"U [range]",9,"unassemble",13,10
 	db	"VC n|*",9,9,"clear vector trap(s)",13,10
-	db	"VL",9,9,"list vector traps",13,10
+	db	"VL [n]",9,9,"list vector traps",13,10
 	db	"VT n",9,9,"trap vector",13,10
 	DEFLBL	HELP_END,byte		; (program mode adds lines here)
 	db	"CTRL-A",9,9,"repeat last command",13,10,0
 
 	DEFLBL	ASSERT_MSG,byte
 	db	"Assertion failure",0
-	DEFLBL	DIV_MSG,byte
-	db	"Division error",0
-	DEFLBL	OVF_MSG,byte
-	db	"Overflow error",0
 	DEFLBL	FAULT_MSG,byte
 	db	"CPU fault ",0," (EC=",0,") at ",0	; (consecutive strings)
 	db	"System halted",0
@@ -423,6 +428,21 @@ di3:	mov	al,-4			; (INT 00h or INT 04h)
 	push	ax
 	mov	al,0
 	jmp	short de1
+;
+; INT 21h is far busier than INT 13h, so unless one of its functions is
+; trapped (see set_vec), its calls go straight to the previous handler.
+;
+	DEFLBL	dbg_int21,near
+	cmp	cs:[trap_21],0		; are any of its functions trapped?
+	jne	di21			; yes
+	jmp	dword ptr cs:[vec_save+20]
+di21:	push	ax
+	mov	al,INT_DOSFUNC
+	jmp	short de1
+	DEFLBL	dbg_int13,near
+	push	ax
+	mov	al,INT_FDC
+	jmp	short de1
 	DEFLBL	dbg_fault,near
 	push	bp
 	mov	bp,sp
@@ -501,7 +521,46 @@ de1:	push	bx
 	pop	ss
 	DEFLBL	mon_sp,near		; (com_main changes this stack)
 	mov	sp,offset mon_stack_end
+	mov	ah,[why]
+	cmp	ah,3			; a software interrupt with functions?
+	jg	de2			; yes
 	jmp	monitor
+;
+; Display the report of a function that VT traps, and pass every call on as it
+; was made: nothing has changed the registers on the interrupted stack, so we
+; restore them from there, not regs.  DOS gets the caller's own frame, so we
+; just jump to it.  The ROM can return with a RETF 2, which wouldn't restore
+; the caller's flags (eg, TF) and would leave a caller at another ring with
+; the wrong SP, so we call it and do what CPU$ does for a default gate (see
+; si_ret): copy its result, CF, to the caller's flags, and IRET.
+;
+de2:	mov	al,byte ptr regs[R_AX+1]; AX = function's number (eg, 1302h)
+	call	rpt_vec
+	mov	ss,[frame_ptr].SEG
+	mov	sp,[frame_ptr].OFF
+	sub	sp,REGS_LEN-2		; SS:SP -> the saved SS
+	cmp	[why],INT_FDC		; (POPs don't change this comparison)
+	pop	ax
+	pop	es
+	pop	ds
+	ASSUME	DS:NOTHING
+	pop	di
+	pop	si
+	pop	bp
+	pop	dx
+	pop	cx
+	pop	bx
+	pop	ax
+	je	de3			; it's INT 13h
+	jmp	dword ptr cs:[vec_save+20]
+de3:	pushf
+	call	dword ptr cs:[vec_save+16]
+	push	bp
+	mov	bp,sp
+	rcr	word ptr [bp+6],1	; (the caller's CF out, the result in)
+	rol	word ptr [bp+6],1	; (and the result into CF's position)
+	pop	bp
+	iret
 ENDPROC	dbgdev_enter
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -587,10 +646,18 @@ mon2:	sub	ax,ax
 	mov	[in_head],al
 	mov	[paused],0
 ;
-; A fault (see dbg_fault) gets the same message that CPU$ displays, including
-; "System halted" for a halt.
+; A vector's message starts by naming it (see put_vec), and a fault (see
+; dbg_fault) then gets the same message that CPU$ displays, including "System
+; halted" for a halt.
 ;
 	mov	al,[why]
+	cmp	al,-4			; a fault, INT 00h, or INT 04h?
+	jb	mon2d			; no
+	push	ax
+	mov	ah,[fault_vec]
+	mov	al,0
+	call	put_vec
+	pop	ax
 	cmp	al,-3			; a fault (trapped, declined, or halt)?
 	jb	mon2a			; no
 	mov	si,offset FAULT_MSG
@@ -625,8 +692,6 @@ mon2h:	call	poll_rx
 ; A trapped INT 00h or INT 04h gets the same message that DOS displays.
 ;
 mon2a:	mov	si,offset DIV_MSG
-	cmp	al,-4			; INT 00h or INT 04h?
-	jne	mon2d			; no
 	cmp	[fault_vec],0		; INT 00h (a divide error)?
 	je	mon2c			; yes
 	mov	si,offset OVF_MSG
@@ -1062,160 +1127,6 @@ ENDPROC	cmd_g
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; cmd_v
-;
-; VT traps the listed vectors (00h-1Fh), so that their exceptions stop the
-; machine instead of being passed on (see dbgdev_enter); VC clears the listed
-; traps (or * for all); VL lists the trapped vectors.  A vector is hex, or
-; decimal with a trailing period (eg, 0D or 13.).  Single-steps (01h) and
-; breakpoints (03h) always stop the machine.
-;
-DEFPROC	cmd_v
-	lodsb
-	cmp	al,'L'
-	je	cmd_vl
-	xchg	dx,ax			; DL = 'T' or 'C'
-	cmp	dl,'T'
-	je	cv1
-	cmp	dl,'C'
-	stc
-	jne	cv9
-cv1:	call	skip_space
-	lodsb
-	test	al,al			; end of the list?
-	jz	cv9			; yes (carry clear)
-	cmp	al,'*'			; all of them?
-	jne	cv2			; no
-	cmp	dl,'C'			; (only VC accepts *)
-	stc
-	jne	cv9
-	sub	ax,ax
-	mov	word ptr [trap_vecs],ax
-	mov	word ptr [trap_vecs+2],ax
-	jmp	cv1
-cv2:	dec	si
-	push	dx
-	call	parse_vec		; AX = vector
-	pop	dx
-	jc	cv9
-	call	vec_bit			; BX = byte, AL = bit
-	or	trap_vecs[bx],al
-	cmp	dl,'T'			; VT?
-	je	cv1			; yes
-	xor	trap_vecs[bx],al	; no, so clear it
-	jmp	cv1
-cmd_vl:	call	end_command
-	jc	cv9
-	sub	ax,ax
-cv3:	call	chk_trap		; is this vector trapped?
-	jnc	cv3a			; no
-	push	ax
-	call	hex_byte
-	call	space
-	pop	ax
-cv3a:	inc	ax
-	cmp	al,32
-	jb	cv3
-	call	newline
-	clc
-cv9:	ret
-ENDPROC	cmd_v
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; parse_vec
-;
-; Parses a vector that VT can trap (00h-1Fh): hex, or decimal with a
-; trailing period (eg, 13.), as FAULT.COM numbers them.
-;
-; Inputs:
-;	SI -> command text
-;
-; Outputs:
-;	If carry clear, AX = vector, and SI -> next character
-;	If carry set, it's invalid
-;
-; Modifies:
-;	AX, CX, DX, SI
-;
-DEFPROC	parse_vec
-	call	parse_hex		; AX = value (as hex)
-	jc	vp9
-	cmp	byte ptr [si],'.'	; decimal?
-	jne	vp8			; no
-	inc	si
-	cmp	ax,32h			; more than two digits, or 32 or more?
-	jae	vp7			; yes
-	mov	cl,4
-	mov	ah,al
-	shr	ah,cl			; AH = tens digit
-	and	al,0Fh			; AL = ones digit
-	cmp	al,10			; is it a decimal digit?
-	jae	vp7			; no
-	aad				; AX = AH * 10 + AL
-vp8:	cmp	ax,32			; can it be trapped?
-	cmc				; (carry set if not)
-vp9:	ret
-vp7:	stc
-	ret
-ENDPROC	parse_vec
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; chk_trap
-;
-; Inputs:
-;	AX = vector
-;	DS = our data
-;
-; Outputs:
-;	Carry set if VT traps the vector
-;
-; Modifies:
-;	None
-;
-DEFPROC	chk_trap
-	cmp	ax,32			; can VT trap it?
-	jae	ctr9			; no (carry clear)
-	push	ax
-	push	bx
-	push	cx
-	call	vec_bit
-	test	trap_vecs[bx],al	; (clears carry)
-	jz	ctr8
-	stc
-ctr8:	pop	cx
-	pop	bx
-	pop	ax
-ctr9:	ret
-ENDPROC	chk_trap
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; vec_bit
-;
-; Inputs:
-;	AX = vector (00h-1Fh)
-;
-; Outputs:
-;	BX = offset of its byte in trap_vecs, AL = its bit
-;
-; Modifies:
-;	AL, BX, CL
-;
-DEFPROC	vec_bit
-	mov	bx,ax
-	mov	cl,3
-	shr	bx,cl
-	mov	cl,al
-	and	cl,7
-	mov	al,1
-	shl	al,cl
-	ret
-ENDPROC	vec_bit
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; cmd_p, cmd_t
 ;
 ; T [count] executes count (default 1) instructions, displaying the next
@@ -1228,6 +1139,7 @@ ENDPROC	vec_bit
 DEFPROC	cmd_p
 	mov	bl,TRACE_BRIEF OR TRACE_OVER
 	jmp	short ct0
+ct9:	ret
 	DEFLBL	cmd_t,near
 	mov	bl,TRACE_BRIEF
 ct0:	cmp	byte ptr [si],'R'	; TR or PR?
@@ -1264,11 +1176,20 @@ ct1v:	call	far ptr DDINT_GETVEC	; DX:CX = vector
 	mov	ax,cs
 	cmp	dx,ax			; is it one of ours (eg, INT 3)?
 	jne	ct1c			; no
+	mov	bx,16
+	cmp	cx,offset dbg_int13	; one that always passes it on?
+	je	ct1e			; yes
+	mov	bl,20
+	cmp	cx,offset dbg_int21	; likewise?
+	jne	ct1a			; no
+ct1e:	mov	cx,vec_save[bx]
+	mov	dx,vec_save[bx+2]	; so DX:CX = the previous handler
+	jmp	short ct1c
 ;
 ; Tracing into one of our own handlers would only stop at its first
 ; instruction, so skip the INT instead, as if it had just returned.
 ;
-	inc	di
+ct1a:	inc	di
 ct1b:	inc	di
 	mov	regs[R_IP],di
 	jmp	short ct1d
@@ -1293,7 +1214,6 @@ ct2a:	call	chk_over		; DI -> next instruction
 	jmp	cg1
 ct3:	mov	al,1
 	jmp	step
-ct9:	ret
 ENDPROC	cmd_p
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2109,6 +2029,7 @@ ENDPROC	lin_addr
 DEFPROC	ip_mem
 	mov	di,regs[R_IP]
 	mov	ax,regs[R_CS]
+	DEFLBL	ax_mem,near		; (AX = segment, in the current mode)
 	mov	[mem_seg],ax
 	mov	al,[cpu_mode]
 	jmp	short bm1
@@ -2171,8 +2092,11 @@ ENDPROC	poll_rx
 ;
 ; Transmit a space (or AL), honoring XON/XOFF and RTS/CTS flow control;
 ; while waiting, received bytes are buffered for get_char (eg, so that
-; pasted commands aren't lost during long dumps).  Nothing is transmitted
-; while mute is set, but col is always updated.
+; pasted commands aren't lost during long dumps), except while the machine is
+; running after a report (or if XOFF stopped us), so that the COM interrupt
+; still sees a Ctrl-C, even if reports are all that's being displayed (see
+; dbg_int13).  Nothing is transmitted while mute is set, but col is always
+; updated.
 ;
 ; Inputs:
 ;	AL = byte to send (put_char)
@@ -2191,6 +2115,8 @@ DEFPROC	put_char
 	DEFLBL	put_raw			; (com_main changes this)
 	push	dx
 	push	ax
+pc0:	cmp	[why],3			; running after a report?
+	jg	pc2			; yes
 pc1:	call	poll_rx
 	jz	pc2
 	push	bx
@@ -2212,11 +2138,11 @@ pc2:	cmp	[paused],0
 	in	al,dx
 	sub	dx,REG_MSR
 	test	al,MSR_CTS
-	jz	pc1
+	jz	pc0
 pc3:	add	dx,REG_LSR
 	in	al,dx
 	test	al,LSR_THRE
-	jz	pc1
+	jz	pc0
 	sub	dx,REG_LSR - REG_THR
 	pop	ax
 	out	dx,al

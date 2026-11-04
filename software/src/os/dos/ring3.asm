@@ -21,6 +21,22 @@
 ; (eg, COMMAND.COM), which has no parent, uses the session's own ring 0 stack
 ; (see r3_top).
 ;
+; A ring 3 program can write its own PSP (and its parent's, which is in the
+; same LDT), so the kernel doesn't trust what's there: each program's parent
+; and ring 0 stack are in an R3REC, on the ring 0 stack that it can't reach,
+; which SCB_SP0 points to, and the kernel rewrites the PSP's fields from it
+; when the program ends (see r3_chkterm).  A ring 0 selector that a program
+; supplies in memory, rather than in a segment register (which the processor
+; checks), gets RPL 3 (see r3_exec), so that the kernel can't be made to use
+; it.
+;
+; A fault in the kernel while it's working for a program ends the program,
+; rather than stopping the system (see r3_end), but it can leave a driver's
+; state unknown, so before the kernel touches a ring 3 program's stack (see
+; r3_chkstk), or returns to an address that the program supplied (see
+; r3_chkcode), it makes sure that won't fault, and if it would, the program
+; ends as if it had caused the fault itself (see r3_gp).
+;
 	DOSPSP equ 1
 	DOSFUNC equ 1
 	include	macros.inc
@@ -57,197 +73,35 @@ RV_OWNER	dw	?		; PSP that set (or got) it (0 if free)
 RV_USER		dd	?		; ring 3 handler, or 0 if none yet
 RV_ORIG		dd	?		; previous handler
 RVEC		ends
+;
+; The vectors that ring 3 programs can hook (see r3_hookok), other than INT
+; 22h-24h, which each session has its own of: the exceptions that a program
+; can handle, DOS itself, and these, which are free for programs to use.
+;
+R3_USERINT	equ	60h		; first of the user vectors
+R3_USERMAX	equ	67h		; and the last
+;
+; The bits of a descriptor's access rights that make it a code segment, which
+; are what an IRET requires of a selector that it loads into CS (see ACC_CODE
+; in 286dev.asm), and how far below a ring 3 caller's SP r3_sprintf requires
+; its stack to reach, to run sprintf (and any interrupts) on it.
+;
+R3_CODESEG	equ	18h
+R3_SPMIN	equ	512
 
 DOS	segment word public 'CODE'
 
-	EXTBYTE	<load_user>
+	EXTBYTE	<load_user,scb_locked,err_active,r3_cblock>
 	EXTWORD	<dos_data,err_stack,r3_code,r3_cbsp,r3_stseg,r3_vsel>
 	EXTWORD	<scb_active>
 	EXTBYTE	<cmdline_buf>
 	EXTLONG	<r3_cbsp0>
-	EXTNEAR	<dos_func,dos_leave,dos_abort,sprintf,get_psp>
+	EXTNEAR	<dos_func,dos_abort,dos_fterm,dos_ctrlc,dos_error,sprintf>
+	EXTNEAR	<get_psp>
 
 	.286p
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; r3_start
-;
-; psp_exec comes here, when programs run at ring 3, to start a program that
-; it loaded (or that EXEC1 loaded, for EXEC2): a program loaded for ring 3
-; (see load_user) has a CS with RPL 3 (see mem_alias), and starts at ring 3;
-; any other (eg, one that a debugger loaded with EXEC1) starts as psp_exec
-; would start it.  Either way, the load is done, so load_user is cleared.
-;
-; A ring 3 program's REG_FRAME, which load_program built on the program's own
-; stack, is copied to our stack, just below the parent's REG_FRAME, followed
-; by the program's SS and SP (which an IRET to ring 3 pops), with RPL 3 in
-; its SS too (its DS and ES, the PSP's selector, are the same as at ring 0, eg,
-; for msc_setvec).  The end of the copy is also the program's ring 0 stack
-; (see r3_sp0).
-;
-; Inputs:
-;	DX:AX -> the REG_CHECK marker (if any) and REG_FRAME
-;	SS:BP -> the parent's REG_FRAME
-;
-; Outputs:
-;	None (we leave through dos_leave)
-;
 	ASSUME	CS:DOS, DS:DOS, ES:NOTHING, SS:NOTHING
-DEFPROC	r3_start,DOS
-	mov	ds,cs:[dos_data]
-	mov	[load_user],0
-	mov	es,dx
-	xchg	si,ax			; DX:SI -> REG_FRAME
-	test	byte ptr es:[si+REG_CHECK].REG_CS,3	; a ring 3 program?
-	jnz	rx1			; yes
-	cli
-	mov	ss,dx			; no, so switch to its stack
-	mov	sp,si
-	jmp	dos_leave
-rx1:	lea	di,[bp-(2*REG_CHECK + size REG_FRAME + 4)]
-	mov	sp,di			; (psp_exec won't return)
-	push	ss
-	pop	es			; ES:DI -> the copy
-	call	r3_frame
-	mov	di,sp
-	lea	cx,[di+REG_CHECK+size REG_FRAME+4]
-	mov	dx,ss			; DX:CX = its ring 0 stack
-	mov	ah,CPU_SETSTACK
-	call	far ptr DDINT_CPU
-	jmp	dos_leave
-ENDPROC	r3_start
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; r3_load
-;
-; scb_load calls this, when programs run at ring 3, once it has loaded a
-; session's first program: if it was loaded for ring 3 (as r3_start checks),
-; its REG_FRAME, followed by its SS and SP, is copied to the top of the
-; session's ring 0 stack (see r3_top), where the session will start it.
-;
-; Inputs:
-;	DX:AX -> the REG_CHECK marker (if any) and REG_FRAME
-;	DS:BX -> SCB
-;
-; Outputs:
-;	DX:AX -> the session's initial stack
-;
-; Modifies:
-;	AX, CX, DX, SI, DI, ES
-;
-DEFPROC	r3_load,DOS
-	mov	es,dx
-	xchg	si,ax			; DX:SI -> REG_FRAME
-	test	byte ptr es:[si+REG_CHECK].REG_CS,3	; a ring 3 program?
-	jz	rl9			; no
-	push	dx
-	call	r3_top			; DX:CX = the session's ring 0 stack
-	mov	es,dx
-	mov	di,cx
-	sub	di,REG_CHECK + size REG_FRAME + 4
-	pop	dx
-	push	di
-	call	r3_frame
-	pop	si
-	mov	dx,es			; DX:SI -> the copy
-rl9:	xchg	ax,si
-	ret
-ENDPROC	r3_load
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; r3_frame
-;
-; Copies a program's REG_FRAME (and REG_CHECK marker, if any) from its own
-; stack to a ring 0 stack, followed by the program's SP and SS (with RPL 3),
-; which an IRET to ring 3 pops.
-;
-; Inputs:
-;	DX:SI -> the REG_CHECK marker (if any) and REG_FRAME
-;	ES:DI -> the copy
-;
-; Modifies:
-;	AX, CX, DX, SI, DI
-;
-DEFPROC	r3_frame,DOS
-	push	ds
-	mov	ds,dx			; DS:SI -> REG_FRAME
-	mov	cx,(REG_CHECK + size REG_FRAME) SHR 1
-	cld
-	rep	movsw			; DS:SI -> the program's stack
-	xchg	ax,si
-	stosw				; its SP
-	xchg	ax,dx
-	or	al,3
-	stosw				; and SS (with RPL 3)
-	pop	ds
-	ret
-ENDPROC	r3_frame
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; r3_top
-;
-; Returns the top of a session's ring 0 stack, in the block of them that
-; sysinit allocates (see init_sess).
-;
-; Inputs:
-;	DS:BX -> SCB
-;
-; Outputs:
-;	DX:CX = the top of the session's ring 0 stack
-;
-; Modifies:
-;	AX, CX, DX
-;
-DEFPROC	r3_top,DOS
-	mov	al,[bx].SCB_NUM
-	inc	ax
-	mov	ah,R3_STACK_SIZE SHR 8
-	mul	ah
-	mov	ch,al
-	mov	cl,0			; CX = (SCB_NUM + 1) * R3_STACK_SIZE
-	mov	dx,[r3_stseg]
-	ret
-ENDPROC	r3_top
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; r3_sp0
-;
-; Sets the ring 0 stack (CPU_SETSTACK) for the program whose PSP is in AX,
-; when it becomes current (eg, when a session switch resumes it, or when the
-; program it started ends): everything below its parent's PSP_STACK belongs
-; to it, or for a program without a parent (a session's first program), the
-; session's own ring 0 stack (see r3_top).
-;
-; Inputs:
-;	AX = PSP (or zero)
-;	DS:BX -> SCB
-;
-; Modifies:
-;	AX, CX, DX
-;
-DEFPROC	r3_sp0,DOS
-	test	ax,ax
-	jz	sp9
-	push	es
-	mov	es,ax
-	mov	ax,es:[PSP_PARENT]
-	test	ax,ax			; does it have a parent?
-	jz	sp7			; no
-	mov	es,ax
-	mov	cx,es:[PSP_STACK].OFF
-	mov	dx,es:[PSP_STACK].SEG	; DX:CX = the parent's PSP_STACK
-	jmp	short sp8
-sp7:	call	r3_top			; DX:CX = the session's ring 0 stack
-sp8:	mov	ah,CPU_SETSTACK
-	call	far ptr DDINT_CPU
-	pop	es
-sp9:	ret
-ENDPROC	r3_sp0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -318,6 +172,145 @@ ENDPROC	stage_cmdline
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; r3_chkstk
+;
+; Checks that the kernel can read and write CX bytes of a ring 3 program's
+; memory (eg, its stack, whose SP could be anything, and whose segment may no
+; longer exist), or with r3_chkrd, just read them.
+;
+; Inputs:
+;	DX:DI -> first byte, CX = # of bytes (non-zero)
+;
+; Outputs:
+;	Carry clear if so
+;
+; Modifies:
+;	AX, CX
+;
+DEFPROC	r3_chkstk,DOS
+	ASSUME	DS:NOTHING
+	verw	dx			; is it still a writable segment?
+	jmp	short ck1
+	DEFLBL	r3_chkrd,near
+	verr	dx			; is it still a readable segment?
+ck1:	stc
+	jnz	ck9			; no
+	lsl	ax,dx			; AX = its limit
+	sub	ax,di			; AX = # of bytes after the first
+	jb	ck9			; the first is past the limit
+	dec	cx
+	cmp	ax,cx			; are there too few?
+ck9:	ret
+ENDPROC	r3_chkstk
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; r3_chkcode
+;
+; Checks that an IRET can enter a ring 3 program at AX:CX, an address that the
+; program supplied, or may have freed or shrunk the memory of since.
+;
+; Inputs:
+;	AX:CX = address
+;
+; Outputs:
+;	Carry clear if so
+;
+; Modifies:
+;	DX
+;
+DEFPROC	r3_chkcode,DOS
+	ASSUME	DS:NOTHING
+	mov	dl,al
+	and	dl,3
+	cmp	dl,3			; does it have RPL 3?
+	jne	ce8			; no
+	lar	dx,ax			; DH = its access rights
+	jnz	ce8			; it isn't accessible at ring 3
+	and	dh,R3_CODESEG
+	cmp	dh,R3_CODESEG		; is it a code segment?
+	jne	ce8			; no
+	lsl	dx,ax			; DX = its limit
+	cmp	dx,cx			; is the offset past the limit?
+	ret				; (if so, carry is set)
+ce8:	stc
+	ret
+ENDPROC	r3_chkcode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; r3_gp
+;
+; Ends the current program as if it had caused a general protection fault,
+; when DOS finds that continuing would cause one in the kernel.
+;
+; Inputs:
+;	AX = error code
+;	CX:DX = address of the program's instruction
+;
+; r3_end
+;
+; Ends the current program for a fault, in its own code, or in the kernel while
+; working for it (see dos_fault).  What the kernel was doing is abandoned, so
+; we reset what it could have left changed, go back to the top of the program's
+; ring 0 stack, which is the only part of it that's still needed (and the fault
+; could have happened on another stack, eg, the hard error stack, or an alias
+; of the caller's; see r3_sprintf), and report it.  Then dos_abort ends the
+; program (see r3_uterm).  SCSTAT_FAULT makes any fault before the program is
+; gone fatal, rather than a loop.
+;
+; If the fault happened in a ring 3 ERROR handler, DOS is in the middle of a
+; call that's waiting for its response, so that all stays as it is, and
+; r3_uterm ends the handler instead.
+;
+; Inputs:
+;	AX = vector, SI = error code
+;	CX:DX = address of the instruction
+;
+DEFPROC	r3_gp,DOS
+	ASSUME	DS:NOTHING
+	xchg	si,ax			; SI = error code
+	mov	ax,0Dh			; AX = vector
+	DEFLBL	r3_end,near
+	cli
+	mov	ds,cs:[dos_data]
+	ASSUME	DS:DOS
+	cmp	[r3_cbsp],0		; in a ring 3 ERROR handler?
+	jne	re1			; yes
+	mov	bx,[scb_active]
+	or	[bx].SCB_STATUS,SCSTAT_FAULT
+	mov	[bx].SCB_INDOS,0
+	mov	[scb_locked],-1
+	mov	[err_active],0
+	mov	[load_user],0
+	mov	di,ss			; DI = the stack we were on
+	mov	ss,[r3_stseg]
+	mov	sp,[bx].SCB_SP0
+	sub	sp,10			; (its IP, CS, FLAGS, SP, and SS)
+	push	dx
+	push	cx
+	push	si
+	push	ax
+	sti
+	cmp	di,[r3_stseg]		; was it an alias of the program's?
+	je	re2			; no
+	cmp	di,[dos_data]
+	je	re2			; no
+	mov	bx,di
+	sub	cx,cx			; (one selector)
+	mov	ah,CPU_UNMAP
+	call	far ptr DDINT_CPU	; yes, so free the alias
+	jmp	short re2
+re1:	push	dx
+	push	cx
+	push	si
+	push	ax
+	sti
+re2:	jmp	dos_fterm		; (the vector, error code, CS, and IP)
+ENDPROC	r3_gp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; r3_call5
 ;
 ; dos_call5 comes here for a CALL 5 from ring 3, through the SEL_CALL5 call
@@ -332,11 +325,24 @@ ENDPROC	stage_cmdline
 ;
 DEFPROC	r3_call5,DOSFAR
 	push	ds
-	push	si
-	lds	si,dword ptr [bp+6]	; DS:SI -> the near return address
-	lodsw
-	mov	[bp+6],si		; (popped)
-	pop	si
+	push	cx
+	push	dx
+	push	di
+	mov	dx,[bp+8]
+	mov	di,[bp+6]		; DX:DI -> the near return address
+	mov	cx,2
+	call	r3_chkstk		; can we read it?
+	jc	r58			; no
+	mov	ds,dx
+	mov	cx,[di]			; CX = the near return address
+	mov	ax,[bp+4]
+	call	r3_chkcode		; can we return there?
+	jc	r58			; no
+	add	word ptr [bp+6],2	; (popped)
+	xchg	ax,cx			; AX = the near return address
+	pop	di
+	pop	dx
+	pop	cx
 	pop	ds
 	xchg	ax,[bp]			; IP, and AX = the caller's BP
 	push	ax
@@ -348,6 +354,15 @@ DEFPROC	r3_call5,DOSFAR
 	xchg	ax,bp			; (SP -> the new frame)
 	mov	ah,cl
 	jmp	dos_func
+r58:	pop	di
+	pop	dx
+	pop	cx
+	pop	ds
+	pop	bp
+	pop	dx
+	pop	cx			; CX:DX = the address of its CALL
+	sub	ax,ax
+	jmp	r3_gp
 ENDPROC	r3_call5
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -361,7 +376,10 @@ ENDPROC	r3_call5
 ; header on that stack, since it can't read the driver's memory either.
 ; While it runs, the program's ring 0 stack is lowered to dev_error's
 ; caller's stack, so that the handler's own DOS calls (eg, to prompt for a
-; response) don't disturb the DOS call in progress.
+; response) don't disturb the DOS call in progress.  If the handler can't be
+; entered, or its frame doesn't fit on that stack, the response is ABORT.  A
+; handler that isn't at ring 3 can only be the default, since the session's
+; handler could have come from a PSP_ERROR that a program changed.
 ;
 ; The handler returns with an IRET to r3_stub, which issues INT 22h, and
 ; r3_cbret then returns to dev_error for us, with the response in AL.
@@ -375,7 +393,15 @@ ENDPROC	r3_call5
 ;
 	ASSUME	CS:DOS, DS:DOS, ES:NOTHING, SS:NOTHING
 DEFPROC	r3_error,DOS
-	mov	[r3_cbsp],sp		; SP -> our return address
+	test	byte ptr [bx].SCB_ERROR.SEG,3	; a ring 3 handler?
+	jnz	re3			; yes
+	pushf
+	push	cs
+	call	dos_error		; no, so call the default
+	ret
+re3:	mov	[r3_cbsp],sp		; SP -> our return address
+	mov	cl,[scb_locked]
+	mov	[r3_cblock],cl		; (see r3_cbabort)
 	push	ax
 	push	di			; save the handler's AX and DI
 	mov	di,[err_stack]
@@ -386,9 +412,18 @@ DEFPROC	r3_error,DOS
 	mov	[r3_cbsp0].OFF,cx
 	mov	[r3_cbsp0].SEG,dx
 	mov	es,dx
-	xchg	di,cx
-	les	di,es:[di-4]		; ES:DI -> the program's stack
+	xchg	di,cx			; ES:DI = the program's ring 0 stack
+	mov	ax,[bx].SCB_ERROR.SEG
+	mov	cx,[bx].SCB_ERROR.OFF
+	call	r3_chkcode		; can we enter the handler?
+	jc	re8			; no
+	mov	dx,es:[di-2]
+	mov	di,es:[di-4]		; DX:DI -> the program's stack
 	sub	di,size DDH + 6
+	mov	cx,size DDH + 6
+	call	r3_chkstk		; does the handler's frame fit?
+	jc	re8			; no
+	mov	es,dx			; ES:DI -> the handler's frame
 	push	es			; the handler's SS
 	push	di			; and SP
 	pushf
@@ -414,28 +449,46 @@ DEFPROC	r3_error,DOS
 	mov	ax,[di+12]
 	mov	di,[di+10]		; restore AX and DI
 	iret				; and call the handler
+re8:	mov	al,CRERR_ABORT
+	jmp	r3_cbabort
 ENDPROC	r3_error
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; r3_ctrlc
 ;
-; msc_sigctrlc calls this when a session's CTRLC handler is at ring 3, once
-; it has filled in the REG_WS frames that would RETF to the handler: since a
-; RETF can't go to ring 3 that way, the RETF goes to r3_iret instead, which
-; IRETs to the handler, on the stack of the program that called DOS, where we
-; put the handler's return address (r3_stub, whose INT 22h takes it back to
-; r3_cbret) and the DOS call's.
+; msc_sigctrlc calls this when a session's CTRLC handler is at ring 3, once it
+; has filled in the REG_WS frames that would RETF to the handler: since a RETF
+; can't go to ring 3 that way, the RETF goes to r3_iret instead, which IRETs to
+; the handler, on the stack of the program that called DOS, where we put the
+; handler's return address (r3_stub, whose INT 22h takes it back to r3_cbret)
+; and the DOS call's.  If it isn't a ring 3 caller's DOS call (whose SS and SP
+; we need), or the handler can't be entered (which includes any handler not at
+; ring 3, which could have come from a PSP_CTRLC that a program changed), or
+; those don't fit on that stack, it gets the default handler instead.
 ;
 ; Inputs:
 ;	SS:BP -> REG_FRAME (REG_WS.JMP_CS:JMP_IP = the CTRLC handler)
+;	DS:BX -> SCB
 ;
 ; Modifies:
-;	AX, CX, SI, DI, ES
+;	AX, CX, DX, SI, DI, ES
 ;
 DEFPROC	r3_ctrlc,DOS
-	les	di,dword ptr [bp + size REG_FRAME]
-	sub	di,12
+	and	[bx].SCB_STATUS,NOT SCSTAT_FAULT
+	test	byte ptr [bp].REG_CS,3	; a ring 3 caller?
+	jz	rt8			; no
+	mov	ax,[bp].REG_WS.JMP_CS
+	mov	cx,[bp].REG_WS.JMP_IP
+	call	r3_chkcode		; can we enter the handler?
+	jc	rt8			; no
+	mov	dx,[bp + size REG_FRAME + 2]
+	mov	di,[bp + size REG_FRAME]
+	sub	di,12			; DX:DI -> the caller's stack
+	mov	cx,12
+	call	r3_chkstk		; do the addresses fit?
+	jc	rt8			; no
+	mov	es,dx
 	mov	[bp + size REG_FRAME],di; ES:DI -> the caller's stack
 	mov	ax,offset r3_stub
 	stosw
@@ -451,6 +504,9 @@ DEFPROC	r3_ctrlc,DOS
 	mov	ax,[bp].REG_WS.JMP_CS
 	mov	[bp].REG_CS,ax		; IRET to the handler
 	mov	[bp].REG_WS.JMP_IP,offset r3_iret
+	mov	[bp].REG_WS.JMP_CS,cs
+	ret
+rt8:	mov	[bp].REG_WS.JMP_IP,offset dos_ctrlc
 	mov	[bp].REG_WS.JMP_CS,cs
 	ret
 ENDPROC	r3_ctrlc
@@ -477,8 +533,11 @@ ENDPROC	r3_iret
 ; response in AL.  Otherwise, it's the session's CTRLC handler (see r3_ctrlc),
 ; and with carry set, the program ends; otherwise, the DOS call restarts, with
 ; the handler's registers, and its own IP, CS, and FLAGS, from the caller's
-; stack, which the caller could have changed, so the CS must have RPL 3 (and
-; the FLAGS IOPL 0, and interrupts on).
+; stack (see r3_popret).
+;
+; INT 22h is a gate that any ring 3 code can use, so if it wasn't issued by
+; r3_stub, or a stub for this session's RVEC, the program ends, as if the gate
+; were privileged (with the same error code as a fault on that gate).
 ;
 ; msc_sigctrlc comes to r3_cbabort when a CTRLC ends the ERROR handler, with
 ; AL = CRERR_ABORT.
@@ -493,44 +552,39 @@ DEFPROC	r3_cbret,DOS
 ; interrupt had gone straight to it.
 ;
 	sub	sp,4			; (room for the handler's address)
-	push	bp
-	mov	bp,sp			; BP+6 -> IP, CS, FLAGS, SP, SS
-	push	ax
-	push	si
+	pusha
+	mov	bp,sp			; BP+20 -> IP, CS, FLAGS, SP, SS
 	mov	ax,cs:[r3_vsel]
-	cmp	[bp+8],ax		; did one of our stubs issue it?
+	cmp	[bp+22],ax		; did one of our stubs issue it?
 	jne	rc0			; no
-	push	cx
-	mov	cx,[bp+6]
+	mov	cx,[bp+20]
 	dec	cx
 	dec	cx			; CX = the stub's offset
 	call	r3_vecof		; SI -> its RVEC
-	pop	cx
-	jc	rc0			; (not a stub)
-	mov	ax,cs:[si].RV_ORIG.OFF
-	mov	[bp+2],ax
+	jc	rc7			; (not a stub)
+	mov	bx,cs:[scb_active]
+	mov	al,cs:[bx].SCB_NUM
+	cmp	cs:[si].RV_SESS,al	; is it this session's?
+	jne	rc7			; no
+	cmp	cs:[si].RV_OWNER,0	; is it in use?
+	je	rc7			; no
 	mov	ax,cs:[si].RV_ORIG.SEG
-	mov	[bp+4],ax		; [BP+2] -> the handler
-	push	ds
-	lds	si,dword ptr [bp+12]	; DS:SI -> the stub's caller's stack
-	mov	ax,[si]
-	mov	[bp+6],ax		; IP
-	mov	ax,[si+2]
-	mov	[bp+8],ax		; CS
-	mov	ax,[si+4]
-	mov	[bp+10],ax		; and FLAGS
-	add	word ptr [bp+12],6	; (popped)
-	pop	ds
-	pop	si
-	pop	ax
-	pop	bp
+	test	ax,ax			; is there a handler to enter?
+	jz	rc7			; no
+	mov	[bp+18],ax
+	mov	ax,cs:[si].RV_ORIG.OFF
+	mov	[bp+16],ax		; [BP+16] -> the handler
+	call	r3_popret		; pop the interrupt's IP, CS, and FLAGS
+	jc	rc7
+	popa
 	db	OP_RETF			; enter the handler
-rc0:	pop	si
-	pop	ax
-	pop	bp
-	add	sp,4
-	cmp	cs:[r3_cbsp],0		; is the ERROR handler running?
+rc7:	mov	dx,[bp+20]
+	mov	cx,[bp+22]		; CX:DX = the address after its INT
+	mov	ax,(INT_DOSEXIT SHL 3) OR 2
+	jmp	r3_gp
+rc0:	cmp	cs:[r3_cbsp],0		; is the ERROR handler running?
 	je	rc5			; no
+	popa
 	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	DEFLBL	r3_cbabort,near
@@ -540,6 +594,8 @@ rc0:	pop	si
 	mov	ah,CPU_SETSTACK
 	call	far ptr DDINT_CPU	; restore the program's ring 0 stack
 	pop	ax
+	mov	cl,[r3_cblock]
+	mov	[scb_locked],cl		; (the handler could have changed it)
 	sub	cx,cx
 	xchg	cx,[r3_cbsp]
 	cli
@@ -548,33 +604,66 @@ rc0:	pop	si
 	sti
 	ret
 	ASSUME	DS:NOTHING
-rc5:	push	bp
-	mov	bp,sp
-	test	byte ptr [bp+6],FL_CARRY; end the program?
+rc5:	mov	ax,cs:[r3_code]
+	cmp	[bp+22],ax		; through the handlers' selector?
+	jne	rc7			; no
+	cmp	word ptr [bp+20],offset r3_stub + 2
+	jne	rc7			; it isn't r3_stub's INT
+	test	byte ptr [bp+24],FL_CARRY; end the program?
 	jz	rc6			; no
 	mov	ah,EXTYPE_CTRLC
 	jmp	dos_abort
-rc6:	push	ds
-	push	si
-	push	ax
-	lds	si,dword ptr [bp+8]	; DS:SI -> the DOS call's IP, CS, FLAGS
-	cld
-	lodsw
-	mov	[bp+2],ax
-	lodsw
-	or	al,3			; (ring 3 only)
-	mov	[bp+4],ax
-	lodsw
-	and	ah,(FL_OVFL+FL_DOWN+FL_INTS+FL_TRAP) SHR 8
-	or	ah,FL_INTS SHR 8	; (no IOPL or NT, and interrupts on)
-	mov	[bp+6],ax
-	mov	[bp+8],si		; (popped)
-	pop	ax
-	pop	si
-	pop	ds
-	pop	bp
+rc6:	call	r3_popret		; pop the DOS call's IP, CS, and FLAGS
+	jc	rc7
+	popa
+	add	sp,4
 	jmp	dos_func
 ENDPROC	r3_cbret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; r3_popret
+;
+; Pops an IP, CS, and FLAGS from a ring 3 caller's stack, over the ones at
+; BP+20, for r3_cbret: the caller could have put anything there, so the kernel
+; mustn't fault reading them, or returning to them, and the CS must have RPL 3
+; (and the FLAGS IOPL 0, and interrupts on).
+;
+; Inputs:
+;	SS:BP -> PUSHA frame, room for a far address, IP, CS, FLAGS, SP, and SS
+;
+; Outputs:
+;	Carry clear if successful
+;
+; Modifies:
+;	AX, CX, DX, DI
+;
+DEFPROC	r3_popret,DOS
+	mov	dx,[bp+28]
+	mov	di,[bp+26]		; DX:DI -> the caller's stack
+	mov	cx,6
+	call	r3_chkstk		; can we read them?
+	jc	rp9			; no
+	push	ds
+	mov	ds,dx
+	mov	cx,[di]			; CX = IP
+	mov	ax,[di+2]
+	or	al,3			; AX = CS (ring 3 only)
+	mov	dx,[di+4]		; DX = FLAGS
+	pop	ds
+	push	dx
+	call	r3_chkcode		; can we return there?
+	pop	dx
+	jc	rp9			; no
+	mov	[bp+20],cx
+	mov	[bp+22],ax
+	and	dh,(FL_OVFL+FL_DOWN+FL_INTS+FL_TRAP) SHR 8
+	or	dh,FL_INTS SHR 8	; (no IOPL or NT, and interrupts on)
+	mov	[bp+24],dx
+	add	word ptr [bp+26],6	; (popped)
+	clc
+rp9:	ret
+ENDPROC	r3_popret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -588,8 +677,10 @@ ENDPROC	r3_cbret
 ; (as it runs in real mode), through a DPL 0 alias of the caller's SS (since
 ; SS must be DPL 0 at ring 0), with a copy of the REG_FRAME just below the
 ; parameters, and BP pointing at the copy.  If there's no descriptor for the
-; alias, we copy the REG_FRAME and up to R3_PARAMS words of parameters (as
-; many as the caller's stack segment's limit allows) below our stack instead.
+; alias, or the caller's stack doesn't have R3_SPMIN bytes below its SP (a
+; stack fault here would stop the system), we copy the REG_FRAME and up to
+; R3_PARAMS words of parameters (as many as the caller's stack segment's limit
+; allows) below our stack instead.
 ;
 ; Inputs and outputs:
 ;	The same as sprintf's
@@ -610,9 +701,19 @@ rs1:	push	bp
 	push	ax			; save sprintf's inputs
 	push	bx
 	mov	bx,[bp + size REG_FRAME + 2]	; BX = the caller's SS
+	mov	di,[bp + size REG_FRAME]
+	dec	di			; DI = the last byte below its SP
+	lsl	ax,bx			; AX = its limit
+	jnz	rs1a			; (it's not a valid segment)
+	cmp	di,ax			; is SP within the segment?
+	ja	rs1a			; no
+	cmp	di,R3_SPMIN		; is there room below it?
+	jb	rs1a			; no
 	mov	ax,CPU_ALIAS SHL 8	; (AL = 0: a DPL 0 data selector)
 	call	far ptr DDINT_CPU	; AX = an alias of the caller's SS
-	pop	bx
+	jnc	rs1b
+rs1a:	stc
+rs1b:	pop	bx
 	mov	dx,sp
 	mov	cx,ss			; CX:DX -> sprintf's inputs
 	jc	rs2			; no alias (copy the parameters)
@@ -693,7 +794,10 @@ ENDPROC	r3_sprintf
 ; the RVEC's session, we push the caller's FLAGS, CS, and IP on its own stack,
 ; as its INT would have, and IRET to the ring 3 handler (RV_USER), with the
 ; caller's flags (but TF); otherwise, we enter the previous handler (RV_ORIG)
-; with the interrupt's frame, as if the gate still went to it.
+; with the interrupt's frame, as if the gate still went to it, as we also do
+; if the program can't take the interrupt (the handler can't be entered, or
+; the frame doesn't fit on its stack, where it will fault at ring 3 instead).
+; If the vector had no previous handler, the interrupt is the caller's fault.
 ;
 ; Inputs:
 ;	SS:SP -> RVEC+3, then the interrupt's IP, CS, and FLAGS (and SP and SS,
@@ -718,10 +822,21 @@ DEFPROC	r3_reflect,DOS
 	pop	bx
 	cmp	ah,[si].RV_SESS		; the session whose handler it is?
 	jne	rr8			; no
-	push	es
+	push	cx
+	push	dx
 	push	di
-	les	di,dword ptr [bp+10]	; ES:DI -> the caller's stack
-	sub	di,6
+	mov	ax,[si].RV_USER.SEG
+	mov	cx,[si].RV_USER.OFF
+	call	r3_chkcode		; can we enter the handler?
+	jc	rr7			; no
+	mov	dx,[bp+12]
+	mov	di,[bp+10]
+	sub	di,6			; DX:DI -> the caller's stack
+	mov	cx,6
+	call	r3_chkstk		; do the INT's 3 words fit?
+	jc	rr7			; no
+	push	es
+	mov	es,dx
 	mov	[bp+10],di		; (its SP, after the INT's 3 words)
 	mov	ax,[bp+4]
 	mov	es:[di],ax		; IP
@@ -735,8 +850,10 @@ DEFPROC	r3_reflect,DOS
 	mov	[bp+4],ax
 	mov	ax,[si].RV_USER.SEG
 	mov	[bp+6],ax		; IRET to the handler
-	pop	di
 	pop	es
+	pop	di
+	pop	dx
+	pop	cx
 	pop	ax
 	pop	si
 	pop	ds
@@ -744,7 +861,12 @@ DEFPROC	r3_reflect,DOS
 	add	sp,2			; (RV_CALL's return address)
 	iret
 	ASSUME	DS:NOTHING
+rr7:	pop	di
+	pop	dx
+	pop	cx
 rr8:	mov	ax,cs:[si].RV_ORIG.SEG
+	test	ax,ax			; is there a previous handler?
+	jz	rr9			; no
 	mov	si,cs:[si].RV_ORIG.OFF
 	xchg	si,[bp]			; [BP] -> the previous handler
 	mov	[bp+2],ax
@@ -753,6 +875,9 @@ rr8:	mov	ax,cs:[si].RV_ORIG.SEG
 	pop	si
 	pop	ds
 	db	OP_RETF			; enter it, with the interrupt's frame
+rr9:	mov	dx,[bp+4]
+	mov	cx,[bp+6]		; CX:DX = the address after its INT
+	jmp	r3_gp			; (AX = 0, the error code)
 ENDPROC	r3_reflect
 ;
 ; The RVECs (see RVEC), whose RV_CALL is code, and their stubs
@@ -776,7 +901,8 @@ ENDPROC	r3_reflect
 ;
 ; msc_getvec comes here, when a ring 3 program gets a vector (see RVEC): if
 ; it's one of its session's own handlers, we return it; otherwise, we return
-; an RVEC's stub, which chains to it.
+; an RVEC's stub, which chains to it.  A vector that it can't hook (see
+; r3_hookok), or with no free RVEC, is 0:0, so it can't chain to the handler.
 ;
 ; Inputs:
 ;	AL = vector #
@@ -791,6 +917,8 @@ ENDPROC	r3_reflect
 	ASSUME	DS:DOS
 DEFPROC	r3_getvec,DOS
 	push	bx
+	call	r3_hookok		; can it hook this vector?
+	jc	rg8			; no
 	call	far ptr DDINT_GETVEC	; DX:CX = vector
 	test	dx,dx			; none (0:0)?
 	jz	rg9			; yes, so that's what it gets
@@ -807,11 +935,14 @@ DEFPROC	r3_getvec,DOS
 	mov	dx,[si].RV_USER.SEG
 	jmp	short rg9
 rg1:	cmp	[r3_vsel],0		; can we give it a stub?
-	je	rg9			; no (so the vector as it is)
+	je	rg8			; no
 	call	r3_newvec		; SI -> a new RVEC for DX:CX
-	jc	rg9			; none free (ditto)
+	jc	rg8			; none free
 	call	r3_stubof		; CX = its stub's offset
 	mov	dx,[r3_vsel]		; DX:CX -> the stub
+	jmp	short rg9
+rg8:	sub	cx,cx
+	sub	dx,dx
 rg9:	pop	bx
 	ret
 ENDPROC	r3_getvec
@@ -821,34 +952,55 @@ ENDPROC	r3_getvec
 ; r3_setvec
 ;
 ; msc_setvec comes here, when a ring 3 program sets a vector (see RVEC): to
-; one of our stubs, we restore the handler that the stub chains to; to a ring
-; 3 handler, we put it in an RVEC (the one that r3_getvec gave the program
-; for this vector, if any) and make that RVEC the gate; anything else goes in
-; the gate as it is (as it does if there's no free RVEC).
+; one of our stubs (for this vector, and this session), we restore the handler
+; that the stub chains to; to 0:0, what r3_getvec returned when there was no
+; handler, we remove its handler, if any; and to anything else, we put it in an
+; RVEC (the one that r3_getvec gave the program for this vector, if any), with
+; RPL 3, and make that RVEC the gate, so that a gate never holds a program's
+; address.  A vector that it can't hook (see r3_hookok), or a stub that isn't
+; for this vector, is ERR_ACCDENIED, and no free RVEC is ERR_NOMEMORY.
 ;
 ; Inputs:
 ;	AL = vector #
 ;	DX:CX = new vector
 ;	DS = DOS
 ;
+; Outputs:
+;	Carry clear if successful; carry set if not, REG_AX = error code
+;
 ; Modifies:
 ;	AX, CX, DX, SI
 ;
 DEFPROC	r3_setvec,DOS
-	push	bx
+	call	r3_hookok		; can it hook this vector?
+	jnc	sv1			; yes
+sv8:	mov	ax,ERR_ACCDENIED
+sv9:	mov	[bp].REG_AX,ax
+	stc
+	ret
+sv7:	pop	bx
+	jmp	sv8
+sv1:	push	bx
+	call	r3_who			; BX = PSP, AH = session #
 	cmp	dx,[r3_vsel]		; one of our stubs?
 	jne	sv2			; no
 	call	r3_vecof		; SI -> its RVEC
-	jc	sv8			; (not a stub)
+	jc	sv7			; (not a stub)
+	cmp	[si].RV_OWNER,0		; is it in use?
+	je	sv7			; no
+	cmp	[si].RV_SESS,ah		; by this session?
+	jne	sv7			; no
+	cmp	[si].RV_VEC,al		; for this vector?
+	jne	sv7			; no
 	mov	cx,[si].RV_ORIG.OFF
 	mov	dx,[si].RV_ORIG.SEG
 	call	far ptr DDINT_SETVEC	; restore the handler it chains to
-	pop	bx
-	jmp	short r3_freevec	; and free the RVEC
-sv2:	test	dl,3			; a ring 3 handler?
-	jz	sv8			; no
-	call	r3_who			; BX = PSP, AH = session #
-	mov	si,offset r3_vecs
+	call	r3_freevec		; and free the RVEC
+	jmp	short sv6a
+sv2:	mov	si,offset r3_vecs
+	test	dx,dx			; removing its handler?
+	jz	sv4a			; yes
+	or	dl,3			; (always a ring 3 handler)
 	push	cx
 	mov	cx,R3_RVECS
 sv3:	cmp	[si].RV_OWNER,bx	; one of this program's
@@ -869,16 +1021,74 @@ sv4:	add	si,size RVEC
 	pop	cx
 	pop	dx
 	jnc	sv6
-	jmp	short sv8		; (none free)
+	pop	bx
+	mov	ax,ERR_NOMEMORY		; (none free)
+	jmp	sv9
 sv5:	pop	cx
 sv6:	mov	[si].RV_USER.OFF,cx
 	mov	[si].RV_USER.SEG,dx
 	mov	cx,si
 	mov	dx,cs			; DX:CX -> its RV_CALL
-sv8:	call	far ptr DDINT_SETVEC
-	pop	bx
+	call	far ptr DDINT_SETVEC
+sv6a:	pop	bx
+	clc
 	ret
+;
+; Remove the handlers it has for this vector, if any.
+;
+sv4a:	mov	cx,R3_RVECS
+sv4b:	cmp	[si].RV_OWNER,bx	; one of this program's
+	jne	sv4c
+	cmp	[si].RV_SESS,ah
+	jne	sv4c
+	cmp	[si].RV_VEC,al		; for this vector?
+	jne	sv4c
+	call	r3_freevec		; yes
+sv4c:	add	si,size RVEC
+	loop	sv4b
+	jmp	sv6a
 ENDPROC	r3_setvec
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; r3_hookok
+;
+; Returns whether a ring 3 program can hook a vector.  The list is short,
+; because a hook can't work for anything that ring 0 code issues (eg, the
+; BIOS's INT 1Ch; see RVEC), and a hook of an IRQ that didn't chain to the
+; previous handler would stop that interrupt for every session: so it's the
+; exceptions that a program can handle, DOS, and the vectors that are free for
+; programs to use.
+;
+; Inputs:
+;	AL = vector #
+;
+; Outputs:
+;	Carry clear if so
+;
+; Modifies:
+;	None
+;
+DEFPROC	r3_hookok,DOS
+	ASSUME	DS:NOTHING
+	cmp	al,INT_OF		; INT_DV through INT_OF?
+	ja	hk1			; no
+	cmp	al,INT_NMI		; other than NMI?
+	je	hk8			; no
+	clc
+	ret
+hk1:	cmp	al,INT_DOSFUNC		; DOS?
+	je	hk9			; yes (and carry is clear)
+	cmp	al,R3_USERINT		; below the user vectors?
+	jb	hk9			; yes (and carry is set)
+	cmp	al,R3_USERMAX		; above them?
+	jbe	hk7			; no
+hk8:	stc
+	ret
+hk7:	clc
+hk9:	ret
+ENDPROC	r3_hookok
+	ASSUME	DS:DOS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
