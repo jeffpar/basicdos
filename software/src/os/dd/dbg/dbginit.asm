@@ -34,7 +34,7 @@ CODE	segment word public 'CODE'
 	EXTNEAR	<put_char,put_raw,put_string>
 	EXTNEAR	<dc_0f>
 	EXTBYTE	<CMD_LN,CMD_Q,CMD_VEC,HELP_MSG,OPTAB,bp_tab,com_flow,command>
-	EXTBYTE	<brk_skip,mute,notstart,tracing>
+	EXTBYTE	<HELP_END,brk_skip,mute,notstart,tracing>
 	EXTWORD	<start_hook>
 	EXTWORD	<com_port,dos_seg,mem_seg,vec_save>
 	EXTLONG	<old_com,old_fault>
@@ -880,16 +880,17 @@ ENDPROC	com_l
 ;
 ; com_help
 ;
-; Program mode's ? command (in place of cmd_help): HELP_MSG's lines, then our
-; own (com_lines, for L and Q), except at ring 3, the lines for the commands
-; that we don't support there (R3_NOHELP), which are skipped.
+; Program mode's ? command (in place of cmd_help): HELP_MSG's lines, with our
+; own (com_lines, for L and Q) before its last (at HELP_END), except at ring
+; 3, the lines for the commands that we don't support there (R3_NOHELP),
+; which are skipped.
 ;
 DEFPROC	com_help
 	push	ds
 	pop	es
 	cld
 	mov	si,offset HELP_MSG
-ch1:	cmp	byte ptr [si],0		; end of HELP_MSG?
+ch1:	cmp	si,offset HELP_END	; time for our own lines?
 	je	ch5			; yes
 	cmp	[com_r3],0		; at ring 3?
 	je	ch3			; no, so display the line
@@ -908,8 +909,8 @@ ch3:	call	ch_line			; display the line
 	jmp	ch1
 ch5:	mov	si,offset com_lines
 	call	put_string		; our own commands (L and Q)
-	clc
-	ret
+	mov	si,offset HELP_END
+	jmp	put_string		; (which returns carry clear)
 ch_line:lodsb				; display (unless muted) up to a LF
 	call	put_char
 	cmp	al,CHR_LINEFEED

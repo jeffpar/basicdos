@@ -94,7 +94,7 @@ If D or Y are omitted, current values are assumed.
 Returns the current date as a string in the form MM-DD-YYYY.
 
 [e]DEBUG [~H] [*program* [*arguments*]] or DEBUG ~*command*
-Loads *program* (a full filename) without starting it, displays its registers, and accepts debugger commands (type ? to list them, G to run, and Q to quit).  The DB, DW, DM, and DS commands can also be switches, which DEBUG performs before exiting (eg, DEBUG ~DB 40:0 or DEBUG ~DM).
+Loads *program* (a full filename) without starting it, displays its registers, and accepts debugger commands (type ? to list them, CTRL-A to repeat the last one, G to run, and Q to quit).  The DB, DW, DM, and DS commands can also be switches, which DEBUG performs before exiting (eg, DEBUG ~DB 40:0 or DEBUG ~DM).
 DEBUG.COM can also be loaded as a device driver and used to debug the system from a terminal via a serial port.  For example, this CONFIG.SYS line connects DEBUG.COM to a VT100 terminal on COM2:\
 	DEVICE=EXT\DEBUG.COM COM2:9600,N,8,1,VT100
 Adding ~H after the port settings will cause the debugger to halt; use the G command to continue booting.

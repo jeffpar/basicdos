@@ -210,13 +210,15 @@ FLAG_MASK	equ	0ED5h	; OF, DF, IF, SF, ZF, AF, PF, and CF
 	db	"G [addr]",9,"go (to address)",13,10
 	db	"GT",9,9,"go, passing on the trap",13,10
 	db	"LN [addr]",9,"list nearest block",13,10
-	db	"P[R] [count]",9,"step over (R: registers)",13,10
+	db	"P[R] [count]",9,"step over instruction",13,10
 	db	"R [reg | F]",9,"display or edit registers",13,10
-	db	"T[R] [count]",9,"trace (R: registers)",13,10
+	db	"T[R] [count]",9,"trace instruction",13,10
 	db	"U [range]",9,"unassemble",13,10
 	db	"VC n|*",9,9,"clear vector trap(s)",13,10
 	db	"VL",9,9,"list vector traps",13,10
-	db	"VT n",9,9,"trap vector (n. = decimal)",13,10,0
+	db	"VT n",9,9,"trap vector",13,10
+	DEFLBL	HELP_END,byte		; (program mode adds lines here)
+	db	"CTRL-A",9,9,"repeat last command",13,10,0
 
 	DEFLBL	ASSERT_MSG,byte
 	db	"Assertion failure",0
@@ -279,6 +281,7 @@ PM_FLAG_MASK	equ	0FD5h	; OF, DF, IF, TF, SF, ZF, AF, PF, and CF
 	db	"ALCLDLBLAHCHDHBHAXCXDXBXSPBPSIDIESCSSSDS"
 
 CMD_MAX		equ	79
+	DEFBYTE	last_cmd,0,CMD_MAX+1	; the last command (for CTRL-A)
 	DEFBYTE	command,0,CMD_MAX+1
 	DEFWORD	mon_stack,0,128
 	DEFLBL	mon_stack_end
@@ -669,6 +672,17 @@ mon4a:	mov	si,offset command
 	lodsb
 	test	al,al			; empty line?
 	jz	mon4			; yes
+	push	ax
+	push	si
+	mov	si,offset command
+	mov	bx,offset last_cmd
+mon4b:	lodsb				; save it for CTRL-A (see get_line)
+	mov	[bx],al
+	inc	bx
+	test	al,al
+	jnz	mon4b
+	pop	si
+	pop	ax			; AL = the command's first character
 	mov	bx,offset CMD_TABLE
 mon5:	cmp	al,[bx]
 	je	mon6
@@ -2611,7 +2625,8 @@ ENDPROC	show_flags
 ; get_line
 ;
 ; Read and echo a command (in upper case, except inside quotes); Ctrl-C
-; cancels the line.
+; cancels the line, and on an empty line, CTRL-A echoes the last command (see
+; mon4a) and returns it.
 ;
 ; Outputs:
 ;	command contains a null-terminated line
@@ -2641,6 +2656,8 @@ gl1a:	cmp	al,CHR_RETURN
 	je	gl3
 	cmp	al,CHR_CTRLC
 	je	gl4
+	cmp	al,CHR_CTRLA		; the last command?
+	je	gl5			; yes
 	cmp	al,' '			; ignore any other control characters
 	jb	gl1
 	cmp	bx,CMD_MAX
@@ -2670,6 +2687,19 @@ gl3:	test	bx,bx
 	jmp	gl1
 gl4:	sub	bx,bx
 gl9:	mov	command[bx],0
+	jmp	newline
+gl5:	test	bx,bx			; is the line empty?
+	jnz	gl1			; no (so ignore CTRL-A)
+	push	si
+	mov	si,offset last_cmd
+gl6:	lodsb
+	mov	command[bx],al
+	inc	bx
+	test	al,al
+	jz	gl7
+	call	put_char
+	jmp	gl6
+gl7:	pop	si
 	jmp	newline
 ENDPROC	get_line
 

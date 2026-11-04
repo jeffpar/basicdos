@@ -15,6 +15,7 @@
 ;
 	DOSFUNC equ 1
 	include	macros.inc
+	include	devapi.inc
 	include	dosapi.inc
 
 CODE	segment word public 'CODE'
@@ -35,12 +36,15 @@ CODE	segment word public 'CODE'
 	DEFBYTE	opnds,0			; operand types (see OPND_TAB)
 	DEFBYTE	mnemonic,0		; MNEMS index (see chk_over)
 	DEFBYTE	pfx,0			; last LOCK or REP prefix (or 0)
+	DEFBYTE	fmt_str,0		; 1 if a string follows (see chk_fmt)
 	DEFBYTE	seg_ovr,0		; segment override (as in REGNAMES)
 	DEFBYTE	ea_seg,0		; memory operand's segment, likewise
 	DEFWORD	ea_off,0		; and its offset (see ea_start)
 
 	DEFLBL	EA_MSG,byte
 	db	9,"; EA = ",0
+	DEFLBL	FMT_MSG,byte
+	db	9,'; "',0
 ;
 ; Mnemonics, each with bit 7 set in its last character, and an M_ equate
 ; with its index (see put_mnem); bit 7 of an index in OPTAB means "word"
@@ -282,9 +286,10 @@ G7	equ	7Eh
 ;
 ; dis_line
 ;
-; Display the address, bytes, and disassembly of an instruction, followed at
-; CS:IP, if it has a memory operand, by a tab and the operand's address
-; (eg, "; EA = 0070:0123"), in the current mode (see ea_start).
+; Display the address, bytes, and disassembly of an instruction, followed by
+; a tab and the string that follows it, if any (see skip_fmt), or at CS:IP,
+; if it has a memory operand, by a tab and the operand's address (eg, "; EA =
+; 0070:0123"), in the current mode (see ea_start).
 ;
 ; Inputs:
 ;	mem_seg:DI -> instruction
@@ -313,6 +318,7 @@ dl1:	call	fetch
 	call	pad
 	push	di
 	call	decode
+	call	skip_fmt
 	pop	ax			; AX -> instruction
 	push	di			; (DI -> next instruction)
 	cmp	[ea_seg],0		; a memory operand?
@@ -342,9 +348,11 @@ ENDPROC	dis_line
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; next_insn
+; next_insn, next_skip
 ;
-; Find the next instruction, by decoding this one with the output muted.
+; Find the next instruction, by decoding this one with the output muted (and
+; col unchanged); next_skip also skips any string that follows it (see
+; skip_fmt).
 ;
 ; Inputs:
 ;	mem_seg:DI -> instruction
@@ -355,12 +363,22 @@ ENDPROC	dis_line
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI
 ;
+DEFPROC	next_skip
+	stc
+	jmp	short ni1
+ENDPROC	next_skip
+
 DEFPROC	next_insn
-	mov	al,[col]
+	clc
+ni1:	mov	al,[col]
 	push	ax
 	inc	[mute]
+	pushf
 	call	decode
-	dec	[mute]
+	popf				; skipping any string, too?
+	jnc	ni2			; no
+	call	skip_fmt
+ni2:	dec	[mute]
 	pop	ax
 	mov	[col],al
 	ret
@@ -371,10 +389,8 @@ ENDPROC	next_insn
 ; chk_over
 ;
 ; P steps over a CALL, INT, LOOP (or LOOPZ or LOOPNZ), or string instruction
-; with a REP prefix (REPNZ or REPZ), and traces any other instruction.  The
-; INT_DOSUTIL functions DOS_UTL_PRINTF through DOS_UTL_SPRINTF return after
-; the null-terminated string that follows the INT (see CCALL), so the next
-; instruction is there.
+; with a REP prefix (REPNZ or REPZ), and traces any other instruction; the
+; next instruction follows any string after the instruction (see chk_fmt).
 ;
 ; Inputs:
 ;	mem_seg:DI -> instruction (at CS:IP)
@@ -386,26 +402,8 @@ ENDPROC	next_insn
 ;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	chk_over
-	call	next_insn
-	cmp	[opcode],0CDh		; INT n?
-	jne	co1			; no
-	dec	di
-	call	fetch			; AL = n
-	cmp	al,INT_DOSUTIL		; a DOS utility function?
-	jne	co8			; no
-	mov	al,8			; (AX, as in REGNAMES)
-	call	reg_val
-	mov	al,ah
-	sub	al,DOS_UTL_PRINTF
-	cmp	al,DOS_UTL_SPRINTF-DOS_UTL_PRINTF
-	ja	co8			; not one with a string after the INT
-co2:	call	fetch			; skip the string that follows the INT
-	jc	co8			; (the address isn't valid)
-	test	al,al
-	jnz	co2
-co8:	stc
-	ret
-co1:	mov	al,[mnemonic]
+	call	next_skip
+	mov	al,[mnemonic]
 	sub	al,M_MOVS
 	cmp	al,M_LOOP+1-M_MOVS	; a string op, CALL, INT, or LOOP?
 	jae	co9			; no (carry clear)
@@ -441,7 +439,7 @@ DEFPROC	decode
 	sub	ax,ax
 	mov	word ptr [seg_ovr],ax	; (and ea_seg)
 	mov	[ea_off],ax
-	mov	[pfx],al
+	mov	word ptr [pfx],ax	; (and fmt_str)
 dc1:	call	fetch
 	mov	[opcode],al
 	mov	[modrm],al		; (see op_s and op_z)
@@ -590,13 +588,108 @@ dc10:	cmp	[ea_seg],0		; a memory operand?
 	je	dc11			; no
 	call	space
 	jmp	put_seg
-dc11:	ret
+dc11:	cmp	[opcode],0CDh		; INT n?
+	je	chk_fmt			; yes
+	ret
 dc12:	push	ax
 	mov	al,','
 	call	put_char
 	pop	ax
 	jmp	put_opnd
 ENDPROC	decode
+;
+; chk_fmt
+;
+; The INT_DOSUTIL functions DOS_UTL_PRINTF through DOS_UTL_SPRINTF return after
+; the null-terminated string that follows the INT (see CCALL), so after an INT
+; n, decode comes here to set fmt_str if it's one of them: its function is the
+; saved AH if the INT is at CS:IP, or else the MOV AH,imm8 just before it (as
+; DOSUTIL makes), if any.
+;
+; Inputs:
+;	mem_seg:DI -> the byte after INT n
+;
+; Modifies:
+;	AX, BX
+;
+DEFPROC	chk_fmt
+	dec	di
+	call	fetch			; AL = n
+	cmp	al,INT_DOSUTIL		; a DOS utility function?
+	jne	cf9			; no
+	dec	di
+	dec	di			; DI -> the INT
+	call	at_ip			; is it at CS:IP?
+	jne	cf1			; no
+	mov	al,8			; (AX, as in REGNAMES)
+	call	reg_val			; AH = the function
+	jmp	short cf2
+cf1:	dec	di
+	dec	di
+	call	fetch_word		; AX = the two bytes before the INT
+	cmp	al,0B4h			; MOV AH,imm8 (with AH = the function)?
+	jne	cf8			; no
+cf2:	sub	ah,DOS_UTL_PRINTF
+	cmp	ah,DOS_UTL_SPRINTF-DOS_UTL_PRINTF
+	ja	cf8			; not one with a string after the INT
+	inc	[fmt_str]
+cf8:	inc	di
+	inc	di			; DI -> the byte after the INT again
+cf9:	ret
+ENDPROC	chk_fmt
+
+;
+; skip_fmt
+;
+; If a string follows the instruction (see chk_fmt), display a tab, "; ", and
+; the string in quotes, with \r, \n, \t, or \xNN for any other character that
+; isn't printable, and skip it.
+;
+; Inputs:
+;	mem_seg:DI -> the byte after the instruction
+;
+; Outputs:
+;	DI -> the byte after its string, if any
+;
+; Modifies:
+;	AX, SI
+;
+DEFPROC	skip_fmt
+	cmp	[fmt_str],0		; a string?
+	je	sf9			; no
+	mov	si,offset FMT_MSG
+	call	put_string		; tab, "; ", and the opening quote
+sf1:	call	fetch
+	jc	sf8			; (the address isn't valid)
+	test	al,al			; end of the string?
+	jz	sf8			; yes
+	cmp	al,' '			; a control character?
+	jb	sf2			; yes
+	cmp	al,7Fh			; or DEL or above?
+	jb	sf5			; no
+sf2:	mov	ah,al
+	mov	al,'\'
+	call	put_char
+	mov	al,'r'
+	cmp	ah,CHR_RETURN
+	je	sf5
+	mov	al,'n'
+	cmp	ah,CHR_LINEFEED
+	je	sf5
+	mov	al,'t'
+	cmp	ah,CHR_TAB
+	je	sf5
+	mov	al,'x'
+	call	put_char
+	mov	al,ah
+	call	hex_byte
+	jmp	sf1
+sf5:	call	put_char
+	jmp	sf1
+sf8:	mov	al,'"'
+	jmp	put_char		; the closing quote
+sf9:	ret
+ENDPROC	skip_fmt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
