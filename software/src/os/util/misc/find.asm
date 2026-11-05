@@ -34,7 +34,7 @@ CODE    SEGMENT
 DEFPROC	main
 	mov	bp,ds:[PSP_HEAP]	; BP -> FINDVARS
 	call	getArgs
-	mov	si,offset NO_STRING
+	mov	si,offset SYN_ERR
 	cmp	[bp].UV_STR,0		; was a string specified?
 	je	m8			; no
 	CHKSW	'R'			; is it a regular expression?
@@ -191,9 +191,11 @@ ml7:	pop	di
 	ret
 ENDPROC	matchLine
 
+SW_LIST	db	"CINRV"
+SW_LEN	equ	$ - SW_LIST
+
 	include	utilproc.inc
 
-NO_STRING	db	"Missing string",13,10,0
 BAD_RE		db	"Invalid expression",13,10,0
 COLON		db	": ",0
 

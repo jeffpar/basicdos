@@ -78,7 +78,8 @@ CODE	segment para public 'CODE'
 	EXTNEAR	<com_main,com_quit,dbgdev_init>
 	EXTNEAR	<chk_over,dis_line>
 	EXTNEAR	<chk_trap,cmd_v,put_vec,rpt_vec>
-	EXTBYTE	<DIV_MSG,OVF_MSG>
+	EXTBYTE	<DIV_MSG,FAULT_MSG,OVF_MSG>
+	EXTNEAR	<put_fmt>
 	public	gl1,mon3a,mon4,mon4a,ct1v,cg1	; (patched by dbginit.asm)
 	public	ct2a
 
@@ -166,6 +167,8 @@ TRACE_OVER	equ	02h	; step over CALL, INT, LOOP, and REP (P)
 	DEFWORD	sys_regs,0,9
 	DEFWORD	trace_cnt,0		; T or P steps remaining
 	DEFWORD	regs,0,REGS_LEN/2	; saved registers
+	DEFWORD	fault_ec,0		; (after regs, for V_FEC and V_FVEC)
+	DEFBYTE	fault_vec,0		; the vector of a fault (or INT 0 or 4)
 	DEFPTR	frame_ptr		; end of the interrupt frame's FLAGS
 	DEFBYTE	bp_tab,0,BP_SIZE*NUM_BPS
 	DEFLBL	bp_end
@@ -179,11 +182,9 @@ TRACE_OVER	equ	02h	; step over CALL, INT, LOOP, and REP (P)
 					; FAULT_HALTED), -4 (INT 0 or INT 4),
 					; 13h or 21h (see dbg_int13), or 0
 	DEFBYTE	trap_21,0		; nonzero if INT 21h has traps
-	DEFBYTE	fault_vec,0		; the vector of a fault (or INT 0 or 4)
 	DEFBYTE	brk_skip,0		; nonzero to resume past a DBGBRK
 	DEFBYTE	notstart,0		; loaded, not yet started (prog mode)
 	DEFWORD	start_hook,0		; -> com_exec2 (see com_main)
-	DEFWORD	fault_ec,0		; and its error code
 	DEFBYTE	tracing,0		; 1 for T or P, 2 for G past a BP
 	DEFBYTE	trace_mode,0		; TRACE_* flags (0 after other stops)
 	DEFBYTE	col,0			; output column (see pad)
@@ -231,9 +232,6 @@ FLAG_MASK	equ	0ED5h	; OF, DF, IF, SF, ZF, AF, PF, and CF
 
 	DEFLBL	ASSERT_MSG,byte
 	db	"Assertion failure",0
-	DEFLBL	FAULT_MSG,byte
-	db	"CPU fault ",0," (EC=",0,") at ",0	; (consecutive strings)
-	db	"System halted",0
 ;
 ; The names of the registers that show_regs displays in protected mode after
 ; SS, in order (A20 is always enabled then), and the flags' letters there.
@@ -661,19 +659,7 @@ mon2:	sub	ax,ax
 	cmp	al,-3			; a fault (trapped, declined, or halt)?
 	jb	mon2a			; no
 	mov	si,offset FAULT_MSG
-	call	put_string
-	mov	al,[fault_vec]
-	call	hex_byte
-	call	put_string		; (SI -> the next string)
-	mov	ax,[fault_ec]
-	call	hex_word
-	call	put_string
-	mov	ax,regs[R_CS]
-	call	hex_word
-	mov	al,':'
-	call	put_char
-	mov	ax,regs[R_IP]
-	call	hex_word
+	call	put_fmt			; (SI -> the next string)
 	call	newline
 	cmp	[why],-3		; a halt?
 	jne	mon3			; no

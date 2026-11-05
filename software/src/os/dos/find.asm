@@ -70,7 +70,6 @@ DEFPROC	dsk_ffirst,DOS
 ;
 	ASSERT	<2 + size FCB_NAME + 2 + size FFB_RESERVED>,EQ,<FFB_DIRNUM>
 	xchg	ax,cx
-	ASSERT	Z,<test ah,ah>		; assert DIRENT # < 256 (for now)
 	stosw				; FFB_DIRNUM
 	mov	al,[si].DIR_ATTR
 	stosb				; FFB_ATTR
@@ -128,7 +127,6 @@ DEFPROC	dsk_fnext,DOS
 	inc	ax			; AX = next DIRENT #
 	call	get_dirent
 	jc	fn8
-	ASSERT	Z,<test ah,ah>		; assert DIRENT # < 256 (for now)
 	xchg	cx,ax			; CX = DIRENT #
 	mov	ax,dx			; AL = drive #, AH = search attributes
 	jmp	dsk_ffill

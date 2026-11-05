@@ -21,7 +21,7 @@ As with DB, lines begin at multiples of 16, so the first and last lines can be p
 	HEXDUMP NAMES.TXT /S 5 /N 3
 	0000:0000                54 77 6F-                              Two
 
-If *file* doesn't exist, HEXDUMP displays `Unable to find` and its name, or if its drive doesn't exist, `Invalid drive`.  A missing file name, a second file name, an unknown switch, or a negative *offset* displays HEXDUMP's usage, and a negative *length* is the same as no `/N`.
+If *file* doesn't exist, HEXDUMP displays `Unable to find` and its name, or if its drive doesn't exist, `Invalid drive`.  A missing file name, a second file name, an unknown switch, or a negative *offset* displays `Syntax error`, and a negative *length* is the same as no `/N`.
 
 Source: [HEXDUMP.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/HEXDUMP.BAS)
 

@@ -7,7 +7,7 @@
 # scratch folders and files, all of which are recreated as needed.  It keeps only:
 #
 #   objs, mkmode        the saved outputs of the other build mode, and the last build mode (see tools/release.sh)
-#   MSDOS320-C400, PCDOS100, COMPAQ331-WOLF3D
+#   PCDOS100, COMPAQ331-WOLF3D
 #                       the disk contents that gulpfile.js extracts (see diskFiles())
 #   hdsrc               the default hard disk folder of tools/tests/testhd.sh
 #
@@ -16,7 +16,7 @@
 # or a build or test script is running.
 #
 cd "$(dirname "$0")/disks" || exit 1
-keep=" objs mkmode MSDOS320-C400 PCDOS100 COMPAQ331-WOLF3D hdsrc "
+keep=" objs mkmode PCDOS100 COMPAQ331-WOLF3D hdsrc "
 if [ "$1" != "-n" ] && pgrep -f 'tools/pc/pc\.js|mkdos\.sh|mk\.sh|quick\.sh|bench\.sh|testhd\.sh|chkdsk\.sh' > /dev/null; then
     echo "error: pc.js or a build or test script is running" >&2
     exit 1

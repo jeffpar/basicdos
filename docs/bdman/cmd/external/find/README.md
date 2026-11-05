@@ -8,7 +8,7 @@ permalink: /docs/bdman/cmd/external/find/
 
 > FIND [/C] [/I] [/N] [/R] [/V] *string* [*file*]...
 
-A [filter](../#filters) that displays the lines of input (or of each *file*, or with wildcards (`?` and `*`), every matching file) that contain *string* (eg, `DIR | FIND BAS`).  FIND uses the first 8 arguments that aren't switches, including *string* if it isn't quoted.
+A [filter](../#filters) that displays the lines of input (or of each *file*, or with wildcards (`?` and `*`), every matching file) that contain *string* (eg, `DIR | FIND BAS`).  FIND accepts up to 8 arguments that aren't switches, including *string* if it isn't quoted (more displays `Syntax error`); each can match any number of files.
 
 *string* needs quotes only if it contains spaces or starts with the switch character (eg, `FIND "BASIC-DOS 2" *.TXT`); without quotes, it's the first argument that isn't a switch.  It can also be a string variable, whose value is used, even if it contains spaces (eg, `S$ = "BASIC-DOS 2"` and then `FIND S$ *.TXT`; see [Command Arguments](../../../lang/#command-arguments)).
 
@@ -30,7 +30,7 @@ When files are specified, the lines from each file follow a blank line and a lin
 
 	---------- NAMES.TXT: 2
 
-ERRORLEVEL is set to 0 if any lines were displayed (or counted), 1 if none, and 2 if *string* is missing (`Missing string`), the regular expression is invalid (`Invalid expression`), or a file couldn't be opened (eg, `Unable to find X.TXT`).
+ERRORLEVEL is set to 0 if any lines were displayed (or counted), 1 if none, and 2 if a switch isn't valid or *string* is missing (`Syntax error`), the regular expression is invalid (`Invalid expression`), or a file couldn't be opened (eg, `Unable to find X.TXT`).
 
 Source: [find.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/find.asm)
 

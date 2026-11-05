@@ -1,0 +1,198 @@
+                                                October 16, 1985
+
+                Microsoft Macro Assembler Package
+                          Version 4.00
+
+==( MASM.EXE )==================================================
+
+New Feature 
+
+    The following error message has been added to MASM: 
+
+      102   Segment near (or at) 64K limit. 
+
+    This is a warning, not a severe error, so the object module 
+    is not deleted.  It occurs when a code segment has grown to 
+    a large size (within 36 bytes of 64K) and is detected when 
+    the segment is closed with the ENDS directive.  It does not 
+    occur with data segments.  A code segment is a segment which 
+    contains at least one instruction.  
+
+Clarification 
+
+    The statements "DW ?" and "DW 1 DUP(?)" are not identical; 
+    they cause MASM to generate different object files.  The 
+    first form is "indeterminate," meaning MASM places the 
+    default value 0 in the object module.  The second form is 
+    "undefined," meaning MASM does not generate a value for the 
+    declaration in the object module.  The only indication that 
+    an undefined value has been processed is that records placed 
+    in the object module following the declaration have their 
+    offsets adjusted forward.  In most cases, the distinction is 
+    trivial, but in segments with the COMMON combine type, the 
+    distinction is very important.  
+
+    Note that if two modules contain definitions for a variable, 
+    one with "?" and one with an explicit value, the variable in 
+    the executable file will have either 0 or the value, 
+    depending on the order of linking.  If the modules had 
+    "n dup (?)" and "n dup (m)" where n and m are numbers, the 
+    value would be "n dup (m)" regardless of the link order.  
+    When COMMON segments are involved, "1 dup (?)" should always 
+    be used instead of "?". 
+
+Clarification
+
+    The occurrence of square brackets ([]) in the address field 
+    of instructions indicates a memory reference only when at 
+    least one of the registers BX, BP, SI, or DI is contained in 
+    the brackets.  For all other purposes, the square brackets 
+    indicate addition.  For example, "mov ax,[bx]" moves the 
+    word to which BX points into AX, but "mov ax,[2]" moves the 
+    immediate value 2 into AX.  To generate a memory reference 
+    to an absolute offset, use "mov ax,ds:[2]".  Since DS is the 
+    default segment register for memory references, the segment 
+    override will not be put in the object file, but it does 
+    tell MASM that "[2]" is a memory reference, not an immediate 
+    value.  
+
+Clarification 
+
+    If neither the /R nor the /E option is used during assembly, 
+    MASM defaults to the Microsoft real number format.  See 
+    Chapter 2 of the Reference Manual for information on the 
+    syntax for declaring real numbers.  
+
+Clarification 
+
+    The definition of names on page 15 and 16 of the Reference 
+    Manual is incomplete.  A name is a sequence of characters 
+    consisting of letters, digits, and the following special 
+    characters: underscore (_), percent sign (%), question mark 
+    (?), dollar sign ($), at sign (@), or period (.).  These 
+    limitations apply: 
+
+         o  A name cannot begin with digit, though a digit can 
+            be imbedded (sym1 but not 1sym).  
+
+         o  A name may begin with a period, but cannot have an 
+            imbedded period (.sym1 but not sym.1). 
+
+         o  A name cannot correspond to a reserved word or 
+            symbol (for example, AX, ?, $, mov, and PAGE are 
+            illegal).  
+
+Correction
+
+    The description for assembler error 49, "Illegal use of 
+    register," should read: 
+
+      Use of a register with an instruction where no valid 
+      register is possible.  
+
+==( SYMDEB.EXE )================================================
+
+Clarification
+
+    The WO and BY operators in expressions assume DS as the 
+    segment; the BP and SP registers in expressions assume SS as 
+    the segment.  
+
+Clarification
+
+    The MS-DOS terminate function (4Ch) will terminate SYMDEB 
+    and return to MS-DOS if you use the Assemble command (A) to 
+    assemble the function call, and then try to execute it from 
+    inside SYMDEB.  This is because SYMDEB executes the function 
+    directly instead of executing the program containing the 
+    function.  
+
+    For example, if you assemble the sample program BELL.COM 
+    shown on page 102 of the User's Guide, and then execute it 
+    from inside the debugger, SYMDEB will terminate.  However, 
+    if you save the program (as shown on page 162 of the User's 
+    Guide), then restart with BELL.COM as the executable file, 
+    SYMDEB will execute the program without terminating.  
+
+Clarification
+
+    Microsoft reserves certain software interrupts for special
+    uses.  SYMDEB understands some of these special uses, and
+    interprets surrounding bytes as data for the interrupts.
+    If you use a reserved interrupt value, you should be aware
+    that SYMDEB may disassemble nearby code based on its
+    special understanding of the use of that interrupt.
+
+Clarification
+
+    When using the Breakpoint Set command (BP), the optional 
+    quoted command string cannot exceed 29 characters.  
+
+==( MAPSYM.EXE )================================================
+
+Clarification 
+
+    Mapsym has a limitation of 10,000 source lines per source 
+    file.  If your source file has more than 10,000 source 
+    lines, MAPSYM will truncate the number of lines that go into 
+    the symbol (.SYM) file to 10,000.  If you require the source 
+    line information, break the source file into two or more 
+    parts.  
+
+==( MAKE.EXE )==================================================
+
+Correction 
+
+    In the description of MAKE inference rules on page 210 of 
+    the User's Guide, the order of the target and dependent 
+    extensions is reversed in both the syntax description and 
+    the example.  
+
+    The syntax description should read:
+
+      .dependentextension.targetextension:
+            command1
+            [command2]
+            .
+            .
+            .
+
+    The sample description file at the bottom of the page should 
+    read: 
+
+      .asm.obj:
+            MASM $*.asm,,;
+
+      test1.obj: test1.asm
+
+      test2.obj: test2.asm
+            MASM test2.asm;
+
+    Note that the syntax for inference rules (dependent 
+    extension given first) is different than the syntax for 
+    target/dependent descriptions (target file given first).  
+
+==( General Information )=======================================
+
+    When reporting problems with any program in the Macro 
+    Assembler package, please provide the following information 
+    to help us in tracking down the problem:
+
+      o  The program version number from the logo that is 
+         printed out when you invoke the program 
+
+      o  The version of DOS you are running (use the DOS VER 
+         command) 
+
+      o  Your system configuration (your machine, total memory, 
+         total free memory at execution time, etc.) 
+
+      o  The command line, responses to prompts, or response 
+         file used to invoke the program 
+
+      o  Appropriate source, include, listing, library, or map 
+         files for the program you were working on when the 
+         problem occurred
+
+    Please use the Software Problem Report at the back of the 
+    manual to send the information to Microsoft.  

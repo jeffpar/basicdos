@@ -19,6 +19,8 @@ In the descriptions that follow, *italics* indicate values that you supply, brac
 
 As in MS-DOS, a DOS command typed as one word with a path (eg, `CD\`, `CD\EXT`, or `DIR\EXT`) doesn't need a space before the path.  Unlike MS-DOS, however, a command followed by a path that begins with `.` (eg, `CD..`) still needs a space (eg, `CD ..`).
 
+A command given a switch it doesn't accept (eg, `DIR /Z`), or arguments that aren't valid, displays `Syntax error`, and to see how to use any command, type [HELP](external/help/) followed by its name.
+
 ### Commands A-Z
 
 | Command | Category | Command | Category |

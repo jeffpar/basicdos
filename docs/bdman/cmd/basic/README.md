@@ -111,10 +111,10 @@ A failure (ie, DOS returned with carry set) is a runtime error that [ON ERROR](#
 
 ### END
 
-> END  
-> STOP
+> END [*n*]  
+> STOP [*n*]
 
-Ends the program.  STOP is currently the same as END.
+Ends the program, and sets [ERRORLEVEL](func/#errorlevel) to *n* (only its low 8 bits are used, so its range is 0-255), or 0 if *n* is omitted.  A program that runs off its last line, without an END, leaves ERRORLEVEL as its last command set it.  STOP is currently the same as END.
 
 ### ERASE
 

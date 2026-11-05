@@ -47,9 +47,9 @@
 	WEND
 	IF D$ = "" THEN GOTO 97
 	IF FS AND FS <> 360 AND FS <> 720 AND FS <> 1200 THEN GOTO 96
-	IF FS > 360 AND (H = 1 OR T = 8) THEN PRINT W$; "1 and "; W$; "8 are only for 360K" : END
+	IF FS > 360 AND (H = 1 OR T = 8) THEN PRINT W$; "1 and "; W$; "8 are only for 360K" : END 1
 	V$ = LEFT$(CURDIR$, 2)
-	IF D$ = V$ THEN PRINT "Cannot format the current drive" : END
+	IF D$ = V$ THEN PRINT "Cannot format the current drive" : END 1
 	Z = 0 : U = 0
 	ON ERROR GOTO 90
 	OPEN D$ FOR OUTPUT AS #1
@@ -175,16 +175,16 @@
 90	' Report the error (eg, a write-protected diskette) and stop
 	CLOSE
 	PRINT
-	IF ERR = 55 THEN PRINT "Cannot format drive "; D$; " (files are open)" : END
-	IF ERR = 70 THEN PRINT "Write protect error" : END
-	IF ERR = 71 THEN PRINT "Drive not ready" : END
-	IF ERR = 72 AND Z THEN PRINT "Track"; C; "bad - disk unusable" : END
-	IF ERR = 77 THEN PRINT "Invalid drive" : END
+	IF ERR = 55 THEN PRINT "Cannot format drive "; D$; " (files are open)" : END 1
+	IF ERR = 70 THEN PRINT "Write protect error" : END 1
+	IF ERR = 71 THEN PRINT "Drive not ready" : END 1
+	IF ERR = 72 AND Z THEN PRINT "Track"; C; "bad - disk unusable" : END 1
+	IF ERR = 77 THEN PRINT "Invalid drive" : END 1
 	PRINT "Format failed (error"; ERR; ")"
-	END
-95	PRINT "Drive "; D$; " can't format" + STR$(FS) + "K diskettes" : END
-96	PRINT "Invalid size (use "; W$; "F:360, "; W$; "F:720, or "; W$; "F:1200)" : END
-97	PRINT "Usage: FORMAT drive: ["; W$; "S] ["; W$; "V[:label]] ["; W$; "F:size] ["; W$; "1] ["; W$; "8]" : END
+	END 1
+95	PRINT "Drive "; D$; " can't format" + STR$(FS) + "K diskettes" : END 1
+96	PRINT "Invalid size (use "; W$; "F:360, "; W$; "F:720, or "; W$; "F:1200)" : END 1
+97	PRINT "Syntax error" : END 1
 100	' Hard disk: P$ holds the disk's cylinders, heads, and sectors per track,
 	' its BIOS drive number, whether its MBR is valid, the drive letter of
 	' each partition (0 if it isn't a volume), and the partition table, so
@@ -210,7 +210,7 @@
 	PRINT RIGHT$(SPACE$(4) + STR$((NS + 1024) \ 2048), 4); " Mb  "; L$
 110	NEXT
 	PRINT
-	IF NV = 0 THEN PRINT "The disk has no FAT volumes to format" : END
+	IF NV = 0 THEN PRINT "The disk has no FAT volumes to format" : END 1
 	' Format one of the disk's volumes: D$'s if it's one, otherwise ask
 	I = INSTR(MID$(P$, 7, 4), LEFT$(D$, 1))
 	IF I > 0 OR NV = 1 THEN GOTO 120
@@ -221,7 +221,7 @@
 	PRINT "? ";
 	GOSUB 60 : PRINT A$
 	I = INSTR(MID$(P$, 7, 4), A$)
-	IF I = 0 THEN PRINT "No such volume" : END
+	IF I = 0 THEN PRINT "No such volume" : END 1
 120	IF I = 0 THEN I = 1 : WHILE MID$(P$, 6 + I, 1) = CHR$(0) : I = I + 1 : WEND
 	A$ = MID$(P$, 6 + I, 1) + ":"
 	IF A$ <> D$ THEN CLOSE #1 : D$ = A$ : OPEN D$ FOR OUTPUT AS #1
@@ -244,7 +244,7 @@
 	INPUT L$
 	C = MC
 	IF L$ <> "" THEN L = VAL(L$) : C = (L * 2048 + T) \ CS
-	IF C < 1 OR C > MC THEN PRINT "Invalid size" : END
+	IF C < 1 OR C > MC THEN PRINT "Invalid size" : END 1
 	HS = T : N = C * CS - T
 	' The entry has the status (80h = active), the CHS address of the first
 	' and last sectors (head, sector in bits 0-5 and cylinder bits 8-9 in bits

@@ -34,7 +34,7 @@
 	' So is a negative offset (but a negative length means the rest)
 	IF P$ = "" OR S < 0 THEN GOTO 90
 	ON ERROR GOTO 80
-	IF DIR$(P$, &H16) = "" THEN PRINT "Unable to find "; P$ : END
+	IF DIR$(P$, &H16) = "" THEN PRINT "Unable to find "; P$ : END 1
 	ON ERROR GOTO 0
 	OPEN P$ AS #1 LEN = 128 : FIELD #1, 128 AS R$
 	' E is the offset after the last byte to display (0 if there are none)
@@ -62,5 +62,5 @@
 	NEXT
 	CLOSE
 	END
-80	PRINT "Invalid drive" : END
-90	PRINT "Usage: HEXDUMP file ["; W$; "S offset] ["; W$; "N length]"
+80	PRINT "Invalid drive" : END 1
+90	PRINT "Syntax error" : END 1

@@ -418,7 +418,7 @@ Returns the number of seconds since midnight, with hundredths (eg, 45296.17), fr
 
 #### ERRORLEVEL {#errorlevel}
 
-Equal to the return code from the last program executed, or for an internal command (eg, COPY or DEL), 0 if it succeeded or 1 if it failed (eg, `IF ERRORLEVEL THEN PRINT "Failed"`).
+Equal to the return code from the last program executed, for an internal command (eg, COPY or DEL), 0 if it succeeded or 1 if it failed (eg, `IF ERRORLEVEL THEN PRINT "Failed"`), or the value given by [END](../#end) in a BAS program.
 
 #### MAXINT {#maxint}
 

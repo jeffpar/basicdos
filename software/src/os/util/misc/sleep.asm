@@ -45,7 +45,7 @@ s1:	lodsb
 	DOSUTIL	SLEEP
 	int	20h
 
-s8:	PRINTF	<"Usage: SLEEP seconds",13,10>
+s8:	PRINTF	<"Syntax error",13,10>
 	mov	ax,(DOS_PSP_RETURN SHL 8) OR 1
 	int	21h
 ENDPROC	main

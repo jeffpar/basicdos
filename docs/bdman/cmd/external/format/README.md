@@ -79,7 +79,7 @@ Hard disk volumes aren't verified, and extended partitions aren't supported.
 - `Unable to copy` *file*: a system file couldn't be copied for `/S`, and the rest aren't copied
 - `Format failed (error` *n*`)`, for any other error
 
-A missing drive, an unknown switch, or a second drive displays FORMAT's usage.
+A missing drive, an unknown switch, or a second drive displays `Syntax error`.
 
 Source: [FORMAT.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/FORMAT.BAS)
 

@@ -925,6 +925,8 @@ ENDPROC	utl_tokid
 ; Actually, alphanumeric is not entirely true anymore: in PSP_DIGITS, we now
 ; capture anything from '0' to '?'.
 ;
+; A symbol (eg, the pipe in "DIR /W | SORT /R") ends the tokens to parse.
+;
 ; Inputs:
 ;	REG_DL = 1st token to parse
 ;	REG_DH = # non-switch tokens to ignore (0 to ignore none)
@@ -963,7 +965,9 @@ pw1:	cmp	bl,[di].TOK_CNT
 	add	bx,bx			; BX = BX * 4 (size TOKLET)
 	ASSERT	<size TOKLET>,EQ,4
 	mov	si,[di].TOK_DATA[bx].TOKLET_OFF
+	cmp	[di].TOK_DATA[bx].TOKLET_CLS,CLS_SYM
 	pop	bx
+	je	pw9			; a symbol (eg, a pipe) ends the command
 	lodsb
 	push	di
 	cmp	al,ch			; starts with switch char?

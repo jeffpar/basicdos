@@ -11,7 +11,8 @@
 # pc.js builds a bootable BASIC-DOS hard disk (C:) directly from software/src,
 # using the system files from the previous build (os/*/OBJ, so run mkdos.sh at
 # least once first), software/src/CONFIG.SYS (a serial console, with PATH$
-# set to C:\ and C:\TOOLS), and the build tools in software/src/tools.
+# set to C:\, C:\TOOLS\BD, and C:\TOOLS\DOS, so a tool in software/src/tools/bd
+# overrides its counterpart in software/src/tools/dos, as on a BASIC-DOS disk).
 #
 # BASIC-DOS runs os/mk.bat (which builds BOOT, DD, DEV, DOS, CMD, and UTIL),
 # then the TESTS and MSB makefiles, and then QUIT, after which pc.js writes

@@ -10,7 +10,7 @@ permalink: /docs/bdman/cmd/external/mode/
 > MODE COM*n*:*baud*[,*parity*[,*data*[,*stop*]]]  
 > MODE LPT*n*:[*cols*][,*lines*]
 
-Sets the display, a serial port, or a printer.  Any other argument, or none at all, displays MODE's usage.
+Sets the display, a serial port, or a printer.  Any other argument, or none at all, displays `Syntax error`.
 
 ### Display
 

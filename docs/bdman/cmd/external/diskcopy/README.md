@@ -36,7 +36,7 @@ DISKCOPY stops if it displays any of these messages:
 - `Invalid drive`
 - `Copy failed (error` *n*`)`, for any other error
 
-An argument that isn't a drive displays DISKCOPY's usage.
+An argument that isn't a drive displays `Syntax error`.
 
 Source: [DISKCOPY.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/DISKCOPY.BAS)
 

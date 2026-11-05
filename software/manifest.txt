@@ -109,5 +109,5 @@ software/src/tests/bin/PRIMES.EXE
 [TOOLS]
 software/src/tests/bin/DISKREAD.COM
 software/src/tests/bin/DISKWRIT.COM
-software/src/tests/misc/SYMDEB.EXE
+software/src/tools/dos/SYMDEB.EXE
 software/src/msb/OBJ/MSBASIC.EXE

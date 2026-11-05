@@ -17,9 +17,9 @@
 	'
 	DEFINT A-Z
 	D$ = UCASE$(ARG$(1))
-	IF LEN(D$) <> 2 OR RIGHT$(D$, 1) <> ":" THEN PRINT "Usage: SYS drive:" : END
+	IF LEN(D$) <> 2 OR RIGHT$(D$, 1) <> ":" THEN PRINT "Syntax error" : END 1
 	V$ = LEFT$(CURDIR$, 2) : PC$ = MID$(CURDIR$, 3, 1)
-	IF D$ = V$ THEN PRINT "Cannot transfer the system to the current drive" : END
+	IF D$ = V$ THEN PRINT "Cannot transfer the system to the current drive" : END 1
 	ON ERROR GOTO 90
 	' Read the current drive's boot sector (records of 255, 255, and 2 bytes)
 	OPEN V$ AS #1 LEN = 255
@@ -40,7 +40,7 @@
 	F$ = D$ + PC$ + N$ : S$ = V$ + PC$ + N$ : Q$ = D$ + PC$
 	IF EXISTS(F$) THEN DOS &H4301, 0, 0, F$
 	COPY S$ Q$
-	IF ERRORLEVEL THEN PRINT "Unable to copy "; N$ : END
+	IF ERRORLEVEL THEN PRINT "Unable to copy "; N$ : END 1
 	DOS &H4301, 0, A, F$
 	NEXT
 	DATA "BASDEV.COM", 7, "BASDOS.COM", 7, "COMMAND.COM", 5
@@ -60,10 +60,10 @@
 	CLOSE #1
 	PRINT "System transferred"
 	END
-85	PRINT "Drive "; D$; " doesn't have a FAT volume" : END
+85	PRINT "Drive "; D$; " doesn't have a FAT volume" : END 1
 90	CLOSE
-	IF ERR = 70 THEN PRINT "Write protect error" : END
-	IF ERR = 71 THEN PRINT "Drive not ready" : END
-	IF ERR = 77 THEN PRINT "Invalid drive" : END
+	IF ERR = 70 THEN PRINT "Write protect error" : END 1
+	IF ERR = 71 THEN PRINT "Drive not ready" : END 1
+	IF ERR = 77 THEN PRINT "Invalid drive" : END 1
 	PRINT "Unable to transfer the system (error"; ERR; ")"
-	END
+	END 1

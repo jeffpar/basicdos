@@ -125,7 +125,7 @@ a6:	lodsb				; consume switch letters
 	mov	di,offset SW_CHARS
 	mov	cx,3
 	repne	scasb			; one of ours?
-	jne	a6			; no
+	jne	a10			; no
 	mov	al,1
 	shl	al,cl			; AL = SW_* bit
 	or	[bp].TV_SW,al
@@ -141,8 +141,8 @@ a9:	mov	cx,[bp].TV_LEN1
 	jnz	b1
 	cmp	[bp].TV_LEN2,0
 	jne	b1
-a10:	mov	dx,offset NO_SET
-	mov	cx,NO_SET_LEN
+a10:	mov	dx,offset SYN_ERR
+	mov	cx,SYN_ERR_LEN
 	mov	bx,STDERR
 	mov	ah,DOS_HDL_WRITE
 	int	21h
@@ -418,8 +418,8 @@ ms9:	ret
 ENDPROC	markSet
 
 SW_CHARS	db	"CDS"
-NO_SET		db	"Missing character set",13,10
-NO_SET_LEN	equ	$ - NO_SET
+SYN_ERR		db	"Syntax error",13,10
+SYN_ERR_LEN	equ	$ - SYN_ERR
 
 	COMHEAP	<size TRVARS + STACK_LEN>
 

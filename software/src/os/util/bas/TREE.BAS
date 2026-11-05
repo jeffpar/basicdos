@@ -11,7 +11,8 @@
 	' Since BASIC has no local variables, each level of the tree being
 	' walked (L) has its own element in a few arrays: the directory's path
 	' (P$), the prefix of its lines (X$), and where its subdirectory names
-	' begin (B) in N$, how many there are (C), and which is next (I).
+	' begin (B) in N$, how many there are (C), and which is next (I).  M is
+	' set if a name doesn't fit in N$, or a directory is too deep to follow.
 	'
 	DEFINT A-Z
 	DIM P$(32), X$(32), B(32), C(32), I(32), N$(400)
@@ -50,12 +51,13 @@
 	' back to the previous level
 10	IF I(L) < C(L) THEN GOTO 20
 	L = L - 1
-	IF L < 0 THEN END
-	GOTO 10
+	IF L >= 0 THEN GOTO 10
+	IF M THEN PRINT "Too many subdirectories" : END 1
+	END
 20	J = B(L) + I(L) : I(L) = I(L) + 1
 	Y$ = G3$ : IF I(L) = C(L) THEN Y$ = "    " : PRINT X$(L); G2$; N$(J)
 	IF Y$ = G3$ THEN PRINT X$(L); G1$; N$(J)
-	IF L = 32 THEN GOTO 10
+	IF L = 32 THEN M = 1 : GOTO 10
 	P$(L + 1) = P$(L) + N$(J) + PC$ : X$(L + 1) = X$(L) + Y$
 	B(L + 1) = B(L) + C(L) : L = L + 1
 	GOSUB 50
@@ -68,7 +70,8 @@
 	WHILE E$ <> ""
 	A$ = MID$(E$, 10)
 	IF (ASC(E$) AND &H10) = 0 THEN N = N + 1 : GOTO 60
-	IF A$ = "." OR A$ = ".." OR B(L) + C(L) > 400 THEN GOTO 60
+	IF A$ = "." OR A$ = ".." THEN GOTO 60
+	IF B(L) + C(L) > 400 THEN M = 1 : GOTO 60
 	N$(B(L) + C(L)) = A$ : C(L) = C(L) + 1
 60	E$ = DIR$
 	WEND
@@ -81,5 +84,5 @@
 	WEND
 	PRINT Y$
 	RETURN
-90	PRINT "Invalid drive" : END
-95	PRINT "Usage: TREE [drive:][path] ["; W$; "F] ["; W$; "A]"
+90	PRINT "Invalid drive" : END 1
+95	PRINT "Syntax error" : END 1

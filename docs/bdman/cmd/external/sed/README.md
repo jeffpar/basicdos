@@ -48,7 +48,7 @@ The commands are:
 
 As in every filter, a line longer than 254 characters is split, and if an `s` command would make a line longer than that, the extra characters are dropped.  A script is limited to what fits on a command line.
 
-ERRORLEVEL is set to 0, or 2 if *script* is missing (`Missing script`) or invalid (`Invalid script`), or *file* couldn't be opened (eg, `Unable to find X.TXT`).
+ERRORLEVEL is set to 0, or 2 if a switch isn't valid or *script* is missing (`Syntax error`), *script* is invalid (`Invalid script`), or *file* couldn't be opened (eg, `Unable to find X.TXT`).
 
 Source: [sed.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/sed.asm)
 

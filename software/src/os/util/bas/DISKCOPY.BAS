@@ -73,7 +73,7 @@
 40	' One drive: read as many tracks (TP) as memory allows, then write them
 	CLOSE #1
 	TP = (FRE(0) - 8192) \ (RT * 140)
-	IF TP < 1 THEN PRINT "Not enough memory" : END
+	IF TP < 1 THEN PRINT "Not enough memory" : END 1
 	IF TP > NT THEN TP = NT
 	DIM B$(TP * RT)
 	FOR J0 = 0 TO NT - 1 STEP TP
@@ -110,13 +110,12 @@
 	WHILE K$ = "" : K$ = UCASE$(INKEY$) : WEND
 	RETURN
 85	CLOSE
-	PRINT "DISKCOPY works only with diskettes in a known format" : END
+	PRINT "DISKCOPY works only with diskettes in a known format" : END 1
 90	CLOSE
-	IF ERR = 70 THEN PRINT "Write protect error" : END
-	IF ERR = 71 THEN PRINT "Drive not ready" : END
-	IF ERR = 72 THEN PRINT "Unrecoverable read or format error" : END
-	IF ERR = 77 THEN PRINT "Invalid drive" : END
+	IF ERR = 70 THEN PRINT "Write protect error" : END 1
+	IF ERR = 71 THEN PRINT "Drive not ready" : END 1
+	IF ERR = 72 THEN PRINT "Unrecoverable read or format error" : END 1
+	IF ERR = 77 THEN PRINT "Invalid drive" : END 1
 	PRINT "Copy failed (error"; ERR; ")"
-	END
-95	PRINT "Usage: DISKCOPY [drive1: [drive2:]]"
-	END
+	END 1
+95	PRINT "Syntax error" : END 1

@@ -243,7 +243,7 @@ lf8:	mov	ax,[lineLabel]
 	mov	[lineTerm],al		; remember terminator (CR or LF)
 	jmp	lf3
 
-lf10:	PRINTF	<"Invalid file format",13,10,13,10>
+lf10:	PRINTF	<"Invalid file format",13,10>
 
 lf11:	call	freeAllText
 	stc
@@ -497,7 +497,7 @@ ENDPROC	saveLine
 ;	AX
 ;
 DEFPROC	syntaxError
-	PRINTF	<"Syntax error",13,10,13,10>
+	PRINTF	<"Syntax error",13,10>
 	stc
 	ret
 ENDPROC	syntaxError
@@ -653,7 +653,7 @@ ENDPROC	putNum
 DEFPROC	chkProgram
 	cmp	[bx].CBLKDEF.BDEF_NEXT,0; is a program running?
 	je	cp9			; no (carry clear)
-	PRINTF	<"Not allowed in a program",13,10,13,10>
+	PRINTF	<"Not allowed in a program",13,10>
 	stc
 cp9:	ret
 ENDPROC	chkProgram

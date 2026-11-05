@@ -55,7 +55,7 @@ CODE    SEGMENT
 	EXTNEAR	<genPushImm,genPushImmLong,addVar,getNextSymbol>
 	EXTNEAR	<setVarLong,setVarDouble,forInit,forNext,doGosub,doReturn>
 	EXTNEAR	<ensureRoom,peekNextToken,onError,offError,resumeErr,genMore>
-	EXTNEAR	<compError,compErrLine,getLineNum>
+	EXTNEAR	<compError,compErrLine,getLineNum,setErrorLevel>
 	EXTABS	<TOK_ELSE,TOK_THEN,TOK_TO,TOK_STEP,TOK_GOTO,TOK_GOSUB>
 	EXTABS	<TOK_ERROR>
 
@@ -354,24 +354,38 @@ ENDPROC	genResume
 ;
 ; genEnd
 ;
-; Generate code for "END" (and "STOP", which is currently the same).
+; Generate code for "END [n]" (and "STOP [n]", which is currently the same),
+; which sets ERRORLEVEL to n (default 0) and ends the program.
 ;
 ; Inputs:
+;	DS:BX -> TOKLETs
 ;	ES:DI -> code block
 ;
 ; Outputs:
-;	Carry clear
+;	Carry clear if successful, set if error
 ;
 ; Modifies:
-;	AX, DI
+;	Any
 ;
 DEFPROC	genEnd
+	call	genExpr			; push the value, if any
+	jnc	ge1
+	test	dh,dh			; were there any tokens?
+	stc
+	jnz	ge9			; yes, so it's an error
+ge1:	jz	ge2			; no value
+	mov	al,VAR_LONG
+	call	genCvtType		; the value must be a long
+	jnc	ge3
+	ret
+ge2:	GENPUSH	0,0			; push 0
+ge3:	GENCALL	setErrorLevel
 	mov	ax,OP_MOV_SP_BP		; same as endProgram (see genCode)
 	stosw
 	mov	al,OP_RETF
 	stosb
 	clc
-	ret
+ge9:	ret
 ENDPROC	genEnd
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -25,6 +25,7 @@ The label is a root directory entry with the volume attribute, which LABEL write
 
 ### Messages
 
+- `Syntax error` (a switch, which LABEL doesn't have)
 - `Too many characters in volume label`
 - `Invalid characters in volume label`
 - `Root directory full`

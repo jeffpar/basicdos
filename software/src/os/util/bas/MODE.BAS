@@ -44,10 +44,7 @@
 	IF L$ = "6" THEN PRINT #1, CHR$(27); "2";
 	CLOSE #1
 	END
-40	PRINT "Usage: MODE 40|80|BW40|BW80|CO40|CO80"
-	PRINT "       MODE COMn:baud[,parity[,data[,stop]]]"
-	PRINT "       MODE LPTn:[cols][,lines]"
-	END
+40	PRINT "Syntax error" : END 1
 50	' Return the next comma-separated item of R$ in I$
 	I = INSTR(R$, ",")
 	IF I = 0 THEN I$ = "" : RETURN

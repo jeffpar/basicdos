@@ -10,7 +10,7 @@ permalink: /docs/bdman/cmd/external/sleep/
 
 Waits the specified number of *seconds*, a whole number in decimal (eg, `SLEEP 5`).  CTRL-C stops it early.
 
-If *seconds* is missing, or negative, SLEEP displays `Usage: SLEEP seconds`, and ERRORLEVEL is set to 1.
+If *seconds* is missing, or negative, SLEEP displays `Syntax error`, and ERRORLEVEL is set to 1.
 
 Source: [sleep.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/sleep.asm)
 

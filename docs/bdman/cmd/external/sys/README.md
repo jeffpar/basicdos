@@ -23,7 +23,7 @@ Since the boot code follows the system files' cluster chains, they don't have to
 - `Invalid drive`
 - `Unable to transfer the system (error` *n*`)`, for any other error
 
-A missing argument, or an argument that isn't a drive, displays SYS's usage.
+A missing argument, or an argument that isn't a drive, displays `Syntax error`.
 
 Source: [SYS.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/SYS.BAS)
 

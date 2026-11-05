@@ -10,10 +10,11 @@
 ; Usage: R3TESTS
 ;
 ; Checks that a ring 3 program can't harm the kernel, or stop the system, by
-; misusing DOS (see docs/bdtech/mmu).  Many of these tests are supposed to end
-; the program, so each one runs in its own copy (R3TESTS, plus a letter), and
-; we check how the copy ended: normally, or with a CPU fault, whose line it
-; prints.  A test that stops the system instead has failed, too.
+; misusing DOS, or using CLI or OUT (see docs/bdtech/mmu).  Many of these tests
+; are supposed to end the program, so each one runs in its own copy (R3TESTS,
+; plus a letter), and we check how the copy ended: normally, or with a CPU
+; fault, whose line it prints.  A test that stops the system instead has
+; failed, too.
 ;
 ; Anywhere but ring 3, it just prints that it was skipped.
 ;
@@ -382,11 +383,19 @@ tza:	mov	bx,offset epbx
 	mov	ax,DOS_PSP_EXEC2
 	int	21h
 	jmp	failif
+;
+; Instructions that need more than the IOPL 0 that we have (the OUT is to the
+; diagnostic port, which is harmless on a machine that doesn't fault).
+;
+tzb:	cli
+	jmp	tz1
+tzc:	out	80h,al
+	jmp	tz1
 
 tests	dw	ta,tb,tc,td,te,tf,tg,th,ti,tj,tk,tl,tm
-	dw	tn,to,tp,tq,tr,ts,tt,tu,tv,tw,tx,ty,tz,tza,0
+	dw	tn,to,tp,tq,tr,ts,tt,tu,tv,tw,tx,ty,tz,tza,tzb,tzc,0
 results	db	0,0,0,0,F,0,0,F,F,F,F,F,0
-	db	F,F,F,F,F,F,0,0,0,0,0,0,0,0
+	db	F,F,F,F,F,F,0,0,0,0,0,0,0,0,F,F
 
 progname db	"A:\TESTS\MISC\R3TESTS.COM",0
 tail	db	2," A",13

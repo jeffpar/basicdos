@@ -168,7 +168,7 @@ DEFPROC	cmdEdit
 	mov	[bx].EDIT_LINE,dx
 	mov	word ptr [bx].EDIT_INC,0
 	ret
-ed8:	PRINTF	<"Undefined line number",13,10,13,10>
+ed8:	PRINTF	<"Undefined line number",13,10>
 	stc
 ed9:	ret
 ENDPROC	cmdEdit

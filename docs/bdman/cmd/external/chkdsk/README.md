@@ -35,7 +35,7 @@ CHKDSK can report these problems with a drive, and if it reports any of them, it
 
 ### Limits and Other Messages
 
-CHKDSK reads the volume directly (see [OPEN](../../basic/#open)), so it can't check directories beyond the first 14Mb of a volume, which it reports (*path* `is beyond the first 14Mb (not checked)`).  It also keeps track of only 300 subdirectories; any others aren't checked, so their clusters may be reported as lost.
+CHKDSK reads the volume directly (see [OPEN](../../basic/#open)), so it can't check directories beyond the first 14Mb of a volume, which it reports (*path* `is beyond the first 14Mb (not checked)`).  It can also keep track of only so many subdirectories, and reports any others (*path* `not checked (too many subdirectories)`).  The clusters of a directory that wasn't checked would look lost, so in either case, CHKDSK displays `Not all directories were checked, so lost clusters aren't reported`, and doesn't report any.
 
 CHKDSK can't check a drive if it finds one of these problems:
 
@@ -44,7 +44,9 @@ CHKDSK can't check a drive if it finds one of these problems:
 - `Drive` *drive* `doesn't have a FAT volume`
 - `Unable to check drive` *drive* `(error` *n*`)`, for any other error
 
-Any argument other than a drive and `/V`, or more than one drive, displays CHKDSK's usage.
+Any argument other than a drive and `/V`, or more than one drive, displays `Syntax error`.
+
+ERRORLEVEL is set to 0 if CHKDSK checked the entire volume and found no problems, and otherwise to 1.
 
 Source: [CHKDSK.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/CHKDSK.BAS)
 

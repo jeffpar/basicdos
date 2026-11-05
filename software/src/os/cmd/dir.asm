@@ -14,7 +14,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<getFileName,getToken,chkStrVar,newStr>
-	EXTNEAR	<printCRLF,findFile,addString,releaseStr,rtError>
+	EXTNEAR	<printCRLF,findFile,addString,releaseStr,rtError,syntaxError>
 	EXTBYTE	<CMD_PATH>
 	EXTSTR	<DIR_DEF,PIPE_NAME,COM_EXT,BAS_EXT>
 
@@ -66,7 +66,7 @@ ch4:	call	getCwd			; DS:SI -> path
 	ret
 ch8:	cmp	al,ERR_BADDRIVE		; no such drive?
 	je	ch1a			; right (fileError reports that)
-	EPRINTF	<"Unable to find %c:">,<13,10,13,10>,ax,cx
+	EPRINTF	<"Unable to find %c:">,<13,10>,ax,cx
 	stc
 	ret
 ENDPROC	cmdChdir
@@ -87,8 +87,8 @@ ENDPROC	cmdChdir
 ; since it can't be opened for writing while it's open for reading.
 ;
 ; Input files separated by '+' (eg, "COPY A+B+C D") are concatenated into the
-; output file, which must be specified (see copyCat).  Any switches (eg, /B)
-; are ignored, since files are always copied as binary data.
+; output file, which must be specified (see copyCat).  Files are always copied
+; whole, as binary data, so /B (see CMD_SWITCHES) has no effect.
 ;
 ; cmdType uses cmdCopy with STDOUT as the output (so wildcards work, too),
 ; and like DOS, CTRLZ ends the output of every file (see copyData).
@@ -115,14 +115,24 @@ DEFPROC	cmdType
 	pop	di
 	mov	dl,[bx].CMD_ARG
 	call	getToken		; was an input filespec specified?
-	jc	cp7			; no
-	lea	si,[bx].LINEBUF + 128	; DS:SI -> input filespec
+	jnc	cp0			; yes
+	jmp	noFile
+cp0:	lea	si,[bx].LINEBUF + 128	; DS:SI -> input filespec
 	mov	cx,si			; CX = non-zero (for TYPE)
 	cmp	[bx].HDL_OUTPUT,0	; do we already have an output (TYPE)?
 	jge	cp3			; yes
 	push	si
-	inc	dx			; DL = index of output filespec
-	sub	cx,cx			; (no default)
+;
+; The output filespec is the next argument that isn't a switch (eg, the /B in
+; "COPY A /B" isn't the output).
+;
+cp1:	inc	dx			; DL = index of output filespec
+	call	getToken
+	jc	cp1a			; no more arguments
+	mov	al,[si]
+	cmp	al,[bx].SWITCH_CHAR
+	je	cp1
+cp1a:	sub	cx,cx			; (no default)
 	call	getFileName		; DS:SI -> output filespec in LINEBUF
 	lea	di,[bx].LINEBUF		; DI -> output filename buffer
 	jc	cp2			; no output, so use input filename
@@ -158,9 +168,8 @@ cp4:	pop	si
 	jnz	cp6
 	jmp	copyCat
 cp5:	pop	si
-cp6:	PRINTF	<"Invalid output",13,10,13,10>
+cp6:	PRINTF	<"Invalid output",13,10>
 	jmp	short cp8
-cp7:	jmp	noFile
 cp8:	stc
 cp9:	ret
 ENDPROC	cmdType
@@ -209,7 +218,7 @@ cf2:	lea	si,[bx].LINEBUF		; SI -> output filename
 	jnc	cf3
 	cmp	ax,ERR_SHARE		; is the output the input file?
 	jne	cf8			; no
-	PRINTF	<"File cannot be copied onto itself",13,10,13,10>
+	PRINTF	<"File cannot be copied onto itself",13,10>
 	jmp	short cf9
 cf3:	push	bx
 	mov	bx,[bx].HDL_INPUT
@@ -494,9 +503,7 @@ rn2:	lea	dx,[bx].LINEBUF+128
 rn7:	mov	si,dx
 	mov	dx,offset VERB_REN
 	jmp	fileError
-rn8:	PRINTF	<"Syntax error",13,10,13,10>
-	stc
-	ret
+rn8:	jmp	syntaxError
 ENDPROC	cmdRen
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -567,7 +574,7 @@ de6a:	jnc	de9
 	mov	dx,offset VERB_DEL
 	jmp	fileError
 	DEFLBL	noFile,near
-de7:	PRINTF	<"Missing filename",13,10,13,10>
+de7:	PRINTF	<"Missing filename",13,10>
 de8:	stc
 de9:	ret
 ENDPROC	cmdDel
@@ -1460,11 +1467,11 @@ DEFPROC	openError
 	push	dx
 	cmp	ax,ERR_NOTREADY		; drive not ready?
 	jne	fer0			; no
-	PRINTF	<"Drive not ready",13,10,13,10>
+	PRINTF	<"Drive not ready",13,10>
 	jmp	short fer0a
 fer0:	cmp	ax,ERR_BADDRIVE		; no such drive?
 	jne	fer1			; no
-	PRINTF	<"Invalid drive",13,10,13,10>
+	PRINTF	<"Invalid drive",13,10>
 fer0a:	jmp	fer2
 fer1:	cmp	ax,ERR_NOSESSION	; no session for a pipeline command?
 	jne	fer3			; no
@@ -1483,7 +1490,7 @@ fer1b:	test	al,al
 	jnz	fer1c			; yes
 	lea	di,[bx-1]		; no, so use the whole name
 fer1c:	sub	di,si			; DI = length of name without extension
-	PRINTF	<"No sessions available to run %.*s",13,10,13,10>,di,si
+	PRINTF	<"No sessions available to run %.*s",13,10>,di,si
 	pop	di
 	pop	bx
 	jmp	short fer2
@@ -1495,7 +1502,7 @@ fer4:	cmp	ax,ERR_NOFILE		; file not found?
 	cmp	ax,ERR_NOPATH		; path not found?
 	jne	fer6			; no
 fer5:	mov	dx,offset VERB_FIND	; yes, so report "Unable to find X"
-fer6:	EPRINTF	<"Unable to %ls %s">,<13,10,13,10>,ax,dx,cs,si
+fer6:	EPRINTF	<"Unable to %ls %s">,<13,10>,ax,dx,cs,si
 fer2:	pop	dx
 	pop	ax
 	stc
@@ -1724,7 +1731,7 @@ DEFPROC	readInput
 	mov	ah,DOS_HDL_READ
 	int	21h
 	jnc	ri9
-	PRINTF	<"Unable to read file",13,10,13,10>
+	PRINTF	<"Unable to read file",13,10>
 	stc
 ri9:	pop	bx
 	ret
@@ -1768,11 +1775,11 @@ DEFPROC	writeOutput
 	test	dl,80h			; device?
 	jnz	wo8			; yes (carry clear)
 wo7:	pop	bx
-	PRINTF	<"Insufficient disk space",13,10,13,10>
+	PRINTF	<"Insufficient disk space",13,10>
 	stc
 	ret
 	DEFLBL	writeError,near
-	PRINTF	<"Unable to write file",13,10,13,10>
+	PRINTF	<"Unable to write file",13,10>
 	stc
 	ret
 wo8:	pop	bx

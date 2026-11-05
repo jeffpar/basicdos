@@ -16,6 +16,7 @@
 	A$ = UCASE$(ARG$) : D$ = LEFT$(CURDIR$, 2)
 	IF MID$(A$, 2, 1) = ":" THEN D$ = LEFT$(A$, 2) : A$ = MID$(A$, 3)
 	WHILE LEFT$(A$, 1) = " " : A$ = MID$(A$, 2) : WEND
+	DOS &H3700 : IF LEFT$(A$, 1) = CHR$(DOS(3) AND 255) THEN PRINT "Syntax error" : END 1
 	ON ERROR GOTO 90
 	GOSUB 80
 	IF A$ <> "" THEN GOTO 20
@@ -28,7 +29,7 @@
 	C$ = "" : WHILE C$ = "" : C$ = UCASE$(INKEY$) : WEND
 	PRINT C$
 	IF C$ <> "Y" THEN END
-20	IF LEN(A$) > 11 THEN PRINT "Too many characters in volume label" : END
+20	IF LEN(A$) > 11 THEN PRINT "Too many characters in volume label" : END 1
 	FOR I = 1 TO LEN(A$)
 	IF INSTR("*?/\|.,;:+=[]<>" + CHR$(34), MID$(A$, I, 1)) THEN GOTO 85
 	NEXT
@@ -56,7 +57,7 @@
 	CLOSE
 	END
 40	IF LE THEN FE = LE
-	IF FE = 0 THEN PRINT "Root directory full" : CLOSE : END
+	IF FE = 0 THEN PRINT "Root directory full" : CLOSE : END 1
 	' The new entry has the label, attribute 8, the current time and date,
 	' and no clusters or size
 	T$ = TIME$ : Y$ = DATE$
@@ -74,10 +75,10 @@
 	IF I THEN L$ = LEFT$(LEFT$(L$, I - 1) + SPACE$(8), 8) + MID$(L$, I + 1)
 	RETURN
 85	PRINT "Invalid characters in volume label"
-	END
+	END 1
 90	CLOSE
-	IF ERR = 70 THEN PRINT "Write protect error" : END
-	IF ERR = 71 THEN PRINT "Drive not ready" : END
-	IF ERR = 77 THEN PRINT "Invalid drive" : END
+	IF ERR = 70 THEN PRINT "Write protect error" : END 1
+	IF ERR = 71 THEN PRINT "Drive not ready" : END 1
+	IF ERR = 77 THEN PRINT "Invalid drive" : END 1
 	PRINT "Unable to label drive "; D$; " (error"; ERR; ")"
-	END
+	END 1

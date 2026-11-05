@@ -114,6 +114,9 @@ pr2:	lea	dx,[bp].UQ_LINE
 pr9:	ret
 ENDPROC	putRun
 
+SW_LIST	db	"CDIU"
+SW_LEN	equ	$ - SW_LIST
+
 	include	utilproc.inc
 ;
 ; PRINTF puts its buffer on our stack, so we need more than STACK_LEN.

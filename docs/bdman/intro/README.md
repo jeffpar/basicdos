@@ -103,7 +103,7 @@ and its CONFIG.SYS sets PATH$ to the root, EXT, DEMOS, and SAMPLES (eg, `A:\;A:\
 
 Test programs are on a separate diskette, BASIC-DOS Tests: the regression tests are in its **TESTS\REGRESS** directory (eg, DOSTESTS.COM; REGRESS.BAT in **TESTS** runs them all), other test programs (eg, GFXTESTS.BAS) are in **TESTS\MISC**, and BENCH.BAS is in **TESTS**, with MSBASIC.EXE and SYMDEB.EXE in its **TOOLS** directory; load it in drive B: and type (for example) `B:\TOOLS\MSBASIC`, or `B:`, `CD \TESTS`, and `REGRESS`.  Most of the tests can run while other sessions are busy, but HARDERR skips its tests if any other session is running a program (its disk hook would affect them).
 
-The [hard disk demo](/demos/hd/at/) adds three more directories: **TESTS** (the same tests as the BASIC-DOS Tests diskette), **SRC** (the BASIC-DOS source code), and **TOOLS** (MASM and the other build tools, plus MSBASIC.EXE and SYMDEB.EXE).
+The [hard disk demo](/demos/hd/at/) adds three more directories: **TESTS** (the same tests as the BASIC-DOS Tests diskette), **SRC** (the BASIC-DOS source code), and **TOOLS** (MASM and the other build tools, plus MSBASIC.EXE and SYMDEB.EXE).  **TOOLS\\MASM.EXE** is a protected-mode version of MASM 4.00; it runs at ring 3, and its original MZ image still runs in real mode.  The other build tools in **TOOLS** remain real-mode programs.
 
 Use `LIST VARS` to inspect the current session's variable values and array dimensions; see [LIST](../cmd/system/#list).
 
@@ -128,7 +128,7 @@ The output of one command can also be sent to the input of another command, usin
 
 	DIR | TR a-z A-Z
 
-Each command after the first runs in its own background session, so all commands in a pipeline run at the same time.  The first command can also be a BAT or BAS file (eg, `LS | SORT`), which, like a built-in command, runs once the other commands have started.  However, a BAT or BAS file can't come after a `|`, since it would have to run in the same session as the first command (eg, `DIR | TEST.BAS` reports `Unable to open TEST.BAS`, and nothing runs).  The output of a pipeline can also be redirected (eg, `DIR | SORT > TEST`).  BASIC-DOS includes several filters for use with pipes: FIND, MORE, SORT, TEE, TR, and WC (see [Filters](../cmd/external/#filters)).
+Each command after the first runs in its own background session, so all commands in a pipeline run at the same time.  The first command can also be a BAT or BAS file (eg, `LS | SORT`), which, like a built-in command, runs once the other commands have started.  However, a BAT or BAS file can't come after a `|`, since it would have to run in the same session as the first command (eg, `DIR | TEST.BAS` reports `Unable to open TEST.BAS`, and nothing runs).  A built-in command can't come after a `|` either, since it doesn't read its input (eg, `VER | DIR` reports `Syntax error`, and nothing runs).  The output of a pipeline can also be redirected (eg, `DIR | SORT > TEST`).  BASIC-DOS includes several filters for use with pipes: FIND, MORE, SORT, TEE, TR, and WC (see [Filters](../cmd/external/#filters)).
 
 At the prompt, a line of BASIC statements can end with a pipe, too, which sends the output of every statement on the line to the commands after the `|` (eg, `FOR I=1 TO 100:PRINT 3.14^I:NEXT | MORE`).  The pipe must come after the line's last statement (a `|` inside quotes doesn't count), and the statements run once the other commands have started.  This isn't available in BAT and BAS files, or on low memory systems.
 

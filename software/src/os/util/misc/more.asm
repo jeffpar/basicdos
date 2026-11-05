@@ -136,6 +136,9 @@ MORE_LEN	equ	$ - MORE_MSG
 ERASE_MSG	db	13,"          ",13
 ERASE_LEN	equ	$ - ERASE_MSG
 
+SW_LIST	db	0
+SW_LEN	equ	$ - SW_LIST
+
 	include	utilproc.inc
 
 	COMHEAP	<size UTILVARS + STACK_LEN>

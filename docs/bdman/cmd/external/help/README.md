@@ -8,7 +8,14 @@ permalink: /docs/bdman/cmd/external/help/
 
 > HELP [*keyword*\|ALL\|BASIC\|CORE\|DISK\|EXT\|FUNC\|SYSTEM]
 
-Displays help for *keyword* (eg, `HELP MID$`), or lists the keywords in a category.  HELP alone displays help for HELP.  If there's no help for *keyword*, HELP displays `No help available`, and ERRORLEVEL is set to 1.
+Displays help for *keyword* (eg, `HELP MID$`), or lists the keywords in a category.  HELP alone displays help for HELP.  Help for a command or function begins with a `Usage:` line, which is followed by a blank line and the rest of its description:
+
+	HELP VOL
+	Usage: VOL [drive:]
+
+	Displays the volume label of drive (or the current drive).
+
+If there's no help for *keyword*, HELP displays `No help available`, and ERRORLEVEL is set to 1.
 
 | Argument | Displays |
 |----------|----------|
@@ -29,7 +36,7 @@ HELP was a COMMAND.COM command (along with KEYS, which is now `HELP KEYS`) until
 
 The help text comes from HELP.TXT, in the EXT directory of the drive that COMMAND.COM was loaded from (normally the boot drive), so HELP works from any directory.  HELP finds that drive in the COMSPEC environment variable, which COMMAND.COM passes to every program (if there isn't room for the environment, HELP uses the current drive).
 
-In HELP.TXT, each entry begins with a lower-case letter for its category, in brackets (eg, `[b]PRINT` or `[f]MID$`), followed by `+` if it isn't available on low memory systems (eg, `[b+]CIRCLE`), which HELP doesn't display; an entry without a category (eg, CORE or KEYS) is listed only by HELP ALL.
+In HELP.TXT, each entry begins with a lower-case letter for its category, in brackets (eg, `[b]PRINT` or `[f]MID$`), followed by `+` if it isn't available on low memory systems (eg, `[b+]CIRCLE`), which HELP doesn't display; an entry without a category (eg, CORE or KEYS) is listed only by HELP ALL.  The first line of an entry with a category is its syntax, which HELP displays after `Usage:`, and since no other command contains this text, a command that's used incorrectly displays only `Syntax error`.
 
 HELP wraps words to the console's width, displays each line of an entry as a paragraph (followed by a blank line) unless it ends with `\`, and indents a line that starts with a tab.  It also adapts the text as it displays it:
 

@@ -115,7 +115,7 @@ rst1:	mov	bl,10			; BL = base 10
 	xchg	cx,ax			; CL = SCB #
 	DOSUTIL	END			; abort the session's program
 	jnc	rst9
-rst7:	PRINTF	<"Invalid session",13,10,13,10>
+rst7:	PRINTF	<"Invalid session",13,10>
 	stc
 rst9:	ret
 ENDPROC	cmdRestart

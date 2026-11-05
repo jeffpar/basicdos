@@ -19,7 +19,7 @@ CODE    SEGMENT
 	EXTNEAR	<pipeStages>
 	ENDIF
 	EXTNEAR	<freeAllText,genCode,keepCode,freeAllVars,cmdLoad>
-	EXTNEAR	<freeIdleVars,resetVars,findVar,cmdPipe,runLine>
+	EXTNEAR	<freeIdleVars,resetVars,findVar,cmdPipe,runLine,syntaxError>
 	EXTNEAR	<enterLine,editPrompt,genUpper,runFile>
 	EXTNEAR	<saveChains,restoreChains,compactStrs>
 	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resSum,resParas>
@@ -692,9 +692,8 @@ pd4f:	pop	si
 	jc	pd4d			; bail on error
 ;
 ; Output redirection applies to any command on the line, but if this isn't the
-; first command (eg, "DIR | SORT > TEST"), then it's either an external program
-; that cmdFile must load with this handle as its STDOUT, or an internal command
-; that we must run with this handle as our STDOUT (a deferred command will have
+; first command (eg, "DIR | SORT > TEST"), then it's an external program that
+; cmdFile must load with this handle as its STDOUT (a deferred command will have
 ; its own STDOUT, so replacing ours now is harmless).
 ;
 	cmp	[bp].CMD_ARG,0		; first command on line?
@@ -745,6 +744,8 @@ pd5c:	lea	dx,[KEYWORD_TOKENS]
 	stc
 pd5a:	pop	si
 	jc	pd6
+	cmp	[bp].HDL_INPIPE,0	; is this command a pipe's target?
+	jne	pd5x			; yes, so it's an error
 	cmp	[bp].HDL_OUTPIPE,0
 	je	pd6
 ;
@@ -786,6 +787,15 @@ pd8:	add	bx,size TOKLET
 	mov	[bp].HDL_INPIPE,ax
 	pop	ax			; restore end of TOKLETs
 	jmp	pd1			; loop back for more commands, if any
+;
+; An internal command doesn't read its input, so it can't be a pipe's target.
+; Our STDOUT is a pipe by now, so report the error to the original STDOUT.
+;
+pd5x:	mov	dx,word ptr [bp].SFH_STDIN
+	mov	word ptr ds:[PSP_PFT][STDIN],dx
+	call	syntaxError
+	jmp	pd6a			; (carry is set)
+
 
 pd9:	jnc	pd9e
 ;
@@ -873,8 +883,7 @@ pd9c:	pop	cx			; discard end of TOKLETs
 pd9d:	pop	bp
 	ret
 
-pd9x:	PRINTF	<"Syntax error",13,10,13,10>
-	stc
+pd9x:	call	syntaxError
 	jmp	pd9c			; bail on error
 ENDPROC	parseDOS
 
@@ -948,6 +957,11 @@ cd1:	push	dx
 	DOSUTIL	PARSESW			; parse switch tokens
 	mov	[bx].CMD_ARG,dl		; update index of 1st non-switch token
 	pop	ax
+	pop	dx
+	call	chkSwitches
+	jc	cd9
+	push	dx
+	mov	dl,[bx].CMD_ARG		; DL = 1st non-switch token again
 	cmp	ax,KEYWORD_FILE		; does token require a filespec? (20)
 	jb	cd8			; no
 ;
@@ -964,6 +978,77 @@ cd8:	pop	dx			; DX = handler again
 	call	genUpper		; call the handler, if it's loaded
 cd9:	ret				; (carry set if the command failed)
 ENDPROC	cmdDOS
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chkSwitches
+;
+; Makes sure the command accepts the switches that PARSESW found: each letter
+; must be in the command's CMD_SWITCHES entry, and a symbol (eg, "/?") is
+; never valid.  Digits aren't checked, because an argument can look like one
+; (eg, "DATE 12/25/26", or "LIST -20" if the switch char is '-'), and neither
+; are the "switches" of the BASIC statements that runLine runs (eg, the "/B"
+; in "PRINT A/B | MORE").
+;
+; Inputs:
+;	AL = keyword ID
+;	DX = offset of handler
+;
+; Outputs:
+;	Carry clear if successful; otherwise, the error was reported
+;
+; Modifies:
+;	None (AX, if the switches are invalid)
+;
+DEFPROC	chkSwitches
+	cmp	dx,offset runLine	; BASIC statements?
+	je	csw9			; yes (and carry is clear)
+	test	byte ptr ds:[PSP_DIGITS+1],0FCh
+	jnz	csw8			; a symbol was found
+	push	ax
+	push	cx
+	push	dx
+	push	si
+	mov	ah,al			; AH = keyword ID
+	mov	cx,word ptr ds:[PSP_LETTERS]
+	mov	dx,word ptr ds:[PSP_LETTERS+2]
+	mov	si,offset CMD_SWITCHES
+csw1:	lods	byte ptr cs:[si]	; AL = next ID
+	test	al,al			; end of the table?
+	jz	csw3			; yes, so the command accepts no letters
+	cmp	al,ah			; this command?
+	je	csw2			; yes
+	add	si,4			; no, so skip its masks
+	jmp	csw1
+csw2:	and	cx,cs:[si]		; remove the letters it accepts
+	and	dx,cs:[si+2]
+csw3:	or	cx,dx			; any letters left? (carry is clear)
+	pop	si
+	pop	dx
+	pop	cx
+	pop	ax
+	jz	csw9			; no
+csw8:	jmp	syntaxError
+csw9:	ret
+ENDPROC	chkSwitches
+
+;
+; The internal commands that accept switches: each keyword ID (see KEYWORDS)
+; is followed by masks to AND with PSP_LETTERS, which clear the bits of those
+; switches (A-P in the low word, Q-Z in the high word).  COPY accepts /B only
+; so that makefiles can run on PC DOS, too; it has no effect here.
+;
+CMD_SWITCHES	label	byte
+	db	10			; DATE /P
+	dw	NOT (1 SHL ('P'-'A')),0FFFFh
+	db	11			; TIME /D /P
+	dw	NOT ((1 SHL ('D'-'A')) OR (1 SHL ('P'-'A'))),0FFFFh
+	db	20			; COPY /B
+	dw	NOT (1 SHL ('B'-'A')),0FFFFh
+	db	21			; DIR /A /S /W
+	dw	NOT (1 SHL ('A'-'A'))
+	dw	NOT ((1 SHL ('S'-'Q')) OR (1 SHL ('W'-'Q')))
+	db	0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

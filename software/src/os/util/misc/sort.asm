@@ -229,6 +229,9 @@ sc1:	dec	cx			; columns start at 1
 sc9:	ret
 ENDPROC	skipCol
 
+SW_LIST	db	"R+"
+SW_LEN	equ	$ - SW_LIST
+
 	include	utilproc.inc
 
 NO_MEMORY	db	"Not enough memory",13,10,0

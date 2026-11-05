@@ -139,8 +139,9 @@ ENDPROC	ctrlC
 ;
 ; getName
 ;
-; Copies the first argument in the command tail to V_FNAME, after setting
-; MODE_WS for any /WS switch that precedes it.
+; Copies the only file name in the command tail, if any, to V_FNAME, and sets
+; MODE_WS for a /WS switch anywhere in the tail.  Anything else is a syntax
+; error.
 ;
 ; Modifies:
 ;	AX, CX, DX, SI, DI
@@ -149,6 +150,7 @@ DEFPROC	getName
 	mov	ax,DOS_MSC_GETSWC
 	int	21h			; DL = switch char
 	mov	si,PSP_CMDTAIL+1
+	lea	di,[bp].V_FNAME
 gn1:	lodsb
 	cmp	al,CHR_SPACE		; whitespace?
 	je	gn1			; yes
@@ -159,22 +161,30 @@ gn1:	lodsb
 	mov	cx,[si]
 	and	cx,NOT 2020h		; upper-case the next two characters
 	cmp	cx,'W' OR ('S' SHL 8)	; WS?
-	jne	gn1a			; no
+	jne	gn8			; no
 	cmp	byte ptr [si+2],CHR_SPACE; and nothing more?
-	ja	gn1a			; no
+	ja	gn8			; no
 	or	[bp].V_MODE,MODE_WS
 	lodsw
 	jmp	gn1
-gn1a:	lea	di,[bp].V_FNAME
+gn1a:	cmp	al,CHR_SPACE		; end of the tail?
+	jb	gn9			; yes
+	lea	cx,[bp].V_FNAME
+	cmp	di,cx			; do we already have a name?
+	jne	gn8			; yes
 	mov	cx,MAXNAME-1
-gn2:	cmp	al,CHR_SPACE		; end of the name (or the tail)?
-	jbe	gn9			; yes
+gn2:	cmp	al,CHR_SPACE		; end of the name?
+	jbe	gn3			; yes
 	mov	[di],al
 	inc	di
 	lodsb
 	loop	gn2
+gn3:	dec	si			; re-examine the last char
+	jmp	gn1
 gn9:	mov	byte ptr [di],0
 	ret
+gn8:	mov	si,offset SYN_ERR	; any other switch is a syntax error
+	jmp	m8
 ENDPROC	getName
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -918,6 +928,7 @@ NEW_MSG		db	" [New File]",0
 LINES_MSG	db	" lines, ",0
 BYTES_MSG	db	" bytes",0
 CON_ERR		db	"Console required",0
+SYN_ERR		db	"Syntax error",0
 BIG_ERR		db	"File too large",0
 READ_ERR	db	"Read error",0
 	DEFLBL	MEM_ERR,byte

@@ -145,8 +145,9 @@
 	IF K THEN FOR J = 1 TO 4 : K$ = K$ + CHR$(255 - ASC(MID$(F$, K - J))) : NEXT
 	K$(N) = K$ + MID$(E$(N), 10) : P(N) = N
 	RETURN
-90	PRINT "Usage: LS ["; S$; "1alRrSt] [filespec]..."
-	END
+90	PRINT "Syntax error" : END 1
 95	O = -1 : RESUME 20
-96	IF ERR = 77 THEN PRINT "Invalid drive" : END
+96	IF ERR = 77 THEN PRINT "Invalid drive" : END 1
+	' A subscript is out of range only if E$ or D$ is full
+	IF ERR = 9 THEN PRINT "Too many matching files" : END 1
 	ERROR ERR

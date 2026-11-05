@@ -8,7 +8,7 @@
 	'
 	DEFINT A-Z
 	D$ = UCASE$(ARG$(1)) : IF D$ = "" THEN D$ = LEFT$(CURDIR$, 2)
-	IF LEN(D$) <> 2 OR RIGHT$(D$, 1) <> ":" THEN PRINT "Usage: VOL [drive:]" : END
+	IF LEN(D$) <> 2 OR RIGHT$(D$, 1) <> ":" THEN PRINT "Syntax error" : END 1
 	ON ERROR GOTO 90
 	F$ = DIR$(D$ + MID$(CURDIR$, 3, 1) + "*.*", 8)
 	ON ERROR GOTO 0
@@ -17,4 +17,4 @@
 	IF I THEN N$ = LEFT$(LEFT$(N$, I - 1) + SPACE$(8), 8) + MID$(N$, I + 1)
 	PRINT " Volume in drive "; LEFT$(D$, 1); " is "; N$
 	END
-90	PRINT "Invalid drive" : END
+90	PRINT "Invalid drive" : END 1

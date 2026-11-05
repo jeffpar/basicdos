@@ -88,7 +88,8 @@
 	NU = NU + 1 : BU = BU + L * CB
 	GOTO 10
 20	ND = ND + 1 : BD = BD + L * CB
-	IF QN <= 300 THEN QC(QN) = C0 : QP$(QN) = N$ + PC$ : QN = QN + 1
+	IF QN > 300 THEN PRINT N$; " not checked (too many subdirectories)" : QX = 1 : GOTO 10
+	QC(QN) = C0 : QP$(QN) = N$ + PC$ : QN = QN + 1
 	GOTO 10
 30	NEXT
 40	CLOSE #1
@@ -108,6 +109,8 @@
 	IF F = 0 OR F = BC OR (U(C \ 32) AND (1 << (C AND 31))) THEN GOTO 60
 	IF (W(C \ 32) AND (1 << (C AND 31))) = 0 THEN NX = NX + 1
 60	NEXT
+	' Clusters of a directory that wasn't checked would look lost
+	IF QX THEN PRINT "Not all directories were checked, so lost clusters aren't reported" : NL = 0
 	IF NL THEN PRINT NL; "lost clusters found in"; NX; "chains" : ER = ER + 1
 	IF ER THEN PRINT "Errors found (CHKDSK reports them, but can't fix them)"
 	' Report the label (with its date and time) and the space on the volume
@@ -126,14 +129,16 @@
 	IF NU THEN PRINTF USING "%12d bytes in %d user files"; BU, NU
 	IF NL THEN PRINTF USING "%12d bytes in %d lost clusters"; NL * CB, NL
 	PRINTF USING "%12d bytes available on disk"; NF * CB
+	' Problems found, or an incomplete check, set ERRORLEVEL
+	IF ER OR QX THEN END 1
 	END
-85	PRINT "Drive "; D$; " doesn't have a FAT volume" : END
+85	PRINT "Drive "; D$; " doesn't have a FAT volume" : END 1
 90	CLOSE
-	IF ERR = 71 THEN PRINT "Drive not ready" : END
-	IF ERR = 77 THEN PRINT "Invalid drive" : END
+	IF ERR = 71 THEN PRINT "Drive not ready" : END 1
+	IF ERR = 77 THEN PRINT "Invalid drive" : END 1
 	PRINT "Unable to check drive "; D$; " (error"; ERR; ")"
-	END
-95	PRINT "Usage: CHKDSK [drive:] ["; W$; "V]" : END
+	END 1
+95	PRINT "Syntax error" : END 1
 200	' Get the next entry (Q$) of the directory being read (empty at its
 	' end): DC is its current cluster (0 for the root), DS the current
 	' sector, DN the sectors left in DC (or the root), and DJ the next of
@@ -149,7 +154,7 @@
 	R = O \ 224 + 1
 	IF R <= 65535 THEN GOTO 220
 	PRINT QP$(QI); " is beyond the first 14Mb (not checked)"
-	Q$ = ""
+	Q$ = "" : QX = 1
 	RETURN
 220	IF R <> LR THEN GET #1, R : LR = R
 	Q$ = MID$(E$, (O MOD 224) + 1, 32)

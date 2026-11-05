@@ -119,7 +119,7 @@ Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-
 
 **DOS_UTL_TOKID (0Eh)**: CX = token length, DS:SI -> token, CS:DX -> token table (TOKTBL, followed by TOKDEFs sorted by name).  Returns carry clear, AX = token ID, and SI -> the TOKDEF if found; otherwise, carry set and AX = 0.
 
-**DOS_UTL_PARSESW (0Fh)**: DL = first token to parse, DH = # of non-switch tokens to ignore, ES:DI -> TOKBUF.  Sets a bit in PSP_DIGITS or PSP_LETTERS (see [PSP](../data/#psp)) for each switch character found (eg, `/P` sets the bit for P), and returns DL = first non-switch token.
+**DOS_UTL_PARSESW (0Fh)**: DL = first token to parse, DH = # of non-switch tokens to ignore, ES:DI -> TOKBUF.  Sets a bit in PSP_DIGITS or PSP_LETTERS (see [PSP](../data/#psp)) for each switch character found (eg, `/P` sets the bit for P), stopping at the end of the command (a symbol, eg, a pipe), and returns DL = first non-switch token.
 
 ### Devices
 

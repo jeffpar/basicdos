@@ -159,6 +159,9 @@ pc8:	PRINTF	<13,10>
 	ret
 ENDPROC	printCounts
 
+SW_LIST	db	"CLW"
+SW_LEN	equ	$ - SW_LIST
+
 	include	utilproc.inc
 
 SWITCHES	db	'L'-'A','W'-'A','C'-'A'

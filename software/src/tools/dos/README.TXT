@@ -1,16 +1,18 @@
 BASIC-DOS Build Tools
 =====================
 
-The tools in this directory build BASIC-DOS from its source code (see SRC:
-type CD \SRC and then MK), and they can build other software on BASIC-DOS,
-too.  None of them are part of BASIC-DOS: they came from the three Microsoft
-products described below, and none of them has been modified.
+Most of the tools in this directory build BASIC-DOS from its source code (see
+SRC: type CD \SRC and then MK), and they can all be used with other software
+on BASIC-DOS, too.  None of them are part of BASIC-DOS: they came from the
+three Microsoft products described below.  They're unmodified, except for
+MASM.EXE on a BASIC-DOS disk, which is a protected-mode conversion (see the
+last section).
 
 Microsoft Macro Assembler Package, Version 4.00 (October 16, 1985)
 ------------------------------------------------------------------
 
-All of the package's files are here, except MAKE.EXE, which has been
-replaced (see the next section):
+All of the package's files are here, except its MAKE.EXE (MAKE 4.00, 24300
+bytes, 10-16-85), which has been replaced (see the next section):
 
     COUNT    ASM      5965  10-16-85   sample program (counts words in a file)
     CREF     EXE     15028  10-16-85   Cross-Reference Utility 4.00
@@ -18,11 +20,16 @@ replaced (see the next section):
     EXEPACK  EXE     10848  10-16-85   EXE File Compression Utility 4.00
     LIB      EXE     28716  10-16-85   Library Manager 3.02
     LINK     EXE     43988  10-16-85   Linker 3.05 (September 29, 1985)
-    MAKE     EXE     24300  10-16-85   Program Maintenance Utility 4.00
     MAPSYM   EXE     18026  10-16-85   Symbol File Generator 4.00
     MASM     EXE     85566  10-16-85   Macro Assembler 4.00
     README   DOC      7630  10-16-85   Microsoft's release notes
     SYMDEB   EXE     37021  10-16-85   Symbolic Debug Utility 4.00
+
+Building BASIC-DOS requires only EXEMOD, LINK, MAPSYM, and MASM.  The other
+files complete the package, for use with other software: CREF, EXEPACK, and
+LIB are additional development tools, SYMDEB is a debugger (which the BASIC-DOS
+Tests diskette has, too), COUNT.ASM is a sample, and README.DOC has Microsoft's
+notes about the release.
 
 Microsoft C Compiler, Version 4.00 (June 27, 1986)
 --------------------------------------------------
@@ -60,3 +67,22 @@ DOS_MSC_GETVER in the BASIC-DOS technical reference.  The file is unmodified.
 
 The other tools have small stacks, too (MAPSYM's SP is 80h and LINK's is
 100h), but BASIC-DOS has built itself with them without trouble.
+
+BASIC-DOS Protected-Mode Tools
+------------------------------
+
+TOOLS\MASM.EXE on a BASIC-DOS disk is MASM 4.00 converted to a dual MZ/NE
+executable, which should perform the same as the original.  MS-DOS and
+real-mode BASIC-DOS run its original MZ image, while protected-mode BASIC-DOS
+runs the NE image at ring 3.  The NE image has fixed code and data segments,
+translates the MZ segment relocations to NE relocations, replaces privileged
+CLI and STI instructions, and adapts MASM's real-mode memory setup.  Its
+banner ends in "Version 4.00BD" to identify the BASIC-DOS conversion.
+
+In the BASIC-DOS repository, the unmodified tools are in
+software/src/tools/dos, and the conversions are in software/src/tools/bd.  A
+disk's TOOLS folder gets the former, overlaid with the latter, and mk.sh's
+PATH$ searches bd first.  Run
+"node tools/mkmasmne.js" at the repository root to rebuild bd/MASM.EXE from
+dos/MASM.EXE.  Only MASM has been converted, so BASIC-DOS still builds in real
+mode, because its other MZ build tools do not yet have protected-mode versions.

@@ -23,7 +23,7 @@ CODE    SEGMENT
 DEFPROC	main
 	mov	bp,ds:[PSP_HEAP]	; BP -> UTILVARS
 	call	getArgs
-	mov	si,offset NO_FILE
+	mov	si,offset SYN_ERR
 	cmp	[bp].UV_NFILES,0	; was a file specified?
 	je	m8			; no
 	mov	dx,[bp].UV_FILES	; DX -> file name
@@ -82,9 +82,11 @@ m8:	call	writeErr
 	jmp	m9
 ENDPROC	main
 
+SW_LIST	db	"A"
+SW_LEN	equ	$ - SW_LIST
+
 	include	utilproc.inc
 
-NO_FILE		db	"Missing file name",13,10,0
 WRITE_ERR	db	"Unable to write ",0
 
 	COMHEAP	<size UTILVARS + STACK_LEN>

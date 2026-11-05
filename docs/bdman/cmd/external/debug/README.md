@@ -287,7 +287,9 @@ Lists everything that VT can trap, or only what belongs to one *vector* (hex, or
 	* 0D:   General protection
 	* 1302: BIOS disk reads
 	  1303: BIOS disk writes
-	  213D: DOS file opens
+	  210F: FCB Open
+	  ...
+	  2157: DOS FileTime
 	-VL 13
 	* 1302: BIOS disk reads
 	  1303: BIOS disk writes
@@ -296,7 +298,7 @@ Lists everything that VT can trap, or only what belongs to one *vector* (hex, or
 
 > VT *number* [*number*...]
 
-Traps what VL lists: an exception's vector (hex, or decimal with a trailing period; eg, `VT 0D` or `VT 13.`), so that it stops the debugger instead of being passed on (see [Exceptions and Faults](#exceptions-and-faults)), or a software interrupt's function (eg, `VT 1302`), so that each call is reported (see [Function Reports](#function-reports)).
+Traps what VL lists: an exception's vector (hex, or decimal with a trailing period; eg, `VT 0D` or `VT 13.`), so that it stops the debugger instead of being passed on (see [Exceptions and Faults](#exceptions-and-faults)), or a software interrupt's function (eg, `VT 1302`), so that each call is reported (see [Function Reports](#function-reports)).  A vector that has functions in the list selects all of them (eg, `VT 21` for all of INT 21h's functions, or `VT 13` for INT 13h's), and `VC` accepts the same numbers.
 
 #### ? {#help}
 
@@ -320,7 +322,33 @@ A software interrupt function that VT traps doesn't stop the machine: the driver
 
 `VT 1302` and `VT 1303` report INT 13h's functions 02h and 03h, disk reads and writes, with the drive, the number of sectors, the cylinder, head, and sector, and the address of the buffer (eg, `V1302: Disk 00 reading 09 sectors at 0008:01:01 into 0D19:3300` or `V1303: Disk 00 writing 01 sectors at 0000:00:06 from 0A88:0010`).  In protected mode, the address is the one that BASIC-DOS gives the ROM, which isn't the program's own (eg, `0040:3AFE` for a diskette).
 
-`VT 213D` reports INT 21h's function 3Dh, file opens, with up to 80 characters of the name that the caller passed (eg, `V213D: DOS Open "A:\CONFIG.SYS"`), including the opens that BASIC-DOS itself makes (eg, to load a program), which can repeat a name.  The name is empty if its address isn't valid.  While any INT 21h function is trapped, every DOS call is slower, until VC clears the trap.
+INT 21h's file functions are reported as shown below (eg, `V213D: DOS Open "A:\CONFIG.SYS"`).  Names are in quotes, and an FCB's name is shown with its drive, unless that's the default drive (eg, `"A:FOO.TXT"`), for an extended FCB, too.  A name is empty if its address isn't valid, and a name that would reach column 68 is cut off, so that a report fits on one line.  Reports include the calls that BASIC-DOS itself makes (eg, opening a program to load it), which can repeat a name.  While any INT 21h function is trapped, every DOS call is slower, until VC clears the trap.
+
+| Number | Report (values in hex) |
+|--------|------------------------|
+| 210F, 2110 | `FCB Open` or `FCB Close` *"name"* |
+| 2111, 2112 | `FCB FindFirst` or `FCB FindNext` *"name"* |
+| 2113, 2116 | `FCB Delete` or `FCB Create` *"name"* |
+| 2114, 2115 | `FCB SeqRead` or `FCB SeqWrite` *"name"* `at` *block*`:`*record* `size` *recordsize* |
+| 2117 | `FCB Rename` *"name"* `to` *"newname"* |
+| 2121, 2122 | `FCB RandRead` or `FCB RandWrite` *"name"* `at` *record* `size` *recordsize* |
+| 2123 | `FCB Size` *"name"* `size` *recordsize* |
+| 2124 | `FCB SetRandom` *"name"* `at` *block*`:`*record* `size` *recordsize* |
+| 2127, 2128 | `FCB BlockRead` or `FCB BlockWrite` *"name"* *count* `records at` *record* `size` *recordsize* |
+| 2139, 213A, 213B | `DOS MkDir`, `DOS RmDir`, or `DOS ChDir` *"name"* |
+| 213C | `DOS Create` *"name"* `attr` *attributes* |
+| 213D, 2141 | `DOS Open` or `DOS Delete` *"name"* |
+| 213E | `DOS Close #`*handle* |
+| 213F, 2140 | `DOS Read` or `DOS Write #`*handle* *count* `bytes at` *segment*`:`*offset* |
+| 2142 | `DOS Seek #`*handle* `to` *high*`:`*low* `from` *method* |
+| 2143 | `DOS Attr` *AL* *"name"* `attr` *attributes* (AL is 0 to get them, and 1 to set them) |
+| 2144 | `DOS IOCTL #`*handle* `func` *AL* *CX* *DX* |
+| 214E | `DOS FindFirst` *"name"* `attr` *attributes* |
+| 214F | `DOS FindNext` |
+| 2156 | `DOS Rename` *"name"* `to` *"newname"* |
+| 2157 | `DOS FileTime` *AL* `#`*handle* *CX* *DX* (AL is 0 to get the time and date, which CX and DX then don't hold, and 1 to set them) |
+
+Each report shows the call as it's made, before DOS has acted on it, so it doesn't show the result, and values that DOS returns (eg, an FCB's file size) aren't known yet.
 
 Interrupts are disabled while a report is sent, so a slow terminal can make the system lose clock ticks.
 

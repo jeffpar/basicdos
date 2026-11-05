@@ -14,6 +14,7 @@
 ;
 	BIOSAPI equ 1
 	DOSFUNC equ 1
+	DOSFCB equ 1
 	include	macros.inc
 	include	bios.inc
 	include	dosapi.inc
@@ -21,39 +22,64 @@
 CODE	segment word public 'CODE'
 
 	EXTNEAR	<ax_mem,end_command,hex_byte,hex_word,newline,pad,parse_hex>
-	EXTNEAR	<peek_b,put_char,skip_space,space>
-	EXTBYTE	<trap_21>
+	EXTNEAR	<peek_b,peek_w,put_char,skip_space,space>
+	EXTBYTE	<col,trap_21>
 	EXTWORD	<regs>
 
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 ;
 ; VEC_TAB lists what VT can trap, for cmd_v and VL: each entry is a number (a
 ; vector, or a software interrupt and one of its functions; eg, 1302h), a state
-; (a space, or * if it's trapped), and a description.  After a function's
-; description, VEC_RPT starts the report of each call, where these codes
-; display the caller's registers (see put_fmt): V_BYTE or V_WORD plus a
-; register's offset in regs (see REG_TABLE), V_CYL or V_SEC for CX's cylinder
-; or sector, or V_STR for the string at DS:DX.  Program mode ends the table at
-; VEC_DRV, since it hooks only INT 00h, and two of the descriptions are also
-; messages (see monitor).
+; (a space, or * if it's trapped), and a description, which ends how a function
+; reports each call (see rpt_vec): VEC_RPT starts a report that replaces the
+; description, VEC_ARG starts the arguments that follow the description, and a
+; zero means that the next entry's arguments are this entry's, too.
 ;
-; To report another function of a vector that's already hooked, just add it
-; here (and a V_* code for any new register); a new vector also needs a stub
-; (see dbg_int21), a vec_save slot, and a hook (see dbgdev_init).
+; These codes display values (see put_fmt): V_BYTE or V_WORD plus an offset in
+; regs (see REG_TABLE, and fault_ec), V_CYL or V_SEC for CX's cylinder or
+; sector, V_STR or V_STRE for the string at DS:DX or ES:DI, V_FCB or V_FCB2 for
+; the name or new name in the FCB at DS:DX, or V_FB or V_FW plus the next byte
+; for a byte or word at that offset in the FCB (which may be an extended FCB).
+;
+; Program mode ends the table at VEC_DRV, since it hooks only INT 00h, and some
+; descriptions are also messages (see monitor).  To report another function of
+; a vector that's already hooked, just add it here (and a V_* code for any new
+; register); a new vector also needs a stub (see dbg_int21), a vec_save slot,
+; and a hook (see dbgdev_init).
 ;
 VEC_RPT		equ	1
+VEC_ARG		equ	2
 V_BYTE		equ	80h
 V_WORD		equ	0A0h
+V_FB		equ	0C0h+1
+V_FW		equ	0E0h+2
+V_FCB		equ	0E0h+1
+V_FCB2		equ	0E0h+11h
+V_STRE		equ	0C0h+8
 V_STR		equ	0C0h+14
 V_SEC		equ	0C0h+16
 V_CYL		equ	0E0h+16
 V_DL		equ	V_BYTE+14
 V_DH		equ	V_BYTE+15
 V_AL		equ	V_BYTE+20
-V_BX		equ	V_WORD+18
+V_DS		equ	V_WORD+6
 V_ES		equ	V_WORD+4
-R_DS		equ	6	; offset of DS in regs (for V_STR)
-STR_MAX		equ	80	; the most of a V_STR that's displayed
+V_DX		equ	V_WORD+14
+V_CX		equ	V_WORD+16
+V_BX		equ	V_WORD+18
+V_IP		equ	V_WORD+22
+V_CS		equ	V_WORD+24
+V_FEC		equ	V_WORD+28
+V_FVEC		equ	V_BYTE+30
+R_ES		equ	4	; offsets in regs (see REG_TABLE)
+R_DS		equ	6
+R_DX		equ	14
+STR_COL		equ	68	; the column where a string's display ends
+FCB_NEWNAME	equ	11h	; the new name in a rename FCB (see fcbio.asm)
+VEC_DOS		equ	INT_DOSFUNC SHL 8
+	DEFLBL	FAULT_MSG,byte
+	db	"CPU fault ",V_FVEC," (EC=",V_FEC,") at ",V_CS,":",V_IP,0
+	db	"System halted",0
 	DEFLBL	VEC_TAB,word
 	dw	00h
 	db	' '
@@ -90,9 +116,78 @@ STR_MAX		equ	80	; the most of a V_STR that's displayed
 	db	" BIOS disk writes",VEC_RPT
 	db	"Disk ",V_DL," writing ",V_AL," sectors at "
 	db	V_CYL,":",V_DH,":",V_SEC," from ",V_ES,":",V_BX,0
-	dw	(INT_DOSFUNC SHL 8) OR DOS_HDL_OPEN
-	db	" DOS file opens",VEC_RPT
-	db	'DOS Open "',V_STR,'"',0
+	dw	VEC_DOS OR DOS_FCB_OPEN
+	db	" FCB Open",0
+	dw	VEC_DOS OR DOS_FCB_CLOSE
+	db	" FCB Close",0
+	dw	VEC_DOS OR DOS_FCB_FFIRST
+	db	" FCB FindFirst",0
+	dw	VEC_DOS OR DOS_FCB_FNEXT
+	db	" FCB FindNext",0
+	dw	VEC_DOS OR DOS_FCB_DELETE
+	db	" FCB Delete",VEC_ARG,V_FCB,0
+	dw	VEC_DOS OR DOS_FCB_SREAD
+	db	" FCB SeqRead",0
+	dw	VEC_DOS OR DOS_FCB_SWRITE
+	db	" FCB SeqWrite",VEC_ARG,V_FCB
+	db	" at ",V_FW,FCB_CURBLK,":",V_FB,FCBF_CURREC
+	db	" size ",V_FW,FCB_RECSIZE,0
+	dw	VEC_DOS OR DOS_FCB_CREATE
+	db	" FCB Create",VEC_ARG,V_FCB,0
+	dw	VEC_DOS OR DOS_FCB_RENAME
+	db	" FCB Rename",VEC_ARG,V_FCB," to ",V_FCB2,0
+	dw	VEC_DOS OR DOS_FCB_RREAD
+	db	" FCB RandRead",0
+	dw	VEC_DOS OR DOS_FCB_RWRITE
+	db	" FCB RandWrite",VEC_ARG,V_FCB
+	db	" at ",V_FB,FCBF_RELREC+2,V_FW,FCBF_RELREC
+	db	" size ",V_FW,FCB_RECSIZE,0
+	dw	VEC_DOS OR DOS_FCB_SIZE
+	db	" FCB Size",VEC_ARG,V_FCB," size ",V_FW,FCB_RECSIZE,0
+	dw	VEC_DOS OR DOS_FCB_SETREL
+	db	" FCB SetRandom",VEC_ARG,V_FCB
+	db	" at ",V_FW,FCB_CURBLK,":",V_FB,FCBF_CURREC
+	db	" size ",V_FW,FCB_RECSIZE,0
+	dw	VEC_DOS OR DOS_FCB_RBREAD
+	db	" FCB BlockRead",0
+	dw	VEC_DOS OR DOS_FCB_RBWRITE
+	db	" FCB BlockWrite",VEC_ARG,V_FCB," ",V_CX
+	db	" records at ",V_FB,FCBF_RELREC+2,V_FW,FCBF_RELREC
+	db	" size ",V_FW,FCB_RECSIZE,0
+	dw	VEC_DOS OR DOS_DSK_MKDIR
+	db	" DOS MkDir",0
+	dw	VEC_DOS OR DOS_DSK_RMDIR
+	db	" DOS RmDir",0
+	dw	VEC_DOS OR DOS_DSK_CHDIR
+	db	" DOS ChDir",VEC_ARG,V_STR,0
+	dw	VEC_DOS OR DOS_HDL_CREATE
+	db	" DOS Create",VEC_ARG,V_STR," attr ",V_CX,0
+	dw	VEC_DOS OR DOS_HDL_OPEN
+	db	" DOS Open",VEC_ARG,V_STR,0
+	dw	VEC_DOS OR DOS_HDL_CLOSE
+	db	" DOS Close",VEC_ARG,"#",V_BX,0
+	dw	VEC_DOS OR DOS_HDL_READ
+	db	" DOS Read",0
+	dw	VEC_DOS OR DOS_HDL_WRITE
+	db	" DOS Write",VEC_ARG,"#",V_BX," ",V_CX
+	db	" bytes at ",V_DS,":",V_DX,0
+	dw	VEC_DOS OR DOS_DSK_DELETE
+	db	" DOS Delete",VEC_ARG,V_STR,0
+	dw	VEC_DOS OR DOS_HDL_SEEK
+	db	" DOS Seek",VEC_ARG,"#",V_BX
+	db	" to ",V_CX,":",V_DX," from ",V_AL,0
+	dw	VEC_DOS OR (DOS_DSK_GETATTR SHR 8)
+	db	" DOS Attr",VEC_ARG,V_AL," ",V_STR," attr ",V_CX,0
+	dw	VEC_DOS OR DOS_HDL_IOCTL
+	db	" DOS IOCTL",VEC_ARG,"#",V_BX," func ",V_AL," ",V_CX," ",V_DX,0
+	dw	VEC_DOS OR DOS_DSK_FFIRST
+	db	" DOS FindFirst",VEC_ARG,V_STR," attr ",V_CX,0
+	dw	VEC_DOS OR DOS_DSK_FNEXT
+	db	" DOS FindNext",VEC_ARG,0
+	dw	VEC_DOS OR DOS_DSK_RENAME
+	db	" DOS Rename",VEC_ARG,V_STR," to ",V_STRE,0
+	dw	VEC_DOS OR (DOS_HDL_GETTIME SHR 8)
+	db	" DOS FileTime",VEC_ARG,V_AL," #",V_BX," ",V_CX," ",V_DX,0
 	dw	-1
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -105,7 +200,8 @@ STR_MAX		equ	80	; the most of a V_STR that's displayed
 ; clears the listed traps (or * for all); VL lists everything that can be
 ; trapped (see VEC_TAB), or only what belongs to one vector.  A vector is hex,
 ; or decimal with a trailing period (eg, 0D or 13.), and a function is hex (eg,
-; 1302).  Single-steps (01h) and breakpoints (03h) always stop the machine.
+; 1302); a vector that has functions in the table selects all of them (eg, 21).
+; Single-steps (01h) and breakpoints (03h) always stop the machine.
 ;
 DEFPROC	cmd_v
 	lodsb
@@ -127,21 +223,37 @@ cv1:	call	skip_space
 	cmp	dh,' '			; (only VC accepts *)
 	stc
 	jne	cv9
-	mov	bx,offset VEC_TAB
-cv2:	cmp	word ptr [bx],-1	; end of the table?
-	je	cv1			; yes
-	inc	bx
-	inc	bx
-	call	set_vec
-	call	next_vec
-	jmp	cv2
+	sub	cx,cx			; CL = 0 selects every entry
+	jmp	short cv2
 cv3:	dec	si
 	push	dx
-	call	parse_vec		; BX -> its state
+	call	parse_num		; AX = number
 	pop	dx
 	jc	cv9
+	call	find_vec		; BX -> its state
+	jc	cv3b			; it's not in the table
 	call	set_vec
 	jmp	cv1
+cv3b:	test	ah,ah			; could it be a vector?
+	stc
+	jnz	cv9			; no
+	xchg	cx,ax			; CL = the vector to select
+cv2:	mov	bx,offset VEC_TAB	; (CH counts the entries set)
+cv2a:	mov	ax,[bx]			; AX = its number
+	cmp	ax,-1			; end of the table?
+	je	cv2d			; yes
+	inc	bx
+	inc	bx
+	test	cl,cl			; every entry?
+	jz	cv2b			; yes
+	cmp	ah,cl			; a function of that vector?
+	jne	cv2c			; no
+cv2b:	call	set_vec
+	inc	ch
+cv2c:	call	next_vec
+	jmp	cv2a
+cv2d:	cmp	ch,1			; were none set (carry set if so)?
+	jnc	cv1			; no
 cv9:	ret
 cmd_vl:	mov	bp,-1			; BP = the vector to list (or all)
 	call	end_command
@@ -216,21 +328,20 @@ ENDPROC	set_vec
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; parse_num, parse_vec
+; parse_num
 ;
-; Parses a number for VL or VT: hex, or decimal with a trailing period (eg,
-; 13., as FAULT.COM numbers vectors); parse_vec then finds it in VEC_TAB.
+; Parses a number for VC, VL, or VT: hex, or decimal with a trailing period
+; (eg, 13., as FAULT.COM numbers vectors).
 ;
 ; Inputs:
 ;	SI -> command text
 ;
 ; Outputs:
-;	If carry clear, AX = number (parse_num), or BX -> its state
-;	(parse_vec), and SI -> next character
+;	If carry clear, AX = number, and SI -> next character
 ;	If carry set, it's invalid
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI
+;	AX, CX, DX, SI
 ;
 DEFPROC	parse_num
 	call	parse_hex		; AX = value (as hex)
@@ -252,11 +363,6 @@ vp7:	clc
 vp8:	stc
 vp9:	ret
 ENDPROC	parse_num
-
-DEFPROC	parse_vec
-	call	parse_num
-	jc	vp9
-ENDPROC	parse_vec			; fall into find_vec
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -326,7 +432,10 @@ ENDPROC	chk_trap
 ; rpt_vec
 ;
 ; Displays the report of a call to a software interrupt function, if VT traps
-; that function, as a message for that function (see put_vec).
+; that function, as a message for that function (see put_vec): its description
+; and arguments, or for a VEC_RPT entry, only its report (see VEC_TAB).  The
+; report starts at column 0, even if DEBUG$ output has left col elsewhere,
+; since strings stop at STR_COL, so that a report fits on one line.
 ;
 ; Inputs:
 ;	AX = number (eg, 1302h)
@@ -340,12 +449,22 @@ DEFPROC	rpt_vec
 	jc	nv9
 	cmp	byte ptr [bx],'*'	; is it trapped?
 	jne	nv9			; no
+	mov	[col],0
 	call	put_vec
 	mov	si,bx
 rv1:	lodsb
-	cmp	al,VEC_RPT		; the end of its description?
-	jne	rv1			; no
-	call	put_fmt
+	cmp	al,VEC_ARG		; the end of its description?
+	ja	rv1			; no
+	cmp	al,VEC_RPT		; does a report replace it?
+	je	rv3			; yes
+	lea	si,[bx+1]
+	call	put_fmt			; AL = the end of its description
+rv2:	cmp	al,VEC_ARG		; do its arguments follow?
+	je	rv2a			; yes
+	lodsb				; no, so find the next entry's
+	jmp	rv2
+rv2a:	call	space
+rv3:	call	put_fmt
 	jmp	newline
 ENDPROC	rpt_vec
 
@@ -377,60 +496,131 @@ ENDPROC	put_vec
 ;
 ; put_fmt
 ;
-; Displays a VEC_TAB description or report, up to its end (0 or VEC_RPT),
-; with each V_* code replaced by the value it selects (in hex), or for V_STR,
-; the string that it selects, reading as much of it as the address allows (a
-; report never stops the machine, even if a program passes a bad address).
+; Displays a VEC_TAB description or report, up to its end (0, VEC_RPT, or
+; VEC_ARG), with each V_* code replaced by the value it selects (in hex), or
+; for a name, in quotes, reading as much of it as its address allows (a report
+; never stops the machine, even if a program passes a bad address).
 ;
 ; Inputs:
 ;	SI -> text
+;
+; Outputs:
+;	AL = the end of the text, and SI -> what follows it
 ;
 ; Modifies:
 ;	AX, CX, DX, SI, DI
 ;
 DEFPROC	put_fmt
 pf1:	lodsb
-	cmp	al,VEC_RPT		; the end?
+	cmp	al,VEC_ARG		; the end?
 	jbe	pf9			; yes
 	test	al,al			; a code?
 	js	pf2			; yes
 	call	put_char
 	jmp	pf1
+pf9:	ret
 pf2:	xchg	dx,ax			; DL = the code
 	mov	di,dx
 	and	di,1Fh			; DI = its offset in regs
 	mov	ax,regs[di]		; AX = the register
-	cmp	dl,V_STR		; the string at DS:DX?
-	jne	pf3			; no
-	xchg	di,ax			; DI = DX
-	mov	ax,regs[R_DS]
-	call	ax_mem
-	mov	cx,STR_MAX
-pf2a:	call	peek_b			; AL = next character
-	jc	pf1			; the address isn't valid
-	test	al,al			; the end of the string?
-	jz	pf1			; yes
-	call	put_char
-	inc	di
-	loop	pf2a
-	jmp	pf1
-pf3:	cmp	dl,V_SEC		; CX's sector?
-	jne	pf3a			; no
+	cmp	dl,V_SEC		; CX's sector?
+	jne	pf2a			; no
 	and	al,3Fh			; AL = sector (the low 6 bits of CL)
 	jmp	short pf5
-pf3a:	cmp	dl,V_CYL		; CX's cylinder?
-	jne	pf4			; no
+pf2a:	cmp	dl,V_CYL		; CX's cylinder?
+	jne	pf3			; no
 	xchg	al,ah
 	mov	cl,6
 	shr	ah,cl			; AX = cylinder (CH + the high 2 of CL)
+	jmp	short pf4
+pf3:	cmp	dl,0C0h			; just a register?
+	jb	pf4			; yes
+	cmp	dl,V_FB			; a value in the FCB?
+	je	pf3a			; yes
+	cmp	dl,V_FW
+	jne	pf6			; no
+pf3a:	call	fcb_mem
+	lodsb				; AX = its offset
+	cbw
+	add	di,ax
+	call	peek_w
 pf4:	test	dl,V_WORD XOR V_BYTE	; a word?
 	jz	pf5			; no
 	call	hex_word
 	jmp	pf1
 pf5:	call	hex_byte
 	jmp	pf1
-pf9:	ret
+pf6:	xchg	di,ax			; DI = the string's offset (for V_STR*)
+	mov	al,'"'
+	call	put_char
+	test	dl,V_WORD XOR V_BYTE	; a name in the FCB?
+	jnz	pf7			; yes
+	mov	ax,regs[R_DS]
+	cmp	dl,V_STR		; the string at DS:DX?
+	je	pf6a			; yes
+	mov	ax,regs[R_ES]
+pf6a:	call	ax_mem
+pf6b:	cmp	[col],STR_COL		; is that as much as fits?
+	jae	pf8			; yes
+	call	peek_b			; AL = next character
+	jc	pf8			; the address isn't valid
+	test	al,al			; the end of the string?
+	jz	pf8			; yes
+	call	put_char
+	inc	di
+	jmp	pf6b
+pf7:	call	fcb_mem
+	cmp	dl,V_FCB		; the name, rather than the new name?
+	jne	pf7a			; no
+	call	peek_b			; AL = 1-based drive
+	dec	al			; is it the default drive (or invalid)?
+	js	pf7b			; yes
+	add	al,'A'
+	call	put_char
+	mov	al,':'
+	call	put_char
+	jmp	short pf7b
+pf7a:	add	di,FCB_NEWNAME-size FCB_DRIVE
+pf7b:	mov	cx,size FCB_NAME
+pf7c:	inc	di
+	call	peek_b			; AL = next character
+	jc	pf8			; the address isn't valid
+	cmp	al,' '			; padding?
+	je	pf7d			; yes
+	call	put_char
+pf7d:	cmp	cl,4			; the end of the 8-character part?
+	jne	pf7e			; no
+	mov	al,'.'
+	call	put_char
+pf7e:	loop	pf7c
+pf8:	mov	al,'"'
+	call	put_char
+	jmp	pf1
 ENDPROC	put_fmt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fcb_mem
+;
+; Inputs:
+;	The caller's DS:DX -> FCB or extended FCB
+;
+; Outputs:
+;	mem_seg:DI -> FCB (see peek_b)
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	fcb_mem
+	mov	di,regs[R_DX]
+	mov	ax,regs[R_DS]
+	call	ax_mem
+	call	peek_b
+	cmp	al,0FFh			; an extended FCB?
+	jne	fm9			; no
+	add	di,size FCBEX
+fm9:	ret
+ENDPROC	fcb_mem
 
 CODE	ends
 

@@ -9,11 +9,13 @@
 	' or - can be followed by several attributes (eg, +RS).
 	'
 	DEFINT A-Z
+	DOS &H3700 : W$ = CHR$(DOS(3) AND 255)
 	S$ = "*.*" : SM = 0 : CM = 0 : A = 0
 	I = 1 : A$ = UCASE$(ARG$(1))
 	WHILE A$ <> ""
 	C$ = LEFT$(A$, 1)
-	IF C$ <> "+" AND C$ <> "-" THEN S$ = A$ : GOTO 10
+	IF C$ <> "+" AND C$ <> "-" THEN IF C$ = W$ OR F THEN GOTO 90
+	IF C$ <> "+" AND C$ <> "-" THEN S$ = A$ : F = 1 : GOTO 10
 	IF LEN(A$) = 1 THEN GOTO 90
 	FOR J = 2 TO LEN(A$)
 	' The attribute bits are 1 (R), 2 (H), 4 (S), and 32 (A)
@@ -34,7 +36,7 @@
 	ON ERROR GOTO 80
 	F$ = DIR$(S$, 6)
 	ON ERROR GOTO 0
-	IF F$ = "" THEN PRINT "Unable to find "; S$ : END
+	IF F$ = "" THEN PRINT "Unable to find "; S$ : END 1
 30	A = ASC(F$) : N$ = MID$(F$, 10)
 	B = (A AND NOT CM) OR SM
 	IF B <> A THEN DOS &H4301, 0, B, P$ + N$ : A = B
@@ -43,6 +45,5 @@
 	F$ = DIR$
 	IF F$ <> "" THEN GOTO 30
 	END
-80	PRINT "Invalid drive" : END
-90	PRINT "Usage: ATTRIB [+R|-R] [+H|-H] [+S|-S] [+A|-A] [filespec]"
-	END
+80	PRINT "Invalid drive" : END 1
+90	PRINT "Syntax error" : END 1

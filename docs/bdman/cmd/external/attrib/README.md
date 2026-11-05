@@ -28,7 +28,7 @@ Attributes given with `+` are set, and those given with `-` are cleared; if the 
 	  A          CONFIG.SYS
 	ATTRIB -R COMMAND.COM
 
-If no file matches, ATTRIB displays `Unable to find` and the *filespec*, or if its drive doesn't exist, `Invalid drive`.  A `+` or `-` by itself, or followed by anything other than these attributes, displays ATTRIB's usage.
+If no file matches, ATTRIB displays `Unable to find` and the *filespec*, or if its drive doesn't exist, `Invalid drive`.  A `+` or `-` by itself, or followed by anything other than these attributes, displays `Syntax error`, as does a switch or a second *filespec*.
 
 ATTRIB sets attributes with DOS function 4301h (see [DOS](../../basic/#dos)), so a file whose attributes can't be changed (eg, while its volume is open) is a "Permission denied" error.
 

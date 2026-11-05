@@ -31,7 +31,9 @@ The results are:
 - `Unable to open both files (the same file?)`: a file that isn't read-only can't be compared with itself, since it can't be opened twice for random access
 - `Unable to compare (error` *n*`)`, for any other error
 
-COMP compares at most 201 files at a time, and if either file name is missing, it displays its usage.
+A switch, a missing file name, or a third file name displays `Syntax error`.
+
+ERRORLEVEL is set to 0 if every file compares ok, and otherwise to 1.
 
 Source: [COMP.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/COMP.BAS)
 

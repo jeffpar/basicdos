@@ -903,6 +903,31 @@ ENDPROC	getErrorLevel
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; setErrorLevel
+;
+; Sets ERRORLEVEL to the low byte of the value of "END n" (see genEnd).
+;
+; Inputs:
+;	32-bit value
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+DEFPROC	setErrorLevel,FAR
+	ARGVAR	lLevel,dword
+	ENTER
+	mov	bx,ss:[PSP_HEAP]
+	mov	al,byte ptr [lLevel].LOW
+	mov	ss:[bx].EXIT_CODE,al
+	LEAVE
+	RETURN
+ENDPROC	setErrorLevel
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; getRnd (RND)
 ;
 ; Returns a pseudo-random double from 0 up to (but not including) 1; the

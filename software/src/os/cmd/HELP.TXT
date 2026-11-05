@@ -27,6 +27,7 @@ Replaces the running program with the specified BAS file (searching PATH$ if nec
 
 [e]CHKDSK [*drive*:] [~V]
 Checks the FAT and directories of *drive* (or the current drive), reports any problems (eg, cross-linked chains, file sizes that don't match, and lost clusters), and then the space used and available.  ~V lists every file.  Problems are reported, not fixed.
+ERRORLEVEL is set to 0 if the entire volume was checked and no problems were found, and otherwise to 1.
 
 [f]CHR$(*code*)
 Returns a one-character string containing the character with the specified *code* (0-255).
@@ -54,6 +55,7 @@ In SCREEN 1, the values are the background color (0-15) and palette (0 or 1) ins
 
 [e]COMP *file1* *file2*
 Compares each file matching *file1* (which can contain wildcards, but doesn't match hidden files) with *file2* (or if *file2* is a drive or directory, with the file there that has the same name), and reports the offset (in hex) and bytes of each difference, up to 10 differences.
+ERRORLEVEL is set to 0 if every file compares ok, and otherwise to 1.
 
 [d]COPY *input* [*output*]
 Copies the contents of the input file or device to the output file or device (a file keeps its date and time), or with wildcards (? and *), every matching file to the output drive or directory (eg, COPY B:\*.BAS).  If *output* is omitted, the current directory is used.  Input files separated by + are combined into the output file (eg, COPY A.BIN+B.BIN C.BIN).
@@ -146,8 +148,8 @@ Controls the echo of lines in a BAT file.  Every BAT file starts with ECHO OFF; 
 [b+]EDIT *line*
 Displays the specified program line for editing.  Press ENTER to store the edited line.
 
-[b]END
-Ends the program.  STOP is the same.
+[b]END [*n*]
+Ends the program, and sets ERRORLEVEL to *n* (0-255), or 0 if *n* is omitted.  STOP is the same.
 
 [f+]EOF(*n*)
 Returns -1 (true) if file *n*, which must be open for INPUT, is at its end, or 0 (false) if not (eg, WHILE NOT EOF(1)).  For a serial port opened without FOR (eg, COM1), it's true if no characters are waiting.
@@ -165,7 +167,7 @@ Returns the number of the last error (see ON ERROR).
 Simulates error *n* (1-255).
 
 [f]ERRORLEVEL
-Constant equal to the return code from the last program executed, or for an internal command, 0 if it succeeded or 1 if it failed.
+Constant equal to the return code from the last program executed, for an internal command, 0 if it succeeded or 1 if it failed, or the value given by END in a BAS program.
 
 [f]EXISTS(*filespec*)
 Returns -1 (true) if a file or directory matching *filespec* exists, or 0 (false) if not; *filespec* may contain wildcards (eg, EXISTS("C:\SAMPLES\*.BAS")).  For example, a batch file can create a directory only if it doesn't exist with IF NOT EXISTS("OBJ") THEN MD OBJ.
@@ -208,7 +210,7 @@ Calls the subroutine at the line with the specified label number; the subroutine
 Transfers program control to the line with the specified label number.
 
 [e]HELP [*keyword*|ALL|BASIC|CORE|DISK|EXT|FUNC|SYSTEM]
-Displays help for *keyword* (eg, HELP MID$), or lists the keywords in a category: ALL (every keyword), BASIC (BASIC statements and commands), DISK (disk commands, like DIR), EXT (external commands and drivers, like FORMAT), FUNC (functions, like MID$), or SYSTEM (system commands, like MEM).  HELP CORE lists the keywords that low memory systems don't support, and HELP KEYS lists the keys for editing command lines.
+Displays help for *keyword* (eg, HELP MID$), or lists the keywords in a category: ALL (every keyword), BASIC (BASIC statements and commands), DISK (disk commands, like DIR), EXT (external commands and drivers, like FORMAT), FUNC (functions, like MID$), or SYSTEM (system commands, like MEM).  HELP CORE lists the keywords that low memory systems don't support, and HELP KEYS lists the keys for editing command lines.  A command given an invalid switch (or other invalid arguments) displays Syntax error.
 
 [f]HEX$(*n*)
 Returns the hexadecimal representation of the integer *n*.  Negative values are treated as unsigned 32-bit values (eg, HEX$(-1) is FFFFFFFF).
@@ -304,7 +306,7 @@ Returns the printer's current column, starting at 1 (*n* is ignored).
 Prints like PRINT, but to the printer (PRN, normally LPT1).  Without a PRN device (eg, no parallel port), a "Device unavailable" error occurs, and a printer can report "Device timeout", "Out of paper", or "Device fault", as it does for PRINT # to a printer.
 
 [e]LS [~1alRrSt] [*filespec*]...
-Lists the files matching each *filespec* that isn't a directory, and then the files in each directory (or the current directory), sorted by name, in columns (or one per line when the output is a file or pipe), with \ after each directory name.  A listing can have up to 512 names.
+Lists the files matching each *filespec* that isn't a directory, and then the files in each directory (or the current directory), sorted by name, in columns (or one per line when the output is a file or pipe), with \ after each directory name.
 Options:\
 	~1  List one name per line\
 	~a  List hidden files\
@@ -316,6 +318,9 @@ Options:\
 
 [b+]LSET *variable$*=*string*
 Sets the variable to *string*, left-justified and padded with spaces (or truncated) to the variable's FIELD width (or if it isn't a FIELD variable, its current length).  RSET is the same, but right-justified.
+
+[e]MASM *source* [,*object* [,*listing* [,*cross-reference*]]]
+Assembles an 8086 source file, in real or protected mode (where it runs at ring 3).  Only the hard disk demo has it, in TOOLS.
 
 [f]MAXINT
 Constant equal to the largest positive integer.
@@ -495,7 +500,7 @@ Same as SPACE$ (eg, PRINT "A"; SPC(5); "B").
 [f]SQR(*x*)
 Returns the square root of *x*, which must not be negative.
 
-[b]STOP
+[b]STOP [*n*]
 Same as END.
 
 [f]STR$(*x*)

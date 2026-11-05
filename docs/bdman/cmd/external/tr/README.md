@@ -27,7 +27,7 @@ A set that contains spaces, or starts with the switch character and a letter, mu
 	TYPE README.TXT | TR /D \r
 	DIR | TR /S " "
 
-ERRORLEVEL is set to 0, or 2 if a set is missing (or only *set1* is given, without `/D` or `/S`), which TR reports (`Missing character set`).
+ERRORLEVEL is set to 0, or 2 if a switch isn't valid or a set is missing (or only *set1* is given, without `/D` or `/S`), which TR reports (`Syntax error`).
 
 Source: [tr.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/tr.asm)
 

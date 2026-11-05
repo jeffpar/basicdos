@@ -71,9 +71,8 @@ function checkOutput(task, outputFile)
  * A hard disk image (a demo with no diskettes) is marked "hd", and pc.js builds it (with --sys=bd:2, so it's bootable,
  * and pc.js adds the system files itself, and with --order, so its root entries are in the same order as a diskette's,
  * rather than sorted by name).  A disk can list its own "folders" instead of the diskette folders (see BASICDOS-10MB),
- * where each folder is either a list of files, a directory (whose contents are copied, including any OBJ directories),
- * or a function that returns a list of files from other disk images (see diskFiles()).  A folder named
- * FOLDER/SUBFOLDER is a subfolder (eg, DEMOS/WOLF3D), and a file spec of the form IMAGE.json/PATH names a file (or
+ * where each folder is either a list of files or a directory (whose contents are copied, including any OBJ
+ * directories).  A folder named FOLDER/SUBFOLDER is a subfolder (eg, DEMOS/WOLF3D), and a file spec of the form IMAGE.json/PATH names a file (or
  * files) inside a disk image, which diskimage.js extracts first (eg, the WOLF3D files come from the COMPAQ331-WOLF3D
  * hard disk in the pcjs-harddisks repository, via the same /harddisks/ path that pcjs.org uses).
  *
@@ -125,8 +124,8 @@ const diskFolders = { EXT: manifest.EXT, DEMOS: manifest.DEMOS, SAMPLES: manifes
 /**
  * diskFiles(diskName, fileSpecs)
  *
- * Returns the paths of the specified files (eg, "TOOLS/MASM4/*") from one of our disk images (eg, the MS-DOS 3.20
- * build disk, MSDOS320-C400), whose files are extracted (with PCJS's diskimage.js) to tools/pc/disks/diskName
+ * Returns the paths of the specified files (eg, "*.BAS") from one of our disk images (eg, the PC DOS 1.00 diskette,
+ * PCDOS100), whose files are extracted (with PCJS's diskimage.js) to tools/pc/disks/diskName
  * the first time they're needed.
  *
  * @param {string} diskName
@@ -192,12 +191,11 @@ let disks = {
             "TESTS/REGRESS": manifest["TESTS/REGRESS"],
             "TESTS/MISC": manifest["TESTS/MISC"],
             //
-            // The MASM 4.00 files come from the MS-DOS 3.20 build disk, but the build tools in software/src/tools
-            // (the same ones that mk.sh uses) replace their counterparts, adding MAKE 4.02 and MS-DOS 3.20's EXE2BIN
-            // (see software/src/tools/README.TXT); the manifest's TOOLS (eg, SYMDEB, which MASM4 has too, and MSBASIC) are
-            // added last.
+            // The tools in software/src/tools/dos (see its README.TXT), overlaid with the BASIC-DOS versions in
+            // software/src/tools/bd (eg, MASM; mk.sh gets the same result from the order of its PATH$), and then
+            // the manifest's TOOLS (eg, MSBASIC).
             //
-            TOOLS: () => diskFiles("MSDOS320-C400", [ "TOOLS/MASM4/*" ]).concat([ SRC + "/tools/*" ], manifest.TOOLS)
+            TOOLS: [ SRC + "/tools/dos/*", SRC + "/tools/bd/*" ].concat(manifest.TOOLS)
         }
     }
 };
@@ -255,7 +253,6 @@ function stageDisk(diskName)
     let folders = disk.folders || diskFolders;
     for (let folder in folders) {
         let files = folders[folder];
-        if (typeof files == "function") files = files();
         if (!files.length) continue;
         let dirTarget = path.join(dirStage, folder);
         if (typeof files == "string") {

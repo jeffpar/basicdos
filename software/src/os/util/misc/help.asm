@@ -208,6 +208,16 @@ h1:	push	cx
 	mov	dl,[CON_COLS]		; DL = # available chars
 	dec	dx			; DL = # available chars - 1
 	mov	dh,dl
+;
+; The first line of an entry with tags (ie, anything but a topic like CORE)
+; is its syntax.
+;
+	cmp	[ENTRY_TAGS],0
+	je	h2
+	sub	dl,7			; 7 = length of "Usage: "
+	push	dx
+	PRINTF	<"Usage: ">
+	pop	dx
 h2:	call	fillHelp		; buffer more text if needed
 	jc	h2c
 	call	getWord			; AX = next word length
@@ -501,7 +511,9 @@ fh16d:	mov	al,[bp-9]
 fh16x:	mov	byte ptr [bp-9],0
 	mov	al,-1			; no, so skip the entry
 	jmp	fh7
-fh16e:	mov	byte ptr [bp-9],0
+fh16e:	mov	al,0
+	xchg	al,[bp-9]
+	mov	[ENTRY_TAGS],al		; (see doHelp)
 	mov	al,0			; start matching
 	jmp	fh4
 ENDPROC	findHelp
@@ -746,6 +758,7 @@ VERB_READ	db	"read",0
 CON_COLS	db	?
 SWITCH_CHAR	db	?
 PATH_CHAR	db	?
+ENTRY_TAGS	db	?		; tags of the last entry (see findHelp)
 
 ;
 ; COMHEAP 0 means we don't need a heap, but BASIC-DOS will still allocate a

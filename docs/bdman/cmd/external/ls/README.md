@@ -22,7 +22,7 @@ Options start with the switch character (`/`, unless [SWITCHAR](../../../cfg/#sw
 - `/S` sorts by size, largest first
 - `/t` sorts by date and time, newest first (and `/tr`, oldest first)
 
-Files with the same size or time are sorted by name.  A listing can have up to 512 names (more is a "Subscript out of range" error).  A drive that doesn't exist displays `Invalid drive`, and any other option displays LS's usage.
+Files with the same size or time are sorted by name.  If there are more names than LS can sort, or more directories waiting to be listed than it can remember, LS displays `Too many matching files`, and ERRORLEVEL is set to 1.  A drive that doesn't exist displays `Invalid drive`, and any other option displays `Syntax error`.
 
 	LS \EXT
 	ATTRIB.BAS    FIND.COM      LABEL.BAS     SLEEP.COM     TREE.BAS

@@ -84,7 +84,7 @@ CODE    SEGMENT
 DEFPROC	main
 	mov	bp,ds:[PSP_HEAP]	; BP -> SEDVARS
 	call	getArgs
-	mov	si,offset NO_SCRIPT
+	mov	si,offset SYN_ERR
 	mov	di,[bp].UV_STR
 	test	di,di			; was there a script?
 	jz	m8			; no
@@ -615,11 +615,13 @@ DEFPROC	putChar
 pc9:	ret
 ENDPROC	putChar
 
+SW_LIST	db	"IN"
+SW_LEN	equ	$ - SW_LIST
+
 	include	utilproc.inc
 
 COMMANDS	db	"dpq="
 COMMANDS_LEN	equ	$ - COMMANDS
-NO_SCRIPT	db	"Missing script",13,10,0
 BAD_SCRIPT	db	"Invalid script",13,10,0
 
 	COMHEAP	<size SEDVARS + STACK_LEN>
