@@ -7,7 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Usage: HELP [keyword|ALL|BASIC|CORE|DISK|EXT|FUNC|SYSTEM]
+; Usage: HELP [keyword|ALL|BASIC|CORE|FUNC|CMD|EXT]
 ;
 ; Displays help for a keyword, or lists the keywords in a category, from
 ; HELP.TXT in the EXT folder of the drive that COMMAND.COM was loaded from
@@ -31,12 +31,11 @@ CODE    SEGMENT
 ; main
 ;
 ; If a keyword is specified, display help for that keyword, or if it's a
-; category (ALL, BASIC, DISK, EXT, FUNC, or SYSTEM), list the keywords in
-; that category (see findHelp), or for CORE, display help for CORE and then
-; list the keywords that aren't in COMMAND's core; otherwise, display help
-; for HELP, which describes the categories.  Categories are checked first,
-; so a category hides any keyword with the same name (which is why the
-; system category is SYSTEM, rather than SYS, the name of a utility).
+; category (ALL, BASIC, FUNC, CMD, or EXT), list the keywords in that category
+; (see findHelp), or for CORE, display help for CORE and then list the keywords
+; that aren't in COMMAND's core; otherwise, display help for HELP, which
+; describes the categories.  Categories are checked first, so a category hides
+; any keyword with the same name.
 ;
 HELP_TEXTLEN	equ	256
 
@@ -125,14 +124,16 @@ hpc2:	lodsb
 	cmp	ah,'a'			; ALL?
 	jne	hpc3			; no
 	mov	ah,0			; yes, so list every entry
-hpc3:	mov	ch,ah
-	mov	cl,0			; CL = 0 to list entries, CH = tag
-	cmp	ch,'c'			; CORE?
-	jne	m8			; no
+hpc3:	mov	ch,ah			; CH = tag
+	cmp	cx,('c' SHL 8) OR 4	; CORE (rather than CMD)?
+	jne	hpc3a			; no
 	push	cx
-	mov	cx,4			; yes, so display help for CORE (the
-	call	doHelp			; argument at SI) first
+	call	doHelp			; yes, so display help for CORE first
 	pop	cx
+	mov	ch,'+'			; and list the entries tagged "+"
+	jmp	short hpc3b		; (CORE's help ended with a blank line)
+hpc3a:	call	printCRLF		; start the list with a blank line
+hpc3b:	mov	cl,0			; CL = 0 to list entries
 	jmp	short m8
 hpc4:	pop	si
 	pop	cx
@@ -181,10 +182,13 @@ h0:	xchg	bx,ax			; BX = handle
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
 	test	cl,cl			; were we just listing entries?
-	jz	h9			; yes (and carry is clear)
-	PRINTF	<"No help available",13,10>
+	jnz	h0a			; no
+	call	printCRLF		; yes, so end with a blank line
+	clc
+	ret
+h0a:	PRINTF	<"No help available",13,10>
 	stc
-h9:	ret
+	ret
 h1:	push	cx
 	sub	cx,cx
 	mov	ax,DOS_HDL_SEEKBEG
@@ -202,9 +206,11 @@ h1:	push	cx
 	inc	si			; SI -> next char
 	mov	[si+HELP_TEXTLEN+1],si	; (nothing buffered yet)
 ;
-; Keep track of the current line's available characters (DL) and maximum
-; characters (DH), and print only whole words that will fit.
+; Every entry ends with a blank line, so start with one, too.  Then keep track
+; of the current line's available characters (DL) and maximum characters (DH),
+; and print only whole words that will fit.
 ;
+	call	printCRLF
 	mov	dl,[CON_COLS]		; DL = # available chars
 	dec	dx			; DL = # available chars - 1
 	mov	dh,dl
@@ -316,7 +322,7 @@ ENDPROC	fillHelp
 ; An entry can begin with tags in brackets (eg, "[b+]"), which aren't part of
 ; the entry: a category (a lower-case letter, such as "b" for BASIC; see
 ; main), and "+" if it isn't in COMMAND's core.  A listing of one category
-; (or of tag "c", for CORE, the entries tagged "+") lists only the entries
+; (or of tag "+", for CORE, the entries tagged "+") lists only the entries
 ; that have that tag.
 ;
 ; Inputs:
@@ -499,7 +505,7 @@ fh16c:	mov	al,[bp-3]		; AL = category to list (0 for all)
 	jne	fh16e			; no
 	test	al,al			; all of them?
 	jz	fh16e			; yes
-	cmp	al,'c'			; the entries that aren't in the core?
+	cmp	al,'+'			; the entries that aren't in the core?
 	jne	fh16d			; no
 	test	byte ptr [bp-9],80h	; is this one of them?
 	jnz	fh16e			; yes
@@ -744,8 +750,7 @@ ENDPROC	printEOL
 ; HELP_CATS contains the categories (see main), whose first letters (in
 ; lower case) are the tags in HELP.TXT, except for CORE (see findHelp).
 ;
-HELP_CATS	db	"ALL",0,"BASIC",0,"CORE",0,"DISK",0,"EXT",0,"FUNC",0
-		db	"SYSTEM",0,0
+HELP_CATS	db	"ALL",0,"BASIC",0,"CORE",0,"FUNC",0,"CMD",0,"EXT",0,0
 ;
 ; main updates HELP_PATH's drive and path chars, and with no argument, looks
 ; up "HELP" in it.

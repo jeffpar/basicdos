@@ -16,7 +16,7 @@ Displays the attributes of each file matching *filespec* (or every file), includ
 [b+]AUTO [*line*][,*increment*]
 Prompts for program lines, starting with *line* (default 10) and adding *increment* (default 10) after each one.  If a line already exists, it's displayed for editing.  To stop, press ENTER on a line with nothing after its number, or press CTRL-C.
 
-[d]CD [*drive*:][*path*]
+[c]CD [*drive*:][*path*]
 Changes the current directory of *drive* (or the current drive) to *path*, where directory names are separated by the path character (slash or backslash, depending on PATHCHAR in CONFIG.SYS).  A *path* that begins with the path character starts at the root directory, and .. refers to the parent directory.  If no *path* is specified, the current directory is displayed.
 
 [f]CDBL(*x*)
@@ -57,7 +57,7 @@ In SCREEN 1, the values are the background color (0-15) and palette (0 or 1) ins
 Compares each file matching *file1* (which can contain wildcards, but doesn't match hidden files) with *file2* (or if *file2* is a drive or directory, with the file there that has the same name), and reports the offset (in hex) and bytes of each difference, up to 10 differences.
 ERRORLEVEL is set to 0 if every file compares ok, and otherwise to 1.
 
-[d]COPY *input* [*output*]
+[c]COPY *input* [*output*]
 Copies the contents of the input file or device to the output file or device (a file keeps its date and time), or with wildcards (? and *), every matching file to the output drive or directory (eg, COPY B:\*.BAS).  If *output* is omitted, the current directory is used.  Input files separated by + are combined into the output file (eg, COPY A.BIN+B.BIN C.BIN).
 
 CORE
@@ -87,7 +87,7 @@ Returns the integer stored in the first 4 bytes of *string* by MKL$.
 [b]DATA *item*[,*item*]...
 Defines items for READ to assign to variables, in the order they appear in the program.  An item can be a number or a string; quoted strings can contain commas and colons.
 
-[s]DATE [*date*] [~P]
+[c]DATE [*date*] [~P]
 Sets the system date (or prompts for a date if ~P) and then displays the date.
 The date must be entered as M-D-Y or M/D/Y, where M is 1-12, D is 1-31, and Y is 0-99 or 1980-2099.
 If D or Y are omitted, current values are assumed.
@@ -115,7 +115,7 @@ Defines the first letter(s) of variables that will default to integer values.  B
 [b]DEFSTR [*letter(s)*]
 Defines the first letter(s) of variables that will default to string values.  Unless DEFSTR is used, all string variables must be defined using the $ suffix.
 
-[d]DEL *file*
+[c]DEL *file*
 Deletes the specified file, or with wildcards (? and *), every matching file (eg, DEL *.TMP).  DEL *.* asks "Are you sure (Y/N)?" first.  *file* can be quoted or a string variable, but not an expression (eg, F$ = "TEMP" + N$ : DEL F$, not DEL "TEMP" + N$).
 
 [b+]DELETE *line*[-[*line*]] or DELETE -*line*
@@ -125,7 +125,7 @@ Deletes the specified range of program lines.  Typing a line number by itself de
 Dimensions one or more arrays, with up to 255 dimensions each (eg, DIM A(10), B$(5,5)).  Each bound is the largest subscript for that dimension.
 Arrays that are used without DIM have a largest subscript of 10.
 
-[d]DIR [*filespec*] [~A] [~S] [~W]
+[c]DIR [*filespec*] [~A] [~S] [~W]
 Displays a directory listing of all files matching the given *filespec* (or all files if none is specified), after the drive's volume label and the directory's path.  Subdirectories are listed as <DIR>, and if *filespec* is a directory, its files are listed.  Hidden files are listed only with ~A (with an * after the name), ~S lists the matching files in every subdirectory, too, and ~W lists only the names, in columns, with \ after each directory.  Use DIR | MORE to page the listing.
 
 [f]DIR$[(*filespec*[,*attributes*])]
@@ -172,7 +172,7 @@ Constant equal to the return code from the last program executed, for an interna
 [f]EXISTS(*filespec*)
 Returns -1 (true) if a file or directory matching *filespec* exists, or 0 (false) if not; *filespec* may contain wildcards (eg, EXISTS("C:\SAMPLES\*.BAS")).  For example, a batch file can create a directory only if it doesn't exist with IF NOT EXISTS("OBJ") THEN MD OBJ.
 
-[s]EXIT
+[c]EXIT
 Exits the command shell; a session's last shell closes the session, and the
 system halts when no session is left.
 
@@ -209,8 +209,8 @@ Calls the subroutine at the line with the specified label number; the subroutine
 [b]GOTO *label*
 Transfers program control to the line with the specified label number.
 
-[e]HELP [*keyword*|ALL|BASIC|CORE|DISK|EXT|FUNC|SYSTEM]
-Displays help for *keyword* (eg, HELP MID$), or lists the keywords in a category: ALL (every keyword), BASIC (BASIC statements and commands), DISK (disk commands, like DIR), EXT (external commands and drivers, like FORMAT), FUNC (functions, like MID$), or SYSTEM (system commands, like MEM).  HELP CORE lists the keywords that low memory systems don't support, and HELP KEYS lists the keys for editing command lines.  A command given an invalid switch (or other invalid arguments) displays Syntax error.
+[e]HELP [*keyword*|ALL|BASIC|CORE|FUNC|CMD|EXT]
+Displays help for *keyword* (eg, HELP MID$), or lists the keywords in a category: ALL (every keyword), BASIC (BASIC statements and commands), FUNC (functions, like MID$), CMD (internal commands, like DIR), or EXT (external commands, like FORMAT).  HELP CORE lists the keywords that low memory systems don't support, and HELP KEYS lists the keys for editing command lines.  A command given an invalid switch (or other invalid arguments) displays Syntax error.
 
 [f]HEX$(*n*)
 Returns the hexadecimal representation of the integer *n*.  Negative values are treated as unsigned 32-bit values (eg, HEX$(-1) is FFFFFFFF).
@@ -275,6 +275,9 @@ Assigns the value of the *expression* to the *variable*.  LET is optional (eg, A
 Draws a line (or with B, a box; or with BF, a filled box) in a graphics mode.  If the first point is omitted, the last point is used.
 LINE INPUT [*prompt*;]*variable$* (or LINE INPUT #*n*,*variable$*) reads a whole line from the keyboard (or file *n*) into the string variable.
 
+[e]LINK4 [*objects* [,*program* [,*map* [,*libraries* [,*definitions*]]]]]
+Links object modules into a segmented NE executable, in real or protected mode (where it runs at ring 3).  Only the hard disk demo has it, in TOOLS.
+
 [b]LIST [*line*][-[*line*]] or LIST VARS
 Lists all lines (or the specified range of lines) of the currently loaded BAS or BAT program, as SAVE would write them.
 LIST VARS lists the variables and their values.  Use LIST VARS | MORE to page the listing.
@@ -319,16 +322,13 @@ Options:\
 [b+]LSET *variable$*=*string*
 Sets the variable to *string*, left-justified and padded with spaces (or truncated) to the variable's FIELD width (or if it isn't a FIELD variable, its current length).  RSET is the same, but right-justified.
 
-[e]MASM *source* [,*object* [,*listing* [,*cross-reference*]]]
-Assembles an 8086 source file, in real or protected mode (where it runs at ring 3).  Only the hard disk demo has it, in TOOLS.
-
 [f]MAXINT
 Constant equal to the largest positive integer.
 
-[d]MD [*drive*:]*path*
+[c]MD [*drive*:]*path*
 Creates a new directory.
 
-[s]MEM
+[c]MEM
 Displays the total memory, available memory, and any unavailable features (eg, floating-point). See HELP CORE for more details.
 
 [b+]MERGE *file*
@@ -422,7 +422,7 @@ With a file number, writes the FIELD variables of random access file *n* to the 
 [b]RANDOMIZE [*seed*]
 Reseeds the random number generator, so that the same *seed* always produces the same sequence (without a *seed*, the BIOS tick count is used).
 
-[d]RD [*drive*:]*path*
+[c]RD [*drive*:]*path*
 Removes an empty directory, unless it's the current directory of any session.
 
 [b]READ *variable*[,*variable*]...
@@ -431,10 +431,10 @@ Assigns the next DATA item to each variable.  Reading past the last item is an "
 [b]REM *remark* or ' *remark*
 Used for program remarks.  The rest of the line is not executed.  An apostrophe (') outside of quotes is the same as REM.
 
-[d]REN *source* *destination*
+[c]REN *source* *destination*
 Renames or moves one file or directory on the same drive.  The destination can be a new filename or an existing directory (which keeps the source filename).  Existing destination files are not overwritten; open files, cross-drive moves, and wildcards are rejected.
 
-[s]RESTART [SYSTEM|*session*]
+[c]RESTART [SYSTEM|*session*]
 RESTART alone lists every session's number, console, and program (or "Unused" if it has none), marking the current session with an *.  RESTART SYSTEM restarts the system.  RESTART *session* (a number from that list) stops the program running in that session, as CTRL-ALT-DEL does on its console.
 
 [b]RESTORE [*line*]
@@ -525,7 +525,7 @@ Returns the tangent of *x*, where *x* is in radians.
 Copies input to output and to *file* (eg, DIR | TEE DIR.TXT | MORE), replacing *file*, or with ~A, appending to it.
 ERRORLEVEL is set to 0, or 2 if *file* couldn't be opened or written.
 
-[s]TIME [*time*] [~D] [~P]
+[c]TIME [*time*] [~D] [~P]
 Sets the system time (or prompts for a time if ~P) and then displays the time.
 The time must be entered as H:M:S.D, where H is 0-23, M is 0-59, S is 0-59, and D is 0-99.  If M, S, or D are omitted, zeros are assumed.
 ~D displays only the time elapsed since TIME last displayed the time (or since midnight, if TIME hasn't been used).
@@ -543,7 +543,7 @@ ERRORLEVEL is set to 0, or 2 if a set is missing.
 [e]TREE [*drive*:][*path*] [~F] [~A]
 Displays the directories below *path* (or the current directory), connected by line-drawing characters (or ASCII characters, with ~A); ~F also lists each directory's files.
 
-[d]TYPE *file*
+[c]TYPE *file*
 Displays the contents of the specified file, or with wildcards (? and *), the name and contents of every matching file.  A CTRL-Z ends the contents of each file.
 
 [f]UCASE$(*string*)
@@ -556,7 +556,7 @@ ERRORLEVEL is set to 0, or 2 if *file* couldn't be opened.
 [f]VAL(*string*)
 Returns the numeric value of *string*, ignoring any blanks.  If *string* does not begin with a number, the result is 0.  The &H (hex) and &O (octal) prefixes are allowed (eg, VAL("&HFF") is 255).  Without floating-point (see MEM), the result is an integer (eg, VAL("3.9") is 3).
 
-[s]VER
+[c]VER
 Displays the BASIC-DOS version number.
 
 [e]VI [~WS] [*file*]

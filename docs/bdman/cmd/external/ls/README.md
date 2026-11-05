@@ -40,4 +40,4 @@ Files with the same size or time are sorted by name.  If there are more names th
 
 Source: [LS.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/LS.BAS)
 
-{% include footer.html prev="LABEL:../label/" next="MODE:../mode/" %}
+{% include footer.html prev="LINK4:../link4/" next="MODE:../mode/" %}

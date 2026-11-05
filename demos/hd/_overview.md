@@ -9,7 +9,7 @@ The hard disk has the system files and CONFIG.SYS in the root directory, along w
 - **TESTS** contains BENCH.BAS, STRESS.BAT, and REGRESS.BAT, which runs the regression tests in its **REGRESS** subdirectory (eg, DOSTESTS.COM; type `CD \TESTS` and then `REGRESS`); its **MISC** subdirectory has other test programs (eg, GFXTESTS.BAS, and the BAT and EXE versions of PRIMES)
 - **TOOLS** contains MASM, LINK, MAKE, EXE2BIN, and the other MASM 4.00 tools used to build BASIC-DOS, along with DISKREAD.COM, DISKWRIT.COM, SYMDEB.EXE, and MSBASIC.EXE
 
-CONFIG.SYS sets PATH$ to `C:\;C:\EXT;C:\DEMOS;C:\SAMPLES;C:\TESTS;C:\TOOLS`, so programs in those directories can be run from anywhere, and the session's SHELL line runs `HELLO.BAT` to display a colorful greeting.
+CONFIG.SYS sets PATH$ to `C:\;C:\EXT;C:\DEMOS;C:\SAMPLES;C:\TOOLS`, so programs in those directories can be run from anywhere, and the session's SHELL line runs `HELLO.BAT` to display a colorful greeting.
 
 Any changes you make to the hard disk are lost when you leave the page, unless you first click **Save HD** to download the hard disk as an IMG file.
 

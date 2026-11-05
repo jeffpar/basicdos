@@ -8,8 +8,8 @@
 # files together in TESTS (only TESTS on a diskette; see below),
 # the TESTS/REGRESS files (the regression tests) in TESTS\REGRESS, the TESTS/MISC files (other test programs) in
 # TESTS\MISC, and the TOOLS files (except MSBASIC, and SYMDEB on a diskette) in TOOLS.  A test configuration's CONFIG.SYS sets PATH$ to all of
-# them except the TESTS subfolders (eg, "A:\;A:\EXT;A:\TESTS;A:\TOOLS"); the tests in TESTS\REGRESS are run by
-# REGRESS.BAT (in TESTS), by path, or after CD \TESTS\REGRESS.  There's no SAMPLES folder, since only the BASIC-DOS
+# them except TESTS and its subfolders (eg, "A:\;A:\EXT;A:\TOOLS"); the tests are run by path or after CD \TESTS
+# (or CD \TESTS\REGRESS), and those in TESTS\REGRESS by REGRESS.BAT (in TESTS), too.  There's no SAMPLES folder, since only the BASIC-DOS
 # disks built by gulpfile.js include the PC DOS BASIC samples.
 #
 # Only CONFIG.SYS and AUTOEXEC.BAT are tracked in those folders (see software/src/configs/.gitignore);

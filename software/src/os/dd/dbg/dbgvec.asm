@@ -33,7 +33,9 @@ CODE	segment word public 'CODE'
 ; (a space, or * if it's trapped), and a description, which ends how a function
 ; reports each call (see rpt_vec): VEC_RPT starts a report that replaces the
 ; description, VEC_ARG starts the arguments that follow the description, and a
-; zero means that the next entry's arguments are this entry's, too.
+; zero means that the next entry's arguments are this entry's, too.  Numbers
+; with VEC_SUM in the high byte are summaries, one per vector with functions,
+; for VL to list instead of those functions; they end what VT can trap.
 ;
 ; These codes display values (see put_fmt): V_BYTE or V_WORD plus an offset in
 ; regs (see REG_TABLE, and fault_ec), V_CYL or V_SEC for CX's cylinder or
@@ -49,6 +51,7 @@ CODE	segment word public 'CODE'
 ;
 VEC_RPT		equ	1
 VEC_ARG		equ	2
+VEC_SUM		equ	0FFh
 V_BYTE		equ	80h
 V_WORD		equ	0A0h
 V_FB		equ	0C0h+1
@@ -188,6 +191,10 @@ VEC_DOS		equ	INT_DOSFUNC SHL 8
 	db	" DOS Rename",VEC_ARG,V_STR," to ",V_STRE,0
 	dw	VEC_DOS OR (DOS_HDL_GETTIME SHR 8)
 	db	" DOS FileTime",VEC_ARG,V_AL," #",V_BX," ",V_CX," ",V_DX,0
+	dw	(VEC_SUM SHL 8) OR INT_FDC
+	db	" BIOS disk functions (see VL 13)",0
+	dw	(VEC_SUM SHL 8) OR INT_DOSFUNC
+	db	" DOS functions (see VL 21)",0
 	dw	-1
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -197,11 +204,12 @@ VEC_DOS		equ	INT_DOSFUNC SHL 8
 ; VT traps the listed vectors, so that their exceptions stop the machine
 ; instead of being passed on (see dbgdev_enter), and the listed functions of
 ; software interrupts, so that each call is reported as it's passed on; VC
-; clears the listed traps (or * for all); VL lists everything that can be
-; trapped (see VEC_TAB), or only what belongs to one vector.  A vector is hex,
-; or decimal with a trailing period (eg, 0D or 13.), and a function is hex (eg,
-; 1302); a vector that has functions in the table selects all of them (eg, 21).
-; Single-steps (01h) and breakpoints (03h) always stop the machine.
+; clears the listed traps (or * for all); VL lists the vectors that can be
+; trapped, with a summary for each vector with functions (see VEC_TAB), or only
+; what belongs to one vector.  A vector is hex, or decimal with a trailing
+; period (eg, 0D or 13.), and a function is hex (eg, 1302); a vector that has
+; functions in the table selects all of them (eg, 21).  Single-steps (01h) and
+; breakpoints (03h) always stop the machine.
 ;
 DEFPROC	cmd_v
 	lodsb
@@ -240,7 +248,7 @@ cv3b:	test	ah,ah			; could it be a vector?
 	xchg	cx,ax			; CL = the vector to select
 cv2:	mov	bx,offset VEC_TAB	; (CH counts the entries set)
 cv2a:	mov	ax,[bx]			; AX = its number
-	cmp	ax,-1			; end of the table?
+	cmp	ah,VEC_SUM		; the end of what VT can trap?
 	je	cv2d			; yes
 	inc	bx
 	inc	bx
@@ -255,7 +263,7 @@ cv2c:	call	next_vec
 cv2d:	cmp	ch,1			; were none set (carry set if so)?
 	jnc	cv1			; no
 cv9:	ret
-cmd_vl:	mov	bp,-1			; BP = the vector to list (or all)
+cmd_vl:	mov	bp,VEC_SUM		; BP = the vector to list (or VEC_SUM)
 	call	end_command
 	jnc	cv3a
 	call	parse_num
@@ -272,17 +280,33 @@ cv4:	mov	dx,[bx]			; DX = its number
 	je	cv9			; yes (carry clear)
 	inc	bx
 	inc	bx
-	test	bp,bp			; are we listing them all?
-	js	cv4b			; yes
-	mov	al,dh			; AL = a function's interrupt
+	mov	al,dh			; AL = a function's INT, or VEC_SUM
 	test	al,al
 	jnz	cv4a
 	mov	al,dl			; or a vector
+	cmp	bp,VEC_SUM		; are we listing all the vectors?
+	je	cv4b			; yes
 cv4a:	mov	ah,0
 	cmp	ax,bp			; the one to list?
 	jne	cv7			; no
-cv4b:	mov	al,[bx]
-	call	put_char		; its state
+cv4b:	mov	al,[bx]			; AL = its state
+	cmp	dh,VEC_SUM		; a summary?
+	jne	cv4e			; no
+	push	bx
+	mov	bx,offset VEC_TAB	; yes, so is any function trapped?
+cv4c:	inc	bx
+	inc	bx
+	cmp	[bx-1],dl		; is this one of them?
+	jne	cv4d			; no
+	cmp	byte ptr [bx],'*'	; is it trapped?
+	jne	cv4d			; no
+	mov	al,'*'
+cv4d:	call	next_vec
+	cmp	byte ptr [bx+1],VEC_SUM	; the end of the functions?
+	jne	cv4c			; no
+	pop	bx
+	mov	dh,0			; display it as a vector
+cv4e:	call	put_char		; its state
 	call	space
 	xchg	ax,dx
 	test	ah,ah			; a function?
@@ -383,7 +407,7 @@ ENDPROC	parse_num
 ;
 DEFPROC	find_vec
 	mov	bx,offset VEC_TAB
-fv1:	cmp	word ptr [bx],-1	; end of the table?
+fv1:	cmp	byte ptr [bx+1],VEC_SUM	; the end of what VT can trap?
 	stc
 	je	nv9			; yes
 	inc	bx

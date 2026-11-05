@@ -154,7 +154,7 @@ let disks = {
     "BASICDOS-360K-D40": { config: "./demos/d40/CONFIG.SYS", title: "BASIC-DOS 40-Column Demo" },
     "BASICDOS-360K-D80": { config: "./demos/d80/CONFIG.SYS", title: "BASIC-DOS 80-Column Split Demo" },
     "BASICDOS-360K-P80": { config: "./demos/p80/CONFIG.SYS", title: "BASIC-DOS Multi-Page Demo" },
-    "BASICDOS-360K-P80PM": { config: "./demos/p80/pm/CONFIG.SYS", title: "BASIC-DOS PM Multi-Page Demo" },
+    "BASICDOS-360K-P80PM": { config: "./demos/mmu/CONFIG.SYS", title: "BASIC-DOS Protected Mode" },
     "BASICDOS-360K-DUAL": { config: "./demos/dual/CONFIG.SYS", title: "BASIC-DOS Dual Monitor Demo" },
     "BASICDOS-360K-MULTI": { config: "./demos/dual/multi/CONFIG.SYS", title: "BASIC-DOS Multi-Session Demo" },
     "BASICDOS-360K-SERIAL": { config: "./demos/serial/CONFIG.SYS", title: "BASIC-DOS HD Serial Port Demo" },
@@ -164,7 +164,7 @@ let disks = {
     "BASICDOS-360K-M640": { config: "./demos/m64/m640/CONFIG.SYS", title: "BASIC-DOS 640K Monochrome Demo" },
     "BASICDOS-360K-TERM": { config: "./demos/term/CONFIG.SYS", title: "BASIC-DOS Terminal Only Demo", final: true },
     "BASICDOS-360K-TERMHD": { config: "./demos/term/hd/CONFIG.SYS", title: "BASIC-DOS HD Terminal Only Demo" },
-    "BASICDOS-360K-MMU": { config: "./demos/mmu/CONFIG.SYS", title: "BASIC-DOS Protected Mode Demo" },
+    "BASICDOS-360K-MMU": { config: "./demos/mmu/vt100/CONFIG.SYS", title: "BASIC-DOS Protected Mode with VT100" },
     "BASICDOS-360K-TESTS": {
         title: "BASIC-DOS Tests",
         data: true,
@@ -192,7 +192,7 @@ let disks = {
             "TESTS/MISC": manifest["TESTS/MISC"],
             //
             // The tools in software/src/tools/dos (see its README.TXT), overlaid with the BASIC-DOS versions in
-            // software/src/tools/bd (eg, MASM; mk.sh gets the same result from the order of its PATH$), and then
+            // software/src/tools/bd (eg, MASM, MAKE, and LINK4; mk.sh gets the same result from the order of its PATH$), and then
             // the manifest's TOOLS (eg, MSBASIC).
             //
             TOOLS: [ SRC + "/tools/dos/*", SRC + "/tools/bd/*" ].concat(manifest.TOOLS)

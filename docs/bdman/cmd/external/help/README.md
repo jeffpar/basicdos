@@ -6,11 +6,12 @@ permalink: /docs/bdman/cmd/external/help/
 
 {% include header.html %}
 
-> HELP [*keyword*\|ALL\|BASIC\|CORE\|DISK\|EXT\|FUNC\|SYSTEM]
+> HELP [*keyword*\|ALL\|BASIC\|CORE\|FUNC\|CMD\|EXT]
 
-Displays help for *keyword* (eg, `HELP MID$`), or lists the keywords in a category.  HELP alone displays help for HELP.  Help for a command or function begins with a `Usage:` line, which is followed by a blank line and the rest of its description:
+Displays help for *keyword* (eg, `HELP MID$`), or lists the keywords in a category.  HELP alone displays help for HELP.  Help for a keyword, or a list of keywords, is displayed with a blank line before and after it, and help for a command or function begins with a `Usage:` line, which is followed by a blank line and the rest of its description:
 
 	HELP VOL
+
 	Usage: VOL [drive:]
 
 	Displays the volume label of drive (or the current drive).
@@ -22,13 +23,14 @@ If there's no help for *keyword*, HELP displays `No help available`, and ERRORLE
 | `ALL` | Every keyword |
 | `BASIC` | BASIC statements and commands |
 | `CORE` | An explanation of low memory systems, and the keywords they don't support |
-| `DISK` | Disk commands, like DIR |
-| `EXT` | External commands and drivers, like FORMAT |
 | `FUNC` | Functions, like MID$ |
+| `CMD` | Internal commands, like DIR |
+| `EXT` | External commands, like FORMAT |
 | `KEYS` | The keys for editing command lines (see [Typing Commands](../../../intro/#typing-commands)) |
-| `SYSTEM` | System commands, like MEM |
 
-A category hides any keyword with the same name, which is why the system category is SYSTEM, rather than SYS (the name of a utility).
+CMD lists the DOS-style commands built into COMMAND.COM; BASIC's own commands (eg, LIST and SAVE) are listed by BASIC.  EXT lists the commands in the EXT directory, and the build tools in the hard disk's TOOLS directory aren't included.
+
+A category hides any keyword with the same name, so a new command can't share a category's name.
 
 HELP was a COMMAND.COM command (along with KEYS, which is now `HELP KEYS`) until it became an external command, so that low memory systems have more room for BASIC programs.
 

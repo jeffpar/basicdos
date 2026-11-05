@@ -271,7 +271,7 @@ Clears the listed traps (see [VT](#vt)), or with `*`, all of them.
 
 > VL [*vector*]
 
-Lists everything that VT can trap, or only what belongs to one *vector* (hex, or decimal with a trailing period; eg, `VL 13` lists INT 13h's functions), with `*` before whatever it's trapping, and what each one is.  In real mode, only exceptions 00 and 04 reach the debugger, and the other exceptions occur only in protected mode.
+Lists the vectors that VT can trap, or only what belongs to one *vector* (hex, or decimal with a trailing period), with `*` before whatever it's trapping, and what each one is.  INT 13h and INT 21h get one line each, with `*` if any of their functions is trapped, and `VL 13` or `VL 21` lists those functions.  In real mode, only exceptions 00 and 04 reach the debugger, and the other exceptions occur only in protected mode.
 
 	-VL
 	  00:   Division error
@@ -285,11 +285,8 @@ Lists everything that VT can trap, or only what belongs to one *vector* (hex, or
 	  0B:   Segment not present
 	  0C:   Stack fault
 	* 0D:   General protection
-	* 1302: BIOS disk reads
-	  1303: BIOS disk writes
-	  210F: FCB Open
-	  ...
-	  2157: DOS FileTime
+	* 13:   BIOS disk functions (see VL 13)
+	  21:   DOS functions (see VL 21)
 	-VL 13
 	* 1302: BIOS disk reads
 	  1303: BIOS disk writes

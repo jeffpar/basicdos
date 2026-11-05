@@ -36,4 +36,4 @@ The label is a root directory entry with the volume attribute, which LABEL write
 
 Source: [LABEL.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/LABEL.BAS)
 
-{% include footer.html prev="HEXDUMP:../hexdump/" next="LS:../ls/" %}
+{% include footer.html prev="HEXDUMP:../hexdump/" next="LINK4:../link4/" %}
