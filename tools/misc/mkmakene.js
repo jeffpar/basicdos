@@ -88,6 +88,16 @@ for (const [offset, state] of execState) {
 }
 
 /*
+ * The same helper builds EPB_ENVSEG as DS + (offset >> 4), for a copy of the
+ * environment in MAKE's data segment, but that sum isn't a selector, and the
+ * child faults when it loads it.  MAKE never changes its environment, so pass
+ * zero, which makes the child share MAKE's.  All the child loses is the copy's
+ * ;C_FILE_INFO entry, which programs that COMMAND runs don't get either.
+ */
+image.set(Buffer.from([0x33, 0xc0]), 0x3ce8);   // xor ax,ax
+image.fill(0x90, 0x3cea, 0x3cf3);
+
+/*
  * Print a protected-mode banner from CS so that the original MZ data and its
  * real-mode banner remain byte-for-byte intact.  The helper replaces MAKE's
  * first fputs call; the following copyright fputs call is unchanged.

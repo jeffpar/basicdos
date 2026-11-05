@@ -17,10 +17,7 @@ The definitions file controls the NE program's name, segments, imports,
 exports, and protected-mode attributes.  BASIC-DOS uses LINK4 to build
 **TESTS\\BIN\\PRIMES.EXE** from **TESTS\\PRIMES\\PRIMES.DEF**.  The `/ALIGN:`
 switch follows the program field (for example,
-`PRIMES.EXE/ALIGN:16`) and selects a power-of-two segment alignment.  At the
-BASIC-DOS prompt, enter that value at LINK4's `Run File` prompt: COMMAND
-currently treats the colon in a multi-letter switch as a command separator.
-MAKE invokes LINK4 directly, so the same form works in a makefile.
+`PRIMES.EXE/ALIGN:16`) and selects a power-of-two segment alignment.
 
 The hard disk demo provides LINK4 in **TOOLS**.  Its dual MZ/NE executable
 runs at ring 3 in protected mode, where its banner ends in

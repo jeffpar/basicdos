@@ -113,6 +113,14 @@ IF ERRORLEVEL = 0 THEN PRINT "invalid drive failed" : FAILS = FAILS + 1
 VOL Z:
 TIME /D
 HELP SQR
+REM A colon after a switch of any length doesn't end the command, unlike others
+P$ = "x"
+SLEEP 0 /ALIGN:P$ = "y"
+SLEEP 0/ALIGN:P$ = "y"
+IF P$ <> "x" THEN PRINT "long switch failed" : FAILS = FAILS + 1
+SLEEP 0 /W>TX:P$ = "y"
+IF P$ <> "y" THEN PRINT "colon after switch failed" : FAILS = FAILS + 1
+DEL TX
 REM Invalid switches are syntax errors, in any position, and valid ones work
 OPEN "T.TMP" FOR OUTPUT AS #1 : PRINT #1, "x" : CLOSE #1
 TYPE /Z T.TMP

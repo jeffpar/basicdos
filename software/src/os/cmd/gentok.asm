@@ -445,9 +445,9 @@ ENDPROC	validateOp
 ;
 ; A colon (outside quotes) ends a DOS command, so that other commands can
 ; follow it (eg, "DIR *.COM:PRINT 1"), unless it follows a letter at the start
-; of a word (eg, "DIR A:") or right after the switch character (eg, the value
-; of a switch, as in "FORMAT A: /F:720"), or separates two digits (eg, "TIME
-; 12:30").
+; of a word (eg, "DIR A:") or letters right after the switch character (eg, the
+; value of a switch, as in "FORMAT A: /F:720" or "LINK4 PRIMES.EXE/ALIGN:16"),
+; or separates two digits (eg, "TIME 12:30").
 ;
 ; Inputs:
 ;	DS:BX -> colon
@@ -480,13 +480,27 @@ cc1:	mov	al,[bx-1]
 	mov	al,[bx-2]
 	cmp	al,' '+1		; at the start of a word?
 	jb	cc9			; yes (carry set)
+;
+; Look for the switch character before the letters preceding the colon.  Any
+; other non-letter (eg, "." or ">") means the colon isn't part of a switch.
+;
 	push	si
+	lea	si,[bx-1]		; SI -> letter preceding the colon
+cc2:	cmp	si,dx			; at the start of the command?
+	je	cc8			; yes (carry clear)
+	dec	si
+	mov	al,[si]
+	mov	ah,al
+	or	ah,20h
+	sub	ah,'a'
+	cmp	ah,26			; another letter?
+	jb	cc2			; yes
 	mov	si,ds:[PSP_HEAP]
-	cmp	al,[si].SWITCH_CHAR	; after the switch character?
-	pop	si
+	cmp	al,[si].SWITCH_CHAR	; is it the switch character?
 	stc
-	je	cc9			; yes
+	je	cc8			; yes
 	clc
+cc8:	pop	si
 cc9:	ret
 ENDPROC	chkColon
 
