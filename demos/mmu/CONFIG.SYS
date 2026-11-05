@@ -1,5 +1,4 @@
 REM Multiple Video Pages (0, 1, and 2) in protected mode (no CPU=8088)
-FILES=8
 BUFFERS=4
 CON=VKD$:80,25
 SHELL=C:COMMAND.COM PATH$="C:\;C:\EXT;C:\DEMOS;C:\SAMPLES;C:\TOOLS":HELLO.BAT

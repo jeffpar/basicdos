@@ -2,6 +2,5 @@ REM 64K demonstration with one session and no PIPE$ driver
 REM FPU$ (at 64K) and drivers for missing hardware skip themselves
 SKIP=PIPE$
 BUFFERS=2
-FILES=8
 SESSIONS=1
 SHELL=COMMAND.COM PATH$="A:\;A:\EXT;A:\DEMOS;A:\SAMPLES"

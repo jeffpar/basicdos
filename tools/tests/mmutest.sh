@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Usage: tools/tests/mmutest.sh [8088] [real] [pm] [r3] [multi]
+# Usage: tools/tests/mmutest.sh [8088] [real] [pm] [r3] [multi] [tools]
 #
 # Runs quick.sh's floppy tests (FPUTESTS through PRINTF), followed by CPUTESTS and R3TESTS, on these test machines:
 #
@@ -14,8 +14,11 @@
 #           by default, where CPUTESTS and HARDERR's hook tests print that they were skipped instead
 #   multi   the "r3" machine with a second console (on its video adapter), since sysinit then loads the first SHELL from
 #           another session's LDT; it runs only R3TESTS, since some tests (eg, HARDERR) won't run beside another session
+#   tools   the "r3" machine with a hard disk, where MAKE rebuilds PRIMES.EXE and SLEEP.COM with the protected-mode build
+#           tools in software/src/tools/bd (see tools/misc/mkne.js), which must match the binaries of the last build, and
+#           runs EXEMOD and MAPSYM, which must succeed
 #
-# By default, it runs all five.  The "pm", "r3", and "multi" machines boot a copy of the fpe configuration without the
+# By default, it runs all six.  The "pm", "r3", "multi", and "tools" machines boot a copy of a configuration without the
 # "CPU=8088" line, in tools/pc/disks/tmp-mmupm, which is deleted afterward.  The exit code is non-zero if any test
 # failed.
 #
@@ -29,7 +32,7 @@ m='\TESTS\REGRESS\'
 cmds="VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}BUFTESTS;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;\\TESTS\\MISC\\CPUTESTS;$ok;\\TESTS\\MISC\\R3TESTS;$ok;SLEEP 1;QUIT"
 log=$(mktemp)
 failed=
-for name in ${@:-8088 real pm r3 multi}; do
+for name in ${@:-8088 real pm r3 multi tools}; do
     meta="HARDERR metadata passed"; seek="HARDERR seek passed"; above="BUFTESTS passed"; r3t="R3TESTS skipped"
     case $name in
         8088)   args="ibm5160 $fpe"; cpu="CPU type 0 (hardware 0)" ;;
@@ -43,6 +46,46 @@ for name in ${@:-8088 real pm r3 multi}; do
                     failed="$failed $name"
                 fi
                 continue ;;
+        tools)  rm -rf $tmp
+                src=software/src
+                mkdir -p $tmp/MT/PRIMES $tmp/MT/OBJ $tmp/MT/BIN $tmp/OS/INC $tmp/TOOLS || exit 1
+                printf 'SKIP=VKD$\nCON=COM1:9600,N,8,1\nSHELL=COMMAND.COM PATH$="C:\\;C:\\EXT;C:\\TOOLS"\n' > $tmp/CONFIG.SYS
+                tools/tests/prep.sh $tmp || exit 1
+                cp $src/tools/dos/*.EXE $tmp/TOOLS/ && cp $src/tools/bd/*.EXE $tmp/TOOLS/ || exit 1
+                cp $src/os/inc/*.inc $tmp/OS/INC/ && cp $src/tests/primes/primes.asm $src/tests/primes/PRIMES.DEF $tmp/MT/PRIMES/ &&
+                    cp $src/os/util/misc/sleep.asm $tmp/MT/ || exit 1
+                cp $src/tests/bin/PRIMES.EXE $tmp/MT/REF.EXE && cp $src/os/util/misc/OBJ/SLEEP.COM $tmp/MT/REF.COM || exit 1
+                #
+                # These rules use the same commands and switches as the rules in the TESTS and UTIL\MISC makefiles.
+                #
+                sed 's/$/\r/' > $tmp/MT/MAKEFILE <<'EOF'
+BIN\PRIMES.EXE: PRIMES\PRIMES.ASM PRIMES\PRIMES.DEF
+	MASM /MX /R /D$(REL) /I..\OS\INC PRIMES\$*.ASM,BIN\$*.OBJ,NUL;
+	LINK BIN\$*.OBJ,OBJ\$*.EXE;
+	LINK4 BIN\$*.OBJ,$@/ALIGN:16,NUL,,PRIMES\$*.DEF;
+	DEL BIN\$*.OBJ
+	DEL OBJ\$*.EXE
+
+OBJ\SLEEP.COM: SLEEP.ASM
+	MASM /MX /R /D$(REL) /I. /I..\OS\INC $*.ASM,OBJ\$*.OBJ,NUL;
+	LINK OBJ\$*.OBJ,OBJ\$*.EXE;
+	EXE2BIN OBJ\$*.EXE $@
+
+M.SYM: OBJ\SLEEP.COM
+	LINK OBJ\SLEEP.OBJ,M.EXE,M.MAP/MAP;
+	EXEMOD M.EXE /MIN 400
+	MAPSYM M
+EOF
+                tools/pc/pc.js ibm5170 $tmp --ram=2M "VER;CD MT;MAKE REL=$(cat tools/pc/disks/mkmode) MAKEFILE;$ok;COMP BIN\PRIMES.EXE REF.EXE;COMP OBJ\SLEEP.COM REF.COM;DIR M.SYM;SLEEP 1;CD \;QUIT" \
+                    --sys=bd:2 --target=10M --serial --normalize --nosync --speed=8 | tee "$log"
+                if ! grep -q "Assembler  Version 4.00BD" "$log" || ! grep -q "Linker  Version 3.05BD" "$log" ||
+                   ! grep -q "Linker  Version 5.00.12BD" "$log" || ! grep -q "Utility  Version 4.02BD" "$log" ||
+                   ! grep -q "Utility  Version 4.00BD" "$log" || ! grep -q "Generator  Version 4.00BD" "$log" ||
+                   ! grep -q "EXITOK" "$log" || grep -q "EXITBAD" "$log" || grep -q "CPU fault" "$log" ||
+                   [ "$(grep -c "Files compare ok" "$log")" -ne 2 ] || ! grep -q "^M  *SYM " "$log"; then
+                    failed="$failed $name"
+                fi
+                continue ;;
         pm|r3)  rm -rf $tmp
                 cp -R $fpe $tmp || exit 1
                 grep -v "^CPU=" $fpe/CONFIG.SYS > $tmp/CONFIG.SYS
@@ -53,7 +96,7 @@ for name in ${@:-8088 real pm r3 multi}; do
                 else
                     cpu="CPUTESTS skipped"; meta="HARDERR hook tests skipped"; seek=$meta; r3t="R3TESTS passed"
                 fi ;;
-        *)      echo "usage: $0 [8088] [real] [pm] [r3] [multi]" >&2; exit 1 ;;
+        *)      echo "usage: $0 [8088] [real] [pm] [r3] [multi] [tools]" >&2; exit 1 ;;
     esac
     tools/pc/pc.js $args "$cmds" --sys=bd:2 --floppy --serial --normalize --nosync | tee "$log"
     if grep -q "Floating-point .*installed" "$log" || grep -q "failed" "$log" || grep -q "EXITBAD" "$log" ||

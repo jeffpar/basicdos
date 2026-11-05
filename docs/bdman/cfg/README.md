@@ -127,7 +127,9 @@ BASIC-DOS includes one installable driver, [DEBUG.COM](../cmd/external/debug/) (
 
 > FILES=*n*
 
-Sets the maximum number of files (and devices) that can be open at once, across all sessions.  The default is 20, and *n* can range from 8 to 254.
+Sets the maximum number of files (and devices) that can be open at once, across all sessions.  The default is 20 (or 8, on a machine with 128K of memory or less), and *n* can range from 8 to 254.
+
+Each session's console counts as an open device, and a program that needs more files than are available may report a missing file instead (eg, MASM's `Include file ... not found`).
 
 ### MEMSIZE
 

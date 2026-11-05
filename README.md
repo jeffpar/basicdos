@@ -61,7 +61,8 @@ On an 80286 or later, BASIC-DOS runs in protected mode; it's built and tested fo
 - [x] A ring 3 program can free or resize only its own memory blocks, whose selectors always fit their lengths, and a bad pointer, stack, or return address ends the program, rather than stopping the system
 - [x] A ring 3 program can hook only the exception vectors it can handle, INT 21h, and INT 60h-67h, and can't change the kernel's record of its parent, stack, or handlers by writing its PSP
 - [x] COM and NE programs (eg, PRIMES.EXE) run in protected mode
-- [x] MASM 4.00, MAKE 4.02, and LINK4 5.00.12 in **TOOLS** on the hard disk are converted from MZ to dual MZ/NE executables that run at ring 3 in protected mode and through their original MZ images in real mode
+- [x] MASM 4.00, MAKE 4.02, LINK 3.05, LINK4 5.00.12, EXEMOD 4.00, MAPSYM 4.00, and EXE2BIN (MS-DOS 3.20) in **TOOLS** on the hard disk are converted from MZ to dual MZ/NE executables that run at ring 3 in protected mode and through their original MZ images in real mode
+- [x] BASIC-DOS can build itself at ring 3 in protected mode, with the same binaries as a real-mode build
 - [x] Exceptions: a fault in a program's own code ends that program with `CPU fault nn (EC=nnnn) at nnnn:nnnn` (ERRORLEVEL 255), as a divide error does; anywhere else, CPU$ prints the same line and `System halted`, and stops the machine, unless DEBUG.COM is loaded as a driver and takes over (see [Faults](docs/bdtech/mmu/#faults))
 - [x] DEBUG.COM as a driver can stop and resume ring 3 programs with all of its commands; as a program, it runs at ring 3 with fewer commands
 - [ ] Ring 3 for the programs that still need `RING=0`: those that hook an interrupt issued by ring 0 code (eg, INT 1Ch or INT 13h), call CPU$ (eg, CPUTESTS), or use IN, OUT, CLI, or STI
@@ -94,6 +95,7 @@ On an 80286 or later, BASIC-DOS runs in protected mode; it's built and tested fo
 - [x] Subdirectories: paths (separated by `\`, or `/` when PATHCHAR is `/`) in all file functions, MKDIR and RMDIR (functions 39h and 3Ah), subdirectories that grow as needed, and per-session current directories for every drive (CHDIR and GETCWD, functions 3Bh and 47h)
 - [x] Same-drive file and directory moves (function 56h): preserve contents and metadata, update a moved directory's `..` entry, retain active current directories, and reject moves into itself or a descendant
 - [x] Absolute disk reads and writes: opening a volume (eg, `C:`) as a file gives read/write access to its sectors, in place of INT 25h and INT 26h; a volume can also be created (ie, opened FOR OUTPUT) and opened when its media is unknown (eg, an unformatted diskette), with no critical error prompt, and IOCTLs on a volume handle go to the drive's driver (with their errors returned to the caller)
+- [x] Configurable open file limit (FILES=8-254, default 20, or 8 with 128K of memory or less)
 - [x] Configurable disk buffer cache (BUFFERS=2-32, default 3), with least-recently-used replacement for FAT sectors, directory sectors, and file reads of less than a sector; other file data is transferred directly by the disk drivers, with one request for each run of clusters that are next to each other on disk (a write allocates all the clusters it needs first, as in PC DOS)
 - [x] File attributes: a read-only file can't be opened for writing, replaced, or deleted; getting and setting a file's attributes (function 43h) and a handle's time and date (function 57h, kept when the file is closed); and on every BASIC-DOS disk, BASDEV.COM and BASDOS.COM are read-only hidden system files and COMMAND.COM is a read-only system file; BASIC's OPEN FOR RANDOM opens a read-only file for reading (as MSBASIC does)
 - [ ] Extended disk partitions (currently NOT under consideration for inclusion in BASIC-DOS)
@@ -309,7 +311,6 @@ These are the next steps, roughly in priority order:
 2. The rest of runtime error handling (messages for numeric errors other than "Division by zero", such as "Overflow")
 3. Common BASICA features that BASIC-DOS lacks: BEEP and COMMON
 4. The rest of protected mode on an 80286 or 80386: ring 3 for the programs that still need `RING=0` (interrupt hooks that DOS or the ROM BIOS calls, and CPUTESTS); see [Limitations](docs/bdtech/mmu/#limits)
-5. Protected-mode versions of the remaining MZ-only build tools (MASM 4.00, MAKE 4.02, and LINK4 5.00.12 are available now in **TOOLS**)
 
 ## License
 

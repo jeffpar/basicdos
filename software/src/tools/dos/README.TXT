@@ -5,8 +5,8 @@ Most of the tools in this directory build BASIC-DOS from its source code (see
 SRC: type CD \SRC and then MK), and they can all be used with other software
 on BASIC-DOS, too.  None of them are part of BASIC-DOS: they came from the
 three Microsoft products described below.  They're unmodified, except for
-MASM.EXE, MAKE.EXE, and LINK4.EXE on a BASIC-DOS disk, which are
-protected-mode conversions (see the last section).
+those on a BASIC-DOS disk that are protected-mode conversions (see the last
+section).
 
 Microsoft Macro Assembler Package, Version 4.00 (October 16, 1985)
 ------------------------------------------------------------------
@@ -71,21 +71,20 @@ The other tools have small stacks, too (MAPSYM's SP is 80h and LINK's is
 BASIC-DOS Protected-Mode Tools
 ------------------------------
 
-TOOLS\MASM.EXE, TOOLS\MAKE.EXE, and TOOLS\LINK4.EXE on a BASIC-DOS disk are
-MASM 4.00, MAKE 4.02, and LINK4 5.00.12 converted to dual MZ/NE executables,
-which should perform the same as the originals.  MS-DOS and real-mode
-BASIC-DOS run their original MZ images, while protected-mode BASIC-DOS runs
-the NE images at ring 3.  The NE images have fixed code and data segments,
-translate the MZ segment relocations to NE relocations, replace privileged
-CLI and STI instructions where necessary, and adapt the programs' real-mode
-memory setup.  Their protected-mode banners end in "Version 4.00BD",
-"Version 4.02BD", and "Version 5.00.12BD" to identify the conversions.
+MASM.EXE, MAKE.EXE, LINK.EXE, LINK4.EXE, EXEMOD.EXE, MAPSYM.EXE, and
+EXE2BIN.EXE in TOOLS on a BASIC-DOS disk are converted to dual MZ/NE
+executables, which perform the same as the originals: BASIC-DOS builds
+itself with them in protected mode, and the binaries are the same as those of
+a real-mode build.  MS-DOS and real-mode BASIC-DOS run their original MZ
+images, while protected-mode BASIC-DOS runs the NE images at ring 3.  The NE
+images have fixed code and data segments, translate the MZ segment relocations
+to NE relocations, replace privileged CLI and STI instructions where necessary,
+and adapt the programs' real-mode memory setup.  Except for EXE2BIN, which has
+no banner, their protected-mode banners end in "BD" (eg, "Version 4.00BD") to
+identify the conversions.
 
 In the BASIC-DOS repository, the unmodified tools are in
 software/src/tools/dos, and the conversions are in software/src/tools/bd.  A
 disk's TOOLS folder gets the former, overlaid with the latter, and mk.sh's
-PATH$ searches bd first.  Run "node tools/misc/mkmasmne.js",
-"node tools/misc/mkmakene.js", and "node tools/misc/mklink4ne.js" at the
-repository root to rebuild bd/MASM.EXE, bd/MAKE.EXE, and bd/LINK4.EXE from
-their originals.  BASIC-DOS still builds in real mode, because its other MZ
-build tools do not yet have protected-mode versions.
+PATH$ searches bd first.  Run "node tools/misc/mkne.js" to rebuild all the
+conversions from their originals.

@@ -11,9 +11,9 @@ ASM=MASM
 LINK=LINK
 #
 # LINK4 builds NE programs (see PRIMES.EXE below).  It's named by its path in
-# TOOLS\DOS, since the MS-DOS build disk (see mkdos.sh) doesn't have it on PATH.
+# TOOLS\BD, since the MS-DOS build disk (see mkdos.sh) doesn't have it on PATH.
 #
-LINK4=..\TOOLS\DOS\LINK4
+LINK4=..\TOOLS\BD\LINK4
 EXE2BIN=EXE2BIN
 MAPSYM=MAPSYM
 AFLAGS=/MX /R /D$(REL) /I..\OS\INC

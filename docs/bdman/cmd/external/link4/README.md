@@ -26,7 +26,7 @@ and display the original banner.
 
 The unmodified Microsoft executable is
 [LINK4.EXE](https://github.com/jeffpar/basicdos/blob/main/software/src/tools/dos/LINK4.EXE),
-and [mklink4ne.js](https://github.com/jeffpar/basicdos/blob/main/tools/misc/mklink4ne.js)
+and [mkne.js](https://github.com/jeffpar/basicdos/blob/main/tools/misc/mkne.js)
 creates the BASIC-DOS conversion.
 
 {% include footer.html prev="LABEL:../label/" next="LS:../ls/" %}

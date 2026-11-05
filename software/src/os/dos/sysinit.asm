@@ -23,7 +23,7 @@ DOS	segment word public 'CODE'
 	EXTBYTE	<bpb_total,sfh_debug,def_drive,def_swchar,def_pathchar>
 	EXTBYTE	<scb_locked>
 	EXTWORD	<mcb_limit,buf_head,key_boot,scb_active,ivt_save,tbl_next>
-	EXTWORD	<err_stack,dos_data>
+	EXTWORD	<err_stack,dos_data,mem_size>
 	EXTLONG	<bpb_table,scb_table,sfb_table,cdir_table,clk_ptr,fpu_table>
 	EXTLONG	<dev_head>
 	EXTNEAR	<find_cfg,init_table,set_bpbtime,load_devices,sysinit_end>
@@ -460,8 +460,16 @@ si6d:	add	di,size BPBEX
 ;
 si7:	mov	si,offset CFG_FILES
 	call	find_cfg		; look for "FILES="
-	jc	si7a			; if not found, AX will be min value
-	xchg	si,di
+	jnc	si7b
+;
+; Without a "FILES=" line, AX is the default, unless memory is so limited (128K
+; or less) that the minimum is a better default.
+;
+	cmp	[mem_size],128		; 128K or less?
+	ja	si7a			; no
+	mov	al,8			; yes (AH is already zero)
+	jmp	short si7a
+si7b:	xchg	si,di
 	push	cs
 	pop	es
 	mov	bl,10			; BL = base 10
@@ -817,7 +825,8 @@ CFG_PRN		db	4,"PRN="
 CFG_BUFFERS	db	8,"BUFFERS="
 		dw	3,2,32
 ;
-; FILES can't exceed 254, since SFH 0FEh is SFH_NODEV.
+; FILES can't exceed 254, since SFH 0FEh is SFH_NODEV.  It defaults to 20, or
+; with 128K or less of memory, to the minimum (see si7).
 ;
 CFG_FILES	db	6,"FILES="
 		dw	20,8,254

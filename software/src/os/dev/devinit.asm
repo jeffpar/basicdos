@@ -314,6 +314,16 @@ i9:	add	sp,DDP_MAXSIZE
 ; (see chk_cpu), and allocate DOS_FILE's new home, which is the first free
 ; block, right after the drivers.
 ;
+; That home overlaps our block, and the 8086 CPU$ puts a free MCB at the end of
+; it, so the block must reach devinit_end at least, or that MCB could land on
+; code or data we still need; but no further, because with little memory, the
+; block we loaded DOS_FILE into isn't far beyond us, and an MCB inside it would
+; be moved with DOS_FILE (sysinit resizes the block anyway; see dos_size).
+;
+	mov	ax,cs:[dv_addr]
+	add	ax,offset devinit_end
+	sub	ax,di
+	push	ax			; AX = length through devinit_end
 	mov	cx,cs:[drv_addr]
 	sub	di,cx			; DI = length of the drivers
 	mov	ah,CPU_REALLOC
@@ -325,15 +335,7 @@ i9:	add	sp,DDP_MAXSIZE
 	mov	dx,cs:[dos_pkt].MV_SRC.HIW
 	mov	ah,CPU_FREE
 	call	cpu_chk
-;
-; DOS_FILE's new home overlaps our block, and the 8086 CPU$ puts a free MCB
-; at the end of it, so the block must reach devinit_end at least, or that MCB
-; could land on code or data we still need (sysinit resizes the block anyway;
-; see dos_size).
-;
-	mov	ax,cs:[dv_addr]
-	add	ax,offset devinit_end
-	sub	ax,cs:[drv_addr]	; AX = length through devinit_end
+	pop	ax
 	mov	di,cs:[dos_pkt].MV_LEN.LOW
 	cmp	di,ax			; is DOS_FILE at least that long?
 	jae	i9a			; yes
