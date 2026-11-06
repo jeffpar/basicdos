@@ -30,7 +30,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<r3_setldt,r3_endvec>
 	EXTNEAR	<dos_check,dos_leave,dos_leave2,dos_ctrlc,dos_error>
 	EXTNEAR	<mcb_setname,scb_getnum,scb_release,scb_close,scb_yield>
-	EXTNEAR	<msc_sigctrlc,msc_retctrlc>
+	EXTNEAR	<msc_sigctrlc,msc_retctrlc,scb_abort>
 	EXTWORD	<ivt_save>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -75,6 +75,8 @@ DEFPROC	psp_term,DOS
 ;
 	cmp	ah,EXTYPE_ABORT		; ABORT request?
 	jne	pt0			; no
+	test	[bx].SCB_STATUS,SCSTAT_KILL
+	jnz	pt1			; the session is ending (see scb_end)
 	sti
 	jmp	msc_sigctrlc		; signal CTRLC (does not return)
 ;
@@ -174,9 +176,12 @@ pt1b:	LOCK_SCB
 pt7:	ret
 
 pt8:	mov	es,ax			; ES = PSP of parent
-	cmp	[prog_user],0		; ring 3 programs?
-	je	pt8a			; no
 	mov	bx,[scb_active]
+	test	[bx].SCB_STATUS,SCSTAT_KILL
+	jz	pt8k			; the session isn't ending
+	call	scb_abort		; it is, so the parent must end, too
+pt8k:	cmp	[prog_user],0		; ring 3 programs?
+	je	pt8a			; no
 	call	r3_resume		; the parent's ring 0 stack
 	mov	al,es:[PSP_SCB]		; and its LDT (the parent may be in a
 	call	r3_setldt		; different session; see dos_leave2)

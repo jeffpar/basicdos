@@ -114,12 +114,18 @@ SCB_SP0		dw	?	; 42h: ring 0 stack of its program (see R3REC)
 SCB		ends		; 44h bytes
 
 SIG_SCB		equ	'S'
+MAX_SESSIONS	equ	32	; the limit for SESSIONS=
 
 SCSTAT_INIT	equ	01h	; set if SCB initialized
 SCSTAT_LOAD	equ	02h	; set if session has loaded a program
 SCSTAT_START	equ	04h	; set if session program can be started
 SCSTAT_ABORT	equ	08h	; set if session abort (CTRL-ALT-DEL) signalled
 SCSTAT_FAULT	equ	10h	; set while a fault ends a program (see r3_end)
+SCSTAT_KILL	equ	20h	; set while a session is ending (see scb_end)
+;
+; The bits that scb_close clears.
+;
+SCSTAT_PROG	equ	SCSTAT_LOAD OR SCSTAT_START OR SCSTAT_KILL
 ;
 ; The hard error stack (see dev_error) is reserved by sysinit, which records
 ; the DS-relative offset of its top in err_stack; ERR_FRAME is the number of

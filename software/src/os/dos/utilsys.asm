@@ -18,7 +18,8 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<chk_devname,dev_request>
 	EXTNEAR	<scb_load,scb_start,scb_stop,scb_end,scb_waitend,scb_abort>
 	EXTNEAR	<scb_yield,scb_release,scb_wait,scb_endwait,scb_intwait>
-	EXTNEAR	<scb_query,mem_query,msc_getdate,msc_gettime,psp_termcode>
+	EXTNEAR	<scb_query,mem_query,mem_pmode,msc_getdate,msc_gettime>
+	EXTNEAR	<psp_termcode>
 	EXTNEAR	<add_date,read_line,flush_buffers,get_ticks>
 
 	EXTBYTE	<scb_locked>
@@ -141,10 +142,11 @@ ENDPROC	utl_stop
 ;
 ; utl_end (AH = 16h)
 ;
-; End the current program in the specified session.
+; End the current program in the specified session, or the session itself.
 ;
 ; Inputs:
 ;	CL = SCB #
+;	REG_AL = 0 to end the program, 1 to end the session (see scb_end)
 ;
 ; Outputs:
 ;	Carry clear if successful
@@ -374,7 +376,8 @@ ENDPROC	utl_unlock
 ;
 ; Inputs:
 ;	REG_CX = memory block # (0-based)
-;	REG_DL = memory block type (0 for any, 1 for free, 2 for used)
+;	REG_DL = memory block type (0 for any, 1 for free, 2 for used), or 4
+;	to copy the block's PMB to REG_ES:REG_DI (see mem_query)
 ;
 ; Outputs:
 ;	On success, carry clear:
@@ -438,7 +441,10 @@ ENDPROC	utl_term
 ;
 ; utl_restart (AH = 21h)
 ;
-; Any modified disk buffers are written before restarting.
+; Any modified disk buffers are written before restarting.  In protected mode,
+; we can't jump to the ROM's reset vector (FFFFh isn't a selector), so we have
+; the 8042 pulse the reset line instead, as CPU$ does to leave protected mode.
+; CPU$ clears the CMOS shutdown code afterward, so the ROM restarts normally.
 ;
 ; Inputs:
 ;	None
@@ -452,8 +458,16 @@ ENDPROC	utl_term
 DEFPROC	utl_restart,DOS
 	mov	al,-1
 	call	flush_buffers		; write all modified buffers
+	call	mem_pmode		; protected mode?
 	cli
-	db	OP_JMPF
+	jnc	ur8			; no
+ur1:	in	al,64h
+	test	al,02h			; is the 8042's input buffer full?
+	jnz	ur1			; yes
+	mov	al,0FEh			; 8042 command: pulse reset
+	out	64h,al
+	jmp	$
+ur8:	db	OP_JMPF
 	dw	00000h,0FFFFh
 ENDPROC	utl_restart
 

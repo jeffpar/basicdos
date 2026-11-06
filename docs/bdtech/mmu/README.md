@@ -232,7 +232,7 @@ The drivers and the kernel (everything that runs at ring 0) are the same code in
 COMMAND.COM runs at ring 3, so it uses only selectors that the kernel gives it, and asks the kernel or a driver for anything it can't reach itself:
 
 - **Video memory** comes from VKD$ (IOCTL_GETMODE with CL = 1 returns the context's video memory in DX, which in protected mode is a DPL 3 identity selector).
-- **The tick count** (for RANDOMIZE, SOUND, and PLAY) comes from DOS_UTL_GETTIME with AL = 1, MEM's total memory from DOS_MSC_GETVARS, and RESTART's session list from DOS_UTL_QRYSCB.
+- **The tick count** (for RANDOMIZE, SOUND, and PLAY) comes from DOS_UTL_GETTIME with AL = 1, MEM's total memory from DOS_MSC_GETVARS, and KILL's session list from DOS_UTL_QRYSCB.
 - **Sounds** start and stop through CLOCK$ (DOS_UTL_SOUND), rather than with IN and OUT.
 - **BASIC code** runs from code blocks through their code aliases (see [Code Aliases](#aliases)), and DEF SEG gets a selector from the kernel (see [DEF SEG](#defseg)).
 - **Blocks** (for code, text, variables, and strings) come from DOS_MEM_ALLOC with MCBTYPE_HIGH, so in protected mode, they come from the top of extended memory.

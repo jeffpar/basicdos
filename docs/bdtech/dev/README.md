@@ -220,7 +220,7 @@ HDC$'s MBR code is modeled on the pc.js MBR, without its drive tables: it moves 
 | CPU$ | Character | Two drivers, loaded first, of which one stays to manage all memory through DDINT_CPU (see [Protected Mode](../mmu/)): the 80286 driver stores the processor type in CPU_HWTYPE (0:513h) and CPU_TYPE (0:512h), which `CPU=8088` makes 0, and on an 80286 or later with at least 64K of extended memory, manages memory with a PMB table (and protected-mode descriptors); otherwise, it unloads, and the 8086 driver manages memory with an MCB chain.  The one that stays stores its arena's address in CPU_ARENA (0:514h), for debuggers, and provides DDINT_GETVEC and DDINT_SETVEC.  Neither can be skipped |
 | NUL | Character | Null device |
 | CLOCK$ | Character | Timer interrupt, date and time, delays, and sound |
-| PIPE$ | Character | Pipes between sessions (used by the command shell's `|` operator), with a 128-byte buffer; as on UNIX, a read waits only until some data is available, and then returns what's there (up to the requested length), while a write waits until all its data fits |
+| PIPE$ | Character | Pipes between sessions (used by the command shell's `|` operator), with a 128-byte buffer; as on UNIX, a read waits only until some data is available, and then returns what's there (up to the requested length), while a write waits until all its data fits; it unloads itself with 64K of memory or less |
 | FPU$ | Character | Floating-point functions, using an 8087 if present, or software emulation otherwise |
 | MOUSE$ | Character | Serial mouse, with an INT 33h interface (see [MOUSE$](#mouse)); loaded only if a mouse responds on a COM port |
 | FDC$ | Block | Diskette drives (A: and B:) |

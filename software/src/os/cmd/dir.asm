@@ -550,23 +550,8 @@ de1:	pop	si			; (if so, cmdDOS replaced it with *.*)
 	jne	de5			; no
 	cmp	word ptr [di+2],002Ah
 	jne	de5			; no
-de3:	PRINTF	<"Are you sure (Y/N)? ">
-	push	dx
-	push	si
-	lea	si,[bx].LINEBUF+128	; (past the filespec in LINEBUF)
-	mov	word ptr [si].INP_MAX,2	; 1 char (plus CR)
-	mov	dx,si
-	mov	ah,DOS_TTY_INPUT
-	int	21h
-	call	printCRLF
-	mov	al,[si].INP_DATA
-	pop	si
-	pop	dx
-	and	al,0DFh			; upper-case the response
-	cmp	al,'N'
-	je	de9			; no (and carry is clear)
-	cmp	al,'Y'
-	jne	de3			; neither, so ask again
+	call	askSure
+	jnz	de9			; no (and carry is clear)
 de5:	call	walkFiles		; yes, delete all matching files
 	jmp	short de6a
 de6:	call	dx
@@ -578,6 +563,43 @@ de7:	PRINTF	<"Missing filename",13,10>
 de8:	stc
 de9:	ret
 ENDPROC	cmdDel
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; askSure
+;
+; Asks "Are you sure (Y/N)?", until Y or N is entered.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;
+; Outputs:
+;	ZF set if Y, clear if N; carry clear
+;
+; Modifies:
+;	AX
+;
+DEFPROC	askSure
+as1:	PRINTF	<"Are you sure (Y/N)? ">
+	push	dx
+	push	si
+	lea	si,[bx].LINEBUF+128	; (past any filespec in LINEBUF)
+	mov	word ptr [si].INP_MAX,2	; 1 char (plus CR)
+	mov	dx,si
+	mov	ah,DOS_TTY_INPUT
+	int	21h
+	call	printCRLF
+	mov	al,[si].INP_DATA
+	pop	si
+	pop	dx
+	and	al,0DFh			; upper-case the response
+	cmp	al,'Y'
+	je	as9			; yes (ZF set, and carry is clear)
+	cmp	al,'N'
+	jne	as1			; neither, so ask again
+	test	al,al			; no (ZF clear, and carry is clear)
+as9:	ret
+ENDPROC	askSure
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1629,7 +1651,7 @@ ep1:	dec	cx
 	push	ax
 	test	al,al
 	jz	ep2
-	DOSUTIL	END			; end the program in session CL
+	DOSUTIL	END,0			; end the program in session CL
 ep2:	DOSUTIL	WAITEND			; and wait for the session to end
 	pop	ax
 ep3:	jcxz	ep9

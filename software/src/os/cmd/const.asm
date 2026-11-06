@@ -201,6 +201,9 @@ CODE	ENDS
 ; that genExpr handles (by calling the corresponding FPU$ functions), so their
 ; IDs must remain consecutive and in the same order as genExpr's FN_FPUTBL.
 ;
+; DATE, LIST, LLIST, and DELETE (10 through 13) must also remain consecutive
+; and ID 2 is reserved for deferred commands (for both, see chkSwitches).
+;
 ; Each list must be in alphabetical order, and each is processed twice, by
 ; TOKSTR and then by DEFTOK (see above).
 ;
@@ -209,7 +212,7 @@ KEYWORDS	macro	PASS
 	PASS	APPEND,211,,PUB
 	PASS	AS,    209,,PUB
 	PASS	ATN,   102
-	PASS	AUTO,   12, cmdAuto
+	PASS	AUTO,   19, cmdAuto
 	PASS	BASE,  205,,PUB
 	PASS	CD,     16, cmdChdir
 	PASS	CHAIN,  71, genChain
@@ -251,10 +254,11 @@ KEYWORDS	macro	PASS
 	PASS	INT,   106
 	PASS	IOCTL,  98, genIoctl,PUB
 	PASS	KEY,    67, genKey
+	PASS	KILL,    7, cmdKill
 	PASS	LET,    50, genLet
 	PASS	LINE,   76, genLine
-	PASS	LIST,    4, cmdList
-	PASS	LLIST,  19, cmdLlist
+	PASS	LIST,   11, cmdList
+	PASS	LLIST,  12, cmdLlist
 	PASS	LOAD,   22, cmdLoad
 	PASS	LOCATE, 64, genLocate
 	PASS	LOG,   107
@@ -285,7 +289,6 @@ KEYWORDS	macro	PASS
 	PASS	READ,   84, genRead
 	PASS	REM,    52
 	PASS	REN,    26, cmdRen
-	PASS	RESTART, 7, cmdRestart
 	PASS	RESTORE,85, genRestore
 	PASS	RESUME, 73, genResume
 	PASS	RETURN, 53, genReturn
@@ -302,7 +305,7 @@ KEYWORDS	macro	PASS
 	PASS	SWAP,   97, genSwap
 	PASS	TAN,   110,,PUB
 	PASS	THEN,  204,,PUB
-	PASS	TIME,   11, cmdTime
+	PASS	TIME,    4, cmdTime
 	PASS	TO,    207,,PUB
 	PASS	TYPE,   23, cmdType
 	PASS	USING, 213,,PUB
@@ -326,10 +329,9 @@ KEYOPS	macro	PASS
 	endm
 
 ;
-; Options recognized by commands (eg, LIST VARS and RESTART SYSTEM).
+; Options recognized by commands (eg, LIST VARS).
 ;
 OPTIONS	macro	PASS
-	PASS	SYSTEM,   2,,PUB
 	PASS	VARS,     3,,PUB
 	endm
 

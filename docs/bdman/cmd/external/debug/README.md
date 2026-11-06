@@ -77,7 +77,7 @@ The L and Q commands exist only in program mode, and the commands marked "Not at
 | [BL](#bl) | List breakpoints | Always |
 | [BP](#bp) | Set a breakpoint | Always |
 | [D, DB, DW](#d-db-and-dw) | Display memory as bytes or words | Always |
-| [DM](#dm) | Display the memory map | Not at ring 3 |
+| [DM](#dm) | Display the memory map | |
 | [DS](#ds) | Display a selector's descriptor | Not at ring 3 |
 | [E](#e) | Store bytes and strings in memory | Always |
 | [G](#g) | Resume, optionally to an address | Always |
@@ -137,6 +137,8 @@ DB displays memory as hex bytes, and DW as hex words; D uses the last format (in
 > DM
 
 Displays memory in address order, as the CPU$ driver describes it: each block's address, length (in bytes), and owner (a PSP, or in protected mode, a ring 3 program's session number plus 80h, then its program number; eg, 8000 for session 0's COMMAND.COM), and its name (eg, COMMAND, DEBUG, or DEBUG$) or type (eg, FREE, SYS, RSVD for video memory and ROMs, CPU$ for the CPU$ system area in extended memory, one of COMMAND's VAR, STR, TEXT, or CODE blocks, ENV for the environment COMMAND builds for programs, or DATA for any other memory a program allocated).  The system's memory is shown as a row for each driver in it (eg, CPU$, VKD$, or FDC$, from the driver chain), DOS for the memory DOS is in, and SYS for the rest, including, on an 8088 (or with [CPU](../../../cfg/#cpu)=8088), the memory below the blocks (the interrupt vectors, the BIOS data, and BASIC-DOS's low memory).  A driver loaded by a DEVICE line owns its block, which is named after its device (eg, DEBUG$) once the driver has been initialized; until then (eg, at a `/H` stop), the block is still SYS.
+
+As a program at [ring 3](#ring-3), DEBUG gets the blocks from DOS, and since it can't read the driver chain, each of the system's blocks is a `<SYS>` row, rather than a row for each driver in it.
 
 	-DM
 	Addr   Length Own  Name
@@ -351,7 +353,7 @@ Interrupts are disabled while a report is sent, so a slow terminal can make the 
 
 ### Ring 3 {#ring-3}
 
-In protected mode, DEBUG.COM run from the prompt runs at ring 3, as other programs do (unless CONFIG.SYS has [RING](../../../cfg/#ring)=0), and so does the program it loads, so it can't use the CPU$ driver, and it has fewer commands than the driver: it can read and write only memory that a ring 3 program can (eg, the program's own memory, including its code, but not DOS's, the drivers', or the BIOS data area), R displays the registers as it does in real mode (with no system registers, or segment bases and limits), and there's no DM, DS, GT, LN, VC, VL, or VT, and no `&`, `#`, or `%` addresses.  T steps over an INT instruction, as P does, since the INT's handler runs at ring 0.  The driver has none of these limits, and can debug ring 3 programs, too.
+In protected mode, DEBUG.COM run from the prompt runs at ring 3, as other programs do (unless CONFIG.SYS has [RING](../../../cfg/#ring)=0), and so does the program it loads, so it can't use the CPU$ driver, and it has fewer commands than the driver: it can read and write only memory that a ring 3 program can (eg, the program's own memory, including its code, but not DOS's, the drivers', or the BIOS data area), R displays the registers as it does in real mode (with no system registers, or segment bases and limits), DM shows the system's memory without its drivers, and there's no DS, GT, LN, VC, VL, or VT, and no `&`, `#`, or `%` addresses.  T steps over an INT instruction, as P does, since the INT's handler runs at ring 0.  The driver has none of these limits, and can debug ring 3 programs, too.
 
 Source: [dbgdev.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/dd/dbg/dbgdev.asm), [dbgvec.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/dd/dbg/dbgvec.asm), [dbgdis.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/dd/dbg/dbgdis.asm), and [dbginit.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/dd/dbg/dbginit.asm)
 

@@ -1236,8 +1236,18 @@ dcc1:	cmp	[ct_focus],cx
 ;
 ; Remove the context from our chain.
 ;
+;
+; Clear the context first, because ddcon_int10 must still find it in our chain
+; (see chk_context); otherwise, the BIOS would clear whichever page is active.
+;
 dcc2:	push	ds
-	xchg	ax,cx			; AX = context to free
+	mov	ds,cx
+	push	cx
+	mov	cl,0			; clear the entire context
+	call	scroll
+	pop	ax			; AX = context to free
+	pop	ds
+	push	ds
 	mov	bx,offset ct_head	; DS:BX -> 1st context
 dcc3:	mov	cx,[bx].CT_NEXT
 	ASSERT	NZ,<test cx,cx>
@@ -1250,9 +1260,6 @@ dcc3:	mov	cx,[bx].CT_NEXT
 	jmp	dcc3			; keep looking
 dcc4:	mov	cx,es:[CT_NEXT]		; move this context's CT_NEXT
 	mov	[bx].CT_NEXT,cx		; to the previous context's CT_NEXT
-	mov	ds,ax
-	mov	cl,0			; clear the entire context
-	call	scroll
 	pop	ds
 	ASSUME	DS:CODE
 ;

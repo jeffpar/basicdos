@@ -34,7 +34,7 @@ Devinit reads CONFIG.SYS (to honor any SKIP= line), chains the driver headers to
 Sysinit then:
 
 - Processes PATHCHAR=, and records the boot key
-- Allocates the Session Control Block table (SESSIONS=) and the System File Block table (FILES=), along with the BPBs, the current directory table, and any extra disk buffers (BUFFERS=)
+- Allocates the Session Control Block table (SESSIONS=, which by default depends on the number of consoles and whether PIPE$ is loaded) and the System File Block table (FILES=), along with the BPBs, the current directory table, and any extra disk buffers (BUFFERS=)
 - Opens the first session's console (CON=, or VKD$:80,25 by default)
 - Processes SWITCHAR= or a `-` boot key (after the first console is open, so that a conflict with PATHCHAR= can be reported)
 - Loads any DEVICE= drivers, and then opens AUX and PRN (AUX= and PRN=, or COM1 and LPT1 by default), which every session shares

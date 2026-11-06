@@ -18,6 +18,7 @@
 	include	macros.inc
 	include	8086.inc
 	include	bios.inc
+	include	devapi.inc
 	include	dos.inc
 	include	dosapi.inc
 	include	cpu.inc
@@ -593,6 +594,77 @@ fc9:	pop	es
 	pop	bx
 	ret
 ENDPROC	find_cfg
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; def_sessions
+;
+; Without a "SESSIONS=" line, there's a session for each console (each "CON="
+; line in CFG_FILE, or just one without any), plus 4 for the filters of
+; pipelines, unless the PIPE$ driver isn't loaded (eg, it unloads itself with
+; 64K of memory or less, or SKIP=PIPE$).  We can't use find_cfg, because it
+; zaps each match, and the consoles haven't been opened yet.
+;
+; Outputs:
+;	AX = default number of sessions
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	def_sessions
+	ASSUME	DS:NOTHING, ES:NOTHING
+	push	bx
+	push	cx
+	push	dx
+	push	es
+	push	ss			; (our data; see sysinit_high)
+	pop	es
+	ASSUME	ES:DOS
+	mov	di,[cfg_data]		; DI points to CFG_FILE data
+	mov	dx,di
+	add	dx,[cfg_size]		; DX points to end of CFG_FILE data
+	sub	bx,bx			; BX = number of consoles
+ds1:	cmp	word ptr es:[di],4F43h	; does this line start with "CO"?
+	jne	ds2			; no
+	cmp	word ptr es:[di+2],3D4Eh; and "N="?
+	jne	ds2			; no
+	inc	bx
+ds2:	mov	al,0			; (CR and LF are now nulls)
+	mov	cx,dx
+	sub	cx,di			; CX = bytes left to search
+	jb	ds3			; ran out
+	repne	scasb
+	jne	ds3			; couldn't find another line
+	repe	scasb			; skip any more nulls (eg, CR+LF)
+	je	ds3			; ran out
+	dec	di			; DI -> 1st character of next line
+	jmp	ds1
+ds3:	cmp	bx,1			; no consoles?
+	adc	bx,0			; then there's still the default one
+	mov	ax,BIOS
+	mov	es,ax
+	ASSUME	ES:BIOS
+	les	di,[DD_LIST]
+	ASSUME	ES:NOTHING
+ds4:	cmp	di,-1			; end of device list?
+	je	ds8			; yes, so PIPE$ isn't loaded
+	cmp	word ptr es:[di].DDH_NAME,4950h
+	jne	ds5			; it doesn't start with "PI"
+	cmp	word ptr es:[di].DDH_NAME+2,4550h
+	je	ds7			; and it continues with "PE"
+ds5:	les	di,es:[di]		; on to the next device
+	jmp	ds4
+ds7:	add	bx,4
+ds8:	xchg	ax,bx			; AX = number of sessions
+	cmp	ax,MAX_SESSIONS		; more than the limit?
+	jbe	ds9			; no
+	mov	ax,MAX_SESSIONS
+ds9:	pop	es
+	pop	dx
+	pop	cx
+	pop	bx
+	ret
+ENDPROC	def_sessions
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

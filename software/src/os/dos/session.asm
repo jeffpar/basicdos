@@ -387,7 +387,7 @@ DEFPROC	scb_close,DOS
 	call	get_scb
  	jc	sud9
 	call	scb_endio		; AX = 0
-	and	[bx].SCB_STATUS,NOT (SCSTAT_LOAD OR SCSTAT_START)
+	and	[bx].SCB_STATUS,NOT SCSTAT_PROG
 ;
 ; In case another session was waiting for this session to close, call endwait.
 ;
@@ -479,10 +479,13 @@ ENDPROC	end_io
 ;
 ; End the current program in the specified session, by aborting it (see
 ; scb_abort); the abort takes effect the next time the session leaves DOS,
-; so use scb_waitend to wait for it.
+; so use scb_waitend to wait for it.  With REG_AL = 1, end the session instead:
+; psp_term aborts each of its programs in turn, including its last one, which
+; an abort otherwise leaves running, and then closes the session.
 ;
 ; Inputs:
 ;	CL = SCB #
+;	REG_AL = 0 to end the program, 1 to end the session
 ;
 ; Outputs:
 ;	Carry clear on success
@@ -497,7 +500,10 @@ DEFPROC	scb_end,DOS
 	jc	sc9
 	test	[bx].SCB_STATUS,SCSTAT_LOAD
 	jz	sc8			; no program loaded
-	call	scb_abort
+	cmp	byte ptr [bp].REG_AL,1	; end the session?
+	jne	sc7			; no
+	or	[bx].SCB_STATUS,SCSTAT_KILL
+sc7:	call	scb_abort
 	clc
 	ret
 sc8:	mov	ax,ERR_BADSESSION
@@ -539,7 +545,7 @@ ENDPROC	scb_waitend
 ; scb_query
 ;
 ; Returns info about a session (see utl_qryscb), such as its program's PSP
-; and its console's name, so that commands (eg, RESTART) don't need the
+; and its console's name, so that commands (eg, KILL) don't need the
 ; kernel's internal structures.  Unlike get_scb, this accepts any SCB in the
 ; table, so that unused sessions (no program, no console) can be listed, too.
 ;

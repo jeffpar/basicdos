@@ -32,7 +32,7 @@ CODE	segment word public 'CODE'
 	EXTNEAR	<chk_over,end_command,parse_addr,parse_hex,poke_b>
 	EXTNEAR	<get_char,gl1,hex_digit,mon3a,mon4,mon4a,mon_sp,newline>
 	EXTNEAR	<put_char,put_raw,put_string>
-	EXTNEAR	<dc_0f>
+	EXTNEAR	<dc_0f,md1,md8>
 	EXTBYTE	<CMD_LN,CMD_Q,CMD_VEC,HELP_MSG,OPTAB,bp_tab,com_flow,command>
 	EXTBYTE	<HELP_END,brk_skip,mute,notstart,tracing>
 	EXTWORD	<VEC_DRV,dump_seg,start_hook>
@@ -513,7 +513,8 @@ ENDPROC	swap_vecs
 ; lists our commands with the monitor's (see com_help).  At ring 3 (see
 ; com_sels), we change some JMPs (see COM_JMPS): CPU$ calls go to r3_cpu, T
 ; steps over an INT n (see ct1v), and we don't disable interrupts (which ring
-; 3 can't); DM, DS, GT, LN, VC, VL, and VT are invalid, as ? shows.
+; 3 can't); DS, GT, LN, VC, VL, and VT are invalid, as ? shows, and DM can't
+; show the drivers.
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	com_main,far
@@ -1172,10 +1173,11 @@ ENDPROC	com_free
 ; r3_cpu
 ;
 ; At ring 3, CPU$ calls come here (see cpu_call), since ring 3 code can't call
-; CPU$: CPU_RWMEM accesses the memory itself (see r3_rwmem), and CPU_SEGINFO
-; returns a selector (with RPL 3) in place of its base, so that at_ip can
-; still compare addresses; anything else fails (eg, CPU_SYSREGS, so that the
-; monitor works as it does with the 8086 CPU$, and CPU_QUERY, so DM fails).
+; CPU$: CPU_RWMEM accesses the memory itself (see r3_rwmem), CPU_QUERY asks DOS
+; for the block (see DOS_UTL_QRYMEM), and CPU_SEGINFO returns a selector (with
+; RPL 3) in place of its base, so that at_ip can still compare addresses;
+; anything else fails (eg, CPU_SYSREGS, so that the monitor works as it does
+; with the 8086 CPU$).
 ;
 ; Inputs and outputs:
 ;	The same as CPU$'s (but a failure leaves AX unchanged)
@@ -1184,7 +1186,13 @@ ENDPROC	com_free
 DEFPROC	r3_cpu
 	cmp	ah,CPU_RWMEM
 	je	r3_rwmem
-	cmp	ah,CPU_SEGINFO
+	cmp	ah,CPU_QUERY
+	jne	rc1
+	mov	cx,bx			; CX = PMB #
+	mov	dl,4			; DL = 4 (copy its PMB to ES:DI)
+	DOSUTIL	QRYMEM
+	ret
+rc1:	cmp	ah,CPU_SEGINFO
 	jne	rc8
 	test	al,ADDR_PHYS OR ADDR_RIGHTS	; (which we can't tell)
 	jnz	rc8
@@ -1348,16 +1356,16 @@ ENDPROC	dos_get
 	db	"L drv: s n addr",9,"load sectors",13,10
 	db	"Q",9,9,"quit",13,10,0FFh
 	DEFLBL	R3_NOHELP,byte
-	db	"DMDSGTLNVCVLVT"
-R3_NNOHELP	equ	7
+	db	"DSGTLNVCVLVT"
+R3_NNOHELP	equ	6
 ;
 ; The instructions that com_main makes JMPs (see set_jmp), each paired with
 ; its new target: COM_NJMPS of them in any mode, and R3_NJMPS more at ring 3.
 ;
 	DEFWORD	COM_JMPS,<put_raw,dos_put,get_char,dos_get,cmd_help,com_help>
-	dw	cpu_call,r3_cpu,ct1v,ct2a,cg1,r3_go,cm5c,dbg_brk
+	dw	cpu_call,r3_cpu,ct1v,ct2a,cg1,r3_go,cm5c,dbg_brk,md1,md8
 COM_NJMPS	equ	3
-R3_NJMPS	equ	4
+R3_NJMPS	equ	5
 ;
 ; The EPB for DOS_PSP_EXEC1 (we define DOSHEAP, not DOSPSP, so this is laid
 ; out by hand, and CMD_TAIL is PSP_CMDTAIL).

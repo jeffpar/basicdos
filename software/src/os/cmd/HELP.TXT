@@ -254,7 +254,10 @@ CTRL-A  Left Word   CTRL-F  Right Word\
 CTRL-G  Del Char    CTRL-K  Del to End\
 DELETE  Del Left    CTRL-V  Toggle Ins\
 ESCAPE  Cancel      CTRL-C  Abort
-Use CTRL-BREAK or CTRL-ALT-DELETE to terminate programs, and use RESTART to terminate sessions or restart the system.
+Use CTRL-BREAK or CTRL-ALT-DELETE to terminate programs, and use KILL to end sessions or restart the system.
+
+[c]KILL [*session*]
+KILL alone lists every session's number, console, and program (or "Unused" if it has none), marking the current session with an *.  KILL *session* (a number from that list) ends all of the programs in that session and closes it.  KILL 0 restarts the system, after asking "Are you sure (Y/N)?".
 
 [e]LABEL [*drive*:][*label*]
 Gives *drive* (or the current drive) a volume label (up to 11 characters), or without a *label*, displays the current label and asks for a new one (or ENTER to delete it).
@@ -433,9 +436,6 @@ Used for program remarks.  The rest of the line is not executed.  An apostrophe 
 
 [c]REN *source* *destination*
 Renames or moves one file or directory on the same drive.  The destination can be a new filename or an existing directory (which keeps the source filename).  Existing destination files are not overwritten; open files, cross-drive moves, and wildcards are rejected.
-
-[c]RESTART [SYSTEM|*session*]
-RESTART alone lists every session's number, console, and program (or "Unused" if it has none), marking the current session with an *.  RESTART SYSTEM restarts the system.  RESTART *session* (a number from that list) stops the program running in that session, as CTRL-ALT-DEL does on its console.
 
 [b]RESTORE [*line*]
 Makes the first DATA item (or the first DATA item at or after *line*) the next item for READ.

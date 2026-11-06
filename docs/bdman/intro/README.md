@@ -54,7 +54,7 @@ Other special key sequences that can be typed at any time include:
 - **Ctrl-Break** is currently the same as **Ctrl-Alt-Del**, which stops even a program that doesn't use DOS (eg, an endless loop); on a serial terminal, its **BREAK** key does the same
 - **Ctrl-S** pauses output (press any other key to continue)
 - **Shift-Tab** switches to the next [console](#sessions)
-- **Ctrl-Alt-Del** terminates the program running in the current session (it does *not* restart the machine; use [RESTART SYSTEM](../cmd/system/#restart) for that, or RESTART with a session number to stop another session's program)
+- **Ctrl-Alt-Del** terminates the program running in the current session (it does *not* restart the machine; use [KILL 0](../cmd/system/#kill) for that, or KILL with a session number to end another session)
 
 You can also type [HELP KEYS](../cmd/external/help/) to display a brief summary of special keys.
 
@@ -113,7 +113,7 @@ If a name matches a BASIC keyword that can't be used by itself (eg, `CIRCLE`), B
 
 To stop a program, press **Ctrl-C**.  If the program doesn't respond (eg, it's in a loop that doesn't do any input or output), press **Ctrl-Break** or **Ctrl-Alt-Del**.
 
-### Pipes and Redirection
+### Redirection and Pipes
 
 The output of a command can be sent to a file instead of the screen:
 

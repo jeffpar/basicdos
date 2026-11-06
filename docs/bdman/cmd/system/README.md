@@ -12,11 +12,11 @@ BASIC-DOS system commands include:
 - [DELETE](#delete)
 - [EDIT](#edit)
 - [EXIT](#exit)
+- [KILL](#kill)
 - [LIST](#list)
 - [LLIST](#llist)
 - [MEM](#mem)
 - [NEW](#new)
-- [RESTART](#restart)
 - [RUN](#run)
 - [VER](#ver)
 
@@ -50,6 +50,24 @@ Displays the specified program line (with its line number) for editing, using th
 > EXIT
 
 Exits the command shell (see [COMMAND.COM](../external/command/)), returning to the copy that loaded it, if any; otherwise its session closes, and when no session is left, the system halts.
+
+### KILL
+
+> KILL [*session*]
+
+`KILL` alone lists every session: its number, its console, and its program, or `Unused` if it has none (see [SESSIONS](../../cfg/#sessions) for how many there are), with `*` marking the current session:
+
+	C:\>KILL
+	* 1 VKD$     COMMAND
+	  2 COM1     COMMAND
+	  3          Unused
+	  4          Unused
+	  5          Unused
+	  6          Unused
+
+`KILL` *session* ends the specified session (a number from that list): every program running in it is stopped, as **Ctrl-Alt-Del** stops a program on its console, even one stuck in a loop that never uses DOS, including the session's shell, and then the session closes, so its console no longer responds.  For example, `KILL 2` ends a looping program and its shell on a serial display, from the PC's own console display.  If no other session is left, the system halts.  A session that has no program, or a number that isn't in the list, is reported as `Invalid session`.
+
+`KILL 0` restarts the system, after writing any modified disk data, but first it asks `Are you sure (Y/N)? `, until you answer Y or N.
 
 ### LIST
 
@@ -86,24 +104,6 @@ To see every device driver and memory block, use the DM command of [DEBUG.COM](.
 > NEW
 
 Erases the loaded program, functions, and variables.
-
-### RESTART
-
-> RESTART [SYSTEM\|*session*]
-
-`RESTART` alone lists every session: its number, its console, and its program, or `Unused` if it has none (the number of sessions comes from `SESSIONS=` in CONFIG.SYS, which defaults to 4), with `*` marking the current session:
-
-	C:\>RESTART
-	* 1 VKD$     COMMAND
-	  2 COM1     COMMAND
-	  3          Unused
-	  4          Unused
-
-`RESTART SYSTEM` restarts the system, after writing any modified disk data.
-
-`RESTART` *session* restarts the specified session (a number from that list), by stopping its program as **Ctrl-Alt-Del** does on its console, which works even if the program is stuck in a loop that never uses DOS; if the session is only running its shell (eg, a BASIC loop typed at its prompt), it returns to its prompt instead.  For example, `RESTART 2` stops a looping program on a serial display from the PC's own console display.
-
-A system restart always requires `SYSTEM`.
 
 ### RUN
 

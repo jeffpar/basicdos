@@ -9,6 +9,7 @@
 ;
 	DOSFUNC equ 1
 	include	macros.inc
+	include	bios.inc
 	include	dev.inc
 	include	devapi.inc
 	include	dosapi.inc
@@ -412,8 +413,21 @@ ENDPROC	endwait_data
 ;	DDPI's DDPI_END updated
 ;
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+;
+; With 64K of memory or less, we'd take memory that BASIC programs need, for
+; sessions that there's no room for (see def_sessions), so we keep nothing, as
+; if CONFIG.SYS had SKIP=PIPE$.
+;
 DEFPROC	ddpipe_init,far
-	mov	es:[bx].DDPI_END.OFF,offset ddpipe_init
+	mov	ax,BIOS
+	mov	ds,ax
+	ASSUME	DS:BIOS
+	cmp	[MEMORY_SIZE],64	; more than 64K of memory?
+	ja	dpi1			; yes
+	mov	es:[bx].DDPI_END.OFF,0	; no, so keep nothing
+	ret
+	ASSUME	DS:NOTHING
+dpi1:	mov	es:[bx].DDPI_END.OFF,offset ddpipe_init
 	mov	ds,cs:[0].DDH_DATA
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddpipe_req
 	ret

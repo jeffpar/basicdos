@@ -723,8 +723,8 @@ pd5:	jcxz	pd8			; no valid initial token
 ; PRINT I:NEXT | MORE"), they're deferred like an internal command, which
 ; runLine runs; we clear the mark, so that no other command can match it.
 ;
-	mov	ax,1			; AX = any ID below KEYWORD_FILE
-	mov	dx,offset runLine	; (see cmdDOS)
+	mov	ax,2			; AX = ID for a deferred command
+	mov	dx,offset runLine	; (see chkSwitches)
 	cmp	[di].TOK_DATA[0].TOKLET_CLS,CLS_KEYWORD
 	jne	pd5c
 	mov	[di].TOK_DATA[0].TOKLET_CLS,CLS_STR
@@ -984,15 +984,15 @@ ENDPROC	cmdDOS
 ; chkSwitches
 ;
 ; Makes sure the command accepts the switches that PARSESW found: each letter
-; must be in the command's CMD_SWITCHES entry, and a symbol (eg, "/?") is
-; never valid.  Digits aren't checked, because an argument can look like one
-; (eg, "DATE 12/25/26", or "LIST -20" if the switch char is '-'), and neither
-; are the "switches" of the BASIC statements that runLine runs (eg, the "/B"
-; in "PRINT A/B | MORE").
+; must be in the command's CMD_SWITCHES entry, and a symbol (eg, "/?" or "/..")
+; is never valid.  Digits are valid only for commands whose arguments can look
+; like them (eg, "DATE 12/25/26", or "LIST -20" if the switch char is '-').
+; Deferred commands (ID 2) aren't checked: the "switches" of BASIC statements
+; (eg, the "/B" in "PRINT A/B | MORE") aren't switches, and a BAS or BAT file
+; checks its own (eg, "HEXDUMP FILE /N 8 | MORE").
 ;
 ; Inputs:
 ;	AL = keyword ID
-;	DX = offset of handler
 ;
 ; Outputs:
 ;	Carry clear if successful; otherwise, the error was reported
@@ -1001,7 +1001,7 @@ ENDPROC	cmdDOS
 ;	None (AX, if the switches are invalid)
 ;
 DEFPROC	chkSwitches
-	cmp	dx,offset runLine	; BASIC statements?
+	cmp	al,2			; deferred command?
 	je	csw9			; yes (and carry is clear)
 	test	byte ptr ds:[PSP_DIGITS+1],0FCh
 	jnz	csw8			; a symbol was found
@@ -1022,7 +1022,11 @@ csw1:	lods	byte ptr cs:[si]	; AL = next ID
 	jmp	csw1
 csw2:	and	cx,cs:[si]		; remove the letters it accepts
 	and	dx,cs:[si+2]
-csw3:	or	cx,dx			; any letters left? (carry is clear)
+csw3:	sub	ah,10
+	cmp	ah,4			; DATE, LIST, LLIST, or DELETE?
+	jb	csw4			; yes, so digits are allowed
+	or	cx,ds:[PSP_DIGITS]	; no, so they aren't
+csw4:	or	cx,dx			; anything left? (carry is clear)
 	pop	si
 	pop	dx
 	pop	cx
@@ -1041,7 +1045,7 @@ ENDPROC	chkSwitches
 CMD_SWITCHES	label	byte
 	db	10			; DATE /P
 	dw	NOT (1 SHL ('P'-'A')),0FFFFh
-	db	11			; TIME /D /P
+	db	4			; TIME /D /P
 	dw	NOT ((1 SHL ('D'-'A')) OR (1 SHL ('P'-'A'))),0FFFFh
 	db	20			; COPY /B
 	dw	NOT (1 SHL ('B'-'A')),0FFFFh
@@ -1238,8 +1242,8 @@ cf4b:	cmp	[bp].HDL_INPIPE,0	; is the file a pipe's target?
 	jz	cf4i			; no
 	push	ax
 	lea	di,[bp].CMD_DEFER
-	mov	ax,1			; AX = any ID below KEYWORD_FILE
-	stosw
+	mov	ax,2			; AX = ID for a deferred command
+	stosw				; (see chkSwitches)
 	mov	ax,offset cmdFile
 	stosw
 	mov	ax,[bp].CMD_ARGPTR

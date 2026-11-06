@@ -75,7 +75,7 @@ On an 80286 or later, BASIC-DOS runs in protected mode; it's built and tested fo
 - [x] Memory allocation (through CPU$, which uses MCBs on an 8088), from all of memory (on an 80286 in protected mode, conventional and extended memory alike, and MEM and FRE count all of it), including per-program heap requests, and allocation from the top of memory (MCBTYPE_HIGH), which the interpreter uses for its own blocks so that the memory below them stays contiguous
 - [x] DOS_UTL_QRYMEM queries any memory block (its size in bytes, since a block can be 1Mb or more)
 - [x] INT 2Bh utility functions numbered contiguously (00h-28h) and grouped by purpose (see the [Technical Reference](docs/bdtech/util/))
-- [x] Preemptive multitasking of multiple sessions; a session closes when its last program ends (eg, EXIT in its shell), and the system halts when no session is left
+- [x] Preemptive multitasking of multiple sessions; a session closes when its last program ends (eg, EXIT in its shell, or KILL from another session), and the system halts when no session is left; without SESSIONS=, there's a session for each console, plus 4 for pipeline filters if PIPE$ is loaded
 - [x] CTRL-C/CTRL-Break handling, CTRL-ALT-DEL session aborts, and divide and overflow errors, which end the program (as MS-DOS does) without aborting its parent (vectors 00h, 08h, 09h, 1Bh, and 1Ch that a terminated program left hooked, like MSBASIC's, are restored)
 - [x] Session END: abort the current program in a specified session, interrupting any pending wait; WAITEND waits for the session to close
 - [x] Environment segments for EXEC (EPB_ENVSEG; zero inherits the parent's), and COMMAND.COM gives every program an environment with COMSPEC and PATH
@@ -102,7 +102,7 @@ On an 80286 or later, BASIC-DOS runs in protected mode; it's built and tested fo
 
 ### Command Interpreter: DOS Commands
 
-- [x] CD, COPY, DATE, DEL, DIR, EXIT, MD, MEM, RD, RESTART, TIME, TYPE, and VER (HELP is an external command; see [Utilities](#utilities))
+- [x] CD, COPY, DATE, DEL, DIR, EXIT, KILL, MD, MEM, RD, TIME, TYPE, and VER (HELP is an external command; see [Utilities](#utilities))
 - [x] DIR listings begin with the volume label and the directory's full path, as in DOS 2.x (FFIRST with attribute 08h finds only the volume label, and GETCWD with DL = FFh returns the path of the directory FFIRST searched)
 - [x] DIR /A lists hidden files (only the hidden attribute keeps a file out of DIR, so system files like COMMAND.COM are listed), DIR /S lists the matching files in every subdirectory, with a header and totals for each directory, and DIR /W lists only the names (eg, HELP.TXT, with the path character after each directory), in as many 16-character columns as the console has room for
 - [x] The prompt displays the current drive and directory (eg, `C:\SUBDIR>`), and switches use `/` (eg, `TIME /P`), as in PC DOS, unless SWITCHAR is `-` or PATHCHAR is `/`, in which case they use `-`
@@ -147,7 +147,7 @@ Utilities live in the EXT directory of every BASIC-DOS disk.  The filters, HELP,
 - [x] LS.BAS: a UNIX-style `ls`, listing files and directories sorted, in columns down the console (or one per line when the output is a file or pipe), with a path character after each directory name, and /1, /a, /l, /R, /r, /S, and /t, which can be combined (eg, `LS /ltr`)
 - [x] Utilities report what they can't handle: COMP compares any number of matching files (it used to stop silently after 201), TREE and LS display `Too many subdirectories` and `Too many matching files`, CHKDSK names any directories it doesn't check and doesn't report lost clusters in that case, and FIND, WC, and other filters reject more than 8 file names with `Syntax error`; COMP also sets ERRORLEVEL to 1 if any comparison fails, and CHKDSK if it finds problems or can't check everything
 - [x] Consistent BAS utility arguments: switches start with the switch character (eg, `-` after SWITCHAR=-), and a missing or invalid argument, such as an unknown switch (which CHKDSK, FORMAT, and TREE used to ignore), displays `Syntax error`
-- [x] Every command rejects switches it doesn't accept with `Syntax error`, in any position (internal commands from COMMAND's table of switches, and assembly utilities from their own lists), so that a mistyped switch can't silently change what a command does; usage text lives only in HELP.TXT, which HELP displays as `Usage:`, a blank line, and the rest of the entry
+- [x] Every command rejects switches it doesn't accept with `Syntax error`, in any position (internal commands from COMMAND's table of switches, and assembly utilities from their own lists), so that a mistyped switch (or path, eg, `CD ../..`) can't silently change what a command does; usage text lives only in HELP.TXT, which HELP displays as `Usage:`, a blank line, and the rest of the entry
 - [x] An internal command after a pipe (eg, `VER | DIR`), which used to hang, displays `Syntax error`, since internal commands don't read their input
 - [x] END *n* sets ERRORLEVEL (0 if *n* is omitted), and the BAS utilities use it to report failures
 - [x] Switches can appear anywhere on a command line (including VI's `/WS`, and COPY's `/B`, which is accepted for compatibility with PC DOS and does nothing, since COPY always copies and concatenates entire files)
@@ -216,7 +216,7 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] FPU$ device driver, which detects an 8087 at boot and provides a table of floating-point functions (IOCTL_GETFPU), which run at their caller's privilege level (in protected mode, through conforming code selectors), while the kernel saves and restores each session's 8087 state when it switches sessions
 - [x] 8087 functions: arithmetic (including `^`), comparisons, conversions between longs and doubles, ABS, INT, FIX, and SQR
 - [x] Software emulation of all FPU$ functions for systems without an 8087
-- [x] FPU$ unloads itself on a machine with 64K of memory or less (as if CONFIG.SYS had SKIP=FPU$), leaving that memory for BASIC programs
+- [x] FPU$ and PIPE$ unload themselves on a machine with 64K of memory or less (as if CONFIG.SYS had SKIP=FPU$,PIPE$), leaving that memory for BASIC programs
 - [x] Less common BASIC statements (DEF SEG, POKE, RANDOMIZE, SCREEN, SWAP, and WIDTH) and functions (CSRLIN, DATE$, FRE, HEX$, INKEY$, LCASE$, OCT$, PEEK, POS, RND, SCREEN, SGN, TAB, TIME$, and UCASE$) are outside COMMAND.COM's core, leaving that memory for BASIC programs on a machine with 64K of memory
 - [x] The interpreter reports at startup whether floating-point uses an 8087, emulation, or is disabled (no FPU$ driver); when disabled, variables default to integers and "/" and "^" are integer operations
 - [x] String-to-double (FPU_ATOD) and double-to-string (FPU_DTOA) conversions, and `%f` support in sprintf

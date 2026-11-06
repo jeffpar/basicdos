@@ -105,7 +105,7 @@ The Session Control Block is internal to DOS; there's one for each session (see 
 
 | Offset | Field | Description |
 |--------|-------|-------------|
-| 00h | SCB_STATUS | Status (SCSTAT_INIT, SCSTAT_LOAD, SCSTAT_START, SCSTAT_ABORT, SCSTAT_FAULT) |
+| 00h | SCB_STATUS | Status (SCSTAT_INIT, SCSTAT_LOAD, SCSTAT_START, SCSTAT_ABORT, SCSTAT_FAULT, SCSTAT_KILL) |
 | 01h | SCB_NUM | Session number |
 | 02h | SCB_SFHIN - SCB_SFHPRN | System file handles for STDIN, STDOUT, STDERR, STDAUX, and STDPRN |
 | 08h | SCB_ENVSEG | Environment segment |

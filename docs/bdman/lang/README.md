@@ -212,7 +212,8 @@ BASIC-DOS runs many IBM PC BASIC programs unchanged (eg, DONKEY.BAS, from the or
 - PRINT commas print a tab instead of advancing to the next print zone
 - Up to 4 files can be open at once, random access records are limited to 255 bytes, MKD$ and CVD use IEEE doubles (not MBF), MKS$, CVS, and the OPEN "mode",#n,file form aren't supported
 - INPUT doesn't display "Redo from start"; missing items are empty (or zero), and extra items are ignored
-- KILL, NAME, CHDIR, MKDIR, and RMDIR aren't supported; use the DOS commands DEL, REN, CD, MD, and RD instead
+- NAME, CHDIR, MKDIR, and RMDIR aren't supported; use the DOS commands REN, CD, MD, and RD instead
+- KILL doesn't delete files, as it does in MSBASIC; use the DOS command DEL (BASIC-DOS's [KILL](../cmd/system/#kill) command ends sessions)
 - RESET and SYSTEM aren't supported; use CLOSE (with no file numbers) and END (or STOP) instead
 - DEL, LOAD, MERGE, RUN, and SAVE are DOS commands, so their file names don't need quotes, but can't be expressions (eg, `DEL "TEMP" + N$` is a syntax error; see [Command Arguments](#command-arguments))
 - RANDOMIZE without a seed uses the BIOS tick count instead of prompting for a seed

@@ -119,7 +119,7 @@ Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-
 
 **DOS_UTL_TOKID (0Eh)**: CX = token length, DS:SI -> token, CS:DX -> token table (TOKTBL, followed by TOKDEFs sorted by name).  Returns carry clear, AX = token ID, and SI -> the TOKDEF if found; otherwise, carry set and AX = 0.
 
-**DOS_UTL_PARSESW (0Fh)**: DL = first token to parse, DH = # of non-switch tokens to ignore, ES:DI -> TOKBUF.  Sets a bit in PSP_DIGITS or PSP_LETTERS (see [PSP](../data/#psp)) for each switch character found (eg, `/P` sets the bit for P), stopping at the end of the command (a symbol, eg, a pipe), and returns DL = first non-switch token.
+**DOS_UTL_PARSESW (0Fh)**: DL = first token to parse, DH = # of non-switch tokens to ignore, ES:DI -> TOKBUF.  Sets a bit in PSP_DIGITS or PSP_LETTERS (see [PSP](../data/#psp)) for each switch character found (eg, `/P` sets the bit for P), stopping at the end of the command (a symbol, eg, a pipe), and returns DL = first non-switch token.  Any character other than `0` through `?` or a letter (eg, the dots in `/..`), or a switch character with nothing after it, sets the bit for `?`.
 
 ### Devices
 
@@ -135,7 +135,7 @@ Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-
 
 **DOS_UTL_STOP (15h)**: CL = session number.  Not implemented yet.
 
-**DOS_UTL_END (16h)**: CL = session number.  Ends the current program in the session, by aborting it (as CTRL-ALT-DEL does); the program can't intercept the abort, which takes effect the next time the session leaves DOS (a session waiting on a pipe or device is interrupted first).  Use DOS_UTL_WAITEND to wait for the session to end.  Carry is set (AX = ERR_BADSESSION) if the session number is invalid or the session isn't running a program.  COMMAND.COM uses this to end the other commands of a pipeline when one of them fails, and for RESTART *session*.
+**DOS_UTL_END (16h)**: CL = session number, AL = 0 to end the session's current program, or 1 to end the session.  AL = 0 aborts the current program (as CTRL-ALT-DEL does); the program can't intercept the abort, which takes effect the next time the session leaves DOS (a session waiting on a pipe or device is interrupted first).  Use DOS_UTL_WAITEND to wait for the session to end.  Carry is set (AX = ERR_BADSESSION) if the session number is invalid or the session isn't running a program.  AL = 1 aborts each of the session's programs in turn, including its last one, which an abort otherwise returns to its prompt (see CTRL-ALT-DEL), and then closes the session; if no other session is left, the system halts.  COMMAND.COM uses AL = 0 to end the other commands of a pipeline when one of them fails, and AL = 1 for KILL *session*.
 
 **DOS_UTL_WAITEND (17h)**: CL = session number.  Waits for all programs in the session to end.
 
@@ -164,7 +164,7 @@ Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-
 Inputs:
 
 - CX = memory block # (0-based)
-- DL = block type: 0 for any block, 1 for free blocks, 2 for used blocks, or 3 for the blocks that the current PSP owns (eg, for FRE(-1))
+- DL = block type: 0 for any block, 1 for free blocks, 2 for used blocks, or 3 for the blocks that the current PSP owns (eg, for FRE(-1)); or 4 to copy any block's PMB (see CPU_QUERY) to ES:DI, in place of the outputs below other than carry, which is how a ring 3 program gets a block's address
 
 Outputs (carry clear if a block was found; carry set if there are no more blocks of the requested type):
 

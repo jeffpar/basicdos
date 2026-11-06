@@ -81,7 +81,7 @@ CODE	segment para public 'CODE'
 	EXTBYTE	<DIV_MSG,FAULT_MSG,OVF_MSG>
 	EXTNEAR	<put_fmt>
 	public	gl1,mon3a,mon4,mon4a,ct1v,cg1	; (patched by dbginit.asm)
-	public	ct2a
+	public	ct2a,md1,md8
 
 ;
 ; When run as a program, execution begins at the DDH, so DDH_NEXT_OFF holds a
@@ -335,9 +335,10 @@ ENDPROC	dbgdev_req
 ;
 ; dbgdev_com (COM hardware interrupt)
 ;
-; Enter the monitor if Ctrl-C (or BREAK) was received; other input is
-; discarded.  If our UART isn't interrupting, chain to the original handler
-; (eg, for another port that shares the IRQ).
+; Enter the monitor if Ctrl-C (or BREAK) was received, or if put_char received
+; it during a report (and enabled the THR interrupt that got us here); other
+; input is discarded.  If our UART isn't interrupting, chain to the original
+; handler (eg, for another port that shares the IRQ).
 ;
 DEFPROC	dbgdev_com,far
 	push	ax
@@ -350,7 +351,14 @@ DEFPROC	dbgdev_com,far
 	in	al,dx
 	test	al,IIR_NO_INT		; is our UART interrupting?
 	jnz	dcm8			; no
-dcm1:	call	poll_rx
+dcm1:	cmp	al,IIR_INT_THR		; did put_char request this?
+	jne	dcm1a			; no
+	dec	dx			; DX -> REG_IER
+	mov	al,IER_RBR_AVAIL OR IER_DELTA
+	out	dx,al
+	cmp	al,al			; (ZF set)
+	jmp	short dcm3
+dcm1a:	call	poll_rx
 	jz	dcm2
 	cmp	al,CHR_CTRLC		; Ctrl-C (or BREAK)?
 	je	dcm3			; yes (ZF set)
@@ -534,6 +542,17 @@ de1:	push	bx
 ;
 de2:	mov	al,byte ptr regs[R_AX+1]; AX = function's number (eg, 1302h)
 	call	rpt_vec
+;
+; A Ctrl-C that put_char received needs the THR interrupt that follows the
+; report's last byte, so wait for it; otherwise, if the next report began
+; first, its next byte would cancel that interrupt before interrupts were
+; enabled.
+;
+	mov	dx,[com_port]
+	add	dx,REG_LSR
+de2a:	in	al,dx
+	test	al,LSR_THRE
+	jz	de2a
 	mov	ss,[frame_ptr].SEG
 	mov	sp,[frame_ptr].OFF
 	sub	sp,REGS_LEN-2		; SS:SP -> the saved SS
@@ -1392,8 +1411,9 @@ ENDPROC	cmd_l
 ; DM displays memory in address order, as CPU$ describes it (see CPU_QUERY):
 ; each block's address, length, owner, and name (or type), after any memory
 ; below the first block (see ma_low), with each of the system's blocks shown
-; as the drivers in it (see ma_drvs).  If CPU$ describes no blocks (eg, at
-; ring 3, where we can't call it), DM is invalid.
+; as the drivers in it (see ma_drvs).  If CPU$ describes no blocks, DM is
+; invalid.  At ring 3, where we can't call CPU$, r3_cpu gets the blocks from
+; DOS, but we can't read the driver chain, so ma_drvs skips it (see COM_JMPS).
 ;
 DEFPROC	dump_blocks
 	call	end_command
@@ -2079,10 +2099,12 @@ ENDPROC	poll_rx
 ; Transmit a space (or AL), honoring XON/XOFF and RTS/CTS flow control;
 ; while waiting, received bytes are buffered for get_char (eg, so that
 ; pasted commands aren't lost during long dumps), except while the machine is
-; running after a report (or if XOFF stopped us), so that the COM interrupt
-; still sees a Ctrl-C, even if reports are all that's being displayed (see
-; dbg_int13).  Nothing is transmitted while mute is set, but col is always
-; updated.
+; running after a report (see dbg_int13), when a Ctrl-C enables the THR
+; interrupt instead, so that dbgdev_com enters the monitor once the report is
+; over and interrupts are enabled, and other input is discarded.  A VT100's
+; buffer has room for only 32 more bytes when it sends XOFF, so a report must
+; poll for it, too.  Nothing is transmitted while mute is set, but col is
+; always updated.
 ;
 ; Inputs:
 ;	AL = byte to send (put_char)
@@ -2101,11 +2123,18 @@ DEFPROC	put_char
 	DEFLBL	put_raw			; (com_main changes this)
 	push	dx
 	push	ax
-pc0:	cmp	[why],3			; running after a report?
-	jg	pc2			; yes
 pc1:	call	poll_rx
 	jz	pc2
-	push	bx
+	cmp	[why],3			; running after a report?
+	jng	pc1b			; no
+	cmp	al,CHR_CTRLC		; Ctrl-C (or BREAK)?
+	jne	pc2			; no
+	mov	dx,[com_port]
+	inc	dx			; DX -> REG_IER
+	mov	al,IER_RBR_AVAIL OR IER_DELTA OR IER_THR_EMPTY
+	out	dx,al
+	jmp	short pc2
+pc1b:	push	bx
 	mov	bl,[in_tail]
 	mov	bh,0
 	mov	in_buf[bx],al
@@ -2124,11 +2153,11 @@ pc2:	cmp	[paused],0
 	in	al,dx
 	sub	dx,REG_MSR
 	test	al,MSR_CTS
-	jz	pc0
+	jz	pc1
 pc3:	add	dx,REG_LSR
 	in	al,dx
 	test	al,LSR_THRE
-	jz	pc0
+	jz	pc1
 	sub	dx,REG_LSR - REG_THR
 	pop	ax
 	out	dx,al

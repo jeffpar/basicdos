@@ -923,7 +923,9 @@ ENDPROC	utl_tokid
 ; PSP_DIGITS or PSP_LETTERS.
 ;
 ; Actually, alphanumeric is not entirely true anymore: in PSP_DIGITS, we now
-; capture anything from '0' to '?'.
+; capture anything from '0' to '?'.  Any other character in a switch token (eg,
+; the dots in "CD ../..") is recorded as a '?', and so is a switch char with
+; nothing after it, so that the caller can reject them.
 ;
 ; A symbol (eg, the pipe in "DIR /W | SORT /R") ends the tokens to parse.
 ;
@@ -965,6 +967,10 @@ pw1:	cmp	bl,[di].TOK_CNT
 	add	bx,bx			; BX = BX * 4 (size TOKLET)
 	ASSERT	<size TOKLET>,EQ,4
 	mov	si,[di].TOK_DATA[bx].TOKLET_OFF
+	mov	al,[di].TOK_DATA[bx].TOKLET_LEN
+	mov	ah,0
+	add	ax,si
+	mov	[bp].TMP_AX,ax		; TMP_AX -> end of token
 	cmp	[di].TOK_DATA[bx].TOKLET_CLS,CLS_SYM
 	pop	bx
 	je	pw9			; a symbol (eg, a pipe) ends the command
@@ -972,31 +978,37 @@ pw1:	cmp	bl,[di].TOK_CNT
 	push	di
 	cmp	al,ch			; starts with switch char?
 	jne	pw7			; no
+;
+; The loop always examines a character, so a switch char with nothing after it
+; examines whatever ended the token, which is never alphanumeric.
+;
 pw2:	lodsb				; consume option chars
-	cmp	al,'a'			; until we reach non-alphanumeric char
+	cmp	al,'a'
 	jb	pw3
 	sub	al,20h
-pw3:	sub	al,'0'
-	jb	pw8			; not alphanumeric
-	cmp	al,16
-	jae	pw5
+pw3:	mov	di,PSP_DIGITS
+	sub	al,'0'
+	jb	pw6			; not alphanumeric
+	cmp	al,16			; in the range of PSP_DIGITS?
+	jb	pw4			; yes
+	sub	al,'A'-'0'
+	jb	pw6			; not alphanumeric
+	scasw				; DI = PSP_LETTERS
+	cmp	al,16			; in the range of the first 16?
+	jb	pw4			; yes
+	sub	al,16
+	scasw				; DI = PSP_LETTERS+2
+	cmp	al,10			; in the range of the next 10?
+	jb	pw4			; yes
+pw6:	mov	al,'?'-'0'		; not a valid switch character
 	mov	di,PSP_DIGITS
 pw4:	mov	cl,al
 	mov	ax,1
 	shl	ax,cl
 	or	es:[di],ax		; set bit in word at ES:DI
-	jmp	pw2			; go back for more option chars
-pw5:	sub	al,'A'-'0'
-	jb	pw8			; not alphanumeric
-	cmp	al,16			; in the range of the first 16?
-	jae	pw6			; no
-	mov	di,PSP_LETTERS
-	jmp	pw4
-pw6:	sub	al,16
-	cmp	al,10			; in the range of the next 10?
-	jae	pw8			; no
-	mov	di,PSP_LETTERS+2
-	jmp	pw4
+	cmp	si,[bp].TMP_AX		; end of token?
+	jb	pw2			; no, go back for more option chars
+	jmp	short pw8
 pw7:	test	dl,dl			; already find a non-switch token?
 	js	pw8			; yes
 	mov	dl,bl			; no, so remember this one

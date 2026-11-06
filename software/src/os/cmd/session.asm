@@ -7,16 +7,14 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; RESTART, which also lists the sessions.
+; KILL, which also lists the sessions.
 ;
 	DOSFUNC equ 1
 	include	cmd.inc
 
 CODE    SEGMENT
 
-	EXTNEAR	<getToken>
-	EXTWORD	<OPTION_TOKENS>
-	EXTABS	<TOK_SYSTEM>
+	EXTNEAR	<askSure,getToken>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
@@ -24,8 +22,8 @@ CODE    SEGMENT
 ;
 ; listSessions
 ;
-; Used by RESTART with no argument to list every session: its number (from 1,
-; as used by RESTART), its console (the name of the device its output goes
+; Used by KILL with no argument to list every session: its number (from 1,
+; as used by KILL), its console (the name of the device its output goes
 ; to), and its program (or "Unused" if it has none), marking the current
 ; session with "*".
 ;
@@ -75,13 +73,13 @@ ENDPROC	listSessions
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; cmdRestart
+; cmdKill
 ;
-; RESTART SYSTEM restarts the system, and RESTART *n* restarts session *n*
-; (from the list that RESTART alone displays; see listSessions): its program
-; is aborted, as when CTRL-ALT-DEL is pressed on its console, which also stops
-; a program that never calls DOS (and if the program is the session's command
-; processor, the abort is turned into a CTRLC, returning it to its prompt).
+; KILL alone lists the sessions (see listSessions).  KILL *n* ends session *n*
+; (a number from that list), by aborting each of its programs, as CTRL-ALT-DEL
+; does on its console, which also stops a program that never calls DOS, and
+; then closing the session (see scb_end).  KILL 0 restarts the system, after
+; asking first.
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -92,33 +90,40 @@ ENDPROC	listSessions
 ; Modifies:
 ;	Any
 ;
-DEFPROC	cmdRestart
+DEFPROC	cmdKill
 	mov	dl,[bx].CMD_ARG
 	call	getToken		; DS:SI -> argument, CX = length
-	jnc	rst0
+	jnc	kl0
 	jmp	listSessions		; none, so list the sessions
-rst0:	push	si
-	lea	dx,[OPTION_TOKENS]
-	DOSUTIL	TOKID			; AX = option ID, if any
+kl0:	push	si
+	inc	dx
+	call	getToken		; any other argument?
 	pop	si
-	jc	rst1			; not an option, so maybe a number
-	cmp	ax,TOK_SYSTEM
-	jne	rst7
+	jnc	kl7			; yes
+	push	bx
+	mov	bl,10			; BL = base 10
+	mov	di,-1			; DI = -1 (no validation data)
+	DOSUTIL	ATOI16			; AX = session # (from 1), or 0
+	pop	bx
+	jc	kl7
+	cmp	byte ptr [si],' '	; anything after the digits (eg, 1X)?
+	ja	kl7			; yes
+	test	ah,ah			; could it be a session #?
+	jnz	kl7			; no
+	xchg	cx,ax			; CX = session # (from 1), or 0
+	jcxz	kl5			; 0 means the system
+	dec	cx			; CL = SCB #
+	DOSUTIL	END,1			; end the session
+	jnc	kl9
+kl7:	PRINTF	<"Invalid session",13,10>
+	stc
+kl9:	ret
+
+kl5:	call	askSure
+	jnz	kl9			; no (and carry is clear)
 	DOSUTIL	RESTART			; this shouldn't return
 	ret				; but just in case...
-
-rst1:	mov	bl,10			; BL = base 10
-	mov	di,-1			; DI = -1 (no validation data)
-	DOSUTIL	ATOI16			; AX = session # (from 1)
-	jc	rst7
-	dec	ax
-	xchg	cx,ax			; CL = SCB #
-	DOSUTIL	END			; abort the session's program
-	jnc	rst9
-rst7:	PRINTF	<"Invalid session",13,10>
-	stc
-rst9:	ret
-ENDPROC	cmdRestart
+ENDPROC	cmdKill
 
 CODE	ENDS
 

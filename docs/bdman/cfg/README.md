@@ -157,9 +157,9 @@ A program's interrupt handlers (eg, an INT 21h hook that passes the calls it doe
 
 > SESSIONS=*n*
 
-Sets the maximum number of sessions that can be active at once.  The default is 4, and *n* can range from 1 to 32.
+Sets the maximum number of sessions that can be active at once; *n* can range from 1 to 32.  The default is the number of consoles (the number of [CON](#con) lines, or 1 if there aren't any), plus 4 so that pipelines can have up to 4 filters at once, unless the PIPE$ driver isn't loaded (see [SKIP](#skip)), in which case it's just the number of consoles.
 
-Sessions are used not only by consoles, but also by [pipes](../intro/#pipes-and-redirection): every command after the first in a pipeline runs in its own session.  So SESSIONS should exceed the number of consoles by at least the number of filters you want to run at once.
+Sessions are used not only by consoles, but also by [pipes](../intro/#pipes-and-redirection): every command after the first in a pipeline runs in its own session.  So if you set SESSIONS yourself, it should exceed the number of consoles by at least the number of filters you want to run at once.
 
 ### SHELL
 
@@ -179,7 +179,7 @@ Everything after the *program* name becomes the program's command tail, which ca
 
 Lists built-in device drivers that should not be loaded, using their exact device names (eg, `SKIP=VKD$,FPU$`).  A skipped driver is never initialized, and its memory is reclaimed.  The CPU$ driver, which manages memory, can't be skipped.
 
-For example, a configuration that uses only serial consoles doesn't need the VKD$ driver, and skipping the FPU$ driver disables floating-point support (so variables default to integers, and `/` and `^` become integer operations).  On a machine with 64K of memory or less, the FPU$ driver unloads itself, as if it had been skipped.  Skipping the MOUSE$ driver avoids the time it takes to look for a serial mouse at boot.
+For example, a configuration that uses only serial consoles doesn't need the VKD$ driver, and skipping the FPU$ driver disables floating-point support (so variables default to integers, and `/` and `^` become integer operations).  On a machine with 64K of memory or less, the FPU$ and PIPE$ drivers unload themselves, as if they had been skipped.  Skipping the MOUSE$ driver avoids the time it takes to look for a serial mouse at boot.
 
 ### PATHCHAR
 

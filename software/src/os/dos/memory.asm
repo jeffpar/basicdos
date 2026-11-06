@@ -205,12 +205,14 @@ ENDPROC	para_len
 ;
 ; This utility function simplifies implementation of the MEM command.  It
 ; describes the memory blocks (all of memory, conventional and extended),
-; using CPU_QUERY.
+; using CPU_QUERY.  A ring 3 program can't call CPU$, so DL = 4 is how it gets
+; a block's whole PMB (eg, its address, for DEBUG's DM command).
 ;
 ; Inputs:
 ;	CX = memory block # (0-based)
 ;	DL = memory block type (0 for any, 1 for free, 2 for used, or 3 for
-;	the blocks that the current PSP owns; eg, for FRE(-1))
+;	the blocks that the current PSP owns; eg, for FRE(-1)), or 4 to copy
+;	the block's PMB to REG_ES:REG_DI, which is all that's returned
 ;
 ; Outputs:
 ;	On success, carry clear:
@@ -225,7 +227,12 @@ ENDPROC	para_len
 ;
 DEFPROC	mem_query,DOS
 	ASSUME	DS:DOS
-	LOCK_SCB
+	cmp	dl,4			; the block's PMB?
+	jne	q0a			; no
+	mov	bx,cx			; BX = PMB #
+	les	di,dword ptr [bp].REG_DI; ES:DI -> the caller's buffer
+	jmp	mem_pmb
+q0a:	LOCK_SCB
 	push	ds
 	pop	es
 	mov	di,offset pmb_buf	; ES:DI -> PMB buffer
@@ -315,7 +322,7 @@ ENDPROC	mem_pmb
 ;
 ; Copies the 8-byte name of the program whose PSP is in AX to the caller's
 ; buffer at ES:DI (filled with zeros if there's no program, or no block for
-; it), so that a caller (eg, RESTART, via scb_query) needn't treat PSP-1 as
+; it), so that a caller (eg, KILL, via scb_query) needn't treat PSP-1 as
 ; an MCB segment, which isn't a valid selector in protected mode.
 ;
 ; Inputs:

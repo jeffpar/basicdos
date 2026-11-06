@@ -26,7 +26,8 @@ DOS	segment word public 'CODE'
 	EXTWORD	<err_stack,dos_data,mem_size>
 	EXTLONG	<bpb_table,scb_table,sfb_table,cdir_table,clk_ptr,fpu_table>
 	EXTLONG	<dev_head>
-	EXTNEAR	<find_cfg,init_table,set_bpbtime,load_devices,sysinit_end>
+	EXTNEAR	<find_cfg,def_sessions,init_table,set_bpbtime,load_devices>
+	EXTNEAR	<sysinit_end>
 	EXTNEAR	<move_init,dos_size,map_buf,map_dos>
 	EXTNEAR	<set_call5,mem_total,init_sess>
 	EXTNEAR	<open_dev,open_warning,open_error>
@@ -253,12 +254,15 @@ si3a:	sub	bx,bx
 	mov	ss:[tbl_next],ax
 ;
 ; The first resident table (scb_table) contains our Session Control Blocks.
-; Look for a "SESSIONS=" line in CFG_FILE.
+; Look for a "SESSIONS=" line in CFG_FILE; without one, the default depends on
+; the number of consoles (see def_sessions).
 ;
 si5:	mov	si,offset CFG_SESSIONS
 	call	find_cfg		; look for "SESSIONS="
-	jc	si5a			; if not found, AX will be min value
-	xchg	si,di
+	jnc	si5x
+	call	def_sessions		; AX = default
+	jmp	short si5a
+si5x:	xchg	si,di
 	push	cs
 	pop	es
 	mov	bl,10			; BL = base 10
@@ -830,8 +834,12 @@ CFG_BUFFERS	db	8,"BUFFERS="
 ;
 CFG_FILES	db	6,"FILES="
 		dw	20,8,254
+;
+; The default here applies only to a SESSIONS value that isn't valid; without
+; a SESSIONS line, it depends on the number of consoles (see def_sessions).
+;
 CFG_SESSIONS	db	9,"SESSIONS="
-		dw	4,1,32		; TODO: Decide if 32 session limit OK
+		dw	4,1,MAX_SESSIONS	; TODO: Decide if limit OK
 CFG_PATHCHAR	db	9,"PATHCHAR="
 CFG_SWITCHAR	db	9,"SWITCHAR="
 
