@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS on an IBM PC AT with a Single Session and Debugger
+title: BASIC-DOS on an IBM PC AT with a Single Console and Debugger
 permalink: /demos/s80/at/debugger/
 machines:
   - id: ibm5170

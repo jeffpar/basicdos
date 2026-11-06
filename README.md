@@ -37,7 +37,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 
 ### Device Drivers
 
-- [x] VKD$ (video and keyboard), with multiple console contexts (one per session)
+- [x] VKD$ (video and keyboard), with a context for each console
 - [x] COM, LPT, NUL, CLOCK$, and PIPE$ devices
 - [x] CPU$, loaded first, detects the processor and manages all memory, with the same functions in either mode: using a table of physical memory blocks and protected-mode descriptors on an 80286 or later with extended memory, and otherwise an MCB chain (see [The CPU$ Drivers](docs/bdtech/mmu/#cpu))
 - [x] CLOCK$ starts with the BIOS time of day and, on a PC AT, the real-time clock's date
@@ -217,6 +217,7 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] 8087 functions: arithmetic (including `^`), comparisons, conversions between longs and doubles, ABS, INT, FIX, and SQR
 - [x] Software emulation of all FPU$ functions for systems without an 8087
 - [x] FPU$ unloads itself on a machine with 64K of memory or less (as if CONFIG.SYS had SKIP=FPU$), leaving that memory for BASIC programs
+- [x] Less common BASIC statements (DEF SEG, POKE, RANDOMIZE, SCREEN, SWAP, and WIDTH) and functions (CSRLIN, DATE$, FRE, HEX$, INKEY$, LCASE$, OCT$, PEEK, POS, RND, SCREEN, SGN, TAB, TIME$, and UCASE$) are outside COMMAND.COM's core, leaving that memory for BASIC programs on a machine with 64K of memory
 - [x] The interpreter reports at startup whether floating-point uses an 8087, emulation, or is disabled (no FPU$ driver); when disabled, variables default to integers and "/" and "^" are integer operations
 - [x] String-to-double (FPU_ATOD) and double-to-string (FPU_DTOA) conversions, and `%f` support in sprintf
 - [x] Expression generator support for mixed integer/floating-point operations (promotion and demotion rules), using FPU$ calls
@@ -246,7 +247,7 @@ The poster child for BASIC samples support is [DONKEY.BAS](https://www.pcjs.org/
 - [x] PSET, PRESET, LINE (including `LINE -(x,y)`, B, BF, and an omitted color), PAINT, and DRAW (U, D, L, R, E, F, G, H, M, B, N, C, and S), drawing directly into CGA memory in modes 4-6
 - [x] GET and PUT (PSET, PRESET, XOR, OR, and AND), using integer arrays (passed by name) in BASICA's image format, with one 16-bit word per element, so programs that build images by hand (like DONKEY.BAS's `B%`) work
 - [x] Syntax errors report the program's line number (eg, "Syntax error in line 1160") instead of the line's position in the file
-- [x] DONKEY.BAS runs (see the [single-session demo](demos/s80/pc/), whose diskette has all the samples)
+- [x] DONKEY.BAS runs (see the [single-console demo](demos/s80/pc/), whose diskette has all the samples)
 - [x] Performance: PUT and GET copy whole bytes (shifting and masking each row in registers), horizontal lines, BF, and PAINT fill whole bytes, and the video mode is cached, so graphics statements make no driver or BIOS calls; SOUND returns immediately (as in MSBASIC, the next SOUND waits for it to finish, and the CLOCK$ driver turns it off), so DONKEY.BAS is paced at one loop per tick, like MSBASIC
 - [x] CIRCLE (for CIRCLE.BAS, one of the other PC DOS 1.00 samples on the demo disk), using MSBASIC's algorithm and integer math (angles and aspects are converted from doubles without FPU$), so it draws the same pixels as MSBASIC, about twice as fast
 - [x] CLEAR (resets variables and erases arrays; its sizes are ignored)
@@ -263,7 +264,7 @@ The poster child for BASIC samples support is [DONKEY.BAS](https://www.pcjs.org/
 - [ ] The rest of the PC DOS 1.00 samples: SPACE.BAS's delay loops are too fast to see its flying saucers
 - [x] Later BASICA and GW-BASIC graphics: VIEW, WINDOW (world coordinates, which POINT, PMAP, STEP, and CIRCLE's radius use, too), PMAP, and PAINT with tile patterns
 - [ ] PCOPY (which needs SCREEN's active and visual pages first)
-- [ ] Keeping other sessions on the same adapter from writing to the screen while it's in another mode; also, the VKD$ driver restores the BIOS's video data after every INT 10h call, so programs that read the BIOS's video mode (0:449h) may see a stale value
+- [ ] Keeping other consoles on the same adapter from writing to the screen while it's in another mode; also, the VKD$ driver restores the BIOS's video data after every INT 10h call, so programs that read the BIOS's video mode (0:449h) may see a stale value
 
 ### Build, Tests, and Documentation
 
@@ -300,7 +301,7 @@ These aren't project goals:
 - INT 25h and INT 26h (absolute disk reads and writes), since opening a volume (eg, `C:`) as a file gives the same access to its sectors; see [File Handles](docs/bdtech/dos/#handles).
 - RESUME without a line number (or with 0) and RESUME NEXT, which resume at or after the statement with an error, since BASIC-DOS compiles programs, and finding where the statement with an error (or the next one) begins would require recording where every statement's code begins, making programs larger; RESUME *line* is supported, and a handler can use ERL to choose the line.  The COMM.BAS sample on BASIC-DOS disks uses RESUME *line* instead; see [RESUME](docs/bdman/cmd/basic/#resume).
 - PRINT USING and LPRINT USING, since PRINTF USING covers the same needs with C-style `%` specifiers; see [How to replace PRINT USING](docs/bdman/cmd/device/screen/#how-to-replace-print-using) for the equivalents of its template formats (eg, `###.##` is `%6.2f`).  The MORTGAGE.BAS sample on BASIC-DOS disks uses PRINTF USING instead.
-- CTTY (introduced in PC DOS 2.0), since BASIC-DOS already provides the ability to define multiple terminal-based sessions on serial ports using [CON=](docs/bdman/cfg/#con) in CONFIG.SYS; allowing a session to change its "personality" on the fly would cause more problems than it would solve, and would probably work about as well as CTTY did (ie, poorly).
+- CTTY (introduced in PC DOS 2.0), since BASIC-DOS already provides the ability to define multiple terminal-based consoles on serial ports using [CON=](docs/bdman/cfg/#con) in CONFIG.SYS; allowing a console to change its "personality" on the fly would cause more problems than it would solve, and would probably work about as well as CTTY did (ie, poorly).
 - LOAD inside a running BAS or BAT file (it's an error, "Not allowed in a program", since it would replace the running file's own text); programs that run other programs use RUN *file* or CHAIN instead.
 
 ## Roadmap

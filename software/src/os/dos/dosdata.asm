@@ -154,7 +154,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<utl_hotkey,utl_lock,utl_unlock,utl_qrymem,utl_term>
 	EXTNEAR	<utl_getdate,utl_gettime,utl_incdate,utl_editln,utl_restart>
 	EXTNEAR	<utl_tprintf>
-	EXTNEAR	<utl_qryscb,utl_alias,utl_mapseg>
+	EXTNEAR	<utl_qryscb,utl_segself>
 	EXTNEAR	<func_none>
 
 	DEFLBL	FUNCTBL,word
@@ -192,8 +192,8 @@ DOS	segment word public 'CODE'
 	dw	utl_yield,   utl_sleep,   utl_wait,    utl_endwait	;18-1B
 	dw	utl_hotkey,  utl_lock,    utl_unlock,  utl_qrymem	;1C-1F
 	dw	utl_term,    utl_restart, utl_getdate, utl_gettime	;20-23
-	dw	utl_incdate, utl_editln,  utl_sound,   utl_alias	;24-27
-	dw	utl_mapseg						;28
+	dw	utl_incdate, utl_editln,  utl_sound,   utl_segself;24-27
+	dw	utl_segself						;28
 	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>
 
 DOS	ends

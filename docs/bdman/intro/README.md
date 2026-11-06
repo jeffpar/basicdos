@@ -53,7 +53,7 @@ Other special key sequences that can be typed at any time include:
 - **Ctrl-C** aborts the current operation, the next time the program uses DOS (eg, for input or output)
 - **Ctrl-Break** is currently the same as **Ctrl-Alt-Del**, which stops even a program that doesn't use DOS (eg, an endless loop); on a serial terminal, its **BREAK** key does the same
 - **Ctrl-S** pauses output (press any other key to continue)
-- **Shift-Tab** switches to the next [session](#sessions)
+- **Shift-Tab** switches to the next [console](#sessions)
 - **Ctrl-Alt-Del** terminates the program running in the current session (it does *not* restart the machine; use [RESTART SYSTEM](../cmd/system/#restart) for that, or RESTART with a session number to stop another session's program)
 
 You can also type [HELP KEYS](../cmd/external/help/) to display a brief summary of special keys.
@@ -136,11 +136,13 @@ The input of a command can also come from a file instead of the keyboard (eg, `S
 
 ### Sessions
 
-BASIC-DOS can run several programs at once, each in its own *session*.  A session has its own console, which can occupy the entire screen or just part of it (eg, the left and right halves of the screen, as in the [BASIC-DOS Demos](/demos/)); the console with a double-line border is the one that has *focus*, which means that it receives keyboard input.
+BASIC-DOS can run several programs at once, each in its own *session*.  A session can have a *console*, which can occupy the entire screen or just part of it (eg, the left and right halves of the screen, as in the [BASIC-DOS Demos](/demos/)); the console with a double-line border is the one that has *focus*, which means that it receives keyboard input.
 
-Press **Shift-Tab** to switch the focus to the next session.
+Every console needs a session, and so does every command after the first in a [pipeline](#pipes-and-redirection), so a system usually has more sessions than consoles; the extra sessions determine how many filters can run at once.
 
-The number of sessions and the size of their consoles are defined in CONFIG.SYS (see [CON=](../cfg/#con) and [SESSIONS=](../cfg/#sessions)).
+Press **Shift-Tab** to switch the focus to the next console.
+
+CONFIG.SYS defines the number and size of the consoles (see [CON=](../cfg/#con)) and the number of sessions (see [SESSIONS=](../cfg/#sessions)).
 
 ### Getting Help
 

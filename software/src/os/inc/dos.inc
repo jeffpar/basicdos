@@ -133,7 +133,7 @@ ERR_FRAME	equ	8
 ;
 R3_STACK_SIZE	equ	1024
 ;
-; A ring 3 program's interrupt handlers go in RVECs (see ring3.asm), which
+; A ring 3 program's interrupt handlers go in RVECs (see r3supp.asm), which
 ; R3_RVECS limits.
 ;
 R3_RVECS	equ	8

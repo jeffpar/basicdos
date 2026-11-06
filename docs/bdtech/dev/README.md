@@ -214,7 +214,7 @@ HDC$'s MBR code is modeled on the pc.js MBR, without its drive tables: it moves 
 
 | Device | Type | Description |
 |--------|------|-------------|
-| VKD$ | Character | Video and keyboard driver: a console with a separate context for each session (see [CON=](../../bdman/cfg/#con)); interrupt-driven input, direct video output (or BIOS output), and INT 29h fast output |
+| VKD$ | Character | Video and keyboard driver: a separate context for each console (see [CON=](../../bdman/cfg/#con)); interrupt-driven input, direct video output (or BIOS output), and INT 29h fast output |
 | LPT1-LPT3 | Character | Parallel ports (one for each port the BIOS found): writes print with INT 17h, a failed write's error is also reported by the next IOCTL_OUTSTATUS (see LPRINT), and IOCTL_GETPOS returns the column (see LPOS) |
 | COM1-COM4 | Character | Serial ports, with interrupt-driven, asynchronous I/O |
 | CPU$ | Character | Two drivers, loaded first, of which one stays to manage all memory through DDINT_CPU (see [Protected Mode](../mmu/)): the 80286 driver stores the processor type in CPU_HWTYPE (0:513h) and CPU_TYPE (0:512h), which `CPU=8088` makes 0, and on an 80286 or later with at least 64K of extended memory, manages memory with a PMB table (and protected-mode descriptors); otherwise, it unloads, and the 8086 driver manages memory with an MCB chain.  The one that stays stores its arena's address in CPU_ARENA (0:514h), for debuggers, and provides DDINT_GETVEC and DDINT_SETVEC.  Neither can be skipped |

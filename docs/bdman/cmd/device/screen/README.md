@@ -18,7 +18,7 @@ Screen commands include:
 - [SCREEN](#screen)
 - [WIDTH](#width)
 
-Each session has its own console, which may occupy only part of the screen (see [Sessions](../../../intro/#sessions)).  Screen commands operate on the current session's console, and coordinates are relative to the console, not the screen.
+A console may occupy only part of the screen (see [Sessions](../../../intro/#sessions)).  Screen commands operate on the current session's console, and coordinates are relative to the console, not the screen.
 
 When a BAS program that used a graphics mode ends (or is aborted), the video mode it started with is restored, along with the console's original size and border, even if the program returned to a text mode first (eg, DONKEY.BAS, whose SCREEN 0 leaves 40 columns); otherwise, text-mode changes (eg, WIDTH 40 or SCREEN 0,0) persist, as in Microsoft BASIC.
 
@@ -137,7 +137,7 @@ Sets the screen mode on a color adapter:
 
 A *burst* of 0 disables color in mode 0, and a *burst* of 1 disables color in mode 1.  Changing the mode clears the screen and removes the console's border, if any, so the console occupies the entire screen.  Text output (eg, PRINT) works in all modes.
 
-While a session is in any mode other than its original mode (eg, a graphics mode, or 40 columns in an 80-column session), it uses the entire screen, so other sessions on the same display are paused: any output they produce waits until that session returns to its original mode (eg, when its BAS program ends, which restores the mode), and then their borders are redrawn and their output continues.  Their earlier screen contents are not restored.
+While a console is in any mode other than its original mode (eg, a graphics mode, or 40 columns in an 80-column console), it uses the entire screen, so other consoles on the same display are paused: any output they produce waits until that console returns to its original mode (eg, when its BAS program ends, which restores the mode), and then their borders are redrawn and their output continues.  Their earlier screen contents are not restored.
 
 ### WIDTH
 

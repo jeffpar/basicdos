@@ -1,4 +1,4 @@
-REM Demonstration of dual monitors with multiple sessions per monitor
+REM Demonstration of dual monitors with multiple consoles per monitor
 CPU=8088
 BUFFERS=4
 SESSIONS=8

@@ -7,9 +7,9 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; This module holds what ring3.asm's programs need to start and end, and the
+; This module holds what r3supp.asm's programs need to start and end, and the
 ; checks on the DOS calls that change their memory and their PSPs.  Like
-; ring3.asm, it's resident only in protected mode.
+; r3supp.asm, it's resident only in protected mode.
 ;
 ; A ring 3 program can write its own PSP (and its parent's, which is in the
 ; same LDT), so the kernel doesn't trust what's there: each program's parent

@@ -248,7 +248,7 @@ ENDPROC	msc_gettime
 ;
 ; utl_gettime comes here when REG_AL is 1, for the BIOS tick count, which a
 ; program can't always read for itself (a ring 3 program can't address the
-; BIOS segment; see ring3.asm).
+; BIOS segment; see r3supp.asm).
 ;
 ; Outputs:
 ;	REG_DX:REG_AX = BIOS tick count
@@ -630,7 +630,7 @@ ENDPROC	msc_getswc
 ; Outputs:
 ;	REG_ES:REG_BX-2 -> mcb_head
 ;	REG_AX = total memory, in Kb (BASIC-DOS only, since a ring 3 program
-;	can't read the DV_MEM_SIZE that follows mcb_head; see ring3.asm)
+;	can't read the DV_MEM_SIZE that follows mcb_head; see r3supp.asm)
 ;
 ; Modifies:
 ;	None

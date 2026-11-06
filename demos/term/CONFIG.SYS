@@ -1,4 +1,4 @@
-REM 64K demonstration with no video: one session on a VT100 connected to COM1
+REM 64K demonstration with no video: one console on a VT100 connected to COM1
 REM FPU$ (at 64K) and drivers for missing hardware skip themselves
 SKIP=VKD$,PIPE$
 BUFFERS=2

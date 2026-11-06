@@ -1,4 +1,4 @@
-The BASIC-DOS 80-Column Demo diskette's **CONFIG.SYS** doesn't define any consoles, so BASIC-DOS creates a single 80-column, 25-row session, running COMMAND.COM, which runs **HELLO.BAT** to display a colorful greeting.  Type **HELP** for a list of commands, **DIR** to list the files on the diskette, and **PRIMES.BAS** to run the BASIC version of PRIMES.
+The BASIC-DOS 80-Column Demo diskette's **CONFIG.SYS** doesn't define any consoles, so BASIC-DOS creates a single 80-column, 25-row console, running COMMAND.COM, which runs **HELLO.BAT** to display a colorful greeting.  Type **HELP** for a list of commands, **DIR** to list the files on the diskette, and **PRIMES.BAS** to run the BASIC version of PRIMES.
 
 ### BASIC Samples
 

@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS on an IBM PC with a Single Session
+title: BASIC-DOS on an IBM PC with a Single Console
 permalink: /demos/s80/pc/
 machines:
   - id: ibm5150
@@ -12,7 +12,7 @@ machines:
       B: "PC DOS 1.00"
 ---
 
-The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088 with an 8087, 128K of memory, a Color Display, and two diskette drives.  It boots the BASIC-DOS 80-Column Demo diskette and runs a single 80-column session, with the BASIC samples (eg, DONKEY.BAS) in its SAMPLES directory.
+The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088 with an 8087, 128K of memory, a Color Display, and two diskette drives.  It boots the BASIC-DOS 80-Column Demo diskette and runs a single 80-column console, with the BASIC samples (eg, DONKEY.BAS) in its SAMPLES directory.
 
 {% include machine.html id="ibm5150" %}
 

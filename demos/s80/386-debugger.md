@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS on a COMPAQ DeskPro 386 with a Single Session and Debugger
+title: BASIC-DOS on a COMPAQ DeskPro 386 with a Single Console and Debugger
 permalink: /demos/s80/386/debugger/
 machines:
   - id: deskpro386

@@ -29,7 +29,7 @@ DOS	segment word public 'CODE'
 	EXTWORD	<FUNCTBL,UTILTBL,r3_ksel>
 	EXTLONG	<scb_table,clk_ptr>
 	EXTNEAR	<dos_leave,int_enter,int_leave,dos_fault,sysinit_start>
-	EXTNEAR	<r3_sprintf,r3_free,r3_realloc,init_fpu>
+	EXTNEAR	<r3_sprintf,r3_free,r3_realloc,init_fpu,utl_alias,utl_mapseg>
 	EXTNEAR	<r3_term,r3_return,r3_uterm,r3_exec,r3_pspset>
 	EXTNEAR	<r3_pspcopy,r3_pspnew,r3_uload,r3_read,r3_write>
 	EXTNEAR	<r3_sread,r3_swrite,r3_rread,r3_rwrite,r3_rbread,r3_rbwrite>
@@ -371,12 +371,14 @@ DEFPROC	set_fault
 	mov	ax,offset dos_fault
 	jnz	sf0			; yes
 	jmp	sf9			; no
-sf0:	xchg	cx,ax
+sf0:	mov	[UTILTBL + DOS_UTL_ALIAS * 2],offset utl_alias
+	mov	[UTILTBL + DOS_UTL_MAPSEG * 2],offset utl_mapseg
+	xchg	cx,ax
 	mov	dx,cs:[dos_code]	; DX:CX -> dos_fault
 	mov	ah,CPU_SETFAULT
 	call	far ptr DDINT_CPU
 ;
-; Programs run at ring 3 (see ring3.asm), unless a "RING=0" line keeps them
+; Programs run at ring 3 (see r3supp.asm), unless a "RING=0" line keeps them
 ; at ring 0.
 ;
 	push	si

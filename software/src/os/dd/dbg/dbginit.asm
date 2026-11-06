@@ -401,7 +401,7 @@ ENDPROC	set_cpu
 ; a program ends with them hooked (see psp_restvec), but not INT 04h.
 ;
 ; At ring 3, DOS gets and sets them instead, which reflects an interrupt from
-; ring 3 code in our session to our handler (see RVEC in ring3.asm), and gets
+; ring 3 code in our session to our handler (see RVEC in r3supp.asm), and gets
 ; us a stub in place of the previous handler (which chains to it); setting
 ; the stub again restores it.  INT 00h isn't hooked there, since only VT
 ; needs it.

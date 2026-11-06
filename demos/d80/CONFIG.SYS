@@ -1,4 +1,4 @@
-REM Demonstration of two 80-columns sessions
+REM Demonstration of two 80-column consoles
 CPU=8088
 BUFFERS=4
 REM SESSIONS=2

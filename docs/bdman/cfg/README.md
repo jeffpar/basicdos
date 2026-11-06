@@ -159,7 +159,7 @@ A program's interrupt handlers (eg, an INT 21h hook that passes the calls it doe
 
 Sets the maximum number of sessions that can be active at once.  The default is 4, and *n* can range from 1 to 32.
 
-Sessions are used not only by consoles, but also by [pipes](../intro/#pipes-and-redirection): every command after the first in a pipeline runs in its own session.  So SESSIONS should allow for at least one more session than the number of consoles.
+Sessions are used not only by consoles, but also by [pipes](../intro/#pipes-and-redirection): every command after the first in a pipeline runs in its own session.  So SESSIONS should exceed the number of consoles by at least the number of filters you want to run at once.
 
 ### SHELL
 
@@ -201,9 +201,9 @@ A `-` begins a switch only at the start of an argument, so that it can also appe
 
 ### Sample Configuration
 
-This CONFIG.SYS runs a single session on a terminal connected to COM1, without loading the VKD$ driver:
+This CONFIG.SYS runs a single console on a terminal connected to COM1, without loading the VKD$ driver:
 
-	REM Demonstration of a single-session configuration
+	REM Demonstration of a single-console configuration
 	SKIP=VKD$
 	SESSIONS=3
 	CON=COM1:9600,N,8,1

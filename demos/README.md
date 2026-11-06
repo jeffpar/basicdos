@@ -27,4 +27,4 @@ Each BASIC-DOS demo runs on up to four generations of PC hardware: the original 
 
 The PC XT, PC AT, and DeskPro 386 machines also have the 10Mb BASIC-DOS hard disk (drive C:), so when they boot a diskette, the boot sector first displays `Press a key to start...`; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.
 
-In the demos with multiple sessions, use **SHIFT-TAB** to toggle keyboard focus between sessions.
+In the demos with multiple consoles, use **SHIFT-TAB** to toggle keyboard focus between consoles.

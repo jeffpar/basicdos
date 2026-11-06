@@ -1,4 +1,4 @@
-REM No video: one session on a VT100 connected to COM1, with its shell on the hard disk
+REM No video: one console on a VT100 connected to COM1, with its shell on the hard disk
 SKIP=VKD$
 BUFFERS=8
 CON=COM1:9600,N,8,1,VT100

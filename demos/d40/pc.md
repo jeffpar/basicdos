@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS on an IBM PC with Two 40-Column Sessions
+title: BASIC-DOS on an IBM PC with Two 40-Column Consoles
 permalink: /demos/d40/pc/
 machines:
   - id: ibm5150
@@ -12,7 +12,7 @@ machines:
       B: "PC DOS 2.00 (Disk 1)"
 ---
 
-The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 128K of memory, a Color Display, and two diskette drives.  It boots the BASIC-DOS 40-Column Demo diskette and runs two 40-column sessions side by side; use **SHIFT-TAB** to toggle focus.
+The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 128K of memory, a Color Display, and two diskette drives.  It boots the BASIC-DOS 40-Column Demo diskette and runs two 40-column consoles side by side; use **SHIFT-TAB** to toggle focus.
 
 {% include machine.html id="ibm5150" %}
 

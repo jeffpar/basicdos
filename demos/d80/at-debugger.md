@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS on an IBM PC AT with Two 80-Column Sessions and Debugger
+title: BASIC-DOS on an IBM PC AT with Two 80-Column Consoles and Debugger
 permalink: /demos/d80/at/debugger/
 machines:
   - id: ibm5170

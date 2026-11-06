@@ -19,7 +19,7 @@ machines:
       A: "BASIC-DOS HD Terminal Only Demo"
 ---
 
-The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memory, two diskette drives, a 10Mb hard disk, a serial port, and no video adapter: its only display is a DEC VT100 terminal connected to COM1 at 9600 baud.  It boots the BASIC-DOS HD Terminal Only Demo diskette and runs a single session on the VT100, which starts on drive C:, the hard disk, with the BASIC-DOS source code, tests, and tools.
+The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memory, two diskette drives, a 10Mb hard disk, a serial port, and no video adapter: its only display is a DEC VT100 terminal connected to COM1 at 9600 baud.  It boots the BASIC-DOS HD Terminal Only Demo diskette and runs a single console on the VT100, which starts on drive C:, the hard disk, with the BASIC-DOS source code, tests, and tools.
 
 {% include vt100-demo.html id="ibm5160" headless=true %}
 

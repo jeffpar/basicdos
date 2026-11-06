@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS on a COMPAQ DeskPro 386 with Two 80-Column Sessions and Debugger
+title: BASIC-DOS on a COMPAQ DeskPro 386 with Two 80-Column Consoles and Debugger
 permalink: /demos/d80/386/debugger/
 machines:
   - id: deskpro386

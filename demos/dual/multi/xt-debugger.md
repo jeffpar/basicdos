@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS on an IBM PC XT with Dual Monitors, Sessions, and Debugger
+title: BASIC-DOS on an IBM PC XT with Dual Monitors, Consoles, and Debugger
 permalink: /demos/dual/multi/xt/debugger/
 machines:
   - id: ibm5160
@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/ibm/ibm-5160-dual-640kb.json
     debugger: true
     autoMount:
-      A: "BASIC-DOS Multi-Session Demo"
+      A: "BASIC-DOS Multi-Console Demo"
     autoType: DATE $date\rTIME $time\r
 ---
 

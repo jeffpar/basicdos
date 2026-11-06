@@ -1,4 +1,4 @@
-REM Demonstration of a single-session configuration
+REM Demonstration of a single-console configuration
 CPU=8088
 SKIP=VKD$
 BUFFERS=4

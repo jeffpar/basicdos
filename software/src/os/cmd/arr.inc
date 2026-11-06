@@ -8,7 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 ; Included after cmd.inc by the modules that access array blocks (eg, arr.asm
-; and gfx.asm).
+; and gfx.asm), or that generate code for them (eg, gendef.asm).
 ;
 ; An array is a VAR_ARRAY variable whose name is the array name followed by
 ; a type character ('%', '#', or '$'), so that A, A(), and A$() are all
@@ -33,3 +33,10 @@ ABLK_SIZE	dw	?		; 0Ch: element size
 ABLK_DATA	dw	?		; 0Eh: offset of first element
 ABLK		ends
 ABLK_SIG	equ	BLK_SIG
+
+;
+; What genArrayRef generates for an array element (see gendef.asm).
+;
+ARRAY_VAL	equ	0		; push element value (or double ptr)
+ARRAY_PTR	equ	1		; push element address (eg, for LET)
+ARRAY_DIM	equ	2		; dimension the array (for DIM)

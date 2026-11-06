@@ -46,10 +46,10 @@ Resets all numeric variables to zero and all string variables to empty strings, 
 Closes the specified files (or all files if none are specified).  Files that a program leaves open are closed when it ends.
 
 [b]CLS
-Clears the session using the background color and moves the cursor to the top left corner.
+Clears the console using the background color and moves the cursor to the top left corner.
 
 [b]COLOR [*foreground*][,[*background*][,*border*]]
-Sets the foreground (0-15), background (0-7), and border (0-255) colors of the session.
+Sets the foreground (0-15), background (0-7), and border (0-255) colors of the console.
 For blinking colors, use 16-31 for *foreground* and 128-255 for *border*; as in MSBASIC, a *background* of 8-15 is the same as 0-7.
 In SCREEN 1, the values are the background color (0-15) and palette (0 or 1) instead.
 
@@ -61,7 +61,7 @@ ERRORLEVEL is set to 0 if every file compares ok, and otherwise to 1.
 Copies the contents of the input file or device to the output file or device (a file keeps its date and time), or with wildcards (? and *), every matching file to the output drive or directory (eg, COPY B:\*.BAS).  If *output* is omitted, the current directory is used.  Input files separated by + are combined into the output file (eg, COPY A.BIN+B.BIN C.BIN).
 
 CORE
-On low memory systems, BASIC-DOS loads only core features, so floating-point support, graphics operations, file operations, and support for tokenized BAS files may be unavailable.  This affects the following features:
+On low memory systems, BASIC-DOS loads only core features, so floating-point support, graphics operations, file operations, less common statements and functions, and support for tokenized BAS files may be unavailable.  This affects the following features:
 
 [f]COS(*x*)
 Returns the cosine of *x*, where *x* is in radians.
@@ -69,7 +69,7 @@ Returns the cosine of *x*, where *x* is in radians.
 [f]CSNG(*x*)
 Same as CDBL.
 
-[f]CSRLIN
+[f+]CSRLIN
 Returns the cursor's row, starting at 1.  See also POS.
 
 [f]CURDIR$
@@ -92,7 +92,7 @@ Sets the system date (or prompts for a date if ~P) and then displays the date.
 The date must be entered as M-D-Y or M/D/Y, where M is 1-12, D is 1-31, and Y is 0-99 or 1980-2099.
 If D or Y are omitted, current values are assumed.
 
-[f]DATE$
+[f+]DATE$
 Returns the current date as a string in the form MM-DD-YYYY.
 
 [e]DEBUG [~H] [*program* [*arguments*]] or DEBUG ~*command*
@@ -196,7 +196,7 @@ If the *start* is already past the *limit*, the lines are skipped.
 [e]FORMAT *drive*: [~S] [~V[:*label*]] [~F:*size*] [~1] [~8]
 Formats the diskette or hard disk volume in the specified *drive*.  ~S copies the system files from the current drive (making the volume bootable), and ~V gives the volume a label (asking for one, unless it's given).  A diskette is formatted as 360K, 720K, or 1.2M (~F:360, ~F:720, or ~F:1200; by default, the drive's size, or 360K on a PC or XT); for 360K, ~1 formats one side, and ~8 formats 8 sectors per track (for PC DOS 1.x).
 
-[f]FRE(*x*)
+[f+]FRE(*x*)
 Compacts string memory and returns the number of bytes available, or if *x* is negative (eg, FRE(-1)), the number of bytes owned by this session, which other sessions can't change.
 
 [b+]GET (*x1*,*y1*)-(*x2*,*y2*),*array* or GET #*n*[,*record*]
@@ -212,7 +212,7 @@ Transfers program control to the line with the specified label number.
 [e]HELP [*keyword*|ALL|BASIC|CORE|FUNC|CMD|EXT]
 Displays help for *keyword* (eg, HELP MID$), or lists the keywords in a category: ALL (every keyword), BASIC (BASIC statements and commands), FUNC (functions, like MID$), CMD (internal commands, like DIR), or EXT (external commands, like FORMAT).  HELP CORE lists the keywords that low memory systems don't support, and HELP KEYS lists the keys for editing command lines.  A command given an invalid switch (or other invalid arguments) displays Syntax error.
 
-[f]HEX$(*n*)
+[f+]HEX$(*n*)
 Returns the hexadecimal representation of the integer *n*.  Negative values are treated as unsigned 32-bit values (eg, HEX$(-1) is FFFFFFFF).
 
 [e]HEXDUMP *file* [~S *offset*] [~N *length*]
@@ -221,7 +221,7 @@ Displays the bytes of *file* in hexadecimal and as characters, 16 per line, in t
 [b]IF *expression* THEN *statement(s)* [ELSE *statement(s)*]
 Evaluates the *expression*, and if it is TRUE (non-zero), executes the statements after THEN; otherwise, executes the statements after ELSE, if any.  Multiple statements are separated by colons, and a line number by itself (eg, THEN 100) is the same as GOTO 100.
 
-[f]INKEY$
+[f+]INKEY$
 Returns the next key pressed, without waiting (an empty string if no key was pressed).  Extended keys (eg, cursor keys) return two characters: a null and the key's scan code.
 
 [b]INPUT [*prompt*;]*variable*[,*variable*]... or INPUT #*n*,*variable*[,*variable*]...
@@ -259,7 +259,7 @@ Use CTRL-BREAK or CTRL-ALT-DELETE to terminate programs, and use RESTART to term
 [e]LABEL [*drive*:][*label*]
 Gives *drive* (or the current drive) a volume label (up to 11 characters), or without a *label*, displays the current label and asks for a new one (or ENTER to delete it).
 
-[f]LCASE$(*string*)
+[f+]LCASE$(*string*)
 Returns *string* with all upper-case letters converted to lower-case.
 
 [f]LEFT$(*string*,*n*)
@@ -365,7 +365,7 @@ Erases the loaded program, functions, and variables.
 [b]NEXT [*variable*[,*variable*]...]
 Ends the innermost FOR loop (or, for each *variable*, the FOR loop with that *variable*).
 
-[f]OCT$(*n*)
+[f+]OCT$(*n*)
 Returns the octal representation of the integer *n*.
 
 [b]ON *expression* GOTO|GOSUB *label*[,*label*]...
@@ -385,7 +385,7 @@ Fills the area around *x*,*y* with the *paint* color, up to the *border* color (
 [f]PATH$ or PATH$=*string*
 Returns (or sets) the directories, separated by semicolons, that are searched for a program that isn't in the current directory (eg, PATH$ = "A:\;A:\EXT;A:\SAMPLES").  A program name that includes a drive or directory isn't searched for.  PATH$ keeps its value when variables are cleared (eg, by NEW or CLEAR); CONFIG.SYS usually sets it on the SHELL line.
 
-[f]PEEK(*offset*)
+[f+]PEEK(*offset*)
 Returns the byte at *offset* in the segment set by DEF SEG.
 
 [b+]PLAY *string*
@@ -397,10 +397,10 @@ Maps the world coordinate *v* (see WINDOW) to a physical x (*n* = 0) or y (*n* =
 [f+]POINT(*x*,*y*) or POINT(*n*)
 Returns the color of the pixel at *x*,*y* in a graphics mode (or -1 if it's outside the screen or viewport), or the last point's physical x (*n* = 0) or y (*n* = 1), or its world x (*n* = 2) or y (*n* = 3), rounded to an integer.
 
-[b]POKE *offset*,*value*
+[b+]POKE *offset*,*value*
 Stores *value* (0-255) at *offset* in the segment set by DEF SEG.  In protected mode, only BASIC-DOS's data segment and video memory (segments A000h-BFFFh) can be changed.
 
-[f]POS(*n*)
+[f+]POS(*n*)
 Returns the cursor's column, starting at 1 (*n* is ignored).  See also CSRLIN.
 
 [b+]PRESET (*x*,*y*)[,*color*]
@@ -419,7 +419,7 @@ Draws a point in a graphics mode, using the foreground color if no *color* is sp
 Draws an image stored by GET, combining it with the screen using XOR, unless another action is specified.
 With a file number, writes the FIELD variables of random access file *n* to the specified record (or the next one).
 
-[b]RANDOMIZE [*seed*]
+[b+]RANDOMIZE [*seed*]
 Reseeds the random number generator, so that the same *seed* always produces the same sequence (without a *seed*, the BIOS tick count is used).
 
 [c]RD [*drive*:]*path*
@@ -449,10 +449,10 @@ Returns from a GOSUB subroutine, or ends a function block and returns the specif
 [f]RIGHT$(*string*,*n*)
 Returns the rightmost *n* characters of *string*.
 
-[f]RND[(*n*)]
+[f+]RND[(*n*)]
 Returns a random number from 0 up to (but not including) 1.  *n* has the same effect as with RND%.
 
-[f]RND%[(*n*)]
+[f+]RND%[(*n*)]
 Returns a random integer between 0 and MAXINT, inclusive.  If *n* is negative, it reseeds the generator first, and if *n* is zero, the previous random integer is returned.
 
 [b+]RSET *variable$*=*string*
@@ -464,10 +464,10 @@ Runs the currently loaded BAS or BAT file, or loads BAS *file* (searching PATH$ 
 [b]SAVE *file*
 Saves the currently loaded program as a text file (if no file extension is specified, BAS is used).
 
-[b]SCREEN [*mode*][,*burst*]
+[b+]SCREEN [*mode*][,*burst*]
 Sets the screen mode: 0 (text), 1 (320x200 graphics), or 2 (640x200 graphics).
 A *burst* of 0 disables color in mode 0, and a *burst* of 1 disables color in mode 1.
-Changing the mode clears the screen and removes the session's border, if any.
+Changing the mode clears the screen and removes the console's border, if any.
 SCREEN(*row*,*col*[,*z*])
 Returns the character code at *row* and *col*, or its attributes if *z* is non-zero.
 
@@ -475,7 +475,7 @@ Returns the character code at *row* and *col*, or its attributes if *z* is non-z
 Runs the commands in *script* (separated by ;) on each line of input (or *file*), and then displays the line, unless ~N is given (eg, DIR | SED s/BAS/BAK/).  *script* needs quotes only if it contains spaces.  A command can start with an address (a line number, $, or /*regex*/), or with two addresses separated by a comma for a range of lines, and ! after the addresses selects the other lines.  The commands are s/*regex*/*text*/ (replaces the first match, or every match with g after the last /), d (deletes the line), p (displays the line), q (quits), and = (displays the line number).  ~I ignores case.  The user manual describes the regular expressions, which FIND ~R also uses.
 ERRORLEVEL is set to 0, or 2 if *script* is missing or invalid, or *file* couldn't be opened.
 
-[f]SGN(*x*)
+[f+]SGN(*x*)
 Returns -1 if *x* is negative, 0 if *x* is zero, or 1 if *x* is positive.
 
 [f]SIN(*x*)
@@ -509,13 +509,13 @@ Returns *x* as a string, with a leading space if *x* is not negative.
 [f]STRING$(*n*,*char*)
 Returns a string of *n* copies of *char*, which can be either a character code or a string (whose first character is used).
 
-[b]SWAP *variable1*,*variable2*
+[b+]SWAP *variable1*,*variable2*
 Exchanges the values of two variables (or array elements) of the same type.
 
 [e]SYS *drive*:
 Copies the system files (BASDEV.COM, BASDOS.COM, and COMMAND.COM) from the root directory of the current drive to the specified *drive*, and gives its boot sector the current drive's boot code, making it bootable without reformatting it.
 
-[f]TAB(*n*)
+[f+]TAB(*n*)
 Returns enough spaces to move the cursor to column *n* (1-254), for PRINT; if the cursor is already past column *n*, the spaces start on the next line.
 
 [f]TAN(*x*)
@@ -530,7 +530,7 @@ Sets the system time (or prompts for a time if ~P) and then displays the time.
 The time must be entered as H:M:S.D, where H is 0-23, M is 0-59, S is 0-59, and D is 0-99.  If M, S, or D are omitted, zeros are assumed.
 ~D displays only the time elapsed since TIME last displayed the time (or since midnight, if TIME hasn't been used).
 
-[f]TIME$
+[f+]TIME$
 Returns the current time as a string in the form HH:MM:SS.
 
 [f+]TIMER
@@ -546,7 +546,7 @@ Displays the directories below *path* (or the current directory), connected by l
 [c]TYPE *file*
 Displays the contents of the specified file, or with wildcards (? and *), the name and contents of every matching file.  A CTRL-Z ends the contents of each file.
 
-[f]UCASE$(*string*)
+[f+]UCASE$(*string*)
 Returns *string* with all lower-case letters converted to upper-case.
 
 [e]UNIQ [~C] [~D] [~I] [~U] [*file*]
@@ -578,7 +578,7 @@ Ends a WHILE loop.
 [b]WHILE *expression*
 Executes the lines up to the matching WEND repeatedly, as long as the *expression* is TRUE (non-zero).
 
-[b]WIDTH 40|80 or WIDTH *device*,*width*
+[b+]WIDTH 40|80 or WIDTH *device*,*width*
 Sets the number of columns in text mode (which clears the screen).
 In SCREEN 1, WIDTH 80 selects SCREEN 2, and in SCREEN 2, WIDTH 40 selects SCREEN 1.
 WIDTH "SCRN:",*width* is the same as WIDTH *width*; any other *device* is accepted for compatibility with MSBASIC, but its output is never broken into lines (not available on low memory systems).

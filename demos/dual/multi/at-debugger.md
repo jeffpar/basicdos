@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/ibm/ibm-5170-dual-640kb.json
     debugger: true
     autoMount:
-      A: "BASIC-DOS Multi-Session Demo"
+      A: "BASIC-DOS Multi-Console Demo"
 ---
 
 {% include machine.html id="ibm5170" %}

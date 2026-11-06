@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS on an IBM PC XT with a Single Session and Debugger
+title: BASIC-DOS on an IBM PC XT with a Single Console and Debugger
 permalink: /demos/s80/xt/debugger/
 machines:
   - id: ibm5160

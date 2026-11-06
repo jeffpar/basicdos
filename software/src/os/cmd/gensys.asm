@@ -11,12 +11,10 @@
 ; (except for PLAY and SOUND, which are in snd.asm, and raiseError, which is in
 ; flow.asm); CHAIN is in chain.asm:
 ;
-;	DEF SEG				(genDef and genDefSeg)
+;	DEF SEG				(genDef, and genDefSeg in genmisc.asm)
 ;	ERROR				(genError)
 ;	KEY				(genKey)
 ;	PLAY				(genPlay)
-;	POKE				(genPoke)
-;	RANDOMIZE			(genRandomize)
 ;	SOUND				(genSound)
 ;
 ; See gencmd.asm for an overview of all the gen*.asm files.  Like gencmd.asm,
@@ -30,9 +28,9 @@
 CODE    SEGMENT
 
 	EXTNEAR	<genExpr,getNextToken,peekNextSymbol,genCallCS,genCvtType>
-	EXTNEAR	<defSeg,defSegBasic,pokeByte>
+	EXTNEAR	<genDefSeg>
 	EXTNEAR	<raiseError,genDefFn,peekNextToken>
-	EXTNEAR	<randomize,genPushImmLong,genPushImm,genUpper,genKeyDef>
+	EXTNEAR	<genPushImmLong,genPushImm,genUpper,genKeyDef>
 	EXTABS	<TOK_ON,TOK_SEG>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -62,39 +60,10 @@ DEFPROC	genDef
 	je	gdf1
 gdf9:	jmp	genDefFn
 gdf1:	mov	si,ds:[PSP_HEAP]
-	mov	bx,[si].TOKLET_NEXT	; consume SEG (and fall into genDefSeg)
+	mov	bx,[si].TOKLET_NEXT	; consume SEG
+	mov	dx,offset genDefSeg	; (see genmisc.asm)
+	jmp	genUpper
 ENDPROC	genDef
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genDefSeg
-;
-; Generate code for "DEF SEG[=segment]" (after genDef has consumed DEF SEG).
-;
-; Inputs:
-;	DS:BX -> TOKLETs
-;	ES:DI -> code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
-;
-; Modifies:
-;	Any
-;
-DEFPROC	genDefSeg
-	call	peekNextSymbol
-	jbe	gds8			; no segment
-	cmp	al,'='
-	jne	gds8			; no segment
-	mov	si,ds:[PSP_HEAP]
-	mov	bx,[si].TOKLET_NEXT	; consume the '='
-	mov	si,offset defSeg
-	mov	cl,1
-	jmp	genLongs
-gds8:	GENCALL	defSegBasic
-	clc
-	ret
-ENDPROC	genDefSeg
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -151,64 +120,6 @@ gk7:	mov	dx,offset genKeyDef	; (see genfile.asm)
 gk9:	stc
 	ret
 ENDPROC	genKey
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genPoke
-;
-; Generate code for "POKE offset,value"
-;
-; Inputs:
-;	DS:BX -> TOKLETs
-;	ES:DI -> code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
-;
-; Modifies:
-;	Any
-;
-DEFPROC	genPoke
-	mov	si,offset pokeByte
-	mov	cl,2
-	jmp	short genLongs
-ENDPROC	genPoke
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genRandomize
-;
-; Generate code for "RANDOMIZE [seed]" (see randomize).
-;
-; Inputs:
-;	DS:BX -> TOKLETs
-;	ES:DI -> code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
-;
-; Modifies:
-;	Any
-;
-DEFPROC	genRandomize
-	call	genExpr			; push the seed, if any
-	jnc	grz1
-	test	dh,dh			; were there any tokens?
-	stc
-	jnz	grz9			; yes, so it's an error
-grz1:	jz	grz2			; no seed
-	mov	al,VAR_LONG
-	call	genCvtType		; the seed must be a long
-	jc	grz9
-	sub	dx,dx			; DX = 0 (seed)
-	jmp	short grz3
-grz2:	GENPUSH	0,0			; push 0
-	mov	dx,1			; DX = 1 (use the BIOS tick count)
-grz3:	GENPUSH	dx			; push the flag
-	GENCALL	randomize
-	clc
-grz9:	ret
-ENDPROC	genRandomize
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

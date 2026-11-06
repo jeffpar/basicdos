@@ -180,7 +180,7 @@ When a command fails, it displays an error message, and as in PC DOS, the progra
 
 On a color adapter, [SCREEN](../cmd/device/screen/#screen) 1 or 2 selects a graphics mode, where the [graphics commands](../cmd/device/graphics/) (CIRCLE, DRAW, GET, LINE, PAINT, PRESET, PSET, and PUT) can be used.  [PLAY](../cmd/device/sound/#play) plays music, and [SOUND](../cmd/device/sound/#sound) plays tones.
 
-When a BAS program that used a graphics mode ends, BASIC-DOS restores the video mode it started with (even if the program returned to a text mode first), along with the colors the session had then (so a program's COLOR, like `COLOR 7,0,0`, can't leave the session's border black); otherwise, text-mode changes (eg, WIDTH 40) persist, as in Microsoft BASIC.
+When a BAS program that used a graphics mode ends, BASIC-DOS restores the video mode it started with (even if the program returned to a text mode first), along with the colors the console had then (so a program's COLOR, like `COLOR 7,0,0`, can't leave the console's border black); otherwise, text-mode changes (eg, WIDTH 40) persist, as in Microsoft BASIC.
 
 On a machine with too little memory for all of COMMAND.COM (eg, 64K), the graphics, mouse, and sound statements are not available (see [Low Memory](#low-memory)).
 
@@ -191,7 +191,8 @@ On a machine with too little memory for all of COMMAND.COM (eg, 64K), BASIC-DOS 
 - The graphics commands: CIRCLE, DRAW, PAINT, PRESET, PSET, VIEW, WINDOW, and the graphics forms of GET, LINE, and PUT, and the PMAP and POINT functions
 - The MOUSE command and function
 - The sound commands: PLAY and SOUND
-- PRINTF, LPRINT, LLIST, the LPOS function, the MID$ statement, KEY *n*,*string*, and WIDTH *device*,*width*
+- PRINTF, LPRINT, LLIST, the LPOS function, the MID$ statement, and KEY *n*,*string*
+- Less common statements (DEF SEG, POKE, RANDOMIZE, SCREEN, SWAP, and WIDTH) and functions (CSRLIN, DATE$, FRE, HEX$, INKEY$, LCASE$, OCT$, PEEK, POS, RND, RND%, SCREEN, SGN, TAB, TIME$, and UCASE$)
 - The program editing commands AUTO, DELETE, and EDIT (lines can still be entered and deleted by number)
 - The file statements (OPEN, CLOSE, FIELD, GET, PUT, LSET, RSET, IOCTL, and the # forms of INPUT, LINE INPUT, PRINT, and WRITE) and file functions (CVD, CVI, CVL, EOF, INPUT$, IOCTL$, LOC, LOF, MKD$, MKI$, and MKL$)
 - The DOS statement and function

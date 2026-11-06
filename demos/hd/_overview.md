@@ -1,4 +1,4 @@
-These machines have no diskettes loaded; instead, they boot BASIC-DOS from a 10Mb hard disk (drive C:) and run one full-screen 80x25 session.
+These machines have no diskettes loaded; instead, they boot BASIC-DOS from a 10Mb hard disk (drive C:) and run one full-screen 80x25 console.
 
 The hard disk has the system files and CONFIG.SYS in the root directory, along with these subdirectories:
 
