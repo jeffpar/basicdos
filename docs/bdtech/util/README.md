@@ -65,7 +65,7 @@ Device drivers can also call DOS_UTL_WAIT, DOS_UTL_ENDWAIT, DOS_UTL_HOTKEY, DOS_
 | 25h | [DOS_UTL_EDITLN](#console) | Reads an edited line of console input |
 | 26h | [DOS_UTL_SOUND](#sound) | Plays a sound for a number of clock ticks |
 | 27h | [DOS_UTL_ALIAS](#memory) | Returns a code segment for a memory block, or the reverse |
-| 28h | [DOS_UTL_MAPSEG](#memory) | Returns a selector for a real-mode segment |
+| 28h | [DOS_UTL_MAPSEG](#memory) | Returns a selector for a real-mode segment, or a word below 1Mb |
 
 ### Strings
 
@@ -181,7 +181,7 @@ Free memory is also useful for data that can be recreated if it's overwritten.  
 
 **DOS_UTL_ALIAS (27h)**: AL = 0, BX = segment (or selector) of a memory block.  Returns AX = a code segment (or selector) for the same memory, so that a program can run code that it writes into the block (eg, COMMAND.COM's compiled BASIC code).  In real mode, it's the block's own segment; in protected mode, it's the block's code alias (see CPU_ALIAS), which CPU$ creates the first time it's requested and frees with the block, so it's no longer valid once the block is freed.  Carry is set if there's no selector for it (AX = error code).  With AL = 1, BX = a block's code alias (eg, a program's CS), and it returns the block's own segment (or selector, with the alias's RPL) in AX, so that a program can change code that it runs through the alias (eg, DEBUG.COM storing a breakpoint at ring 3, where code selectors aren't writable); in real mode, it's BX itself.  Carry is set if BX isn't the start of a block (AX = error code).
 
-**DOS_UTL_MAPSEG (28h)**: BX = real-mode segment.  Returns AX = a segment (or selector) for that segment's 64K, for programs that read and write memory by segment (eg, BASIC's DEF SEG, PEEK, and POKE).  In real mode, it's the segment itself.  In protected mode, it's a selector that the session keeps until its next DOS_UTL_MAPSEG call (which frees it, and like DOS_MEM_FREE, returns 0 in ES or DS if either held it): writable for video memory (segments A000h through BFFFh), and read-only everywhere else, so that a program can read low memory (eg, the BIOS data area) and the ROMs, but not change them.  Carry is set if there's no selector for it (AX = error code).
+**DOS_UTL_MAPSEG (28h)**: AL = 0, BX = real-mode segment.  Returns AX = a segment (or selector) for that segment's 64K, for programs that read and write memory by segment (eg, BASIC's DEF SEG, PEEK, and POKE).  In real mode, it's the segment itself.  In protected mode, it's a selector that the session keeps until its next DOS_UTL_MAPSEG call (which frees it, and like DOS_MEM_FREE, returns 0 in ES or DS if either held it): writable for video memory (segments A000h through BFFFh), and read-only everywhere else, so that a program can read low memory (eg, the BIOS data area) and the ROMs, but not change them.  Carry is set if there's no selector for it (AX = error code).  With AL = 1 (in protected mode only), BX:SI = a physical address below 1Mb, and it returns the word there in AX, without using or replacing the session's selector, which may belong to another program in the session (eg, for its parent's DEF SEG); a debugger uses this to read memory that its own selectors can't reach.  Carry is set if the address isn't below 1Mb (AX = error code).
 
 ### Programs
 

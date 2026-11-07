@@ -90,7 +90,9 @@ CPU_MAXFUNC	equ	12h
 ; ADDR_SEL is set, in which case its segment is a protected-mode selector
 ; (which only the 80286 driver accepts), in either mode, or ADDR_PHYS is set,
 ; in which case it's a physical address (the "segment" holds bits 16-31, and
-; with the 8086 driver, it must be below 1Mb):
+; with the 8086 driver, it must be below 1Mb), or (in protected mode, with the
+; 80286 driver) ADDR_LDT is set, in which case the "segment" is a session #,
+; and the segment is that session's LDT, whose limit is FFFFh if it's empty:
 ;
 ;	CPU_SEGINFO returns the segment's base address in DX:CX and its limit
 ;	in AX (FFFFh for a real-mode segment), or with ADDR_RIGHTS, a
@@ -143,6 +145,7 @@ ADDR_SEL	equ	01h	; the segment is a selector
 ADDR_WRITE	equ	02h	; CPU_RWMEM: copy from ES:DI to BX:SI
 ADDR_PHYS	equ	04h	; the "segment" is bits 16-31 of an address
 ADDR_RIGHTS	equ	08h	; CPU_SEGINFO: AX = access rights, not limit
+ADDR_LDT	equ	10h	; the "segment" is a session #, for its LDT
 
 ;
 ; In protected mode, a PSP's CALL 5 (a far call to PSP_FCSEG:PSP_SIZE) can't

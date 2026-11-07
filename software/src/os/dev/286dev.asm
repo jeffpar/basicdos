@@ -709,6 +709,8 @@ ENDPROC	ddcpu_setlim
 ;	AX, CX, DX, SI
 ;
 DEFPROC	ddcpu_seginfo
+	test	al,ADDR_LDT		; a session's LDT?
+	jnz	sg4			; yes
 	test	al,ADDR_SEL		; a selector?
 	jnz	sg1			; yes
 	push	ax
@@ -746,6 +748,16 @@ sg3:	test	ds:[si].DESC_ACC,ACC_PRESENT
 	jz	sg9
 	mov	ax,word ptr ds:[si].DESC_ACC
 sg9:	ret
+sg4:	cmp	bx,LDT_SESSIONS		; a valid session #?
+	jae	sg8			; no
+	add	bx,bx			; BX = session # * 2
+	mov	cx,ds:[SYS_VARS+SV_LDTS+bx]	; CX = the LDT's offset
+	mov	ax,ds:[SYS_VARS+SV_LDTTOP+bx]	; AX = where it ends
+	sub	ax,cx			; AX = its length (and carry is clear)
+	dec	ax			; AX = its limit
+	mov	dl,ds:[SYS_GDT + SEL_LDTD].DESC_BASE16
+	mov	dh,0			; DX:CX = its base
+	ret
 sg8:	jmp	cpu_inval
 ENDPROC	ddcpu_seginfo
 

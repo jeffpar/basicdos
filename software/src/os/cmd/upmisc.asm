@@ -599,7 +599,7 @@ DEFPROC	defSeg,FAR
 	push	cx
 	call	chkWord
 	xchg	bx,ax			; BX = segment
-	DOSUTIL	MAPSEG			; AX = its selector (or segment)
+	DOSUTIL	MAPSEG,0		; AX = its selector (or segment)
 	jnc	dfs1
 	mov	al,7			; "Out of memory"
 	jmp	rtError

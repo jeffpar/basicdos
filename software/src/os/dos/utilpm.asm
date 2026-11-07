@@ -109,17 +109,38 @@ ENDPROC	utl_alias
 ; programs can read low memory (eg, the BIOS data area) and the ROMs, but not
 ; change them.
 ;
+; With REG_AL = 1, it returns a word from physical memory instead, and neither
+; uses nor replaces the session's selector, for a program that must not disturb
+; the selector of another program in its session (eg, DEBUG.COM at ring 3).
+;
 ; Inputs:
-;	REG_BX = real-mode segment
+;	REG_AL = 0, REG_BX = real-mode segment
+;	REG_AL = 1, REG_BX:REG_SI = physical address (below 1Mb)
 ;
 ; Outputs:
-;	Carry clear if successful: REG_AX = selector (or segment)
+;	Carry clear if successful: REG_AX = selector (or segment), or the word
 ;	Carry set if error: REG_AX = error code
 ;
 DEFPROC	utl_mapseg,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
 	mov	bx,[bp].REG_BX		; BX = segment
+	cmp	byte ptr [bp].REG_AL,1	; read a word instead?
+	jne	ums0			; no
+	mov	ax,ERR_BADADDR
+	cmp	bx,10h			; below 1Mb, as a selector would be?
+	cmc
+	jc	ums8			; no
+	mov	si,[bp].REG_SI		; BX:SI = physical address
+	push	ss
+	pop	es
+	lea	di,[bp].REG_AX		; ES:DI -> caller's AX
+	mov	cx,2
+	mov	ax,(CPU_RWMEM SHL 8) OR ADDR_PHYS
+	call	far ptr DDINT_CPU
+	jc	ums8
+	ret
+ums0:
 	mov	ax,bx
 	mov	cl,4
 	shl	ax,cl

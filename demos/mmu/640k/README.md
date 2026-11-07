@@ -14,7 +14,7 @@ machines:
 
 The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of conventional memory, no extended memory, a Color Display, a 1.2Mb and a 1.44Mb diskette drive, and a 10Mb hard disk.  It boots the BASIC-DOS Protected Mode diskette, which runs the same three consoles as the [2Mb Protected Mode](../) demo, each on its own page of video memory.  Use **SHIFT-TAB** to switch between them.
 
-Protected mode needs only 256K of conventional memory; any extended memory is a bonus.  See [Supported Machines](/docs/bdtech/mmu/#machines) and [The System Area](/docs/bdtech/mmu/#sysarea) for more details.
+Protected mode can run in as little as 256K of conventional memory; any additional conventional or extended memory is just a bonus.  See [Supported Machines](/docs/bdtech/mmu/#machines) and [The System Area](/docs/bdtech/mmu/#sysarea) for more details.
 
 {% include machine.html id="ibm5170" %}
 

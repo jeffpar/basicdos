@@ -69,7 +69,7 @@ On an 80286 or later, when protected mode is requested (see [CPU](../../../cfg/#
 
 ### Commands
 
-The L and Q commands exist only in program mode, and the commands marked "Not at ring 3" aren't available in program mode in [protected mode](#ring-3).  [?](#help) lists the commands that are available.
+The L and Q commands exist only in program mode, the commands marked "Driver" exist only in the driver, and the commands marked "Not at ring 3" aren't available in program mode in [protected mode](#ring-3).  [?](#help) lists the commands that are available.
 
 | Command | Description | Available |
 |---------|-------------|-----------|
@@ -77,8 +77,10 @@ The L and Q commands exist only in program mode, and the commands marked "Not at
 | [BL](#bl) | List breakpoints | Always |
 | [BP](#bp) | Set a breakpoint | Always |
 | [D, DB, DW](#d-db-and-dw) | Display memory as bytes or words | Always |
-| [DM](#dm) | Display the memory map | |
-| [DS](#ds) | Display a selector's descriptor | Not at ring 3 |
+| [DG](#dg) | Display the GDT, or a selector's descriptor | Driver, in protected mode |
+| [DI](#di) | Display the IDT | Driver, in protected mode |
+| [DL](#dl) | Display a session's LDT | Driver, in protected mode |
+| [DM](#dm) | Display the memory map | Always |
 | [E](#e) | Store bytes and strings in memory | Always |
 | [G](#g) | Resume, optionally to an address | Always |
 | [GT](#gt) | Pass on the exception that stopped the debugger | Not at ring 3 |
@@ -94,6 +96,7 @@ The L and Q commands exist only in program mode, and the commands marked "Not at
 | [VT](#vt) | Set traps | Not at ring 3 |
 | [?](#help) | List the commands | Always |
 | [CTRL-A](#ctrl-a) | Repeat the last command | Always |
+| [CTRL-C](#ctrl-c) | Stop a command's output | Driver |
 
 #### BC
 
@@ -132,13 +135,49 @@ DB displays memory as hex bytes, and DW as hex words; D uses the last format (in
 	-DW CS:100 L10
 	0E2F:0100 81BE AC00 203C FB74 093C F774 B44E CD0B  ....< t.<.t.N...
 
+#### DG
+
+> DG [*selector*]
+
+Displays the entries of the GDT that are in use (those that are present, other than the interrupt and trap gates of the IDT, which the GDT's limit also covers), each as its selector, a colon, and what its descriptor holds, as the PCjs Debugger's DS command does: its base and limit (or for a gate, its selector, offset, and parameter count), its type and what that means, the 80386 flags in its extended byte, and its DPL.  It then displays the number of entries in use, the number of entries, and the size of the table in bytes (all in hex).
+
+With a *selector*, which can be a register name (eg, `DG ES`), it displays just that entry, without the totals, whichever table it's in: an LDT selector is in the LDT of the session that was interrupted (use [DL](#dl) for another session's).  The entry's selector is displayed with its low 2 bits (the RPL) cleared.  An entry that isn't in use, or isn't in the table, displays `?`.  DG exists only in the driver, and only in protected mode.
+
+	-DG 60
+	0060: seg=0058 off=00C0 cnt=00 type=04 (call gate) ext=0000 dpl=03
+
+#### DI
+
+> DI [*vector*]
+
+Displays the entries of the IDT that are in use, or just the one for *vector*, as [DG](#dg) does, with the vector in place of a selector.
+
+	-DI 21
+	0021: seg=0188 off=06D8 cnt=00 type=06 (int gate286) ext=0000 dpl=03
+
+#### DL
+
+> DL [*session* [*selector*]]
+
+Without arguments, lists each session with a program: its number, its console, and its program, with `*` beside the session that was interrupted, if it has any LDT entries.  These are the same session numbers that [KILL](../../system/#kill) displays, starting at 1, but in hex, as all of DEBUG's numbers are (eg, 0A for KILL's session 10).  They're each 1 more than the session number in a [DM](#dm) owner (eg, 8000 for the first session's COMMAND.COM).
+
+Otherwise, displays the entries of a session's LDT that are in use, or just the one for *selector*, as [DG](#dg) does (*session* is in hex).  An LDT holds only the selectors of the ring 3 programs in its session, so a session whose programs all run at ring 0 (with `RING=0`) has no entries.  A number from 1 to 20 (hex) that isn't in the list displays nothing, and any other number displays `?`.
+
+	-DL
+	 01 VKD$     COMMAND
+	*02 VKD$     COMMAND
+	-DL 1
+	0004: base=00100000 limit=B22F type=13 (data,writable,accessed) ext=0000 dpl=03
+	000C: base=00100000 limit=B22F type=1B (code,readable,accessed) ext=0000 dpl=03
+	0002 of 0020 entries in use, 0100 bytes
+
 #### DM
 
 > DM
 
-Displays memory in address order, as the CPU$ driver describes it: each block's address, length (in bytes), and owner (a PSP, or in protected mode, a ring 3 program's session number plus 80h, then its program number; eg, 8000 for session 0's COMMAND.COM), and its name (eg, COMMAND, DEBUG, or DEBUG$) or type (eg, FREE, SYS, RSVD for video memory and ROMs, CPU$ for the CPU$ system area in extended memory, one of COMMAND's VAR, STR, TEXT, or CODE blocks, ENV for the environment COMMAND builds for programs, or DATA for any other memory a program allocated).  The system's memory is shown as a row for each driver in it (eg, CPU$, VKD$, or FDC$, from the driver chain), DOS for the memory DOS is in, and SYS for the rest, including, on an 8088 (or with [CPU](../../../cfg/#cpu)=8088), the memory below the blocks (the interrupt vectors, the BIOS data, and BASIC-DOS's low memory).  A driver loaded by a DEVICE line owns its block, which is named after its device (eg, DEBUG$) once the driver has been initialized; until then (eg, at a `/H` stop), the block is still SYS.
+Displays memory in address order, as the CPU$ driver describes it: each block's address, length (in bytes), and owner (a PSP, or in protected mode, a ring 3 program's session number plus 80h, then its program number; eg, 8000 for session 0's COMMAND.COM), and its name (eg, COMMAND, DEBUG, or DEBUG$) or type (eg, FREE, SYS, RSVD for video memory and ROMs, CPU$ for the CPU$ system area at the top of conventional memory, one of COMMAND's VAR, STR, TEXT, or CODE blocks (CODE also being the copy of itself that DEBUG runs at ring 3), ENV for the environment COMMAND builds for programs, or DATA for any other memory a program allocated).  The system's memory is shown as a row for each driver in it (eg, CPU$, VKD$, or FDC$, from the driver chain), DOS for the memory DOS is in, and SYS for the rest, including, on an 8088 (or with [CPU](../../../cfg/#cpu)=8088), the memory below the blocks (the interrupt vectors, the BIOS data, and BASIC-DOS's low memory).  A driver loaded by a DEVICE line owns its block, which is named after its device (eg, DEBUG$) once the driver has been initialized; until then (eg, at a `/H` stop), the block is still SYS.
 
-As a program at [ring 3](#ring-3), DEBUG gets the blocks from DOS, and since it can't read the driver chain, each of the system's blocks is a `<SYS>` row, rather than a row for each driver in it.
+As a program at [ring 3](#ring-3), DEBUG gets the blocks from DOS, and reads the driver chain by address, so it displays the same rows.
 
 	-DM
 	Addr   Length Own  Name
@@ -157,15 +196,6 @@ As a program at [ring 3](#ring-3), DEBUG gets the blocks from DOS, and since it 
 	00AFB0 003330 0AFB DEBUG
 	00E2F0 091C50 0000 <FREE>
 	09FF50 0000B0 09F1 <ENV>
-
-#### DS
-
-> DS *selector*
-
-Displays a selector's descriptor, as the PCjs Debugger's DS command does: its base and limit (or for a gate, its selector and offset), its type and what that means, the 80386 flags in its extended byte, and its DPL.  In real mode (or on an 8088), a segment has only a base and limit.
-
-	-DS CS
-	base=00CEC0 limit=2A2F type=1B (code,readable,accessed) ext=0000 dpl=00
 
 #### E
 
@@ -309,6 +339,10 @@ Lists the commands that are available.
 
 At an empty prompt, CTRL-A displays the last command and performs it again, so pressing CTRL-A repeatedly repeats a command (eg, T or P).
 
+#### CTRL-C
+
+In the driver, CTRL-C (or a BREAK) while a command is displaying something stops the command and returns to the prompt (eg, a long D, U, or [DI](#di), or a T or P with steps remaining), even if the terminal has paused the output with XOFF.  Anything else typed since the command started is discarded.  While the system is running, CTRL-C stops it and displays the prompt, as usual.
+
 ### Exceptions and Faults
 
 An exception (eg, a divide error, or in protected mode, a general protection fault) is passed on to DOS, which ends the program (as it would without the debugger), unless VT traps its vector.  After a trapped exception, GT passes it on, since resuming would only run the instruction again (eg, a DIV, on an 80286 or later; an 8086 or 8088 reports the instruction after the DIV instead), while T, P, and G resume at CS:IP (eg, after changing IP with R).
@@ -353,7 +387,7 @@ Interrupts are disabled while a report is sent, so a slow terminal can make the 
 
 ### Ring 3 {#ring-3}
 
-In protected mode, DEBUG.COM run from the prompt runs at ring 3, as other programs do (unless CONFIG.SYS has [RING](../../../cfg/#ring)=0), and so does the program it loads, so it can't use the CPU$ driver, and it has fewer commands than the driver: it can read and write only memory that a ring 3 program can (eg, the program's own memory, including its code, but not DOS's, the drivers', or the BIOS data area), R displays the registers as it does in real mode (with no system registers, or segment bases and limits), DM shows the system's memory without its drivers, and there's no DS, GT, LN, VC, VL, or VT, and no `&`, `#`, or `%` addresses.  T steps over an INT instruction, as P does, since the INT's handler runs at ring 0.  The driver has none of these limits, and can debug ring 3 programs, too.
+In protected mode, DEBUG.COM run from the prompt runs at ring 3, as other programs do (unless CONFIG.SYS has [RING](../../../cfg/#ring)=0), and so does the program it loads, so it can't use the CPU$ driver, and it has fewer commands than the driver: it can write only memory that a ring 3 program can (eg, the program's own memory, including its code, but not DOS's, the drivers', or the BIOS data area), though it can also read any selector in the GDT whose memory is below 1Mb (eg, `D 40:0`), R displays the registers as it does in real mode (with no system registers, or segment bases and limits), and there's no GT, LN, VC, VL, or VT, and no `&`, `#`, or `%` addresses.  T steps over an INT instruction, as P does, since the INT's handler runs at ring 0.  The driver has none of these limits, and can debug ring 3 programs, too.
 
 Source: [dbgdev.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/dd/dbg/dbgdev.asm), [dbgvec.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/dd/dbg/dbgvec.asm), [dbgdis.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/dd/dbg/dbgdis.asm), and [dbginit.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/dd/dbg/dbginit.asm)
 

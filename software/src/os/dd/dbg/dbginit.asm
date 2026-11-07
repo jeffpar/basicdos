@@ -32,11 +32,11 @@ CODE	segment word public 'CODE'
 	EXTNEAR	<chk_over,end_command,parse_addr,parse_hex,poke_b>
 	EXTNEAR	<get_char,gl1,hex_digit,mon3a,mon4,mon4a,mon_sp,newline>
 	EXTNEAR	<put_char,put_raw,put_string>
-	EXTNEAR	<dc_0f,md1,md8>
+	EXTNEAR	<dc_0f>
 	EXTBYTE	<CMD_LN,CMD_Q,CMD_VEC,HELP_MSG,OPTAB,bp_tab,com_flow,command>
 	EXTBYTE	<HELP_END,brk_skip,mute,notstart,tracing>
 	EXTWORD	<VEC_DRV,dump_seg,start_hook>
-	EXTWORD	<com_port,dos_seg,mem_seg,vec_save>
+	EXTWORD	<com_port,dos_seg,dos_vars,mem_seg,vec_save>
 	EXTLONG	<old_com,old_fault>
 	EXTABS	<BP_SET,BP_GO>
 
@@ -335,8 +335,9 @@ ENDPROC	set_jmp
 DEFPROC	set_dos
 	push	es
 	mov	ah,DOS_MSC_GETVARS
-	int	21h			; ES = DOS's segment (or selector)
+	int	21h			; ES:BX -> DOS's variables
 	mov	[dos_seg],es
+	mov	[dos_vars],bx
 	pop	es
 ENDPROC	set_dos				; fall into set_cpu
 
@@ -513,8 +514,8 @@ ENDPROC	swap_vecs
 ; lists our commands with the monitor's (see com_help).  At ring 3 (see
 ; com_sels), we change some JMPs (see COM_JMPS): CPU$ calls go to r3_cpu, T
 ; steps over an INT n (see ct1v), and we don't disable interrupts (which ring
-; 3 can't); DS, GT, LN, VC, VL, and VT are invalid, as ? shows, and DM can't
-; show the drivers.
+; 3 can't); and GT, LN, VC, VL, and VT are invalid, as ? shows.  DG, DI, and
+; DL are invalid in program mode in any ring (see dump_tbl).
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	com_main,far
@@ -1050,13 +1051,14 @@ ch1:	cmp	si,offset HELP_END	; the last line?
 	call	ch_line
 	xchg	bx,si
 	jmp	ch1
-ch2:	cmp	[com_r3],0		; at ring 3?
-	je	ch3			; no, so display the line
-	mov	ax,[si]			; AX = the line's first two characters
+ch2:	mov	ax,[si]			; AX = the line's first two characters
 	push	di
 	mov	di,offset R3_NOHELP
-	mov	cx,R3_NNOHELP
-	repne	scasw			; one we don't support at ring 3?
+	mov	cx,COM_NNOHELP
+	cmp	[com_r3],0		; at ring 3?
+	je	ch2a			; no
+	mov	cl,R3_NNOHELP
+ch2a:	repne	scasw			; one we don't support?
 	pop	di
 	jne	ch3			; no, so display it
 	inc	[mute]			; yes, so skip it
@@ -1131,7 +1133,7 @@ csl1:	mov	bx,cs
 csl2:	mov	bx,sp
 	mov	cl,4
 	shr	bx,cl			; BX = paras (up to our stack)
-	mov	ah,DOS_MEM_ALLOC
+	mov	ax,(DOS_MEM_ALLOC SHL 8) OR MCBTYPE_CBLK
 	int	21h			; AX = the block's selector
 	jc	csl9
 	mov	es,ax
@@ -1174,10 +1176,11 @@ ENDPROC	com_free
 ;
 ; At ring 3, CPU$ calls come here (see cpu_call), since ring 3 code can't call
 ; CPU$: CPU_RWMEM accesses the memory itself (see r3_rwmem), CPU_QUERY asks DOS
-; for the block (see DOS_UTL_QRYMEM), and CPU_SEGINFO returns a selector (with
-; RPL 3) in place of its base, so that at_ip can still compare addresses;
-; anything else fails (eg, CPU_SYSREGS, so that the monitor works as it does
-; with the 8086 CPU$).
+; for the block (see DOS_UTL_QRYMEM), and CPU_SEGINFO returns a GDT selector's
+; base (see r3_base), or an LDT selector (with RPL 3) in place of its base, so
+; that at_ip can still compare addresses; anything else fails (eg, CPU_SYSREGS,
+; so that the monitor works as it does with the 8086 CPU$).  DM's first
+; CPU_QUERY also finds DOS's selector (see r3_dos), for md_sys.
 ;
 ; Inputs and outputs:
 ;	The same as CPU$'s (but a failure leaves AX unchanged)
@@ -1188,7 +1191,10 @@ DEFPROC	r3_cpu
 	je	r3_rwmem
 	cmp	ah,CPU_QUERY
 	jne	rc1
-	mov	cx,bx			; CX = PMB #
+	test	bx,bx			; the first block?
+	jnz	rc0			; no
+	call	r3_dos
+rc0:	mov	cx,bx			; CX = PMB #
 	mov	dl,4			; DL = 4 (copy its PMB to ES:DI)
 	DOSUTIL	QRYMEM
 	ret
@@ -1199,7 +1205,14 @@ rc1:	cmp	ah,CPU_SEGINFO
 	mov	dx,bx
 	or	dl,3
 	sub	cx,cx			; DX:CX = the selector, as an address
-	ret
+	test	bl,4			; an LDT selector (and carry clear)?
+	jnz	rc9			; yes
+	push	bx
+	push	si
+	call	r3_base			; DX:CX = its base
+	pop	si
+	pop	bx
+rc9:	ret
 rc8:	stc
 	ret
 ENDPROC	r3_cpu
@@ -1209,8 +1222,10 @@ ENDPROC	r3_cpu
 ; to BX:SI), if LSL, VERR, and VERW say that the selector allows it (so that
 ; we don't fault).  A code selector isn't writable, so if it's the code alias
 ; of a block (eg, a COM program's CS, or an NE program's code segment, for a
-; breakpoint or an E), we write through the block's own selector instead.  It
-; preserves only DS (mem_io, the only caller, saves the rest).
+; breakpoint or an E), we write through the block's own selector instead.  A
+; selector that LSL rejects may still be readable, by address (see r3_base),
+; which stores a word, as mem_val has room for.  It preserves only DS (mem_io,
+; the only caller, saves the rest).
 ;
 DEFPROC	r3_rwmem
 	push	ds
@@ -1220,7 +1235,7 @@ DEFPROC	r3_rwmem
 	jc	rw8			; (it wraps)
 	push	ax
 	lsl	ax,bx			; AX = the segment's limit
-	jnz	rw7			; (there's no such segment)
+	jnz	rw5			; (it's not one that we can use)
 	cmp	dx,ax			; is the last byte within it?
 	pop	ax
 	ja	rw8			; no
@@ -1244,11 +1259,117 @@ rw3:	push	es
 rw4:	rep	movsb
 	clc
 	jmp	short rw9
-rw7:	pop	ax
+rw5:	pop	ax
+	test	al,ADDR_WRITE		; a write?
+	jnz	rw8			; yes (we can only read by address)
+	push	si
+	push	dx
+	call	r3_base			; DX:CX = base, AX = limit
+	pop	bx			; BX = offset of the last byte
+	pop	si
+	jc	rw8
+	cmp	ax,bx			; is it within the limit?
+	jb	rw8			; no
+	add	cx,si
+	adc	dx,0			; DX:CX = address of the bytes
+	call	r3_peek			; AX = the word there
+	jc	rw8
+	stosw				; (and carry is clear)
+	jmp	short rw9
 rw8:	stc
 rw9:	pop	ds
 	ret
 ENDPROC	r3_rwmem
+
+;
+; r3_dos records the selector in the INT 20h gate as DOS's (DOS_MSC_GETVARS's
+; ES doesn't survive the return to ring 3).  SIDT and SGDT aren't privileged.
+;
+DEFPROC	r3_dos
+	push	bx
+	sub	sp,6
+	mov	si,sp
+	sidt	qword ptr ss:[si]
+	pop	ax
+	pop	cx
+	pop	dx
+	mov	dh,0			; DX:CX = the IDT's base
+	add	cx,INT_DOSTERM * 8 + 2
+	adc	dl,0			; DX:CX -> the gate's selector
+	call	r3_peek			; AX = the selector
+	jc	rds8
+	mov	[dos_seg],ax
+rds8:	pop	bx
+	ret
+ENDPROC	r3_dos
+
+;
+; r3_base reads the descriptor of a GDT selector.  Ring 3 can't use one that
+; isn't DPL 3 (eg, the BIOS data selector or a driver's), but its base and
+; limit are in the GDT, which is below 1Mb, in memory that we can read (see
+; r3_peek), and which doesn't cross a 64K boundary.
+;
+; Inputs:
+;	BX = selector
+;
+; Outputs:
+;	Carry clear if valid: DX:CX = base, AX = limit
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+DEFPROC	r3_base
+	test	bl,4			; is it in the LDT?
+	jnz	rb8			; yes
+	sub	sp,6
+	mov	si,sp
+	sgdt	qword ptr ss:[si]
+	pop	ax			; AX = the GDT's limit
+	pop	cx
+	pop	dx
+	mov	dh,0			; DX:CX = its base
+	and	bl,NOT 7
+	cmp	ax,bx			; is the selector within the limit?
+	jb	rb9			; no (and carry is set)
+	add	cx,bx
+	adc	dl,0			; DX:CX -> descriptor
+	call	r3_peek			; AX = its limit
+	push	ax
+	call	r3_peek			; AX = its base (bits 0-15)
+	push	ax
+	call	r3_peek			; AL = base (bits 16-23), AH = access
+	pop	cx			; CX = base (bits 0-15)
+	pop	bx			; BX = limit
+	test	ah,ah			; is it present (the top bit)?
+	jns	rb8			; no
+	mov	dl,al
+	mov	dh,0			; DX:CX = base
+	xchg	ax,bx			; AX = limit (and carry is clear)
+	ret
+rb8:	stc
+rb9:	ret
+ENDPROC	r3_base
+
+;
+; r3_peek returns the word at physical address DX:CX, below 1Mb, and advances
+; CX past it.  It doesn't use DOS_UTL_MAPSEG's selector, because a session has
+; only one, and replacing it would free one that our parent may still be using
+; (eg, for a BASIC program's DEF SEG).
+;
+; Outputs:
+;	Carry clear if successful: AX = word
+;
+; Modifies:
+;	AX, BX, CX, SI
+;
+DEFPROC	r3_peek
+	mov	bx,dx
+	mov	si,cx
+	DOSUTIL	MAPSEG,1
+	inc	cx
+	inc	cx			; (which leaves carry alone)
+	ret
+ENDPROC	r3_peek
 	.8086
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1348,24 +1469,25 @@ ENDPROC	dos_get
 	DEFWORD	com_sp,0		; com_main's entry SP (see com_l)
 ;
 ; Program mode's own commands, in order, for com_help (0FFh comes after any
-; other line), and the commands that need CPU$, which com_help skips at ring 3
-; (each as two characters).
+; other line), and the commands that it skips (each as two characters): the
+; driver's, and at ring 3, those that need CPU$.
 ;
 	DEFLBL	com_lines,byte
 	db	"L file [args]",9,"load program",13,10
 	db	"L drv: s n addr",9,"load sectors",13,10
 	db	"Q",9,9,"quit",13,10,0FFh
 	DEFLBL	R3_NOHELP,byte
-	db	"DSGTLNVCVLVT"
-R3_NNOHELP	equ	6
+	db	"DGDIDLGTLNVCVLVT"
+COM_NNOHELP	equ	3
+R3_NNOHELP	equ	8
 ;
 ; The instructions that com_main makes JMPs (see set_jmp), each paired with
 ; its new target: COM_NJMPS of them in any mode, and R3_NJMPS more at ring 3.
 ;
 	DEFWORD	COM_JMPS,<put_raw,dos_put,get_char,dos_get,cmd_help,com_help>
-	dw	cpu_call,r3_cpu,ct1v,ct2a,cg1,r3_go,cm5c,dbg_brk,md1,md8
+	dw	cpu_call,r3_cpu,ct1v,ct2a,cg1,r3_go,cm5c,dbg_brk
 COM_NJMPS	equ	3
-R3_NJMPS	equ	5
+R3_NJMPS	equ	4
 ;
 ; The EPB for DOS_PSP_EXEC1 (we define DOSHEAP, not DOSPSP, so this is laid
 ; out by hand, and CMD_TAIL is PSP_CMDTAIL).

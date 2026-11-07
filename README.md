@@ -14,7 +14,7 @@ Read the [Blog](blog/), check out the [Preview](preview/), see a few of the orig
 
 The current BASIC-DOS release diskette is a bootable 360K diskette with BASIC-DOS, a "basic" set of utilities, a collection of BASIC samples (all from PC DOS 1.00), and a few demo programs.  See it running on the [BASIC-DOS Release](download/) page, or download [BASICDOS-360K](software/disks/BASICDOS-360K.img), a diskette image that most PC emulators can boot, or which can be written to a genuine 360K diskette.
 
-When we say that BASIC-DOS comes with a "basic" set of utilities, we mean that both figuratively and literally, because while some are written in assembly language, most are in fact written in BASIC, including [CHKDSK](docs/bdman/cmd/external/chkdsk/), [FORMAT](docs/bdman/cmd/external/format/), [MODE](docs/bdman/cmd/external/mode/), and more.  BASIC-DOS takes its commitment to BASIC integration, performance, and ease-of-use very seriously.
+When we say that BASIC-DOS comes with a "basic" set of utilities, we mean that both figuratively and literally, because while some are written in assembly language, many are in fact written in BASIC, including [CHKDSK](docs/bdman/cmd/external/chkdsk/), [FORMAT](docs/bdman/cmd/external/format/), [MODE](docs/bdman/cmd/external/mode/), and more.  BASIC-DOS takes its commitment to BASIC integration, performance, and ease-of-use very seriously.
 
 ## Project Status
 
@@ -67,7 +67,7 @@ On an 80286 or later with sufficient memory (256K or more), BASIC-DOS can run in
 - [x] The NE loader stub (`mkne.js --stub`) replaces an NE program's MZ stub, so its one NE image also runs in real mode, without a second copy of the program: on BASIC-DOS, and if the program uses only DOS functions, on PC DOS 2.00 and MS-DOS 3.20
 - [x] BASIC-DOS can build itself with these tools, in real mode or at ring 3 in protected mode, with the same binaries as an MS-DOS build
 - [x] Exceptions: a fault in a program's own code ends that program with `CPU fault nn (EC=nnnn) at nnnn:nnnn` (ERRORLEVEL 255), as a divide error does; anywhere else, CPU$ prints the same line and `System halted`, and stops the machine, unless DEBUG.COM is loaded as a driver and takes over (see [Faults](docs/bdtech/mmu/#faults))
-- [x] DEBUG.COM as a driver can stop and resume ring 3 programs with all of its commands; as a program, it runs at ring 3 with fewer commands
+- [x] DEBUG.COM as a driver can stop and resume ring 3 programs with all of its commands, and can display the GDT, the IDT, and any session's LDT (DG, DI, and DL); as a program, it runs at ring 3 with fewer commands
 - [ ] Ring 3 for the programs that still need `RING=0`: those that hook an interrupt issued by ring 0 code (eg, INT 1Ch or INT 13h), call CPU$ (eg, CPUTESTS), or use IN, OUT, CLI, or STI
 - [ ] MZ EXE files in protected mode, which fail with "Unable to load" (currently NOT under consideration for inclusion in BASIC-DOS, since NE programs take their place; see [Limitations](docs/bdtech/mmu/#limits))
 - [ ] 80386 features: virtual-8086 mode, paging, and 32-bit segments

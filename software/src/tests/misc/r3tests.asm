@@ -22,6 +22,7 @@
 	DOSFUNC equ 1
 	include	macros.inc
 	include	8086.inc
+	include	bios.inc
 	include	devapi.inc
 	include	dosapi.inc
 
@@ -123,7 +124,7 @@ ta:	sub	ax,ax
 	int	21h
 	jmp	failif
 tb:	sub	bx,bx
-	DOSUTIL	MAPSEG
+	DOSUTIL	MAPSEG,0
 	mov	es,ax
 	mov	ah,DOS_MEM_FREE
 	int	21h
@@ -516,13 +517,32 @@ tzk:	mov	bx,1
 	cmp	es:[0],dx		; is the block's start still intact?
 	jne	tzj9
 	jmp	ok
+;
+; DOS_UTL_MAPSEG with AL = 1 reads a word below 1Mb, and only below 1Mb,
+; without freeing the session's selector, which BASIC's DEF SEG may be using.
+; If it did free it, using ES again would fault.
+;
+tzl:	mov	bx,BIOS_DATA SHR 4
+	DOSUTIL	MAPSEG,0		; AX = the session's selector
+	jc	tzj9
+	mov	es,ax
+	sub	bx,bx
+	mov	si,BIOS_DATA		; BX:SI -> the same memory
+	DOSUTIL	MAPSEG,1		; AX = the word there
+	jc	tzj9
+	cmp	ax,es:[0]		; the same word (with ES still valid)?
+	jne	tzj9
+	mov	bx,10h
+	sub	si,si			; BX:SI = 1Mb
+	DOSUTIL	MAPSEG,1
+	jmp	failif
 
 tests	dw	ta,tb,tc,td,te,tf,tg,th,ti,tj,tk,tl,tm
 	dw	tn,to,tp,tq,tr,ts,tt,tu,tv,tw,tx,ty,tz,tza,tzb,tzc
-	dw	tzd,tze,tzf,tzg,tzh,tzi,tzj,tzk,0
+	dw	tzd,tze,tzf,tzg,tzh,tzi,tzj,tzk,tzl,0
 results	db	0,0,0,0,F,0,0,F,F,F,F,F,0
 	db	F,F,F,F,F,F,0,0,0,0,0,0,0,0,F,F
-	db	0,F,0,0,F,0,0,0
+	db	0,F,0,0,F,0,0,0,0
 
 progname db	"A:\TESTS\MISC\R3TESTS.COM",0
 tail	db	2," A",13

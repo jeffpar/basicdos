@@ -21,8 +21,9 @@
 ; be a 16-bit register name (eg, DB DS:DX).  In protected mode, where programs
 ; run at ring 3 (unless CONFIG.SYS has RING=0), the program and DEBUG both do,
 ; and DEBUG can't call CPU$, so it reaches memory only through selectors that
-; ring 3 can use, and it has no DM, DS, LN, & or # addresses, system
-; registers, or fault traps (see r3_cpu in dbginit.asm).
+; ring 3 can use (and reads other memory below 1Mb; see r3_base in dbginit.asm)
+; and it has no LN, & or # addresses, system registers, or fault traps (see
+; r3_cpu).  The driver also has DG, DI, and DL.
 ;
 ; Ctrl-C or a serial BREAK stops the machine as soon as it arrives (via the
 ; port's hardware interrupt), as do breakpoints, single-steps (T and P), and
@@ -77,11 +78,11 @@ CODE	segment para public 'CODE'
 
 	EXTNEAR	<com_main,com_quit,dbgdev_init>
 	EXTNEAR	<chk_over,dis_line>
-	EXTNEAR	<chk_trap,cmd_v,put_vec,rpt_vec>
+	EXTNEAR	<chk_sess,chk_trap,cmd_v,list_sess,put_vec,rpt_vec>
 	EXTBYTE	<DIV_MSG,FAULT_MSG,OVF_MSG>
 	EXTNEAR	<put_fmt>
 	public	gl1,mon3a,mon4,mon4a,ct1v,cg1	; (patched by dbginit.asm)
-	public	ct2a,md1,md8
+	public	ct2a
 
 ;
 ; When run as a program, execution begins at the DDH, so DDH_NEXT_OFF holds a
@@ -148,6 +149,7 @@ TRACE_OVER	equ	02h	; step over CALL, INT, LOOP, and REP (P)
 	DEFPTR	fault_ret		; CPU$'s return address for a fault
 	DEFPTR	old_com			; original COM interrupt handler
 	DEFWORD	com_port,0		; UART base port
+	DEFWORD	dos_vars,0		; DOS_MSC_GETVARS's BX (see set_dos)
 	DEFWORD	dos_seg,0		; DOS's segment (see hook_vecs)
 	DEFWORD	dump_off,0		; offset of the next D command
 	DEFWORD	dump_seg,0		; segment of the next D command
@@ -214,8 +216,10 @@ FLAG_MASK	equ	0ED5h	; OF, DF, IF, SF, ZF, AF, PF, and CF
 	db	"BP [n] addr",9,"set breakpoint",13,10
 	db	"DB [range]",9,"dump bytes",13,10
 	db	"DW [range]",9,"dump words",13,10
+	db	"DG [sel]",9,"dump GDT (or selector)",13,10
+	db	"DI [vec]",9,"dump IDT",13,10
+	db	"DL [n [sel]]",9,"dump LDT for session",13,10
 	db	"DM",9,9,"dump memory blocks",13,10
-	db	"DS sel",9,9,"dump selector",13,10
 	db	"E addr [list]",9,"edit memory",13,10
 	db	"G [addr]",9,"go (to address)",13,10
 	db	"GT",9,9,"go, passing on the trap",13,10
@@ -656,12 +660,7 @@ mon1b:	and	al,BP_STEP
 mon1a:	test	dl,dl			; is a T or P step done?
 	jz	mon2			; no
 	jmp	mon3			; yes
-mon2:	sub	ax,ax
-	mov	[trace_cnt],ax		; no more steps
-	mov	[trace_mode],al		; (and show_step shows the registers)
-	mov	al,[in_tail]		; discard any buffered input
-	mov	[in_head],al
-	mov	[paused],0
+mon2:	call	mon_reset
 ;
 ; A vector's message starts by naming it (see put_vec), and a fault (see
 ; dbg_fault) then gets the same message that CPU$ displays, including "System
@@ -767,6 +766,33 @@ mon8:	mov	al,'?'
 	call	newline
 	jmp	mon4
 ENDPROC	monitor
+
+;
+; cmd_stop abandons whatever the monitor is doing, for a Ctrl-C while it's
+; displaying something (see put_char), so we can't assume anything about the
+; stack, and go back to the prompt, as get_line does for a Ctrl-C; this also
+; ends a T or P with steps remaining.  Nothing that we can interrupt needs more
+; than that, because breakpoints aren't in memory while the monitor runs, and
+; any muted output (see put_name) wouldn't have come here; only ln_find can be
+; left set.
+;
+DEFPROC	cmd_stop
+	mov	sp,offset mon_stack_end
+	mov	[ln_find],0
+	call	mon_reset
+	call	newline
+	jmp	mon4
+ENDPROC	cmd_stop
+
+DEFPROC	mon_reset
+	sub	ax,ax
+	mov	[trace_cnt],ax		; no more steps
+	mov	[trace_mode],al		; (and show_step shows the registers)
+	mov	al,[in_tail]		; discard any buffered input
+	mov	[in_head],al
+	mov	[paused],0
+	ret
+ENDPROC	mon_reset
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1413,7 +1439,7 @@ ENDPROC	cmd_l
 ; below the first block (see ma_low), with each of the system's blocks shown
 ; as the drivers in it (see ma_drvs).  If CPU$ describes no blocks, DM is
 ; invalid.  At ring 3, where we can't call CPU$, r3_cpu gets the blocks from
-; DOS, but we can't read the driver chain, so ma_drvs skips it (see COM_JMPS).
+; DOS and reads the driver chain itself (see r3_base).
 ;
 DEFPROC	dump_blocks
 	call	end_command
@@ -2134,7 +2160,10 @@ pc1:	call	poll_rx
 	mov	al,IER_RBR_AVAIL OR IER_DELTA OR IER_THR_EMPTY
 	out	dx,al
 	jmp	short pc2
-pc1b:	push	bx
+pc1b:	cmp	al,CHR_CTRLC		; Ctrl-C (or BREAK)?
+	jne	pc1c			; no
+	jmp	cmd_stop		; yes, so stop the command
+pc1c:	push	bx
 	mov	bl,[in_tail]
 	mov	bh,0
 	mov	in_buf[bx],al
@@ -2948,12 +2977,16 @@ DEFPROC	dump_memory
 	inc	ah
 	cmp	al,'W'			; DW?
 	je	dm0			; yes
-	cmp	al,'S'			; DS?
-	jne	dm0b			; no
-	jmp	dump_sel
-dm0b:	cmp	al,'M'			; DM?
-	jne	dm0a			; no
+	cmp	al,'M'			; DM?
+	jne	dm0c			; no
 	jmp	dump_blocks
+dm0c:	cmp	al,'G'			; DG?
+	je	dm0d			; yes
+	cmp	al,'I'			; DI?
+	je	dm0d			; yes
+	cmp	al,'L'			; DL?
+	jne	dm0a			; no
+dm0d:	jmp	dump_tbl
 dm0a:	dec	si
 	mov	ah,[dump_size]		; no, so use the last format
 dm0:	push	ax
@@ -3076,43 +3109,24 @@ ENDPROC	dump_memory
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dump_sel
+; dsl_show
 ;
-; Parse DS selector (or a register name) and display what its descriptor
-; holds, as the PCjs Debugger's DS command does: its base and limit (or for a
-; gate, its selector and offset), its type and what that means, its extended
-; byte's 80386 flags, and its DPL (see CPU_SEGINFO).  In real mode (or with
-; the 8086 CPU$), a segment has only a base and a limit.
+; Displays what a descriptor holds (see dump_tbl), as the PCjs Debugger's DS
+; command does: its base and limit (or for a gate, its selector, offset, and
+; parameter count), its type and what that means, its extended byte's 80386
+; flags, and its DPL.
 ;
 ; Inputs:
-;	SI -> command text after DS
+;	DX:CX = base (or DL = count, CX = selector), AX = limit (or offset)
+;	BL = access rights, BH = extended byte
 ;
 ; Outputs:
-;	Carry clear if successful, set if invalid
+;	Carry clear
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI
 ;
-DEFPROC	dump_sel
-	call	parse_hex		; AX = selector (or segment)
-	jc	dsl0
-	push	ax
-	call	end_command
-	pop	bx			; BX = selector (or segment)
-	jc	dsl0
-	mov	al,[cpu_mode]
-	and	al,ADDR_SEL		; (a selector, in protected mode)
-	push	ax
-	or	al,ADDR_RIGHTS
-	mov	ah,CPU_SEGINFO
-	call	cpu_call		; AX = access rights (zero if none)
-	pop	si
-	jnc	dsl0a
-dsl0:	ret
-dsl0a:	xchg	si,ax			; SI = rights, AL = mode
-	mov	ah,CPU_SEGINFO
-	call	cpu_call		; DX:CX = base, AX = limit
-	mov	bx,si			; BL = access rights, BH = extended
+DEFPROC	dsl_show
 	push	ax			; save the limit (or offset)
 	mov	si,offset SELS_BASE	; "base=" and " limit="
 	test	bl,10h			; a code or data segment?
@@ -3123,16 +3137,19 @@ dsl0a:	xchg	si,ax			; SI = rights, AL = mode
 	call	put_string
 	jmp	short dsl2
 dsl1:	call	put_string
-	mov	al,dl
-	call	hex_byte		; (bits 16-23 of the base)
+	mov	ax,dx
+	call	hex_word		; (bits 16-31 of the base)
 dsl2:	xchg	ax,cx
 	call	hex_word
 	call	put_string		; " limit=" or " off="
 	pop	ax
 	call	hex_word
-	test	bx,bx			; a descriptor?
-	jz	dsl8			; no
-	mov	si,offset SELS_TYPE
+	cmp	si,offset SELS_GATE	; a gate?
+	je	dsl3			; no
+	call	put_string		; " cnt="
+	mov	al,dl
+	call	hex_byte
+dsl3:	mov	si,offset SELS_TYPE
 	call	put_string		; " type="
 	mov	al,bl
 	and	al,1Fh
@@ -3151,10 +3168,207 @@ dsl2:	xchg	ax,cx
 	shr	al,cl
 	and	al,3
 	call	hex_byte
-dsl8:	call	newline
+	call	newline
 	clc
 	ret
-ENDPROC	dump_sel
+ENDPROC	dsl_show
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dump_tbl
+;
+; Parse DG [selector], DI [vector], or DL [session [selector]], and display
+; the GDT, the IDT, or a session's LDT (DL alone lists the sessions instead;
+; see list_sess; and one with no program displays nothing), or just one of its
+; entries, as a line with the entry's selector (or vector) and then what
+; dsl_show displays; DG finds an LDT selector in the active LDT.  A table ends
+; with the number of entries in use, the number of entries, and its size in
+; bytes.  An entry is in use if it's present; and since the GDT's limit also
+; covers the IDT (see CPU$'s system area), not if it's an interrupt or trap
+; gate, which is valid only in an IDT.
+;
+; These are driver commands, in protected mode only, so program mode (where
+; CMD_Q is set) doesn't have them.
+;
+; Inputs:
+;	AL = command letter, SI -> command text after it
+;
+; Outputs:
+;	Carry clear if successful, set if invalid
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	dump_tbl
+	LOCVAR	dtType,byte		; (first, so the frame's size is even)
+	LOCVAR	dtBase,dword
+	LOCVAR	dtLen,word
+	LOCVAR	dtUsed,word
+	LOCVAR	dtW3,word		; the entry that we read (see dt_line)
+	LOCVAR	dtW2,word
+	LOCVAR	dtW1,word
+	LOCVAR	dtW0,word
+	cmp	[CMD_Q],0		; program mode?
+	jne	dt0			; yes
+	test	[cpu_mode],ADDR_SEL	; protected mode?
+	jnz	dt0a			; yes
+dt0:	stc
+	ret
+dt0a:	ENTER
+	mov	[dtType],al
+	mov	bx,offset sys_regs	; BX -> GDTR
+	cmp	al,'L'
+	je	dt2
+	cmp	al,'G'
+	je	dt1
+	add	bx,6			; BX -> IDTR
+dt1:	mov	ax,[bx]			; AX = limit
+	mov	cx,[bx+2]
+	mov	dl,[bx+4]
+	mov	dh,0			; DX:CX = base
+	jmp	short dt3
+dt2:	call	end_command		; is there a session #?
+	jc	dt2a			; yes
+	call	list_sess		; no, so list the sessions
+	jmp	short dt9
+dt2a:	call	parse_hex		; AX = session # (from 1, as in KILL)
+	jc	dt8
+	dec	ax			; (so zero isn't a valid session #)
+	xchg	bx,ax			; BX = session # (from 0, for CPU$)
+	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_LDT
+	call	cpu_call		; DX:CX = base, AX = limit
+	jc	dt8
+	call	chk_sess		; is that session in use?
+	jz	dt9			; no, so there's nothing to display
+dt3:	call	dt_set
+	mov	[dtUsed],0
+	call	end_command		; just one entry?
+	jnc	dt5			; no
+	call	parse_hex		; AX = selector or vector
+	jc	dt9
+	push	ax
+	call	end_command
+	pop	ax
+	jc	dt9
+	cmp	[dtType],'I'		; a vector?
+	jne	dt3a			; no
+	test	ah,ah			; does it fit in a byte?
+	jnz	dt8			; no
+	mov	cl,3
+	shl	ax,cl			; AX = its offset
+	jmp	short dt4
+dt3a:	cmp	[dtType],'G'		; DG?
+	jne	dt4			; no
+	test	al,4			; an LDT selector?
+	jz	dt4			; no
+	mov	[dtType],'L'		; yes, so use the active LDT
+	push	ax
+	mov	bx,sys_regs[14]		; BX = LDTR
+	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_SEL
+	call	cpu_call		; DX:CX = base, AX = limit
+	call	dt_set
+	pop	ax
+dt4:	and	al,NOT 7		; AX = offset of the entry
+	cmp	ax,[dtLen]		; is it within the table?
+	jae	dt8			; no
+	call	dt_line			; (carry set if it's not in use)
+	jmp	short dt9
+dt8:	stc
+dt9:	LEAVE
+	ret
+dt5:	sub	di,di			; DI = offset of the next entry
+dt6:	cmp	di,[dtLen]		; any more?
+	jae	dt7			; no
+	mov	ax,di
+	call	dt_line
+	jc	dt6a
+	inc	[dtUsed]
+dt6a:	add	di,8
+	jmp	dt6
+dt7:	mov	ax,[dtUsed]
+	call	hex_word
+	mov	si,offset DT_TOTALS
+	call	put_string		; " of "
+	mov	ax,[dtLen]
+	mov	cl,3
+	shr	ax,cl
+	call	hex_word
+	call	put_string		; " entries in use, "
+	mov	ax,[dtLen]
+	call	hex_word
+	call	put_string		; " bytes" (and carry is clear)
+	jmp	dt9
+ENDPROC	dump_tbl
+
+;
+; dt_set (for dump_tbl, whose frame it uses) records the table at DX:CX, with
+; limit AX, as the number of bytes in its whole entries, since an empty LDT's
+; limit is 0 or FFFFh.
+;
+; Modifies:
+;	AX
+;
+DEFPROC	dt_set
+	mov	[dtBase].LOW,cx
+	mov	[dtBase].HIW,dx
+	inc	ax
+	and	al,NOT 7
+	mov	[dtLen],ax
+	ret
+ENDPROC	dt_set
+
+;
+; dt_line (for dump_tbl, whose frame it uses) displays the entry at offset AX,
+; if it's in use, and otherwise returns carry set.
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, ES
+;
+DEFPROC	dt_line
+	push	di
+	push	ax
+	xchg	si,ax
+	mov	bx,[dtBase].HIW
+	add	si,[dtBase].LOW
+	adc	bx,0			; BX:SI = the entry's address
+	push	ss
+	pop	es
+	lea	di,[dtW0]		; ES:DI -> our copy of it
+	mov	cx,8
+	mov	ax,(CPU_RWMEM SHL 8) OR ADDR_PHYS
+	call	cpu_call
+	pop	ax			; AX = offset
+	jc	dtl9
+	mov	dx,[dtW2]		; DL = byte 4, DH = access rights
+	test	dh,dh			; present (the top bit)?
+	jns	dtl8			; no
+	cmp	[dtType],'I'
+	jne	dtl1
+	mov	cl,3
+	shr	ax,cl			; AX = vector
+	jmp	short dtl3
+dtl1:	mov	bl,dh
+	and	bl,16h
+	cmp	bl,06h			; an interrupt or trap gate?
+	je	dtl8			; yes
+	cmp	[dtType],'L'
+	jne	dtl3
+	or	al,4			; AX = selector (with the LDT bit)
+dtl3:	call	hex_word
+	mov	al,':'
+	call	put_char
+	call	space
+	mov	ax,[dtW0]		; AX = limit (or offset)
+	mov	cx,[dtW1]		; CX = base (or selector)
+	mov	bx,[dtW3]		; BL = extended, BH = top of the base
+	xchg	dh,bh			; DH = top of the base
+	xchg	bl,bh			; BL = access rights, BH = extended
+	call	dsl_show		; (and carry is clear)
+	jmp	short dtl9
+dtl8:	stc
+dtl9:	pop	di
+	ret
+ENDPROC	dt_line
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -3218,9 +3432,11 @@ ENDPROC	sel_type
 	DEFLBL	SELS_BASE,byte
 	db	"base=",0," limit=",0
 	DEFLBL	SELS_GATE,byte
-	db	"seg=",0," off=",0
+	db	"seg=",0," off=",0," cnt=",0
 	DEFLBL	SELS_TYPE,byte
 	db	" type=",0," (",0,") ext=",0," dpl=",0
+	DEFLBL	DT_TOTALS,byte
+	db	" of ",0," entries in use, ",0," bytes",13,10,0
 	DEFLBL	SEG_NAMES,byte
 	db	"data",0,"code",0,",readonly",0,",writable",0
 	db	",execonly",0,",readable",0,",expdown",0

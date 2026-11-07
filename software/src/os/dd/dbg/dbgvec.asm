@@ -17,14 +17,17 @@
 	DOSFCB equ 1
 	include	macros.inc
 	include	bios.inc
+	include	devapi.inc
+	include	dos.inc
 	include	dosapi.inc
+	include	cpu.inc
 
 CODE	segment word public 'CODE'
 
-	EXTNEAR	<ax_mem,end_command,hex_byte,hex_word,newline,pad,parse_hex>
-	EXTNEAR	<peek_b,peek_w,put_char,skip_space,space>
+	EXTNEAR	<ax_mem,cpu_call,end_command,hex_byte,hex_word,newline,pad>
+	EXTNEAR	<parse_hex,peek_b,peek_w,put_char,put_n,skip_space,space>
 	EXTBYTE	<col,trap_21>
-	EXTWORD	<regs>
+	EXTWORD	<dos_seg,dos_vars,regs,sys_regs>
 
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 ;
@@ -645,6 +648,176 @@ DEFPROC	fcb_mem
 	add	di,size FCBEX
 fm9:	ret
 ENDPROC	fcb_mem
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; list_sess
+;
+; Displays each session with a program, for DL with no arguments: "*" if its
+; LDT is the active one, its number (from 1, as in KILL), its console, and its
+; program.
+; We could be stopped anywhere, even in DOS, so we read DOS's tables rather
+; than call it (see scb_query).  A program's PSP may be a selector in its own
+; session's LDT, which isn't necessarily the active one, so we read that LDT to
+; find the PSP's address, and from that, its block's name.
+;
+; Outputs:
+;	Carry clear
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	list_sess
+	LOCVAR	lsPMB,byte,<size PMB>
+	LOCVAR	lsBase,dword
+	LOCVAR	lsSFB,word		; the SFB table
+	LOCVAR	lsSCB,word		; the next SCB
+	LOCVAR	lsEnd,word		; the end of the SCB table
+	LOCVAR	lsNum,word		; the next SCB's session # (from 0)
+	ENTER
+	mov	ax,[dos_seg]
+	call	ax_mem			; (for peek_w and peek_b)
+	mov	di,[dos_vars]
+	add	di,DV_SFB_TABLE - DV_MEM_SIZE
+	call	peek_w
+	mov	[lsSFB],ax
+	add	di,DV_SCB_TABLE - DV_SFB_TABLE
+	call	peek_w
+	mov	[lsSCB],ax
+	inc	di
+	inc	di
+	call	peek_w
+	mov	[lsEnd],ax
+	mov	[lsNum],0
+	jmp	short ls1
+ls8:	add	[lsSCB],size SCB
+	inc	[lsNum]
+ls1:	mov	di,[lsSCB]
+	cmp	di,[lsEnd]		; any more?
+	jb	ls1a			; yes
+	LEAVE				; (and carry is clear)
+	ret
+	ASSERT	<SCB_STATUS>,EQ,0
+ls1a:	call	peek_b			; AL = SCB_STATUS
+	test	al,SCSTAT_LOAD		; does it have a program?
+	jz	ls8			; no
+;
+; All the LDTs are in one 64K, so their bases differ in the low word alone.
+; An empty LDT (eg, with RING=0) shares another's base, so it never counts.
+;
+	mov	bx,[lsNum]
+	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_LDT
+	call	cpu_call		; CX = base, AX = limit (-1 if empty)
+	inc	ax			; is it empty?
+	mov	dl,' '
+	jz	ls2			; yes
+	push	cx
+	mov	bx,sys_regs[14]		; BX = LDTR
+	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_SEL
+	call	cpu_call		; CX = the active LDT's base
+	pop	ax
+	mov	dl,' '
+	cmp	ax,cx			; is this it?
+	jne	ls2			; no
+	mov	dl,'*'
+ls2:	mov	al,dl
+	call	put_char
+	mov	al,byte ptr [lsNum]
+	inc	ax			; AL = session # (from 1)
+	call	hex_byte
+	call	space
+	mov	di,[lsSCB]
+	add	di,SCB_SFHOUT
+	call	peek_b			; AL = SFH of the session's console
+	cmp	al,SFH_NODEV		; is there one?
+	jae	ls4			; no (it's SFH_NODEV or SFH_NONE)
+	mov	ah,size SFB
+	mul	ah
+	add	ax,[lsSFB]
+	xchg	di,ax			; DI -> SFB
+	ASSERT	<SFB_NAME>,EQ,0
+	mov	cx,8
+ls3:	call	peek_b			; display up to 8 characters of it
+	inc	di
+	test	al,al
+	jz	ls4
+	call	put_char
+	loop	ls3
+ls4:	mov	ah,12			; (the column after the console's name)
+	call	pad
+	mov	di,[lsSCB]
+	add	di,SCB_PSP
+	call	peek_w			; AX = its program's PSP
+	xchg	si,ax			; SI = PSP
+	test	si,4			; an LDT selector?
+	jnz	ls5			; yes
+	mov	bx,si
+	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_SEL
+	call	cpu_call		; DX:CX = its address
+	jmp	short ls6
+ls5:	and	si,NOT 7
+	inc	si
+	inc	si			; SI -> the descriptor's base
+	mov	bx,[lsNum]
+	push	ss
+	pop	es
+	lea	di,[lsBase]
+	mov	cx,4
+	mov	ax,(CPU_RWMEM SHL 8) OR ADDR_LDT
+	call	cpu_call
+	mov	cx,[lsBase].LOW
+	mov	dx,[lsBase].HIW
+	mov	dh,0			; DX:CX = its address
+ls6:	jc	ls7			; (we can't tell)
+	mov	bx,-1			; BX = -1 (the block at DX:CX)
+	push	ss
+	pop	es
+	lea	di,[lsPMB]		; ES:DI -> PMB buffer
+	mov	ah,CPU_QUERY
+	call	cpu_call
+	jc	ls7			; (there's no such block)
+	lea	si,[di].PMB_NAME	; ES:SI -> its name
+	mov	cx,size PMB_NAME
+	call	put_n
+ls7:	call	newline
+	jmp	ls8
+ENDPROC	list_sess
+
+;
+; chk_sess returns ZF set (and carry clear) unless session BX (from 0, and
+; below 32) has a program, as list_sess requires.
+;
+; Modifies:
+;	Nothing but the memory to access (see ax_mem)
+;
+DEFPROC	chk_sess
+	push	ax
+	push	di
+	mov	ax,[dos_seg]
+	call	ax_mem
+	mov	di,[dos_vars]
+	add	di,DV_SCB_TABLE - DV_MEM_SIZE
+	call	peek_w			; AX = the SCB table
+	push	ax
+	inc	di
+	inc	di
+	call	peek_w			; AX = its end
+	pop	di
+	push	ax
+	mov	al,size SCB
+	mul	bl
+	add	di,ax			; DI -> session's SCB
+	pop	ax
+	cmp	di,ax			; is it in the table?
+	mov	al,0
+	jae	cks9			; no
+	ASSERT	<SCB_STATUS>,EQ,0
+	call	peek_b			; AL = SCB_STATUS
+cks9:	and	al,SCSTAT_LOAD		; (which clears carry)
+	pop	di
+	pop	ax
+	ret
+ENDPROC	chk_sess
 
 CODE	ends
 

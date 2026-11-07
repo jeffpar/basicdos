@@ -96,10 +96,10 @@ If D or Y are omitted, current values are assumed.
 Returns the current date as a string in the form MM-DD-YYYY.
 
 [e]DEBUG [~H] [*program* [*arguments*]] or DEBUG ~*command*
-Loads *program* (a full filename) without starting it, displays its registers, and accepts debugger commands (type ? to list them, CTRL-A to repeat the last one, G to run, and Q to quit).  The DB, DW, DM, and DS commands can also be switches, which DEBUG performs before exiting (eg, DEBUG ~DB 40:0 or DEBUG ~DM).
+Loads *program* (a full filename) without starting it, displays its registers, and accepts debugger commands (type ? to list them, CTRL-A to repeat the last one, G to run, and Q to quit).  The DB, DW, and DM commands can also be switches, which DEBUG performs before exiting (eg, DEBUG ~DB 40:0 or DEBUG ~DM).
 DEBUG.COM can also be loaded as a device driver and used to debug the system from a terminal via a serial port.  For example, this CONFIG.SYS line connects DEBUG.COM to a VT100 terminal on COM2:\
 	DEVICE=EXT\DEBUG.COM COM2:9600,N,8,1,VT100
-Adding ~H after the port settings will cause the debugger to halt; use the G command to continue booting.
+Adding ~H after the port settings will cause the debugger to halt; use the G command to continue booting.  In protected mode, the driver's DG, DI, and DL commands display the GDT, the IDT, and a session's LDT (DL alone lists the sessions).  CTRL-C stops a command's output.
 
 [b]DEF *name*[(*parameter*[,*parameter*]...)][=*expression*]
 Defines a function expression or function block.  Function expressions must fit on a single line and can be defined at any time.
@@ -210,7 +210,7 @@ Calls the subroutine at the line with the specified label number; the subroutine
 Transfers program control to the line with the specified label number.
 
 [e]HELP [*keyword*|ALL|BASIC|CORE|FUNC|CMD|EXT]
-Displays help for *keyword* (eg, HELP MID$), or lists the keywords in a category: ALL (every keyword), BASIC (BASIC statements and commands), FUNC (functions, like MID$), CMD (internal commands, like DIR), or EXT (external commands, like FORMAT).  HELP CORE lists the keywords that low memory systems don't support, and HELP KEYS lists the keys for editing command lines.  A command given an invalid switch (or other invalid arguments) displays Syntax error.
+Displays help for *keyword* (eg, HELP MID$), or lists the keywords in a category: ALL (every keyword), BASIC (BASIC statements and commands), FUNC (functions, like MID$), CMD (internal commands, like DIR), or EXT (external commands, like FORMAT).  HELP CORE lists the keywords that low memory systems don't support, and HELP KEYS lists the keys for editing command lines.
 
 [f+]HEX$(*n*)
 Returns the hexadecimal representation of the integer *n*.  Negative values are treated as unsigned 32-bit values (eg, HEX$(-1) is FFFFFFFF).
@@ -257,7 +257,7 @@ ESCAPE  Cancel      CTRL-C  Abort
 Use CTRL-BREAK or CTRL-ALT-DELETE to terminate programs, and use KILL to end sessions or restart the system.
 
 [c]KILL [*session*|~A]
-KILL alone lists the number, console, and program of every session running a program, marking the current session with an *.  KILL *session* (a number from that list) ends all of the programs in that session and closes it.  KILL ~A restarts the system (a warm boot), after asking "Are you sure (Y/N)?".
+KILL lists the session number, console driver, and current program of every active session.  KILL *session* ends all of the programs in that session and closes it.  KILL ~A restarts the system.
 
 [e]LABEL [*drive*:][*label*]
 Gives *drive* (or the current drive) a volume label (up to 11 characters), or without a *label*, displays the current label and asks for a new one (or ENTER to delete it).
