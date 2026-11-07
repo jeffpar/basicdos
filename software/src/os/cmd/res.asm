@@ -117,14 +117,11 @@ rt2:	call	resParas		; BX = paras for the transient, too
 ; memory is still intact (ie, its checksum matches), copy it back down;
 ; otherwise, reload it from COMMAND.COM.
 ;
-; The copy is in free memory, so we lock the session (ie, disable session
-; switches) from the checksum through the copy, to keep another session from
-; allocating and modifying the copy in between.  We must unlock before any
-; disk reload, since disk I/O (and resPrompt) can wait.
+; The copy is in free memory, so we allocate it first, which keeps another
+; session from allocating and modifying it from the checksum through the copy.
 ;
-rt2a:	DOSUTIL	LOCK
 	ASSUME	DS:CODE			; (DS = CS, since we own the code)
-	cmp	[TRANS_HI],0		; was a copy made?
+rt2a:	cmp	[TRANS_HI],0		; was a copy made?
 	ASSUME	DS:DATA
 	je	rt2b			; no
 	call	resAllocHi		; ES = the copy's block again
@@ -143,11 +140,11 @@ rt2a:	DOSUTIL	LOCK
 	push	ds
 	pop	es			; ES = the copy's block
 	pop	ds
-	call	resFree			; free it and unlock
+	call	resFree			; free it
 	jmp	short rt5
 rt2c:	mov	ah,DOS_MEM_FREE
 	int	21h			; free the copy's block
-rt2b:	DOSUTIL	UNLOCK
+rt2b:
 rt3:	mov	dx,offset CMD_PATH
 	mov	ax,DOS_HDL_OPENRO
 	int	21h			; open COMMAND.COM
@@ -321,8 +318,7 @@ ENDPROC	resSum
 DEFPROC	resSave
 	ASSUME	DS:CODE			; (DS = CS, since we own the code)
 	mov	[TRANS_HI],0
-	DOSUTIL	LOCK			; keep other sessions from allocating
-	call	resAllocHi		; the block until the copy is done
+	call	resAllocHi		; (no other session can have it now)
 	jc	rsv9			; there's no room
 	mov	[TRANS_HI],ax
 	ASSUME	DS:DATA
@@ -336,8 +332,7 @@ DEFPROC	resSave
 	DEFLBL	resFree,near
 	mov	ah,DOS_MEM_FREE
 	int	21h
-rsv9:	DOSUTIL	UNLOCK
-	ret
+rsv9:	ret
 ENDPROC	resSave
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -12,8 +12,8 @@
 # It's a very quick (and dirty) set of confidence tests.
 # The exit code is non-zero if any test failed.
 #
-# NOTE: With --floppy, pc.js removes the machine's hard disk, which would otherwise make the BASIC-DOS
-# boot sector display a "Press a key to start..." prompt, so the tests run unattended.
+# NOTE: The BASIC-DOS boot sector's "Press a key to start..." prompt times out after 2 seconds (machine time),
+# so the tests run unattended.
 #
 # The first command must be an internal command (eg, VER), because pc.js converts only the first
 # command into a path (eg, "\DOSTESTS.COM"), which BASIC-DOS doesn't understand.  Also, since output

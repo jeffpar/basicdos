@@ -1,5 +1,4 @@
 REM Demonstration of a single-session configuration using the VKD$ driver
-CPU=8088
 BUFFERS=4
 SESSIONS=1
 CON=VKD$:80,25,BIOS

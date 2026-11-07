@@ -9,13 +9,15 @@
 ;
 ; This is the first built-in driver, and the first of two CPU$ drivers (see
 ; cpu.inc); it stores the processor type in CPU_HWTYPE and CPU_TYPE, and on
-; an 80286 or later with at least 64K of extended memory (and 128K of
+; an 80286 or later, if protected mode is requested (by a "CPU=80286" or
+; "CPU=80386" line in CONFIG.SYS, or a P at the boot prompt, unless an R at the
+; boot prompt overrides it), with at least 64K of extended memory (and 128K of
 ; conventional memory, after any "MEMSIZE=" line), it enables A20, builds
-; its PMB table, GDT, IDTs, LDT, and TSS in the system area (the first 64K
+; its PMB table, GDT, IDT, LDT, and TSS in the system area (the first 64K
 ; of extended memory), checks that it can switch to protected mode and back,
 ; and stays, managing all of memory with its PMB table (see PMB in cpu.inc)
-; through DDINT_CPU.  Otherwise (or with a "CPU=8088" line in CONFIG.SYS,
-; which makes CPU_TYPE CPUTYPE_8086), it unloads itself, and the 8086 driver
+; through DDINT_CPU.  Otherwise, it makes CPU_TYPE CPUTYPE_8086, leaves A20
+; off, and unloads itself, and the 8086 driver
 ; (x86dev.asm) stays instead.  CPU_PMODE switches to protected mode for good,
 ; after which CPU$ reflects interrupts to the ROM BIOS, keeps the vectors
 ; that drivers install in its IDT (see pm_setvec), and stops the machine on
@@ -48,35 +50,49 @@ SYS_VARS	equ	0020h
 SYS_CALL5	equ	00D0h
 SYS_GDT		equ	00E0h
 GDT_MAX		equ	256
-SYS_PMBS	equ	SYS_GDT + GDT_MAX * 8
-PMB_MAX		equ	128
-SYS_IDT		equ	SYS_PMBS + PMB_MAX * (size PMB)
+SYS_PIDT	equ	SYS_GDT + GDT_MAX * 8
 IDT_MAX		equ	256
-SYS_PIDT	equ	SYS_IDT + IDT_MAX * 8
-SYS_LDT		equ	SYS_PIDT + IDT_MAX * 8
-;
-; With programs at ring 3, every session has its own LDT (see CPU_SETLDT), so
-; that its programs' selectors (MEMF_LDT) can't name another session's memory;
-; SYS_LDT is the base of an array of LDT_SESSIONS of them, each LDT_MAX entries
-; (the whole array must still fit below the identity selectors at A000h).  The
-; active session's LDT offset is in SV_LDT, which the descriptor helpers use,
-; and since a ring 3 program's PSP (an LDT selector) can be the same as another
-; session's, a block's owner is stored as an ID that includes the session #
-; (SV_SESS; see enc_owner).
-;
-LDT_MAX		equ	96
-LDT_SESSIONS	equ	32
-LDT_BYTES	equ	LDT_MAX * 8
 ;
 ; The TSS (80286 format) is only for its ring 0 stack (SS0:SP0; see
 ; CPU_SETSTACK), which the processor switches to when an interrupt takes ring
 ; 3 code to ring 0; we never switch tasks, so the rest of it stays zero.
 ;
-SYS_TSS		equ	SYS_LDT + LDT_SESSIONS * LDT_BYTES
+SYS_TSS		equ	SYS_PIDT + IDT_MAX * 8
 TSS_SP0		equ	2	; ring 0 SP (followed by SS)
 TSS_LEN		equ	44
-SYS_END		equ	SYS_TSS + TSS_LEN
 SEL_VIDEO	equ	0A000h	; first identity selector (data)
+;
+; The rest is a pool for the PMB table and the LDTs: the table grows up from
+; the bottom as blocks are added (see pmb_dup), and with programs at ring 3,
+; each session has its own LDT (see CPU_SETLDT), so that its programs'
+; selectors (MEMF_LDT) can't name another session's memory.  The LDTs are
+; packed down from the top, with session 0's first; each one starts empty, and
+; grows as needed (see ldt_grow), up to LDT_LIMIT descriptors, which is all
+; that fits in an owner ID (see enc_owner).  SV_LDTS has each LDT's offset, so
+; each one ends at the offset of the session before it; the active session's
+; offset is also in SV_LDT, and its limit is in the LDTR's descriptor
+; (SEL_LDTD).
+;
+; Since the GDT's limit covers everything up to the identity selectors, the
+; processor can also read the pool as descriptors, through selectors below
+; A000h, each of whose access bytes is at an offset of 5 mod 8.  So the PMBs
+; and LDTs must start at an offset of 6 mod 8 (and everything in them moves by
+; multiples of 8), which puts those access bytes on byte 7 of every 8 bytes of
+; a table, none of which ever has its present bit set: the top of a
+; descriptor's base; and in a PMB, the top of PMB_ADDR, the high byte of
+; PMB_NSEL, a reserved byte, and the last byte of PMB_NAME (see ddcpu_setblk).
+; Otherwise, a ring 3 program could load another session's descriptors, or a
+; PMB, as its own.
+;
+SYS_PMBS	equ	SYS_TSS + TSS_LEN + 2
+SYS_LDTTOP	equ	SYS_GDT + SEL_VIDEO - 2
+LDT_SESSIONS	equ	32
+LDT_STEP	equ	32	; descriptors to add at a time
+LDT_LIMIT	equ	256	; descriptors per session
+	ASSERT	<(SYS_PMBS AND 7)>,EQ,6
+	ASSERT	<(SYS_LDTTOP AND 7)>,EQ,6
+	ASSERT	<(PMB_NSEL AND 7)>,EQ,6
+	ASSERT	<((PMB_NAME + size PMB_NAME) AND 7)>,EQ,0
 SEL_ROM		equ	0C000h	; first identity code selector
 SEL_IDSTEP	equ	0800h	; identity selectors are every 800h
 GDT_LIMIT	equ	0F807h	; (through the last identity selector)
@@ -104,12 +120,14 @@ SV_RMSP		dw	?	; real-mode SP (while in protected mode)
 SV_RMSS		dw	?	; real-mode SS (while in protected mode)
 SV_RMCS		dw	?	; real-mode CS (ie, the CPU$ segment)
 SV_GDTR		dw	3 dup (?) ; GDT limit and base (for LGDT)
-SV_IDTR		dw	3 dup (?) ; pm_call's IDT limit and base (for LIDT)
 SV_PIDTR	dw	3 dup (?) ; protected mode's IDT limit and base
 SV_RMIDTR	dw	3 dup (?) ; real-mode IDT limit and base
 SV_FAULT	dd	?	; fault handler (see CPU_SETFAULT and to_fault)
 SV_LDT		dw	?	; active session's LDT offset (see CPU_SETLDT)
+SV_LDTTOP	dw	?	; the end of session 0's LDT (see ldt_grow)
+SV_LDTS		dw	LDT_SESSIONS dup (?) ; each session's LDT offset
 SYSVARS		ends
+SV_LDTLOW	equ	SV_LDTS + (LDT_SESSIONS - 1) * 2 ; (the lowest LDT)
 SIG_SYSVARS	equ	'PC'
 	ASSERT	<SYS_VARS + size SYSVARS>,LE,SYS_CALL5
 
@@ -156,6 +174,12 @@ SEL_C5CODE	equ	58h	; code: the CALL 5 jump (0:00C0h)
 SEL_TSS		equ	68h	; TSS (see CPU_SETSTACK)
 GDT_FIXED	equ	0Eh	; number of fixed GDT entries
 FL_RESULTS	equ	FL_CARRY OR FL_ZERO OR FL_SIGN OR FL_OVFL
+;
+; A bit for each function that can take long enough to need interrupts on (see
+; cpu_entry): GETINFO, ALLOC, FREE, MAP, QUERY, ALIAS, REALLOC, SETBLK, and
+; FREEALL.
+;
+CPU_LONG	equ	0D6Fh
 
 DEV	group	CODE,DATA
 
@@ -213,6 +237,13 @@ ENDPROC	ddcpu_req
 ; mode).  If SYSVARS isn't there (eg, a BIOS block move turned A20 off), we
 ; turn A20 back on.
 ;
+; The functions that walk or change the PMB table and LDTs can take a while, so
+; if the caller had interrupts on, they run with interrupts on, too, holding a
+; session lock (DDINT_UTIL is a stub until DOS is ready) that keeps any other
+; session from calling us; interrupt handlers don't call those functions, and
+; a caller with interrupts off (eg, a debugger) keeps them off.  Only short
+; pieces of them disable interrupts (see pmb_dup and ldt_grow).
+;
 ; Inputs:
 ;	AH = CPU$ function; other registers as required by the function
 ;
@@ -228,6 +259,7 @@ DEFPROC	cpu_entry,far
 	push	bp
 	pushf
 	cli
+	push	0			; (nonzero if we lock; see ce3)
 	push	bx
 	push	si
 	push	di
@@ -252,7 +284,23 @@ ce2:	cmp	ah,CPU_MAXFUNC		; valid function?
 	mov	bh,0
 	add	bx,bx
 	mov	bp,cs:[CPU_FUNCS+bx]
-	pop	di
+	mov	si,CPU_LONG
+	mov	di,cx
+	mov	cl,ah
+	shr	si,cl
+	mov	cx,di
+	shr	si,1			; one that needs interrupts on?
+	jnc	ce3			; no
+	mov	bx,sp
+	test	byte ptr ss:[bx+9],FL_INTS SHR 8; did the caller have them on?
+	jz	ce3			; no
+	inc	word ptr ss:[bx+6]
+	push	ax
+	mov	ah,DDUTL_LOCK
+	call	far ptr DDINT_UTIL
+	pop	ax
+	sti
+ce3:	pop	di
 	pop	si
 	pop	bx
 	push	bx
@@ -264,10 +312,19 @@ ce8:	mov	ax,ERR_INVALID
 	stc
 ce9:	pop	di
 	pop	si
-	mov	bp,sp
-	rcr	word ptr [bp+2],1	; replace the caller's carry flag
-	rol	word ptr [bp+2],1	; with ours, and restore its flags
 	pop	bx
+	pop	bp			; (DEC leaves carry alone, too)
+	dec	bp			; did we lock?
+	jnz	ce9a			; no
+	pushf
+	push	ax
+	mov	ah,DDUTL_UNLOCK
+	call	far ptr DDINT_UTIL
+	pop	ax
+	popf
+ce9a:	mov	bp,sp
+	rcr	word ptr [bp],1		; replace the caller's carry flag
+	rol	word ptr [bp],1		; with ours, and restore its flags
 	popf
 	pop	bp
 	pop	ds
@@ -314,9 +371,10 @@ DEFPROC	ddcpu_alloc
 	mov	ds:[SYS_VARS].SV_ARG,al
 	mov	ds:[SYS_VARS].SV_OWNER,bx
 	mov	bp,ds:[SYS_VARS].SV_NPMBS
-	inc	bp
-	cmp	bp,PMB_MAX
-	jae	ca8			; no room to split a free block twice
+	shl	bp,5
+	add	bp,SYS_PMBS + 2 * (size PMB)
+	cmp	bp,ds:[SYS_VARS+SV_LDTLOW]
+	ja	ca8			; no room to split a free block twice
 	call	pmb_fit			; BX -> free PMB, DX:CX = address
 	jc	ca8
 	call	pmb_cut			; BX -> PMB at DX:CX
@@ -689,7 +747,7 @@ sg1:	mov	si,bx
 	and	si,NOT 7
 	test	bl,SEL_TI		; an LDT selector?
 	jz	sg2			; no
-	cmp	si,LDT_MAX * 8		; is it within the LDT?
+	cmp	si,ds:[SYS_GDT + SEL_LDTD].DESC_LIMIT	; within the LDT?
 	jae	sg8			; no
 	add	si,ds:[SYS_VARS].SV_LDT	; the active session's LDT
 	jmp	short sg3
@@ -849,9 +907,8 @@ ENDPROC	ddcpu_setfault
 ;
 ; Makes the LDT of the session in AL the active one, so that its programs'
 ; selectors (MEMF_LDT) are the ones the descriptor helpers allocate and
-; resolve (see SV_LDT); each session's LDT is LDT_BYTES into the array at
-; SYS_LDT, and the LDTR's descriptor (SEL_LDTD) is repointed at it.  In real
-; mode there are no LDTs, so there's nothing to do.
+; resolve (see SV_LDT), and the LDTR's descriptor (SEL_LDTD) is repointed at
+; it.  In real mode there are no LDTs, so there's nothing to do.
 ;
 ; Inputs:
 ;	AL = session #
@@ -866,18 +923,40 @@ DEFPROC	ddcpu_setldt
 	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM	; protected mode?
 	jz	stl9			; no, so nothing to do
 	mov	ds:[SYS_VARS].SV_SESS,al	; (see enc_owner)
-	mov	ah,0
-	mov	dx,LDT_BYTES
-	mul	dx			; AX = session # * LDT_BYTES
-	add	ax,SYS_LDT		; AX = the session's LDT offset
+	mov	bl,al
+	mov	bh,0
+	add	bx,bx			; BX = session # * 2
+	mov	ax,ds:[SYS_VARS+SV_LDTS+bx]	; AX = the LDT's offset
+	mov	cx,ds:[SYS_VARS+SV_LDTTOP+bx]	; CX = where it ends
+	call	ldt_load
+stl9:	clc
+	ret
+ENDPROC	ddcpu_setldt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ldt_load
+;
+; Makes the LDT at AX the active one, and reloads the LDTR.
+;
+; Inputs:
+;	AX = the LDT's offset, CX = where it ends
+;
+; Modifies:
+;	AX, CX
+;
+DEFPROC	ldt_load
 	mov	ds:[SYS_VARS].SV_LDT,ax
+	sub	cx,ax			; CX = its length
+	sub	cx,1
+	adc	cx,0			; CX = its limit (0 if it's empty)
+	mov	ds:[SYS_GDT + SEL_LDTD].DESC_LIMIT,cx
 	sub	ax,10h			; (see SYS_BASE16)
 	mov	ds:[SYS_GDT + SEL_LDTD].DESC_BASE,ax
 	mov	ax,SEL_LDTD
 	lldt	ax			; reload LDTR from its new descriptor
-stl9:	clc
 	ret
-ENDPROC	ddcpu_setldt
+ENDPROC	ldt_load
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -960,6 +1039,11 @@ DEFPROC	ddcpu_setblk
 	jz	bk1			; no
 	rep	movsb
 bk1:	rep	stosb			; (zero the rest, if any)
+;
+; A filename can have any byte in it, but this one must never look like a
+; present descriptor's access byte (see SYS_GDT).
+;
+	and	byte ptr es:[bx].PMB_NAME+7,7Fh	; (and clears carry)
 	pop	es
 bk9:	ret
 ENDPROC	ddcpu_setblk
@@ -1166,7 +1250,7 @@ DEFPROC	blk_room
 br1:	call	sel_desc		; is it in use?
 	jnc	br7			; yes
 	cmp	cx,dx			; is it past the end of its table?
-	jae	br7			; yes
+	jae	br6			; yes
 	add	bx,size DESC
 	inc	bp
 	dec	di			; does it need any more?
@@ -1174,6 +1258,11 @@ br1:	call	sel_desc		; is it in use?
 	pop	bx
 br8:	clc
 br9:	ret
+br6:	test	bl,SEL_TI		; in an LDT?
+	jz	br7			; no
+	mov	cx,di
+	call	ldt_grow		; yes, so it can have more
+	jnc	br1
 br7:	pop	bx
 	mov	dx,bp
 	sub	cx,cx			; DX:CX = BP selectors' worth of memory
@@ -1628,10 +1717,10 @@ ENDPROC	pmb_rest
 ;	AX, SI, DI
 ;
 DEFPROC	pmb_dup
-	mov	ax,ds:[SYS_VARS].SV_NPMBS
-	cmp	ax,PMB_MAX
-	cmc				; carry set if the table is full
-	jc	pd9
+	call	pmb_end
+	add	ax,size PMB
+	cmp	ds:[SYS_VARS+SV_LDTLOW],ax
+	jb	pd9			; (carry is set) the table is full
 	push	cx
 	push	es
 	push	ds
@@ -1642,12 +1731,25 @@ DEFPROC	pmb_dup
 	dec	si
 	dec	si			; SI -> last word of the table
 	lea	di,[si+size PMB]
+	sub	ax,bx
+	shr	ax,1			; AX = # of words to move
+;
+; Moving them takes the direction flag, which an interrupt handler mustn't see
+; set, so interrupts are off (if they were on) for a short piece at a time.
+;
+pd1:	mov	cx,64			; (at about 4 clocks a word)
+	cmp	ax,cx
+	jae	pd2
 	mov	cx,ax
-	sub	cx,bx
-	shr	cx,1			; CX = # of words to move
+pd2:	sub	ax,cx
+	pushf
+	cli
 	std
 	rep	movsw
 	cld
+	popf
+	test	ax,ax
+	jnz	pd1
 	pop	es
 	pop	cx
 	mov	ds:[bx].PMB_SIG,PMBSIG_NEXT
@@ -1731,17 +1833,20 @@ ENDPROC	pmb_ptr
 ;
 ; a20_on
 ;
-; Enables A20 with the 8042 keyboard controller, as on a PC AT.
+; Enables A20 with the 8042 keyboard controller, as on a PC AT.  Enter at
+; a20_set with AH = the 8042 output port value instead (0DDh turns A20 off).
 ;
 ; Modifies:
-;	AL
+;	AX
 ;
 DEFPROC	a20_on
+	mov	ah,0DFh			; output port: A20 on, no reset
+	DEFLBL	a20_set,near
 	call	kbc_wait
 	mov	al,0D1h			; 8042 command: write output port
 	out	64h,al
 	call	kbc_wait
-	mov	al,0DFh			; output port: A20 on, no reset
+	mov	al,ah
 	out	60h,al
 	DEFLBL	kbc_wait,near		; wait for the 8042 to accept input
 	push	cx
@@ -1795,7 +1900,9 @@ cu1:	mov	dx,bx
 	jb	cu8
 	cmp	dx,GDT_MAX		; nor can selectors beyond the GDT
 	jmp	short cu3
-cu2:	cmp	dx,LDT_MAX		; or beyond the LDT
+cu2:	mov	si,dx
+	call	ldt_num			; DX = # of descriptors
+	cmp	si,dx			; or beyond the LDT
 cu3:	ja	cu8
 	call	desc_free
 	clc
@@ -1818,13 +1925,19 @@ ENDPROC	pm_unmap
 ;	or ERR_NOMEMORY if there's no free descriptor)
 ;
 DEFPROC	pm_alias
-	call	sel_desc		; SI -> BX's descriptor
+	call	sel_desc		; is BX's descriptor in use?
 	jc	ci9
-	push	si
+	push	bx
 	mov	cx,1
 	call	desc_alloc		; AX = selector, BX -> DESC
-	pop	si
+	pop	si			; SI = BX
 	jc	ci8
+	xchg	bx,si			; (allocating can move an LDT)
+	push	ax
+	push	si
+	call	sel_desc		; SI -> BX's descriptor
+	pop	bx			; BX -> DESC
+	pop	ax
 	mov	cx,ds:[si].DESC_LIMIT
 	mov	ds:[bx].DESC_LIMIT,cx
 	mov	dx,ds:[si].DESC_EXT
@@ -1863,7 +1976,7 @@ DEFPROC	sel_desc
 	jz	sd1
 	sub	si,SYS_GDT
 	add	si,ds:[SYS_VARS].SV_LDT	; the active session's LDT
-	mov	dx,LDT_MAX
+	call	ldt_num			; DX = # of descriptors
 sd1:	cmp	cx,dx			; is the index within the table?
 	jae	sd8			; no
 	cmp	ds:[si].DESC_ACC,0	; is the descriptor in use?
@@ -1872,6 +1985,105 @@ sd8:	mov	ax,ERR_INVALID
 	stc
 sd9:	ret
 ENDPROC	sel_desc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ldt_num
+;
+; Outputs:
+;	DX = # of descriptors in the active session's LDT
+;
+DEFPROC	ldt_num
+	mov	dx,ds:[SYS_GDT + SEL_LDTD].DESC_LIMIT
+	inc	dx
+	shr	dx,3
+	ret
+ENDPROC	ldt_num
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ldt_grow
+;
+; Adds room for CX more descriptors to the active session's LDT (LDT_STEP at a
+; time, up to LDT_LIMIT, as long as the PMB table has room for two more PMBs).
+; Selectors are indexes, so moving an LDT doesn't change them.  The processor
+; doesn't use the other sessions' LDTs, and other sessions can't run (see
+; cpu_entry), so they can move with interrupts on; but an interrupt handler
+; could reload a segment register from the active LDT, so it moves with
+; interrupts off, along with zeroing the new entries (which aren't in use until
+; the LDTR is reloaded).  That's never more than LDT_LIMIT descriptors' worth
+; of memory, since those two together are the new LDT.
+;
+; Inputs:
+;	CX = # of descriptors
+;
+; Outputs:
+;	Carry clear if successful, set if there's no room
+;
+; Modifies:
+;	None
+;
+DEFPROC	ldt_grow
+	pusha
+	push	es
+	push	ds
+	pop	es
+	mov	bl,ds:[SYS_VARS].SV_SESS
+	mov	bh,0
+	add	bx,bx			; BX = session # * 2
+	add	cx,LDT_STEP - 1
+	and	cx,NOT (LDT_STEP - 1)
+	shl	cx,3			; CX = # of bytes to add
+	mov	dx,ds:[SYS_VARS+SV_LDTTOP+bx]	; DX = where this LDT ends
+	mov	ax,dx
+	sub	ax,ds:[SYS_VARS].SV_LDT
+	add	ax,cx
+	sub	ax,LDT_LIMIT * 8	; would it be too long?
+	jbe	lg1			; no
+	sub	cx,ax			; yes, so add only what it can have
+	jbe	lg8			; none
+lg1:	mov	si,ds:[SYS_VARS+SV_LDTLOW]	; SI -> the lowest LDT
+	mov	di,si
+	sub	di,cx			; DI -> where it's going
+	call	pmb_end
+	add	ax,2 * (size PMB)
+	cmp	di,ax			; does the PMB table have room?
+	jb	lg8			; no
+	mov	bp,cx			; BP = # of bytes to add
+	mov	cx,ds:[SYS_VARS].SV_LDT
+	sub	cx,si
+	shr	cx,1
+	rep	movsw			; move the LDTs below this one
+	mov	ax,bx
+lg2:	inc	bx
+	inc	bx
+	cmp	bx,LDT_SESSIONS * 2
+	jae	lg3
+	sub	ds:[SYS_VARS+SV_LDTS+bx],bp
+	jmp	lg2
+lg3:	xchg	bx,ax			; BX = session # * 2
+	pushf
+	cli
+	mov	cx,dx
+	sub	cx,si
+	shr	cx,1
+	rep	movsw			; move this LDT
+	mov	cx,bp
+	shr	cx,1
+	sub	ax,ax
+	rep	stosw			; and clear what it gained
+	sub	ds:[SYS_VARS+SV_LDTS+bx],bp
+	mov	ax,ds:[SYS_VARS+SV_LDTS+bx]
+	mov	cx,dx
+	call	ldt_load
+	popf
+	clc
+	jmp	short lg9
+lg8:	stc
+lg9:	pop	es
+	popa
+	ret
+ENDPROC	ldt_grow
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2005,12 +2217,12 @@ ENDPROC	desc_fill
 ;	AX, BX, DX, SI, DI
 ;
 DEFPROC	desc_alloc
-	mov	bx,SYS_GDT + GDT_FIXED * (size DESC)
+da0:	mov	bx,SYS_GDT + GDT_FIXED * (size DESC)
 	mov	dx,GDT_MAX - GDT_FIXED
 	test	al,MEMF_LDT
 	jz	da1
 	mov	bx,ds:[SYS_VARS].SV_LDT	; the active session's LDT
-	mov	dx,LDT_MAX
+	call	ldt_num			; DX = # of descriptors
 da1:	sub	si,si			; SI = free entries found so far
 da2:	dec	dx
 	js	da8			; no more entries
@@ -2026,7 +2238,11 @@ da3a:	inc	si
 	je	da5
 da4:	add	bx,size DESC
 	jmp	da2
-da8:	stc
+da8:	test	al,MEMF_LDT		; can its table grow?
+	jz	da8a			; no
+	call	ldt_grow		; maybe
+	jnc	da0			; yes, so look again
+da8a:	stc
 	ret
 da5:	mov	ah,ACC_DATA
 	test	al,MEMF_CODE
@@ -2088,118 +2304,6 @@ ENDPROC	desc_free
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; pm_call
-;
-; Calls the function at CS:BX in protected mode, with interrupts and NMI
-; disabled, CS = SEL_CPUCODE, DS = ES = SEL_SYS, and SS = SEL_STACK (the
-; caller's stack), and then returns to real mode.  An 80386 returns by
-; clearing PE, but an 80286 must be reset, so before switching, we set the
-; CMOS shutdown code to 0Ah (which makes the BIOS resume at the address in
-; 40:67h, EDGE_CNT) and point 40:67h at pm_resume; that also catches any
-; "triple fault".  Any other exception goes to pm_fault, which returns to
-; real mode, too.
-;
-; Inputs:
-;	BX = offset of protected-mode function
-;
-; Modifies:
-;	AX, DX
-;
-        ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	pm_call
-	pushf
-	cli
-	push	ds
-	push	es
-	push	bp
-	mov	ax,SYS_SEG
-	mov	ds,ax
-	mov	ax,ss
-	mov	dx,ax
-	shl	ax,4
-	shr	dx,12			; DX:AX = linear address of SS
-	mov	ds:[SYS_GDT+SEL_STACK].DESC_BASE,ax
-	mov	ds:[SYS_GDT+SEL_STACK].DESC_BASE16,dl
-	mov	ds:[SYS_VARS].SV_RMSS,ss
-	mov	ds:[SYS_VARS].SV_RMSP,sp
-	mov	al,8Fh			; CMOS shutdown byte (NMI disabled)
-	out	70h,al
-	mov	al,0Ah			; shutdown code: JMP DWORD PTR 40:67h
-	out	71h,al
-	mov	ax,BIOS
-	mov	es,ax
-	ASSUME	ES:BIOS
-	mov	[EDGE_CNT],offset pm_resume
-	mov	[CRC_REG],cs
-	lgdt	qword ptr ds:[SYS_VARS].SV_GDTR
-	lidt	qword ptr ds:[SYS_VARS].SV_IDTR
-	smsw	ax
-	or	al,1			; set PE
-	lmsw	ax
-	db	OP_JMPF			; flush the prefetch queue and load CS
-	dw	offset pm1,SEL_CPUCODE
-pm1:	mov	ax,SEL_STACK
-	mov	ss,ax
-	mov	ax,SEL_SYS
-	mov	ds,ax
-	mov	es,ax
-	ASSUME	ES:NOTHING
-	mov	ax,SEL_LDTD
-	lldt	ax
-	call	bx
-	DEFLBL	pm_return,near
-	cmp	ds:[SYS_VARS].SV_TYPE,CPUTYPE_80386
-	jb	pm3
-	db	0Fh,20h,0C0h		; MOV EAX,CR0
-	and	al,0FEh			; clear PE
-	db	0Fh,22h,0C0h		; MOV CR0,EAX
-	push	ds:[SYS_VARS].SV_RMCS
-	push	offset pm_resume
-	db	OP_RETF
-pm3:	call	kbc_wait
-	mov	al,0FEh			; 8042 command: pulse reset
-	out	64h,al
-pm4:	hlt
-	jmp	pm4
-;
-; Both kinds of returns, and resets after any fault that pm_fault can't
-; handle, end up here, in real mode with interrupts and NMI disabled.
-;
-pm_resume:
-	mov	ax,SYS_SEG
-	mov	ds,ax
-	mov	ss,ds:[SYS_VARS].SV_RMSS
-	mov	sp,ds:[SYS_VARS].SV_RMSP
-	lidt	qword ptr ds:[SYS_VARS].SV_RMIDTR
-	mov	al,8Fh			; clear the CMOS shutdown code
-	out	70h,al
-	mov	al,0
-	out	71h,al
-	mov	al,0Dh			; and enable NMI again
-	out	70h,al
-	pop	bp
-	pop	es
-	pop	ds
-	popf
-	ret
-ENDPROC	pm_call
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; pm_fault
-;
-; Every IDT entry points here.  Since interrupts are disabled in protected
-; mode, this can only be an exception, so we abandon the protected-mode
-; function and return to real mode (pm_resume restores the caller's stack).
-;
-DEFPROC	pm_fault
-	mov	ax,SEL_SYS
-	mov	ds,ax
-	jmp	pm_return
-ENDPROC	pm_fault
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; pm_pmode (CPU_PMODE)
 ;
 ; Switches to protected mode for good.  The caller's CS, DS, ES, and SS become
@@ -2220,9 +2324,9 @@ ENDPROC	pm_fault
 ;	AX, CX, DX, SI, DI, BP, ES
 ;
 DEFPROC	pm_pmode
-	mov	bp,sp			; BP -> cpu_entry's frame: return,
-	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM	; DI, SI, BX, FLAGS, BP,
-	jz	dp1				; DS, IP, CS
+	mov	bp,sp			; BP -> cpu_entry's frame: return, DI,
+	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM	; SI, BX, lock flag, FLAGS,
+	jz	dp1				; BP, DS, IP, CS
 	mov	ax,ERR_INVALID		; already in protected mode
 	stc
 	ret
@@ -2230,17 +2334,17 @@ dp0:	mov	sp,bp
 	mov	ax,ERR_NOMEMORY		; no free descriptor
 	stc
 	ret
-dp1:	mov	ax,[bp+16]
+dp1:	mov	ax,[bp+18]
 	mov	dl,MEMF_CODE
 	call	seg_sel			; caller's CS
 	jc	dp0
 	push	ax			; [bp-2]
-	mov	ax,[bp+16]
+	mov	ax,[bp+18]
 	mov	dl,0
 	call	seg_sel			; and a data selector for it
 	jc	dp0
 	push	ax			; [bp-4]
-	mov	ax,[bp+12]
+	mov	ax,[bp+14]
 	call	seg_sel			; caller's DS
 	jc	dp0
 	push	ax			; [bp-6]
@@ -2253,9 +2357,9 @@ dp1:	mov	ax,[bp+16]
 	jc	dp0
 	push	ax			; [bp-10]
 	mov	ax,[bp-2]
-	mov	[bp+16],ax		; replace the caller's CS
+	mov	[bp+18],ax		; replace the caller's CS
 	mov	ax,[bp-6]
-	mov	[bp+12],ax		; and DS
+	mov	[bp+14],ax		; and DS
 	mov	ax,BIOS
 	mov	es,ax
 	mov	di,offset DDINT_CPU + DDINT_BIAS
@@ -2628,9 +2732,8 @@ ENDPROC	si_ret
 ; 78h-7Fh), unless the gate is one of our defaults, in which case it's the
 ; real-mode vector, if that's in the ROM, or 0:0 if not (see get_vec), and
 ; setting a vector replaces its gate's selector and offset, keeping its DPL
-; (see idt_default): 3 for software interrupts (and INT 0), which ring 3 code
-; may issue (eg, INT 21h), and 0 for other exceptions and IRQs, which it may
-; not.
+; (see idt_default): 3 for INT 0 and the software interrupts that ring 3 code
+; may issue (eg, INT 21h), and 0 for everything else, which it may not.
 ;
 ; Inputs:
 ;	AL = vector #
@@ -2978,9 +3081,13 @@ dm2:	mov	dx,BIOS
 	cmp	ax,[MEMORY_SIZE]	; and less than we have?
 	jae	di0			; no
 	mov	[MEMORY_SIZE],ax
-di0:	mov	di,offset DEV:cfg_8088
-	call	find_cfg		; is there a "CPU=8088" line?
-	mov	ax,BIOS
+di0:	mov	di,offset DEV:cfg_cpu
+	call	find_cfg		; is there a "CPU=80" line?
+	jne	di0a			; no
+	mov	al,[si+6]
+	and	al,0FEh
+	cmp	al,'2'			; "CPU=802xx" or "CPU=803xx"?
+di0a:	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
 	pushf				; (ZF set if so; see di2)
@@ -3018,7 +3125,17 @@ di1:	pushf
 	mov	al,CPUTYPE_80386
 	sbb	al,0			; AL = CPUTYPE_80286 or CPUTYPE_80386
 di2:	mov	[CPU_HWTYPE],al
-	popf				; was there a "CPU=8088" line?
+;
+; We act as if this is an 8088 unless protected mode is requested, by a CONFIG
+; line or a P at the boot prompt, and an R at the boot prompt overrides a line.
+;
+	mov	ah,byte ptr [BOOT_KEY]
+	or	ah,20h			; AH = boot key, in lower-case
+	popf				; was there a "CPU=80x86" line?
+	je	di2c			; yes
+	cmp	ah,'p'			; was the boot key P?
+	jne	di2b			; no
+di2c:	cmp	ah,'r'			; was the boot key R?
 	je	di2b			; yes
 ;
 ; Protected mode also needs at least 128K of conventional memory (after any
@@ -3063,15 +3180,16 @@ di2a:	mov	[CPU_TYPE],al
 ;
 ; On an 8086 (or without enough extended memory, or A20, or if the protected
 ; mode self-test fails), we unload ourselves (DDPI_END is still zero), and the
-; 8086 driver stays instead.
+; 8086 driver stays instead, so CPU_TYPE must say we're acting as an 8088.
 ;
-di9:	pop	bx
+di9:	mov	[CPU_TYPE],CPUTYPE_8086
+	pop	bx
 	pop	es
 	ret
 ;
 ; Clear the system area (all of it, so that unused GDT entries, including the
 ; gaps between the identity selectors, aren't present), and then fill in
-; SYSVARS, the PMBs, the GDT, and the IDTs.
+; SYSVARS, the PMBs, and the GDT.
 ;
 	.286p
 	ASSUME	DS:BIOS
@@ -3093,14 +3211,17 @@ di3:	mov	di,10h
 	mov	es:[di].SV_GDTR,GDT_LIMIT
 	mov	es:[di].SV_GDTR+2,SYS_GDT - 10h
 	mov	byte ptr es:[di].SV_GDTR+4,SYS_BASE16
-	mov	es:[di].SV_IDTR,IDT_MAX * (size DESC) - 1
-	mov	es:[di].SV_IDTR+2,SYS_IDT - 10h
-	mov	byte ptr es:[di].SV_IDTR+4,SYS_BASE16
 	mov	es:[di].SV_PIDTR,IDT_MAX * (size DESC) - 1
 	mov	es:[di].SV_PIDTR+2,SYS_PIDT - 10h
 	mov	byte ptr es:[di].SV_PIDTR+4,SYS_BASE16
 	mov	es:[di].SV_RMIDTR,3FFh
-	mov	es:[di].SV_LDT,SYS_LDT	; session 0's LDT (see CPU_SETLDT)
+	mov	ax,SYS_LDTTOP
+	mov	es:[di].SV_LDT,ax	; session 0's LDT (see CPU_SETLDT)
+	push	di
+	add	di,SV_LDTTOP
+	mov	cx,LDT_SESSIONS + 1
+	rep	stosw			; every session's LDT is empty
+	pop	di
 	mov	ax,offset DEV:ddcpu_init
 	call	init_arena
 
@@ -3140,7 +3261,7 @@ di4b:	stosw
 	add	bx,SEL_IDSTEP
 	jnc	di4a			; through F800h
 
-	mov	di,SYS_IDT		; pm_call's IDT
+	mov	di,SYS_PIDT		; pm_call's gates, for the test
 	mov	cx,IDT_MAX
 di5:	mov	ax,offset DEV:pm_fault
 	stosw
@@ -3151,18 +3272,6 @@ di5:	mov	ax,offset DEV:pm_fault
 	sub	ax,ax
 	stosw
 	loop	di5
-	sub	bx,bx			; and the protected-mode IDT
-di6:	call	idt_default		; AX = handler, DH = access rights
-	stosw
-	mov	ax,SEL_CPUCODE
-	stosw
-	mov	al,0
-	mov	ah,dh
-	stosw
-	sub	ax,ax
-	stosw
-	inc	bl
-	jnz	di6
 ;
 ; Switch to protected mode and back; we keep all of this only if the test
 ; succeeds, and otherwise, act as we do on an 8086.
@@ -3176,8 +3285,23 @@ di6:	call	idt_default		; AX = handler, DH = access rights
 	ASSUME	DS:BIOS
 	test	es:[SYS_VARS].SV_FLAGS,CPUF_PMOK
 	jnz	di7
+	mov	ah,0DDh			; output port: A20 off, no reset
+	call	a20_set
 	jmp	di9
-di7:	mov	[CPU_ARENA].OFF,SYS_PMBS
+di7:	mov	di,SYS_PIDT		; now the protected-mode gates
+	sub	bx,bx
+di6:	call	idt_default		; AX = handler, DH = access rights
+	stosw
+	mov	ax,SEL_CPUCODE
+	stosw
+	mov	al,0
+	mov	ah,dh
+	stosw
+	sub	ax,ax
+	stosw
+	inc	bl
+	jnz	di6
+	mov	[CPU_ARENA].OFF,SYS_PMBS
 	mov	[CPU_ARENA].SEG,es	; CPU_ARENA -> the PMB table
 	mov	ax,offset DEV:ddcpu_init
 	mov	byte ptr ds:[DDINT_CPU],OP_JMPF
@@ -3362,12 +3486,117 @@ fc9:	pop	es
 	ret
 ENDPROC	find_cfg
 
-	DEFLBL	cfg_8088,byte
-	db	8,"CPU=8088"
+	DEFLBL	cfg_cpu,byte
+	db	6,"CPU=80"
 	DEFLBL	cfg_memsize,byte
 	db	8,"MEMSIZE="
 
 	.286p
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; pm_call
+;
+; Calls the function at CS:BX in protected mode, with interrupts and NMI
+; disabled, CS = SEL_CPUCODE, DS = ES = SEL_SYS, and SS = SEL_STACK (the
+; caller's stack), and then returns to real mode.  An 80386 returns by
+; clearing PE, but an 80286 must be reset, so before switching, we set the
+; CMOS shutdown code to 0Ah (which makes the BIOS resume at the address in
+; 40:67h, EDGE_CNT) and point 40:67h at pm_resume; that also catches any
+; "triple fault".  Any other exception goes to pm_fault, which returns to
+; real mode, too.
+;
+; Inputs:
+;	BX = offset of protected-mode function
+;
+; Modifies:
+;	AX, DX
+;
+        ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	pm_call
+	pushf
+	cli
+	push	ds
+	push	es
+	push	bp
+	mov	ax,SYS_SEG
+	mov	ds,ax
+	mov	ax,ss
+	mov	dx,ax
+	shl	ax,4
+	shr	dx,12			; DX:AX = linear address of SS
+	mov	ds:[SYS_GDT+SEL_STACK].DESC_BASE,ax
+	mov	ds:[SYS_GDT+SEL_STACK].DESC_BASE16,dl
+	mov	ds:[SYS_VARS].SV_RMSS,ss
+	mov	ds:[SYS_VARS].SV_RMSP,sp
+	mov	al,8Fh			; CMOS shutdown byte (NMI disabled)
+	out	70h,al
+	mov	al,0Ah			; shutdown code: JMP DWORD PTR 40:67h
+	out	71h,al
+	mov	ax,BIOS
+	mov	es,ax
+	ASSUME	ES:BIOS
+	mov	[EDGE_CNT],offset pm_resume
+	mov	[CRC_REG],cs
+	lgdt	qword ptr ds:[SYS_VARS].SV_GDTR
+	lidt	qword ptr ds:[SYS_VARS].SV_PIDTR
+	smsw	ax
+	or	al,1			; set PE
+	lmsw	ax
+	db	OP_JMPF			; flush the prefetch queue and load CS
+	dw	offset pm1,SEL_CPUCODE
+pm1:	mov	ax,SEL_STACK
+	mov	ss,ax
+	mov	ax,SEL_SYS
+	mov	ds,ax
+	mov	es,ax
+	ASSUME	ES:NOTHING
+	mov	ax,SEL_LDTD
+	lldt	ax
+	call	bx
+;
+; For now, every IDT gate points here (see ddcpu_init).  Since interrupts are
+; disabled, this can only be an exception, so we abandon the function and
+; return to real mode (pm_resume restores the caller's stack).
+;
+	DEFLBL	pm_fault,near
+	mov	ax,SEL_SYS
+	mov	ds,ax
+	cmp	ds:[SYS_VARS].SV_TYPE,CPUTYPE_80386
+	jb	pm3
+	db	0Fh,20h,0C0h		; MOV EAX,CR0
+	and	al,0FEh			; clear PE
+	db	0Fh,22h,0C0h		; MOV CR0,EAX
+	push	ds:[SYS_VARS].SV_RMCS
+	push	offset pm_resume
+	db	OP_RETF
+pm3:	call	kbc_wait
+	mov	al,0FEh			; 8042 command: pulse reset
+	out	64h,al
+pm4:	hlt
+	jmp	pm4
+;
+; Both kinds of returns, and resets after any fault that pm_fault can't
+; handle, end up here, in real mode with interrupts and NMI disabled.
+;
+pm_resume:
+	mov	ax,SYS_SEG
+	mov	ds,ax
+	mov	ss,ds:[SYS_VARS].SV_RMSS
+	mov	sp,ds:[SYS_VARS].SV_RMSP
+	lidt	qword ptr ds:[SYS_VARS].SV_RMIDTR
+	mov	al,8Fh			; clear the CMOS shutdown code
+	out	70h,al
+	mov	al,0
+	out	71h,al
+	mov	al,0Dh			; and enable NMI again
+	out	70h,al
+	pop	bp
+	pop	es
+	pop	ds
+	popf
+	ret
+ENDPROC	pm_call
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; pm_test (called in protected mode by pm_call)
@@ -3431,14 +3660,35 @@ idd1b:	mov	ah,5			; each exception stub is 5 bytes
 	mul	ah
 	add	ax,offset DEV:exc_stubs
 	ret
-idd2:	mov	ax,offset DEV:sw_int
-	mov	dh,ACC_INTGATE + ACC_DPL3
+;
+; Ring 3 code may issue only the software interrupts that are meant for it:
+; breakpoint and overflow, DOS's vectors, the mouse, and the user vectors.
+; Ring 0 code can issue any of them, but a BIOS function run for a ring 3
+; program would trust whatever it was given (eg, a disk function computes its
+; DMA address from a segment value), and a fault in the ROM stops the system.
+;
+idd2:	cmp	al,INT_PRTSC
+	je	idd4			; DPL 0
+	cmp	al,10h			; INT 03h or 04h?
+	jb	idd3			; yes
+	cmp	al,INT_MOUSE
+	je	idd3
+	mov	ah,al
+	and	ah,0F0h
+	cmp	ah,INT_DOSTERM		; DOS's vectors (20h-2Fh)?
+	je	idd3			; yes
+	cmp	al,R3_USERINT		; below the user vectors?
+	jb	idd4			; yes
+	cmp	al,R3_USERMAX		; above them?
+	ja	idd4			; yes
+idd3:	mov	dh,ACC_INTGATE + ACC_DPL3
+idd4:	mov	ax,offset DEV:sw_int
 	ret
 ENDPROC	idt_default
 
 	DEFLBL	gdt_init,byte
 	DESC	<0FFFFh,0FFF0h,0Fh,ACC_DATA,0>		; SEL_SYS (FFFF0h)
-	DESC	<LDT_MAX*(size DESC)-1,SYS_LDT-10h,SYS_BASE16,ACC_LDT,0>
+	DESC	<0,SYS_LDTTOP-10h,SYS_BASE16,ACC_LDT,0>
 	DESC	<0FFFFh,0,0,ACC_CODE,0>			; SEL_CPUCODE
 	DESC	<0FFFFh,0,0,ACC_DATA,0>			; SEL_LOW
 	DESC	<0FFFFh,0,0,ACC_DATA,0>			; SEL_STACK

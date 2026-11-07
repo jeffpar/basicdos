@@ -228,7 +228,8 @@ si2d:	cli
 ;
 ; Copy DD_LIST from the BIOS segment to dev_head in the DOS segment, for
 ; DOS_MSC_GETVARS (see DV_DD_LIST), since all the device drivers are linked
-; by now, and BOOT_KEY to key_boot.
+; by now, and BOOT_KEY to key_boot.  We then clear BOOT_KEY, since a timeout at
+; the next boot prompt won't change it, and a warm boot may not clear it.
 ;
 si3:	mov	ax,[DD_LIST].OFF	; copy the device driver list head
 	mov	[dev_head].OFF,ax
@@ -245,6 +246,7 @@ si3:	mov	ax,[DD_LIST].OFF	; copy the device driver list head
 ; (see init_table).
 ;
 si3a:	sub	bx,bx
+	mov	[BOOT_KEY],bx
 	call	dos_size
 	call	set_fault		; AX = end of the resident code
 	add	ax,15

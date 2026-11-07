@@ -8,12 +8,12 @@ permalink: /docs/bdman/intro/
 
 ### Starting BASIC-DOS
 
-Insert a BASIC-DOS diskette in drive A: of an IBM PC and turn the machine on.  If the machine has a hard disk, BASIC-DOS first displays:
+Insert a BASIC-DOS diskette in drive A: of an IBM PC and turn the machine on.  BASIC-DOS first displays:
 
 	BASIC-DOS 2.00
 	Press a key to start...
 
-Press any key (or wait 2 seconds) to start BASIC-DOS, or press **Esc** to boot from the hard disk instead.  Pressing `-` also makes `-` the switch character (see [SWITCHAR=](../cfg/#switchar)).  The following messages should then appear on your screen:
+Press any key (or wait 2 seconds) to start BASIC-DOS.  If you booted a diskette on a machine with a hard disk, pressing **Esc** boots from the hard disk instead.  Pressing `-` also makes `-` the switch character (see [SWITCHAR=](../cfg/#switchar)), and on an 80286 or later, pressing `P` selects protected mode and pressing `R` selects real mode (see [CPU=](../cfg/#cpu)).  To remove the prompt from a disk, see [SYS /N](../cmd/external/sys/).  The following messages should then appear on your screen:
 
 	BASIC-DOS 2.00
 	Copyright (c) PCJS.ORG 1981-2026

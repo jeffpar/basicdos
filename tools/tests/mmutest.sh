@@ -1,25 +1,26 @@
 #!/bin/bash
 #
-# Usage: tools/tests/mmutest.sh [8088] [real] [pm] [r3] [multi] [tools]
+# Usage: tools/tests/mmutest.sh [8088] [real] [pm] [r3] [multi] [pool] [tools]
 #
 # Runs quick.sh's floppy tests (FPUTESTS through PRINTF), followed by CPUTESTS and R3TESTS, on these test machines:
 #
 #   8088    an IBM PC XT (ibm5160), where CPU$ keeps only what an 8088 needs
-#   real    a 2Mb IBM PC AT (ibm5170), where the fpe configuration's "CPU=8088" line makes CPU$ act as it does on an
-#           8088, so BASIC-DOS runs in real mode
-#   pm      a 2Mb IBM PC AT without that line, where CPU$ manages extended memory and BASIC-DOS runs in protected
+#   real    a 2Mb IBM PC AT (ibm5170), where CPU$ acts as it does on an 8088 by default, so BASIC-DOS runs in real mode
+#   pm      a 2Mb IBM PC AT with a "CPU=80286" line, where CPU$ manages extended memory and BASIC-DOS runs in protected
 #           mode, with a "RING=0" line, so that programs run at ring 0 and every test runs (including CPUTESTS and
 #           HARDERR's INT 13h hook tests)
 #   r3      the same machine without the "RING=0" line, so that programs (and COMMAND.COM) run at ring 3, as they do
-#           by default, where CPUTESTS and HARDERR's hook tests print that they were skipped instead
+#           by default in protected mode, where CPUTESTS and HARDERR's hook tests print that they were skipped instead
 #   multi   the "r3" machine with a second console (on its video adapter), since sysinit then loads the first SHELL from
 #           another session's LDT; it runs only R3TESTS, since some tests (eg, HARDERR) won't run beside another session
+#   pool    the "r3" machine with 9 sessions, where MEMTESTS fills the system area's pool of PMBs and LDT descriptors
+#           from 7 sessions at once, and checks that their LDTs can move, and that the system recovers
 #   tools   the "r3" machine with a hard disk, where MAKE rebuilds PRIMES.EXE and SLEEP.COM with the protected-mode build
 #           tools in software/src/tools/bd (see tools/misc/mkne.js), which must match the binaries of the last build, and
 #           runs EXEMOD and MAPSYM, which must succeed
 #
-# By default, it runs all six.  The "pm", "r3", "multi", and "tools" machines boot a copy of a configuration without the
-# "CPU=8088" line, in tools/pc/disks/tmp-mmupm, which is deleted afterward.  The exit code is non-zero if any test
+# By default, it runs all seven.  The "pm", "r3", "multi", "pool", and "tools" machines boot a copy of a configuration with a
+# "CPU=80286" line, in tools/pc/disks/tmp-mmupm, which is deleted afterward.  The exit code is non-zero if any test
 # failed.
 #
 cd "$(dirname "$0")/../.." || exit 1
@@ -32,24 +33,34 @@ m='\TESTS\REGRESS\'
 cmds="VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}BUFTESTS;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;\\TESTS\\MISC\\CPUTESTS;$ok;\\TESTS\\MISC\\R3TESTS;$ok;SLEEP 1;QUIT"
 log=$(mktemp)
 failed=
-for name in ${@:-8088 real pm r3 multi tools}; do
+for name in ${@:-8088 real pm r3 multi pool tools}; do
     meta="HARDERR metadata passed"; seek="HARDERR seek passed"; above="BUFTESTS passed"; r3t="R3TESTS skipped"
     case $name in
         8088)   args="ibm5160 $fpe"; cpu="CPU type 0 (hardware 0)" ;;
         real)   args="ibm5170 $fpe --ram=2M"; cpu="CPU type 0 (hardware 2)" ;;
         multi)  rm -rf $tmp
                 cp -R $fpe $tmp || exit 1
-                grep -v -E "^(CPU|SKIP)=" $fpe/CONFIG.SYS > $tmp/CONFIG.SYS
-                printf 'CON=VKD$:80,25\nSHELL=COMMAND.COM\n' >> $tmp/CONFIG.SYS
+                grep -v "^SKIP=" $fpe/CONFIG.SYS > $tmp/CONFIG.SYS
+                printf 'CPU=80286\nCON=VKD$:80,25\nSHELL=COMMAND.COM\n' >> $tmp/CONFIG.SYS
                 tools/pc/pc.js ibm5170 $tmp --ram=2M "VER;MEM;\TESTS\MISC\R3TESTS;$ok;SLEEP 1;QUIT" --sys=bd:2 --floppy --serial --normalize --nosync | tee "$log"
                 if ! grep -q "R3TESTS passed" "$log" || ! grep -q "EXITOK" "$log"; then
+                    failed="$failed $name"
+                fi
+                continue ;;
+        pool)   rm -rf $tmp
+                cp -R $fpe $tmp || exit 1
+                grep -v "^SESSIONS=" $fpe/CONFIG.SYS > $tmp/CONFIG.SYS
+                printf 'CPU=80286\nSESSIONS=9\n' >> $tmp/CONFIG.SYS
+                tools/pc/pc.js ibm5170 $tmp --ram=2M "VER;\TESTS\MISC\MEMTESTS;MEM;TYPE CONFIG.SYS | FIND \"CPU\";SLEEP 1;QUIT" --sys=bd:2 --floppy --serial --normalize --nosync | tee "$log"
+                if ! grep -q "MEMTESTS passed" "$log" || ! grep -q "MEMTESTS pool full" "$log" || grep -q "CPU fault" "$log" ||
+                   grep -q "MEMTESTS failed" "$log" || ! grep -q "^CPU=80286" "$log"; then
                     failed="$failed $name"
                 fi
                 continue ;;
         tools)  rm -rf $tmp
                 src=software/src
                 mkdir -p $tmp/MT/PRIMES $tmp/MT/OBJ $tmp/MT/BIN $tmp/OS/INC $tmp/TOOLS || exit 1
-                printf 'SKIP=VKD$\nCON=COM1:9600,N,8,1\nSHELL=COMMAND.COM PATH$="C:\\;C:\\EXT;C:\\TOOLS"\n' > $tmp/CONFIG.SYS
+                printf 'CPU=80286\nSKIP=VKD$\nCON=COM1:9600,N,8,1\nSHELL=COMMAND.COM PATH$="C:\\;C:\\EXT;C:\\TOOLS"\n' > $tmp/CONFIG.SYS
                 tools/tests/prep.sh $tmp || exit 1
                 cp $src/tools/dos/*.EXE $tmp/TOOLS/ && cp $src/tools/bd/*.EXE $tmp/TOOLS/ || exit 1
                 cp $src/os/inc/*.inc $tmp/OS/INC/ && cp $src/tests/primes/primes.asm $src/tests/primes/PRIMES.DEF $tmp/MT/PRIMES/ &&
@@ -88,7 +99,7 @@ EOF
                 continue ;;
         pm|r3)  rm -rf $tmp
                 cp -R $fpe $tmp || exit 1
-                grep -v "^CPU=" $fpe/CONFIG.SYS > $tmp/CONFIG.SYS
+                echo CPU=80286 >> $tmp/CONFIG.SYS
                 args="ibm5170 $tmp --ram=2M"; cpu="CPU type 2 (hardware 2)"
                 if [ $name = pm ]; then
                     echo RING=0 >> $tmp/CONFIG.SYS

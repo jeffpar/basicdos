@@ -510,7 +510,7 @@ ENDPROC	mem_pmode
 ; In real mode, a segment is its own code alias and its own selector, so
 ; DOS_UTL_ALIAS and DOS_UTL_MAPSEG both return the segment they're given; in
 ; protected mode, set_fault replaces this function with utl_alias and
-; utl_mapseg (see pmutil.asm), which real mode doesn't keep.
+; utl_mapseg (see utilpm.asm), which real mode doesn't keep.
 ;
 ; Inputs:
 ;	REG_BX = segment

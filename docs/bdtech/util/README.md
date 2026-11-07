@@ -17,6 +17,8 @@ Utility functions differ from DOS functions in a few ways, because some of them 
 - Function numbers beyond the end of the table return immediately, without setting carry
 - INT 2Bh with AH set to a DOS function number plus 80h calls that DOS function without the usual entry processing; DOS_UTL_HDLCTL (C4h) is DOS_HDL_IOCTL (44h) called this way
 
+At ring 3, DOS_UTL_HPRINTF, DOS_UTL_WAIT, DOS_UTL_ENDWAIT, DOS_UTL_HOTKEY, DOS_UTL_LOCK, and DOS_UTL_UNLOCK return ERR_ACCDENIED (see [Running Programs at Ring 3](../mmu/#ring3)).
+
 Device drivers can also call DOS_UTL_WAIT, DOS_UTL_ENDWAIT, DOS_UTL_HOTKEY, DOS_UTL_LOCK, and DOS_UTL_UNLOCK with a far call to DDINT_UTIL (0050:0049h), with AH set to the function number, which avoids the stack overhead of an INT 2Bh call.
 
 ### Function Summary

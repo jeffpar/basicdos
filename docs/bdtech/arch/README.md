@@ -26,7 +26,7 @@ Unlike PC DOS, there is no separate BIOS-level file (IO.SYS or IBMBIO.COM); BASI
 
 The boot sector runs in two parts:
 
-1. Part 1 copies the BIOS diskette parameter table (DPT) to low memory (522h) so its values can be tuned, and moves the boot sector to low memory (560h).  If a hard disk is present, it displays "Press a key to start..." and waits for a key (or at most 2 seconds); **Esc** boots from the hard disk instead.  The key pressed is saved in BOOT_KEY (52Dh).  It then finds BASDEV.COM, BASDOS.COM, and CONFIG.SYS in the root directory.
+1. Part 1 copies the BIOS diskette parameter table (DPT) to low memory (522h) so its values can be tuned, and moves the boot sector to low memory (560h).  It displays "Press a key to start..." and waits for a key (or at most 2 seconds), unless [SYS /N](../../bdman/cmd/external/sys/) removed the prompt, which leaves only a one-tick wait.  The key pressed is saved in BOOT_KEY (52Dh).  It then finds BASDEV.COM, BASDOS.COM, and CONFIG.SYS in the root directory.
 2. Part 2 loads BASDEV.COM at BIOS_END (970h), hops over its driver headers to find the devinit code that follows them, and jumps to it, passing it the address of the boot code's function for reading a file.
 
 Devinit reads CONFIG.SYS (to honor any SKIP= line), chains the driver headers together, and sends each driver a DDC_INIT request, starting with CPU$ (two drivers, the first of which records the processor type, and one of which stays, to manage all memory; see [Protected Mode](../mmu/)), which can't be skipped; each driver reports how much memory it needs, so the drivers end up packed together, and skipped drivers take no memory.  As soon as CPU$ is initialized, devinit claims the memory it's using from CPU$ (the drivers, and its own code, CONFIG.SYS data, and scratch buffer), and loads BASDOS.COM into a block at the top of conventional memory, followed by a copy of the CONFIG.SYS data.  When the last driver is initialized, devinit frees its blocks, allocates the first free block (right after the drivers) for BASDOS.COM, and has CPU$ move it there and "return" to sysinit, which also takes the memory for its tables and its initialization code from CPU$, and gets a segment (or selector) for each disk buffer from CPU$.  The first CPU$ driver also applies any MEMSIZE= line, by lowering the BIOS's memory size.
@@ -51,7 +51,9 @@ The key pressed at the boot prompt is saved in BOOT_KEY (52Dh).  These keys have
 
 | Key | Effect |
 | --- | --- |
-| **Esc** | Boots from the hard disk instead |
+| **Esc** | Boots from the hard disk instead, if there is one and the boot disk isn't it (it isn't saved) |
+| **P** | Requests protected mode, like [CPU=80286](../../bdman/cfg/#cpu) |
+| **R** | Runs in real mode, overriding any `CPU=80286` or `CPU=80386` line |
 | `-` | Makes `-` the switch character, like [SWITCHAR=-](../../bdman/cfg/#switchar) |
 
 ### Debug Messages
@@ -73,7 +75,7 @@ In DEBUG builds, the [DOS_UTL_DPRINTF](../util/#formatted-output) messages are p
 
 All the disk buffers form a circular chain, ordered from most to least recently used.  Each buffer holds a FAT sector, a directory sector, or a sector of a file that's being read in pieces smaller than a sector (whole sectors and all file writes go directly through the disk drivers, with one request for each run of clusters that are next to each other on disk), and when a sector isn't already in a buffer, the least recently used buffer is reused, except that the most recently used buffer of another kind is never reused, so that DOS can keep working with a directory entry while it updates the FAT (and vice versa).
 
-The memory pool is managed by the CPU$ driver (see [Protected Mode](../mmu/)): on an 8088 (or with `CPU=8088`), it's a chain of Memory Control Blocks (see [MCB](../data/#mcb)), as in PC DOS, and on an 80286, a table of physical memory blocks.  [DOS_MEM_ALLOC](../dos/#memory) normally allocates from the bottom of the first free block that's big enough, but with MCBTYPE_HIGH (80h) set in AL, it allocates from the top of the last one.  COMMAND.COM allocates its code, text, variable, and string blocks from the top, so that the memory it frees before running a program stays contiguous.
+The memory pool is managed by the CPU$ driver (see [Protected Mode](../mmu/)): on an 8088 (or in real mode), it's a chain of Memory Control Blocks (see [MCB](../data/#mcb)), as in PC DOS, and in protected mode, a table of physical memory blocks.  [DOS_MEM_ALLOC](../dos/#memory) normally allocates from the bottom of the first free block that's big enough, but with MCBTYPE_HIGH (80h) set in AL, it allocates from the top of the last one.  COMMAND.COM allocates its code, text, variable, and string blocks from the top, so that the memory it frees before running a program stays contiguous.
 
 Unlike PC DOS, BASIC-DOS doesn't give a program all available memory: a COM program gets its file size plus a heap (at least MINHEAP, or 1K, or more if the program requests it; see [COMDATA](../data/#comdata)), or at least half of the available memory if it has no COMDATA, and an EXE program gets its image size plus the minimum its header requests (EXE_PARASMIN), plus as much of the maximum (EXE_PARASMAX) as is available, up to 64K (or the minimum, if larger).  This leaves memory available for other sessions, while still giving programs like LINK.EXE (which sizes its stack from the memory it's given) enough room to run.  In protected mode, an NE program gets a block for each of its segments, the size its segment table gives (plus the heap and stack for DGROUP), and its PSP gets a block of its own (see [Loading Programs](../mmu/#exec)).
 

@@ -12,7 +12,7 @@ Read the [Blog](blog/), check out the [Preview](preview/), see a few of the orig
 
 ## Download
 
-The first BASIC-DOS release diskette is a bootable 360K diskette with BASIC-DOS, a "basic" set of utilities, a collection of BASIC samples (all from PC DOS 1.00), and a few demo programs.  See it running on the [BASIC-DOS Release](download/) page, or download [BASICDOS-360K](software/disks/BASICDOS-360K.img), a diskette image that most PC emulators can boot, or which can be written to a genuine 360K diskette.
+The current BASIC-DOS release diskette is a bootable 360K diskette with BASIC-DOS, a "basic" set of utilities, a collection of BASIC samples (all from PC DOS 1.00), and a few demo programs.  See it running on the [BASIC-DOS Release](download/) page, or download [BASICDOS-360K](software/disks/BASICDOS-360K.img), a diskette image that most PC emulators can boot, or which can be written to a genuine 360K diskette.
 
 When we say that BASIC-DOS comes with a "basic" set of utilities, we mean that both figuratively and literally, because while some are written in assembly language, most are in fact written in BASIC, including [CHKDSK](docs/bdman/cmd/external/chkdsk/), [FORMAT](docs/bdman/cmd/external/format/), [MODE](docs/bdman/cmd/external/mode/), and more.  BASIC-DOS takes its commitment to BASIC integration, performance, and ease-of-use very seriously.
 
@@ -27,7 +27,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 ### Boot and System Configuration
 
 - [x] Boot sector that loads the BASIC-DOS drivers, kernel, and interpreter
-- [x] Boot prompt when a hard disk is detected (press **Esc** within 2 seconds to boot from it)
+- [x] Boot prompt (within 2 seconds, press **Esc** to boot from a hard disk instead, **P** for protected mode, or **R** for real mode), which `SYS /N` removes from a disk
 - [x] Booting BASIC-DOS from a hard disk partition (eg, a disk built with `pc.js --sys=bd:2`), which becomes the default drive
 - [x] CONFIG.SYS support for AUX, BUFFERS, CON, CPU, DEVICE, FILES, MEMSIZE, PATHCHAR, PRN, RING, SESSIONS, SHELL, SKIP, and SWITCHAR
 - [x] CON, AUX, and PRN are names for each session's console, AUX, and PRN devices rather than drivers: [CON=](docs/bdman/cfg/#con) defines each session's console (VKD$ or a serial port), and [AUX=](docs/bdman/cfg/#aux) and [PRN=](docs/bdman/cfg/#prn) choose any device (COM1 and LPT1 by default); without one (eg, no LPT1), opening the name fails, and its handle stays reserved
@@ -53,15 +53,18 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 
 ### Protected Mode
 
-On an 80286 or later, BASIC-DOS runs in protected mode; it's built and tested for the IBM PC AT, and an 80386 runs the same code.  See [Protected Mode](docs/bdtech/mmu/) for details, and the [Protected Mode demo](demos/mmu/) to try it.
+On an 80286 or later, BASIC-DOS runs in protected mode if it's requested, with a `CPU=80286` or `CPU=80386` line in CONFIG.SYS or **P** at the boot prompt, and otherwise in real mode, its most compatible mode; it's built and tested for the IBM PC AT, and an 80386 runs the same code.  See [Protected Mode](docs/bdtech/mmu/) for details, and the [Protected Mode demo](demos/mmu/) to try it.
 
-- [x] BASIC-DOS switches to protected mode while its drivers initialize, and stays there, given at least 128K of conventional memory and 64K of extended memory; otherwise, or with `CPU=8088` in CONFIG.SYS, it runs in real mode, as on an 8088
+- [x] When requested, BASIC-DOS switches to protected mode while its drivers initialize, and stays there, given at least 128K of conventional memory and 64K of extended memory; otherwise, it runs in real mode, as on an 8088
 - [x] COMMAND.COM, BASIC programs, and every program they run at ring 3 (unless CONFIG.SYS has `RING=0`), with each session's memory in its own LDT, so a program can't write to memory that isn't its own
 - [x] A ring 3 program's CTRL-C, critical error, and interrupt handlers run at ring 3, too (interrupt handlers see only the interrupts that ring 3 code in its session issues)
 - [x] A ring 3 program can free or resize only its own memory blocks, whose selectors always fit their lengths, and a bad pointer, stack, or return address ends the program, rather than stopping the system
+- [x] The PMB table and each session's LDT (up to 256 descriptors) grow as needed, sharing about 36K of the system area, and CPU$ keeps interrupts on while it works on them
+- [x] A ring 3 program can issue only DOS's, the mouse's, and the user interrupts (not the BIOS's), and it can't reach another session's descriptors through the GDT, or its files through a forged handle
 - [x] A ring 3 program can hook only the exception vectors it can handle, INT 21h, and INT 60h-67h, and can't change the kernel's record of its parent, stack, or handlers by writing its PSP
 - [x] COM and NE programs (eg, PRIMES.EXE) run in protected mode
-- [x] MASM 4.00, MAKE 4.02, LINK 3.05, LINK4 5.00.12, EXEMOD 4.00, MAPSYM 4.00, and EXE2BIN (MS-DOS 3.20) in **TOOLS** on the hard disk are converted from MZ to dual MZ/NE executables that run at ring 3 in protected mode and through their original MZ images in real mode
+- [x] MASM 4.00, MAKE 4.02, LINK 3.05, LINK4 5.00.12, EXEMOD 4.00, and MAPSYM 4.00 in **TOOLS** on the hard disk are converted from MZ to dual MZ/NE executables that run at ring 3 in protected mode and through their original MZ images in real mode
+- [x] An NE loader stub (`mkne.js --stub`) replaces an NE program's MZ stub, so its one NE image also runs in real mode, without a second copy of the program: on BASIC-DOS, and if the program uses only DOS functions, on PC DOS 2.00 and MS-DOS 3.20 (eg, EXE2BIN from MS-DOS 3.20 in **TOOLS**, with its NE image changed to use only 8086 instructions)
 - [x] BASIC-DOS can build itself at ring 3 in protected mode, with the same binaries as a real-mode build
 - [x] Exceptions: a fault in a program's own code ends that program with `CPU fault nn (EC=nnnn) at nnnn:nnnn` (ERRORLEVEL 255), as a divide error does; anywhere else, CPU$ prints the same line and `System halted`, and stops the machine, unless DEBUG.COM is loaded as a driver and takes over (see [Faults](docs/bdtech/mmu/#faults))
 - [x] DEBUG.COM as a driver can stop and resume ring 3 programs with all of its commands; as a program, it runs at ring 3 with fewer commands
@@ -281,7 +284,8 @@ The poster child for BASIC samples support is [DONKEY.BAS](https://www.pcjs.org/
 - [x] HARDERR: INT 24h compatibility tests (handler inputs, the stack switch, Retry, Fail, Ignore conversion, and Abort), using an empty drive B:
 - [x] R3TESTS: at ring 3, tests that misusing DOS (bad pointers, stacks, selectors, and vectors, and overwritten PSP fields) or using CLI or OUT ends only the program that did it, each in its own copy of the program
 - [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, and from a hard disk, runs FPUTESTS, DOSTESTS, BUFTESTS, STRFUN, STRPOOL, ARRAYS, FLOW, EXPRERR, CMDS, VARS, FILEIO, RUNFILE, PRTUSING, MOVES, ATTRS, FCBTESTS, HARDERR, IOERR, and PRINTF, and reports whether the tests passed)
-- [x] `tools/tests/mmutest.sh` runs the same floppy tests, plus CPUTESTS, on a PC XT, a PC AT with `CPU=8088`, and a PC AT in protected mode, with and without `RING=0` (at ring 3, CPUTESTS and HARDERR's interrupt hook tests are skipped), and R3TESTS with a second console
+- [x] MEMTESTS: fills the system area's pool of PMBs and LDT descriptors from 7 sessions at once, checking their selectors and code aliases as their LDTs move, and that the system recovers (in `mmutest.sh`)
+- [x] `tools/tests/mmutest.sh` runs the same floppy tests, plus CPUTESTS, on a PC XT, a PC AT in real mode, and a PC AT in protected mode, with and without `RING=0` (at ring 3, CPUTESTS and HARDERR's interrupt hook tests are skipped), and R3TESTS with a second console
 - [x] CMDS: command tests (pipes, redirection, including to quoted and string variable file names, string variables and unquoted strings in external command arguments, TYPE, DEL, DEL's extra arguments, invalid switches, TIME /D, HELP, SOUND, remarks, and hex constants)
 - [x] `tools/tests/chkdsk.sh` runs MS-DOS 3.20 CHKDSK on a diskette image saved by a test session (see `QUIT /S` in `pc.js`)
 - [x] BENCH.BAS and MICRO.BAS benchmarks, which run unchanged in BASIC-DOS, BASICA, and GW-BASIC (see the [results](preview/part6/)); `tools/tests/bench.sh` runs BENCH.BAS in all six configurations (each with and without an 8087) and prints the results in seconds
@@ -290,7 +294,7 @@ The poster child for BASIC samples support is [DONKEY.BAS](https://www.pcjs.org/
 - [x] [BASIC-DOS Manual](docs/bdman/): using BASIC-DOS, all commands and functions, programming, and configuration
 - [x] An alphabetical [list of the files provided with BASIC-DOS](docs/bdman/cmd/external/#files-provided-with-basic-dos), with a manual page for each utility that describes all of its switches, internal commands, and messages
 - [x] One syntax notation throughout the manual and HELP.TXT: *italics* for values you supply, `[ ]` for optional items, `|` between alternatives, `...` for repetition, one line per form, and file numbers written #*n* (statements with both forms, like PRINT and PRINTF, have one entry with an optional [#*n*,])
-- [x] [BASIC-DOS Technical Reference](docs/bdtech/): architecture, DOS functions, utility functions, device drivers, the FPU$ interface, internal structures, and protected mode
+- [x] [BASIC-DOS Technical Reference](docs/bdtech/): architecture, DOS functions, utility functions, device drivers, the FPU$ interface, internal structures, protected mode, and a comparison with DOS extenders
 - [ ] More tests (eg, BASIC language and COMMAND.COM tests)
 
 ## Non-features
@@ -312,6 +316,18 @@ These are the next steps, roughly in priority order:
 2. The rest of runtime error handling (messages for numeric errors other than "Division by zero", such as "Overflow")
 3. Common BASICA features that BASIC-DOS lacks: BEEP and COMMON
 4. The rest of protected mode on an 80286 or 80386: ring 3 for the programs that still need `RING=0` (interrupt hooks that DOS or the ROM BIOS calls, and CPUTESTS); see [Limitations](docs/bdtech/mmu/#limits)
+
+### Ring 3 Security
+
+A ring 3 program shouldn't be able to corrupt or damage the system, even as DEBUG.COM.  These potential issues remain, and the questions in them are still open:
+
+- **System functions**: there's no privilege model, so any program can do what COMMAND.COM can with DOS functions: restart the system (DOS_UTL_RESTART), end another session (DOS_UTL_END), change any file, or write any volume (eg, with FORMAT's IOCTLs).  Should ring 3 programs keep DOS_UTL_RESTART and DOS_UTL_END?  Restricting them needs some way to mark COMMAND.COM as trusted, which is new design work.
+- **FCB files (a likely bug, not yet tested)**: an FCB's SFB is found by its selector and offset, and its owner is a PSP selector, all of which repeat across sessions, so two sessions (eg, two copies of one program) could collide on the same FCB address, and a program's end could close another session's FCB file.  Should this be fixed next, starting with a two-session test?
+- **Shared files**: a session that shares an SFB with another session (eg, a pipe, or a file that both opened) can close more references than it has, by repeating the SFH in its PSP_PFT, which can break the SFB for the other session.
+- **Faults in drivers** are still fatal, so a driver bug can stop the system, even though the data that programs give drivers is checked first.
+- **Reading memory**: a `%ls` parameter to DOS_UTL_PRINTF can read kernel memory, and DOS_UTL_MAPSEG can map other memory read-only, including the system area.
+- **Shared resources**: a program can use all of memory, up to the table limits, and draw on any console's video memory.
+- **Untested**: INT 23h and INT 24h can still be issued directly at ring 3, which should be harmless.  R3TESTS has no case for a forged handle, since that needs a second session, and all of the ring 3 checks have been run only on PCjs, not on an 80286.
 
 ## License
 
@@ -351,7 +367,7 @@ Any files that the build modifies are written back to the `software/src` directo
 
 Once `mkdos.sh` has built the system files, `mk.sh` (usage is `mk.sh [FINAL or DEBUG] [CLEAN]`, like MK.BAT, with the same package.json defaults as `mkdos.sh`) builds BASIC-DOS on BASIC-DOS itself, with the same build tools (see [software/src](software/src/README.md) for details).
 
-The `boot.sh` script then builds a 360K floppy containing the BASIC-DOS boot sector and system files, along with the files in the `configs/console/serial/fpe` folder (including CONFIG.SYS) and the test binaries that `tools/tests/prep.sh` copies there, and boots it on a 2Mb IBM PC AT (`ibm5170`), whose real-time clock sets the date and time, in real mode (each configuration's CONFIG.SYS has `CPU=8088`):
+The `boot.sh` script then builds a 360K floppy containing the BASIC-DOS boot sector and system files, along with the files in the `configs/console/serial/fpe` folder (including CONFIG.SYS) and the test binaries that `tools/tests/prep.sh` copies there, and boots it on a 2Mb IBM PC AT (`ibm5170`), whose real-time clock sets the date and time, in real mode (the default):
 
     $ ./boot.sh
     [Press CTRL-D to enter command mode]

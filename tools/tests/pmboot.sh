@@ -2,7 +2,7 @@
 #
 # Usage: tools/tests/pmboot.sh [ibm5170 or compaq386] [pc.js arguments...]
 #
-# Boots BASIC-DOS on a 2Mb machine (an IBM PC AT by default) from a floppy whose CONFIG.SYS has no "CPU=8088" line,
+# Boots BASIC-DOS on a 2Mb machine (an IBM PC AT by default) from a floppy whose CONFIG.SYS has a "CPU=80286" line,
 # so that devinit switches to protected mode after CPU$ initializes (see CPU_PMODE in software/src/os/dev/286dev.asm,
 # and docs/bdtech/mmu), initializes the rest of the drivers in protected mode, and jumps to sysinit in protected mode,
 # with BASIC-DOS's console on COM1 (ie, this terminal).  An exception that CPU$ can't handle prints "CPU fault" and
@@ -21,7 +21,7 @@ cfg=tools/pc/disks/pmboot
 obj=software/src/os/dev/OBJ
 rm -rf $cfg
 mkdir -p $cfg || exit 1
-printf 'CON=COM1:9600,N,8,1\r\nSHELL=COMMAND.COM\r\n' > $cfg/CONFIG.SYS
+printf 'CPU=80286\r\nCON=COM1:9600,N,8,1\r\nSHELL=COMMAND.COM\r\n' > $cfg/CONFIG.SYS
 size() { wc -c < "$1" | tr -d ' '; }
 devinit=$((0x970 + $(size $obj/BASDEV.COM) - $(size software/src/os/boot/OBJ/BOOT2.COM) - $(size $obj/DEVINIT.COM) + 18 * 512))
 show() {

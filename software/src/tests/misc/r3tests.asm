@@ -10,11 +10,11 @@
 ; Usage: R3TESTS
 ;
 ; Checks that a ring 3 program can't harm the kernel, or stop the system, by
-; misusing DOS, or using CLI or OUT (see docs/bdtech/mmu).  Many of these tests
-; are supposed to end the program, so each one runs in its own copy (R3TESTS,
-; plus a letter), and we check how the copy ended: normally, or with a CPU
-; fault, whose line it prints.  A test that stops the system instead has
-; failed, too.
+; misusing DOS, or using CLI, OUT, or BIOS interrupts (see docs/bdtech/mmu).
+; Many of these tests are supposed to end the program, so each one runs in its
+; own copy (R3TESTS, plus a letter), and we check how the copy ended: normally,
+; or with a CPU fault, whose line it prints.  A test that stops the system
+; instead has failed, too.
 ;
 ; Anywhere but ring 3, it just prints that it was skipped.
 ;
@@ -22,10 +22,14 @@
 	DOSFUNC equ 1
 	include	macros.inc
 	include	8086.inc
+	include	devapi.inc
 	include	dosapi.inc
 
 R3_USERINT	equ	60h		; a vector for programs to hook
 INT_IRQ0	equ	08h		; a vector that they can't
+INT_BIOS	equ	13h		; one that they can't issue, either
+GDT_WINDOW	equ	0800h		; what follows the GDT's first part
+GDT_IDENTITY	equ	0A000h		; and the first identity selector
 F		equ	EXTYPE_FAULT
 
 CODE	segment
@@ -391,11 +395,134 @@ tzb:	cli
 	jmp	tz1
 tzc:	out	80h,al
 	jmp	tz1
+;
+; The system tables that the GDT's limit covers must not be usable as segments
+; (they hold other sessions' descriptors).
+;
+tzd:	mov	si,GDT_WINDOW + 3
+tzd1:	verr	si
+	jz	tzd9
+	verw	si
+	jz	tzd9
+	add	si,8
+	cmp	si,GDT_IDENTITY
+	jb	tzd1
+	jmp	ok
+tzd9:	jmp	bad
+;
+; Ring 3 code can't issue a BIOS interrupt.
+;
+tze:	int	INT_BIOS
+	jmp	bad
+;
+; Functions for drivers and the kernel fail at ring 3.
+;
+tzf:	DOSUTIL	LOCK
+	jmp	failif
+;
+; DOS_UTL_ALIAS works only for a block of our own.
+;
+tzg:	mov	bx,ds:[PSP_ERROR].SEG	; BX = the kernel's selector
+	mov	ax,DOS_UTL_ALIAS SHL 8
+	int	INT_DOSUTIL
+	jmp	failif
+;
+; An IOCTL's data must be in our memory, before a driver can use it.
+;
+tzh:	mov	bx,1
+	call	alloc
+	push	es
+	pop	ds
+	mov	si,15
+	mov	bx,STDOUT
+	mov	cx,200
+	sub	dx,dx
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETLEN
+	int	21h
+	jmp	bad
+;
+; A chain of programs has to stop with an error, before it runs out of the
+; session's ring 0 stack.
+;
+tzi:	mov	al,ds:[PSP_CMDTAIL+2]
+	mov	[tail+2],al
+	mov	dx,offset progname
+	mov	bx,offset epbx
+	mov	ax,DOS_PSP_EXEC
+	int	21h
+	jc	tzi1
+	mov	ah,DOS_PSP_RETCODE
+	int	21h			; AL = exit code, AH = exit type
+	test	ax,ax			; did the rest of the chain end well?
+	jnz	tzd9			; no
+	jmp	ok
+tzi1:	cmp	ax,ERR_NOMEMORY		; is this the end of the chain?
+	jne	tzd9			; no
+	jmp	ok
+;
+; An LDT grows as needed (past its original 96 descriptors), and the selectors
+; that a program already has keep working when it does.
+;
+tzj:	sub	si,si			; SI = # of blocks
+tzj1:	mov	bx,1
+	mov	ah,DOS_MEM_ALLOC
+	int	21h
+	jc	tzj2
+	mov	es,ax
+	mov	es:[0],ax		; each block holds its own selector
+	test	si,si
+	jnz	tzj1a
+	mov	dx,ax			; DX = the first block
+tzj1a:	mov	di,ax			; DI = the last block
+	inc	si
+	cmp	si,200
+	jb	tzj1
+tzj2:	cmp	si,96			; did it get past the original limit?
+	jbe	tzj9			; no
+	mov	es,dx
+	cmp	es:[0],dx		; is the first block still there?
+	jne	tzj9			; no
+	mov	es,di
+	cmp	es:[0],di		; and the last?
+	jne	tzj9			; no
+	jmp	ok
+tzj9:	jmp	bad
+;
+; A block can grow past the end of its LDT (which holds 32 descriptors at a
+; time), as its next selector is then a new descriptor.
+;
+tzk:	mov	bx,1
+	mov	ah,DOS_MEM_ALLOC
+	int	21h
+	jc	tzj9
+	mov	es,ax
+	mov	dx,ax			; DX = this block
+	shr	ax,3
+	inc	ax
+	test	al,31			; is this the LDT's last descriptor?
+	jnz	tzk
+	mov	es:[0],dx
+	mov	bx,1001h		; (16 bytes more than 64K)
+	mov	ah,DOS_MEM_REALLOC
+	int	21h
+	jc	tzj9
+	mov	ax,dx
+	add	ax,8			; AX = its next selector
+	verw	ax
+	jnz	tzj9
+	mov	es,ax
+	mov	word ptr es:[0],1
+	mov	es,dx
+	cmp	es:[0],dx		; is the block's start still intact?
+	jne	tzj9
+	jmp	ok
 
 tests	dw	ta,tb,tc,td,te,tf,tg,th,ti,tj,tk,tl,tm
-	dw	tn,to,tp,tq,tr,ts,tt,tu,tv,tw,tx,ty,tz,tza,tzb,tzc,0
+	dw	tn,to,tp,tq,tr,ts,tt,tu,tv,tw,tx,ty,tz,tza,tzb,tzc
+	dw	tzd,tze,tzf,tzg,tzh,tzi,tzj,tzk,0
 results	db	0,0,0,0,F,0,0,F,F,F,F,F,0
 	db	F,F,F,F,F,F,0,0,0,0,0,0,0,0,F,F
+	db	0,F,0,0,F,0,0,0
 
 progname db	"A:\TESTS\MISC\R3TESTS.COM",0
 tail	db	2," A",13

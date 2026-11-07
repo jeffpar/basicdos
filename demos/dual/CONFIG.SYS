@@ -1,5 +1,4 @@
 REM Demonstration of dual monitors with full-screen consoles
-CPU=8088
 BUFFERS=4
 SESSIONS=4
 CON=VKD$:80,25

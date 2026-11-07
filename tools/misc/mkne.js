@@ -26,6 +26,15 @@
  *     program that puts its stack in DGROUP needs a new SP (see patchStartup).
  *
  * A protected-mode banner ending in "BD" identifies each conversion.
+ *
+ * A program that sets stub makes no dual executable: after converting it, this
+ * replaces its MZ image with NESTUB.BIN (see software/src/tools/nestub.asm), an
+ * NE loader, so its one NE image runs in either mode, and its patches must be
+ * safe in real mode, using only 8086 instructions if it may run on an 8088.  To
+ * do the same with any NE program (eg, one that LINK4 built, whose stub it then
+ * replaces):
+ *
+ *      node tools/misc/mkne.js --stub in.exe out.exe
  */
 
 import crypto from "node:crypto";
@@ -174,7 +183,7 @@ function loadMZ(name, sourceHash) {
  * maps each target value to a one-based segment number.
  */
 function writeDual(name, { source, image, relocations, frames, segments,
-    autoData, ip, cs, sp, ss }) {
+    autoData, ip, cs, sp, ss, stub: useStub }) {
     const bySegment = segments.map(() => []);
     for (const { linear, target } of relocations) {
         if (!frames.has(target)) {
@@ -259,10 +268,81 @@ function writeDual(name, { source, image, relocations, frames, segments,
         }
     });
 
+    if (useStub) {
+        output = stubNE(output, readStub());
+    }
     fs.mkdirSync(new URL("bd/", TOOLS), { recursive: true });
     fs.writeFileSync(new URL(`bd/${name}.EXE`, TOOLS), output);
     console.log(`${name}.EXE: ${output.length} bytes`);
 }
+
+/**
+ * Returns a copy of an NE file with its MZ stub replaced by the NE loader stub.
+ *
+ * The new MZ header has a header size of zero, so DOS loads the entire file, and
+ * a file offset is an image offset.  Its minimum allocation covers what the stub
+ * will need (it must agree with the stub's first step), plus its stack.  A smaller
+ * stub moves the rest of the file down, by a multiple of the file's alignment, so
+ * the NE header's file offsets must be adjusted, too.
+ */
+function stubNE(file, stub) {
+    const STUB_STACK = 0x20;                    // paragraphs
+    const offsetNE = file.readUInt32LE(0x3c);
+    const header = file.subarray(offsetNE);
+    if (word(header, 0) !== 0x454e) {
+        throw new Error("no NE header");
+    }
+    const shift = word(header, 0x32) || 9;
+    if (shift < 4) {
+        throw new Error(`unsupported alignment shift ${shift}`);
+    }
+    const prefix = (0x40 + stub.length + 15) & ~15;
+    const delta = Math.floor((offsetNE - prefix) / (1 << shift)) * (1 << shift);
+    const newNE = offsetNE - delta;
+    const output = Buffer.alloc(newNE + header.length);
+    header.copy(output, newNE);
+    stub.copy(output, 0x40);
+    const entryNE = newNE + word(header, 0x22);
+    const count = word(header, 0x1c);
+    const autoData = word(header, 0x0e);
+    const nonresident = header.readUInt32LE(0x2c);
+    if (nonresident) {
+        output.writeUInt32LE(nonresident - delta, newNE + 0x2c);
+    }
+    output.writeUInt32LE(0, newNE + 0x08);      // the file's CRC is now wrong
+    let next = (entryNE + count * 8 + 15) >> 4;
+    for (let i = 0; i < count; i++) {
+        const entry = entryNE + i * 8;
+        const sector = word(output, entry);
+        let start = next;
+        if (sector) {
+            const moved = sector - delta / (1 << shift);
+            output.writeUInt16LE(moved, entry);
+            start = Math.max(next, moved << (shift - 4));
+        }
+        let size = word(output, entry + 6) || 0x10000;
+        if (i + 1 === autoData) {
+            size += word(header, 0x10) + word(header, 0x12);
+        }
+        next = start + ((size + 15) >> 4);
+    }
+    const image = (output.length + 15) >> 4;
+    const stack = Math.max(next, image);
+    const mz = output.subarray(0, 0x40);
+    mz.writeUInt16LE(0x5a4d, 0x00);
+    mz.writeUInt16LE(output.length % 512, 0x02);
+    mz.writeUInt16LE((output.length + 511) >> 9, 0x04);
+    mz.writeUInt16LE(stack + STUB_STACK - image, 0x0a);     // minimum
+    mz.writeUInt16LE(stack + STUB_STACK - image, 0x0c);     // maximum
+    mz.writeUInt16LE(stack, 0x0e);                          // SS
+    mz.writeUInt16LE(STUB_STACK << 4, 0x10);                // SP
+    mz.writeUInt16LE(0x40, 0x14);                           // IP
+    mz.writeUInt16LE(0x40, 0x18);                           // relocation table
+    mz.writeUInt32LE(newNE, 0x3c);
+    return output;
+}
+
+const readStub = () => fs.readFileSync(new URL("NESTUB.BIN", TOOLS));
 
 const PROGRAMS = [
 
@@ -731,11 +811,12 @@ const PROGRAMS = [
 
             /*
              * EXE2BIN ends by returning to PSP:0000h, but the PSP's selector isn't
-             * code in protected mode, so PUSH CS and PUSH imm16 replace the PUSH DS,
-             * XOR AX,AX, and PUSH AX, to return to an INT 21h exit after the helper.
+             * code in protected mode, so it starts in a helper instead of with its
+             * PUSH DS, XOR AX,AX, and PUSH AX, to return to an INT 21h exit.  This
+             * has to run on an 8088, too (see stub, below).
              */
-            patch(image, 0x0000, "1e 33c0 50",
-                `0e 68 ${hexWord(codeEnd + fixup.length)}`);
+            const exit = codeEnd + fixup.length;
+            const start = exit + 5;
 
             /*
              * The print routines keep their state in their code segment (offsets
@@ -763,7 +844,14 @@ const PROGRAMS = [
                 frames: new Map([[0x0039, 2], [0x0077, 4], [0x009f, 5]]),
                 segments: [
                     { start: 0, end: codeEnd,
-                      extra: Buffer.concat([fixup, bytes("b8004c cd21")]) },
+                      extra: Buffer.concat([fixup, bytes(`
+                        b8004c cd21             // exit: mov ax,4C00h; int 21h
+                        0e                      // start: push cs
+                        b8 ${hexWord(exit)}     // mov ax,exit
+                        50                      // push ax
+                        33c0                    // xor ax,ax
+                        e9 ${hexWord(4 - (start + 10))}
+                      `)]) },
                     { start: 0x0390, end: 0x0610, data: true },
                     { start: printStart, end: printStart + printData,
                       size: printData + stack, data: true },
@@ -771,16 +859,24 @@ const PROGRAMS = [
                     { start: 0, end: 0, size: 0, data: true }
                 ],
                 autoData: 2,
-                ip: 0,
+                ip: start,
                 cs: 1,
                 sp: printData + stack,
-                ss: 3
+                ss: 3,
+                stub: true
             };
         }
     }
 ];
 
-for (const { name, hash, convert } of PROGRAMS) {
-    const mz = loadMZ(name, hash);
-    writeDual(name, { ...mz, ...convert(mz) });
+if (process.argv[2] === "--stub") {
+    const [input, output] = process.argv.slice(3);
+    const result = stubNE(fs.readFileSync(input), readStub());
+    fs.writeFileSync(output, result);
+    console.log(`${output}: ${result.length} bytes`);
+} else {
+    for (const { name, hash, convert } of PROGRAMS) {
+        const mz = loadMZ(name, hash);
+        writeDual(name, { ...mz, ...convert(mz) });
+    }
 }

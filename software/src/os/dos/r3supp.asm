@@ -74,13 +74,6 @@ RV_USER		dd	?		; ring 3 handler, or 0 if none yet
 RV_ORIG		dd	?		; previous handler
 RVEC		ends
 ;
-; The vectors that ring 3 programs can hook (see r3_hookok), other than INT
-; 22h-24h, which each session has its own of: the exceptions that a program
-; can handle, DOS itself, and these, which are free for programs to use.
-;
-R3_USERINT	equ	60h		; first of the user vectors
-R3_USERMAX	equ	67h		; and the last
-;
 ; The bits of a descriptor's access rights that make it a code segment, which
 ; are what an IRET requires of a selector that it loads into CS (see ACC_CODE
 ; in 286dev.asm), and how far below a ring 3 caller's SP r3_sprintf requires

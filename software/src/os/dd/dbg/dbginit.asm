@@ -346,7 +346,7 @@ ENDPROC	set_dos				; fall into set_cpu
 ;
 ; On an 8086 or 8088, opcodes 60h-6Fh are copies of 70h-7Fh, C0h-C1h of
 ; C2h-C3h, and C8h-C9h of CAh-CBh, and 0Fh is POP CS, so if CPU$ says that's
-; the processor (with CPUF_HWTYPE, which a "CPU=8088" line doesn't change),
+; the processor (with CPUF_HWTYPE, which real mode doesn't change),
 ; we change the disassembler's OPTAB entries and 0Fh test to match.
 ;
 ; Inputs:

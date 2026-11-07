@@ -22,10 +22,9 @@ CODE    SEGMENT
 ;
 ; listSessions
 ;
-; Used by KILL with no argument to list every session: its number (from 1,
-; as used by KILL), its console (the name of the device its output goes
-; to), and its program (or "Unused" if it has none), marking the current
-; session with "*".
+; Used by KILL with no argument to list every session with a program: its
+; number (from 1, as used by KILL), its console (the name of the device its
+; output goes to), and its program, marking the current session with "*".
 ;
 ; Inputs:
 ;	None
@@ -46,6 +45,8 @@ DEFPROC	listSessions
 	sub	cx,cx			; CL = session # (from 0)
 lss1:	DOSUTIL	QRYSCB			; AX = PSP, buffer = console + program
 	jc	lss9			; no more sessions
+	test	ax,ax			; does the session have a program?
+	jz	lss8			; no
 	mov	bl,' '
 	cmp	cl,dl			; is it the current session?
 	jne	lss3			; no
@@ -53,8 +54,6 @@ lss1:	DOSUTIL	QRYSCB			; AX = PSP, buffer = console + program
 lss3:	mov	si,cx
 	inc	si			; SI = session # (from 1)
 	push	dx
-	test	ax,ax			; does the session have a program?
-	jz	lss4			; no
 ;
 ; The console name is at the buffer (ES:DI) and the program name follows it,
 ; both in our stack segment; unlike PSP-1, those are valid to address in
@@ -62,10 +61,8 @@ lss3:	mov	si,cx
 ;
 	lea	dx,[di+8]		; ES:DX -> the program's name
 	PRINTF	<"%c%2d %-8.8ls %-8.8ls",13,10>,bx,si,di,es,dx,es
-	jmp	short lss8
-lss4:	PRINTF	<"%c%2d %-8.8ls Unused",13,10>,bx,si,di,es
-lss8:	pop	dx
-	inc	cx
+	pop	dx
+lss8:	inc	cx
 	jmp	lss1
 lss9:	add	sp,16
 	ret

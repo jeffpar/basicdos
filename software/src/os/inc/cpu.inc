@@ -20,7 +20,7 @@
 
 ;
 ; CPU types (CPU_TYPE and CPU_HWTYPE): CPU_TYPE is the type that BASIC-DOS
-; uses, which a "CPU=8088" line in CONFIG.SYS makes CPUTYPE_8086, and
+; uses, which is CPUTYPE_8086 unless protected mode is requested, and
 ; CPU_HWTYPE is always the processor's own (eg, for a disassembler).
 ;
 CPUTYPE_8086	equ	0	; 8086 or 8088 (or NEC V20 or V30)
@@ -201,6 +201,12 @@ MEMF_USER	equ	10h	; DPL 3, for programs (otherwise DPL 0)
 MEMF_LOW	equ	20h	; CPU_ALLOC only: below 1Mb (eg, for real mode)
 MEMF_HIGH	equ	40h	; CPU_ALLOC only: from the top
 MEMF_AT		equ	80h	; CPU_ALLOC only: at address DX:CX
+
+;
+; The vectors that are free for ring 3 programs to issue and hook.
+;
+R3_USERINT	equ	60h	; first of the user vectors
+R3_USERMAX	equ	67h	; and the last
 
 ;
 ; Physical Memory Block (PMB)

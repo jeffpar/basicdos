@@ -1,5 +1,4 @@
 REM Demonstration of two 40-column consoles
-CPU=8088
 BUFFERS=4
 SESSIONS=4
 CON=VKD$:40,25,1

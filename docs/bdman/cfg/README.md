@@ -111,9 +111,12 @@ Two full-screen consoles on a CGA, each on its own page:
 
 ### CPU
 
-> CPU=8088
+> CPU=80286
+> CPU=80386
 
-Makes BASIC-DOS treat an 80286 or later processor as an 8088: the processor type is recorded as 8086/8088 (the actual type is still recorded too, so that DEBUG disassembles instructions as the processor runs them), extended memory isn't used, and the A20 address line stays disabled, so addresses wrap at 1Mb as they do on an 8088.  On an 8088 or 8086, the line has no effect.  BASIC-DOS also acts this way automatically with less than 128K of conventional memory (eg, with [MEMSIZE](#memsize)=64), since protected mode needs at least that much.
+Requests protected mode on an 80286 or later processor (either line works on either processor, since BASIC-DOS has no 80386-specific features yet).  Pressing `P` at the boot prompt also requests it, and pressing `R` there overrides these lines.  Protected mode needs at least 128K of conventional memory (after any [MEMSIZE](#memsize) line) and 64K of extended memory; without them, or on an 8088 or 8086, BASIC-DOS runs in real mode.
+
+Without a request, BASIC-DOS runs in real mode, its most compatible mode, and treats an 80286 or later processor as an 8088: the processor type is recorded as 8086/8088 (the actual type is still recorded too, so that DEBUG disassembles instructions as the processor runs them), extended memory isn't used, and the A20 address line stays disabled, so addresses wrap at 1Mb as they do on an 8088.  A `CPU=8088` line is allowed, but isn't needed.
 
 ### DEVICE
 
@@ -149,7 +152,7 @@ PRN is opened after any [DEVICE](#device) drivers are loaded, so it can't be a p
 
 > RING=0
 
-In protected mode (on an 80286 or later, without [CPU](#cpu)=8088), BASIC-DOS runs COMMAND.COM, every BASIC program, and every program they run (COM and EXE files alike) at ring 3, the processor's least privileged level, rather than at ring 0 with BASIC-DOS itself, so that a program can't write to memory that isn't its own (including another session's), or use privileged instructions (eg, IN, OUT, CLI, and STI); a program that tries is ended with a `CPU fault` message, as an error such as a divide by zero ends it.  RING=0 runs them all at ring 0 instead.  In real mode, everything runs at ring 0, and the line has no effect.
+In protected mode (see [CPU](#cpu)), BASIC-DOS runs COMMAND.COM, every BASIC program, and every program they run (COM and EXE files alike) at ring 3, the processor's least privileged level, rather than at ring 0 with BASIC-DOS itself, so that a program can't write to memory that isn't its own (including another session's), or use privileged instructions (eg, IN, OUT, CLI, and STI) or BIOS interrupts; a program that tries is ended with a `CPU fault` message, as an error such as a divide by zero ends it.  RING=0 runs them all at ring 0 instead.  In real mode, everything runs at ring 0, and the line has no effect.
 
 A program's interrupt handlers (eg, an INT 21h hook that passes the calls it doesn't handle on to DOS) run at ring 3, too, for the interrupts that programs in its own session issue, but not for those that BASIC-DOS, its drivers, or the ROM BIOS issue, so some programs don't work at ring 3 yet, and need RING=0: programs that hook such an interrupt (eg, the BIOS disk interrupt, or the timer tick), and programs that call CPU$ or the ROM BIOS disk functions directly.  DEBUG.COM run as a program works at ring 3, with fewer commands than at ring 0 (see [DEBUG](../cmd/external/debug/#ring-3)), and its driver can debug ring 3 programs.  Programs with their own CTRL-C or critical error handlers work, since those handlers run at ring 3, too.
 
@@ -193,7 +196,7 @@ Since the path character can't also be the switch character (which introduces co
 
 > SWITCHAR=*char*
 
-Changes the character that introduces command options (switches) from `/` (the default, as in PC DOS) to `-` (eg, `SWITCHAR=-`, so that `TIME -P` is used instead of `TIME /P`).  Only `-` and `/` are allowed; any other character is ignored.  Pressing `-` at the boot prompt (which appears when booting from a diskette on a machine with a hard disk) has the same effect as `SWITCHAR=-`.  The switch character remains fixed after boot.
+Changes the character that introduces command options (switches) from `/` (the default, as in PC DOS) to `-` (eg, `SWITCHAR=-`, so that `TIME -P` is used instead of `TIME /P`).  Only `-` and `/` are allowed; any other character is ignored.  Pressing `-` at the boot prompt has the same effect as `SWITCHAR=-`.  The switch character remains fixed after boot.
 
 The switch character can't also be the path character (see [PATHCHAR](#pathchar)), so if it is (eg, `SWITCHAR=/` with `PATHCHAR=/`), a warning is displayed at boot, and the switch character is left unchanged.
 

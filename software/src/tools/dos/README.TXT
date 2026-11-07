@@ -71,17 +71,19 @@ The other tools have small stacks, too (MAPSYM's SP is 80h and LINK's is
 BASIC-DOS Protected-Mode Tools
 ------------------------------
 
-MASM.EXE, MAKE.EXE, LINK.EXE, LINK4.EXE, EXEMOD.EXE, MAPSYM.EXE, and
-EXE2BIN.EXE in TOOLS on a BASIC-DOS disk are converted to dual MZ/NE
-executables, which perform the same as the originals: BASIC-DOS builds
+MASM.EXE, MAKE.EXE, LINK.EXE, LINK4.EXE, EXEMOD.EXE, and MAPSYM.EXE in TOOLS
+on a BASIC-DOS disk are converted to dual MZ/NE executables, which perform the same as the originals: BASIC-DOS builds
 itself with them in protected mode, and the binaries are the same as those of
 a real-mode build.  MS-DOS and real-mode BASIC-DOS run their original MZ
 images, while protected-mode BASIC-DOS runs the NE images at ring 3.  The NE
 images have fixed code and data segments, translate the MZ segment relocations
 to NE relocations, replace privileged CLI and STI instructions where necessary,
-and adapt the programs' real-mode memory setup.  Except for EXE2BIN, which has
-no banner, their protected-mode banners end in "BD" (eg, "Version 4.00BD") to
-identify the conversions.
+and adapt the programs' real-mode memory setup.  Their protected-mode banners
+end in "BD" (eg, "Version 4.00BD") to identify the conversions.
+
+EXE2BIN.EXE, which has no banner, is converted the same way, except that it's
+one NE image with an NE loader stub in place of its MZ image, so every DOS and
+mode runs the same code, and it always reserves a 64K file buffer.
 
 In the BASIC-DOS repository, the unmodified tools are in
 software/src/tools/dos, and the conversions are in software/src/tools/bd.  A

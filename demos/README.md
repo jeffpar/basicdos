@@ -25,6 +25,6 @@ Each BASIC-DOS demo runs on up to four generations of PC hardware: the original 
 | 15. Protected Mode | | | [2Mb, CGA](mmu/) | |
 | 16. Protected Mode (VT100) | | | [2Mb, CGA, VT100](mmu/vt100/) | |
 
-The PC XT, PC AT, and DeskPro 386 machines also have the 10Mb BASIC-DOS hard disk (drive C:), so when they boot a diskette, the boot sector first displays `Press a key to start...`; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.
+The boot sector first displays `Press a key to start...`; press any key (or wait 2 seconds) to continue.  The PC XT, PC AT, and DeskPro 386 machines also have the 10Mb BASIC-DOS hard disk (drive C:), so when they boot a diskette, you can press **Esc** to boot from the hard disk instead.  On a PC AT or DeskPro 386, press **P** to run the demo in protected mode, or **R** for real mode (only the Protected Mode demos use protected mode by default).
 
 In the demos with multiple consoles, use **SHIFT-TAB** to toggle keyboard focus between consoles.

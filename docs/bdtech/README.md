@@ -34,6 +34,13 @@ The BASIC-DOS Technical Reference describes BASIC-DOS's internal architecture an
 	- [Protected-Mode Interrupts](mmu/#interrupts)
 	- [Running Programs at Ring 3](mmu/#ring3)
 	- [Limitations](mmu/#limits)
+8. [BASIC-DOS vs. DOS Extenders](ext/)
+	- [Traditional DOS Extenders](ext/#extenders)
+	- [COM Programs in Either Mode](ext/#com)
+	- [Dual NE and MZ Programs](ext/#dual)
+	- [The NE Loader Stub](ext/#stub)
+	- [Advantages](ext/#advantages)
+	- [Disadvantages](ext/#disadvantages)
 
 The definitions referred to throughout are found in the BASIC-DOS source code, primarily in these include files (in `software/src/os/inc`):
 

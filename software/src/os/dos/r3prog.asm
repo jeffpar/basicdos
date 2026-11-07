@@ -30,6 +30,11 @@
 	include	dosapi.inc
 	include	cpu.inc
 ;
+; How much of a session's ring 0 stack must be left to start another program
+; from it (see r3_exec).
+;
+R3_EXECMIN	equ	512
+;
 ; A ring 3 program's record of what it needs when it ends, at the top of its
 ; ring 0 stack (SCB_SP0), just below its parent's REG_FRAME; a session's first
 ; program has no parent, so RR_SP0 and RR_PSP are zero, and it doesn't use the
@@ -54,6 +59,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<hdl_read,hdl_write,fcb_sread,fcb_swrite,fcb_rread,fcb_rwrite>
 	EXTNEAR	<fcb_rbread,fcb_rbwrite>
 	EXTNEAR	<r3_chkstk,r3_chkrd,r3_chkcode,r3_gp,r3_cbabort>
+	EXTNEAR	<r3_pfhok,r3_sfhok,r3_pftfix>
 
 	.286p
 
@@ -336,7 +342,17 @@ rw1:	test	byte ptr [bp].REG_CS,3	; a ring 3 caller?
 	jnz	rw1a			; yes
 	jmp	si
 rw1a:	pusha
-	mov	di,dx
+	push	bx
+	mov	bx,[bp].REG_BX
+	call	r3_pfhok		; may it use the handle?
+	pop	bx
+	jnc	rw1b			; yes
+	popa
+	mov	ax,ERR_BADHANDLE
+	mov	[bp].REG_AX,ax
+	stc
+	ret
+rw1b:	mov	di,dx
 	mov	dx,[bp].REG_DS		; DX:DI -> buffer, CX = # of bytes
 	jmp	short rw4
 ;
@@ -478,6 +494,8 @@ DEFPROC	r3_pspcopy,DOS
 	mov	si,offset psp_create
 rn1:	test	byte ptr [bp].REG_CS,3	; a ring 3 caller?
 	jz	rn8			; no
+	call	get_psp
+	call	r3_pftfix		; (the new PSP inherits its handles)
 	mov	bx,size PSP SHR 4	; (the PSP must fit)
 	mov	cx,[bp].REG_DX
 	call	r3_chkblk
@@ -559,8 +577,33 @@ ENDPROC	r3_pspset
 ;
 DEFPROC	r3_exec,DOS
 	test	byte ptr [bp].REG_CS,3	; a ring 3 caller?
-	jz	xe7			; no
-	pusha
+	jnz	xe1			; yes
+	jmp	psp_exec
+xe1:	pusha
+;
+; A program's ring 0 stack is its parent's, so each program in a chain leaves
+; less of its session's stack for the kernel, and running out would overwrite
+; another session's stack (or stop the system); so a chain has a limit.  The
+; check doesn't apply to an ERROR handler, which isn't on that stack.
+;
+	mov	ax,ss
+	cmp	ax,[r3_stseg]		; on the session's ring 0 stack?
+	jne	xe0			; no
+	mov	bx,[scb_active]
+	mov	al,[bx].SCB_NUM
+	mov	ah,R3_STACK_SIZE SHR 8
+	mul	ah
+	mov	ah,al
+	mov	al,0			; AX = the bottom of its ring 0 stack
+	add	ax,R3_EXECMIN
+	cmp	sp,ax			; enough left for another program?
+	jae	xe0			; yes
+	popa
+	mov	ax,ERR_NOMEMORY
+	jmp	short xe9a
+xe0:	call	get_psp
+	call	r3_pftfix		; (the new program inherits them)
+	mov	ax,[bp].REG_AX		; (AL = the EXEC's type)
 	push	ds
 	mov	ds,[bp].REG_ES
 	ASSUME	DS:NOTHING
@@ -605,7 +648,7 @@ xe8:	jmp	r3_gpcall
 xe9:	pop	ds
 	popa
 	mov	ax,ERR_INVALID
-	mov	[bp].REG_AX,ax
+xe9a:	mov	[bp].REG_AX,ax
 	stc
 	ret
 ENDPROC	r3_exec
@@ -630,6 +673,17 @@ DEFPROC	r3_uload,DOS
 	mov	ds,[bp].REG_ES
 	ASSUME	DS:NOTHING
 	mov	si,[bp].REG_BX		; DS:SI -> SPB
+;
+; The new session can have only the SFHs that the caller may use.
+;
+	mov	cx,5
+	lea	di,[si].SPB_SFHIN
+ru0:	mov	al,[di]
+	call	r3_sfhok
+	jnc	ru0a
+	mov	byte ptr [di],SFH_NONE
+ru0a:	inc	di
+	loop	ru0
 	or	byte ptr [si].SPB_CMDLINE.SEG,3
 	lds	si,[si].SPB_CMDLINE	; DS:SI -> the command line
 	mov	cx,CMDLINE_MAX
@@ -764,6 +818,8 @@ ct1:	xchg	si,ax			; SI = its parent's PSP
 ct3:	mov	dl,[bx].SCB_NUM
 	mov	ds,cx			; DS = the PSP that's ending
 	ASSUME	DS:NOTHING
+	mov	ax,cx
+	call	r3_pftfix		; (the kernel will close its handles)
 	mov	ds:[PSP_SCB],dl
 	mov	ds:[PSP_PARENT],si
 	or	byte ptr ds:[PSP_DTAPREV].SEG,3

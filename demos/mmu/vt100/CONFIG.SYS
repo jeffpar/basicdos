@@ -1,4 +1,5 @@
-REM Multiple Video Pages (0, 1, and 2) in protected mode (no CPU=8088), with DEBUG.COM on COM2
+REM Multiple Video Pages (0, 1, and 2) in protected mode, with DEBUG.COM on COM2
+CPU=80286
 BUFFERS=4
 DEVICE=EXT\DEBUG.COM COM2:9600,N,8,1,VT100
 CON=VKD$:80,25

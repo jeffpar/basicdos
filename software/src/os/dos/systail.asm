@@ -27,12 +27,15 @@ DOS	segment word public 'CODE'
 
 	EXTBYTE	<def_drive,scb_locked,prog_user,r3_stubs>
 	EXTWORD	<scb_active,ivt_save,sprintf_hook,r3_code,r3_stseg,r3_vsel>
-	EXTWORD	<FUNCTBL,UTILTBL,r3_ksel>
-	EXTLONG	<scb_table,clk_ptr>
+	EXTWORD	<FUNCTBL,UTILTBL,r3_ksel,r3_sfbtab,sfb_hook>
+	EXTLONG	<scb_table,clk_ptr,sfb_table>
 	EXTNEAR	<dos_leave,int_enter,int_leave,dos_fault,sysinit_start>
 	EXTNEAR	<r3_sprintf,r3_free,r3_realloc,init_fpu,utl_alias,utl_mapseg>
 	EXTNEAR	<r3_term,r3_return,r3_uterm,r3_exec,r3_pspset>
 	EXTNEAR	<r3_pspcopy,r3_pspnew,r3_uload,r3_read,r3_write>
+	EXTNEAR	<r3_ulock,r3_uunlock,r3_uwait,r3_uendwait,r3_uhotkey>
+	EXTNEAR	<r3_uhprintf,r3_ioctl,r3_open,r3_create,r3_close,r3_seek>
+	EXTNEAR	<r3_time,r3_sfbfree>
 	EXTNEAR	<r3_sread,r3_swrite,r3_rread,r3_rwrite,r3_rbread,r3_rbwrite>
 
 	ASSUME	CS:DOS, DS:DOS, ES:NOTHING, SS:NOTHING
@@ -468,6 +471,18 @@ ENDPROC	set_fault
 	dw	FUNCTBL + DOS_FCB_RBWRITE * 2,r3_rbwrite
 	dw	UTILTBL + DOS_UTL_TERM * 2,r3_uterm
 	dw	UTILTBL + DOS_UTL_LOAD * 2,r3_uload
+	dw	UTILTBL + DOS_UTL_LOCK * 2,r3_ulock
+	dw	UTILTBL + DOS_UTL_UNLOCK * 2,r3_uunlock
+	dw	UTILTBL + DOS_UTL_WAIT * 2,r3_uwait
+	dw	UTILTBL + DOS_UTL_ENDWAIT * 2,r3_uendwait
+	dw	UTILTBL + DOS_UTL_HOTKEY * 2,r3_uhotkey
+	dw	UTILTBL + DOS_UTL_HPRINTF * 2,r3_uhprintf
+	dw	FUNCTBL + DOS_HDL_IOCTL * 2,r3_ioctl
+	dw	FUNCTBL + DOS_HDL_OPEN * 2,r3_open
+	dw	FUNCTBL + DOS_HDL_CREATE * 2,r3_create
+	dw	FUNCTBL + DOS_HDL_CLOSE * 2,r3_close
+	dw	FUNCTBL + DOS_HDL_SEEK * 2,r3_seek
+	dw	FUNCTBL + (DOS_HDL_GETTIME SHR 8) * 2,r3_time
 	DEFLBL	r3_fend,word
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -495,14 +510,43 @@ DEFPROC	init_sess
 	mul	ah
 	mov	ah,al
 	mov	al,0
-	xchg	di,ax
-	sub	si,si			; SI:DI = sessions * R3_STACK_SIZE
+	xchg	di,ax			; DI = sessions * R3_STACK_SIZE
+;
+; The block also holds a doubleword for each SFB, which only the kernel can
+; reach, with a bit for each session that may use it (see r3_sfhok).
+;
+	mov	es:[r3_sfbtab],di
+	mov	ax,es:[sfb_table].SEG
+	sub	ax,es:[sfb_table].OFF
+	mov	bl,size SFB
+	div	bl			; AL = # of SFBs
+	mov	ah,0
+	shl	ax,1
+	shl	ax,1			; AX = their doublewords' length
+	push	ax
+	add	di,ax
+	sub	si,si			; SI:DI = the block's length
 	mov	bx,MCBOWNER_SYSTEM
 	mov	ax,CPU_ALLOC SHL 8	; AL = 0 (a GDT data selector)
 	call	far ptr DDINT_CPU	; AX = selector
-	jnc	is1
+	pop	cx			; CX = their doublewords' length
+	jnc	is0
 	sub	ax,ax
 	mov	es:[prog_user],al	; no room, so programs run at ring 0
+	jmp	short is1
+is0:	mov	es:[sfb_hook],offset r3_sfbfree
+	mov	di,es:[r3_sfbtab]
+	push	ax
+	push	es
+	mov	es,ax
+	ASSUME	ES:NOTHING
+	shr	cx,1
+	sub	ax,ax
+	cld
+	rep	stosw			; no session has any SFB yet
+	pop	es
+	ASSUME	ES:DOS
+	pop	ax
 is1:	mov	es:[r3_stseg],ax
 	pop	dx
 	pop	ax

@@ -62,10 +62,13 @@ DOS	segment word public 'CODE'
 	DEFBYTE	r3_cblock,0		; scb_locked for r3_cbabort to restore
 	DEFWORD	r3_ksel,0		; kernel's selector (see dos_fault)
 	DEFWORD	r3_stseg,0		; sessions' ring 0 stacks (see r3_top)
+	DEFWORD	r3_sfbtab,0		; and which sessions have each SFB
 	DEFLBL	cmdline_buf,byte	; scb_load stages a command line
 	db	CMDLINE_MAX dup(?)	; here (see stage_cmdline)
 	EXTNEAR	sprintf
 	DEFWORD	sprintf_hook,<offset sprintf>	; (see r3_sprintf)
+	EXTNEAR	sfb_nohook
+	DEFWORD	sfb_hook,<offset sfb_nohook>	; (see r3_sfbfree)
 
 	DEFBYTE	bpb_total,0		; total number of BPBs
 	DEFBYTE	sfh_debug,-1		; system file handle for DEBUG device

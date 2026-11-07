@@ -1,5 +1,4 @@
 REM Demonstration of dual monitors with multiple consoles per monitor
-CPU=8088
 BUFFERS=4
 SESSIONS=8
 CON=VKD$:40,25,1

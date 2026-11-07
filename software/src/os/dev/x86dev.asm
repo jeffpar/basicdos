@@ -9,7 +9,7 @@
 ;
 ; This is the second of two CPU$ drivers (see cpu.inc), and it stays only if
 ; the first (286dev.asm) didn't, ie, on an 8086 or 8088 (or an 80286 that
-; can't, or with "CPU=8088", won't use protected mode).  It manages all of
+; can't, or wasn't asked to, use protected mode).  It manages all of
 ; memory with a chain of MCBs (see MCB in dosapi.inc), as DOS always has: the
 ; first MCB is in the paragraph after our code (see cpu_mcb), and the chain
 ; covers the rest of conventional memory, so every block that's allocated

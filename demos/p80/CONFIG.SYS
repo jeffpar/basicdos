@@ -1,5 +1,4 @@
 REM Demonstration of Multiple Video Pages, on video pages 0, 1, and 2
-CPU=8088
 BUFFERS=4
 CON=VKD$:80,25
 SHELL=COMMAND.COM PATH$="A:\;A:\EXT;A:\DEMOS;A:\SAMPLES":HELLO.BAT

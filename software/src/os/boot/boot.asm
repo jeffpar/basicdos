@@ -231,52 +231,37 @@ ENDPROC	printp
 ;
 ; main
 ;
-; If there's a hard disk, but we didn't boot from it, display a prompt.
-;
-; If there's no hard disk (or we were told to bypass it), then look for
-; all the the required files in the root directory (starting with DEV_FILE),
-; load the first sector of the first file, and continue booting from there.
+; Display a prompt, and then look for all the required files in the root
+; directory (starting with DEV_FILE), load the first sector of the first file,
+; and continue booting from there.
 ;
 DEFPROC	main,far			; now at BOOT_SECTOR_LO
 	mov	ds:[mybpb].BPB_DRIVE,dl	; save boot drive (DL) in BPB
-	IFDEF	MAXDEBUG
-	cmp	ds:[BOOT_KEY+BIOS_DATA].LOB,cl
-					; boot key zero?
-	jne	m0			; no, force a boot prompt
-	ENDIF
-	test	dl,dl			; hard drive?
-	jl	find			; yes
-	mov	ah,HDC_GETPARMS		; get hard drive parameters
-	mov	dl,80h			;
-	int	INT_FDC			;
-	jc	find			; jump if call failed
-	test	dl,dl			; any hard disks?
-	jz	find			; jump if no hard disks
-m0:	mov	si,offset product
-	call	print			; print the product name
-	call	print			; then the prompt
+	mov	si,offset product
+	call	print			; print the product name and prompt
 ;
-; Wait for a key; ESC boots from the hard disk, and any other key continues
-; booting from this disk.  We wait at most TWAIT seconds (18.2 ticks each, so
-; TWAIT must be 14 or less to fit in a byte), and a timeout also continues
-; booting from this disk.  In PCjs machines running faster than normal, the
-; ticks run faster too (so the ROM POST tests don't fail), so the timeout will
-; be shorter.
+; Wait for a key; ESC boots from the hard disk (if there is one, and we didn't
+; boot from it), and any other key continues booting from this disk, and is
+; saved in BOOT_KEY for later use (eg, by CPU$).  The byte after the string we
+; just printed is the number of ticks to wait (see product), and a timeout also
+; continues booting from this disk.  In PCjs machines running faster than
+; normal, the ticks run faster too (so the ROM POST tests don't fail), so the
+; timeout will be shorter.
 ;
-	mov	dl,TWAIT * 182 / 10
-	add	dl,byte ptr ds:[TIMER_LOW+BIOS_DATA]
-					; DL = target tick count (low byte)
+	mov	dh,[si]			; DH = number of ticks to wait
+	add	dh,byte ptr ds:[TIMER_LOW+BIOS_DATA]
+					; DH = target tick count (low byte)
 m8:	mov	ah,KBD_CHECK
 	int	INT_KBD
 	jnz	m9			; a key is available
-	cmp	dl,byte ptr ds:[TIMER_LOW+BIOS_DATA]
+	cmp	dh,byte ptr ds:[TIMER_LOW+BIOS_DATA]
 					; target tick count reached?
 	jne	m8			; no
 	jmp	short m10		; yes, continue booting from this disk
 m9:	mov	ah,KBD_READ
 	int	INT_KBD			; AL = char code, AH = scan code
 	cmp	al,CHR_ESCAPE		; escape key?
-	je	hard			; yes, boot from the hard disk
+	je	hard			; yes, try booting from the hard disk
 	mov	ds:[BOOT_KEY+BIOS_DATA],ax ; save boot key
 m10:	mov	si,offset crlf
 	call	print
@@ -319,9 +304,18 @@ boot_error label near
 hltmsg:	call	print
 	jmp	$			; "halt"
 ;
-; There's a hard disk and no response, so boot from hard disk instead.
+; ESC was pressed, so if there's a hard disk, and we didn't boot from it (DL is
+; still the boot drive), boot from the hard disk instead.
 ;
-hard:	mov	al,ds:[CRT_MODE+BIOS_DATA]
+hard:	test	dl,dl			; hard drive?
+	jl	m10			; yes
+	mov	ah,HDC_GETPARMS		; get hard drive parameters
+	mov	dl,80h			;
+	int	INT_FDC			;
+	jc	m10			; jump if call failed
+	test	dl,dl			; any hard disks?
+	jz	m10			; jump if no hard disks
+	mov	al,ds:[CRT_MODE+BIOS_DATA]
 	cbw				; AH = 00h (SET MODE)
 	int	INT_VIDEO
 	mov	ax,0201h		; AH = 02h (READ), AL = 1 sector
@@ -400,10 +394,20 @@ fd9:	pop	di
 	ret
 ENDPROC	find_dirent
 
+;
+; The product name and prompt are one string, followed by the number of ticks
+; to wait (18.2 per second, so TWAIT must be 14 or less to fit in a byte).  SYS
+; /N replaces the CR,LF before the prompt with 0,1, which ends the string
+; early, leaving 1 as the number of ticks.  It can't be 0, since the wait loop
+; looks for an exact match, and a tick arriving first would make it wait 256
+; ticks.
+;
 product		db	"BASIC-DOS "
 		VERSION_STR
-crlf		db	13,10,0
+		db	13,10
 prompt		db	"Press a key to start...",0
+		db	TWAIT * 182 / 10
+crlf		db	13,10,0
 errmsg1		db	"System boot error, halted",0
 	IFDEF LATER
 errmsg2		db	"System file(s) missing, halted",0
@@ -413,6 +417,11 @@ errmsg2		db	"System file(s) missing, halted",0
 
 	ASSERT 	<offset PART1_END - offset start>,LE,510
 	ASSERT	<offset CFG_FILE - offset PART1_COPY>,EQ,BOOT_CFGFILE
+;
+; SYS looks for the prompt, and the CR,LF before it, in its second 255-byte
+; record.
+;
+	ASSERT	<offset prompt - 2 - offset start>,GE,255
 
 	org 	BOOT_SECTOR_LO + 510
 	dw	0AA55h

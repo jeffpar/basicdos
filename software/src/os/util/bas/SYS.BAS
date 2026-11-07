@@ -1,6 +1,6 @@
 	' SYS.BAS: transfers the system files to a drive, making it bootable
 	'
-	'   SYS drive:
+	'   SYS drive: [/N]
 	'
 	' Copies BASDEV.COM, BASDOS.COM, and COMMAND.COM from the root directory
 	' of the current drive to the root directory of drive D$ (replacing any
@@ -8,7 +8,9 @@
 	' and BASDOS hidden, too), and then gives D$'s boot sector the current
 	' drive's boot code, keeping D$'s BPB (its disk parameters).  The boot
 	' code follows the system files' FAT chains, so they can be anywhere on
-	' D$.
+	' D$.  /N removes the boot prompt and its wait, and without /N, they're
+	' restored.  Options start with the switch char (W$), which is "/" unless
+	' CONFIG.SYS changes it (eg, to "-").
 	'
 	' The BPB ends with the drive, sectors per cylinder, and first root
 	' directory and data sectors, which the boot code relies on, so they're
@@ -16,8 +18,17 @@
 	' written).
 	'
 	DEFINT A-Z
-	D$ = UCASE$(ARG$(1))
-	IF LEN(D$) <> 2 OR RIGHT$(D$, 1) <> ":" THEN PRINT "Syntax error" : END 1
+	DOS &H3700 : W$ = CHR$(DOS(3) AND 255)
+	Y$ = CHR$(13) + CHR$(10) : Z$ = CHR$(0) + CHR$(1)
+	D$ = "" : C$ = Y$ : I = 1 : A$ = UCASE$(ARG$(1))
+	WHILE A$ <> ""
+	IF A$ = W$ + "N" THEN C$ = Z$ : GOTO 5
+	' Any other option, or a second drive (or anything else), is an error
+	IF LEN(A$) <> 2 OR RIGHT$(A$, 1) <> ":" OR D$ <> "" THEN GOTO 95
+	D$ = A$
+5	I = I + 1 : A$ = UCASE$(ARG$(I))
+	WEND
+	IF D$ = "" THEN GOTO 95
 	V$ = LEFT$(CURDIR$, 2) : PC$ = MID$(CURDIR$, 3, 1)
 	IF D$ = V$ THEN PRINT "Cannot transfer the system to the current drive" : END 1
 	ON ERROR GOTO 90
@@ -26,6 +37,13 @@
 	FIELD #1, 255 AS R$
 	GET #1, 1 : B1$ = R$ : GET #1, 2 : B2$ = R$ : GET #1, 3 : B3$ = LEFT$(R$, 2)
 	CLOSE #1
+	' The two bytes before the boot prompt are either a CR,LF (Y$), or 0,1
+	' (Z$), which ends the string before the prompt and makes the boot code
+	' wait 1 tick instead; the current drive's copy could be either, or could
+	' be some other boot code, which we can't use
+	P = INSTR(B2$, Y$ + "Press") : IF P = 0 THEN P = INSTR(B2$, Z$ + "Press")
+	IF P = 0 THEN PRINT "Drive "; V$; " doesn't have BASIC-DOS boot code" : END 1
+	MID$(B2$, P, 2) = C$
 	' Check D$'s BPB: 512-byte sectors and a FAT media ID
 	OPEN D$ AS #1 LEN = 255
 	FIELD #1, 255 AS R$
@@ -67,3 +85,4 @@
 	IF ERR = 77 THEN PRINT "Invalid drive" : END 1
 	PRINT "Unable to transfer the system (error"; ERR; ")"
 	END 1
+95	PRINT "Syntax error" : END 1

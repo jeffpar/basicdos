@@ -111,6 +111,12 @@ DDPI		ends
 IOCTL_COMDEBUG	equ	0B1h	; COM: polling mode (DX = port + COMDBG_*)
 COMDBG_XON	equ	02h	; XON/XOFF flow control enabled
 COMDBG_RTS	equ	04h	; RTS/CTS flow control enabled
+;
+; DDINT_UTIL functions, for a driver that doesn't otherwise need DOSFUNC
+; (the same as DOS_UTL_LOCK and DOS_UTL_UNLOCK)
+;
+DDUTL_LOCK	equ	1Dh
+DDUTL_UNLOCK	equ	1Eh
 
 ;
 ; MEDIACHK values returned in the CONTEXT field

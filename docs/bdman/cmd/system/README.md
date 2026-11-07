@@ -55,17 +55,13 @@ Exits the command shell (see [COMMAND.COM](../external/command/)), returning to 
 
 > KILL [*session*]
 
-`KILL` alone lists every session: its number, its console, and its program, or `Unused` if it has none (see [SESSIONS](../../cfg/#sessions) for how many there are), with `*` marking the current session:
+`KILL` alone lists every session that's running a program: its number, its console, and its program, with `*` marking the current session:
 
 	C:\>KILL
 	* 1 VKD$     COMMAND
 	  2 COM1     COMMAND
-	  3          Unused
-	  4          Unused
-	  5          Unused
-	  6          Unused
 
-`KILL` *session* ends the specified session (a number from that list): every program running in it is stopped, as **Ctrl-Alt-Del** stops a program on its console, even one stuck in a loop that never uses DOS, including the session's shell, and then the session closes, so its console no longer responds.  For example, `KILL 2` ends a looping program and its shell on a serial display, from the PC's own console display.  If no other session is left, the system halts.  A session that has no program, or a number that isn't in the list, is reported as `Invalid session`.
+`KILL` *session* ends the specified session (a number from that list): every program running in it is stopped, as **Ctrl-Alt-Del** stops a program on its console, even one stuck in a loop that never uses DOS, including the session's shell, and then the session closes, so its console no longer responds.  For example, `KILL 2` ends a looping program and its shell on a serial display, from the PC's own console display.  If no other session is left, the system halts.  A number that isn't in the list is reported as `Invalid session`.
 
 `KILL 0` restarts the system, after writing any modified disk data, but first it asks `Are you sure (Y/N)? `, until you answer Y or N.
 

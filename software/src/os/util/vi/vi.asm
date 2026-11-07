@@ -124,11 +124,13 @@ ENDPROC	writeErr
 ; ctrlC
 ;
 ; INT 23h handler: DOS has echoed the CTRLC, so the screen must be redrawn,
-; and returning with IRET continues the interrupted DOS call.
+; and returning with IRET continues the interrupted DOS call.  SS still has
+; our block's offsets, whereas in protected mode, CS can't be written, and DS
+; may be the text segment.
 ;
 	ASSUME	DS:NOTHING, ES:NOTHING
 DEFPROC	ctrlC,FAR
-	mov	cs:[fCtrlC],1
+	mov	byte ptr ss:[fCtrlC],1
 	iret
 ENDPROC	ctrlC
 	ASSUME	DS:CODE, ES:CODE
@@ -501,6 +503,12 @@ DEFPROC	cmdLoop
 	mov	[bp].V_WANT,ax
 cl1:	and	[bp].V_FLAGS,NOT F_KEEPW
 	call	refresh
+;
+; A CTRLC typed while we were loading the file stays pending until refresh's
+; first write, so the screen it messes up is the one that's on display now.
+;
+	cmp	[fCtrlC],0		; did refresh's writes get a CTRLC?
+	jne	cl1			; yes, so redraw without waiting
 	call	getKey
 	cmp	[bp].V_MSGLEN,0		; is a message displayed?
 	je	cl2			; no

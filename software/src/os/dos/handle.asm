@@ -28,6 +28,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<msc_sigctrlc,msc_readctrlc,con_read>
 
 	EXTBYTE	<err_active,scb_locked>
+	EXTWORD	<sfb_hook>
 	EXTWORD	<scb_active>
 	EXTLONG	<bpb_table,sfb_table>
 
@@ -1102,6 +1103,7 @@ sc6b:	jnc	sc7
 sc7:	sub	ax,ax
 	mov	[bx].SFB_DEVICE.OFF,ax
 	mov	[bx].SFB_DEVICE.SEG,ax	; mark SFB as unused
+	call	cs:[sfb_hook]		; (see r3_sfbfree)
 sc8:	test	si,si			; valid PFH?
 	jl	sc9			; no
 	call	get_psp			; if we're called by sysinit
@@ -1156,7 +1158,9 @@ sg1:	mov	al,size SFB		; convert SFH to SFB
 	jne	sg9			; yes (carry clear)
 sg8:	mov	ax,ERR_BADHANDLE
 	stc
-sg9:	ret
+sg9:
+	DEFLBL	sfb_nohook,near
+	ret
 ENDPROC	sfb_get
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
