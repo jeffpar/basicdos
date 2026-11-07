@@ -8,7 +8,7 @@
 	' and BASDOS hidden, too), and then gives D$'s boot sector the current
 	' drive's boot code, keeping D$'s BPB (its disk parameters).  The boot
 	' code follows the system files' FAT chains, so they can be anywhere on
-	' D$.  /N removes the boot prompt and its wait, and without /N, they're
+	' D$.  /N removes the boot message and its wait, and without /N, they're
 	' restored.  Options start with the switch char (W$), which is "/" unless
 	' CONFIG.SYS changes it (eg, to "-").
 	'
@@ -37,13 +37,16 @@
 	FIELD #1, 255 AS R$
 	GET #1, 1 : B1$ = R$ : GET #1, 2 : B2$ = R$ : GET #1, 3 : B3$ = LEFT$(R$, 2)
 	CLOSE #1
-	' The two bytes before the boot prompt are either a CR,LF (Y$), or 0,1
-	' (Z$), which ends the string before the prompt and makes the boot code
-	' wait 1 tick instead; the current drive's copy could be either, or could
-	' be some other boot code, which we can't use
-	P = INSTR(B2$, Y$ + "Press") : IF P = 0 THEN P = INSTR(B2$, Z$ + "Press")
-	IF P = 0 THEN PRINT "Drive "; V$; " doesn't have BASIC-DOS boot code" : END 1
-	MID$(B2$, P, 2) = C$
+	' The boot code must be our version (K$), whose number is followed by the
+	' CR,LF (Y$) before the boot message, or by 0,1 (Z$), which ends the string
+	' before the message and makes the boot code wait 1 tick instead; the
+	' current drive's copy could be either, or could be other boot code, which
+	' we can't use
+	DOS &H3000 : A = DOS(0)
+	K$ = CHR$(48 + (A AND 255)) + "." + RIGHT$(STR$(100 + A \ 256), 2)
+	P = INSTR(B2$, K$ + Y$) : IF P = 0 THEN P = INSTR(B2$, K$ + Z$)
+	IF P = 0 THEN PRINT "Drive "; V$; " doesn't have BASIC-DOS "; K$; " boot code" : END 1
+	MID$(B2$, P + LEN(K$), 2) = C$
 	' Check D$'s BPB: 512-byte sectors and a FAT media ID
 	OPEN D$ AS #1 LEN = 255
 	FIELD #1, 255 AS R$

@@ -147,17 +147,30 @@ m0b:
 ; INPUTBUF, and then jump into the command-processing code below.  It isn't
 ; processed in place, because PSP_CMDTAIL is also the default DTA, so a
 ; command that uses the DTA (eg, TYPE or COPY) would overwrite the rest of it.
+; We skip its leading spaces (eg, the separator after the program name), since
+; INPUTBUF is also what the first prompt's line editor recalls.  The tail
+; always ends with a CHR_RETURN (see load_args), which ends the scan if it's
+; all spaces.
 ;
 	lea	di,[bx].INPUTBUF
 	mov	[bx].INPUT_BUF,di
 	mov	al,size INP_DATA - 1
 	stosb				; set INP_MAX
 	mov	si,PSP_CMDTAIL
-	mov	cx,si			; CX = size of PSP_CMDTAIL (80h)
-	rep	movsb			; copy INP_CNT and INP_DATA
+	lodsb
+	cbw
+	xchg	cx,ax			; CX = length of tail
+m0c:	cmp	byte ptr [si],CHR_SPACE
+	jne	m0d
+	inc	si
+	loop	m0c
+m0d:	mov	al,cl
+	stosb				; set INP_CNT
+	inc	cx			; include the CHR_RETURN
+	rep	movsb			; copy INP_DATA
 	or	[bx].CMD_FLAGS,CMD_NOECHO
-	cmp	[bx].INPUTBUF.INP_CNT,ch ; any startup command (CH is 0)?
-	jne	m2			; yes
+	test	al,al			; any startup command?
+	jnz	m2			; yes
 
 ;
 ; Unlike PC DOS, every BAT file (like every BAS file) starts with ECHO OFF,
@@ -1047,6 +1060,8 @@ CMD_SWITCHES	label	byte
 	dw	NOT (1 SHL ('P'-'A')),0FFFFh
 	db	4			; TIME /D /P
 	dw	NOT ((1 SHL ('D'-'A')) OR (1 SHL ('P'-'A'))),0FFFFh
+	db	7			; KILL /A
+	dw	NOT (1 SHL ('A'-'A')),0FFFFh
 	db	20			; COPY /B
 	dw	NOT (1 SHL ('B'-'A')),0FFFFh
 	db	21			; DIR /A /S /W

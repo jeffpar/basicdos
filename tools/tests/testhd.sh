@@ -9,7 +9,7 @@
 # exist), and the config folder defaults to software/src/configs/console/bios.  The hard disk is
 # formatted by MS-DOS 3.20 (so it also contains MS-DOS system files, and a DOS subdirectory).
 #
-# When the "Press a key to start..." prompt appears, press any key other than ESC to boot BASIC-DOS from the
+# When the "System starting..." message appears, press any key other than ESC to boot BASIC-DOS from the
 # diskette (ESC boots MS-DOS from the hard disk instead).  Changes to the hard disk are NOT saved back to the
 # directory.
 #

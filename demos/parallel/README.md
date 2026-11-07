@@ -32,7 +32,7 @@ Type `LPRINT "Hello from LPT1"`, or enter a few program lines and type `LLIST`, 
 
 <script src="/assets/js/serial-terminal.js" defer></script>
 
-Press any key at the boot prompt (or wait 2 seconds) to start the diskette, or press **Esc** to boot from the [hard disk](../hd/xt/) instead.
+Press any key at the boot message (or wait 2 seconds) to start the diskette, or press **Esc** to boot from the [hard disk](../hd/xt/) instead.
 
 If there's no printer (eg, on a machine without a parallel port), LPRINT, LLIST, and PRINT # to PRN report "Device timeout", as in Microsoft BASIC.
 

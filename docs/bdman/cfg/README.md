@@ -114,7 +114,7 @@ Two full-screen consoles on a CGA, each on its own page:
 > CPU=80286
 > CPU=80386
 
-Requests protected mode on an 80286 or later processor (either line works on either processor, since BASIC-DOS has no 80386-specific features yet).  Pressing `P` at the boot prompt also requests it, and pressing `R` there overrides these lines.  Protected mode needs at least 128K of conventional memory (after any [MEMSIZE](#memsize) line) and 64K of extended memory; without them, or on an 8088 or 8086, BASIC-DOS runs in real mode.
+Requests protected mode on an 80286 or later processor (either line works on either processor, since BASIC-DOS has no 80386-specific features yet).  Pressing `P` at the boot message also requests it, and pressing `R` there overrides these lines.  Protected mode needs at least 256K of conventional memory (after any [MEMSIZE](#memsize) line), and any extended memory is a bonus; with less, or on an 8088 or 8086, BASIC-DOS runs in real mode.
 
 Without a request, BASIC-DOS runs in real mode, its most compatible mode, and treats an 80286 or later processor as an 8088: the processor type is recorded as 8086/8088 (the actual type is still recorded too, so that DEBUG disassembles instructions as the processor runs them), extended memory isn't used, and the A20 address line stays disabled, so addresses wrap at 1Mb as they do on an 8088.  A `CPU=8088` line is allowed, but isn't needed.
 
@@ -196,7 +196,7 @@ Since the path character can't also be the switch character (which introduces co
 
 > SWITCHAR=*char*
 
-Changes the character that introduces command options (switches) from `/` (the default, as in PC DOS) to `-` (eg, `SWITCHAR=-`, so that `TIME -P` is used instead of `TIME /P`).  Only `-` and `/` are allowed; any other character is ignored.  Pressing `-` at the boot prompt has the same effect as `SWITCHAR=-`.  The switch character remains fixed after boot.
+Changes the character that introduces command options (switches) from `/` (the default, as in PC DOS) to `-` (eg, `SWITCHAR=-`, so that `TIME -P` is used instead of `TIME /P`).  Only `-` and `/` are allowed; any other character is ignored.  Pressing `-` at the boot message has the same effect as `SWITCHAR=-`.  The switch character remains fixed after boot.
 
 The switch character can't also be the path character (see [PATHCHAR](#pathchar)), so if it is (eg, `SWITCHAR=/` with `PATHCHAR=/`), a warning is displayed at boot, and the switch character is left unchanged.
 

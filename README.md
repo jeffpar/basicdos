@@ -27,7 +27,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 ### Boot and System Configuration
 
 - [x] Boot sector that loads the BASIC-DOS drivers, kernel, and interpreter
-- [x] Boot prompt (within 2 seconds, press **Esc** to boot from a hard disk instead, **P** for protected mode, or **R** for real mode), which `SYS /N` removes from a disk
+- [x] Boot message (removable with `SYS /N`); pressing certain keys within 2 seconds of the boot message can alter the boot process: **Esc** allows a floppy to boot from a hard disk instead, **P** selects protected-mode, and **R** selects real-mode
 - [x] Booting BASIC-DOS from a hard disk partition (eg, a disk built with `pc.js --sys=bd:2`), which becomes the default drive
 - [x] CONFIG.SYS support for AUX, BUFFERS, CON, CPU, DEVICE, FILES, MEMSIZE, PATHCHAR, PRN, RING, SESSIONS, SHELL, SKIP, and SWITCHAR
 - [x] CON, AUX, and PRN are names for each session's console, AUX, and PRN devices rather than drivers: [CON=](docs/bdman/cfg/#con) defines each session's console (VKD$ or a serial port), and [AUX=](docs/bdman/cfg/#aux) and [PRN=](docs/bdman/cfg/#prn) choose any device (COM1 and LPT1 by default); without one (eg, no LPT1), opening the name fails, and its handle stays reserved
@@ -39,7 +39,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 
 - [x] VKD$ (video and keyboard), with a context for each console
 - [x] COM, LPT, NUL, CLOCK$, and PIPE$ devices
-- [x] CPU$, loaded first, detects the processor and manages all memory, with the same functions in either mode: using a table of physical memory blocks and protected-mode descriptors on an 80286 or later with extended memory, and otherwise an MCB chain (see [The CPU$ Drivers](docs/bdtech/mmu/#cpu))
+- [x] CPU$, loaded first, detects the processor and manages all memory, with the same functions in either mode: using a table of physical memory blocks and protected-mode descriptors in protected mode, and otherwise an MCB chain (see [The CPU$ Drivers](docs/bdtech/mmu/#cpu))
 - [x] CLOCK$ starts with the BIOS time of day and, on a PC AT, the real-time clock's date
 - [x] [DEBUG.COM](docs/bdman/cmd/external/debug/), which loads as a driver on a serial port (see the [demo](demos/debug/at/)) or runs as a program (`DEBUG [program [arguments]]`), with an 80286 disassembler, single-stepping (T, TR, and P), 9 breakpoints plus a temporary one, exception traps and reports of software interrupt functions (VT; eg, disk reads and writes, and DOS file functions), SYMDEB-style memory dumps, memory and register editing, loading disk sectors (L, as a program), and on an 80286, support for either mode
 - [x] MOUSE$, a serial mouse driver (loaded only if a Microsoft-compatible mouse responds on a COM port at boot), with a minimal INT 33h interface (functions 00h-04h, 07h, 08h, and a BASIC-DOS function that returns queued button events), and a pointer drawn in MDA and CGA modes that preserves anything drawn over it
@@ -53,9 +53,9 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 
 ### Protected Mode
 
-On an 80286 or later, BASIC-DOS runs in protected mode if it's requested, with a `CPU=80286` or `CPU=80386` line in CONFIG.SYS or **P** at the boot prompt, and otherwise in real mode, its most compatible mode; it's built and tested for the IBM PC AT, and an 80386 runs the same code.  See [Protected Mode](docs/bdtech/mmu/) for details, and the [Protected Mode demo](demos/mmu/) to try it.
+On an 80286 or later with sufficient memory (256K or more), BASIC-DOS can run in protected mode, but only if `CPU=80286` or `CPU=80386` is present in CONFIG.SYS (or if you press **P** immediately after the "System starting" message). The default is always real mode, even on newer processors, simply because it's the most compatible mode, but all BASIC-DOS components are designed to run in either mode.  See [Protected Mode](docs/bdtech/mmu/) for details, and the [Protected Mode demo](demos/mmu/) to try it.
 
-- [x] When requested, BASIC-DOS switches to protected mode while its drivers initialize, and stays there, given at least 128K of conventional memory and 64K of extended memory; otherwise, it runs in real mode, as on an 8088
+- [x] When requested, BASIC-DOS switches to protected mode while its drivers initialize, and stays there, given at least 256K of conventional memory (any extended memory is a bonus; the [640K demo](demos/mmu/640k/) has none); otherwise, it runs in real mode, as on an 8088
 - [x] COMMAND.COM, BASIC programs, and every program they run at ring 3 (unless CONFIG.SYS has `RING=0`), with each session's memory in its own LDT, so a program can't write to memory that isn't its own
 - [x] A ring 3 program's CTRL-C, critical error, and interrupt handlers run at ring 3, too (interrupt handlers see only the interrupts that ring 3 code in its session issues)
 - [x] A ring 3 program can free or resize only its own memory blocks, whose selectors always fit their lengths, and a bad pointer, stack, or return address ends the program, rather than stopping the system
@@ -106,6 +106,7 @@ On an 80286 or later, BASIC-DOS runs in protected mode if it's requested, with a
 ### Command Interpreter: DOS Commands
 
 - [x] CD, COPY, DATE, DEL, DIR, EXIT, KILL, MD, MEM, RD, TIME, TYPE, and VER (HELP is an external command; see [Utilities](#utilities))
+- [x] KILL lists sessions or ends one, and KILL /A restarts the system (with a warm boot, after asking)
 - [x] DIR listings begin with the volume label and the directory's full path, as in DOS 2.x (FFIRST with attribute 08h finds only the volume label, and GETCWD with DL = FFh returns the path of the directory FFIRST searched)
 - [x] DIR /A lists hidden files (only the hidden attribute keeps a file out of DIR, so system files like COMMAND.COM are listed), DIR /S lists the matching files in every subdirectory, with a header and totals for each directory, and DIR /W lists only the names (eg, HELP.TXT, with the path character after each directory), in as many 16-character columns as the console has room for
 - [x] The prompt displays the current drive and directory (eg, `C:\SUBDIR>`), and switches use `/` (eg, `TIME /P`), as in PC DOS, unless SWITCHAR is `-` or PATHCHAR is `/`, in which case they use `-`
@@ -385,7 +386,7 @@ For example:
 
     $ ./boot.sh hd
 
-The `tools/tests/testhd.sh` script instead builds a BASIC-DOS boot diskette (from the `configs/console/bios` folder, so it uses the keyboard and screen) and boots it on an `ibm5160` machine whose 10Mb hard disk is built from a directory (`tools/pc/disks/hdsrc` by default, which is created with a few sample files if it doesn't exist), so that BASIC-DOS can be tested with an MS-DOS-formatted drive C:.  Press a key (other than **Esc**) at the boot prompt to start BASIC-DOS:
+The `tools/tests/testhd.sh` script instead builds a BASIC-DOS boot diskette (from the `configs/console/bios` folder, so it uses the keyboard and screen) and boots it on an `ibm5160` machine whose 10Mb hard disk is built from a directory (`tools/pc/disks/hdsrc` by default, which is created with a few sample files if it doesn't exist), so that BASIC-DOS can be tested with an MS-DOS-formatted drive C:.  Press a key (other than **Esc**) at the boot message to start BASIC-DOS:
 
     $ tools/tests/testhd.sh [hard disk directory] [config folder]
 

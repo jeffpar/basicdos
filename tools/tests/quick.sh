@@ -12,7 +12,7 @@
 # It's a very quick (and dirty) set of confidence tests.
 # The exit code is non-zero if any test failed.
 #
-# NOTE: The BASIC-DOS boot sector's "Press a key to start..." prompt times out after 2 seconds (machine time),
+# NOTE: The BASIC-DOS boot sector's "System starting..." message times out after 2 seconds (machine time),
 # so the tests run unattended.
 #
 # The first command must be an internal command (eg, VER), because pc.js converts only the first

@@ -10,11 +10,11 @@
 ; This is the first built-in driver, and the first of two CPU$ drivers (see
 ; cpu.inc); it stores the processor type in CPU_HWTYPE and CPU_TYPE, and on
 ; an 80286 or later, if protected mode is requested (by a "CPU=80286" or
-; "CPU=80386" line in CONFIG.SYS, or a P at the boot prompt, unless an R at the
-; boot prompt overrides it), with at least 64K of extended memory (and 128K of
-; conventional memory, after any "MEMSIZE=" line), it enables A20, builds
-; its PMB table, GDT, IDT, LDT, and TSS in the system area (the first 64K
-; of extended memory), checks that it can switch to protected mode and back,
+; "CPU=80386" line in CONFIG.SYS, or a P at the boot message, unless an R then
+; overrides it), with at least 256K of conventional memory (after any
+; "MEMSIZE=" line), it enables A20, builds its PMB table, GDT, IDT, LDT, and
+; TSS in the system area (the last whole 64K of conventional memory), checks
+; that it can switch to protected mode and back,
 ; and stays, managing all of memory with its PMB table (see PMB in cpu.inc)
 ; through DDINT_CPU.  Otherwise, it makes CPU_TYPE CPUTYPE_8086, leaves A20
 ; off, and unloads itself, and the 8086 driver
@@ -32,12 +32,10 @@
 	include	dosapi.inc
 	include	cpu.inc
 ;
-; The system area is the first 64K of extended memory (aka the HMA), which is
-; addressable in real mode as segment SYS_SEG (once A20 is enabled) and in
-; protected mode with selector SEL_SYS (whose base is SYS_SEG * 16), so the
-; same offsets work in both modes.  Offsets below 10h are the last 16 bytes
-; of the ROM BIOS, and FFFF:00D0h is where a PSP's CALL 5 (F01D:FEF0h) goes
-; when A20 is enabled, so we put a far jump to the INT_DOSCALL5 vector there.
+; The system area is the last whole 64K of conventional memory, which is
+; addressable in real mode with segment sys_seg and in protected mode with
+; selector SEL_SYS (whose base is sys_seg * 16), so the same offsets work in
+; both modes.
 ;
 ; The GDT starts after that, with GDT_MAX entries that CPU$ allocates from,
 ; but its limit extends to the "identity" selectors (A000h to F800h, every
@@ -45,9 +43,7 @@
 ; own segments (eg, F000h and B800h) in protected mode; everything else in
 ; the system area fits between the first part of the GDT and A000h.
 ;
-SYS_SEG		equ	0FFFFh
 SYS_VARS	equ	0020h
-SYS_CALL5	equ	00D0h
 SYS_GDT		equ	00E0h
 GDT_MAX		equ	256
 SYS_PIDT	equ	SYS_GDT + GDT_MAX * 8
@@ -96,17 +92,11 @@ LDT_LIMIT	equ	256	; descriptors per session
 SEL_ROM		equ	0C000h	; first identity code selector
 SEL_IDSTEP	equ	0800h	; identity selectors are every 800h
 GDT_LIMIT	equ	0F807h	; (through the last identity selector)
-;
-; The linear address of any system area offset (other than the first 16
-; bytes) is 10xxxxh, where xxxx is the offset minus 10h.
-;
-SYS_BASE16	equ	10h
 
 ;
 ; SYSVARS is at SYS_VARS in the system area, and the PMB table at SYS_PMBS.
 ;
 SYSVARS		struc
-SV_SIG		dw	?	; SIG_SYSVARS (if A20 is enabled)
 SV_TYPE		db	?	; CPU type
 SV_FLAGS	db	?	; CPUF_* flags
 SV_NPMBS	dw	?	; number of PMBs
@@ -128,8 +118,7 @@ SV_LDTTOP	dw	?	; the end of session 0's LDT (see ldt_grow)
 SV_LDTS		dw	LDT_SESSIONS dup (?) ; each session's LDT offset
 SYSVARS		ends
 SV_LDTLOW	equ	SV_LDTS + (LDT_SESSIONS - 1) * 2 ; (the lowest LDT)
-SIG_SYSVARS	equ	'PC'
-	ASSERT	<SYS_VARS + size SYSVARS>,LE,SYS_CALL5
+	ASSERT	<SYS_VARS + size SYSVARS>,LE,SYS_GDT
 
 ;
 ; Descriptors (gates use DESC_LIMIT for the offset, DESC_BASE for the
@@ -164,7 +153,7 @@ SEL_LDTD	equ	10h	; LDT
 SEL_CPUCODE	equ	18h	; code: CPU$ driver
 SEL_LOW		equ	20h	; data: first 64K of memory
 SEL_STACK	equ	28h	; data: caller's stack (see pm_call)
-SEL_TMP		equ	30h	; data: scratch (initially 110000h)
+SEL_TMP		equ	30h	; data: scratch
 SEL_CPU		equ	38h	; call gate: cpu_entry
 SEL_BIOS	equ	40h	; data: segment 40h (BIOS)
 SEL_TMP2	equ	48h	; data: scratch (see pm_ptr)
@@ -233,9 +222,7 @@ ENDPROC	ddcpu_req
 ; cpu_entry (DDINT_CPU)
 ;
 ; Calls the CPU$ function in AH (see cpu.inc) with interrupts disabled and
-; DS addressing SYSVARS (SYS_SEG in real mode, or SEL_SYS in protected
-; mode).  If SYSVARS isn't there (eg, a BIOS block move turned A20 off), we
-; turn A20 back on.
+; DS addressing SYSVARS (sys_seg in real mode, or SEL_SYS in protected mode).
 ;
 ; The functions that walk or change the PMB table and LDTs can take a while, so
 ; if the caller had interrupts on, they run with interrupts on, too, holding a
@@ -254,6 +241,8 @@ ENDPROC	ddcpu_req
 ;	AX, CX, DX (unless returning values); all other flags are restored
 ;
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+sys_seg	dw	0			; system area segment (see ddcpu_init)
+
 DEFPROC	cpu_entry,far
 	push	ds
 	push	bp
@@ -263,7 +252,7 @@ DEFPROC	cpu_entry,far
 	push	bx
 	push	si
 	push	di
-	mov	bp,SYS_SEG
+	mov	bp,cs:[sys_seg]
 	push	ax
 	smsw	ax
 	test	al,1			; protected mode?
@@ -271,14 +260,7 @@ DEFPROC	cpu_entry,far
 	jz	ce1			; no
 	mov	bp,SEL_SYS
 ce1:	mov	ds,bp
-	cmp	ds:[SYS_VARS].SV_SIG,SIG_SYSVARS
-	je	ce2
-	push	ax
-	call	a20_on
-	pop	ax
-	cmp	ds:[SYS_VARS].SV_SIG,SIG_SYSVARS
-	jne	ce8
-ce2:	cmp	ah,CPU_MAXFUNC		; valid function?
+	cmp	ah,CPU_MAXFUNC		; valid function?
 	ja	ce8			; no
 	mov	bl,ah
 	mov	bh,0
@@ -951,7 +933,6 @@ DEFPROC	ldt_load
 	sub	cx,1
 	adc	cx,0			; CX = its limit (0 if it's empty)
 	mov	ds:[SYS_GDT + SEL_LDTD].DESC_LIMIT,cx
-	sub	ax,10h			; (see SYS_BASE16)
 	mov	ds:[SYS_GDT + SEL_LDTD].DESC_BASE,ax
 	mov	ax,SEL_LDTD
 	lldt	ax			; reload LDTR from its new descriptor
@@ -1828,35 +1809,6 @@ DEFPROC	pmb_ptr
 	add	bx,SYS_PMBS
 	ret
 ENDPROC	pmb_ptr
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; a20_on
-;
-; Enables A20 with the 8042 keyboard controller, as on a PC AT.  Enter at
-; a20_set with AH = the 8042 output port value instead (0DDh turns A20 off).
-;
-; Modifies:
-;	AX
-;
-DEFPROC	a20_on
-	mov	ah,0DFh			; output port: A20 on, no reset
-	DEFLBL	a20_set,near
-	call	kbc_wait
-	mov	al,0D1h			; 8042 command: write output port
-	out	64h,al
-	call	kbc_wait
-	mov	al,ah
-	out	60h,al
-	DEFLBL	kbc_wait,near		; wait for the 8042 to accept input
-	push	cx
-	sub	cx,cx
-kw1:	in	al,64h
-	test	al,02h			; is the 8042 input buffer full?
-	loopnz	kw1			; yes
-	pop	cx
-	ret
-ENDPROC	a20_on
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -3127,7 +3079,7 @@ di1:	pushf
 di2:	mov	[CPU_HWTYPE],al
 ;
 ; We act as if this is an 8088 unless protected mode is requested, by a CONFIG
-; line or a P at the boot prompt, and an R at the boot prompt overrides a line.
+; line or a P at the boot message, and an R then overrides a line.
 ;
 	mov	ah,byte ptr [BOOT_KEY]
 	or	ah,20h			; AH = boot key, in lower-case
@@ -3138,70 +3090,72 @@ di2:	mov	[CPU_HWTYPE],al
 di2c:	cmp	ah,'r'			; was the boot key R?
 	je	di2b			; yes
 ;
-; Protected mode also needs at least 128K of conventional memory (after any
+; Protected mode also needs at least 256K of conventional memory (after any
 ; "MEMSIZE=" line), so with less, we act as if this is an 8088, too.
 ;
-	cmp	[MEMORY_SIZE],128	; enough conventional memory?
+	cmp	[MEMORY_SIZE],256	; enough conventional memory?
 	jae	di2a			; yes
 di2b:	mov	al,CPUTYPE_8086		; no, so act as if this is an 8088
 di2a:	mov	[CPU_TYPE],al
 	cmp	al,CPUTYPE_80286	; protected mode available?
 	jb	di9			; no
 ;
-; We need at least 64K of extended memory for the system area.
+; Extended memory is optional.  A20 isn't, because an 80286 returns to real
+; mode through a reset (see pm_call), and the ROM's reset vector at FFFFF0h
+; needs it.  If A20 isn't enabled, then writing FFFF:0010h changes its
+; wrap-around alias in low memory (and if it is, the write has no effect there,
+; whether or not there's any memory at that address).
 ;
 	mov	ah,CAS_GETEXTMEM
 	int	INT_CASSETTE
-	jc	di9
-	cmp	ax,64			; enough extended memory?
-	jb	di9			; no
-	xchg	si,ax			; SI = Kb of extended memory
+	jnc	di2d
+	sub	ax,ax			; no extended memory
+di2d:	xchg	si,ax			; SI = Kb of extended memory
 	call	a20_on
-;
-; Make sure A20 is enabled before writing anything to the system area: if
-; it's not, then writing SYS_VARS changes its wrap-around alias in low memory.
-;
-	mov	ax,SYS_SEG
+	mov	ax,0FFFFh
 	mov	es,ax
 	ASSUME	ES:NOTHING
 	push	ds
 	sub	ax,ax
 	mov	ds,ax
 	ASSUME	DS:NOTHING
-	mov	bx,ds:[SYS_VARS-10h]	; BX = word at the low memory alias
+	mov	bx,ds:[0]		; BX = word at the low memory alias
 	mov	ax,bx
 	not	ax
-	mov	es:[SYS_VARS].SV_SIG,ax
-	cmp	ds:[SYS_VARS-10h],ax	; did the alias change?
-	mov	ds:[SYS_VARS-10h],bx	; (restore it, in case it did)
+	mov	es:[10h],ax
+	cmp	ds:[0],ax		; did the alias change?
+	mov	ds:[0],bx		; (restore it, in case it did)
 	pop	ds
 	ASSUME	DS:BIOS
 	jne	di3			; no, so A20 is enabled
 ;
-; On an 8086 (or without enough extended memory, or A20, or if the protected
-; mode self-test fails), we unload ourselves (DDPI_END is still zero), and the
-; 8086 driver stays instead, so CPU_TYPE must say we're acting as an 8088.
+; On an 8086 (or without A20, or if the protected mode self-test fails), we
+; unload ourselves (DDPI_END is still zero), and the 8086 driver stays instead,
+; so CPU_TYPE must say we're acting as an 8088.
 ;
 di9:	mov	[CPU_TYPE],CPUTYPE_8086
 	pop	bx
 	pop	es
 	ret
 ;
-; Clear the system area (all of it, so that unused GDT entries, including the
-; gaps between the identity selectors, aren't present), and then fill in
-; SYSVARS, the PMBs, and the GDT.
+; The system area is the last whole 64K of conventional memory.  Clear all of
+; it (so that unused GDT entries, including the gaps between the identity
+; selectors, aren't present), and then fill in SYSVARS, the PMBs, and the GDT.
 ;
 	.286p
 	ASSUME	DS:BIOS
-di3:	mov	di,10h
-	mov	cx,0FFF0h SHR 1		; (10000h - 10h bytes)
+di3:	mov	ax,[MEMORY_SIZE]
+	and	ax,0FFC0h		; AX = Kb, in whole 64K units
+	sub	ax,64
+	shl	ax,6			; AX = segment of the last whole 64K
+	mov	cs:[sys_seg],ax
+	mov	es,ax
 	sub	ax,ax
+	mov	di,ax
+	mov	cx,8000h		; (64K)
 	rep	stosw
-	mov	byte ptr es:[SYS_CALL5],OP_JMPF
-	mov	word ptr es:[SYS_CALL5+1],INT_DOSCALL5 * 4
 
 	mov	di,SYS_VARS
-	mov	es:[di].SV_SIG,SIG_SYSVARS
 	mov	al,[CPU_TYPE]
 	mov	ah,al			; (the same as CPU_HWTYPE here)
 	ror	ah,1
@@ -3209,11 +3163,9 @@ di3:	mov	di,10h
 	mov	word ptr es:[di].SV_TYPE,ax	; (and SV_FLAGS)
 	mov	es:[di].SV_RMCS,cs
 	mov	es:[di].SV_GDTR,GDT_LIMIT
-	mov	es:[di].SV_GDTR+2,SYS_GDT - 10h
-	mov	byte ptr es:[di].SV_GDTR+4,SYS_BASE16
+	mov	es:[di].SV_GDTR+2,SYS_GDT
 	mov	es:[di].SV_PIDTR,IDT_MAX * (size DESC) - 1
-	mov	es:[di].SV_PIDTR+2,SYS_PIDT - 10h
-	mov	byte ptr es:[di].SV_PIDTR+4,SYS_BASE16
+	mov	es:[di].SV_PIDTR+2,SYS_PIDT
 	mov	es:[di].SV_RMIDTR,3FFh
 	mov	ax,SYS_LDTTOP
 	mov	es:[di].SV_LDT,ax	; session 0's LDT (see CPU_SETLDT)
@@ -3232,6 +3184,18 @@ di3:	mov	di,10h
 	mov	di,SYS_GDT + (size DESC)
 	mov	cx,offset DEV:gdt_init_end - offset DEV:gdt_init
 	rep	movsb
+;
+; Every system area address has the same upper base bits (and the lower bits
+; are its offset, since the area starts on a 64K boundary).
+;
+	mov	ax,es
+	mov	al,ah
+	shr	al,4			; AL = base bits 23-16
+	mov	byte ptr es:[SYS_VARS].SV_GDTR+4,al
+	mov	byte ptr es:[SYS_VARS].SV_PIDTR+4,al
+	mov	es:[SYS_GDT+SEL_SYS].DESC_BASE16,al
+	mov	es:[SYS_GDT+SEL_LDTD].DESC_BASE16,al
+	mov	es:[SYS_GDT+SEL_TSS].DESC_BASE16,al
 	mov	ax,cs
 	mov	dx,ax
 	shl	ax,4
@@ -3278,8 +3242,7 @@ di5:	mov	ax,offset DEV:pm_fault
 ;
 	mov	bx,offset DEV:pm_test
 	call	pm_call
-	mov	ax,SYS_SEG
-	mov	es,ax
+	mov	es,cs:[sys_seg]
 	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
@@ -3288,7 +3251,8 @@ di5:	mov	ax,offset DEV:pm_fault
 	mov	ah,0DDh			; output port: A20 off, no reset
 	call	a20_set
 	jmp	di9
-di7:	mov	di,SYS_PIDT		; now the protected-mode gates
+di7:	call	a20_on			; (in case the ROM turned it off)
+	mov	di,SYS_PIDT		; now the protected-mode gates
 	sub	bx,bx
 di6:	call	idt_default		; AX = handler, DH = access rights
 	stosw
@@ -3320,9 +3284,8 @@ ENDPROC	ddcpu_init
 ;
 ; Builds the arena (the PMB table): everything below BIOS_END (the vectors,
 ; the BIOS data, and BASIC-DOS's low memory) and CPU$ are used (by the
-; system), the rest of conventional memory is free, the rest of the first
-; 1Mb is reserved, and with extended memory, the system area (its first 64K)
-; is CPU$'s, and the rest is free.
+; system), the rest of conventional memory is free, except for the system
+; area, the rest of the first 1Mb is reserved, and any extended memory is free.
 ;
 ; Inputs:
 ;	AX = length of CPU$ (rounded up to a multiple of 16 here)
@@ -3345,26 +3308,31 @@ DEFPROC	init_arena
 	call	pmb_add			; 0 to BIOS_END
 	add	ax,bp
 	call	pmb_add			; CPU$
-	mov	ax,[MEMORY_SIZE]	; AX = Kb of conventional memory
-	call	kb_addr			; DX:AX = end of conventional memory
+	mov	dx,es
+	shr	dx,12			; DX:0000h = start of the system area
+	sub	ax,ax
 	mov	bl,PMBTYPE_FREE
+	call	pmb_add			; conventional memory below it
+	inc	dx
+	mov	bl,PMBTYPE_SYS
+	call	pmb_add			; the system area
+	mov	bl,PMBTYPE_FREE
+	test	byte ptr [MEMORY_SIZE],3Fh
+	jz	ia1			; no memory above the system area
+	mov	ax,[MEMORY_SIZE]
+	call	kb_addr			; DX:AX = end of conventional memory
 	call	pmb_add			; the rest of conventional memory
-	mov	dx,10h
+ia1:	mov	dx,10h
 	sub	ax,ax
 	mov	bl,PMBTYPE_RSVD
 	call	pmb_add			; the rest of the first 1Mb
 	test	si,si			; any extended memory?
 	jz	ia9			; no
-	mov	dx,11h
-	mov	bl,PMBTYPE_SYS
-	call	pmb_add			; the system area
 	mov	ax,si
 	call	kb_addr
 	add	dx,10h			; DX:AX = end of extended memory
-	cmp	dx,11h			; anything after the system area?
-	jbe	ia9			; no
 	mov	bl,PMBTYPE_FREE
-	call	pmb_add			; the rest of extended memory
+	call	pmb_add			; extended memory
 ia9:	mov	es:[di-(size PMB)].PMB_SIG,PMBSIG_LAST
 	sub	di,SYS_PMBS
 	mov	cl,5
@@ -3422,6 +3390,35 @@ pa2:	mov	es:[di].PMB_OWNER,ax
 	pop	ax
 	ret
 ENDPROC	pmb_add
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; a20_on
+;
+; Enables A20 with the 8042 keyboard controller, as on a PC AT.  Enter at
+; a20_set with AH = the 8042 output port value instead (0DDh turns A20 off).
+;
+; Modifies:
+;	AX
+;
+DEFPROC	a20_on
+	mov	ah,0DFh			; output port: A20 on, no reset
+	DEFLBL	a20_set,near
+	call	kbc_wait
+	mov	al,0D1h			; 8042 command: write output port
+	out	64h,al
+	call	kbc_wait
+	mov	al,ah
+	out	60h,al
+	DEFLBL	kbc_wait,near		; wait for the 8042 to accept input
+	push	cx
+	sub	cx,cx
+kw1:	in	al,64h
+	test	al,02h			; is the 8042 input buffer full?
+	loopnz	kw1			; yes
+	pop	cx
+	ret
+ENDPROC	a20_on
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -3518,8 +3515,7 @@ DEFPROC	pm_call
 	push	ds
 	push	es
 	push	bp
-	mov	ax,SYS_SEG
-	mov	ds,ax
+	mov	ds,cs:[sys_seg]
 	mov	ax,ss
 	mov	dx,ax
 	shl	ax,4
@@ -3579,8 +3575,7 @@ pm4:	hlt
 ; handle, end up here, in real mode with interrupts and NMI disabled.
 ;
 pm_resume:
-	mov	ax,SYS_SEG
-	mov	ds,ax
+	mov	ds,cs:[sys_seg]
 	mov	ss,ds:[SYS_VARS].SV_RMSS
 	mov	sp,ds:[SYS_VARS].SV_RMSP
 	lidt	qword ptr ds:[SYS_VARS].SV_RMIDTR
@@ -3601,16 +3596,14 @@ ENDPROC	pm_call
 ;
 ; pm_test (called in protected mode by pm_call)
 ;
-; Writes and reads back a pattern at the start of free extended memory
-; (which real mode can't reach), and if that works, sets CPUF_PMOK.
+; Writes and reads back a pattern through ES (SEL_SYS), at the start of the
+; system area (which is otherwise unused), and if that works, sets CPUF_PMOK.
 ;
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	pm_test
 	smsw	ax
 	test	al,1			; are we in protected mode?
 	jz	pt9			; no
-	mov	ax,SEL_TMP
-	mov	es,ax
 	mov	ax,5AA5h
 	xchg	es:[0],ax
 	cmp	word ptr es:[0],5AA5h
@@ -3687,19 +3680,19 @@ idd4:	mov	ax,offset DEV:sw_int
 ENDPROC	idt_default
 
 	DEFLBL	gdt_init,byte
-	DESC	<0FFFFh,0FFF0h,0Fh,ACC_DATA,0>		; SEL_SYS (FFFF0h)
-	DESC	<0,SYS_LDTTOP-10h,SYS_BASE16,ACC_LDT,0>
+	DESC	<0FFFFh,0,0,ACC_DATA,0>			; SEL_SYS
+	DESC	<0,SYS_LDTTOP,0,ACC_LDT,0>		; SEL_LDTD
 	DESC	<0FFFFh,0,0,ACC_CODE,0>			; SEL_CPUCODE
 	DESC	<0FFFFh,0,0,ACC_DATA,0>			; SEL_LOW
 	DESC	<0FFFFh,0,0,ACC_DATA,0>			; SEL_STACK
-	DESC	<0FFFFh,0,11h,ACC_DATA,0>		; SEL_TMP
+	DESC	<0FFFFh,0,0,ACC_DATA,0>			; SEL_TMP
 	DESC	<offset DEV:cpu_entry,SEL_CPUCODE,0,ACC_CALLGATE,0>
 	DESC	<0FFFFh,BIOS_DATA,0,ACC_DATA,0>		; SEL_BIOS
 	DESC	<0,0,0,0,0>				; (unused)
 	DESC	<0FFFFh,BIOS_DATA+100h,0,ACC_CODE,0>	; SEL_DDINT
 	DESC	<INT_DOSCALL5*4+4,0,0,ACC_CODE,0>	; SEL_C5CODE
 	DESC	<INT_DOSCALL5*4,SEL_C5CODE,0,ACC_CALLGATE+ACC_DPL3,0>
-	DESC	<TSS_LEN-1,SYS_TSS-10h,SYS_BASE16,ACC_TSS,0>	; SEL_TSS
+	DESC	<TSS_LEN-1,SYS_TSS,0,ACC_TSS,0>		; SEL_TSS
 	DEFLBL	gdt_init_end,byte
 	ASSERT	<offset gdt_init_end - offset gdt_init>,EQ,<(GDT_FIXED-1)*8>
 

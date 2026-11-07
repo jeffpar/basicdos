@@ -12,9 +12,9 @@ Makes *drive* bootable without reformatting it: SYS copies BASDEV.COM, BASDOS.CO
 
 Since the boot code follows the system files' cluster chains, they don't have to be the first files on the drive, or contiguous, so SYS works on any FAT volume with room for them (including one formatted by another DOS).
 
-### Removing the Boot Prompt
+### Removing the Boot Message
 
-`/N` makes *drive* boot without displaying `Press a key to start...` or waiting 2 seconds for a key.  It's the only way to do this, since the prompt appears before CONFIG.SYS is read.  SYS without `/N` restores the prompt and the wait, regardless of what the current drive's boot code does.
+`/N` makes *drive* boot without displaying `System starting...` or waiting 2 seconds for a key.  It's the only way to do this, since the message appears before CONFIG.SYS is read.  SYS without `/N` restores the message and the wait, regardless of what the current drive's boot code does.
 
 The boot code still checks once for a key, so **Esc**, `P`, `R`, or `-` still work if you press one while the machine is starting up, after its keyboard test.  Pressing a key too early, or holding one down from the start, stops the self-test with a `301` keyboard error.  For settings that apply to every boot, use [CPU=](../../../cfg/#cpu) and [SWITCHAR=](../../../cfg/#switchar) instead.
 
@@ -25,7 +25,7 @@ The boot code still checks once for a key, so **Esc**, `P`, `R`, or `-` still wo
 - `System transferred`, if SYS succeeds
 - `Cannot transfer the system to the current drive`
 - `Drive` *drive* `doesn't have a FAT volume`
-- `Drive` *drive* `doesn't have BASIC-DOS boot code`, for the current drive
+- `Drive` *drive* `doesn't have BASIC-DOS` *version* `boot code`, for the current drive, if its boot code isn't the running version of BASIC-DOS
 - `Unable to copy` *file*
 - `Write protect error`
 - `Drive not ready`

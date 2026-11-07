@@ -223,7 +223,8 @@ R3_USERMAX	equ	67h	; and the last
 ; For debuggers that can't call CPU$ (eg, the PCjs Debugger's "d dos"
 ; command), the driver that stays stores the real-mode address of its arena
 ; in CPU_ARENA (see bios.inc): the 8086 driver's first MCB, or the 80286
-; driver's PMB table, which is in the system area (above 1Mb).
+; driver's PMB table, which is in the system area (a nonzero offset tells
+; them apart, since an MCB's offset is always zero).
 ;
 PMB		struc
 PMB_SIG		db	?	; 00h: PMBSIG_NEXT or PMBSIG_LAST

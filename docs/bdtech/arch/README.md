@@ -26,7 +26,7 @@ Unlike PC DOS, there is no separate BIOS-level file (IO.SYS or IBMBIO.COM); BASI
 
 The boot sector runs in two parts:
 
-1. Part 1 copies the BIOS diskette parameter table (DPT) to low memory (522h) so its values can be tuned, and moves the boot sector to low memory (560h).  It displays "Press a key to start..." and waits for a key (or at most 2 seconds), unless [SYS /N](../../bdman/cmd/external/sys/) removed the prompt, which leaves only a one-tick wait.  The key pressed is saved in BOOT_KEY (52Dh).  It then finds BASDEV.COM, BASDOS.COM, and CONFIG.SYS in the root directory.
+1. Part 1 copies the BIOS diskette parameter table (DPT) to low memory (522h) so its values can be tuned, and moves the boot sector to low memory (560h).  It displays "System starting..." and waits for a key (or at most 2 seconds), unless [SYS /N](../../bdman/cmd/external/sys/) removed the message, which leaves only a one-tick wait.  The key pressed is saved in BOOT_KEY (52Dh).  It then finds BASDEV.COM, BASDOS.COM, and CONFIG.SYS in the root directory.
 2. Part 2 loads BASDEV.COM at BIOS_END (970h), hops over its driver headers to find the devinit code that follows them, and jumps to it, passing it the address of the boot code's function for reading a file.
 
 Devinit reads CONFIG.SYS (to honor any SKIP= line), chains the driver headers together, and sends each driver a DDC_INIT request, starting with CPU$ (two drivers, the first of which records the processor type, and one of which stays, to manage all memory; see [Protected Mode](../mmu/)), which can't be skipped; each driver reports how much memory it needs, so the drivers end up packed together, and skipped drivers take no memory.  As soon as CPU$ is initialized, devinit claims the memory it's using from CPU$ (the drivers, and its own code, CONFIG.SYS data, and scratch buffer), and loads BASDOS.COM into a block at the top of conventional memory, followed by a copy of the CONFIG.SYS data.  When the last driver is initialized, devinit frees its blocks, allocates the first free block (right after the drivers) for BASDOS.COM, and has CPU$ move it there and "return" to sysinit, which also takes the memory for its tables and its initialization code from CPU$, and gets a segment (or selector) for each disk buffer from CPU$.  The first CPU$ driver also applies any MEMSIZE= line, by lowering the BIOS's memory size.
@@ -47,7 +47,7 @@ Successive loads of the same program (eg, COMMAND.COM in several sessions) are s
 
 ### Boot Keys
 
-The key pressed at the boot prompt is saved in BOOT_KEY (52Dh).  These keys have special meanings:
+The key pressed at the boot message is saved in BOOT_KEY (52Dh).  These keys have special meanings:
 
 | Key | Effect |
 | --- | --- |

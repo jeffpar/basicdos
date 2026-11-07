@@ -9,13 +9,13 @@ permalink: /docs/bdtech/mmu/
 
 BASIC-DOS manages all memory, on every processor, through a built-in driver, **CPU$**, which is also the only part of BASIC-DOS that knows about descriptors, selectors, and physical memory.  CPU$ loads first and determines the processor type, and on a processor that can use protected mode, it manages a table of physical memory blocks covering conventional and extended memory, along with the GDT, the IDT, and an LDT for each session (see [The CPU$ Drivers](#cpu)).
 
-On an 80286 or later, when protected mode is requested (by a `CPU=80286` or `CPU=80386` line in CONFIG.SYS, or **P** at the boot prompt), BASIC-DOS switches to protected mode while its drivers initialize, and stays there (see [Protected-Mode Initialization](#pminit)): CPU$, the drivers, and the kernel run at ring 0, and COMMAND.COM, its BASIC programs, and the programs it runs run at ring 3, with each session's memory in its own LDT (see [Running Programs at Ring 3](#ring3)), and DOS allocates memory from anywhere in conventional or extended memory.  Otherwise, as on an 8086 or 8088, the same binaries run in real mode, BASIC-DOS's default and most compatible mode, where CPU$ manages memory with a chain of MCBs, as DOS always has, and uses no extra memory (see [Mode-Independent Code](#modeless)).
+On an 80286 or later, when protected mode is requested (by a `CPU=80286` or `CPU=80386` line in CONFIG.SYS, or **P** at the boot message), BASIC-DOS switches to protected mode while its drivers initialize, and stays there (see [Protected-Mode Initialization](#pminit)): CPU$, the drivers, and the kernel run at ring 0, and COMMAND.COM, its BASIC programs, and the programs it runs run at ring 3, with each session's memory in its own LDT (see [Running Programs at Ring 3](#ring3)), and DOS allocates memory from anywhere in conventional or extended memory.  Otherwise, as on an 8086 or 8088, the same binaries run in real mode, BASIC-DOS's default and most compatible mode, where CPU$ manages memory with a chain of MCBs, as DOS always has, and uses no extra memory (see [Mode-Independent Code](#modeless)).
 
 The [Protected Mode demo](/demos/mmu/) boots in protected mode on a 2Mb PC AT (see [The Protected Mode Demo](#pmdemo)).  What doesn't work in protected mode yet (most notably, MZ EXE files) is listed under [Limitations](#limits).
 
 ### Supported Machines {#machines}
 
-Protected mode needs an 80286 or later, at least 128K of conventional memory (after any `MEMSIZE=` line), at least 64K of extended memory, and A20 control through the 8042 keyboard controller, as on a PC AT; otherwise (or without a request for it; see [CPU](../../bdman/cfg/#cpu)), BASIC-DOS runs in real mode.
+Protected mode needs an 80286 or later, at least 256K of conventional memory (after any `MEMSIZE=` line), and A20 control through the 8042 keyboard controller, as on a PC AT; otherwise (or without a request for it; see [CPU](../../bdman/cfg/#cpu)), BASIC-DOS runs in real mode.  Extended memory is a bonus: it adds to the memory that DOS can allocate.
 
 Protected mode is built and tested for the IBM PC AT (80286, with IBM's revision 3 BIOS), typically with 2Mb of memory: 640K of conventional memory and 1408K of extended memory.  An 80386 runs the same code, with 80286-format descriptors; it's tested only occasionally, on a COMPAQ DeskPro 386.  So every configuration that boots on a PC AT or DeskPro 386 runs in real mode, the default, except for the Protected Mode demo and the protected-mode tests, which have a `CPU=80286` line in their CONFIG.SYS, and which `tools/tests/mmutest.sh` runs on four machines: a PC XT, a PC AT in real mode, and a PC AT in protected mode, both with `RING=0` and without it.
 
@@ -27,7 +27,7 @@ BASDEV.COM starts with two CPU$ drivers, of which exactly one stays loaded: the 
 2. An 80186 masks shift counts to 5 bits, so shifting 1 left 33 times leaves 2 (instead of 0 on an 8086).
 3. In real mode, an 80286 always clears FLAGS bits 12-15, whereas an 80386 lets software set bits 12-14 (IOPL and NT).
 
-It stores the result in CPU_HWTYPE (0:513h) and CPU_TYPE (0:512h), as one of the CPUTYPE_* values in cpu.inc (0 = 8086/8088, 1 = 80186/80188, 2 = 80286, 3 = 80386 or later).  No request for protected mode (a `CPU=80286` or `CPU=80386` line in CONFIG.SYS, or **P** at the boot prompt, either of which **R** at the boot prompt overrides), or less than 128K of conventional memory (after any `MEMSIZE=` line, which the 80286 driver applies by lowering the BIOS's memory size), makes CPU$ store 0 in CPU_TYPE and act as it does on an 8088, without enabling A20, and so does any later reason not to stay (eg, too little extended memory); CPU_HWTYPE is still the processor's own type, for software that must know how the processor runs instructions (eg, DEBUG.COM's disassembler).
+It stores the result in CPU_HWTYPE (0:513h) and CPU_TYPE (0:512h), as one of the CPUTYPE_* values in cpu.inc (0 = 8086/8088, 1 = 80186/80188, 2 = 80286, 3 = 80386 or later).  No request for protected mode (a `CPU=80286` or `CPU=80386` line in CONFIG.SYS, or **P** at the boot message, either of which **R** at the boot message overrides), or less than 256K of conventional memory (after any `MEMSIZE=` line, which the 80286 driver applies by lowering the BIOS's memory size), makes CPU$ store 0 in CPU_TYPE and act as it does on an 8088, without enabling A20, and so does any later reason not to stay (no A20 control, or a failed test of protected mode); CPU_HWTYPE is still the processor's own type, for software that must know how the processor runs instructions (eg, DEBUG.COM's disassembler).
 
 - **The 80286 driver** stays if the processor is an 80286 or later, with the memory and A20 control that protected mode needs (see [Supported Machines](#machines)), and a switch to protected mode and back succeeds.  It enables A20 permanently, and builds its [arena](#arena) (a table of PMBs) and descriptor tables in the 64K [system area](#sysarea).
 - **The 8086 driver** stays otherwise.  It manages memory with a chain of MCBs, as DOS always has, so every block that's allocated after it (eg, the other drivers, the kernel, and programs) has an MCB in the paragraph before it, which programs that walk the MCB chain can see.
@@ -84,30 +84,29 @@ Physical memory on a 2Mb PC AT:
 | 000400h | 256 | USED | ROM BIOS data area (segment 40h) |
 | 000500h | 1136 | USED | BASIC-DOS low memory (also segment 40h, from offset 100h): CPU_TYPE (512h), CPU_HWTYPE (513h), CPU_ARENA (514h), the diskette parameter table (522h), the DDINT entry points (530h, called through segment 50h, starting with DDINT_CPU at 0050:0030h), and two disk buffers |
 | 000970h | | USED | Drivers: CPU$ (first), NUL, VKD$, ..., then BASDOS.COM and its tables |
-| | | FREE | The rest of conventional memory |
+| | | FREE | The rest of conventional memory, except for: |
+| 090000h | 64K | SYS | CPU$ system area (see below) |
 | 0A0000h | 384K | RSVD | Video memory, adapter ROMs, and the system ROM (not RAM) |
-| 100000h | 64K | SYS | CPU$ system area (the HMA; see below) |
-| 110000h | 1344K | FREE | The rest of extended memory |
+| 100000h | 1408K | FREE | Extended memory, if any |
 | 260000h | | | End of memory |
 
 The PMB types (PMBTYPE_* in cpu.inc) are FREE (0), USED (1, allocated by CPU_ALLOC), SYS (2), and RSVD (3).  The end of conventional memory comes from the BIOS, so a machine with less than 640K (or a `MEMSIZE=` line) has a larger RSVD block.
 
 #### The System Area {#sysarea}
 
-CPU$ keeps its data in the first 64K of extended memory, which (with A20 enabled) is addressable in real mode as segment FFFFh, and in protected mode with a selector whose base is FFFF0h, so the same offsets work in both modes:
+CPU$ keeps its data in the last whole 64K of conventional memory (090000h-09FFFFh, with 640K), which is addressable in real mode with a segment (9000h, with 640K), and in protected mode with a selector whose base is the same address, so the same offsets work in both modes:
 
-| Offset | Linear | Contents |
-|--------|--------|----------|
-| 0000h | 0FFFF0h | Last 16 bytes of the ROM BIOS (unusable) |
-| 0020h | 100010h | CPU$'s variables |
-| 00D0h | 1000C0h | CALL 5 trampoline: `JMP 0000:00C0h` (see below) |
-| 00E0h | 1000D0h | GDT: 256 descriptors (the fixed ones first) |
-| 08E0h | 1008D0h | The protected-mode IDT (256 gates; see [Protected-Mode Interrupts](#interrupts)) |
-| 10E0h | 1010D0h | TSS (44 bytes, 80286 format), only for its ring 0 stack |
-| 110Eh | 1010FEh | PMB table (32 bytes per entry), growing up, and below A0DEh, LDTs, growing down (see [Table Growth](#growth)) |
-| A0E0h | 10A0D0h | GDT: identity selectors A000h-F800h, every 800h (see below), through 10F8D7h |
+| Offset | Contents |
+|--------|----------|
+| 0000h | Unused (except by the protected-mode test) |
+| 0020h | CPU$'s variables |
+| 00E0h | GDT: 256 descriptors (the fixed ones first) |
+| 08E0h | The protected-mode IDT (256 gates; see [Protected-Mode Interrupts](#interrupts)) |
+| 10E0h | TSS (44 bytes, 80286 format), only for its ring 0 stack |
+| 110Eh | PMB table (32 bytes per entry), growing up, and below A0DEh, LDTs, growing down (see [Table Growth](#growth)) |
+| A0E0h | GDT: identity selectors A000h-F800h, every 800h (see below), through offset F8E7h |
 
-A PSP's CALL 5 (a far call to F01D:FEF0h, for example) reaches 0:00C0h only by wrapping around at 1Mb, so with A20 enabled, it lands at 1000C0h instead; like DOS 5 with DOS=HIGH, CPU$ puts a far jump to 0:00C0h there.  In protected mode, PSP_FCSEG is SEL_CALL5 instead, a DPL 3 call gate to that jump (a far call through a gate ignores its offset, so PSP_SIZE keeps the value that CP/M programs read as their memory size).
+A PSP's CALL 5 uses PSP_FCSEG, which in protected mode is SEL_CALL5, a DPL 3 call gate to the far jump at 0:00C0h (a far call through a gate ignores its offset, so PSP_SIZE keeps the value that CP/M programs read as their memory size).
 
 #### Table Growth {#growth}
 
@@ -115,14 +114,12 @@ The PMB table and the LDTs share the 36,816 bytes between the TSS and the identi
 
 So that long tables don't delay interrupts, the CPU$ functions that walk or change them (CPU_GETINFO, CPU_ALLOC, CPU_FREE, CPU_MAP, CPU_QUERY, CPU_ALIAS, CPU_REALLOC, CPU_SETBLK, and CPU_FREEALL) run with interrupts on if the caller had them on, holding a session lock (through DDINT_UTIL), so no other session can call CPU$ until they're done.  Interrupts are off only while moving a piece of the PMB table (64 words at a time), and while moving the active LDT and reloading the LDTR, which is never more than 1K words.  Interrupt handlers must not call those functions.
 
-On every function call, CPU$ checks that A20 is still enabled, and re-enables it if necessary (eg, if a program used the BIOS block move function, INT 15h function 87h, which turns A20 off).
-
 #### Fixed GDT Selectors
 
 | Selector | Base | Use |
 |----------|------|-----|
 | 00h | | Null selector |
-| 08h | 0FFFF0h | Data: the system area (so offsets match segment FFFFh) |
+| 08h | System area | Data: the system area (so offsets match its real-mode segment) |
 | 10h | | The active session's LDT |
 | 18h | 000970h | Code: CPU$ |
 | 20h | 000000h | Data: the first 64K (interrupt vectors, BIOS data, BASIC-DOS low memory) |
@@ -133,7 +130,7 @@ On every function call, CPU$ checks that A20 is still enabled, and re-enables it
 | 50h | 000500h | Code: the DDINT segment (50h), so the DDINT entry points have the same addresses in either mode |
 | 58h | 000000h | Code: just the CALL 5 jump at 0:00C0h |
 | 60h | | SEL_CALL5: call gate (DPL 3) for a PSP's CALL 5 |
-| 68h | 1010D0h | The TSS |
+| 68h | System area + 10E0h | The TSS |
 | A000h-B800h | A0000h-B8000h | Data: identity selectors for video memory, every 800h (DPL 3, so that ring 3 programs can draw directly) |
 | C000h-F800h | C0000h-F8000h | Code: identity selectors for the adapter and system ROMs, every 800h, so the ROM BIOS can run at ring 0 with its own segments (eg, F000h) |
 
@@ -167,7 +164,7 @@ Unlike MCBs, PMBs aren't stored in front of the memory they describe:
 
 The cost is the room that the table takes in the system area (see [Table Growth](#growth)).  The 8086 driver's arena is the MCB chain itself: programs on an 8086 expect to see MCBs, and conventional memory is all there is.  With the 8086 driver, CPU_QUERY describes each MCB with a PMB (whose PMB_SEL is the block's segment).
 
-For debuggers that can't call CPU$ (eg, the PCjs Debugger, whose `d dos` command lists the arena the way DEBUG's DM does), whichever driver stays stores the real-mode address of its arena in CPU_ARENA (0:514h): the 8086 driver's first MCB, or the 80286 driver's PMB table (FFFF:110Eh).
+For debuggers that can't call CPU$ (eg, the PCjs Debugger, whose `d dos` command lists the arena the way DEBUG's DM does), whichever driver stays stores the real-mode address of its arena in CPU_ARENA (0:514h): the 8086 driver's first MCB, or the 80286 driver's PMB table (in the system area, at offset 110Eh); a nonzero offset means it's the table, since an MCB's offset is always zero.
 
 #### Memory and DOS {#dosmem}
 
@@ -175,7 +172,7 @@ From the moment CPU$ initializes, everything that runs during the boot (devinit,
 
 ### Switching Modes
 
-To test protected mode, CPU$ switches to it and back.  An 80386 returns to real mode by clearing PE.  An 80286 can't, so before switching, CPU$ sets the CMOS shutdown code to 0Ah and stores its return address in 40:67h, and to return, it resets the processor through the 8042, as the BIOS's own block move (INT 15h function 87h) does; the BIOS sees the shutdown code and jumps through 40:67h without initializing anything else.  Because the shutdown code is set before switching, a "triple fault" (which resets the processor) also returns to CPU$, and until the test passes, every gate in the IDT returns to real mode (without a reset, on an 80386), so a bug in protected mode makes the test fail instead of hanging the machine.  The test writes and reads back a word at 110000h, which real mode can't reach; CPU$ stays loaded only if that works; otherwise, it turns A20 back off, and the 8086 driver stays instead.
+To test protected mode, CPU$ switches to it and back.  An 80386 returns to real mode by clearing PE.  An 80286 can't, so before switching, CPU$ sets the CMOS shutdown code to 0Ah and stores its return address in 40:67h, and to return, it resets the processor through the 8042, as the BIOS's own block move (INT 15h function 87h) does; the BIOS sees the shutdown code and jumps through 40:67h without initializing anything else.  Because the shutdown code is set before switching, a "triple fault" (which resets the processor) also returns to CPU$, and until the test passes, every gate in the IDT returns to real mode (without a reset, on an 80386), so a bug in protected mode makes the test fail instead of hanging the machine.  The test writes and reads back a word at the start of the system area, through its selector; CPU$ stays loaded only if that works; otherwise, it turns A20 back off, and the 8086 driver stays instead.
 
 CPU_PMODE switches to protected mode the same way, but for good: it never returns to real mode.
 
@@ -239,7 +236,7 @@ COMMAND.COM runs at ring 3, so it uses only selectors that the kernel gives it, 
 - **The tick count** (for RANDOMIZE, SOUND, and PLAY) comes from DOS_UTL_GETTIME with AL = 1, MEM's total memory from DOS_MSC_GETVARS, and KILL's session list from DOS_UTL_QRYSCB.
 - **Sounds** start and stop through CLOCK$ (DOS_UTL_SOUND), rather than with IN and OUT.
 - **BASIC code** runs from code blocks through their code aliases (see [Code Aliases](#aliases)), and DEF SEG gets a selector from the kernel (see [DEF SEG](#defseg)).
-- **Blocks** (for code, text, variables, and strings) come from DOS_MEM_ALLOC with MCBTYPE_HIGH, so in protected mode, they come from the top of extended memory.
+- **Blocks** (for code, text, variables, and strings) come from DOS_MEM_ALLOC with MCBTYPE_HIGH, so in protected mode, they come from the top of memory.
 
 ### Code Aliases {#aliases}
 
@@ -287,7 +284,7 @@ In protected mode, unless CONFIG.SYS has `RING=0` (see [CONFIG.SYS](../../bdman/
 
 ### The Protected Mode Demo {#pmdemo}
 
-The [Protected Mode demo](/demos/mmu/) is a 2Mb PC AT with a Color Display and three full-screen consoles, one on each page of video memory.  The [Protected Mode (VT100) demo](/demos/mmu/vt100/) runs the same sessions, with a DEC VT100 on COM2 for DEBUG.COM, and its [Debugger](/demos/mmu/vt100/debugger/) page is the same machine with the PCjs Debugger.  Each boots a diskette whose CONFIG.SYS has a `CPU=80286` line (pressing **Esc** at the boot prompt boots the hard disk instead, which runs in real mode, and pressing **R** boots the diskette in real mode).  Everything after CPU$ initializes runs in protected mode, and COMMAND.COM runs at ring 3, with C: as the default drive.  Commands, BASIC programs, and NE programs work (eg, PRIMES.BAS in the third session), but MZ EXE files don't (see [Loading Programs](#exec)).
+The [Protected Mode demo](/demos/mmu/) is a 2Mb PC AT with a Color Display and three full-screen consoles, one on each page of video memory, and the [Protected Mode (640K) demo](/demos/mmu/640k/) runs the same sessions on a PC AT with no extended memory.  The [Protected Mode (VT100) demo](/demos/mmu/vt100/) runs the same sessions, with a DEC VT100 on COM2 for DEBUG.COM, and its [Debugger](/demos/mmu/vt100/debugger/) page is the same machine with the PCjs Debugger.  Each boots a diskette whose CONFIG.SYS has a `CPU=80286` line (pressing **Esc** at the boot message boots the hard disk instead, which runs in real mode, and pressing **R** boots the diskette in real mode).  Everything after CPU$ initializes runs in protected mode, and COMMAND.COM runs at ring 3, with C: as the default drive.  Commands, BASIC programs, and NE programs work (eg, PRIMES.BAS in the third session), but MZ EXE files don't (see [Loading Programs](#exec)).
 
 In the VT100 demo, DEBUG.COM, loaded as a driver, shows each fault on the VT100, with the registers at the faulting instruction (adding /H to its line in CONFIG.SYS stops it as soon as it's loaded, so that you can set breakpoints before booting continues).  The B: drive has the BASIC-DOS Tests diskette, so `B:\TESTS\MISC\FAULT n` causes exception *n* (0, 1, 3-6, 12, or 13), or with -1, a fault in the kernel (a null pointer to a filename), to see how BASIC-DOS responds: DOS reports a divide error (0) or an overflow (4) and ends the program, a single-step trap (1) or a breakpoint (3) resumes (unless DEBUG.COM stops there), and DOS ends the program for the rest (eg, `CPU fault 0D`), unless DEBUG.COM's VT command traps the vector.
 

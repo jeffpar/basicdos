@@ -14,7 +14,7 @@
 	include	devapi.inc
 	include	version.inc
 
-	TWAIT	equ 2		; seconds to wait at the boot prompt (14 max)
+	TWAIT	equ 2		; seconds to wait at the boot message (14 max)
 
 ;
 ; DISKSECS is non-zero on supported boot volumes, so LARGESECS is unused.
@@ -231,14 +231,14 @@ ENDPROC	printp
 ;
 ; main
 ;
-; Display a prompt, and then look for all the required files in the root
+; Display a message, and then look for all the required files in the root
 ; directory (starting with DEV_FILE), load the first sector of the first file,
 ; and continue booting from there.
 ;
 DEFPROC	main,far			; now at BOOT_SECTOR_LO
 	mov	ds:[mybpb].BPB_DRIVE,dl	; save boot drive (DL) in BPB
 	mov	si,offset product
-	call	print			; print the product name and prompt
+	call	print			; print the product name and message
 ;
 ; Wait for a key; ESC boots from the hard disk (if there is one, and we didn't
 ; boot from it), and any other key continues booting from this disk, and is
@@ -395,17 +395,17 @@ fd9:	pop	di
 ENDPROC	find_dirent
 
 ;
-; The product name and prompt are one string, followed by the number of ticks
-; to wait (18.2 per second, so TWAIT must be 14 or less to fit in a byte).  SYS
-; /N replaces the CR,LF before the prompt with 0,1, which ends the string
-; early, leaving 1 as the number of ticks.  It can't be 0, since the wait loop
-; looks for an exact match, and a tick arriving first would make it wait 256
-; ticks.
+; The product name and message are one string, followed by the number of
+; ticks to wait (18.2 per second, so TWAIT must be 14 or less to fit in a
+; byte).  SYS finds the version number, and SYS /N replaces the CR,LF after it
+; with 0,1, which ends the string early, leaving 1 as the number of ticks.  It
+; can't be 0, since the wait loop looks for an exact match, and a tick arriving
+; first would make it wait 256 ticks.
 ;
 product		db	"BASIC-DOS "
 		VERSION_STR
 		db	13,10
-prompt		db	"Press a key to start...",0
+message		db	"System starting...",0
 		db	TWAIT * 182 / 10
 crlf		db	13,10,0
 errmsg1		db	"System boot error, halted",0
@@ -418,10 +418,10 @@ errmsg2		db	"System file(s) missing, halted",0
 	ASSERT 	<offset PART1_END - offset start>,LE,510
 	ASSERT	<offset CFG_FILE - offset PART1_COPY>,EQ,BOOT_CFGFILE
 ;
-; SYS looks for the prompt, and the CR,LF before it, in its second 255-byte
-; record.
+; SYS looks for the version number, and the CR,LF after it, in its second
+; 255-byte record.
 ;
-	ASSERT	<offset prompt - 2 - offset start>,GE,255
+	ASSERT	<offset message - 6 - offset start>,GE,255
 
 	org 	BOOT_SECTOR_LO + 510
 	dw	0AA55h

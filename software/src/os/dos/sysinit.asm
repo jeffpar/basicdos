@@ -229,7 +229,7 @@ si2d:	cli
 ; Copy DD_LIST from the BIOS segment to dev_head in the DOS segment, for
 ; DOS_MSC_GETVARS (see DV_DD_LIST), since all the device drivers are linked
 ; by now, and BOOT_KEY to key_boot.  We then clear BOOT_KEY, since a timeout at
-; the next boot prompt won't change it, and a warm boot may not clear it.
+; the next boot message won't change it, and a warm boot may not clear it.
 ;
 si3:	mov	ax,[DD_LIST].OFF	; copy the device driver list head
 	mov	[dev_head].OFF,ax
@@ -609,7 +609,7 @@ si9b:
 ; the path character (eg, SWITCHAR=/ with PATHCHAR=/), in which case we
 ; report the conflict and leave the switch character alone.  Any other
 ; setting is ignored.  A '-' boot key acts like SWITCHAR=- (which never
-; conflicts), so that it can be chosen at the boot prompt.
+; conflicts), so that it can be chosen at the boot message.
 ;
 	mov	al,'-'
 	cmp	byte ptr es:[key_boot],al; was the boot key '-'?

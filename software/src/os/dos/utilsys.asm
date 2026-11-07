@@ -9,6 +9,7 @@
 ;
 	include	macros.inc
 	include	8086.inc
+	include	bios.inc
 	include	dev.inc
 	include	devapi.inc
 	include	dos.inc
@@ -441,8 +442,10 @@ ENDPROC	utl_term
 ;
 ; utl_restart (AH = 21h)
 ;
-; Any modified disk buffers are written before restarting.  In protected mode,
-; we can't jump to the ROM's reset vector (FFFFh isn't a selector), so we have
+; Any modified disk buffers are written before restarting, and RESET_FLAG is
+; set so that the ROM performs a warm boot, as it does for CTRL-ALT-DEL (which
+; BASIC-DOS otherwise keeps for itself).  In protected mode, we can't jump to
+; the ROM's reset vector (FFFFh isn't a selector), so we have
 ; the 8042 pulse the reset line instead, as CPU$ does to leave protected mode.
 ; CPU$ clears the CMOS shutdown code afterward, so the ROM restarts normally.
 ;
@@ -453,11 +456,16 @@ ENDPROC	utl_term
 ;	None
 ;
 ; Modifies:
-;	AX
+;	AX, ES
 ;
 DEFPROC	utl_restart,DOS
 	mov	al,-1
 	call	flush_buffers		; write all modified buffers
+	mov	ax,BIOS
+	mov	es,ax
+	ASSUME	ES:BIOS
+	mov	[RESET_FLAG],RESET_WARM
+	ASSUME	ES:NOTHING
 	call	mem_pmode		; protected mode?
 	cli
 	jnc	ur8			; no

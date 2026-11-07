@@ -187,7 +187,7 @@ Free memory is also useful for data that can be recreated if it's overwritten.  
 
 **DOS_UTL_TERM (20h)**: DL = exit code, DH = exit type (see [Exit Types](../dos/#exit-types)).  Terminates the current program.
 
-**DOS_UTL_RESTART (21h)**: Writes any modified disk buffers and restarts the system.
+**DOS_UTL_RESTART (21h)**: Writes any modified disk buffers, sets the ROM BIOS reset flag at 40:72h to 1234h, so that the ROM performs a warm boot (skipping its memory tests), and restarts the system.
 
 ### Date and Time
 

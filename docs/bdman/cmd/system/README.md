@@ -53,7 +53,7 @@ Exits the command shell (see [COMMAND.COM](../external/command/)), returning to 
 
 ### KILL
 
-> KILL [*session*]
+> KILL [*session*\|/A]
 
 `KILL` alone lists every session that's running a program: its number, its console, and its program, with `*` marking the current session:
 
@@ -63,7 +63,7 @@ Exits the command shell (see [COMMAND.COM](../external/command/)), returning to 
 
 `KILL` *session* ends the specified session (a number from that list): every program running in it is stopped, as **Ctrl-Alt-Del** stops a program on its console, even one stuck in a loop that never uses DOS, including the session's shell, and then the session closes, so its console no longer responds.  For example, `KILL 2` ends a looping program and its shell on a serial display, from the PC's own console display.  If no other session is left, the system halts.  A number that isn't in the list is reported as `Invalid session`.
 
-`KILL 0` restarts the system, after writing any modified disk data, but first it asks `Are you sure (Y/N)? `, until you answer Y or N.
+`KILL /A` restarts the system, with a warm boot, which skips the ROM's memory tests, after writing any modified disk data, but first it asks `Are you sure (Y/N)? `, until you answer Y or N.  It takes no session number.
 
 ### LIST
 

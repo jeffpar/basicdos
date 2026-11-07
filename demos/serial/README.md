@@ -33,7 +33,7 @@ Click the **Serial Display** pane to the right of the machine and type a command
 
 <script src="/assets/js/serial-terminal.js" defer></script>
 
-Press any key at the boot prompt (or wait 2 seconds) to start the diskette.  Its CONFIG.SYS creates both consoles and launches `C:COMMAND.COM` for each.  Each session starts on the drive named in its SHELL line, so both sessions start on C:.  The [hard disk](../hd/xt/) supplies programs and files.
+Press any key at the boot message (or wait 2 seconds) to start the diskette.  Its CONFIG.SYS creates both consoles and launches `C:COMMAND.COM` for each.  Each session starts on the drive named in its SHELL line, so both sessions start on C:.  The [hard disk](../hd/xt/) supplies programs and files.
 
 ### CONFIG.SYS from the BASIC-DOS HD Serial Port Demo diskette
 

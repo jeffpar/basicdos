@@ -321,7 +321,8 @@ TIMER_OFL	db	?	; 470h: TIMER HAS ROLLED OVER SINCE LAST READ
 ; SYSTEM DATA AREA
 ;
 BIOS_BREAK	db	?	; 471h: BIT 7=1 IF BREAK KEY HAS BEEN DEPRESSED
-RESET_FLAG	dw	?	; 472h: SET TO 0x1234 IF KEYBOARD RESET UNDERWAY
+RESET_FLAG	dw	?	; 472h: RESET_WARM IF KEYBOARD RESET UNDERWAY
+RESET_WARM	equ	1234h	; RESET_FLAG value: POST skips its memory tests
 ;
 ; RESET_FLAG marks the traditional end of the RBDA, as defined by the IBM PC.
 ; We'll add future definitions below, mostly out of "historical" interest.

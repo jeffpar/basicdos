@@ -75,8 +75,8 @@ ENDPROC	listSessions
 ; KILL alone lists the sessions (see listSessions).  KILL *n* ends session *n*
 ; (a number from that list), by aborting each of its programs, as CTRL-ALT-DEL
 ; does on its console, which also stops a program that never calls DOS, and
-; then closing the session (see scb_end).  KILL 0 restarts the system, after
-; asking first.
+; then closing the session (see scb_end).  KILL /A restarts the system (all
+; sessions, hence the switch), after asking first.
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -89,10 +89,19 @@ ENDPROC	listSessions
 ;
 DEFPROC	cmdKill
 	mov	dl,[bx].CMD_ARG
-	call	getToken		; DS:SI -> argument, CX = length
-	jnc	kl0
+	TESTSW	<'A'>			; /A?
+	jz	kl1			; no
+	call	getToken		; any argument?
+	jnc	kl7			; yes, and /A doesn't take one
+	call	askSure
+	jnz	kl9			; no (and carry is clear)
+	DOSUTIL	RESTART			; this shouldn't return
+	ret				; but just in case...
+
+kl1:	call	getToken		; DS:SI -> argument, CX = length
+	jnc	kl2
 	jmp	listSessions		; none, so list the sessions
-kl0:	push	si
+kl2:	push	si
 	inc	dx
 	call	getToken		; any other argument?
 	pop	si
@@ -100,26 +109,21 @@ kl0:	push	si
 	push	bx
 	mov	bl,10			; BL = base 10
 	mov	di,-1			; DI = -1 (no validation data)
-	DOSUTIL	ATOI16			; AX = session # (from 1), or 0
+	DOSUTIL	ATOI16			; AX = session # (from 1)
 	pop	bx
 	jc	kl7
 	cmp	byte ptr [si],' '	; anything after the digits (eg, 1X)?
 	ja	kl7			; yes
 	test	ah,ah			; could it be a session #?
 	jnz	kl7			; no
-	xchg	cx,ax			; CX = session # (from 1), or 0
-	jcxz	kl5			; 0 means the system
+	xchg	cx,ax			; CX = session # (from 1)
+	jcxz	kl7			; (CL -1 would mean any free session)
 	dec	cx			; CL = SCB #
 	DOSUTIL	END,1			; end the session
 	jnc	kl9
 kl7:	PRINTF	<"Invalid session",13,10>
 	stc
 kl9:	ret
-
-kl5:	call	askSure
-	jnz	kl9			; no (and carry is clear)
-	DOSUTIL	RESTART			; this shouldn't return
-	ret				; but just in case...
 ENDPROC	cmdKill
 
 CODE	ENDS
