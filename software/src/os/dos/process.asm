@@ -887,6 +887,18 @@ lp6a:	cmp	ax,size EXEHDR
 	call	mem_pmode		; protected mode?
 	jc	lpne			; yes (see neload.asm)
 ;
+; The file can be longer than its image (eg, the NE image after a dual MZ/NE
+; program's MZ image, or a program's overlays), so we load no more than the
+; header's whole blocks.  DX is unused at this point.
+;
+	mov	dx,[di].EXE_NBLOCKS
+	mov	cl,5
+	shl	dx,cl			; DX = # paras in those blocks
+	cmp	dx,si			; fewer than are in the file?
+	jae	lp6a1			; no
+	mov	si,dx			; yes, so that's how many we load
+lp6a1:
+;
 ; Load the EXE file.  First, we move all the header data we've already read
 ; to the top of the allocated memory, then determine how much more header data
 ; there is to read, read that as well, and then read the rest of the file
@@ -940,17 +952,28 @@ lp6c:	push	es
 	pop	es			; ES = header segment
 	pop	dx			; DX = PSP segment
 	add	dx,10h
+	sub	si,es:[EXE_PARASHDR]	; SI = # paras left to read
 lp6d:	mov	ds,dx
 	sub	dx,dx			; DS:DX -> next read location
-	mov	cx,32 * 1024		; read 32K at a time
-	mov	ah,DOS_HDL_READ		; BX = file handle, CX = # bytes
+	mov	ax,800h			; read 32K at a time
+	cmp	si,ax
+	jae	lp6d1
+	mov	ax,si			; or whatever's left
+lp6d1:	sub	si,ax
+	mov	cl,4
+	shl	ax,cl
+	xchg	cx,ax			; CX = # bytes
+	mov	ah,DOS_HDL_READ		; BX = file handle
 	int	21h
-	jc	lpc1
+	jc	lp6d2
 	mov	dx,ds
 	cmp	ax,cx			; done?
 	jb	lp6e			; presumably
+	test	si,si			; any left?
+	jz	lp6e			; no
 	add	dx,800h			; add 32K of paras to segment
 	jmp	lp6d
+lp6d2:	jmp	lpc
 ;
 ; Time to start working through the relocation entries in the ES segment.
 ;
@@ -958,7 +981,7 @@ lp6e:	push	ax
 	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the file
 	pop	ax
-	jc	lpf1
+	jc	lp6d2			; (closing it again does no harm)
 	add	ax,15
 	mov	cl,4
 	shr	ax,cl
@@ -1367,22 +1390,46 @@ lpf:	push	ax
 
 lp9:	UNLOCK_SCB_RET
 
-lpm6:	mov	ax,ERR_NOMEMORY
-lpm7:	pop	si
-lpm8:	jmp	lpc
-lpm9:	jmp	lpc2
 ;
-; There's not enough memory to read the entire file, but if it's a COM file
-; whose shared code (see COMHEAP) is already in memory, we only need memory for
-; the rest of the file.  So we read its COMDATA, checksum its code in 512-byte
-; chunks, and if a matching copy exists, read the rest of the file at 100h (the
-; same result as lp7d, which moves the rest of the file down after the fact).
+; There's not enough memory to read the entire file, but if it's an EXE file,
+; its image may be all that we need to load (see lp6a).
 ;
 lpm:	push	ds
 	pop	es			; DS = ES = PSP segment
 	cmp	word ptr [bp].TMP_DX,30h; room for PSP + 512-byte buffer?
 	jb	lpm9			; no
-	mov	cx,-1
+	sub	cx,cx
+	sub	dx,dx
+	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_BEG
+	int	21h
+	jc	lpm8
+	mov	dx,100h			; DS:DX -> buffer
+	mov	cx,EXE_NBLOCKS + 2
+	mov	ah,DOS_HDL_READ
+	int	21h
+	jc	lpm8
+	mov	si,dx
+	cmp	[si].EXE_SIG,SIG_EXE
+	jne	lpm0
+	mov	si,[si].EXE_NBLOCKS
+	mov	cl,5
+	shl	si,cl			; SI = # paras in those blocks
+	lea	ax,[si+50h]		; AX = min paras (see lp3)
+	cmp	ax,[bp].TMP_DX		; can the segment accommodate that?
+	ja	lpm9			; no
+	jmp	lp3a			; yes
+lpm6:	mov	ax,ERR_NOMEMORY
+lpm7:	pop	si
+lpm8:	jmp	lpc
+lpm9:	jmp	lpc2
+;
+; Or if it's a COM file whose shared code (see COMHEAP) is already in memory,
+; we only need memory for the rest of the file.  So we read its COMDATA,
+; checksum its code in 512-byte chunks, and if a matching copy exists, read the
+; rest of the file at 100h (the same result as lp7d, which moves the rest of
+; the file down after the fact).
+;
+lpm0:	mov	cx,-1
 	mov	dx,-(size COMDATA)	; CX:DX = -(size COMDATA)
 	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_END
 	int	21h
