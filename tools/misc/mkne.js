@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 /**
- * Converts the MZ tools in software/src/tools/dos to dual MZ/NE executables in
+ * Converts the MZ tools in software/src/tools/dos to NE executables in
  * software/src/tools/bd.  BASIC-DOS loads the NE image, a restricted form of
- * NE, in protected mode, and the original MZ image remains the real-mode stub,
- * so the result still runs under MS-DOS and real-mode BASIC-DOS.
+ * NE, in protected mode, and in real mode, NESTUB.BIN (see
+ * software/src/tools/nestub.asm), an NE loader that replaces the MZ image, does
+ * the same, so one image runs in either mode, including under other versions of
+ * DOS.  All of a program's patches must therefore be safe in real mode, using
+ * only 8086 instructions, since these tools run on an 8088, too.
  *
  * Usage: node tools/misc/mkne.js
  *
@@ -25,14 +28,10 @@
  *     frame.  An MZ program's SP is relative to its own stack segment, so an NE
  *     program that puts its stack in DGROUP needs a new SP (see patchStartup).
  *
- * A protected-mode banner ending in "BD" identifies each conversion.
+ * A banner ending in "BD" identifies each conversion.
  *
- * A program that sets stub makes no dual executable: after converting it, this
- * replaces its MZ image with NESTUB.BIN (see software/src/tools/nestub.asm), an
- * NE loader, so its one NE image runs in either mode, and its patches must be
- * safe in real mode, using only 8086 instructions if it may run on an 8088.  To
- * do the same with any NE program (eg, one that LINK4 built, whose stub it then
- * replaces):
+ * To add the NE loader to any NE program (eg, one that LINK4 built, whose stub it
+ * then replaces):
  *
  *      node tools/misc/mkne.js --stub in.exe out.exe
  */
@@ -176,14 +175,14 @@ function loadMZ(name, sourceHash) {
 }
 
 /**
- * Writes the dual MZ/NE executable.  Each segment is { start, end, data, size,
+ * Writes the NE executable, with the NE loader stub.  Each segment is { start, end, data, size,
  * extra }: its contents are image bytes start through end, followed by extra,
  * if any; size is its size in memory (0 means 64K; its contents' length if
  * omitted).  Every relocation applies to the segments containing it, and frames
  * maps each target value to a one-based segment number.
  */
-function writeDual(name, { source, image, relocations, frames, segments,
-    autoData, ip, cs, sp, ss, stub: useStub }) {
+function writeNE(name, { image, relocations, frames, segments, autoData,
+    ip, cs, sp, ss }) {
     const bySegment = segments.map(() => []);
     for (const { linear, target } of relocations) {
         if (!frames.has(target)) {
@@ -203,29 +202,13 @@ function writeDual(name, { source, image, relocations, frames, segments,
     }
 
     /*
-     * Move the MZ relocation table to 0040h, which makes room for the NE header
-     * offset at 003Ch; BASIC-DOS uses a table offset of at least 0040h to
-     * recognize that field.  The load image doesn't change.
+     * Start with an empty stub, which stubNE replaces, and the NE header at 0040h.
      */
-    const count = word(source, 0x06);
-    const table = word(source, 0x18);
-    let stub = Buffer.from(source);
-    source.copy(stub, 0x40, table, table + count * 4);
-    stub.writeUInt16LE(0x40, 0x18);
     const align = buffer => Buffer.concat(
         [buffer, Buffer.alloc((16 - buffer.length % 16) % 16)]);
-    stub = align(stub);
+    const stub = Buffer.alloc(0x40);
     const neOffset = stub.length;
     stub.writeUInt32LE(neOffset, 0x3c);
-
-    /* Recompute the one's-complement checksum of the declared MZ file. */
-    stub.writeUInt16LE(0, 0x12);
-    const declared = (word(stub, 0x04) - 1) * 512 + (word(stub, 0x02) || 512);
-    let sum = 0;
-    for (let i = 0; i < declared; i += 2) {
-        sum = (sum + stub[i] + ((stub[i + 1] || 0) << 8)) & 0xffff;
-    }
-    stub.writeUInt16LE(~sum & 0xffff, 0x12);
 
     const neHeader = Buffer.alloc(0x40 + segments.length * 8);
     neHeader.writeUInt16LE(0x454e, 0x00);       // NE signature
@@ -268,22 +251,20 @@ function writeDual(name, { source, image, relocations, frames, segments,
         }
     });
 
-    if (useStub) {
-        output = stubNE(output, readStub());
-    }
+    output = stubNE(output, readStub());
     fs.mkdirSync(new URL("bd/", TOOLS), { recursive: true });
     fs.writeFileSync(new URL(`bd/${name}.EXE`, TOOLS), output);
     console.log(`${name}.EXE: ${output.length} bytes`);
 }
 
 /**
- * Returns a copy of an NE file with its MZ stub replaced by the NE loader stub.
+ * Returns a copy of an NE file with its stub replaced by the NE loader stub.
  *
  * The new MZ header has a header size of zero, so DOS loads the entire file, and
  * a file offset is an image offset.  Its minimum allocation covers what the stub
- * will need (it must agree with the stub's first step), plus its stack.  A smaller
- * stub moves the rest of the file down, by a multiple of the file's alignment, so
- * the NE header's file offsets must be adjusted, too.
+ * will need (it must agree with the stub's first step), plus its stack.  A stub
+ * of a different size moves the rest of the file, by a multiple of the file's
+ * alignment, so the NE header's file offsets must be adjusted, too.
  */
 function stubNE(file, stub) {
     const STUB_STACK = 0x20;                    // paragraphs
@@ -584,25 +565,27 @@ const PROGRAMS = [
              * found a nonzero value there, which adds a blank line before a
              * warning in the map file, so start with a value that isn't a segment,
              * to produce the same map file.
-             */
-            patch(image, 0x012b,
-                "268b1e0200 891e7601 2bd8 f7c300f0 7506 b104 d3e3 eb03 bbf0ff",
-                `
-                bbf0ff                  // mov bx,0fff0h
-                c706ce5effff            // mov word ptr [5ECEh],-1
-            `);
-            patch(image, 0x0145, "fa");
-            patch(image, 0x014a, "fb");
-
-            /*
+             *
              * LINK's early exits return to PSP:0000h, but the PSP's selector isn't
-             * code in protected mode, so PUSH CS and PUSH imm16 replace the PUSH
-             * ES, XOR AX,AX, and PUSH AX, to return to an INT 21h exit at the end
-             * of the code segment.
+             * code in protected mode, so instead of PUSH ES, XOR AX,AX, and PUSH
+             * AX, it pushes the address of an INT 21h exit at the end of the code
+             * segment.
              */
             const codeEnd = 0x9670;
             const dataEnd = 0xa9d4;
-            patch(image, 0x014f, "06 33c0 50", `0e 68 ${hexWord(codeEnd)}`);
+            patch(image, 0x012b, `
+                268b1e0200 891e7601 2bd8 f7c300f0 7506 b104 d3e3 eb03 bbf0ff
+                fa 8ed2 8be3 fb 891e7001 06 33c0 50
+            `, `
+                bbf0ff                  // mov bx,0fff0h
+                c706ce5effff            // mov word ptr [5ECEh],-1
+                8ed2                    // mov ss,dx
+                8be3                    // mov sp,bx
+                891e7001                // mov [170h],bx
+                0e                      // push cs
+                b8 ${hexWord(codeEnd)}  // mov ax,exit
+                50                      // push ax
+            `);
 
             /*
              * LINK's virtual memory keeps 512-byte pages in memory above DGROUP,
@@ -737,14 +720,14 @@ const PROGRAMS = [
 
             /*
              * Put the banner in the first code segment, instead of DGROUP, which
-             * has no room for "BD".  PRINTF takes a far pointer, so PUSH CS and PUSH
-             * imm16 replace MOV AX,imm16, PUSH DS, and PUSH AX.
+             * has no room for "BD".  PRINTF takes a far pointer, so PUSH CS comes
+             * first, and it's the MOV that gets the banner's new offset.
              */
             segments[0].extra = Buffer.from(
                 "Microsoft (R) Symbol File Generator  Version 4.00BD\n\0",
                 "ascii");
             patch(image, 0x153a, "b87915 1e 50",
-                `0e 68 ${hexWord(segments[0].end)}`);
+                `0e b8 ${hexWord(segments[0].end)} 50`);
 
             segments.push(
                 { start: farData * 16, end: farData * 16,
@@ -812,8 +795,7 @@ const PROGRAMS = [
             /*
              * EXE2BIN ends by returning to PSP:0000h, but the PSP's selector isn't
              * code in protected mode, so it starts in a helper instead of with its
-             * PUSH DS, XOR AX,AX, and PUSH AX, to return to an INT 21h exit.  This
-             * has to run on an 8088, too (see stub, below).
+             * PUSH DS, XOR AX,AX, and PUSH AX, to return to an INT 21h exit.
              */
             const exit = codeEnd + fixup.length;
             const start = exit + 5;
@@ -862,8 +844,7 @@ const PROGRAMS = [
                 ip: start,
                 cs: 1,
                 sp: printData + stack,
-                ss: 3,
-                stub: true
+                ss: 3
             };
         }
     }
@@ -877,6 +858,6 @@ if (process.argv[2] === "--stub") {
 } else {
     for (const { name, hash, convert } of PROGRAMS) {
         const mz = loadMZ(name, hash);
-        writeDual(name, { ...mz, ...convert(mz) });
+        writeNE(name, { ...mz, ...convert(mz) });
     }
 }

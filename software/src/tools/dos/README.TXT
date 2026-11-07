@@ -71,19 +71,19 @@ The other tools have small stacks, too (MAPSYM's SP is 80h and LINK's is
 BASIC-DOS Protected-Mode Tools
 ------------------------------
 
-MASM.EXE, MAKE.EXE, LINK.EXE, LINK4.EXE, EXEMOD.EXE, and MAPSYM.EXE in TOOLS
-on a BASIC-DOS disk are converted to dual MZ/NE executables, which perform the same as the originals: BASIC-DOS builds
-itself with them in protected mode, and the binaries are the same as those of
-a real-mode build.  MS-DOS and real-mode BASIC-DOS run their original MZ
-images, while protected-mode BASIC-DOS runs the NE images at ring 3.  The NE
-images have fixed code and data segments, translate the MZ segment relocations
-to NE relocations, replace privileged CLI and STI instructions where necessary,
-and adapt the programs' real-mode memory setup.  Their protected-mode banners
-end in "BD" (eg, "Version 4.00BD") to identify the conversions.
+MASM.EXE, MAKE.EXE, LINK.EXE, LINK4.EXE, EXEMOD.EXE, MAPSYM.EXE, and EXE2BIN.EXE
+in TOOLS on a BASIC-DOS disk are converted to NE executables, which perform the
+same as the originals: BASIC-DOS builds itself with them, in either mode, and
+the binaries are the same as those of an MS-DOS build.  Protected-mode BASIC-DOS
+runs the NE images at ring 3, and in real mode, an NE loader stub, in place of
+the MZ image, runs the same NE image.  The NE images have fixed code and data
+segments, translate the MZ segment relocations to NE relocations, replace
+privileged CLI and STI instructions where necessary, and adapt the programs'
+real-mode memory setup.  Their banners end in "BD" (eg, "Version 4.00BD") to
+identify the conversions, except for EXE2BIN, which has no banner.
 
-EXE2BIN.EXE, which has no banner, is converted the same way, except that it's
-one NE image with an NE loader stub in place of its MZ image, so every DOS and
-mode runs the same code, and it always reserves a 64K file buffer.
+Their data segments are always 64K, whereas the originals use less when memory
+is short, so in real mode, MAKE and MASM together need about 229K of free memory.
 
 In the BASIC-DOS repository, the unmodified tools are in
 software/src/tools/dos, and the conversions are in software/src/tools/bd.  A

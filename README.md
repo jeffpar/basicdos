@@ -63,9 +63,9 @@ On an 80286 or later with sufficient memory (256K or more), BASIC-DOS can run in
 - [x] A ring 3 program can issue only DOS's, the mouse's, and the user interrupts (not the BIOS's), and it can't reach another session's descriptors through the GDT, or its files through a forged handle
 - [x] A ring 3 program can hook only the exception vectors it can handle, INT 21h, and INT 60h-67h, and can't change the kernel's record of its parent, stack, or handlers by writing its PSP
 - [x] COM and NE programs (eg, PRIMES.EXE) run in protected mode
-- [x] MASM 4.00, MAKE 4.02, LINK 3.05, LINK4 5.00.12, EXEMOD 4.00, and MAPSYM 4.00 in **TOOLS** on the hard disk are converted from MZ to dual MZ/NE executables that run at ring 3 in protected mode and through their original MZ images in real mode
-- [x] An NE loader stub (`mkne.js --stub`) replaces an NE program's MZ stub, so its one NE image also runs in real mode, without a second copy of the program: on BASIC-DOS, and if the program uses only DOS functions, on PC DOS 2.00 and MS-DOS 3.20 (eg, EXE2BIN from MS-DOS 3.20 in **TOOLS**, with its NE image changed to use only 8086 instructions)
-- [x] BASIC-DOS can build itself at ring 3 in protected mode, with the same binaries as a real-mode build
+- [x] MASM 4.00, MAKE 4.02, LINK 3.05, LINK4 5.00.12, EXEMOD 4.00, MAPSYM 4.00, and EXE2BIN in **TOOLS** on the hard disk are converted from MZ to NE executables, about the size of the originals, that run at ring 3 in protected mode and through an NE loader stub in real mode
+- [x] The NE loader stub (`mkne.js --stub`) replaces an NE program's MZ stub, so its one NE image also runs in real mode, without a second copy of the program: on BASIC-DOS, and if the program uses only DOS functions, on PC DOS 2.00 and MS-DOS 3.20
+- [x] BASIC-DOS can build itself with these tools, in real mode or at ring 3 in protected mode, with the same binaries as an MS-DOS build
 - [x] Exceptions: a fault in a program's own code ends that program with `CPU fault nn (EC=nnnn) at nnnn:nnnn` (ERRORLEVEL 255), as a divide error does; anywhere else, CPU$ prints the same line and `System halted`, and stops the machine, unless DEBUG.COM is loaded as a driver and takes over (see [Faults](docs/bdtech/mmu/#faults))
 - [x] DEBUG.COM as a driver can stop and resume ring 3 programs with all of its commands; as a program, it runs at ring 3 with fewer commands
 - [ ] Ring 3 for the programs that still need `RING=0`: those that hook an interrupt issued by ring 0 code (eg, INT 1Ch or INT 13h), call CPU$ (eg, CPUTESTS), or use IN, OUT, CLI, or STI

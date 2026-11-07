@@ -61,15 +61,17 @@ The two images can come from the same object file, and both call the same DOS fu
 
 This differs from earlier uses of the stub.  A DOS extender's stub loads the extender, which then needs a processor it can use.  OS/2's BIND made one NE image run on DOS, too, but only by adding a stub with a library of OS/2 functions for DOS, and only for programs that restricted themselves to the Family API.  A BASIC-DOS stub can be a full real-mode program, which runs on an 8088.
 
-The cost is that the file holds the program twice: converting MASM 4.00 this way (below) took it from 85,566 bytes to 173,048.
+The cost is that the file holds the program twice: converting MASM 4.00 this way took it from 85,566 bytes to 173,048, so the build tools now use the [NE loader stub](#stub) instead, which leaves it at 87,928.
 
-Existing MZ programs can be converted without their sources.  `tools/misc/mkne.js` makes dual versions of the MASM, MAKE, LINK, and other build tools by patching only the NE copy, so the MZ image remains byte-identical, and BASIC-DOS can build itself at ring 3, with the same binaries as a real-mode build.  Its comments list the problems to look for.  However, each conversion is specific to one binary, and takes some work; it isn't a general way to run MZ programs.
+Existing MZ programs can be converted without their sources.  `tools/misc/mkne.js` makes NE versions of MASM, MAKE, LINK, and other build tools, with the [NE loader stub](#stub), and BASIC-DOS can build itself with them, at ring 3 or in real mode, with the same binaries as an MS-DOS build.  Its comments list the problems to look for.  However, each conversion is specific to one binary, and takes some work; it isn't a general way to run MZ programs.
 
 #### The NE Loader Stub {#stub}
 
 A pure NE program doesn't have to carry a second copy of itself.  It should already be safe to run in real mode, since what protected mode forbids (eg, segment arithmetic, or writes through CS) still works when it isn't done, whereas an MZ program rarely runs in protected mode as it stands.  So BASIC-DOS's stub can be a small NE loader (`NESTUB.BIN`, 372 bytes), rather than a real-mode program: `node tools/misc/mkne.js --stub in.exe out.exe` replaces an NE file's stub with it, and the result runs in real mode on BASIC-DOS, and if the program uses only DOS functions, on PC DOS 2.00 and MS-DOS 3.20.
 
 The stub needs no file I/O.  Its MZ header gives a header size of zero, and a load image that's the entire file, so DOS loads the stub and the NE image together, and the stub doesn't need the program's name.  It applies the NE program's relocations with paragraphs in place of selectors, moves any segments that need more room than they have in the file, zeroes what they don't initialize, and starts the program with the same registers that the kernel's NE loader gives it.  In protected mode, the kernel ignores the stub, as it does any other.
+
+The cost is memory when it's short: a converted C program's data segment is always 64K, whereas the original uses less when memory is short.  So MASM, for example, always needs a 144K block in real mode, compared to as little as about 88K for the original.
 
 `TESTS\BIN\PRIMES.EXE`, a pure NE program, would go from 1,348 bytes to 772, and EXE2BIN in **TOOLS** already went from 5,536 bytes to 2,944.  There are limits:
 

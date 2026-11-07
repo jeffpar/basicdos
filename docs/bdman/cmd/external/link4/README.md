@@ -19,10 +19,9 @@ exports, and protected-mode attributes.  BASIC-DOS uses LINK4 to build
 switch follows the program field (for example,
 `PRIMES.EXE/ALIGN:16`) and selects a power-of-two segment alignment.
 
-The hard disk demo provides LINK4 in **TOOLS**.  Its dual MZ/NE executable
-runs at ring 3 in protected mode, where its banner ends in
-`Version 5.00.12BD`; MS-DOS and real-mode BASIC-DOS run the original MZ image
-and display the original banner.
+The hard disk demo provides LINK4 in **TOOLS**.  It's an NE executable that
+runs at ring 3 in protected mode, and through an NE loader stub in real mode,
+and its banner ends in `Version 5.00.12BD`.
 
 The unmodified Microsoft executable is
 [LINK4.EXE](https://github.com/jeffpar/basicdos/blob/main/software/src/tools/dos/LINK4.EXE),
