@@ -159,9 +159,9 @@ Displays the entries of the IDT that are in use, or just the one for *vector*, a
 
 > DL [*session* [*selector*]]
 
-Without arguments, lists each session with a program: its number, its console, and its program, with `*` beside the session that was interrupted, if it has any LDT entries.  These are the same session numbers that [KILL](../../system/#kill) displays, starting at 1, but in hex, as all of DEBUG's numbers are (eg, 0A for KILL's session 10).  They're each 1 more than the session number in a [DM](#dm) owner (eg, 8000 for the first session's COMMAND.COM).
+Without arguments, lists each session with a program: its number, its console, and its program, with `*` beside each session whose LDT is the active one, if it has any entries.  These are the same session numbers that [KILL](../../system/#kill) displays, starting at 1, but in hex, as all of DEBUG's numbers are (eg, 0A for KILL's session 10).  A session that CONFIG.SYS started (eg, a SHELL) has an LDT of its own, whose number is 1 less than the session's, and is the number in a [DM](#dm) owner (eg, 8000 for the first session's COMMAND.COM), and a session that a program started (eg, the next program in a pipeline) shares that program's LDT.
 
-Otherwise, displays the entries of a session's LDT that are in use, or just the one for *selector*, as [DG](#dg) does (*session* is in hex).  An LDT holds only the selectors of the ring 3 programs in its session, so a session whose programs all run at ring 0 (with `RING=0`) has no entries.  A number from 1 to 20 (hex) that isn't in the list displays nothing, and any other number displays `?`.
+Otherwise, displays the entries of a session's LDT that are in use, or just the one for *selector*, as [DG](#dg) does (*session* is in hex).  An LDT holds the selectors of the ring 3 programs in the sessions that share it, and of their consoles' video memory, so with `RING=0`, where every program runs at ring 0, only the first LDT has entries, if any.  A number from 1 to 20 (hex) that isn't in the list displays nothing, and any other number displays `?`.
 
 	-DL
 	 01 VKD$     COMMAND

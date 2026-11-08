@@ -144,11 +144,12 @@ si16c:	mov	es:[def_drive],al
 ;
 ; A ring 3 program's selectors are in its session's LDT, which isn't active
 ; while another session's SHELL loads (see scb_load), so cache_int21 needs a
-; GDT alias of the data, which we make with the loaded session's LDT active.
+; GDT alias of the data, which we make with the loaded session's LDT active
+; (whose # is the session's; see init_scb).
 ;
 	push	ax
 	push	dx
-	mov	al,cl			; AL = the loaded session #
+	mov	al,cl			; AL = the loaded session's LDT #
 	mov	ah,CPU_SETLDT
 	call	far ptr DDINT_CPU	; make its LDT active
 	sub	al,al			; AL = MEMF_* for a DPL 0 data alias
@@ -293,7 +294,7 @@ iv2:
 ;
 	cmp	[prog_user],0		; ring 3 programs?
 	je	stt1			; no
-	mov	al,[bx].SCB_NUM		; DS:BX -> the first SCB
+	mov	al,[bx].SCB_LDT		; DS:BX -> the first SCB
 	push	ax
 	mov	ah,CPU_SETLDT
 	call	far ptr DDINT_CPU	; load the first session's LDT

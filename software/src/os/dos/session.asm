@@ -38,7 +38,7 @@ DOS	segment word public 'CODE'
 	EXTWORD	<scb_active,scb_stoked,load_reserve>
 	EXTLONG	<scb_table>
 	EXTNEAR	<dos_check,dos_leave,load_command,psp_termcode,r3_sp0,r3_load>
-	EXTNEAR	<r3_setldt,stage_cmdline>
+	EXTNEAR	<r3_setldt>
 	EXTNEAR	<sfh_add_ref,sfh_context,sfh_close,get_cdir>
 	EXTNEAR	<sfb_from_sfh,sfb_read,sfb_write,get_pname>
 
@@ -105,24 +105,21 @@ sl0a:	push	ax			; save previous SCB
 	mov	es,[bp].REG_ES		; ES:DI -> SPB
 	ASSUME	ES:NOTHING
 	call	init_scb		; initialize the SCB
-	push	bx			; save SCB
+;
+; With programs at ring 3, the loaded session's LDT becomes the active one, so
+; that load_command allocates the program's memory there.  The SPB and the
+; command line stay addressable, since a program's new session shares its LDT,
+; and sysinit's SPBs are in kernel memory (see init_scb).
+;
+	cmp	[prog_user],0		; ring 3 programs?
+	je	sl0b			; no
+	call	r3_setldt		; make the session's LDT active
+sl0b:	push	bx			; save SCB
 	mov	bx,es:[di].SPB_ENVSEG
 	push	bx			; BX = ENVSEG, if any
 	lds	si,es:[di].SPB_CMDLINE
 	ASSUME	DS:NOTHING
-;
-; With programs at ring 3, the command line is in the caller's LDT, which is
-; no longer addressable once we switch to the loaded session's LDT; so we copy
-; it to a kernel buffer first, then make the target session's LDT active, so
-; load_command allocates the program's memory there (see stage_cmdline, which
-; leaves DS:SI and ES addressable across the switch, and CPU_SETLDT).
-;
-	cmp	cs:[prog_user],0	; ring 3 programs?
-	je	sl3			; no
-	call	stage_cmdline		; DS:SI -> a kernel copy of it
-	mov	al,[bp].REG_CL		; AL = target session #
-	call	r3_setldt		; make its LDT active
-sl3:	call	load_command		; DS:SI -> command line
+	call	load_command		; DS:SI -> command line
 	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	pop	cx			; CX = ENVSEG
@@ -188,10 +185,7 @@ sl7:	pop	cx			; recover previous SCB
 	pushf
 	cmp	[prog_user],0		; ring 3 programs?
 	je	sl7a			; no
-	push	ax
-	mov	al,[bx].SCB_NUM		; restore the caller's LDT
-	call	r3_setldt
-	pop	ax
+	call	r3_setldt		; restore the caller's LDT
 sl7a:	popf
 sl8:	jnc	sl9
 	mov	[bp].REG_AX,ax		; return error code to caller
@@ -718,7 +712,6 @@ DEFPROC	scb_switch,DOS
 	frstor	es:[di]
 sw1:	cmp	[prog_user],0		; ring 3 programs?
 	je	sw2			; no
-	mov	al,[bx].SCB_NUM
 	call	r3_setldt		; this session's LDT
 	call	r3_sp0			; and its ring 0 stack
 sw2:	mov	ax,bx
@@ -971,6 +964,19 @@ DEFPROC	init_scb,DOS
 	mov	[bx].SCB_PARENT,ax	; TODO: What shall we do with this?
 	xchg	si,ax			; DS:SI -> previous SCB
 	mov	dx,es:[di].SPB_ENVSEG	; DX = SPB_ENVSEG (-1 if from sysinit)
+;
+; A session that a program loads (eg, a pipeline's next program) shares that
+; program's LDT, and with programs at ring 3, each session that sysinit loads
+; has an LDT of its own, whose # is the session's # (otherwise, every program
+; uses LDT 0, since the active LDT never changes).
+;
+	mov	al,[si].SCB_LDT		; AL = the loading session's LDT #
+	cmp	dx,-1			; from sysinit?
+	jne	si0b			; no, so the new session shares it
+	cmp	[prog_user],0		; ring 3 programs?
+	je	si0b			; no
+	mov	al,[bx].SCB_NUM		; yes, so it gets its own
+si0b:	mov	[bx].SCB_LDT,al
 	push	es
 	push	di
 	push	ds

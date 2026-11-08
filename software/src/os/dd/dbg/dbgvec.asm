@@ -674,6 +674,7 @@ DEFPROC	list_sess
 	LOCVAR	lsSCB,word		; the next SCB
 	LOCVAR	lsEnd,word		; the end of the SCB table
 	LOCVAR	lsNum,word		; the next SCB's session # (from 0)
+	LOCVAR	lsLDT,word		; and its LDT #
 	ENTER
 	mov	ax,[dos_seg]
 	call	ax_mem			; (for peek_w and peek_b)
@@ -706,6 +707,8 @@ ls1a:	call	peek_b			; AL = SCB_STATUS
 ; An empty LDT (eg, with RING=0) shares another's base, so it never counts.
 ;
 	mov	bx,[lsNum]
+	call	chk_sess		; BX = its LDT #
+	mov	[lsLDT],bx
 	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_LDT
 	call	cpu_call		; CX = base, AX = limit (-1 if empty)
 	inc	ax			; is it empty?
@@ -758,7 +761,7 @@ ls4:	mov	ah,12			; (the column after the console's name)
 ls5:	and	si,NOT 7
 	inc	si
 	inc	si			; SI -> the descriptor's base
-	mov	bx,[lsNum]
+	mov	bx,[lsLDT]
 	push	ss
 	pop	es
 	lea	di,[lsBase]
@@ -784,11 +787,12 @@ ls7:	call	newline
 ENDPROC	list_sess
 
 ;
-; chk_sess returns ZF set (and carry clear) unless session BX (from 0, and
-; below 32) has a program, as list_sess requires.
+; chk_sess returns carry set unless BX (from 0) is a session #, and then ZF set
+; unless the session has a program, as list_sess requires, in which case BX is
+; its LDT # (for ADDR_LDT; sessions can share one).
 ;
 ; Modifies:
-;	Nothing but the memory to access (see ax_mem)
+;	BX, and the memory to access (see ax_mem)
 ;
 DEFPROC	chk_sess
 	push	ax
@@ -808,13 +812,22 @@ DEFPROC	chk_sess
 	mul	bl
 	add	di,ax			; DI -> session's SCB
 	pop	ax
+	cmp	bx,MAX_SESSIONS		; is it a session #?
+	jae	cks8			; no
 	cmp	di,ax			; is it in the table?
-	mov	al,0
-	jae	cks9			; no
+	jae	cks8			; no
 	ASSERT	<SCB_STATUS>,EQ,0
 	call	peek_b			; AL = SCB_STATUS
-cks9:	and	al,SCSTAT_LOAD		; (which clears carry)
-	pop	di
+	and	al,SCSTAT_LOAD		; (which clears carry)
+	jz	cks9			; no program
+	add	di,SCB_LDT
+	call	peek_b			; AL = its LDT #
+	cbw
+	xchg	bx,ax			; BX = its LDT #
+	test	sp,sp			; (ZF and carry clear)
+	jmp	short cks9
+cks8:	stc
+cks9:	pop	di
 	pop	ax
 	ret
 ENDPROC	chk_sess

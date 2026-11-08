@@ -15,6 +15,7 @@
 	include	dev.inc
 	include	devapi.inc
 	include	dosapi.inc
+	include	cpu.inc
 
 DEV	group	CODE,DATA
 
@@ -104,7 +105,7 @@ CT_DEFTYPE	dw	?	; 28h: default cursor type (HI=top, LO=bottom)
 CTS_MODE	db	?	; 2Ah: saves CRT_MODE before writing CT_MODE
 CTS_PAGE	db	?	; 2Bh: saves ACTIVE_PAGE before writing TBD
 CTS_COLS	dw	?	; 2Ch: saves CRT_COLS before writing CT_COLS
-CTS_LEN		dw	?	; 2Eh: saves CRT_LEN before writing TBD
+CT_SLOT		dw	?	; 2Eh: video memory selector ID (set_slot)
 CTS_START	dw	?	; 30h: saves CRT_START before writing TBD
 CTS_CURTYPE	dw	?	; 32h: saves CURSOR_MODE before writing CT_CURTYPE
 CTS_PORT	dw	?	; 34h: saves ADDR_6845 before writing CT_PORT
@@ -674,7 +675,10 @@ ENDPROC	ddcon_setpos
 ;
 ; Returns the context's video mode, or (if CL is 1) the segment of its video
 ; memory, which is all a program needs to draw directly (eg, the graphics
-; statements; see gfxInit), and which will be a selector in protected mode.
+; statements; see gfxInit).  In protected mode, that's an LDT selector of the
+; context's own (see set_slot), so that we can take it away while another
+; context is using the screen; the context's sessions share its LDT (see
+; SCB_LDT).
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
@@ -682,18 +686,45 @@ ENDPROC	ddcon_setpos
 ;	DS = CONSOLE context
 ;
 ; Outputs:
-;	DL = video mode, or DX = segment of video memory
+;	DL = video mode, or DX = segment (or selector) of video memory
 ;
 ; Modifies:
-;	CL, DX
+;	AX, BX, CX, DX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_getmode
 	mov	dl,ds:[CT_MODE]
 	dec	cl			; video memory instead?
 	jnz	dgm9			; no
-	mov	dx,ds:[CT_SCREEN].SEG
+	mov	dx,ds:[CT_SLOT]
+	test	dx,dx			; does it have a selector yet?
+	jnz	dgm3			; yes
+	push	si
+	push	di			; (ES:DI -> DDPRW, for ddcon_none)
+	call	slot_addr		; DX:CX = address, SI:DI = length
+	mov	ax,(CPU_MAP SHL 8) OR MEMF_LDT OR MEMF_USER
+	call	far ptr DDINT_CPU	; AX = selector (or segment), DX = ID
+	jc	dgm8
+	cmp	ax,ds:[CT_SCREEN].SEG	; the segment itself (real mode)?
+	je	dgm1			; yes (and DX isn't an ID)
+	mov	ds:[CT_SLOT],dx
+	push	dx
+	call	set_slot		; (not present, if we're blocked)
+	pop	dx
+	pop	di
+	pop	si
+dgm3:	mov	dh,0
+	mov	cl,3
+	shl	dx,cl
+	or	dl,7			; DX = its selector (LDT, RPL 3)
+	ret
+dgm1:	pop	di
+	pop	si
+	xchg	dx,ax			; DX = segment
 dgm9:	ret
+dgm8:	pop	di
+	pop	si
+	jmp	ddcon_none
 ENDPROC	ddcon_getmode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1053,6 +1084,7 @@ dco1c:	mov	ds,ax
 ;
 dco2:	mov	ds:[CT_NEXT],0
 	mov	ds:[CT_SCAN],0
+	mov	ds:[CT_SLOT],0		; no video memory selector yet
 	mov	ds:[CT_PAGE],bl
 	mov	ds:[CTO_PAGE],bl
 	mov	bl,1			; set CT_REFS to 1 and CT_STATUS to BH
@@ -1229,13 +1261,20 @@ DEFPROC	ddcon_close
 	pop	di
 	pop	cx
 
+;
+; If it's our last context, no context has focus now, as when we started (eg,
+; with CON=COM1, after a program's own VKD$ context closes, or a CON=VKD$
+; console's last session ends), and the next one we open gets it.
+;
 dcc1:	cmp	[ct_focus],cx
 	jne	dcc2
 	call	switch_focus
-	ASSERT	NZ,<cmp [ct_focus],cx>
+	cmp	[ct_focus],cx		; is there another context?
+	jne	dcc2			; yes, and it has focus
+	sub	ax,ax
+	mov	[ct_focus],ax		; no, so none has focus
 ;
 ; Remove the context from our chain.
-;
 ;
 ; Clear the context first, because ddcon_int10 must still find it in our chain
 ; (see chk_context); otherwise, the BIOS would clear whichever page is active.
@@ -1265,14 +1304,38 @@ dcc4:	mov	cx,es:[CT_NEXT]		; move this context's CT_NEXT
 ;
 ; We are now free to free the context segment in ES.
 ;
-	mov	ah,DOS_MEM_FREE
-	int	INT_DOSFUNC
+	call	free_ctx
 
 dcc7:	pop	es
 
 dcc8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret
 ENDPROC	ddcon_close
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; free_ctx
+;
+; Frees a context's memory, and its video memory selector, if any (whose
+; sessions are all gone).
+;
+; Inputs:
+;	ES = CONSOLE context
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	free_ctx
+	mov	bx,es:[CT_SLOT]
+	test	bx,bx			; is there a selector?
+	jz	fc1			; no
+	mov	ah,CPU_UNMAP
+	call	far ptr DDINT_CPU	; free it (by its ID)
+fc1:	mov	ah,DOS_MEM_FREE
+	int	INT_DOSFUNC
+	ret
+ENDPROC	free_ctx
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2627,6 +2690,7 @@ rg1:	jcxz	rg3
 rg2:	mov	cx,ds:[CT_NEXT]
 	jmp	rg1
 rg3:	pop	ds
+	call	update_slots		; (and give them their video memory)
 ;
 ; Now end the wait for every waiting packet that isn't a READ packet (ie,
 ; every blocked write or IOCTL); each one checks again whether it's blocked
@@ -2659,6 +2723,100 @@ rg9:	sti
 	pop	ds
 	ret
 ENDPROC	release_mode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; update_slots
+;
+; Calls set_slot for every context, after a change to which context is
+; blocking the others (mode_ctx).
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	update_slots
+	push	ds
+	mov	cx,[ct_head]
+us1:	jcxz	us9
+	mov	ds,cx
+	call	set_slot
+	mov	cx,ds:[CT_NEXT]
+	jmp	us1
+us9:	pop	ds
+	ret
+ENDPROC	update_slots
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; set_slot
+;
+; In protected mode, a program draws on a context's video memory through an
+; LDT selector that we create for the context (see ddcon_getmode) and decide
+; what it maps (CPU_MAP with MEMF_REMAP), which we change only when the
+; sessions that use it aren't running (eg, when another context's mode change
+; blocks them).  While another context is blocking it (see chk_blocked), the
+; selector is not present, so a program that loads it waits (see SELID_WAIT),
+; as its output does; otherwise, it maps the adapter's video memory, since the
+; context has a region (or page) of its own there.  A design that saved a
+; blocked context's video memory in a buffer could map the buffer instead,
+; and let the program keep running.
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	set_slot
+	mov	bx,ds:[CT_SLOT]
+	test	bx,bx			; does it have a selector?
+	jz	ss9			; no
+	sub	si,si
+	sub	di,di			; SI:DI = 0 (not present)
+	mov	ax,ds
+	call	chk_blocked		; is another context blocking it?
+	jc	ss1			; yes, so take it away
+	call	slot_addr		; no, DX:CX = address, SI:DI = length
+ss1:	mov	ax,(CPU_MAP SHL 8) OR MEMF_REMAP
+	call	far ptr DDINT_CPU
+	test	di,di			; is it present now?
+	jz	ss9			; no
+	mov	dx,SELID_WAIT
+	mov	di,bx			; DX:DI = its wait ID
+ss2:	mov	ah,DOS_UTL_ENDWAIT
+	call	far ptr DDINT_UTIL	; end each wait for it
+	jnc	ss2
+ss9:	ret
+ENDPROC	set_slot
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; slot_addr
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Outputs:
+;	DX:CX = address of the context's adapter's video memory, SI:DI = length
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	slot_addr
+	mov	ax,ds:[CT_SCREEN].SEG
+	mov	di,4000h		; 16K for a CGA
+	cmp	ah,0B8h			; is it one?
+	je	sa1			; yes
+	mov	di,1000h		; 4K for an MDA
+sa1:	mov	cx,16
+	mul	cx
+	xchg	cx,ax			; DX:CX = its address
+	sub	si,si			; SI:DI = its length
+	ret
+ENDPROC	slot_addr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2838,6 +2996,9 @@ um1:	mov	ds:[CT_PAGE],ah
 	mov	[mode_ctx],ds		; no, so block the other contexts
 	pop	es
 	ASSUME	ES:NOTHING
+	push	bx
+	call	update_slots		; (and their video memory selectors)
+	pop	bx
 	jmp	short um7
 um6:	mov	ax,ds
 	cmp	ax,[mode_ctx]		; was this context blocking the others?

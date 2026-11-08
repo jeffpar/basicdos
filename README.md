@@ -56,11 +56,11 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 On an 80286 or later with sufficient memory (256K or more), BASIC-DOS can run in protected mode, but only if `CPU=80286` or `CPU=80386` is present in CONFIG.SYS (or if you press **P** immediately after the "System starting" message). The default is always real mode, even on newer processors, simply because it's the most compatible mode, but all BASIC-DOS components are designed to run in either mode.  See [Protected Mode](docs/bdtech/mmu/) for details, and the [Protected Mode demo](demos/mmu/) to try it.
 
 - [x] When requested, BASIC-DOS switches to protected mode while its drivers initialize, and stays there, given at least 256K of conventional memory (any extended memory is a bonus; the [640K demo](demos/mmu/640k/) has none); otherwise, it runs in real mode, as on an 8088
-- [x] COMMAND.COM, BASIC programs, and every program they run at ring 3 (unless CONFIG.SYS has `RING=0`), with each session's memory in its own LDT, so a program can't write to memory that isn't its own
+- [x] COMMAND.COM, BASIC programs, and every program they run at ring 3 (unless CONFIG.SYS has `RING=0`), with each console's sessions' memory in an LDT of their own (a session that a program starts, eg, for a pipeline, shares the program's), so a program can't write to memory that isn't its console's
 - [x] A ring 3 program's CTRL-C, critical error, and interrupt handlers run at ring 3, too (interrupt handlers see only the interrupts that ring 3 code in its session issues)
 - [x] A ring 3 program can free or resize only its own memory blocks, whose selectors always fit their lengths, and a bad pointer, stack, or return address ends the program, rather than stopping the system
-- [x] The PMB table and each session's LDT (up to 256 descriptors) grow as needed, sharing about 36K of the system area, and CPU$ keeps interrupts on while it works on them
-- [x] A ring 3 program can issue only DOS's, the mouse's, and the user interrupts (not the BIOS's), and it can't reach another session's descriptors through the GDT, or its files through a forged handle
+- [x] The PMB table and each LDT (up to 256 descriptors) grow as needed, sharing about 36K of the system area, and CPU$ keeps interrupts on while it works on them
+- [x] A ring 3 program can issue only DOS's, the mouse's, and the user interrupts (not the BIOS's), and it can't reach another LDT's descriptors through the GDT, or another session's files through a forged handle
 - [x] A ring 3 program can hook only the exception vectors it can handle, INT 21h, and INT 60h-67h, and can't change the kernel's record of its parent, stack, or handlers by writing its PSP
 - [x] COM and NE programs (eg, PRIMES.EXE) run in protected mode
 - [x] MASM 4.00, MAKE 4.02, LINK 3.05, LINK4 5.00.12, EXEMOD 4.00, MAPSYM 4.00, and EXE2BIN in **TOOLS** on the hard disk are converted from MZ to NE executables, about the size of the originals, that run at ring 3 in protected mode and through an NE loader stub in real mode
@@ -68,8 +68,10 @@ On an 80286 or later with sufficient memory (256K or more), BASIC-DOS can run in
 - [x] BASIC-DOS can build itself with these tools, in real mode or at ring 3 in protected mode, with the same binaries as an MS-DOS build
 - [x] Exceptions: a fault in a program's own code ends that program with `CPU fault nn (EC=nnnn) at nnnn:nnnn` (ERRORLEVEL 255), as a divide error does; anywhere else, CPU$ prints the same line and `System halted`, and stops the machine, unless DEBUG.COM is loaded as a driver and takes over (see [Faults](docs/bdtech/mmu/#faults))
 - [x] DEBUG.COM as a driver can stop and resume ring 3 programs with all of its commands, and can display the GDT, the IDT, and any session's LDT (DG, DI, and DL); as a program, it runs at ring 3 with fewer commands
+- [x] A ring 3 program draws directly through an LDT selector for its console's video memory, which VKD$ manages (the identity selectors for video memory are only for ring 0): while another console on the same adapter is in another mode, the selector isn't present, and a program that uses it waits, as the console's output does; a driver can remap or remove such a selector in any LDT (CPU_MAP with MEMF_REMAP)
 - [ ] Ring 3 for the programs that still need `RING=0`: those that hook an interrupt issued by ring 0 code (eg, INT 1Ch or INT 13h), call CPU$ (eg, CPUTESTS), or use IN, OUT, CLI, or STI
 - [ ] MZ EXE files in protected mode, which fail with "Unable to load" (currently NOT under consideration for inclusion in BASIC-DOS, since NE programs take their place; see [Limitations](docs/bdtech/mmu/#limits))
+- [ ] VKD$ saving a blocked console's video memory in a buffer, and remapping its selector there, so that its programs keep running (and DEF SEG's video memory selectors through VKD$, too)
 - [ ] 80386 features: virtual-8086 mode, paging, and 32-bit segments
 
 ### Kernel: Processes, Memory, and Sessions

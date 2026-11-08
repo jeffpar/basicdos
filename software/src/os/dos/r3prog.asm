@@ -542,9 +542,9 @@ DEFPROC	r3_pspset,DOS
 	test	al,R3_SELTI		; in an LDT?
 	jz	pp6			; no
 	shr	ax,3
-	mov	ah,[si].SCB_NUM
+	mov	ah,[si].SCB_LDT
 	or	ah,80h			; AX = its owner ID, if it owns itself
-	cmp	ax,es:[di].PMB_OWNER	; does it, in this session?
+	cmp	ax,es:[di].PMB_OWNER	; does it, in this session's LDT?
 	je	pp6a			; yes
 pp6:	mov	ax,ERR_BADADDR
 	stc
@@ -687,7 +687,7 @@ ru0a:	inc	di
 	or	byte ptr [si].SPB_CMDLINE.SEG,3
 	lds	si,[si].SPB_CMDLINE	; DS:SI -> the command line
 	mov	cx,CMDLINE_MAX
-ru1:	lodsb				; (see stage_cmdline)
+ru1:	lodsb				; (up to CMDLINE_MAX bytes)
 	test	al,al
 	loopnz	ru1
 	pop	ds

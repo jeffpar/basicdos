@@ -87,7 +87,6 @@ DOS	segment word public 'CODE'
 	EXTBYTE	<load_user,scb_locked,err_active,r3_cblock>
 	EXTWORD	<dos_data,err_stack,r3_code,r3_cbsp,r3_stseg,r3_vsel>
 	EXTWORD	<scb_active>
-	EXTBYTE	<cmdline_buf>
 	EXTLONG	<r3_cbsp0>
 	EXTNEAR	<dos_func,dos_abort,dos_fterm,dos_ctrlc,dos_error,sprintf>
 	EXTNEAR	<get_psp>
@@ -100,18 +99,19 @@ DOS	segment word public 'CODE'
 ;
 ; r3_setldt
 ;
-; Makes the LDT of the session in AL the active one (CPU_SETLDT), when a
-; session becomes current or is loaded into (see scb_switch, scb_load, and
-; sysinit_tail), so that its programs' selectors (MEMF_LDT) resolve in its own
-; LDT; it preserves every register.
+; Makes a session's LDT the active one (CPU_SETLDT), when the session becomes
+; current or is loaded into (see scb_switch, scb_load, and psp_term), so that
+; its programs' selectors (MEMF_LDT) resolve in its LDT, which it may share
+; with other sessions (see init_scb); it preserves every register.
 ;
 ; Inputs:
-;	AL = session #
+;	DS:BX -> SCB
 ;
 DEFPROC	r3_setldt,DOS
 	push	ax
 	push	cx
 	push	dx
+	mov	al,[bx].SCB_LDT
 	mov	ah,CPU_SETLDT
 	call	far ptr DDINT_CPU
 	pop	dx
@@ -119,49 +119,6 @@ DEFPROC	r3_setldt,DOS
 	pop	ax
 	ret
 ENDPROC	r3_setldt
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; stage_cmdline
-;
-; Copies the null-terminated command line at DS:SI to cmdline_buf (in our data
-; segment) and returns DS:SI pointing at the copy, so that scb_load can keep
-; reading it after it switches to the loaded session's LDT, where the caller's
-; command line (an LDT selector) is no longer addressable.
-;
-; For the same reason, we leave ES (like DS) pointing at our data segment --
-; a GDT selector that stays addressable in any LDT -- rather than restoring
-; the caller's ES, which the LDT switch makes unaddressable.  Otherwise a
-; nested DOS call after the switch (eg, load_command's STRLEN) would fault
-; restoring the caller's ES on its way out (see dos_leave2).
-;
-; Inputs:
-;	DS:SI -> command line (in the caller's memory)
-;
-; Outputs:
-;	DS:SI -> cmdline_buf, ES -> our data segment
-;
-; Modifies:
-;	AX, CX, SI, DI, DS, ES
-;
-DEFPROC	stage_cmdline,DOS
-	ASSUME	DS:NOTHING, ES:NOTHING
-	mov	ax,cs:[dos_data]
-	mov	es,ax
-	mov	di,offset cmdline_buf
-	mov	cx,CMDLINE_MAX - 1
-	cld
-sg0:	lodsb
-	stosb
-	test	al,al			; end of the command line?
-	jz	sg1			; yes
-	loop	sg0
-	mov	byte ptr es:[di],0	; or truncate it (null-terminated)
-sg1:	push	es
-	pop	ds
-	mov	si,offset cmdline_buf	; DS:SI -> the copy (ES stays our data)
-	ret
-ENDPROC	stage_cmdline
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -111,7 +111,9 @@ SCB_DIRCLN	dw	?	; 32h: directory (1st cluster) for FILENAME
 SCB_FILENAME	db    12 dup (?); 34h: buffer for drive # and filename
 SCB_MAPSEL	dw	?	; 40h: DOS_UTL_MAPSEG selector, if any
 SCB_SP0		dw	?	; 42h: ring 0 stack of its program (see R3REC)
-SCB		ends		; 44h bytes
+SCB_LDT		db	?	; 44h: its LDT # (see init_scb)
+		db	?	; 45h: (reserved)
+SCB		ends		; 46h bytes
 
 SIG_SCB		equ	'S'
 MAX_SESSIONS	equ	32	; the limit for SESSIONS=
@@ -144,8 +146,8 @@ R3_STACK_SIZE	equ	1024
 ;
 R3_RVECS	equ	8
 ;
-; CMDLINE_MAX bounds the command line that scb_load stages to a kernel buffer
-; before switching to the loaded session's LDT (see stage_cmdline).
+; CMDLINE_MAX bounds the command line that r3_uload reads before a ring 3
+; program's DOS_UTL_LOAD (see r3_uload).
 ;
 CMDLINE_MAX	equ	144
 

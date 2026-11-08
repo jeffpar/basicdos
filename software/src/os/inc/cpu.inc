@@ -62,7 +62,7 @@ CPU_RWMEM	equ	0Eh	; AL = ADDR_*, BX:SI = address, CX, ES:DI
 CPU_SYSREGS	equ	0Fh	; ES:DI -> 12-byte buffer (GDTR and IDTR)
 CPU_SETFAULT	equ	10h	; DX:CX = fault handler (0:0 for none)
 CPU_SETSTACK	equ	11h	; DX:CX = ring 0 stack (SS:SP)
-CPU_SETLDT	equ	12h	; AL = session # (selects its LDT)
+CPU_SETLDT	equ	12h	; AL = LDT # (for a session; see SCB_LDT)
 CPU_MAXFUNC	equ	12h
 
 ;
@@ -78,9 +78,24 @@ CPU_MAXFUNC	equ	12h
 ; An owner (for CPU_ALLOC, CPU_SETBLK, and CPU_FREEALL) is a PSP (or a driver's
 ; segment, or MCBOWNER_SYSTEM), which the 80286 driver stores as an owner ID
 ; (PMB_OWNER): in protected mode, a ring 3 program's PSP is an LDT selector,
-; which another session's program can share, so its ID is 80h plus its session
-; # (see CPU_SETLDT) in the high byte and its LDT index in the low byte (eg,
+; which a program with another LDT can share, so its ID is 80h plus its LDT #
+; (see CPU_SETLDT) in the high byte and its LDT index in the low byte (eg,
 ; 8000h for session 0's COMMAND.COM); any other owner is its own ID.
+;
+; CPU_MAP with MEMF_LDT returns the same kind of ID for its selector in DX, so
+; that a driver can change the memory that the selector maps later, from any
+; session, with CPU_MAP and MEMF_REMAP (BX = the ID), or free it, with
+; CPU_UNMAP (BX = the ID).  A remapped selector that's 64K or less covers the
+; new address and length, and a length of zero makes it not present; a program
+; that then loads it (or returns to DOS with it in DS or ES) waits for wait ID
+; SELID_WAIT:ID, so the driver ends that wait (DOS_UTL_ENDWAIT, until it
+; returns carry, since each call ends one) once the selector is present again.
+; A segment register that already holds the selector keeps what it had until
+; it's loaded again, so a driver changes it only for a session that isn't
+; running (eg, VKD$ takes away a console's video memory while another console
+; on the same adapter is in another mode; see IOCTL_GETMODE).
+;
+SELID_WAIT	equ	0FFFFh	; segment of a selector ID's wait ID
 ;
 
 ;
@@ -91,8 +106,8 @@ CPU_MAXFUNC	equ	12h
 ; (which only the 80286 driver accepts), in either mode, or ADDR_PHYS is set,
 ; in which case it's a physical address (the "segment" holds bits 16-31, and
 ; with the 8086 driver, it must be below 1Mb), or (in protected mode, with the
-; 80286 driver) ADDR_LDT is set, in which case the "segment" is a session #,
-; and the segment is that session's LDT, whose limit is FFFFh if it's empty:
+; 80286 driver) ADDR_LDT is set, in which case the "segment" is an LDT # (see
+; CPU_SETLDT), and the segment is that LDT, whose limit is FFFFh if it's empty:
 ;
 ;	CPU_SEGINFO returns the segment's base address in DX:CX and its limit
 ;	in AX (FFFFh for a real-mode segment), or with ADDR_RIGHTS, a
@@ -145,7 +160,7 @@ ADDR_SEL	equ	01h	; the segment is a selector
 ADDR_WRITE	equ	02h	; CPU_RWMEM: copy from ES:DI to BX:SI
 ADDR_PHYS	equ	04h	; the "segment" is bits 16-31 of an address
 ADDR_RIGHTS	equ	08h	; CPU_SEGINFO: AX = access rights, not limit
-ADDR_LDT	equ	10h	; the "segment" is a session #, for its LDT
+ADDR_LDT	equ	10h	; the "segment" is an LDT #
 
 ;
 ; In protected mode, a PSP's CALL 5 (a far call to PSP_FCSEG:PSP_SIZE) can't
@@ -204,6 +219,7 @@ MEMF_USER	equ	10h	; DPL 3, for programs (otherwise DPL 0)
 MEMF_LOW	equ	20h	; CPU_ALLOC only: below 1Mb (eg, for real mode)
 MEMF_HIGH	equ	40h	; CPU_ALLOC only: from the top
 MEMF_AT		equ	80h	; CPU_ALLOC only: at address DX:CX
+MEMF_REMAP	equ	80h	; CPU_MAP only: change selector ID BX
 
 ;
 ; The vectors that are free for ring 3 programs to issue and hook.

@@ -52,6 +52,8 @@
       "screenHeight": 700,
       "screenColor": "black",
       "overlay": true,
+      "autoLock": true,
+      "touchScreen": "mouse",
       "controls": [
         {
           "type": "group",

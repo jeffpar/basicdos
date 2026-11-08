@@ -30,7 +30,6 @@ R3_USERINT	equ	60h		; a vector for programs to hook
 INT_IRQ0	equ	08h		; a vector that they can't
 INT_BIOS	equ	13h		; one that they can't issue, either
 GDT_WINDOW	equ	0800h		; what follows the GDT's first part
-GDT_IDENTITY	equ	0A000h		; and the first identity selector
 F		equ	EXTYPE_FAULT
 
 CODE	segment
@@ -398,7 +397,8 @@ tzc:	out	80h,al
 	jmp	tz1
 ;
 ; The system tables that the GDT's limit covers must not be usable as segments
-; (they hold other sessions' descriptors).
+; (they hold other LDTs' descriptors), and neither must the identity selectors
+; that follow them (video memory and the ROMs, which are for ring 0).
 ;
 tzd:	mov	si,GDT_WINDOW + 3
 tzd1:	verr	si
@@ -406,8 +406,7 @@ tzd1:	verr	si
 	verw	si
 	jz	tzd9
 	add	si,8
-	cmp	si,GDT_IDENTITY
-	jb	tzd1
+	jnc	tzd1			; through the end of the GDT
 	jmp	ok
 tzd9:	jmp	bad
 ;
@@ -536,13 +535,31 @@ tzl:	mov	bx,BIOS_DATA SHR 4
 	sub	si,si			; BX:SI = 1Mb
 	DOSUTIL	MAPSEG,1
 	jmp	failif
+;
+; A console's video memory (IOCTL_GETMODE with CL = 1) is an LDT selector that
+; ring 3 can write (see tzd); a console that isn't VKD$ (eg, COM1) has none.
+;
+tzm:	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETMODE
+	mov	bx,STDOUT
+	mov	cl,1
+	int	21h			; DX = its video memory
+	jc	tzm1			; (not VKD$)
+	test	dl,4			; an LDT selector?
+	jz	tzm8			; no
+	verw	dx			; that we can write?
+	jnz	tzm8			; no
+	mov	es,dx
+	mov	ax,es:[0]
+	mov	es:[0],ax
+tzm1:	jmp	ok
+tzm8:	jmp	bad
 
 tests	dw	ta,tb,tc,td,te,tf,tg,th,ti,tj,tk,tl,tm
 	dw	tn,to,tp,tq,tr,ts,tt,tu,tv,tw,tx,ty,tz,tza,tzb,tzc
-	dw	tzd,tze,tzf,tzg,tzh,tzi,tzj,tzk,tzl,0
+	dw	tzd,tze,tzf,tzg,tzh,tzi,tzj,tzk,tzl,tzm,0
 results	db	0,0,0,0,F,0,0,F,F,F,F,F,0
 	db	F,F,F,F,F,F,0,0,0,0,0,0,0,0,F,F
-	db	0,F,0,0,F,0,0,0,0
+	db	0,F,0,0,F,0,0,0,0,0
 
 progname db	"A:\TESTS\MISC\R3TESTS.COM",0
 tail	db	2," A",13

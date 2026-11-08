@@ -171,7 +171,7 @@ Inputs:
 Outputs (carry clear if a block was found; carry set if there are no more blocks of the requested type):
 
 - BX = segment (in protected mode, the block's selector, or 0 for a free block)
-- AX = owner ID (eg, a PSP segment, 8 for the system, or 0 if free; in protected mode, a ring 3 program's ID is its session number plus 80h, then its LDT index, eg, 8000h; see [Owner IDs](../mmu/#owners))
+- AX = owner ID (eg, a PSP segment, 8 for the system, or 0 if free; in protected mode, a ring 3 program's ID is its LDT number plus 80h, then its LDT index, eg, 8000h; see [Owner IDs](../mmu/#owners))
 - SI:DX = size, in bytes
 - ES:DI -> name of the owning program or block type, if any
 

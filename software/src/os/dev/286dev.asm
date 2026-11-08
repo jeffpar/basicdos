@@ -60,14 +60,14 @@ SEL_VIDEO	equ	0A000h	; first identity selector (data)
 ;
 ; The rest is a pool for the PMB table and the LDTs: the table grows up from
 ; the bottom as blocks are added (see pmb_dup), and with programs at ring 3,
-; each session has its own LDT (see CPU_SETLDT), so that its programs'
-; selectors (MEMF_LDT) can't name another session's memory.  The LDTs are
-; packed down from the top, with session 0's first; each one starts empty, and
-; grows as needed (see ldt_grow), up to LDT_LIMIT descriptors, which is all
-; that fits in an owner ID (see enc_owner).  SV_LDTS has each LDT's offset, so
-; each one ends at the offset of the session before it; the active session's
-; offset is also in SV_LDT, and its limit is in the LDTR's descriptor
-; (SEL_LDTD).
+; each session uses one of LDT_SESSIONS LDTs (see CPU_SETLDT), which DOS
+; assigns, so that its programs' selectors (MEMF_LDT) can't name the memory of
+; a session with another LDT.  The LDTs are packed down from the top, with LDT
+; 0 first; each one starts empty, and grows as needed (see ldt_grow), up to
+; LDT_LIMIT descriptors, which is all that fits in an owner ID (see
+; enc_owner).  SV_LDTS has each LDT's offset, so each one ends at the offset
+; of the LDT before it; the active LDT's offset is also in SV_LDT, and its
+; limit is in the LDTR's descriptor (SEL_LDTD).
 ;
 ; Since the GDT's limit covers everything up to the identity selectors, the
 ; processor can also read the pool as descriptors, through selectors below
@@ -77,14 +77,14 @@ SEL_VIDEO	equ	0A000h	; first identity selector (data)
 ; a table, none of which ever has its present bit set: the top of a
 ; descriptor's base; and in a PMB, the top of PMB_ADDR, the high byte of
 ; PMB_NSEL, a reserved byte, and the last byte of PMB_NAME (see ddcpu_setblk).
-; Otherwise, a ring 3 program could load another session's descriptors, or a
-; PMB, as its own.
+; Otherwise, a ring 3 program could load another LDT's descriptors, or a PMB,
+; as its own.
 ;
 SYS_PMBS	equ	SYS_TSS + TSS_LEN + 2
 SYS_LDTTOP	equ	SYS_GDT + SEL_VIDEO - 2
-LDT_SESSIONS	equ	32
+LDT_SESSIONS	equ	32	; LDTs (one for each session, at most)
 LDT_STEP	equ	32	; descriptors to add at a time
-LDT_LIMIT	equ	256	; descriptors per session
+LDT_LIMIT	equ	256	; descriptors per LDT
 	ASSERT	<(SYS_PMBS AND 7)>,EQ,6
 	ASSERT	<(SYS_LDTTOP AND 7)>,EQ,6
 	ASSERT	<(PMB_NSEL AND 7)>,EQ,6
@@ -101,7 +101,7 @@ SV_TYPE		db	?	; CPU type
 SV_FLAGS	db	?	; CPUF_* flags
 SV_NPMBS	dw	?	; number of PMBs
 SV_ARG		db	?	; CPU_ALLOC: MEMF_* flags
-SV_SESS		db	?	; active session # (see CPU_SETLDT)
+SV_LDTNUM	db	?	; active LDT # (see CPU_SETLDT)
 SV_OWNER	dw	?	; CPU_ALLOC: owner
 SV_LEN		dd	?	; CPU_ALLOC, CPU_REALLOC, CPU_MOVE: length
 SV_SRC		dd	?	; CPU_MOVE: source
@@ -113,9 +113,9 @@ SV_GDTR		dw	3 dup (?) ; GDT limit and base (for LGDT)
 SV_PIDTR	dw	3 dup (?) ; protected mode's IDT limit and base
 SV_RMIDTR	dw	3 dup (?) ; real-mode IDT limit and base
 SV_FAULT	dd	?	; fault handler (see CPU_SETFAULT and to_fault)
-SV_LDT		dw	?	; active session's LDT offset (see CPU_SETLDT)
-SV_LDTTOP	dw	?	; the end of session 0's LDT (see ldt_grow)
-SV_LDTS		dw	LDT_SESSIONS dup (?) ; each session's LDT offset
+SV_LDT		dw	?	; active LDT's offset (see CPU_SETLDT)
+SV_LDTTOP	dw	?	; the end of LDT 0 (see ldt_grow)
+SV_LDTS		dw	LDT_SESSIONS dup (?) ; each LDT's offset
 SYSVARS		ends
 SV_LDTLOW	equ	SV_LDTS + (LDT_SESSIONS - 1) * 2 ; (the lowest LDT)
 	ASSERT	<SYS_VARS + size SYSVARS>,LE,SYS_GDT
@@ -542,16 +542,21 @@ ENDPROC	ddcpu_realloc
 ; Maps any memory (eg, a DOS memory block or video memory) with one or more
 ; selectors (see pm_map); the arena isn't checked or changed.  In real mode,
 ; the memory must be below 1Mb, at a paragraph boundary, and AX is its
-; segment.
+; segment.  With MEMF_REMAP (protected mode only), it changes the memory that
+; a selector from CPU_MAP with MEMF_LDT maps, in any LDT (see pm_remap).
 ;
 ; Inputs:
 ;	AL = MEMF_* flags, DX:CX = address, SI:DI = length
+;	BX = selector ID (with MEMF_REMAP)
 ;
 ; Outputs:
-;	Carry clear if successful: AX = selector, CX = # of selectors
+;	Carry clear if successful: AX = selector, CX = # of selectors, and with
+;	MEMF_LDT in protected mode, DX = the selector's ID (see enc_owner)
 ;	Carry set if error: AX = error code
 ;
 DEFPROC	ddcpu_map
+	test	al,MEMF_REMAP		; change a selector instead?
+	jnz	cm5			; yes
 	mov	bx,si
 	or	bx,di			; is the length zero?
 	jz	cm9			; yes
@@ -562,6 +567,9 @@ cm1:	call	addr_seg		; AX = segment
 	jc	cm9
 	mov	cx,1
 	ret
+cm5:	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM
+	jz	cm9
+	jmp	pm_remap
 cm9:	jmp	cpu_inval
 ENDPROC	ddcpu_map
 
@@ -709,7 +717,7 @@ ENDPROC	ddcpu_setlim
 ;	AX, CX, DX, SI
 ;
 DEFPROC	ddcpu_seginfo
-	test	al,ADDR_LDT		; a session's LDT?
+	test	al,ADDR_LDT		; an LDT # (see CPU_SETLDT)?
 	jnz	sg4			; yes
 	test	al,ADDR_SEL		; a selector?
 	jnz	sg1			; yes
@@ -733,7 +741,7 @@ sg1:	mov	si,bx
 	jz	sg2			; no
 	cmp	si,ds:[SYS_GDT + SEL_LDTD].DESC_LIMIT	; within the LDT?
 	jae	sg8			; no
-	add	si,ds:[SYS_VARS].SV_LDT	; the active session's LDT
+	add	si,ds:[SYS_VARS].SV_LDT	; the active LDT
 	jmp	short sg3
 sg2:	cmp	si,GDT_LIMIT		; is it within the GDT?
 	ja	sg8			; no
@@ -748,9 +756,9 @@ sg3:	test	ds:[si].DESC_ACC,ACC_PRESENT
 	jz	sg9
 	mov	ax,word ptr ds:[si].DESC_ACC
 sg9:	ret
-sg4:	cmp	bx,LDT_SESSIONS		; a valid session #?
+sg4:	cmp	bx,LDT_SESSIONS		; a valid LDT #?
 	jae	sg8			; no
-	add	bx,bx			; BX = session # * 2
+	add	bx,bx			; BX = LDT # * 2
 	mov	cx,ds:[SYS_VARS+SV_LDTS+bx]	; CX = the LDT's offset
 	mov	ax,ds:[SYS_VARS+SV_LDTTOP+bx]	; AX = where it ends
 	sub	ax,cx			; AX = its length (and carry is clear)
@@ -899,13 +907,14 @@ ENDPROC	ddcpu_setfault
 ;
 ; ddcpu_setldt (CPU_SETLDT)
 ;
-; Makes the LDT of the session in AL the active one, so that its programs'
-; selectors (MEMF_LDT) are the ones the descriptor helpers allocate and
-; resolve (see SV_LDT), and the LDTR's descriptor (SEL_LDTD) is repointed at
-; it.  In real mode there are no LDTs, so there's nothing to do.
+; Makes LDT # AL the active one, so that its selectors (MEMF_LDT) are the ones
+; the descriptor helpers allocate and resolve (see SV_LDT), and the LDTR's
+; descriptor (SEL_LDTD) is repointed at it.  DOS assigns each session an LDT
+; (sessions can share one), and makes it active whenever the session runs.  In
+; real mode there are no LDTs, so there's nothing to do.
 ;
 ; Inputs:
-;	AL = session #
+;	AL = LDT #
 ;
 ; Outputs:
 ;	Carry clear
@@ -916,10 +925,10 @@ ENDPROC	ddcpu_setfault
 DEFPROC	ddcpu_setldt
 	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM	; protected mode?
 	jz	stl9			; no, so nothing to do
-	mov	ds:[SYS_VARS].SV_SESS,al	; (see enc_owner)
+	mov	ds:[SYS_VARS].SV_LDTNUM,al	; (see enc_owner)
 	mov	bl,al
 	mov	bh,0
-	add	bx,bx			; BX = session # * 2
+	add	bx,bx			; BX = LDT # * 2
 	mov	ax,ds:[SYS_VARS+SV_LDTS+bx]	; AX = the LDT's offset
 	mov	cx,ds:[SYS_VARS+SV_LDTTOP+bx]	; CX = where it ends
 	call	ldt_load
@@ -1546,10 +1555,11 @@ ENDPROC	pmb_used
 ;
 ; Returns the owner ID that a block's PMB_OWNER holds for an owner.  In
 ; protected mode, an LDT selector (a ring 3 program's PSP) becomes 80h plus
-; its session # (see CPU_SETLDT) in AH and its LDT index in AL, so that it's
-; unique even though another session's program can have the same selector,
+; the active LDT # (see CPU_SETLDT) in AH and its LDT index in AL, so that it's
+; unique even though a program with another LDT can have the same selector,
 ; and so that it's above MCBOWNER_SYSTEM, like a PSP segment (see MEM and
-; DEBUG's DM).  Any other owner (a segment, a GDT selector, or the system) is
+; DEBUG's DM).  The same ID names a selector from CPU_MAP in any LDT.  Any
+; other owner (a segment, a GDT selector, or the system) is
 ; its own ID.
 ;
 ; Inputs:
@@ -1564,8 +1574,8 @@ DEFPROC	enc_owner
 	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM
 	jz	eo9			; no (a real-mode segment)
 	shr	ax,3			; AL = its LDT index (and AH = 0)
-	mov	ah,ds:[SYS_VARS].SV_SESS
-	or	ah,80h			; AH = 80h + its session #
+	mov	ah,ds:[SYS_VARS].SV_LDTNUM
+	or	ah,80h			; AH = 80h + its LDT #
 eo9:	ret
 ENDPROC	enc_owner
 
@@ -1830,28 +1840,124 @@ ENDPROC	pmb_ptr
 ;	AL = MEMF_* flags, DX:CX = address, SI:DI = length (non-zero)
 ;
 ; Outputs:
-;	Carry clear if successful: AX = selector, CX = # of selectors
+;	Carry clear if successful: AX = selector, CX = # of selectors, and DX =
+;	its ID, if it's an LDT selector (see enc_owner)
 ;	Carry set if error: AX = ERR_NOMEMORY
 ;
 DEFPROC	pm_map
 	call	map_block
-	jnc	pmp9
-	mov	ax,ERR_NOMEMORY
-pmp9:	ret
+	jc	pmp8
+	push	ax
+	call	enc_owner		; AX = its ID (with MEMF_LDT)
+	xchg	dx,ax			; (and carry is clear)
+	pop	ax
+	ret
+pmp8:	mov	ax,ERR_NOMEMORY
+	ret
 ENDPROC	pm_map
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; pm_remap (CPU_MAP with MEMF_REMAP)
+;
+; Changes the memory that an LDT selector from CPU_MAP maps, in whichever LDT
+; its ID names (eg, so that a driver can move a console's video memory, or
+; take it away, while the console isn't the one on the screen); a length of
+; zero makes it not present, and a program that loads it waits until it's
+; present again (see SELID_WAIT).  A segment register that already holds the
+; selector keeps what it had until the selector is loaded again.
+;
+; Inputs:
+;	BX = selector ID, DX:CX = address, SI:DI = length (64K or less)
+;
+; Outputs:
+;	Carry clear if successful, set if error (AX = ERR_INVALID)
+;
+DEFPROC	pm_remap
+	call	id_desc			; BX -> the selector's descriptor
+	jc	pr9
+	mov	al,ds:[bx].DESC_ACC
+	and	al,NOT ACC_PRESENT
+	mov	bp,si
+	or	bp,di			; a length of zero?
+	jz	pr2			; yes, so it's not present
+	mov	bp,di
+	sub	bp,1			; BP = new limit
+	sbb	si,0			; is SI:DI from 1 to 64K?
+	jnz	pr8			; no
+	mov	ds:[bx].DESC_LIMIT,bp
+	mov	ds:[bx].DESC_BASE,cx
+	mov	ds:[bx].DESC_BASE16,dl
+	mov	byte ptr ds:[bx].DESC_EXT+1,dh
+	or	al,ACC_PRESENT
+pr2:	mov	ds:[bx].DESC_ACC,al	; (and carry is clear)
+pr9:	ret
+pr8:	jmp	cpu_inval
+ENDPROC	pm_remap
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; id_desc
+;
+; Finds the descriptor of an LDT selector from its ID (see enc_owner), in any
+; LDT.
+;
+; Inputs:
+;	BX = selector ID
+;
+; Outputs:
+;	Carry clear if it's in use: BX -> its descriptor
+;	Carry set if not: AX = ERR_INVALID
+;
+; Modifies:
+;	AX, BX
+;
+DEFPROC	id_desc
+	mov	ax,bx
+	sub	ah,80h			; AH = its LDT #
+	cmp	ah,LDT_SESSIONS		; a valid LDT #?
+	jae	id8			; no
+	mov	bl,ah
+	mov	bh,0
+	add	bx,bx			; BX = LDT # * 2
+	push	cx
+	mov	cx,ds:[SYS_VARS+SV_LDTTOP+bx]	; CX = where the LDT ends
+	mov	bx,ds:[SYS_VARS+SV_LDTS+bx]	; BX = the LDT's offset
+	mov	ah,0
+	shl	ax,3			; AX = the descriptor's offset in it
+	add	bx,ax
+	cmp	bx,cx			; is it in the LDT?
+	pop	cx
+	jae	id8			; no
+	cmp	ds:[bx].DESC_ACC,0	; is it in use?
+	jne	id9			; yes (and carry is clear)
+id8:	mov	ax,ERR_INVALID
+	stc
+id9:	ret
+ENDPROC	id_desc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; pm_unmap (CPU_UNMAP in protected mode)
 ;
+; A selector ID (see enc_owner) frees that one LDT selector, in any LDT (eg,
+; a driver's, from CPU_MAP with MEMF_LDT).
+;
 ; Inputs:
-;	BX = first selector, CX = # of selectors (0 = 1)
+;	BX = first selector, CX = # of selectors (0 = 1), or BX = selector ID
 ;
 ; Outputs:
 ;	Carry clear if successful, set if error (AX = ERR_INVALID)
 ;
 DEFPROC	pm_unmap
-	mov	ax,bx
+	test	bh,80h			; a selector ID?
+	jz	cu0			; no
+	call	id_desc			; BX -> its descriptor
+	jc	cu7
+	mov	di,bx
+	mov	cx,1
+	jmp	desc_zero
+cu0:	mov	ax,bx
 	test	cx,cx
 	jnz	cu1
 	inc	cx
@@ -1873,7 +1979,7 @@ cu3:	ja	cu8
 	ret
 cu8:	mov	ax,ERR_INVALID
 	stc
-	ret
+cu7:	ret
 ENDPROC	pm_unmap
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1939,7 +2045,7 @@ DEFPROC	sel_desc
 	test	bl,SEL_TI
 	jz	sd1
 	sub	si,SYS_GDT
-	add	si,ds:[SYS_VARS].SV_LDT	; the active session's LDT
+	add	si,ds:[SYS_VARS].SV_LDT	; the active LDT
 	call	ldt_num			; DX = # of descriptors
 sd1:	cmp	cx,dx			; is the index within the table?
 	jae	sd8			; no
@@ -1955,7 +2061,7 @@ ENDPROC	sel_desc
 ; ldt_num
 ;
 ; Outputs:
-;	DX = # of descriptors in the active session's LDT
+;	DX = # of descriptors in the active LDT
 ;
 DEFPROC	ldt_num
 	mov	dx,ds:[SYS_GDT + SEL_LDTD].DESC_LIMIT
@@ -1968,10 +2074,10 @@ ENDPROC	ldt_num
 ;
 ; ldt_grow
 ;
-; Adds room for CX more descriptors to the active session's LDT (LDT_STEP at a
-; time, up to LDT_LIMIT, as long as the PMB table has room for two more PMBs).
+; Adds room for CX more descriptors to the active LDT (LDT_STEP at a time, up
+; to LDT_LIMIT, as long as the PMB table has room for two more PMBs).
 ; Selectors are indexes, so moving an LDT doesn't change them.  The processor
-; doesn't use the other sessions' LDTs, and other sessions can't run (see
+; doesn't use the other LDTs, and other sessions can't run (see
 ; cpu_entry), so they can move with interrupts on; but an interrupt handler
 ; could reload a segment register from the active LDT, so it moves with
 ; interrupts off, along with zeroing the new entries (which aren't in use until
@@ -1992,9 +2098,9 @@ DEFPROC	ldt_grow
 	push	es
 	push	ds
 	pop	es
-	mov	bl,ds:[SYS_VARS].SV_SESS
+	mov	bl,ds:[SYS_VARS].SV_LDTNUM
 	mov	bh,0
-	add	bx,bx			; BX = session # * 2
+	add	bx,bx			; BX = LDT # * 2
 	add	cx,LDT_STEP - 1
 	and	cx,NOT (LDT_STEP - 1)
 	shl	cx,3			; CX = # of bytes to add
@@ -2025,7 +2131,7 @@ lg2:	inc	bx
 	jae	lg3
 	sub	ds:[SYS_VARS+SV_LDTS+bx],bp
 	jmp	lg2
-lg3:	xchg	bx,ax			; BX = session # * 2
+lg3:	xchg	bx,ax			; BX = LDT # * 2
 	pushf
 	cli
 	mov	cx,dx
@@ -2185,7 +2291,7 @@ da0:	mov	bx,SYS_GDT + GDT_FIXED * (size DESC)
 	mov	dx,GDT_MAX - GDT_FIXED
 	test	al,MEMF_LDT
 	jz	da1
-	mov	bx,ds:[SYS_VARS].SV_LDT	; the active session's LDT
+	mov	bx,ds:[SYS_VARS].SV_LDT	; the active LDT
 	call	ldt_num			; DX = # of descriptors
 da1:	sub	si,si			; SI = free entries found so far
 da2:	dec	dx
@@ -2255,12 +2361,13 @@ DEFPROC	desc_free
 	test	al,SEL_TI
 	jz	df1
 	sub	di,SYS_GDT
-	add	di,ds:[SYS_VARS].SV_LDT	; the active session's LDT
+	add	di,ds:[SYS_VARS].SV_LDT	; the active LDT
+	DEFLBL	desc_zero,near		; (DI -> first DESC, CX = # of them)
 df1:	push	es
 	push	ds
 	pop	es
 	shl	cx,2			; 4 words per descriptor
-	sub	ax,ax
+	sub	ax,ax			; (and carry is clear)
 	rep	stosw
 	pop	es
 df9:	ret
@@ -3180,11 +3287,11 @@ di3:	mov	ax,[MEMORY_SIZE]
 	mov	es:[di].SV_PIDTR+2,SYS_PIDT
 	mov	es:[di].SV_RMIDTR,3FFh
 	mov	ax,SYS_LDTTOP
-	mov	es:[di].SV_LDT,ax	; session 0's LDT (see CPU_SETLDT)
+	mov	es:[di].SV_LDT,ax	; LDT 0 (see CPU_SETLDT)
 	push	di
 	add	di,SV_LDTTOP
 	mov	cx,LDT_SESSIONS + 1
-	rep	stosw			; every session's LDT is empty
+	rep	stosw			; every LDT is empty
 	pop	di
 	mov	ax,offset DEV:ddcpu_init
 	call	init_arena
@@ -3216,9 +3323,10 @@ di3:	mov	ax,[MEMORY_SIZE]
 	mov	es:[SYS_GDT+SEL_CPUCODE].DESC_BASE16,dl
 ;
 ; The identity selectors: data for video memory (A000h-B800h) and code for
-; the adapter and system ROMs (C000h-F800h).  Video memory is DPL 3, so that
-; ring 3 programs can draw directly, too (eg, COMMAND.COM's graphics, with
-; the selector from the CONSOLE driver's IOCTL_GETMODE).
+; the adapter and system ROMs (C000h-F800h), all DPL 0, for the BIOS and the
+; drivers.  A ring 3 program that draws directly (eg, COMMAND.COM's graphics)
+; gets an LDT selector from the CONSOLE driver instead (IOCTL_GETMODE), which
+; the driver can change or take away (see pm_remap).
 ;
 	mov	bx,SEL_VIDEO
 di4a:	lea	di,[bx+SYS_GDT]
@@ -3229,7 +3337,7 @@ di4a:	lea	di,[bx+SYS_GDT]
 	stosw				; base bits 15-0
 	mov	ax,bx
 	shr	ax,12			; AL = base bits 23-16
-	mov	ah,ACC_DATA + ACC_DPL3
+	mov	ah,ACC_DATA
 	cmp	bx,SEL_ROM
 	jb	di4b
 	mov	ah,ACC_CODE

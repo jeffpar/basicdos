@@ -34,7 +34,7 @@ BASIC-DOS needs none of this.  It's the first thing loaded, so nothing else owns
 | **Privilege** | Ring 3, with IOPL 0 (unless `RING=0`) | Often ring 0 on plain DOS or VCPI; up to the host on DPMI |
 | **DOS calls** | Native, with no mode switch or copying | Translated to real-mode DOS |
 | **Hardware** | Only through drivers | Direct, or as the host allows |
-| **Several programs at once** | Preemptive sessions, each with its own LDT | Only under a multitasking host |
+| **Several programs at once** | Preemptive sessions, with each console's in its own LDT | Only under a multitasking host |
 | **Addressing** | 16-bit segments | 16-bit, or 32-bit flat with a 32-bit extender |
 
 ### COM Programs in Either Mode {#com}

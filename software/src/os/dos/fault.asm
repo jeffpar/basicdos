@@ -18,8 +18,11 @@
 DOS	segment word public 'CODE'
 
 	EXTNEAR	<get_psp,psp_owner,dos_abort,r3_end>
-	EXTWORD	<r3_ksel,scb_active>
-	EXTBYTE	<int_level,prog_user>
+	EXTNEAR	<dos_check,dos_leave,scb_wait>
+	EXTWORD	<r3_ksel,scb_active,dos_data>
+	EXTBYTE	<int_level,prog_user,scb_locked>
+
+	.286p
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -117,11 +120,22 @@ df0:	add	sp,size PMB
 	test	ax,ax			; is it the program's own code?
 	jnz	df9			; no
 ;
+; A not-present LDT selector is a driver's that it took away for now (see
+; SELID_WAIT), so the session waits for it (see sel_wait), unless it can't.
+;
+df1:	cmp	word ptr ss:[bx+10],0Bh	; #NP (and not a halt)?
+	jne	df1a			; no
+	test	byte ptr ss:[bx+12],4	; for an LDT selector?
+	jz	df1a			; no
+	cmp	word ptr cs:[scb_locked],-1	; can the session wait?
+	jne	df1a			; no (a lock or an interrupt)
+	jmp	sel_wait
+;
 ; With programs at ring 3, r3_end does the rest.  Otherwise, as in dos_dverr,
 ; the values to print (the vector, error code, and address) are already on the
 ; stack, once CS precedes IP.
 ;
-df1:	cmp	cs:[prog_user],0	; programs at ring 3?
+df1a:	cmp	cs:[prog_user],0	; programs at ring 3?
 	je	df2			; no
 	mov	ax,ss:[bx+10]		; AX = vector
 	mov	si,ss:[bx+12]		; SI = error code
@@ -143,6 +157,56 @@ df2:	mov	ax,ss:[bx+14]
 	mov	ah,EXTYPE_FAULT
 	jmp	dos_abort
 ENDPROC	dos_fault
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; sel_wait
+;
+; A program (or the kernel, resuming one with the selector in DS or ES) loaded
+; a not-present LDT selector, so as if the faulting instruction were a DOS
+; call, we wait for the selector's wait ID (see SELID_WAIT), and then return
+; to the instruction, to try again.  The fault's return address, vector, and
+; error code are where REG_FRAME's workspace goes, so the error code is in
+; TMP_ES.
+;
+; Inputs:
+;	SS:SP -> ES, BX, AX, return address, vector, error code, and the
+;	faulting instruction's IP, CS, and FLAGS
+;
+DEFPROC	sel_wait,DOS
+	pop	es
+	pop	bx
+	pop	ax
+	cld
+	sub	sp,size WS_TEMP - 8	; SP -> REG_WS
+	push	ax			; (order must match REG_FRAME)
+	push	bx
+	push	cx
+	push	dx
+	push	ds
+	push	si
+	push	es
+	push	di
+	push	bp
+	mov	bp,sp
+	IF REG_CHECK
+	push	offset dos_check	; (the marker that dos_leave checks)
+	ENDIF
+	mov	ds,cs:[dos_data]
+	ASSUME	DS:DOS
+	mov	bx,[scb_active]
+	inc	[bx].SCB_INDOS
+	mov	ax,[bp].TMP_ES		; AX = the selector
+	shr	ax,3			; AL = its LDT index (and AH = 0)
+	mov	ah,[bx].SCB_LDT
+	or	ah,80h			; AX = its ID (see CPU_MAP)
+	xchg	di,ax
+	mov	dx,SELID_WAIT		; DX:DI = its wait ID
+	call	scb_wait
+	jnc	sw9
+	DOSUTIL	YIELD			; (CTRLC is pending, so don't spin)
+sw9:	jmp	dos_leave
+ENDPROC	sel_wait
 
 DOS	ends
 

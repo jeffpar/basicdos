@@ -3234,12 +3234,13 @@ dt2:	call	end_command		; is there a session #?
 dt2a:	call	parse_hex		; AX = session # (from 1, as in KILL)
 	jc	dt8
 	dec	ax			; (so zero isn't a valid session #)
-	xchg	bx,ax			; BX = session # (from 0, for CPU$)
-	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_LDT
-	call	cpu_call		; DX:CX = base, AX = limit
-	jc	dt8
+	xchg	bx,ax			; BX = session # (from 0)
 	call	chk_sess		; is that session in use?
+	jc	dt8			; there's no such session
 	jz	dt9			; no, so there's nothing to display
+	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_LDT
+	call	cpu_call		; DX:CX = base, AX = limit (LDT # BX)
+	jc	dt8
 dt3:	call	dt_set
 	mov	[dtUsed],0
 	call	end_command		; just one entry?
