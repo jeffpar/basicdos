@@ -1,11 +1,11 @@
 {
-  "name": "IBM PC AT, 2Mb RAM, 10Mb Hard Disk, CGA",
+  "name": "IBM PC AT, 2Mb RAM, 10Mb Hard Disk, CGA, Serial Mouse",
   "defaults": {
     "ram": "2Mb",
     "fpu": "None",
     "fdc": "2 1.2Mb diskette drives",
     "parallel": "LPT1",
-    "serial": "COM1, COM2",
+    "serial": "COM1 (serial mouse), COM2",
     "hdc": "10Mb hard disk"
   },
   "machine": {
@@ -45,6 +45,8 @@
       "fontROM": "/machines/pcx86/roms/IBM-CGA.json5",
       "flicker": 0,
       "overlay": true,
+      "autoLock": true,
+      "touchScreen": "mouse",
       "controls": [
         {
           "type": "group",
@@ -271,6 +273,12 @@
       "class": "parallel",
       "adapter": 2,
       "binding": "print"
+    },
+    {
+      "id": "mouse",
+      "class": "mouse",
+      "serial": "com1",
+      "scaleMouse": 0.5
     }
   ]
 }

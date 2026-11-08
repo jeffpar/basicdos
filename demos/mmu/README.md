@@ -12,7 +12,7 @@ machines:
       B: "PC DOS 2.00 (Disk 1)"
 ---
 
-The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 2Mb of memory (640K of conventional memory and 1408K of extended memory), a Color Display, a 1.2Mb and a 1.44Mb diskette drive, and a 10Mb hard disk.  It boots the BASIC-DOS Protected Mode diskette, which runs the same three consoles as the [Multiple Pages](../p80/at/) demo, each on its own page of video memory, but in protected mode.  Use **SHIFT-TAB** to switch between them.
+The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 2Mb of memory (640K of conventional memory and 1408K of extended memory), a Color Display, a 1.2Mb and a 1.44Mb diskette drive, a 10Mb hard disk, and a serial mouse on COM1.  It boots the BASIC-DOS Protected Mode diskette, which runs the same three consoles as the [Multiple Pages](../p80/at/) demo, each on its own page of video memory, but in protected mode.  Use **SHIFT-TAB** to switch between them.  Type `PAINT` in any console to draw with the mouse (click the screen to capture the mouse, and press **Esc** twice to exit); while PAINT's graphics mode is on the screen, the other consoles wait.
 
 See [Protected-Mode Initialization](/docs/bdtech/mmu/#pminit) for more details.
 
