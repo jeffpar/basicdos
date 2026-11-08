@@ -222,7 +222,7 @@ FLAG_MASK	equ	0ED5h	; OF, DF, IF, SF, ZF, AF, PF, and CF
 	db	"DM",9,9,"dump memory blocks",13,10
 	db	"E addr [list]",9,"edit memory",13,10
 	db	"G [addr]",9,"go (to address)",13,10
-	db	"GT",9,9,"go, passing on the trap",13,10
+	db	"GT",9,9,"go, passing on any trap",13,10
 	db	"LN [addr]",9,"list nearest block",13,10
 	db	"P[R] [count]",9,"step over instruction",13,10
 	db	"R [reg | F]",9,"display or edit registers",13,10

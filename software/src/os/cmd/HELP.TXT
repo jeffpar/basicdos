@@ -312,7 +312,7 @@ Returns the printer's current column, starting at 1 (*n* is ignored).
 Prints like PRINT, but to the printer (PRN, normally LPT1).  Without a PRN device (eg, no parallel port), a "Device unavailable" error occurs, and a printer can report "Device timeout", "Out of paper", or "Device fault", as it does for PRINT # to a printer.
 
 [e]LS [~1alRrSt] [*filespec*]...
-Lists the files matching each *filespec* that isn't a directory, and then the files in each directory (or the current directory), sorted by name, in columns (or one per line when the output is a file or pipe), with \ after each directory name.
+Lists the files matching each *filespec* that isn't a directory, and then the files in each directory (or the current directory), sorted by name, in 16-character columns like DIR /W (or one per line when the output is a file or pipe), with \ after each directory name.
 Options:\
 	~1  List one name per line\
 	~a  List hidden files\

@@ -10,7 +10,7 @@ permalink: /docs/bdman/cmd/external/ls/
 
 Lists files and directories like the UNIX `ls` command.  Each *filespec* that's a directory (eg, `LS \EXT`, `LS ..`, or `LS A:`) lists the files in that directory, and without one, the current directory is listed.  Any other *filespec* lists the files that match it (and with wildcards, the directories that match it, too), with the *filespec*'s drive and path in front of each name, as a UNIX shell would expand them (eg, `LS \EXT\T*.COM` lists `\EXT\TEE.COM  \EXT\TR.COM`); those files are listed first, all together, and then each directory, after a line with its name and a colon if more than one *filespec* was given.  A *filespec* that matches nothing is reported (eg, `Unable to find X.BAS`).
 
-Names are sorted, and listed in columns down the screen, each column 2 characters wider than the longest name, with as many columns as fit the console's width.  Each directory's name ends with the path character (eg, `EXT\`), as UNIX's `ls -p` shows directories; programs aren't marked.  When the output isn't the console (eg, `LS > FILES.TXT`), names are listed one per line, as UNIX does.  Hidden files, and the `.` and `..` entries of a subdirectory, are listed only with `/a`.
+Names are sorted, and listed in columns down the screen, each 16 characters wide, as [DIR /W](../../disk/#dir) lists them (or a multiple of 16, if the longest name, with its drive and path, is more than 14 characters), with as many columns as fit the console's width (5 on an 80-column screen, or 2 on a 40-column screen); to use every column, the columns on the right can have one name fewer than those on the left.  Each directory's name ends with the path character (eg, `EXT\`), as UNIX's `ls -p` shows directories; programs aren't marked.  When the output isn't the console (eg, `LS > FILES.TXT`), names are listed one per line, as UNIX does.  Hidden files, and the `.` and `..` entries of a subdirectory, are listed only with `/a`.
 
 Options start with the switch character (`/`, unless [SWITCHAR](../../../cfg/#switchar) changes it, eg, to `-`), are case-sensitive, and can be combined (eg, `LS /ltr` is the same as `LS /l /t /r`):
 
@@ -25,14 +25,14 @@ Options start with the switch character (`/`, unless [SWITCHAR](../../../cfg/#sw
 Files with the same size or time are sorted by name.  If there are more names than LS can sort, or more directories waiting to be listed than it can remember, LS displays `Too many matching files`, and ERRORLEVEL is set to 1.  A drive that doesn't exist displays `Invalid drive`, and any other option displays `Syntax error`.
 
 	LS \EXT
-	ATTRIB.BAS    FIND.COM      LABEL.BAS     SLEEP.COM     TREE.BAS
-	CHKDSK.BAS    FORMAT.BAS    LS.BAS        SORT.COM      UNIQ.COM
-	COMP.BAS      HELP.COM      MODE.BAS      SYS.BAS       VI.COM
-	DEBUG.COM     HELP.TXT      MORE.COM      TEE.COM       VOL.BAS
-	DISKCOPY.BAS  HEXDUMP.BAS   SED.COM       TR.COM        WC.COM
+	ATTRIB.BAS      FIND.COM        LABEL.BAS       SLEEP.COM       TREE.BAS
+	CHKDSK.BAS      FORMAT.BAS      LS.BAS          SORT.COM        UNIQ.COM
+	COMP.BAS        HELP.COM        MODE.BAS        SYS.BAS         VI.COM
+	DEBUG.COM       HELP.TXT        MORE.COM        TEE.COM         VOL.BAS
+	DISKCOPY.BAS    HEXDUMP.BAS     SED.COM         TR.COM          WC.COM
 	LS \
-	AUTOEXEC.BAT  CONFIG.SYS    TESTS\
-	COMMAND.COM   EXT\          TOOLS\
+	AUTOEXEC.BAT    CONFIG.SYS      EXT\            TESTS\          TOOLS\
+	COMMAND.COM
 	LS /lt \EXT\T*.*
 	-rwx     533 Oct 24 11:22 \EXT\TEE.COM
 	-rwx     579 Oct 24 11:22 \EXT\TR.COM

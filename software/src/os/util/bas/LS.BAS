@@ -105,15 +105,20 @@
 	T = T + (CVL(MID$(F$, 6)) + 1023) \ 1024
 	NEXT
 	RETURN
-110	' Display the names in as many columns as fit (each 2 wider than the
-	' longest name, except the last), filled down the screen
+110	' Display the names down the screen in 16-character columns (CW),
+	' like DIR /W (or a multiple of 16 if the longest name needs more than
+	' 14), with as many columns (C) as fit the width; the first B columns
+	' have RW names, and the rest one less, so every column is used
 	IF L THEN GOTO 120
-	C = (W + 1) \ (NW + 2) : IF O OR C = 0 THEN C = 1
-	RW = (N + C - 1) \ C
+	CW = 16 * ((NW + 17) \ 16) : C = (W - NW - 1) \ CW + 1
+	IF O OR C < 1 THEN C = 1
+	RW = (N + C - 1) \ C : B = N - (RW - 1) * C
 	FOR I = 1 TO RW
-	FOR J = I TO N STEP RW
+	J = I : X = C : IF I = RW THEN X = B
+	FOR U = 1 TO X
 	F$ = E$(P(J)) : GOSUB 150 : PRINT N$;
-	IF J + RW <= N THEN PRINT SPACE$(NW + 2 - LEN(N$));
+	IF U < X THEN PRINT SPACE$(CW - LEN(N$));
+	J = J + RW : IF U > B THEN J = J - 1
 	NEXT
 	PRINT
 	NEXT
