@@ -17,7 +17,7 @@ Each console runs its own copy of COMMAND.COM, as specified by a [SHELL=](../../
 
 Any commands following COMMAND are run when it starts (eg, `SHELL=COMMAND.COM AUTOEXEC.BAT`).  There is no automatic AUTOEXEC.BAT; each session's startup commands must be given explicitly.
 
-`/C` runs *command*, without displaying a banner, and then exits, with ERRORLEVEL as its exit code (eg, `COMMAND /C PRINT 1+2`).  It's how the C runtime's system() function runs a command, so a program like MAKE can tell when one fails.  Unlike other switches, it can start with `/` even if [SWITCHAR](../../../cfg/#switchar) has changed the switch character.
+`/C` runs *command*, without displaying a banner, and then exits, with ERRORLEVEL as its exit code (eg, `COMMAND /C PRINT 1+2`), unless it's a session's [SHELL=](../../../cfg/#shell) program, which displays the prompt instead (see [EXIT](../../system/#exit)).  It's how the C runtime's system() function runs a command, so a program like MAKE can tell when one fails.  Unlike other switches, it can start with `/` even if [SWITCHAR](../../../cfg/#switchar) has changed the switch character.
 
 Running COMMAND.COM from the prompt starts another copy of the shell; type [EXIT](../../system/#exit) to return to the previous copy.
 

@@ -49,7 +49,7 @@ Displays the specified program line (with its line number) for editing, using th
 
 > EXIT
 
-Exits the command shell (see [COMMAND.COM](../external/command/)), returning to the copy that loaded it, if any; otherwise its session closes, and when no session is left, the system halts.
+Exits the command shell (see [COMMAND.COM](../external/command/)), returning to the program that ran it (eg, the copy of COMMAND.COM that loaded it).  A shell that a [SHELL=](../../cfg/#shell) line starts ignores EXIT (as PC DOS's `COMMAND /P` does), since its session would close, and with no other session, the system would halt; use [KILL](#kill) to end such a session.  Any other shell with no program to return to closes its session.
 
 ### KILL
 

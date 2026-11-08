@@ -227,19 +227,12 @@ m3:	call	enterLine		; is it a numbered program line?
 	jmp	m1
 ;
 ; COMMAND /C has run its command, so return to the caller (eg, MAKE), using
-; ERRORLEVEL as the exit code (unlike PC DOS, which always returns zero).
+; ERRORLEVEL as the exit code (unlike PC DOS, which always returns zero),
+; unless COMMAND is a SHELL (see cmdExit).
 ;
 m9:	mov	al,[bx].EXIT_CODE
-	push	ds
-	mov	ds,cs:[CODE_DS]
-	ASSUME	DS:CODE
-	dec	[CMD_REFS]
-	mov	ah,DOS_PSP_RETURN
-	int	21h
-	inc	[CMD_REFS]		; unless it can't (ie, no parent)
-	pop	ds
-	ASSUME	DS:DATA
-	and	[bx].CMD_FLAGS,NOT CMD_SINGLE
+	call	cmdExitCode		; returns only for a SHELL,
+	and	[bx].CMD_FLAGS,NOT CMD_SINGLE	; which goes on to the prompt
 	jmp	m1
 ENDPROC	main
 
@@ -1795,25 +1788,32 @@ ENDPROC	getToken
 ;
 ; cmdExit
 ;
+; Ends COMMAND with exit code zero (or AL, at cmdExitCode), unless it's the
+; SHELL of a session that sysinit loaded (see PSP_SHELL), whose exit would
+; close the session (and with no other session, halt the system), so like
+; PC DOS's COMMAND /P, it ignores EXIT.
+;
 ; Inputs:
 ;	BX -> CMDHEAP
 ;
 ; Outputs:
-;	None
+;	None (returns only for a SHELL)
 ;
 ; Modifies:
 ;	Any
 ;
 DEFPROC	cmdExit
-	push	ds
+	mov	al,0
+	DEFLBL	cmdExitCode,near
+	cmp	ds:[PSP_SHELL],0	; a SHELL?
+	jne	cx9			; yes, so ignore the exit
 	mov	ds,cs:[CODE_DS]
 	ASSUME	DS:CODE
 	dec	[CMD_REFS]
-	int	20h			; terminates the current process
-	inc	[CMD_REFS]
-	pop	ds
+	mov	ah,DOS_PSP_RETURN
+	int	21h			; (never returns)
 	ASSUME	DS:DATA
-	ret				; unless it can't (ie, no parent)
+cx9:	ret
 ENDPROC	cmdExit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

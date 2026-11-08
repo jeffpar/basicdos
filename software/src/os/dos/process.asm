@@ -243,7 +243,11 @@ pcp1:	call	psp_init		; returns ES:DI -> PSP_PARENT
 	mov	si,PSP_PARENT
 	mov	cx,(size PSP - PSP_PARENT) SHR 1
 	rep	movsw
-	mov	es:[PSP_RAWKEYS],0	; the copy hasn't enabled raw keys
+;
+; The copy hasn't enabled raw keys, and it isn't a SHELL (see scb_load).
+;
+	ASSERT	<PSP_RAWKEYS + 1>,EQ,<PSP_SHELL>
+	mov	word ptr es:[PSP_RAWKEYS],0
 	ret
 ENDPROC	psp_copy
 

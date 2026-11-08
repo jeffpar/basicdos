@@ -3739,9 +3739,10 @@ ENDPROC	pm_test
 ;
 ; Returns the default gate for an entry in the protected-mode IDT: exceptions
 ; (00h-02h and 06h-0Fh) go to exc_stubs, hardware interrupts (70h-7Fh) to
-; irq_stubs, and everything else (software interrupts, which ring 3 may use)
-; to sw_int.  Ring 3 may also issue INT 0 (eg, FPU$ signals a divide error
-; with it), since its frame is the same as a divide error's.
+; irq_stubs, and everything else (software interrupts) to sw_int.  Only INT 0
+; (eg, FPU$ signals a divide error with it, since its frame is the same as a
+; divide error's) and the software interrupts meant for programs (see idd2)
+; have DPL 3 gates, so ring 3 code may not issue any BIOS interrupt.
 ;
 ; Inputs:
 ;	BL = IDT entry

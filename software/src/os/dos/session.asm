@@ -126,6 +126,15 @@ sl0b:	push	bx			; save SCB
 	pop	bx			; BX -> current SCB again
 	jc	sl6			; release session references on load error
 ;
+; A session that sysinit loads (ENVSEG -1) starts with its SHELL, whose
+; PSP_SHELL lets it know that its exit would close the session (eg, COMMAND
+; ignores EXIT); load_command returns ES -> PSP.
+;
+	inc	cx			; from sysinit?
+	jnz	sl4			; no
+	inc	es:[PSP_SHELL]		; yes
+sl4:	dec	cx
+;
 ; If successful, load_command returns the initial program stack in DX:AX
 ; (which, for a ring 3 program, r3_load moves to the session's ring 0 stack).
 ;

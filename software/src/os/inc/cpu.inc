@@ -150,9 +150,10 @@ FAULT_HALTED	equ	80h	; CPU_SETFAULT: vector's high byte for a halt
 ; when an interrupt takes ring 3 code to ring 0, and returns the previous one
 ; in DX:CX.  The 80286 driver keeps it in its TSS, which CPU_PMODE loads;
 ; until a caller sets one, there's none (0:0), so nothing can run at ring 3.
-; Software interrupts have DPL 3 gates, so ring 3 code can issue them (eg,
-; INT 21h), and so does INT 0 (eg, FPU$ signals a divide error with it), but
-; other exceptions and IRQs have DPL 0 gates (see pm_setvec).  The 8086
+; Only INT 0 (eg, FPU$ signals a divide error with it), INT 03h and 04h, DOS's
+; vectors (20h-2Fh, eg, INT 21h), the mouse (33h), and the user vectors
+; (60h-67h) have DPL 3 gates, so ring 3 code can issue them; BIOS interrupts,
+; other exceptions, and IRQs have DPL 0 gates (see pm_setvec).  The 8086
 ; driver returns ERR_INVALID, since there's no ring 3 in real mode.
 ;
 

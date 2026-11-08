@@ -407,7 +407,8 @@ PSP_EXCODE	db	?	; 4Eh: BASIC-DOS: exit code, if any
 PSP_EXTYPE	db	?	; 4Fh: BASIC-DOS: exit type (see EXTYPE_*)
 PSP_DOSCALL	db	3 dup(?); 50h: INT 21h/RETF
 PSP_RAWKEYS	db	?	; 53h: BASIC-DOS: non-zero if raw keys enabled
-		db	2 dup(?); 54h: unused
+PSP_SHELL	db	?	; 54h: BASIC-DOS: non-zero in a SHELL
+		db	?	; 55h: unused
 PSP_DIGITS	dw	?	; 56h: digit switches (see DOS_UTL_PARSESW)
 PSP_LETTERS	dd	?	; 58h: letters switches (see DOS_UTL_PARSESW)
 PSP_FCB1	db     16 dup(?); 5Ch
