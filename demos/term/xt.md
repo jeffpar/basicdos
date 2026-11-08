@@ -27,6 +27,6 @@ Wait a few seconds for the BASIC-DOS banner to appear on the VT100 (with no disp
 
 Any changes you make to the hard disk are lost when you leave the page, unless you first click **Save HD** to download the hard disk as an IMG file.
 
-This demo is also available on an [IBM PC](../pc/) with 64K and no hard disk.
+This demo is also available on an [IBM PC](../pc/) with 64K and no hard disk, and on an [IBM PC AT](../at/) with a second VT100 on COM2.
 
 {% include_relative _overview.md hw="xt" %}

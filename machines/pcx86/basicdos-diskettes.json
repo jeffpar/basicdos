@@ -14,6 +14,7 @@
   "/software/disks/BASICDOS-360K-M640.json": "BASIC-DOS 640K Monochrome Demo",
   "/software/disks/BASICDOS-360K-TERM.json": "BASIC-DOS Terminal Only Demo",
   "/software/disks/BASICDOS-360K-TERMHD.json": "BASIC-DOS HD Terminal Only Demo",
+  "/software/disks/BASICDOS-360K-TERM2.json": "BASIC-DOS HD Dual Terminal Demo",
   "/software/disks/BASICDOS-360K-MMU.json": "BASIC-DOS Protected Mode with VT100",
   "/software/disks/BASICDOS-360K-TESTS.json": "BASIC-DOS Tests"
 }

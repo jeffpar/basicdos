@@ -194,7 +194,7 @@ DEFPROC	ddcom_read
 	mov	cx,es:[di].DDPRW_LENGTH
 	jcxz	dcr9
 ;
-; Use the port's context (and record it in the packet, for wake_reader), even
+; Use the port's context (and record it in the packet, for wake_packet), even
 ; if the handle has none, because a handle opened before the port's context
 ; existed (eg, the STDAUX handle that DOS opens at boot) would otherwise use
 ; the BIOS, which clears OUT2 and therefore disables the port's interrupts.
@@ -1452,63 +1452,7 @@ ddi3b:	call	read_lsr		; line status (reading LSR clears it)
 
 ddi4:	mov	al,20h			; EOI the interrupt now
 	out	20h,al
-
-	mov	cx,cs:[0].DDH_DATA
-	mov	es,cx
-	mov	bx,offset wait_ptr	; CX:BX -> ptr
-	les	di,es:[bx]		; ES:DI -> packet, if any
-
-ddi5:	cmp	di,-1			; end of chain?
-	je	ddi9			; yes
-
-	ASSERT	STRUCT,es:[di],DDP
-
-	cmp	es:[di].DDP_CMD,DDC_READ; READ packet?
-	je	ddi6			; yes, look for buffered data
-;
-; For WRITE packets (which we'll assume this is for now), we need to end the
-; wait if the context is no longer busy (ie, neither full nor paused).
-;
-	ASSERT	STRUCT,ds:[0],CT
-	test	ds:[CT_STATUS],CTSTAT_XMTFULL OR CTSTAT_PAUSED
-	jz	ddi7			; transmitter is no longer busy
-	jmp	short ddi8		; still busy, check next packet
-
-ddi6:	call	pull_input		; pull more input data
-	jc	ddi8			; not enough data, check next packet
-;
-; Notify DOS that this packet is done waiting.
-;
-ddi7:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
-	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	mov	ah,DOS_UTL_ENDWAIT
-	call	far ptr DDINT_UTIL	; end the wait on DX:DI (see int_util)
-;
-; If ENDWAIT returns an error, it's because the wait was interrupted (eg, by
-; ABORT or CTRLC) before we could end it; add_packet will see that the packet
-; has been removed and treat the request as satisfied.  In the past, it could
-; also mean that we got ahead of the WAIT call, but that race was resolved by
-; making the pull_input/add_packet/wait path atomic (ie, no interrupts).
-;
-; TODO: Consider lighter-weight solutions to this race condition.
-;
-; In any case, proceed with the packet removal now.
-;
-	cli
-	mov	ax,es:[di].DDP_PTR.OFF
-	mov	dx,es:[di].DDP_PTR.SEG
-	mov	es,cx
-	mov	es:[bx].OFF,ax
-	mov	es:[bx].SEG,dx
-	sti
-	stc				; set carry to indicate yield
-	jmp	short ddi9
-
-ddi8:	lea	bx,[di].DDP_PTR		; update prev addr ptr in CX:BX
-	mov	cx,es
-
-	les	di,es:[di].DDP_PTR
-	jmp	ddi5
+	call	wake_packet		; carry set to indicate yield
 
 ddi9:	pop	es
 	pop	ds
@@ -2310,42 +2254,67 @@ DEFPROC	esc_timeout,far
 	mov	ds:[CT_ESC],0
 	mov	al,CHR_ESCAPE
 	call	push_key
-	call	wake_reader
+	call	wake_packet
 eto9:	pop	ds
 	ret
 ENDPROC	esc_timeout
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; wake_reader
+; wake_packet
 ;
-; Ends the wait of any READ packet for the context that can now be satisfied.
+; Ends the wait of the first packet for the context that can now be
+; satisfied: a READ packet whose data has arrived, or a WRITE packet whose
+; context is no longer busy (ie, neither full nor paused).
 ;
 ; Inputs:
 ;	DS = context
+;
+; Outputs:
+;	Carry set if a wait was ended (so an interrupt handler should yield)
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, ES
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	wake_reader
+DEFPROC	wake_packet
 	mov	cx,cs:[0].DDH_DATA
 	mov	es,cx
 	mov	bx,offset wait_ptr	; CX:BX -> ptr
 	les	di,es:[bx]		; ES:DI -> packet, if any
 wk1:	cmp	di,-1			; end of chain?
-	je	wk9			; yes
-	cmp	es:[di].DDP_CMD,DDC_READ; READ packet?
-	jne	wk8			; no
+	je	wk9			; yes (with carry clear)
+
+	ASSERT	STRUCT,es:[di],DDP
+
 	mov	ax,ds
 	cmp	es:[di].DDP_CONTEXT,ax	; for this context?
 	jne	wk8			; no
-	call	pull_input
-	jc	wk8			; not enough data
-	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
+	cmp	es:[di].DDP_CMD,DDC_READ; READ packet?
+	je	wk2			; yes, look for buffered data
+
+	ASSERT	STRUCT,ds:[0],CT
+
+	test	ds:[CT_STATUS],CTSTAT_XMTFULL OR CTSTAT_PAUSED
+	jz	wk3			; transmitter is no longer busy
+	jmp	short wk8		; still busy, check next packet
+wk2:	call	pull_input		; pull more input data
+	jc	wk8			; not enough data, check next packet
+wk3:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	mov	ah,DOS_UTL_ENDWAIT
 	call	far ptr DDINT_UTIL	; end the wait on DX:DI (see int_util)
+;
+; If ENDWAIT returns an error, it's because the wait was interrupted (eg, by
+; ABORT or CTRLC) before we could end it; add_packet will see that the packet
+; has been removed and treat the request as satisfied.  In the past, it could
+; also mean that we got ahead of the WAIT call, but that race was resolved by
+; making the pull_input/add_packet/wait path atomic (ie, no interrupts).
+;
+; TODO: Consider lighter-weight solutions to this race condition.
+;
+; In any case, proceed with the packet removal now.
+;
 	cli
 	mov	ax,es:[di].DDP_PTR.OFF
 	mov	dx,es:[di].DDP_PTR.SEG
@@ -2353,13 +2322,14 @@ wk1:	cmp	di,-1			; end of chain?
 	mov	es:[bx].OFF,ax
 	mov	es:[bx].SEG,dx
 	sti
+	stc
 	ret
 wk8:	lea	bx,[di].DDP_PTR		; update prev addr ptr in CX:BX
 	mov	cx,es
 	les	di,es:[di].DDP_PTR
 	jmp	wk1
 wk9:	ret
-ENDPROC	wake_reader
+ENDPROC	wake_packet
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -1,34 +1,39 @@
+{%- comment -%}
+Element IDs end in VT100 plus whatever follows "vt100" in the machine ID, so a second terminal "vt100b" uses the
+VT100b bindings in vt100b.json; a page's machine "title" (eg, "VT100 Terminal (COM2)") replaces the heading.
+{%- endcomment -%}
+{%- assign sfx = include.id | remove_first: "vt100" -%}
 <div class="machine">
-  <h3>VT100 Terminal</h3>
+  <h3>{{ machine.title | default: "VT100 Terminal" }}</h3>
   <div id="{{ include.id }}" class="pcjs-chassis">
     <div class="pcjs-vt100-header">
       <div class="pcjs-title">VT100 Display</div>
       <div class="pcjs-vt100-buttons">
-        <button class="pcjs-block-button" id="powerVT100">Power</button>
-        <button class="pcjs-block-button" id="zoomVT100">Full Screen</button>
+        <button class="pcjs-block-button" id="powerVT100{{ sfx }}">Power</button>
+        <button class="pcjs-block-button" id="zoomVT100{{ sfx }}">Full Screen</button>
       </div>
     </div>
-    <div id="monitorVT100" class="pcjs-monitor">
-      <canvas id="surfaceVT100" class="pcjs-surface" width="1600" height="960"></canvas>
+    <div id="monitorVT100{{ sfx }}" class="pcjs-monitor">
+      <canvas id="surfaceVT100{{ sfx }}" class="pcjs-surface" width="1600" height="960"></canvas>
     </div>
     <div class="pcjs-vt100-row">
-      <div class="pcjs-block-control"><div class="pcjs-label-right">ON&nbsp;LINE</div><div class="pcjs-led-large" id="ledOnlineVT100"></div></div>
-      <div class="pcjs-block-control"><div class="pcjs-label-right">LOCAL</div><div class="pcjs-led-large" id="ledLocalVT100"></div></div>
-      <div class="pcjs-block-control"><div class="pcjs-label-right">LOCKED</div><div class="pcjs-led-large" id="ledLockedVT100"></div></div>
-      <div class="pcjs-block-control"><div class="pcjs-label-right">L1</div><div class="pcjs-led-large" id="led1VT100"></div></div>
-      <div class="pcjs-block-control"><div class="pcjs-label-right">L2</div><div class="pcjs-led-large" id="led2VT100"></div></div>
-      <div class="pcjs-block-control"><div class="pcjs-label-right">L3</div><div class="pcjs-led-large" id="led3VT100"></div></div>
-      <div class="pcjs-block-control"><div class="pcjs-label-right">L4</div><div class="pcjs-led-large" id="led4VT100"></div></div>
-      <div class="pcjs-block-control"><div class="pcjs-label-right">CAPS</div><div class="pcjs-led-large" id="ledCapsVT100"></div></div>
+      <div class="pcjs-block-control"><div class="pcjs-label-right">ON&nbsp;LINE</div><div class="pcjs-led-large" id="ledOnlineVT100{{ sfx }}"></div></div>
+      <div class="pcjs-block-control"><div class="pcjs-label-right">LOCAL</div><div class="pcjs-led-large" id="ledLocalVT100{{ sfx }}"></div></div>
+      <div class="pcjs-block-control"><div class="pcjs-label-right">LOCKED</div><div class="pcjs-led-large" id="ledLockedVT100{{ sfx }}"></div></div>
+      <div class="pcjs-block-control"><div class="pcjs-label-right">L1</div><div class="pcjs-led-large" id="led1VT100{{ sfx }}"></div></div>
+      <div class="pcjs-block-control"><div class="pcjs-label-right">L2</div><div class="pcjs-led-large" id="led2VT100{{ sfx }}"></div></div>
+      <div class="pcjs-block-control"><div class="pcjs-label-right">L3</div><div class="pcjs-led-large" id="led3VT100{{ sfx }}"></div></div>
+      <div class="pcjs-block-control"><div class="pcjs-label-right">L4</div><div class="pcjs-led-large" id="led4VT100{{ sfx }}"></div></div>
+      <div class="pcjs-block-control"><div class="pcjs-label-right">CAPS</div><div class="pcjs-led-large" id="ledCapsVT100{{ sfx }}"></div></div>
     </div>
     <div class="pcjs-vt100-row">
-      <div class="pcjs-block-control"><button class="pcjs-block-button" id="keyCapsLockVT100">CAPS LOCK</button></div>
-      <div class="pcjs-block-control"><button class="pcjs-block-button" id="keyCtrlCVT100">CTRL-C</button></div>
-      <div class="pcjs-block-control"><button class="pcjs-block-button" id="keyBreakVT100">BREAK</button></div>
-      <div class="pcjs-block-control"><button class="pcjs-block-button" id="keyEscVT100">ESC</button></div>
-      <div class="pcjs-block-control"><button class="pcjs-block-button" id="keyTabVT100">TAB</button></div>
-      <div class="pcjs-block-control"><button class="pcjs-block-button" id="keyLineFeedVT100">LINE&nbsp;FEED</button></div>
-      <div class="pcjs-block-control"><button class="pcjs-block-button" id="keySetupVT100">SET-UP</button></div>
+      <div class="pcjs-block-control"><button class="pcjs-block-button" id="keyCapsLockVT100{{ sfx }}">CAPS LOCK</button></div>
+      <div class="pcjs-block-control"><button class="pcjs-block-button" id="keyCtrlCVT100{{ sfx }}">CTRL-C</button></div>
+      <div class="pcjs-block-control"><button class="pcjs-block-button" id="keyBreakVT100{{ sfx }}">BREAK</button></div>
+      <div class="pcjs-block-control"><button class="pcjs-block-button" id="keyEscVT100{{ sfx }}">ESC</button></div>
+      <div class="pcjs-block-control"><button class="pcjs-block-button" id="keyTabVT100{{ sfx }}">TAB</button></div>
+      <div class="pcjs-block-control"><button class="pcjs-block-button" id="keyLineFeedVT100{{ sfx }}">LINE&nbsp;FEED</button></div>
+      <div class="pcjs-block-control"><button class="pcjs-block-button" id="keySetupVT100{{ sfx }}">SET-UP</button></div>
     </div>
   </div>
   {%- assign vt100_data = site.data.machines.vt100 %}
