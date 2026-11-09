@@ -38,7 +38,7 @@ DOS	segment word public 'CODE'
 	EXTWORD	<scb_active,scb_stoked,load_reserve>
 	EXTLONG	<scb_table>
 	EXTNEAR	<dos_check,dos_leave,load_command,psp_termcode,r3_sp0,r3_load>
-	EXTNEAR	<r3_setldt>
+	EXTNEAR	<r3_setldt,r3_stage>
 	EXTNEAR	<sfh_add_ref,sfh_context,sfh_close,get_cdir>
 	EXTNEAR	<sfb_from_sfh,sfb_read,sfb_write,get_pname>
 
@@ -75,6 +75,8 @@ ENDPROC	scb_getnum
 ;	REG_ES:REG_BX -> SPB (Session Parameter Block)
 ;	REG_CH = number of programs the caller will load next (eg, the rest
 ;	of a pipeline; see load_program)
+;	REG_AL = 1 for a session with an LDT of its own (eg, for START),
+;	instead of the caller's (otherwise 0)
 ;
 ; Outputs:
 ;	Carry clear if successful:
@@ -88,6 +90,12 @@ ENDPROC	scb_getnum
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	scb_load,DOS
+	cmp	byte ptr [bp].REG_AL,1	; a session with its own LDT?
+	jne	scb_load1		; no
+	cmp	[prog_user],0		; ring 3 programs?
+	je	scb_load1		; no, so there are no LDTs
+	jmp	r3_stage		; yes, so copy the SPB first
+	DEFLBL	scb_load1,near
 	mov	al,[prog_user]
 	or	al,1			; nonzero while loading (see mem_alloc)
 	mov	[load_user],al		; and MEMF_USER for ring 3 programs
@@ -976,13 +984,16 @@ DEFPROC	init_scb,DOS
 ;
 ; A session that a program loads (eg, a pipeline's next program) shares that
 ; program's LDT, and with programs at ring 3, each session that sysinit loads
-; has an LDT of its own, whose # is the session's # (otherwise, every program
-; uses LDT 0, since the active LDT never changes).
+; (or that a program loads with REG_AL = 1; eg, START) has an LDT of its own,
+; whose # is the session's # (otherwise, every program uses LDT 0, since the
+; active LDT never changes).
 ;
 	mov	al,[si].SCB_LDT		; AL = the loading session's LDT #
 	cmp	dx,-1			; from sysinit?
+	je	si00			; yes
+	cmp	byte ptr [bp].REG_AL,1	; is its own LDT requested?
 	jne	si0b			; no, so the new session shares it
-	cmp	[prog_user],0		; ring 3 programs?
+si00:	cmp	[prog_user],0		; ring 3 programs?
 	je	si0b			; no
 	mov	al,[bx].SCB_NUM		; yes, so it gets its own
 si0b:	mov	[bx].SCB_LDT,al

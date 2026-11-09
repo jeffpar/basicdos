@@ -131,7 +131,7 @@ Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-
 
 **DOS_UTL_GETCSN (11h)**: Returns CL = current session number.
 
-**DOS_UTL_LOAD (13h)**: ES:BX -> Session Parameter Block (see [SPB](../data/#spb)), which specifies the command line and the standard handles for the new session, and CH = the number of programs the caller will load next (eg, the rest of a pipeline), which the loader sets aside memory for (see [DOS_PSP_EXEC1](../dos/#differences-from-pc-dos)).  Loads the program into an available session; returns CL = session number, or carry set and AX = error code.
+**DOS_UTL_LOAD (13h)**: ES:BX -> Session Parameter Block (see [SPB](../data/#spb)), which specifies the command line and the standard handles for the new session, CH = the number of programs the caller will load next (eg, the rest of a pipeline), which the loader sets aside memory for (see [DOS_PSP_EXEC1](../dos/#differences-from-pc-dos)), and AL = 0 for a session that shares the caller's LDT (eg, a pipeline's next program), or 1 for a session with an LDT of its own (eg, for START; see [LDTs](../mmu/#ring3)).  Loads the program into an available session; returns CL = session number, or carry set and AX = error code.
 
 **DOS_UTL_START (14h)**: CL = session number.  Marks the session startable; it starts running at the next session switch.
 

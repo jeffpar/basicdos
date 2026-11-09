@@ -7,73 +7,23 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; KILL, which also lists the sessions.
+; KILL, which ends a session or restarts the system.
 ;
 	DOSFUNC equ 1
 	include	cmd.inc
 
 CODE    SEGMENT
 
-	EXTNEAR	<askSure,getToken>
+	EXTNEAR	<askSure,getToken,syntaxError>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; listSessions
-;
-; Used by KILL with no argument to list every session with a program: its
-; number (from 1, as used by KILL), its console (the name of the device its
-; output goes to), and its program, marking the current session with "*".
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX, BX, CX, DX, SI, DI, ES
-;
-DEFPROC	listSessions
-	sub	sp,16
-	mov	di,sp
-	push	ss
-	pop	es			; ES:DI -> buffer for the names
-	DOSUTIL	GETCSN			; CL = current session #
-	mov	dl,cl			; DL = current session #
-	sub	cx,cx			; CL = session # (from 0)
-lss1:	DOSUTIL	QRYSCB			; AX = PSP, buffer = console + program
-	jc	lss9			; no more sessions
-	test	ax,ax			; does the session have a program?
-	jz	lss8			; no
-	mov	bl,' '
-	cmp	cl,dl			; is it the current session?
-	jne	lss3			; no
-	mov	bl,'*'			; BL = marker
-lss3:	mov	si,cx
-	inc	si			; SI = session # (from 1)
-	push	dx
-;
-; The console name is at the buffer (ES:DI) and the program name follows it,
-; both in our stack segment; unlike PSP-1, those are valid to address in
-; protected mode (see scb_query).
-;
-	lea	dx,[di+8]		; ES:DX -> the program's name
-	PRINTF	<"%c%2d %-8.8ls %-8.8ls",13,10>,bx,si,di,es,dx,es
-	pop	dx
-lss8:	inc	cx
-	jmp	lss1
-lss9:	add	sp,16
-	ret
-ENDPROC	listSessions
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; cmdKill
 ;
-; KILL alone lists the sessions (see listSessions).  KILL *n* ends session *n*
-; (a number from that list), by aborting each of its programs, as CTRL-ALT-DEL
+; KILL *n* ends session *n* (a number from START's list; see listSessions),
+; by aborting each of its programs, as CTRL-ALT-DEL
 ; does on its console, which also stops a program that never calls DOS, and
 ; then closing the session (see scb_end).  KILL /A restarts the system (all
 ; sessions, hence the switch), after asking first.
@@ -100,7 +50,7 @@ DEFPROC	cmdKill
 
 kl1:	call	getToken		; DS:SI -> argument, CX = length
 	jnc	kl2
-	jmp	listSessions		; none, so list the sessions
+	jmp	syntaxError		; there's no session number
 kl2:	push	si
 	inc	dx
 	call	getToken		; any other argument?

@@ -89,7 +89,7 @@ DOS	segment word public 'CODE'
 	EXTWORD	<scb_active>
 	EXTLONG	<r3_cbsp0>
 	EXTNEAR	<dos_func,dos_abort,dos_fterm,dos_ctrlc,dos_error,sprintf>
-	EXTNEAR	<get_psp>
+	EXTNEAR	<get_psp,scb_load1>
 
 	.286p
 
@@ -119,6 +119,77 @@ DEFPROC	r3_setldt,DOS
 	pop	ax
 	ret
 ENDPROC	r3_setldt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; r3_stage
+;
+; DOS_UTL_LOAD with REG_AL = 1 gives the new session an LDT of its own (see
+; init_scb), which is active while its program loads, so the caller's SPB and
+; command line (in the caller's LDT) are first copied to a block of the
+; kernel's, which the load uses instead (see scb_load).
+;
+; Inputs:
+;	REG_ES:REG_BX -> SPB
+;
+; Outputs:
+;	As for scb_load
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
+DEFPROC	r3_stage,DOS
+	push	[bp].REG_ES
+	push	[bp].REG_BX
+	mov	es,[bp].REG_ES
+	mov	di,[bp].REG_BX		; ES:DI -> SPB
+	push	es
+	push	di
+	les	di,es:[di].SPB_CMDLINE	; ES:DI -> command line
+	mov	cx,-1
+	mov	al,0
+	repne	scasb
+	not	cx			; CX = its length (with the null)
+	mov	bx,cx
+	lea	di,[bx + size SPB]
+	sub	si,si			; SI:DI = length of the copy
+	mov	bx,MCBOWNER_SYSTEM
+	mov	ax,CPU_ALLOC SHL 8	; AL = 0 (a GDT data selector)
+	call	far ptr DDINT_CPU	; AX = its selector
+	pop	si
+	pop	ds			; DS:SI -> SPB
+	ASSUME	DS:NOTHING
+	jc	rst8
+	mov	es,ax
+	sub	di,di
+	mov	cx,size SPB
+	rep	movsb			; copy the SPB
+	lds	si,ds:[si - size SPB].SPB_CMDLINE
+	mov	es:[SPB_CMDLINE].OFF,di
+	mov	es:[SPB_CMDLINE].SEG,es
+rst1:	lodsb
+	stosb
+	test	al,al
+	jnz	rst1			; copy the command line
+	mov	ds,cs:[dos_data]
+	ASSUME	DS:DOS
+	mov	[bp].REG_ES,es
+	mov	[bp].REG_BX,0		; REG_ES:REG_BX -> the copy
+	push	es
+	call	scb_load1
+	pop	cx			; CX = the copy
+	pushf
+	mov	dx,-1			; DX = -1 means CX is a segment
+	mov	ah,CPU_FREE
+	call	far ptr DDINT_CPU	; free it
+	popf
+	jmp	short rst9
+rst8:	mov	ds,cs:[dos_data]
+	mov	[bp].REG_AX,ax		; return the error code (carry is set)
+rst9:	pop	[bp].REG_BX
+	pop	[bp].REG_ES
+	ret
+ENDPROC	r3_stage
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

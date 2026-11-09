@@ -44,7 +44,7 @@ for name in ${@:-8088 real pm r3 386 r386 multi pool tools}; do
         multi)  rm -rf $tmp
                 cp -R $fpe $tmp || exit 1
                 grep -v "^SKIP=" $fpe/CONFIG.SYS > $tmp/CONFIG.SYS
-                printf 'CPU=80286\nCON=VKD$:80,25\nSHELL=COMMAND.COM\n' >> $tmp/CONFIG.SYS
+                printf 'CPU=80286\nSHELL=COMMAND.COM\n' >> $tmp/CONFIG.SYS
                 tools/pc/pc.js ibm5170 $tmp --ram=2M "VER;MEM;\TESTS\MISC\R3TESTS;$ok;SLEEP 1;QUIT" --sys=bd:2 --floppy --serial --normalize --nosync | tee "$log"
                 if ! grep -q "R3TESTS passed" "$log" || ! grep -q "EXITOK" "$log"; then
                     failed="$failed $name"

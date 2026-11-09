@@ -42,7 +42,7 @@ VKD	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 
 	DEFLBL	CON_PARMS,word
 	dw	80,16,80, 25,4,25
-	dw	0,0,1, 0,0,1
+	dw	0,0,1, 0,0,1, 0,0,1
 
 	DEFLBL	DBL_BORDER,word
 	dw	0C9BBh,0BABAh,0C8BCh,0CDCDh
@@ -97,7 +97,7 @@ CT_PORT		dw	?	; 12h: eg, 3D4h
 CT_MODE		db	?	; 14h: active video mode (see MODE_*)
 CT_SIG		db	?	; 15h: (holds SIG_CT in DEBUG builds)
 CT_COLS		dw	?	; 16h: eg, 80 (50h; ie, column width of screen)
-CT_SCROFF	dw	?	; 18h: eg, 2000 (offset of off-screen memory)
+CT_PARENT	dw	?	; 18h: context that it took focus from
 CT_SCREEN	dd	?	; 1Ah: eg, B800:00A2h with full-screen border
 CT_BUFFER	dd	?	; 1Eh: used only for background contexts
 CT_BUFLEN	dw	?	; 22h: eg, 4000 for full-screen 25*80*2 buffer
@@ -689,25 +689,42 @@ ENDPROC	ddcon_setpos
 ; statements; see gfxInit).  In protected mode, that's an LDT selector of the
 ; context's own (see set_slot), so that we can take it away while another
 ; context is using the screen; the context's sessions share its LDT (see
-; SCB_LDT).
+; SCB_LDT).  If CL is 2, it returns the number of contexts instead, and
+; whether this one has focus (eg, so that COMMAND.COM can mention SHIFT-TAB,
+; which switches between them, only on the console that the user sees).
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
-;	CL = 0 for the video mode, 1 for the video memory
+;	CL = 0 for the video mode, 1 for the video memory, 2 for the number of
+;	contexts
 ;	DS = CONSOLE context
 ;
 ; Outputs:
-;	DL = video mode, or DX = segment (or selector) of video memory
+;	DL = video mode, DX = segment (or selector) of video memory, or DL =
+;	number of contexts and DH = 1 if this context has focus (0 if not)
 ;
 ; Modifies:
-;	AX, BX, CX, DX
+;	AX, BX, CX, DX, DS
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_getmode
 	mov	dl,ds:[CT_MODE]
 	dec	cl			; video memory instead?
+	jz	dgm0			; yes
+	dec	cl			; the number of contexts?
 	jnz	dgm9			; no
-	mov	dx,ds:[CT_SLOT]
+	sub	dx,dx
+	mov	ax,ds
+	cmp	ax,[ct_focus]		; does this context have focus?
+	jne	dgn0			; no
+	inc	dh			; yes (DH = 1)
+dgn0:	mov	cx,[ct_head]
+dgn1:	jcxz	dgm9
+	inc	dx
+	mov	ds,cx
+	mov	cx,ds:[CT_NEXT]
+	jmp	dgn1
+dgm0:	mov	dx,ds:[CT_SLOT]
 	test	dx,dx			; does it have a selector yet?
 	jnz	dgm3			; yes
 	push	si
@@ -931,12 +948,14 @@ ENDPROC	ddcon_write
 ;
 ; The format of the optional context descriptor is:
 ;
-;	[device]:[cols],[rows],[border],[adapter]
+;	[device]:[cols],[rows],[border],[adapter],[focus]
 ;
 ; where [device] is "VKD$" (otherwise you wouldn't be here), [cols] is number
 ; of columns (up to 80), [rows] is number of rows (up to 25), [border] is 1 for
-; a border or 0 for none, and [adapter] is the adapter #, in case there is more
-; than one video adapter (adapter 0 is the default).
+; a border or 0 for none, [adapter] is the adapter #, in case there is more
+; than one video adapter (adapter 0 is the default), and [focus] is 1 to take
+; the focus (eg, for START), which goes back to the context that had it when
+; this one closes (see ddcon_close).  The first context always gets the focus.
 ;
 ; Each adapter's contexts are placed automatically, starting at the top left
 ; of its first page and filling the page downward, then rightward, and then
@@ -1009,6 +1028,8 @@ dco1:	push	cs
 	shl	al,1
 	or	bh,al			; BH includes adapter bit, too
 	ASSERT	CTSTAT_ADAPTER,EQ,02h
+	DOSUTIL	ATOI16
+	xchg	di,ax			; DI = 1 to take the focus
 	pop	ds
 	ASSUME	DS:CODE
 	test	bh,CTSTAT_ADAPTER	; alternate adapter requested?
@@ -1025,7 +1046,24 @@ dco1w:	mov	al,bh
 	and	ax,CTSTAT_ADAPTER	; AX = 0 or 2
 	shl	ax,1
 	xchg	si,ax			; SI = 0 (primary) or 4 (alternate)
-	mov	ax,con_place[si+2]	; AL = page, AH = # pages
+;
+; A context that starts a page goes on the first page with no contexts, so
+; that the pages of closed contexts (eg, from START) are used again, before
+; any virtual page that would need a buffer.
+;
+	cmp	word ptr con_place[si],0	; at the top left of a page?
+	jne	dco1v				; no
+	mov	al,bh
+	and	al,CTSTAT_ADAPTER	; AL = adapter bit
+	mov	ah,-1
+dco1r:	inc	ah
+	cmp	ah,MAX_PAGES		; any page left?
+	cmc
+	jc	dco1x			; no
+	call	find_page		; is it in use?
+	jnc	dco1r			; yes
+	mov	byte ptr con_place[si+2],ah
+dco1v:	mov	ax,con_place[si+2]	; AL = page, AH = # pages
 	cmp	al,MAX_PAGES		; is there a page left?
 	cmc
 	jc	dco1x			; no
@@ -1046,11 +1084,10 @@ dco1u:	cmp	cl,16			; still at least the minimum columns?
 	cmp	ch,4			; still at least the minimum rows?
 	jb	dco1x			; no
 
-	push	bx
-	mov	bx,(size CONTEXT + 15) SHR 4
-	mov	ax,DOS_MEM_ALLOC SHL 8
-	int	INT_DOSFUNC
-	pop	bx
+	push	di
+	mov	di,size CONTEXT
+	call	alloc_sys		; AX = the context's segment
+	pop	di
 	jc	dco1x
 	cmp	bl,byte ptr con_place[si+3]
 	jb	dco1a			; not a virtual page
@@ -1074,6 +1111,9 @@ dco1a:	push	ax
 	inc	byte ptr con_place[si+2]
 dco1b:	mov	con_place[si],ax
 	pop	ax
+	neg	di			; set carry if taking the focus
+	sbb	di,di
+	and	di,[ct_focus]		; DI = context giving it up, if any
 	cmp	[ct_focus],0
 	jne	dco1c
 	mov	[ct_focus],ax
@@ -1089,6 +1129,7 @@ dco1c:	mov	ds,ax
 ;	mov	ds:[CT_NEXT],ax
 ;
 dco2:	mov	ds:[CT_NEXT],0
+	mov	ds:[CT_PARENT],di
 	mov	ds:[CT_SCAN],0
 	mov	ds:[CT_SLOT],0		; no video memory selector yet
 	mov	ds:[CT_PAGE],bl
@@ -1124,7 +1165,6 @@ dco2b:	mov	es:[di],ds
 	and	al,CTSTAT_BORDER
 	mov	ds:[CTO_STATUS],al
 	call	set_geometry
-	mov	ds:[CT_SCROFF],4000	; TODO: fix this hard-coded offset
 	mov	ds:[CT_COLOR],0707h	; default fill and border attributes
 ;
 ; Importing the BIOS CURSOR_POSN into CURPOS seemed like a nice idea initially,
@@ -1210,6 +1250,9 @@ dco4a:	mov	ds:[CT_CURTYPE],ax
 	mov	ds,[ct_focus]
 	call	update_biosdata
 	pop	ds
+	mov	cx,ds:[CT_PARENT]	; CX = context with focus, if taking it
+	mov	bx,ds			; BX = this context
+	call	switch_to
 dco6:	clc
 ;
 ; An unavailable adapter or a failure to allocate memory is an open error.
@@ -1237,12 +1280,13 @@ ENDPROC	ddcon_open
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_close
 	mov	cx,es:[di].DDP_CONTEXT
-	jcxz	dcc8			; no context
-
 	push	es
+	jcxz	dcc0			; no context
 	mov	es,cx
 	dec	es:[CT_REFS]
-	jnz	dcc7
+	jz	dcc0a
+dcc0:	jmp	dcc7
+dcc0a:
 ;
 ; If the context isn't in its original mode, then the other contexts on the
 ; same adapter are blocked (see chk_blocked), so restore the context's original
@@ -1270,13 +1314,33 @@ DEFPROC	ddcon_close
 	pop	cx
 
 ;
-; If it's our last context, no context has focus now, as when we started (eg,
-; with CON=COM1, after a program's own VKD$ context closes, or a CON=VKD$
-; console's last session ends), and the next one we open gets it.
+; Any context that took the focus from this one takes it back from this one's
+; parent instead (eg, if START made B from A and C from B, and B closes first,
+; then C's focus goes back to A).
 ;
-dcc1:	cmp	[ct_focus],cx
+dcc1:	mov	ax,es:[CT_PARENT]	; AX = this context's parent, if any
+	mov	dx,[ct_head]
+	push	ds
+dcc1a:	mov	ds,dx
+	ASSUME	DS:NOTHING
+	cmp	ds:[CT_PARENT],cx	; did it take the focus from this one?
+	jne	dcc1b			; no
+	mov	ds:[CT_PARENT],ax	; yes
+dcc1b:	mov	dx,ds:[CT_NEXT]
+	test	dx,dx
+	jnz	dcc1a
+	pop	ds
+	ASSUME	DS:CODE
+;
+; If this context has focus, it goes back to the parent, if any (or else the
+; next context).  If it's our last context, no context has focus now, as when
+; we started (eg, with CON=COM1, after a program's own VKD$ context closes, or
+; a CON=VKD$ console's last session ends), and the next one we open gets it.
+;
+	cmp	[ct_focus],cx
 	jne	dcc2
-	call	switch_focus
+	xchg	bx,ax			; BX = parent, if any
+	call	switch_to
 	cmp	[ct_focus],cx		; is there another context?
 	jne	dcc2			; yes, and it has focus
 	sub	ax,ax
@@ -1318,7 +1382,7 @@ dcc4:	mov	cx,es:[CT_NEXT]		; move this context's CT_NEXT
 
 dcc7:	pop	es
 
-dcc8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret
 ENDPROC	ddcon_close
 
@@ -1333,7 +1397,7 @@ ENDPROC	ddcon_close
 ;	ES = CONSOLE context
 ;
 ; Modifies:
-;	AX, BX, CX, DX
+;	AX, BX, CX, DX, ES
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	free_ctx
@@ -1342,9 +1406,9 @@ DEFPROC	free_ctx
 	jz	fc1			; no
 	mov	ah,CPU_UNMAP
 	call	far ptr DDINT_CPU	; free it (by its ID)
-fc1:	mov	ah,DOS_MEM_FREE
-	int	INT_DOSFUNC
-	ret
+fc1:	mov	cx,es
+	mov	es,cs:[0].DDH_DATA	; (ES can't hold the block being freed)
+	jmp	short free_buf
 ENDPROC	free_ctx
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1383,11 +1447,8 @@ DEFPROC	get_vbuf
 	jc	gvb1			; none
 	mov	ax,es:[CT_SCREEN].SEG	; AX = its buffer
 	jmp	short gvb2
-gvb1:	mov	ax,CPU_ALLOC SHL 8	; AL = 0 (a GDT data selector)
-	mov	bx,MCBOWNER_SYSTEM
-	sub	si,si
-	mov	di,PAGE_LEN		; SI:DI = length
-	call	far ptr DDINT_CPU	; AX = segment (or selector)
+gvb1:	mov	di,PAGE_LEN
+	call	alloc_sys		; AX = segment (or selector)
 	pop	es			; ES = context
 	jc	gvb8
 	push	es
@@ -1400,8 +1461,7 @@ gvb1:	mov	ax,CPU_ALLOC SHL 8	; AL = 0 (a GDT data selector)
 gvb2:	pop	es			; ES = context
 	mov	es:[CT_SCREEN].SEG,ax	; (and carry is clear)
 	jmp	short gvb9
-gvb8:	mov	ah,DOS_MEM_FREE
-	int	INT_DOSFUNC		; free the context
+gvb8:	call	fc1			; free the context
 	stc
 gvb9:	pop	di
 	pop	si
@@ -1446,10 +1506,42 @@ ENDPROC	free_vbuf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; alloc_sys
+;
+; Contexts and virtual page buffers are owned by the system, rather than by
+; the program that opens a context (eg, START), since they outlive it.
+;
+; Inputs:
+;	DI = length
+;
+; Outputs:
+;	Carry clear if successful, AX = segment (or selector)
+;
+; Modifies:
+;	AX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	alloc_sys
+	push	bx
+	push	cx
+	push	dx
+	sub	si,si			; SI:DI = length
+	mov	bx,MCBOWNER_SYSTEM
+	mov	ax,CPU_ALLOC SHL 8	; AL = 0 (a GDT data selector)
+	call	far ptr DDINT_CPU
+	pop	dx
+	pop	cx
+	pop	bx
+	ret
+ENDPROC	alloc_sys
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; free_buf
 ;
 ; Inputs:
-;	CX = virtual page buffer (from get_vbuf)
+;	CX = context or virtual page buffer (from alloc_sys), which DS and ES
+;	must not hold (since CPU$ reloads them)
 ;
 ; Modifies:
 ;	AX, CX, DX
@@ -2354,7 +2446,7 @@ ENDPROC	get_curpos
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	hide_cursor
-	mov	bx,ds:[CT_SCROFF]
+	mov	bx,4000			; (an offset past the visible screen)
 	jmp	set_cursor
 ENDPROC	hide_cursor
 
@@ -2760,9 +2852,12 @@ ENDPROC	show_page
 ;
 ; This is called from check_hotkey, which is called at interrupt time, as
 ; well as whenever the bios_lock is released with a switch request pending.
+; ddcon_open and ddcon_close use switch_to instead, which switches focus to a
+; particular context (BX), unless BX is zero.
 ;
 ; Inputs:
 ;	CX = focus context, if any
+;	BX = context to switch to, or 0 for the next (switch_to only)
 ;
 ; Modifies:
 ;	AX, BX, DX
@@ -2785,10 +2880,13 @@ DEFPROC	switch_focus
 	jmp	short sf9
 
 	DEFLBL	switch_now,near
+	sub	bx,bx			; BX = 0 (the next context)
+	DEFLBL	switch_to,near
 	push	cx
 	push	si
 	push	di
 	push	ds
+	mov	si,bx			; SI = context to switch to, if any
 	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	inc	[bios_lock]		; defer switches until this one is done
@@ -2799,7 +2897,10 @@ DEFPROC	switch_focus
 	jcxz	sf8			; nothing to do
 	mov	ds,cx
 	ASSERT	STRUCT,ds:[0],CT
-	mov	cx,ds:[CT_NEXT]
+	mov	cx,si			; a particular context?
+	jcxz	sf0			; no
+	jmp	short sf2
+sf0:	mov	cx,ds:[CT_NEXT]
 	jcxz	sf1
 	jmp	short sf2
 sf1:	mov	cx,[ct_head]
@@ -3575,6 +3676,7 @@ swp6:	mov	bx,es:[CT_NEXT]
 swp7:	test	bp,bp			; did any context move to the buffer?
 	jnz	swp9			; yes
 	mov	cx,si
+	mov	ds,cs:[0].DDH_DATA	; (DS can't hold the block being freed)
 	call	free_buf		; no, so free it
 swp9:	ret
 ENDPROC	swap_now

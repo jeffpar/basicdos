@@ -54,26 +54,27 @@ AUX is opened after any [DEVICE](#device) drivers are loaded, so it can't be a p
 
 > BUFFERS=*n*
 
-Sets the number of disk buffers, each of which holds one 512-byte sector of a FAT, a directory, or a file, so that recently used sectors don't have to be read again.  The default is 3, and *n* can range from 2 to 32.  Each buffer beyond the first two uses 528 bytes of memory.  More than 3 mainly help systems with multiple sessions (eg, sessions working in different directories) and memory to spare.  `BUFFERS=2` saves memory on a 64K machine, but programs that read small amounts from two or more files at once (eg, COMP) become much slower.  For file data, only reads of part of a sector use the buffers; whole sectors and all writes are transferred directly by the disk drivers.
+Sets the number of disk buffers, each of which holds one 512-byte sector of a FAT, a directory, or a file, so that recently used sectors don't have to be read again.  The default is 8, or 3 with 128K of memory or less, and *n* can range from 2 to 32.  Each buffer beyond the first two uses 528 bytes of memory.  More buffers mainly help systems with multiple sessions (eg, sessions working in different directories).  `BUFFERS=2` saves memory on a 64K machine, but programs that read small amounts from two or more files at once (eg, COMP) become much slower.  For file data, only reads of part of a sector use the buffers; whole sectors and all writes are transferred directly by the disk drivers.
 
 ### CON
 
-> CON=VKD$:*cols*,*rows*[,*border*[,*adapter*]]  
+> CON=VKD$:*cols*,*rows*[,*border*[,*adapter*[,*focus*]]]  
 > CON=COM*n*:*baud*,*parity*,*databits*,*stopbits*[,*options*]
 
 Defines a console for a session: either a VKD$ console, which uses the video adapter and keyboard, or a COM console, which uses a serial port.  CON isn't a driver, but a name for the session's console, so a program that opens CON (or CON:) uses its session's console, whatever device it is.
 
-Each CON line defines a console for the next session, so a CON line is needed for every session that has its own console; the number of CON lines can't exceed [SESSIONS](#sessions).  If there are no CON lines, a single console is created, as if `CON=VKD$:80,25` had been specified.  If a CON line can't be opened (eg, its adapter or serial port doesn't exist), a warning is displayed; if it's the first CON line, `VKD$:80,25` is used instead, and otherwise, that console and its SHELL line are skipped.
+A CON line defines the console of the session that the next [SHELL](#shell) line starts.  A SHELL line without a CON line before it (since the previous SHELL line) gets a full-screen console, as if `CON=VKD$:80,25` had been specified, so CON lines are needed only for other consoles.  If several CON lines come before a SHELL line, the last one is used, and CON lines after the last SHELL line are ignored (unless there are no SHELL lines, in which case the last CON line is the console of the default SHELL).  If a console can't be opened (eg, its adapter or serial port doesn't exist), a warning is displayed; for the first SHELL line, `VKD$:80,25` is used instead, and otherwise, that SHELL line is skipped.
 
 For a VKD$ console:
 
 - *cols* and *rows* are the size of the console (16 to 80 columns and 4 to 25 rows)
 - *border* is 1 to draw a border around the console, or 0 for none; a border uses the outermost rows and columns of the console
 - *adapter* is 0 for the primary video adapter, or 1 for a second adapter (eg, a machine with both an MDA and a CGA)
+- *focus* is 1 for the console to take the focus from the console that has it (the first console always gets the focus); when a console that took the focus closes, the focus goes back to the console it took it from (as for [START](../cmd/system/#start))
 
 Consoles are positioned automatically, in the order of their CON lines.  Each adapter's first console starts at the top left corner of the screen, and each one after it starts below the previous one, or if the previous one reached the bottom of the screen, at the top of the screen, to its right.  A console that doesn't fit in the remaining space is made smaller to fit (but not below the minimum size, or the console isn't created).
 
-Once a screen is full, the next console starts on another page of video memory (a CGA has 4, an MDA only 1), which is displayed whenever one of its consoles has the focus.  Once the adapter's pages are full, the next consoles go on virtual pages, each 4,000 bytes of system memory, up to 8 pages per adapter in all (eg, 8 full-screen consoles on an MDA).  When a console on a virtual page gets the focus, its page trades places with the page on the screen, whose consoles move to the virtual page, and every console keeps running wherever its page is.  A program on a virtual page that calls the video BIOS (INT 10h) directly to write characters writes them on the screen instead.
+Once a screen is full, the next console starts on another page of video memory (a CGA has 4, an MDA only 1), which is displayed whenever one of its consoles has the focus.  Once the adapter's pages are full, the next consoles go on virtual pages, each 4,000 bytes of system memory, up to 8 pages per adapter in all (eg, 8 full-screen consoles on an MDA).  When a console on a virtual page gets the focus, its page trades places with the page on the screen, whose consoles move to the virtual page, and every console keeps running wherever its page is.  A console that starts a new page goes on the first page that no console is using, so the pages of closed consoles (eg, from [START](../cmd/system/#start)) are used again.  A program on a virtual page that calls the video BIOS (INT 10h) directly to write characters writes them on the screen instead.
 
 A COM console uses a serial port (eg, a terminal connected to COM1) for both input and output.  Its *options*, in any order, are:
 
@@ -101,9 +102,7 @@ Two consoles side by side, each 40 columns wide with a border:
 
 Two full-screen consoles on a CGA, each on its own page:
 
-	CON=VKD$:80,25
 	SHELL=COMMAND.COM
-	CON=VKD$:80,25
 	SHELL=COMMAND.COM
 
 The same lines on an MDA put the second console on a virtual page.
@@ -159,7 +158,7 @@ A program's interrupt handlers (eg, an INT 21h hook that passes the calls it doe
 
 > SESSIONS=*n*
 
-Sets the maximum number of sessions that can be active at once; *n* can range from 1 to 32.  The default is the number of consoles (the number of [CON](#con) lines, or 1 if there aren't any), plus 4 so that pipelines can have up to 4 filters at once, unless the PIPE$ driver isn't loaded (see [SKIP](#skip)), in which case it's just the number of consoles.
+Sets the maximum number of sessions that can be active at once; *n* can range from 1 to 32.  The default is the number of consoles (the number of [SHELL](#shell) lines, or 1 if there aren't any), plus 4 so that pipelines can have up to 4 filters at once, unless the PIPE$ driver isn't loaded (see [SKIP](#skip)), in which case it's just the number of consoles.
 
 Sessions are used not only by consoles, but also by [pipes](../intro/#pipes-and-redirection): every command after the first in a pipeline runs in its own session.  So if you set SESSIONS yourself, it should exceed the number of consoles by at least the number of filters you want to run at once.
 
@@ -167,7 +166,7 @@ Sessions are used not only by consoles, but also by [pipes](../intro/#pipes-and-
 
 > SHELL=*program* [*command*[:*command*]...]
 
-Specifies the program to run in the next session, along with any startup commands.  Each SHELL line starts a session, using the consoles defined by CON lines in order.  If there are no SHELL lines, COMMAND.COM is run in the first session.  A SHELL line without a console of its own is reported as an error (101) and skipped.  A session starts on the drive specified by its *program* (eg, `SHELL=C:/COMMAND.COM` starts on drive C:), or else on the boot drive.
+Specifies the program to run in the next session, along with any startup commands.  Each SHELL line starts a session, with a console of its own (see [CON](#con)); the number of SHELL lines can't exceed [SESSIONS](#sessions).  If there are no SHELL lines, COMMAND.COM is run in the first session.  A session starts on the drive specified by its *program* (eg, `SHELL=C:/COMMAND.COM` starts on drive C:), or else on the boot drive.
 
 BASIC-DOS doesn't automatically run an AUTOEXEC.BAT file, so a session's startup commands must be specified on its SHELL line, separated by colons.  Every BASIC-DOS disk's CONFIG.SYS also sets [PATH$](../cmd/basic/func/#path) on each SHELL line, so that every session can find the programs in the EXT, DEMOS, and SAMPLES directories:
 

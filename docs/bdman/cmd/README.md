@@ -25,35 +25,35 @@ A command given a switch it doesn't accept (eg, `DIR /Z` or `CD ../..`), or argu
 
 | Command | Category | Command | Category |
 |---------|----------|---------|----------|
-| [AUTO](system/#auto) | System | [LOAD](disk/#load) | Disk |
-| [CD](disk/#cd) | Disk | [LOCATE](device/screen/#locate) | Screen |
-| [CHAIN](basic/#chain) | BASIC | [LPRINT](device/screen/#lprint) | Screen |
-| [CIRCLE](device/graphics/#circle) | Graphics | [MD](disk/#md) | Disk |
-| [CLEAR](basic/#clear) | BASIC | [MEM](system/#mem) | System |
-| [CLS](device/screen/#cls) | Screen | [MERGE](disk/#merge) | Disk |
-| [COLOR](device/screen/#color) | Screen | [MOUSE](device/mouse/#mouse) | Mouse |
-| [COPY](disk/#copy) | Disk | [NEW](system/#new) | System |
-| [DATA](basic/#data) | BASIC | [NEXT](basic/#for) | BASIC |
-| [DATE](device/clock/#date) | Clock | [ON](basic/#on) | BASIC |
-| [DEF](basic/def/) | BASIC | [OPTION BASE](basic/#option-base) | BASIC |
-| [DEF SEG](basic/#def-seg) | BASIC | [PAINT](device/graphics/#paint) | Graphics |
-| [DEFDBL](basic/#defdbl) | BASIC | [PLAY](device/sound/#play) | Sound |
-| [DEFINT](basic/#defint) | BASIC | [POKE](basic/#poke) | BASIC |
-| [DEFSTR](basic/#defstr) | BASIC | [PRESET](device/graphics/#preset) | Graphics |
-| [DEL](disk/#del) | Disk | [PRINT](device/screen/#print) | Screen |
-| [DELETE](system/#delete) | System | [PSET](device/graphics/#pset) | Graphics |
-| [DIM](basic/#dim) | BASIC | [PUT](device/graphics/#put) | Graphics |
-| [DIR](disk/#dir) | Disk | [RD](disk/#rd) | Disk |
-| [DRAW](device/graphics/#draw) | Graphics | [READ](basic/#read) | BASIC |
-| [ECHO](device/screen/#echo) | Screen | [REM](basic/#rem) | BASIC |
-| [EDIT](system/#edit) | System | [REN](disk/#ren) | Disk |
-| [END](basic/#end) | BASIC | [RESTORE](basic/#restore) | BASIC |
-| [ERASE](basic/#erase) | BASIC | [RESUME](basic/#resume) | BASIC |
-| [ERROR](basic/#error) | BASIC | [RETURN](basic/return/) | BASIC |
-| [EXIT](system/#exit) | System | [RUN](system/#run) | System |
-| [FOR](basic/#for) | BASIC | [SAVE](disk/#save) | Disk |
-| [GET](device/graphics/#get) | Graphics | [SCREEN](device/screen/#screen) | Screen |
-| [GOSUB](basic/#gosub) | BASIC | [SOUND](device/sound/#sound) | Sound |
+| [AUTO](system/#auto) | System | [LOCATE](device/screen/#locate) | Screen |
+| [CD](disk/#cd) | Disk | [LPRINT](device/screen/#lprint) | Screen |
+| [CHAIN](basic/#chain) | BASIC | [MD](disk/#md) | Disk |
+| [CIRCLE](device/graphics/#circle) | Graphics | [MEM](system/#mem) | System |
+| [CLEAR](basic/#clear) | BASIC | [MERGE](disk/#merge) | Disk |
+| [CLS](device/screen/#cls) | Screen | [MOUSE](device/mouse/#mouse) | Mouse |
+| [COLOR](device/screen/#color) | Screen | [NEW](system/#new) | System |
+| [COPY](disk/#copy) | Disk | [NEXT](basic/#for) | BASIC |
+| [DATA](basic/#data) | BASIC | [ON](basic/#on) | BASIC |
+| [DATE](device/clock/#date) | Clock | [OPTION BASE](basic/#option-base) | BASIC |
+| [DEF](basic/def/) | BASIC | [PAINT](device/graphics/#paint) | Graphics |
+| [DEF SEG](basic/#def-seg) | BASIC | [PLAY](device/sound/#play) | Sound |
+| [DEFDBL](basic/#defdbl) | BASIC | [POKE](basic/#poke) | BASIC |
+| [DEFINT](basic/#defint) | BASIC | [PRESET](device/graphics/#preset) | Graphics |
+| [DEFSTR](basic/#defstr) | BASIC | [PRINT](device/screen/#print) | Screen |
+| [DEL](disk/#del) | Disk | [PSET](device/graphics/#pset) | Graphics |
+| [DELETE](system/#delete) | System | [PUT](device/graphics/#put) | Graphics |
+| [DIM](basic/#dim) | BASIC | [RD](disk/#rd) | Disk |
+| [DIR](disk/#dir) | Disk | [READ](basic/#read) | BASIC |
+| [DRAW](device/graphics/#draw) | Graphics | [REM](basic/#rem) | BASIC |
+| [ECHO](device/screen/#echo) | Screen | [REN](disk/#ren) | Disk |
+| [EDIT](system/#edit) | System | [RESTORE](basic/#restore) | BASIC |
+| [END](basic/#end) | BASIC | [RESUME](basic/#resume) | BASIC |
+| [ERASE](basic/#erase) | BASIC | [RETURN](basic/return/) | BASIC |
+| [ERROR](basic/#error) | BASIC | [RUN](system/#run) | System |
+| [EXIT](system/#exit) | System | [SAVE](disk/#save) | Disk |
+| [FOR](basic/#for) | BASIC | [SCREEN](device/screen/#screen) | Screen |
+| [GET](device/graphics/#get) | Graphics | [SOUND](device/sound/#sound) | Sound |
+| [GOSUB](basic/#gosub) | BASIC | [START](system/#start) | System |
 | [GOTO](basic/goto/) | BASIC | [STOP](basic/#end) | BASIC |
 | [IF](basic/if/) | BASIC | [TIME](device/clock/#time) | Clock |
 | [IOCTL](basic/#ioctl) | BASIC | [TYPE](disk/#type) | Disk |
@@ -63,6 +63,7 @@ A command given a switch it doesn't accept (eg, `DIR /Z` or `CD ../..`), or argu
 | [LINE](device/graphics/#line) | Graphics | [WHILE](basic/#while) | BASIC |
 | [LIST](system/#list) | System | [WIDTH](device/screen/#width) | Screen |
 | [LLIST](system/#llist) | System | [WINDOW](device/graphics/#window) | Graphics |
+| [LOAD](disk/#load) | Disk | | |
 See [BASIC Functions](basic/func/) for the list of functions and predefined constants.
 
 ### Not Yet Supported

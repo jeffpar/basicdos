@@ -47,6 +47,10 @@ CPUTYPE_80386	equ	3	; 80386 or later
 ; A block (DX:CX) is the address that CPU_ALLOC returned, or DX = -1 and CX =
 ; the selector (or segment) that it returned, which is what DOS has.
 ;
+; With paging (on an 80386), a selector's base is the linear address of the
+; physical memory it maps (C0000000h plus the physical address; see LIN_HI in
+; 386dev.asm), but every function still takes and returns physical addresses.
+;
 CPU_GETINFO	equ	00h	; AL = CPU type, AH = CPUF_*, DX:CX = free
 CPU_ALLOC	equ	01h	; AL = MEMF_*, BX = owner, SI:DI = length
 CPU_FREE	equ	02h	; DX:CX = block

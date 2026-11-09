@@ -158,12 +158,14 @@ DOS_HDL_IOCTL (INT 21h, AH = 44h) sends IOCTL requests to drivers: AL is passed 
 | D7h | IOCTL_GETCOLOR | Gets the fill (DL) and border (DH) colors |
 | D8h | IOCTL_SETCOLOR | Sets the fill (CL) and border (CH) colors |
 | D9h | IOCTL_SETPOS | Sets the cursor position (CL = column, CH = row) and visibility (DL) |
-| DAh | IOCTL_GETMODE | Gets the video mode (DL), or if CL = 1, the segment of the context's video memory (DX), which a program can use to draw directly (in protected mode, an LDT selector of the context's own, which isn't present while another context's mode change blocks this one; see [Video Memory](../mmu/#video)) |
+| DAh | IOCTL_GETMODE | Gets the video mode (DL) if CL = 0; if CL = 1, the segment of the context's video memory (DX), which a program can use to draw directly (in protected mode, an LDT selector of the context's own, which isn't present while another context's mode change blocks this one; see [Video Memory](../mmu/#video)); or if CL = 2, the number of VKD$ contexts (DL) and whether the caller's context has focus (DH = 1 if so), which COMMAND.COM checks to decide whether to mention SHIFT-TAB |
 | DBh | IOCTL_SETMODE | Sets the video mode (CL) |
 | DCh | IOCTL_GETCHAR | Gets the character (DL) and attributes (DH) at column CL, row CH (zero-based; see the SCREEN function) |
 | DDh | IOCTL_SETKEYS | Sets raw keys mode on (CL = 1) or off (CL = 0); see [Raw Keys](#raw-keys) |
 
 Changing the video mode (with IOCTL_SETMODE, or at ring 0 or in real mode, with INT 10h directly) turns the context into a full-screen, borderless context that uses INT 10h for output, so text output and scrolling work in graphics modes.  When the context returns to its original mode, its original geometry is restored.
+
+The first context opened gets the focus, and a context opened with a *focus* of 1 (see [CON=](../../bdman/cfg/#con); START uses it) takes the focus and remembers the context it took it from.  When a context with focus closes, the focus goes back to that context, if any, or else to the next one; when a context that others took the focus from closes, they remember its context instead.
 
 While a context is in any mode other than its original mode (eg, a graphics mode, or 40-column text in an 80-column context), it occupies the entire screen, so every other context on the same adapter is blocked: its writes, and any IOCTL_SCROLL, IOCTL_SETCOLOR, or IOCTL_SETMODE request, wait (like a context paused with CTRL-S), and its border isn't drawn (eg, on a focus switch).  When that context returns to its original mode (or is closed, in which case its original mode is restored), the borders of the other contexts on the adapter are redrawn, and every blocked request continues.  Programs that call INT 10h directly from other sessions are not blocked.
 

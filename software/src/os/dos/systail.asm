@@ -35,7 +35,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<r3_pspcopy,r3_pspnew,r3_uload,r3_read,r3_write>
 	EXTNEAR	<r3_ulock,r3_uunlock,r3_uwait,r3_uendwait,r3_uhotkey>
 	EXTNEAR	<r3_uhprintf,r3_ioctl,r3_open,r3_create,r3_close,r3_seek>
-	EXTNEAR	<r3_time,r3_sfbfree>
+	EXTNEAR	<r3_time,r3_sfbfree,next_con>
 	EXTNEAR	<r3_sread,r3_swrite,r3_rread,r3_rwrite,r3_rbread,r3_rbwrite>
 
 	ASSUME	CS:DOS, DS:DOS, ES:NOTHING, SS:NOTHING
@@ -119,16 +119,13 @@ si16c:	mov	es:[def_drive],al
 	mov	cx,0FFh			; CL = invalid SCB # (for errors),
 					; CH = no programs follow
 ;
-; Skip the SHELL of a CONSOLE that couldn't be opened (see si11), and reject
-; any SHELL beyond the last console, since its session would have none.
+; Every SHELL has a console (see next_con), so skip the SHELL of a console
+; that couldn't be opened (see si11).
 ;
 	shr	[con_fails].SEG,1
 	rcr	[con_fails].OFF,1
-	jc	si17			; its CONSOLE failed
-	mov	ax,ERR_NOSESSION
-	cmp	dl,[con_count]
-	jae	si18
-	DOSUTIL	LOAD			; load specified SHELL into an SCB
+	jc	si17			; its console failed
+	DOSUTIL	LOAD,0			; load specified SHELL into an SCB
 	jc	si18
 	push	ax
 	DOSUTIL	START			; CL = SCB # (from the LOAD call)
@@ -571,8 +568,7 @@ ENDPROC	init_sess
 	DEFPTR	pCacheActive
 	DEFWORD	cbCacheActive
 
-	DEFLONG	con_fails,0		; bits for CONSOLE lines that failed
-	DEFBYTE	con_count,1		; number of consoles opened
+	DEFLONG	con_fails,0		; bits for consoles that failed
 	DEFBYTE	boot_drive		; default drive for each SHELL
 
 CFG_SHELL	db	6,"SHELL="
@@ -599,15 +595,12 @@ DEFPROC	find_cfg
 	ASSUME	DS:NOTHING, ES:NOTHING
 	push	bx
 	push	cx
-	push	dx
 	push	es
 	push	ss			; (our data; see sysinit_high)
 	pop	es
 	ASSUME	ES:DOS
 	mov	bx,si
 	mov	di,[cfg_data]		; DI points to CFG_FILE data
-	mov	dx,di
-	add	dx,[cfg_size]		; DX points to end of CFG_FILE data
 fc1:	lods	byte ptr cs:[si]	; 1st byte at CS:SI is length
 	cbw
 	xchg	cx,ax			; CX = length of string to find
@@ -618,23 +611,13 @@ fc1:	lods	byte ptr cs:[si]	; 1st byte at CS:SI is length
 	mov	es:[di-1],cl		; zap the CFG match to prevent reuse
 	jmp	short fc9		; found it!
 fc2:	add	si,cx			; move SI forward to the minimum value
-	mov	al,0			; (CR and LF are now nulls)
-	mov	cx,dx
-	sub	cx,di			; CX = bytes left to search
-	jb	fc8			; ran out
-	repne	scasb
-	stc
-	jne	fc8			; couldn't find another line
-	repe	scasb			; skip any more nulls (eg, CR+LF)
-	stc
-	je	fc8			; ran out
-	dec	di			; DI -> 1st character of next line
+	call	next_line
+	jc	fc8			; ran out
 	mov	si,bx
 	jmp	fc1
 fc8:	mov	ax,cs:[si]		; return the minimum value at SI
 fc9:	pop	es
 	ASSUME	ES:NOTHING
-	pop	dx
 	pop	cx
 	pop	bx
 	ret
@@ -642,13 +625,44 @@ ENDPROC	find_cfg
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; next_line
+;
+; Inputs:
+;	ES:DI -> current position in CFG_FILE data (ES = our data)
+;
+; Outputs:
+;	Carry clear if there's another line (DI -> its 1st character)
+;	Carry set if not
+;
+; Modifies:
+;	AL, CX, DI
+;
+DEFPROC	next_line
+	ASSUME	DS:NOTHING, ES:DOS
+	mov	cx,[cfg_data]
+	add	cx,[cfg_size]
+	sub	cx,di			; CX = bytes left to search
+	jb	nl9			; ran out
+	mov	al,0			; (CR and LF are now nulls)
+	repne	scasb
+	jne	nl8			; couldn't find another line
+	repe	scasb			; skip any more nulls (eg, CR+LF)
+	je	nl8			; ran out
+	dec	di			; DI -> 1st character of next line
+	clc
+	ret
+nl8:	stc
+nl9:	ret
+ENDPROC	next_line
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; def_sessions
 ;
-; Without a "SESSIONS=" line, there's a session for each console (each "CON="
-; line in CFG_FILE, or just one without any), plus 4 for the filters of
-; pipelines, unless the PIPE$ driver isn't loaded (eg, it unloads itself with
-; 64K of memory or less, or SKIP=PIPE$).  We can't use find_cfg, because it
-; zaps each match, and the consoles haven't been opened yet.
+; Without a "SESSIONS=" line, there's a session for each console (one for
+; each "SHELL=" line in CFG_FILE, or just one without any; see next_con), plus
+; 4 for the filters of pipelines, unless the PIPE$ driver isn't loaded (eg, it
+; unloads itself with 64K of memory or less, or SKIP=PIPE$).
 ;
 ; Outputs:
 ;	AX = default number of sessions
@@ -659,34 +673,16 @@ ENDPROC	find_cfg
 DEFPROC	def_sessions
 	ASSUME	DS:NOTHING, ES:NOTHING
 	push	bx
-	push	cx
 	push	dx
 	push	es
-	push	ss			; (our data; see sysinit_high)
-	pop	es
-	ASSUME	ES:DOS
-	mov	di,[cfg_data]		; DI points to CFG_FILE data
-	mov	dx,di
-	add	dx,[cfg_size]		; DX points to end of CFG_FILE data
-	sub	bx,bx			; BX = number of consoles
-ds1:	cmp	word ptr es:[di],4F43h	; does this line start with "CO"?
-	jne	ds2			; no
-	cmp	word ptr es:[di+2],3D4Eh; and "N="?
-	jne	ds2			; no
-	inc	bx
-ds2:	mov	al,0			; (CR and LF are now nulls)
-	mov	cx,dx
-	sub	cx,di			; CX = bytes left to search
-	jb	ds3			; ran out
-	repne	scasb
-	jne	ds3			; couldn't find another line
-	repe	scasb			; skip any more nulls (eg, CR+LF)
-	je	ds3			; ran out
-	dec	di			; DI -> 1st character of next line
-	jmp	ds1
-ds3:	cmp	bx,1			; no consoles?
-	adc	bx,0			; then there's still the default one
-	mov	ax,BIOS
+	sub	bx,bx
+ds1:	call	next_con		; another SHELL line?
+	inc	bx			; (carry unchanged)
+	jnc	ds1			; yes
+	dec	bx			; BX = number of SHELL lines
+	jnz	ds3
+	inc	bx			; but there's always one console
+ds3:	mov	ax,BIOS
 	mov	es,ax
 	ASSUME	ES:BIOS
 	les	di,[DD_LIST]
@@ -706,7 +702,6 @@ ds8:	xchg	ax,bx			; AX = number of sessions
 	mov	ax,MAX_SESSIONS
 ds9:	pop	es
 	pop	dx
-	pop	cx
 	pop	bx
 	ret
 ENDPROC	def_sessions

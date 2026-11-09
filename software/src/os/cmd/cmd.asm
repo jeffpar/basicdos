@@ -30,6 +30,7 @@ CODE    SEGMENT
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF>
 	EXTSTR	<VER_FINAL,VER_DEBUG,FPU_NAME>
 	EXTLONG	<FPU_TABLE>
+	EXTABS	<TOK_START>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -129,7 +130,23 @@ m0a:	pop	bx
 
 	test	[bx].CMD_FLAGS,CMD_SINGLE
 	jnz	m0b			; no banner for COMMAND /C
-	PRINTF	<"BASIC-DOS Command Shell",13,10,13,10>
+	PRINTF	<"BASIC-DOS Command Shell",13,10>
+;
+; If this is one of several VKD$ consoles, and the one with focus, mention how
+; to switch between them (IOCTL_GETMODE with CL = 2 returns the number of VKD$
+; consoles in DL, and DH = 1 if this one has focus).
+;
+	push	bx
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETMODE
+	mov	bx,STDOUT
+	mov	cl,2
+	int	21h			; DL = consoles, DH = 1 if focus
+	pop	bx
+	jc	m0h			; (STDOUT isn't VKD$)
+	cmp	dx,0102h		; focus and more than one console?
+	jb	m0h			; no
+	PRINTF	<"Press Shift-Tab to switch sessions",13,10>
+m0h:	PRINTF	<13,10>
 m0b:
 ;
 ; NOTE: The original plan was to use Microsoft's MBF (Microsoft Binary Format)
@@ -959,7 +976,10 @@ DEFPROC	cmdDOS
 
 cd1:	push	dx
 	mov	dx,0FF01h		; DL = 1 (DH = 0FFh for no limit)
-	push	ax			; to limit token parsing if needed
+	cmp	al,TOK_START		; START?
+	jne	cd1a			; no
+	mov	dh,1			; yes, so the program's switches are its own
+cd1a:	push	ax			; to limit token parsing if needed
 	DOSUTIL	PARSESW			; parse switch tokens
 	mov	[bx].CMD_ARG,dl		; update index of 1st non-switch token
 	pop	ax
@@ -1101,14 +1121,7 @@ DEFPROC	cmdExec
 ; If the program didn't end its output with CR/LF, then we do it for them,
 ; so that whatever comes next (eg, the prompt) starts on a new line.
 ;
-	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETPOS
-	mov	bx,STDOUT
-	int	21h			; DL = col (if STDOUT supports it)
-	jc	ce8
-	test	dl,dl			; is the cursor at the start of a line?
-	jz	ce8			; yes
-	call	printCRLF
-ce8:
+	call	endLine
 	IFDEF	MAXDEBUG
 	mov	ax,word ptr [bp].EXIT_CODE
 	PRINTF	<"Return code %bd",13,10,13,10>,ax
@@ -1487,7 +1500,7 @@ cf7b:	stosb				; SPB_SFHOUT
 	stosb				; SPB_SFHPRN
 	mov	bx,sp			; ES:BX -> SPB on stack
 	call	pipeStages		; CH = commands that follow
-	DOSUTIL	LOAD			; load CMDLINE into an SCB
+	DOSUTIL	LOAD,0			; load CMDLINE into an SCB
 	lea	sp,[bx + size SPB]	; clean up the stack
 	jc	cf8
 	call	addPipe			; record the session
@@ -1815,6 +1828,32 @@ DEFPROC	cmdExit
 	ASSUME	DS:DATA
 cx9:	ret
 ENDPROC	cmdExit
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; endLine
+;
+; Ends the current line, unless the cursor is already at the start of one
+; (or STDOUT doesn't report its cursor position; eg, a file).
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, DX
+;
+DEFPROC	endLine
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETPOS
+	mov	bx,STDOUT
+	int	21h			; DL = col (if STDOUT supports it)
+	jc	el9
+	test	dl,dl			; is the cursor at the start of a line?
+	jnz	printCRLF		; no
+el9:	ret
+ENDPROC	endLine
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

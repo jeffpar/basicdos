@@ -27,6 +27,7 @@ DOS	segment word public 'CODE'
 	EXTLONG	<bpb_table,scb_table,sfb_table,cdir_table,clk_ptr,fpu_table>
 	EXTLONG	<dev_head>
 	EXTNEAR	<find_cfg,def_sessions,init_table,set_bpbtime,load_devices>
+	EXTNEAR	<next_line>
 	EXTNEAR	<sysinit_end>
 	EXTNEAR	<move_init,dos_size,map_buf,map_dos>
 	EXTNEAR	<set_call5,mem_total,init_sess>
@@ -34,7 +35,6 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<sysinit_tail,fatal_error,set_ddint,set_fault>
 	EXTWORD	<dos_seg,dos_code,cfg_data,cfg_size>
 	EXTLONG	<pCacheInt21,con_fails>
-	EXTBYTE	<con_count>
 	EXTERNS	<cache_int21>,far
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>
 	EXTNEAR	<dos_term,dos_func,dos_exit,dos_ctrlc,dos_error,dos_default>
@@ -490,8 +490,16 @@ si7a:	mov	dx,size SFB		; AX = new value
 ;
 	mov	si,offset CFG_BUFFERS
 	call	find_cfg		; look for "BUFFERS="
-	jc	sb1			; if not found, AX will be default
-	xchg	si,di
+	jnc	sb0
+;
+; Without a "BUFFERS=" line, AX is the default, unless memory is limited (128K
+; or less, as for FILES), where 3 is a better default.
+;
+	cmp	[mem_size],128		; 128K or less?
+	ja	sb1			; no
+	mov	al,3			; yes (AH is already zero)
+	jmp	short sb1
+sb0:	xchg	si,di
 	push	cs
 	pop	es
 	mov	bl,10			; BL = base 10
@@ -573,18 +581,14 @@ sb3:
 	mov	ax,DOS_HDL_OPENRW
 	int	21h			; AX = SFH 0 (if successful)
 ;
-; Open the console, with optional context.  If there's a "CON=" setting in
-; CFG_FILE, use that; otherwise, use CON_DEVICE.  If the setting can't be
+; Open the first SHELL's console (see next_con), which is also the console of
+; the default SHELL if there are no SHELL lines.  If its setting can't be
 ; opened (eg, its adapter or serial port doesn't exist), fall back to
 ; CON_DEVICE, and report the failure once the console is open.
 ;
 	mov	bx,es:[scb_active]	; BX -> SCB
-si8:	mov	si,offset CFG_CON
-	mov	dx,offset CON_DEVICE
-	call	find_cfg		; look for "CON="
-	jc	si9			; not found
-	mov	dx,di
-si9:	sub	si,si			; SI = 0 (no error yet)
+	call	next_con		; DX -> setting
+	sub	si,si			; SI = 0 (no error yet)
 	mov	ax,DOS_HDL_OPENRW
 	int	21h
 	jnc	si9a
@@ -662,15 +666,14 @@ si9f:	mov	si,offset CFG_AUX
 	mov	word ptr es:[bx].SCB_SFHAUX,cx
 	ASSERT	<SCB_SFHAUX + 1>,EQ,<SCB_SFHPRN>
 ;
-; See if there are any more CON settings; if so, then for each one, open the
-; console, and record it in the next available SCB.  If there aren't enough
-; SCBs or SFBs, then we've got a configuration error.  If one can't be opened,
-; we report it, reuse its SCB for the next one, and record its bit in
-; con_fails, so that its SHELL is skipped.
+; For each additional SHELL line, open its console, and record it in the next
+; available SCB.  If there aren't enough SCBs or SFBs, then we've got a
+; configuration error.  If one can't be opened, we report it, reuse its SCB
+; for the next one, and record its bit in con_fails, so that its SHELL is
+; skipped.
 ;
-si10:	mov	si,offset CFG_CON
-	call	find_cfg		; look for another "CON="
-	jnc	si10a
+si10:	call	next_con		; another SHELL line?
+	jnc	si10a			; yes
 	jmp	si12			; no more
 si10a:	shl	[con_bit].OFF,1
 	rcl	[con_bit].SEG,1
@@ -680,7 +683,6 @@ si10a:	shl	[con_bit].OFF,1
 	mov	dx,offset CONERR
 	jmp	print_error
 si11:	mov	es:[scb_active],bx	; make the next SCB active
-	mov	dx,di
 	mov	ax,DOS_HDL_OPENRW
 	int	21h
 	jnc	si11a
@@ -692,8 +694,7 @@ si11:	mov	es:[scb_active],bx	; make the next SCB active
 	mov	ax,[con_bit].SEG
 	or	[con_fails].SEG,ax
 	jmp	si10
-si11a:	inc	[con_count]
-	mov	es:[bx].SCB_SFHIN,al
+si11a:	mov	es:[bx].SCB_SFHIN,al
 	mov	es:[bx].SCB_SFHOUT,al
 	mov	es:[bx].SCB_SFHERR,al
 	mov	word ptr es:[bx].SCB_SFHAUX,cx
@@ -795,11 +796,61 @@ ENDPROC	sysinit
 	int	21h
 	jmp	fatal_error
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; next_con
+;
+; Find the next "SHELL=" line in CFG_FILE (after the one found last time, if
+; any), and get the setting of its session's console: the last "CON=" line
+; since the previous SHELL line, or else CON_DEVICE.  Once there are no more
+; SHELL lines, the next call starts over.
+;
+; Outputs:
+;	Carry clear if a SHELL line was found, set if not
+;	DX -> console setting (even if no SHELL line was found)
+;
+; Modifies:
+;	AL, DX, DI
+;
+DEFPROC	next_con
+	ASSUME	DS:NOTHING, ES:NOTHING
+	push	cx
+	push	es
+	push	ss			; (our data; see sysinit_high)
+	pop	es
+	ASSUME	ES:DOS
+	mov	dx,offset CON_DEVICE	; DX -> default setting
+	mov	di,es:[shell_line]
+	test	di,di			; did we find a SHELL line last time?
+	jnz	nc3			; yes, so skip it
+	mov	di,[cfg_data]		; DI -> 1st line
+nc1:	cmp	word ptr es:[di],4F43h	; does this line start with "CO"?
+	jne	$+13			; no (skip to the SHELL check)
+	cmp	word ptr es:[di+2],3D4Eh; and "N="?
+	jne	$+5			; no
+	lea	dx,[di+4]		; DX -> CON setting
+	cmp	word ptr es:[di],4853h	; does this line start with "SH"?
+	jne	nc3			; no
+	cmp	word ptr es:[di+2],4C45h; and "EL"?
+	jne	nc3			; no
+	cmp	word ptr es:[di+4],3D4Ch; and "L="?
+	je	$+10			; yes (carry clear)
+nc3:	call	next_line
+	jnc	nc1
+	mov	di,0			; start over (carry unchanged)
+	mov	es:[shell_line],di
+	pop	es
+	ASSUME	ES:NOTHING
+	pop	cx
+	ret
+ENDPROC	next_con
+
 ;
 ; Initialization variables
 ;
 	DEFWORD	bpb_off
-	DEFLONG	con_bit,1		; bit for the current CONSOLE line
+	DEFWORD	shell_line,0		; last SHELL line found by next_con
+	DEFLONG	con_bit,1		; bit for the current console
 ;
 ; Initialization data
 ;
@@ -819,17 +870,17 @@ ENDPROC	sysinit
 	dw	-1			; end of tables
 	DEFLBL	INT_TABLES_END
 
-CFG_CON		db	4,"CON="
 CON_DEVICE	db	"VKD$:80,25",0	; default CON configuration
 CFG_AUX		db	4,"AUX="
 CFG_PRN		db	4,"PRN="
 ;
-; BUFFERS defaults to 3, which leaves two for file data, so that reading small
-; pieces of two files at once (eg, COMP) doesn't reread a sector per piece.
-; The 64K configurations use BUFFERS=2 to save the 528 bytes.
+; BUFFERS defaults to 8, or with 128K or less of memory, to 3 (see sb1), which
+; still leaves two for file data, so that reading small pieces of two files at
+; once (eg, COMP) doesn't reread a sector per piece.  The 64K configurations
+; use BUFFERS=2 to save another 528 bytes.
 ;
 CFG_BUFFERS	db	8,"BUFFERS="
-		dw	3,2,32
+		dw	8,2,32
 ;
 ; FILES can't exceed 254, since SFH 0FEh is SFH_NODEV.  It defaults to 20, or
 ; with 128K or less of memory, to the minimum (see si7).

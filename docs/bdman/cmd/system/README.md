@@ -18,6 +18,7 @@ BASIC-DOS system commands include:
 - [MEM](#mem)
 - [NEW](#new)
 - [RUN](#run)
+- [START](#start)
 - [VER](#ver)
 
 AUTO, DELETE, EDIT, LIST, and NEW work with the loaded program, which can also be changed by typing lines with line numbers at the prompt (see [Entering Programs](../../intro/#entering-programs)).  AUTO, DELETE, and EDIT can't be used inside a BAS or BAT file (they report "Not allowed in a program").
@@ -53,17 +54,11 @@ Exits the command shell (see [COMMAND.COM](../external/command/)), returning to 
 
 ### KILL
 
-> KILL [*session*\|/A]
+> KILL *session*\|/A
 
-`KILL` alone lists every session that's running a program: its number, its console, and its program, with `*` marking the current session:
+`KILL` *session* ends the specified session (a number from the list that [START](#start) displays): every program running in it is stopped, as **Ctrl-Alt-Del** stops a program on its console, even one stuck in a loop that never uses DOS, including the session's shell, and then the session closes, so its console no longer responds.  For example, `KILL 2` ends a looping program and its shell on a serial display, from the PC's own console display.  If no other session is left, the system halts.  A number that isn't in the list is reported as `Invalid session`.
 
-	C:\>KILL
-	* 1 VKD$     COMMAND
-	  2 COM1     COMMAND
-
-`KILL` *session* ends the specified session (a number from that list): every program running in it is stopped, as **Ctrl-Alt-Del** stops a program on its console, even one stuck in a loop that never uses DOS, including the session's shell, and then the session closes, so its console no longer responds.  For example, `KILL 2` ends a looping program and its shell on a serial display, from the PC's own console display.  If no other session is left, the system halts.  A number that isn't in the list is reported as `Invalid session`.
-
-`KILL /A` restarts the system, with a warm boot, which skips the ROM's memory tests, after writing any modified disk data, but first it asks `Are you sure (Y/N)? `, until you answer Y or N.  It takes no session number.
+`KILL /A` restarts the system, with a warm boot, which skips the ROM's memory tests, after writing any modified disk data, but first it asks `Are you sure (Y/N)? `, until you answer Y or N.  It takes no session number.  KILL alone is a syntax error.
 
 ### LIST
 
@@ -110,6 +105,22 @@ Runs the currently loaded BAS or BAT program.  If the whole program was compiled
 In a program, RUN restarts the program at its first line, as in Microsoft BASIC: its variables are cleared, any open files are closed, [READ](../basic/#read) starts over at the first DATA item, and any GOSUBs, FOR and WHILE loops, and [ON ERROR](../basic/#on-error) handler in progress are ended.  A BAT file restarts as a BAT file.
 
 With *file*, RUN runs that BAS file, as in Microsoft BASIC.  If the file isn't in the current directory, and its name doesn't include a drive or directory, the directories listed in [PATH$](../basic/func/#path) are searched, and if the name has no extension, .BAS is added.  At the prompt, RUN loads the file (replacing any loaded program) and runs it, so it remains loaded when it ends.  In a program, RUN replaces the program, as [CHAIN](../basic/#chain) *file* does, except that any open files are closed first; a program run by name instead (eg, `MENU`) returns to the program that ran it.  *file* can be written as is, quoted, or as a string variable (see [Command Arguments](../../lang/#command-arguments)), and an empty string variable is the same as no file.  If the file can't be found, RUN fails like any other command, so the program continues, with ERRORLEVEL set to 1.  RUN *line* and the R option (which keeps files open) aren't supported, and RUN *file* and RUN in a program aren't available on low memory systems.
+
+### START
+
+> START [*program* [*arguments*]]
+
+`START` alone lists every session that's running a program: its number, its console, and its program, with `*` marking the current session:
+
+	C:\>START
+	* 1 VKD$     COMMAND
+	  2 COM1     COMMAND
+
+`START` *program* runs *program* (a COM or EXE file, found the way any external command is, including in the directories of PATH$) with any *arguments* (and their switches) in a new session, on a new full-screen console, which gets the focus (press **Shift-Tab** to switch back).  When the program ends, its session and its console close, and if that console had the focus, it goes back to the console that had it before (or if that console has closed, to the console that one got it from, and so on).  For example, `START COMMAND` starts another command shell, which, unlike the shell that a [SHELL=](../../cfg/#shell) line starts, can [EXIT](#exit).
+
+Like a session that CONFIG.SYS starts, the new session doesn't get the current session's handles (eg, its redirection) or environment, but it does start on the current drive and in the current directories; to give a new COMMAND.COM a PATH$, add a PATH$ assignment as its startup command (eg, `START COMMAND PATH$="A:\;A:\EXT"`).  In protected mode, its programs' memory is in an LDT of its own (see [Protected Mode](../../../bdtech/mmu/)).
+
+Each START needs a free session (see [SESSIONS=](../../cfg/#sessions)), and its console needs a page of video memory, or a virtual page of system memory (see [CON=](../../cfg/#con)).  Errors include "No sessions available to run *program*" and "Unable to load *program*".
 
 ### VER
 

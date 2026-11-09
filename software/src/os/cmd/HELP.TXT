@@ -255,8 +255,8 @@ DELETE  Del Left    CTRL-V  Toggle Ins\
 ESCAPE  Cancel      CTRL-C  Abort
 Use CTRL-BREAK or CTRL-ALT-DELETE to terminate programs, and use KILL to end sessions or restart the system.
 
-[c]KILL [*session*|~A]
-KILL lists the session number, console driver, and current program of every active session.  KILL *session* ends all of the programs in that session and closes it.  KILL ~A restarts the system.
+[c]KILL *session*|~A
+KILL *session* ends all of the programs in that session (a number that START lists) and closes it.  KILL ~A restarts the system.
 
 [e]LABEL [*drive*:][*label*]
 Gives *drive* (or the current drive) a volume label (up to 11 characters), or without a *label*, displays the current label and asks for a new one (or ENTER to delete it).
@@ -498,6 +498,9 @@ Same as SPACE$ (eg, PRINT "A"; SPC(5); "B").
 
 [f]SQR(*x*)
 Returns the square root of *x*, which must not be negative.
+
+[c+]START [*program* [*arguments*]]
+START alone lists the session number, console driver, and current program of every active session.  START *program* runs *program* (a COM or EXE file) in a new session, on a new full-screen console, which gets the focus (press Shift-Tab to switch).  When the program ends (eg, EXIT, for a new COMMAND), its session and console close, and the focus goes back to the console that had it.  The session starts without this session's environment (eg, START COMMAND PATH$="A:\EXT" sets the new COMMAND's PATH$).
 
 [b]STOP [*n*]
 Same as END.

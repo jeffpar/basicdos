@@ -34,11 +34,11 @@ Devinit reads CONFIG.SYS (to honor any SKIP= line), chains the driver headers to
 Sysinit then:
 
 - Processes PATHCHAR=, and records the boot key
-- Allocates the Session Control Block table (SESSIONS=, which by default depends on the number of consoles and whether PIPE$ is loaded) and the System File Block table (FILES=), along with the BPBs, the current directory table, and any extra disk buffers (BUFFERS=)
-- Opens the first session's console (CON=, or VKD$:80,25 by default)
+- Allocates the Session Control Block table (SESSIONS=, which by default depends on the number of SHELL= lines and whether PIPE$ is loaded) and the System File Block table (FILES=), along with the BPBs, the current directory table, and any extra disk buffers (BUFFERS=)
+- Opens the first session's console (the CON= line before the first SHELL= line, or VKD$:80,25 by default)
 - Processes SWITCHAR= or a `-` boot key (after the first console is open, so that a conflict with PATHCHAR= can be reported)
 - Loads any DEVICE= drivers, and then opens AUX and PRN (AUX= and PRN=, or COM1 and LPT1 by default), which every session shares
-- Opens the console for each additional CON= line
+- Opens the console for each additional SHELL= line (its CON= line, or VKD$:80,25)
 - Opens the DEBUG$ device (the [DEBUG.COM](../dev/) driver), if installed, for DPRINTF messages, and obtains the FPU$ function table (FPUTBL), if the FPU$ driver is present
 - Revectors the DDINT_ENTER, DDINT_LEAVE, and DDINT_UTIL entry points (53Fh-54Dh) used by driver interrupt handlers
 - Prints the startup banner, and for each SHELL= line (or the default, COMMAND.COM), loads the program into the next session with DOS_UTL_LOAD and starts it with DOS_UTL_START

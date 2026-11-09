@@ -62,8 +62,8 @@ m1:	mov	es,ds:[PSP_ENVSEG]
 	push	ds
 	pop	es
 	mov	al,ds:[PSP_CMDTAIL+2]	; AL = letter, if any
-	cmp	ds:[PSP_CMDTAIL],0	; are we a copy?
-	je	m2			; no
+	cmp	ds:[PSP_CMDTAIL],2	; are we a copy (a space and a letter)?
+	jb	m2			; no (eg, an empty tail, or just a space)
 	sub	al,'A'
 	cbw
 	add	ax,ax

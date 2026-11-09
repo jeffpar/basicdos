@@ -30,14 +30,14 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] Boot message (removable with `SYS /N`); pressing certain keys within 2 seconds of the boot message can alter the boot process: **Esc** allows a floppy to boot from a hard disk instead, **P** selects protected-mode, and **R** selects real-mode
 - [x] Booting BASIC-DOS from a hard disk partition (eg, a disk built with `pc.js --sys=bd:2`), which becomes the default drive
 - [x] CONFIG.SYS support for AUX, BUFFERS, CON, CPU, DEVICE, FILES, MEMSIZE, PATHCHAR, PRN, RING, SESSIONS, SHELL, SKIP, and SWITCHAR
-- [x] CON, AUX, and PRN are names for each session's console, AUX, and PRN devices rather than drivers: [CON=](docs/bdman/cfg/#con) defines each session's console (VKD$ or a serial port), and [AUX=](docs/bdman/cfg/#aux) and [PRN=](docs/bdman/cfg/#prn) choose any device (COM1 and LPT1 by default); without one (eg, no LPT1), opening the name fails, and its handle stays reserved
+- [x] CON, AUX, and PRN are names for each session's console, AUX, and PRN devices rather than drivers: [CON=](docs/bdman/cfg/#con) defines the console (VKD$ or a serial port) of the next SHELL= line's session, which otherwise gets a full-screen VKD$ console, and [AUX=](docs/bdman/cfg/#aux) and [PRN=](docs/bdman/cfg/#prn) choose any device (COM1 and LPT1 by default); without one (eg, no LPT1), opening the name fails, and its handle stays reserved
 - [x] SKIP= lists built-in drivers (by their exact device names, separated by commas) that should not be loaded (eg, `SKIP=VKD$,FPU$`); a skipped driver is never initialized, and its memory is reclaimed (CPU$, which manages memory, can't be skipped)
 - [x] Installable device drivers (DEVICE=)
 - [x] Critical ("hard") error handling: block device errors go to the session's INT 24h handler (called on a DOS stack, with PC DOS inputs and responses), and the default handler displays the traditional "Abort, Retry, Ignore, Fail?" prompt (see [Critical Errors](docs/bdtech/dos/#critical-errors))
 
 ### Device Drivers
 
-- [x] VKD$ (video and keyboard), with a context for each console
+- [x] VKD$ (video and keyboard), with a context for each console; when there's more than one, COMMAND.COM's banner on the console with focus adds "Press Shift-Tab to switch sessions" (IOCTL_GETMODE with CL = 2 returns the number of VKD$ consoles and whether the caller's has focus)
 - [x] VKD$ virtual pages: consoles beyond an adapter's pages of video memory (eg, every console after the first full-screen one on an MDA) get pages of system memory, up to 8 pages per adapter, and switching focus to one exchanges its page with the page on the screen (see the [Multiple Pages demo](demos/p80/pc/) on an IBM PC with a Monochrome Display)
 - [x] COM, LPT, NUL, CLOCK$, and PIPE$ devices
 - [x] CPU$, loaded first, detects the processor and manages all memory, with the same functions in either mode: using a table of physical memory blocks and protected-mode descriptors in protected mode, and otherwise an MCB chain (see [The CPU$ Drivers](docs/bdtech/mmu/#cpu))
@@ -73,8 +73,8 @@ On an 80286 or later with sufficient memory (256K or more), BASIC-DOS can run in
 - [ ] Ring 3 for the programs that still need `RING=0`: those that hook an interrupt issued by ring 0 code (eg, INT 1Ch or INT 13h), call CPU$ (eg, CPUTESTS), or use IN, OUT, CLI, or STI
 - [ ] MZ EXE files in protected mode, which fail with "Unable to load" (currently NOT under consideration for inclusion in BASIC-DOS, since NE programs take their place; see [Limitations](docs/bdtech/mmu/#limits))
 - [ ] VKD$ saving a blocked console's video memory in a buffer, and remapping its selector there, so that its programs keep running (and DEF SEG's video memory selectors through VKD$, too)
-- [x] CPU$ uses the 80386's features on an 80386 (unless CONFIG.SYS has `CPU=80286`): an 80386 TSS, and selectors that can cover more than 64K (CPU_SETLIM)
-- [ ] More 80386 features: paging, then virtual-8086 mode sessions for MZ programs, then 32-bit sessions for LE programs (built with MASM 5.10B and LINK386 from the Windows 3.1 DDK, in **TOOLS**)
+- [x] CPU$ uses the 80386's features on an 80386 (unless CONFIG.SYS has `CPU=80286`): an 80386 TSS, selectors that can cover more than 64K (CPU_SETLIM), and paging, which maps physical memory at C0000000h, leaving the lower linear addresses free
+- [ ] More 80386 features: virtual-8086 mode sessions for MZ programs, then 32-bit sessions for LE programs (built with MASM 5.10B and LINK386 from the Windows 3.1 DDK, in **TOOLS**)
 
 ### Kernel: Processes, Memory, and Sessions
 
@@ -82,6 +82,7 @@ On an 80286 or later with sufficient memory (256K or more), BASIC-DOS can run in
 - [x] Memory allocation (through CPU$, which uses MCBs on an 8088), from all of memory (on an 80286 in protected mode, conventional and extended memory alike, and MEM and FRE count all of it), including per-program heap requests, and allocation from the top of memory (MCBTYPE_HIGH), which the interpreter uses for its own blocks so that the memory below them stays contiguous
 - [x] DOS_UTL_QRYMEM queries any memory block (its size in bytes, since a block can be 1Mb or more)
 - [x] INT 2Bh utility functions numbered contiguously (00h-28h) and grouped by purpose (see the [Technical Reference](docs/bdtech/util/))
+- [x] START *program* [*arguments*] runs a program in a new session, on a new full-screen console (eg, `START COMMAND` for another shell, which can EXIT, closing its console), which gets the focus (and gives it back to the console that had it when it closes), with an LDT of its own in protected mode; consoles' pages are reused once their consoles close; START alone lists the sessions
 - [x] Preemptive multitasking of multiple sessions; a session closes when its last program ends (eg, KILL from another session), and the system halts when no session is left, but the shell that CONFIG.SYS starts in each session ignores EXIT, as PC DOS's COMMAND /P does; without SESSIONS=, there's a session for each console, plus 4 for pipeline filters if PIPE$ is loaded
 - [x] CTRL-C/CTRL-Break handling, CTRL-ALT-DEL session aborts, and divide and overflow errors, which end the program (as MS-DOS does) without aborting its parent (vectors 00h, 08h, 09h, 1Bh, and 1Ch that a terminated program left hooked, like MSBASIC's, are restored)
 - [x] Session END: abort the current program in a specified session, interrupting any pending wait; WAITEND waits for the session to close
@@ -103,14 +104,14 @@ On an 80286 or later with sufficient memory (256K or more), BASIC-DOS can run in
 - [x] Same-drive file and directory moves (function 56h): preserve contents and metadata, update a moved directory's `..` entry, retain active current directories, and reject moves into itself or a descendant
 - [x] Absolute disk reads and writes: opening a volume (eg, `C:`) as a file gives read/write access to its sectors, in place of INT 25h and INT 26h; a volume can also be created (ie, opened FOR OUTPUT) and opened when its media is unknown (eg, an unformatted diskette), with no critical error prompt, and IOCTLs on a volume handle go to the drive's driver (with their errors returned to the caller)
 - [x] Configurable open file limit (FILES=8-254, default 20, or 8 with 128K of memory or less)
-- [x] Configurable disk buffer cache (BUFFERS=2-32, default 3), with least-recently-used replacement for FAT sectors, directory sectors, and file reads of less than a sector; other file data is transferred directly by the disk drivers, with one request for each run of clusters that are next to each other on disk (a write allocates all the clusters it needs first, as in PC DOS)
+- [x] Configurable disk buffer cache (BUFFERS=2-32, default 8, or 3 with 128K or less), with least-recently-used replacement for FAT sectors, directory sectors, and file reads of less than a sector; other file data is transferred directly by the disk drivers, with one request for each run of clusters that are next to each other on disk (a write allocates all the clusters it needs first, as in PC DOS)
 - [x] File attributes: a read-only file can't be opened for writing, replaced, or deleted; getting and setting a file's attributes (function 43h) and a handle's time and date (function 57h, kept when the file is closed); and on every BASIC-DOS disk, BASDEV.COM and BASDOS.COM are read-only hidden system files and COMMAND.COM is a read-only system file; BASIC's OPEN FOR RANDOM opens a read-only file for reading (as MSBASIC does)
 - [ ] Extended disk partitions (currently NOT under consideration for inclusion in BASIC-DOS)
 
 ### Command Interpreter: DOS Commands
 
 - [x] CD, COPY, DATE, DEL, DIR, EXIT, KILL, MD, MEM, RD, TIME, TYPE, and VER (HELP is an external command; see [Utilities](#utilities))
-- [x] KILL lists sessions or ends one, and KILL /A restarts the system (with a warm boot, after asking)
+- [x] KILL ends a session (a number that START lists), and KILL /A restarts the system (with a warm boot, after asking)
 - [x] DIR listings begin with the volume label and the directory's full path, as in DOS 2.x (FFIRST with attribute 08h finds only the volume label, and GETCWD with DL = FFh returns the path of the directory FFIRST searched)
 - [x] DIR /A lists hidden files (only the hidden attribute keeps a file out of DIR, so system files like COMMAND.COM are listed), DIR /S lists the matching files in every subdirectory, with a header and totals for each directory, and DIR /W lists only the names (eg, HELP.TXT, with the path character after each directory), in as many 16-character columns as the console has room for
 - [x] The prompt displays the current drive and directory (eg, `C:\SUBDIR>`), and switches use `/` (eg, `TIME /P`), as in PC DOS, unless SWITCHAR is `-` or PATHCHAR is `/`, in which case they use `-`
@@ -321,7 +322,7 @@ These are the next steps, roughly in priority order:
 2. The rest of runtime error handling (messages for numeric errors other than "Division by zero", such as "Overflow")
 3. Common BASICA features that BASIC-DOS lacks: BEEP and COMMON
 4. The rest of protected mode on an 80286 or 80386: ring 3 for the programs that still need `RING=0` (interrupt hooks that DOS or the ROM BIOS calls, and CPUTESTS); see [Limitations](docs/bdtech/mmu/#limits)
-5. 80386 sessions: paging, virtual-8086 mode sessions for MZ programs, and 32-bit sessions for LE programs
+5. 80386 sessions: virtual-8086 mode sessions for MZ programs, and 32-bit sessions for LE programs
 
 ### Ring 3 Security
 

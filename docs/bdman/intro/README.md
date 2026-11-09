@@ -140,7 +140,7 @@ BASIC-DOS can run several programs at once, each in its own *session*.  A sessio
 
 Every console needs a session, and so does every command after the first in a [pipeline](#pipes-and-redirection), so a system usually has more sessions than consoles; the extra sessions determine how many filters can run at once.
 
-Press **Shift-Tab** to switch the focus to the next console.
+Press **Shift-Tab** to switch the focus to the next console.  When there's more than one console on the video adapters, COMMAND.COM says so when it starts on the console with the focus, after its `BASIC-DOS Command Shell` message: `Press Shift-Tab to switch sessions`.
 
 CONFIG.SYS defines the number and size of the consoles (see [CON=](../cfg/#con)) and the number of sessions (see [SESSIONS=](../cfg/#sessions)).
 

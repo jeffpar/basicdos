@@ -1,4 +1,3 @@
 REM Demonstration of a single-console configuration
-BUFFERS=4
 SESSIONS=3
 SHELL=COMMAND.COM PATH$="A:\;A:\EXT;A:\DEMOS;A:\SAMPLES":HELLO.BAT

@@ -1,5 +1,4 @@
 REM Demonstration of dual monitors with multiple consoles per monitor
-BUFFERS=4
 SESSIONS=8
 CON=VKD$:40,25,1
 SHELL=COMMAND.COM PATH$="A:\;A:\EXT;A:\DEMOS;A:\SAMPLES":FIBO.BAT

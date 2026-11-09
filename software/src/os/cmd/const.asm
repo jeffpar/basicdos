@@ -300,6 +300,7 @@ KEYWORDS	macro	PASS
 	PASS	SIN,   108
 	PASS	SOUND,  69, genSound
 	PASS	SQR,   109
+	PASS	START,  25, cmdStartSes,PUB
 	PASS	STEP,  206,,PUB
 	PASS	STOP,   61, genEnd
 	PASS	SWAP,   97, genSwap

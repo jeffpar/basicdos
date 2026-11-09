@@ -886,7 +886,7 @@ ENDPROC	debugfns
 ; limit of FFFFh and limit bits 19-16 of 1 (byte granularity), a byte written
 ; 64K into the block through that selector, with a 32-bit offset, must be the
 ; byte 10h into the block's second selector, and a 2Mb limit must use 4K
-; granularity.
+; granularity.  And then paging must be on (see LIN_HI in 386dev.asm).
 ;
 DEFPROC	bigseg
 	xchg	bx,ax			; BX = the block's first selector
@@ -940,9 +940,14 @@ bg1:	call	cpu_ok
 	and	ah,8Fh
 	cmp	ah,80h			; limit bits 19-16 = 0, 4K granular?
 	jne	bg8			; no
-	PRINTF	<"Limits beyond 64K for sel %#x",13,10>,bx
-	ret
+	inc	bp
+	db	0Fh,20h,0C0h		; MOV EAX,CR0
+	db	66h,0C1h,0E8h,10h	; SHR EAX,16
+	test	ah,80h			; is paging (PG) on?
+	jnz	bg9			; yes
 bg8:	jmp	m8
+bg9:	PRINTF	<"Limits beyond 64K for sel %#x, with paging",13,10>,bx
+	ret
 ENDPROC	bigseg
 
 ;

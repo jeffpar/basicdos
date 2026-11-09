@@ -14,7 +14,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<parseDOS,splitCmd,releaseStr,strIllegal,ctrlc,openVar>
-	EXTNEAR	<mouseCall,mouseReset,allocStr,rtError>
+	EXTNEAR	<mouseCall,mouseReset,allocStr,rtError,endLine>
 	EXTSTR	<STR_ON,STR_OFF>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -338,10 +338,11 @@ ENDPROC	getArgs
 ;	BL = index of BH in MODE_TBL (see setScreen)
 ;
 ; Modifies:
-;	AX, BX, DX
+;	AX, BX, CL, DX
 ;
 DEFPROC	getMode
 	mov	al,IOCTL_GETMODE
+	mov	cl,0			; CL = 0 for the video mode
 	call	ioctlCon		; DL = video mode
 	jc	gm9
 	cmp	dl,7			; MDA mode?
@@ -376,12 +377,14 @@ ENDPROC	getMode
 ;
 DEFPROC	saveMode
 	push	bx
+	push	cx
 	push	dx
 	mov	bx,ss:[PSP_HEAP]
 	sub	ax,ax
 	cmp	byte ptr ss:[bx].GFX_DATA.GFX_SAVED,al	; already saved?
 	jne	svm9			; yes
 	mov	al,IOCTL_GETMODE
+	mov	cl,0			; CL = 0 for the video mode
 	call	ioctlCon		; DL = video mode
 	mov	ax,0
 	jc	svm9			; STDOUT doesn't support video modes
@@ -394,6 +397,7 @@ DEFPROC	saveMode
 	mov	ss:[bx].GFX_DATA.GFX_COLORS,dx
 	mov	ax,1
 svm9:	pop	dx
+	pop	cx
 	pop	bx
 	ret
 ENDPROC	saveMode
@@ -437,6 +441,7 @@ rsm1:	mov	cl,0
 	js	rsm9			; there isn't one
 	push	cx
 	mov	al,IOCTL_GETMODE
+	mov	cl,0			; CL = 0 for the video mode
 	call	ioctlCon		; DL = video mode
 	pop	cx
 	jc	rsm9
@@ -646,7 +651,8 @@ DEFPROC	printLine,FAR
 	test	ss:[bx].CMD_FLAGS,CMD_NOECHO
 	jz	pl1
 	ret	4
-pl1:	PRINTF	<13,10,"@">		; fall into printStr
+pl1:	call	endLine			; start a new line, if needed
+	PRINTF	<"@">			; and fall into printStr
 ENDPROC	printLine
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

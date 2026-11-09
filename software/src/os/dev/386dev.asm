@@ -1,5 +1,5 @@
 ;
-; BASIC-DOS 80386 Processor (CPU$) Device Driver
+; BASIC-DOS 80286/80386 Processor (CPU$) Device Driver
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
 ; @copyright (c) 2026 Jeff Parsons
@@ -121,6 +121,9 @@ SV_PIDTR	dw	3 dup (?) ; protected mode's IDT limit and base
 SV_RMIDTR	dw	3 dup (?) ; real-mode IDT limit and base
 SV_FAULT	dd	?	; fault handler (see CPU_SETFAULT and to_fault)
 SV_TSSSP0	dw	?	; offset of SP0 in the TSS (see SYS_TSS)
+SV_PDIR		dd	?	; 80386: page directory (see LIN_HI)
+SV_LINHI	db	?	; 80386: base bits 31-24 to add (see LIN_HI)
+SV_NPT		db	?	; 80386: number of page tables
 SV_LDT		dw	?	; active LDT's offset (see CPU_SETLDT)
 SV_LDTTOP	dw	?	; the end of LDT 0 (see ldt_grow)
 SV_LDTS		dw	LDT_SESSIONS dup (?) ; each LDT's offset
@@ -154,6 +157,23 @@ ACC_TSS386	equ	89h	; present, DPL 0, available 80386 TSS
 EXT_LIMIT	equ	0Fh	; DESC_EXT: limit bits 19-16
 EXT_KEEP	equ	50h	; DESC_EXT: the AVL and D/B bits
 EXT_GRAN	equ	80h	; DESC_EXT: 4K granularity
+;
+; On an 80386, protected mode has paging, and maps all of physical memory at
+; linear address C0000000h (LIN_HI is its bits 31-24), so the lower linear
+; addresses are free for other mappings.  Every descriptor that we create
+; (or that ddcpu_init made before switching) has that much added to its base
+; (see SV_LINHI), so the selectors for any memory (eg, the identity selectors
+; for the ROMs) work as before, and the addresses that we report (and accept)
+; are still physical (see desc_addr).  The page directory and the page
+; tables (one for every 4Mb) are just below the system area (see SV_PDIR),
+; and every page is user-accessible, since segment limits protect memory.
+; Until the switch (see pm_pmode), the low linear addresses map physical
+; memory, too, as they must for the instruction that turns paging on.
+;
+LIN_HI		equ	0C0h	; linear map of physical memory: base bits 31-24
+PDE_KERNEL	equ	LIN_HI * 4 * 4	; offset of its first PDE (C0000000h)
+PG_USER		equ	07h	; PDE and PTE bits: present, writable, user
+PG_SIZE		equ	4096
 
 SEL_TI		equ	04h	; table indicator (set for LDT selectors)
 ;
@@ -805,9 +825,7 @@ sg2:	cmp	si,GDT_LIMIT		; is it within the GDT?
 	add	si,SYS_GDT
 sg3:	test	ds:[si].DESC_ACC,ACC_PRESENT
 	jz	sg8
-	mov	cx,ds:[si].DESC_BASE
-	mov	dl,ds:[si].DESC_BASE16
-	mov	dh,byte ptr ds:[si].DESC_EXT+1
+	call	desc_addr		; DX:CX = base address
 	test	al,ADDR_RIGHTS		; (carry is clear)
 	mov	ax,word ptr ds:[si].DESC_ACC
 	jnz	sg9
@@ -883,6 +901,7 @@ rw2:	mov	si,SYS_GDT + SEL_TMP2
 	push	ds:[si].DESC_LIMIT
 	push	ds:[si].DESC_BASE
 	push	word ptr ds:[si].DESC_BASE16
+	push	ds:[si].DESC_EXT
 	xchg	ax,cx			; DX:AX = address
 	push	bx
 	mov	bx,SEL_TMP2
@@ -908,6 +927,7 @@ rw5:	cld
 	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM
 	jz	rw9			; (carry is clear)
 	mov	si,SYS_GDT + SEL_TMP2
+	pop	ds:[si].DESC_EXT
 	pop	word ptr ds:[si].DESC_BASE16
 	pop	ds:[si].DESC_BASE
 	pop	ds:[si].DESC_LIMIT	; (carry is still clear)
@@ -1589,9 +1609,7 @@ DEFPROC	pmb_used
 	mov	bx,cx
 	call	sel_desc		; SI -> its descriptor
 	jc	pu2			; it isn't in use
-	mov	cx,ds:[si].DESC_BASE
-	mov	dl,ds:[si].DESC_BASE16
-	mov	dh,0			; DX:CX = its base address
+	call	desc_addr		; DX:CX = its base address
 	jmp	short pu1
 pu0:	mov	dx,cx
 	shl	cx,4
@@ -1954,6 +1972,7 @@ DEFPROC	pm_remap
 	jc	pr8			; no
 	mov	ds:[bx].DESC_BASE,cx
 	mov	ds:[bx].DESC_BASE16,dl
+	add	dh,ds:[SYS_VARS].SV_LINHI	; (see LIN_HI)
 	mov	byte ptr ds:[bx].DESC_EXT+1,dh
 	or	al,ACC_PRESENT
 pr2:	mov	ds:[bx].DESC_ACC,al	; (and carry is clear)
@@ -2081,7 +2100,8 @@ DEFPROC	pm_alias
 	mov	dl,ds:[si].DESC_BASE16
 	mov	ds:[bx].DESC_BASE16,dl
 	mov	cx,ds:[si].DESC_BASE
-	mov	ds:[bx].DESC_BASE,cx	; DX:CX = base (and carry is clear)
+	mov	ds:[bx].DESC_BASE,cx
+	call	desc_addr		; DX:CX = base (and carry is clear)
 	ret
 ci8:	mov	ax,ERR_NOMEMORY
 ci9:	ret
@@ -2121,6 +2141,31 @@ sd8:	mov	ax,ERR_INVALID
 	stc
 sd9:	ret
 ENDPROC	sel_desc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; desc_addr
+;
+; Returns the physical address that a descriptor's base maps: its base, less
+; the linear map's address (see LIN_HI) if it's in that map, which only the
+; bases that we create are (a gate's base, its selector, is never there).
+;
+; Inputs:
+;	SI -> DESC
+;
+; Outputs:
+;	DX:CX = address (carry is clear)
+;
+DEFPROC	desc_addr
+	mov	cx,ds:[si].DESC_BASE
+	mov	dl,ds:[si].DESC_BASE16
+	mov	dh,byte ptr ds:[si].DESC_EXT+1
+	cmp	dh,LIN_HI		; in the linear map of physical memory?
+	jb	dad9			; no
+	sub	dh,LIN_HI
+dad9:	clc
+	ret
+ENDPROC	desc_addr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2241,6 +2286,9 @@ DEFPROC	pm_ptr
 	mov	ds:[bx].DESC_LIMIT,0FFFFh
 	mov	ds:[bx].DESC_BASE,ax
 	mov	ds:[bx].DESC_BASE16,dl
+	mov	al,dh
+	add	al,ds:[SYS_VARS].SV_LINHI	; (see LIN_HI)
+	mov	byte ptr ds:[bx].DESC_EXT+1,al
 	mov	ds:[bx].DESC_ACC,ACC_DATA
 	pop	bx
 	sub	ax,ax
@@ -2318,6 +2366,7 @@ ENDPROC	len_sels
 ;	AX, BX, CX, DX, SI
 ;
 DEFPROC	desc_fill
+	add	dh,ds:[SYS_VARS].SV_LINHI	; (see LIN_HI)
 mb1:	mov	ds:[bx].DESC_BASE,bp
 	mov	ds:[bx].DESC_BASE16,dl
 	mov	byte ptr ds:[bx].DESC_EXT,0
@@ -2518,21 +2567,61 @@ dp1:	mov	ax,[bp+18]
 	pop	si
 	pop	si			; SI = data selector for caller's CS
 	pop	di
+	cmp	ds:[SYS_VARS].SV_LINHI,0; paging too (see LIN_HI)?
+	je	dp1b			; no
+;
+; The 32-bit operand forms of LGDT and LIDT load all of the bases (the 16-bit
+; forms ignore bits 31-24), and the low linear addresses still map physical
+; memory, so the code after MOV CR0 runs until the far jump reloads CS.
+;
+	db	66h
 	lgdt	qword ptr ds:[SYS_VARS].SV_GDTR
+	db	66h
+	lidt	qword ptr ds:[SYS_VARS].SV_PIDTR
+	push	ds:[SYS_VARS].SV_PDIR.HIW
+	push	ds:[SYS_VARS].SV_PDIR.LOW
+	db	66h,58h			; POP EAX
+	db	0Fh,22h,0D8h		; MOV CR3,EAX
+	db	0Fh,20h,0C0h		; MOV EAX,CR0
+	db	66h,0Dh			; OR EAX,80000001h (set PG and PE)
+	dw	0001h,8000h
+	db	0Fh,22h,0C0h		; MOV CR0,EAX
+	jmp	short dp1c
+dp1b:	lgdt	qword ptr ds:[SYS_VARS].SV_GDTR
 	lidt	qword ptr ds:[SYS_VARS].SV_PIDTR
 	smsw	ax
 	or	al,1			; set PE
 	lmsw	ax
-	db	OP_JMPF			; flush the prefetch queue and load CS
+dp1c:	db	OP_JMPF			; flush the prefetch queue and load CS
 	dw	offset DEV:dp2,SEL_CPUCODE
 dp2:	mov	ss,dx
-	mov	es,cx
 	mov	ax,SEL_SYS
 	mov	ds,ax
 	mov	ax,SEL_LDTD
 	lldt	ax
 	mov	al,SEL_TSS		; (AH is still zero)
 	ltr	ax
+;
+; Now that every register uses the linear map, the low linear addresses map
+; nothing, until we map something else there (and any code that still uses
+; a physical address as a linear one faults).
+;
+	cmp	ds:[SYS_VARS].SV_LINHI,0
+	je	dp3
+	mov	ax,ds:[SYS_VARS].SV_PDIR.LOW
+	mov	dx,ds:[SYS_VARS].SV_PDIR.HIW
+	mov	bx,SEL_TMP
+	call	pm_ptr			; BX = selector, AX = offset (zero)
+	mov	es,bx
+	xchg	di,ax
+	push	cx
+	mov	cx,PDE_KERNEL / 2
+	cld
+	rep	stosw			; zero every PDE below C0000000h
+	pop	cx
+	db	0Fh,20h,0D8h		; MOV EAX,CR3
+	db	0Fh,22h,0D8h		; MOV CR3,EAX (flush the TLB)
+dp3:	mov	es,cx
 	xchg	ax,si			; AX = data selector for caller's CS
 	clc
 	ret
@@ -2600,6 +2689,9 @@ ss2:	cmp	bx,SYS_GDT + SEL_STACK	; (pm_call changes SEL_STACK)
 	jne	ss3
 	cmp	ds:[bx].DESC_BASE16,al
 	jne	ss3
+	mov	dh,byte ptr ds:[bx].DESC_EXT+1
+	cmp	dh,ds:[SYS_VARS].SV_LINHI	; base bits 31-24 too (see LIN_HI)?
+	jne	ss3
 	cmp	ds:[bx].DESC_LIMIT,0FFFFh
 	je	ss8			; found one (and carry is clear)
 ss3:	add	bx,size DESC
@@ -2616,6 +2708,8 @@ ss3:	add	bx,size DESC
 	mov	ds:[bx].DESC_LIMIT,0FFFFh
 	mov	ds:[bx].DESC_BASE,cx
 	mov	ds:[bx].DESC_BASE16,dl
+	mov	dh,ds:[SYS_VARS].SV_LINHI
+	mov	byte ptr ds:[bx].DESC_EXT+1,dh
 	jmp	short ss9		; (carry is still clear)
 ss8:	lea	ax,[bx-SYS_GDT]		; AX = selector
 ss9:	pop	dx
@@ -3468,7 +3562,10 @@ di6:	call	idt_default		; AX = handler, DH = access rights
 	stosw
 	inc	bl
 	jnz	di6
-	mov	[CPU_ARENA].OFF,SYS_PMBS
+	cmp	es:[SYS_VARS].SV_TYPE,CPUTYPE_80386
+	jb	di8			; no paging (see LIN_HI)
+	call	pg_init
+di8:	mov	[CPU_ARENA].OFF,SYS_PMBS
 	mov	[CPU_ARENA].SEG,es	; CPU_ARENA -> the PMB table
 	mov	ax,offset DEV:ddcpu_init
 	mov	byte ptr ds:[DDINT_CPU],OP_JMPF
@@ -3488,7 +3585,8 @@ ENDPROC	ddcpu_init
 ; Builds the arena (the PMB table): everything below BIOS_END (the vectors,
 ; the BIOS data, and BASIC-DOS's low memory) and CPU$ are used (by the
 ; system), the rest of conventional memory is free, except for the system
-; area, the rest of the first 1Mb is reserved, and any extended memory is free.
+; area (and on an 80386, the page tables below it; see LIN_HI), the rest of
+; the first 1Mb is reserved, and any extended memory is free.
 ;
 ; Inputs:
 ;	AX = length of CPU$ (rounded up to a multiple of 16 here)
@@ -3511,14 +3609,36 @@ DEFPROC	init_arena
 	call	pmb_add			; 0 to BIOS_END
 	add	ax,bp
 	call	pmb_add			; CPU$
-	mov	dx,es
-	shr	dx,12			; DX:0000h = start of the system area
-	sub	ax,ax
+	mov	cx,es			; CX = segment of the system area
+	cmp	es:[SYS_VARS].SV_TYPE,CPUTYPE_80386
+	jb	ia0			; no paging (see LIN_HI)
+	mov	ax,si
+	add	ax,1024 + 4095
+	rcr	ax,1
+	shr	ax,11			; AX = # of page tables (one per 4Mb)
+	mov	es:[SYS_VARS].SV_NPT,al
+	inc	ax			; plus the page directory
+	mov	ah,al
+	mov	al,0			; AX = their paragraphs
+	sub	cx,ax			; CX = segment of the page directory
+	mov	ax,cx
+	shl	ax,4
+	mov	dx,cx
+	shr	dx,12
+	mov	es:[SYS_VARS].SV_PDIR.LOW,ax
+	mov	es:[SYS_VARS].SV_PDIR.HIW,dx
+ia0:	mov	ax,cx
+	shl	ax,4
+	mov	dx,cx
+	shr	dx,12			; DX:AX = system area (or page directory)
 	mov	bl,PMBTYPE_FREE
 	call	pmb_add			; conventional memory below it
+	mov	dx,es
+	shr	dx,12
 	inc	dx
+	sub	ax,ax			; DX:0000h = end of the system area
 	mov	bl,PMBTYPE_SYS
-	call	pmb_add			; the system area
+	call	pmb_add			; the page tables and the system area
 	mov	bl,PMBTYPE_FREE
 	test	byte ptr [MEMORY_SIZE],3Fh
 	jz	ia1			; no memory above the system area
@@ -3544,6 +3664,102 @@ ia9:	mov	es:[di-(size PMB)].PMB_SIG,PMBSIG_LAST
 	pop	ax
 	ret
 ENDPROC	init_arena
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; pg_init
+;
+; Builds the page directory and the page tables (see init_arena), which map
+; the first SV_NPT * 4Mb of physical memory at C0000000h (see LIN_HI), and
+; at linear address 0, too, for the switch (see pm_pmode).  Then adds LIN_HI
+; to the bases of every descriptor in the GDT except the gates (none of the
+; LDTs are in use yet), and to the GDTR's and IDTR's, after which CPU$ adds
+; it to every base it creates (SV_LINHI).
+;
+; Inputs:
+;	ES = system area
+;
+; Modifies:
+;	AX, BX, CX, DX, DI, BP
+;
+DEFPROC	pg_init
+	push	es
+	mov	ax,es:[SYS_VARS].SV_PDIR.LOW
+	mov	dx,es:[SYS_VARS].SV_PDIR.HIW
+	mov	cl,es:[SYS_VARS].SV_NPT
+	mov	ch,0
+	mov	bp,cx			; BP = # of page tables
+	shr	ax,4
+	shl	dx,12
+	or	ax,dx
+	mov	es,ax			; ES:0 -> the page directory
+	xchg	bx,ax			; BX = its segment
+	sub	ax,ax
+	mov	di,ax
+	mov	cx,PG_SIZE / 2
+	cld
+	rep	stosw			; (no PDEs yet)
+	lea	ax,[bx+(PG_SIZE SHR 4)]	; AX = segment of the first page table
+	mov	cx,bp
+	sub	bx,bx			; BX = PDE offset
+	mov	dx,ax
+	shr	dx,12
+	shl	ax,4
+	or	al,PG_USER		; DX:AX = its PDE
+pi1:	mov	es:[bx],ax
+	mov	es:[bx+2],dx
+	mov	es:[bx+PDE_KERNEL],ax
+	mov	es:[bx+PDE_KERNEL+2],dx
+	add	bx,4
+	add	ax,PG_SIZE
+	adc	dx,0
+	loop	pi1
+	mov	cx,bp
+	mov	bx,es
+	mov	ax,PG_USER
+	cwd				; DX:AX = the first PTE
+pi2:	add	bx,PG_SIZE SHR 4
+	mov	es,bx			; ES:0 -> the next page table
+	sub	di,di
+	push	cx
+	mov	cx,PG_SIZE / 4
+pi3:	stosw
+	xchg	ax,dx
+	stosw
+	xchg	ax,dx
+	add	ax,PG_SIZE
+	adc	dx,0
+	loop	pi3
+	pop	cx
+	loop	pi2
+	pop	es
+	mov	bx,SYS_GDT + (size DESC)
+pi4:	call	pg_base			; the GDT's entries
+	add	bx,size DESC
+	cmp	bx,SYS_GDT + GDT_MAX * (size DESC)
+	jb	pi4
+	mov	bx,SYS_GDT + SEL_VIDEO
+pi5:	call	pg_base			; and its identity selectors
+	add	bx,SEL_IDSTEP
+	jnc	pi5
+	mov	byte ptr es:[SYS_VARS].SV_GDTR+5,LIN_HI
+	mov	byte ptr es:[SYS_VARS].SV_PIDTR+5,LIN_HI
+	mov	es:[SYS_VARS].SV_LINHI,LIN_HI
+	ret
+;
+; pg_base adds LIN_HI to the base of the descriptor at ES:BX, if it's present
+; and not a gate (whose "base" is a selector).
+;
+	DEFLBL	pg_base,near
+	mov	al,es:[bx].DESC_ACC
+	test	al,ACC_PRESENT		; is it present?
+	jz	pb9			; no
+	and	al,14h			; a system descriptor that's a gate?
+	cmp	al,04h
+	je	pb9			; yes
+	add	byte ptr es:[bx].DESC_EXT+1,LIN_HI
+pb9:	ret
+ENDPROC	pg_init
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
