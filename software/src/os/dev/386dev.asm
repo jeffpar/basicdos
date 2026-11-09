@@ -1,5 +1,5 @@
 ;
-; BASIC-DOS 80286 Processor (CPU$) Device Driver
+; BASIC-DOS 80386 Processor (CPU$) Device Driver
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
 ; @copyright (c) 2026 Jeff Parsons
@@ -14,10 +14,12 @@
 ; overrides it), with at least 256K of conventional memory (after any
 ; "MEMSIZE=" line), it enables A20, builds its PMB table, GDT, IDT, LDT, and
 ; TSS in the system area (the last whole 64K of conventional memory), checks
-; that it can switch to protected mode and back,
-; and stays, managing all of memory with its PMB table (see PMB in cpu.inc)
-; through DDINT_CPU.  Otherwise, it makes CPU_TYPE CPUTYPE_8086, leaves A20
-; off, and unloads itself, and the 8086 driver
+; that it can switch to protected mode and back, and stays, managing all of
+; memory with its PMB table (see PMB in cpu.inc) through DDINT_CPU.  On an
+; 80386 or later, it uses the 80386's features (an 80386 TSS and selectors
+; beyond 64K), unless there's a "CPU=80286" line, and then it acts as it does
+; on an 80286; CPU_TYPE (and SV_TYPE) say which.  Otherwise, it makes CPU_TYPE
+; CPUTYPE_8086, leaves A20 off, and unloads itself, and the 8086 driver
 ; (x86dev.asm) stays instead.  CPU_PMODE switches to protected mode for good,
 ; after which CPU$ reflects interrupts to the ROM BIOS, keeps the vectors
 ; that drivers install in its IDT (see pm_setvec), and stops the machine on
@@ -49,13 +51,18 @@ GDT_MAX		equ	256
 SYS_PIDT	equ	SYS_GDT + GDT_MAX * 8
 IDT_MAX		equ	256
 ;
-; The TSS (80286 format) is only for its ring 0 stack (SS0:SP0; see
-; CPU_SETSTACK), which the processor switches to when an interrupt takes ring
-; 3 code to ring 0; we never switch tasks, so the rest of it stays zero.
+; The TSS is only for its ring 0 stack (SS0:SP0; see CPU_SETSTACK), which the
+; processor switches to when an interrupt takes ring 3 code to ring 0; we
+; never switch tasks, so the rest of it stays zero.  It has room for the
+; 80386 format, which we use on an 80386 (see SV_TYPE), with an I/O map base
+; (TSS_IOMAP) beyond its limit, so that it has no I/O permission bitmap, and
+; every I/O instruction at ring 3 (with IOPL 0) faults, as on an 80286.
+; SV_TSSSP0 is the offset of SP0 (2, or ESP0 at 4), which is also how much
+; further SS0 is (at 4 or 8).
 ;
 SYS_TSS		equ	SYS_PIDT + IDT_MAX * 8
-TSS_SP0		equ	2	; ring 0 SP (followed by SS)
-TSS_LEN		equ	44
+TSS_IOMAP	equ	66h	; 80386: I/O map base
+TSS_LEN		equ	104	; (an 80286 TSS needs only 44)
 SEL_VIDEO	equ	0A000h	; first identity selector (data)
 ;
 ; The rest is a pool for the PMB table and the LDTs: the table grows up from
@@ -80,7 +87,7 @@ SEL_VIDEO	equ	0A000h	; first identity selector (data)
 ; Otherwise, a ring 3 program could load another LDT's descriptors, or a PMB,
 ; as its own.
 ;
-SYS_PMBS	equ	SYS_TSS + TSS_LEN + 2
+SYS_PMBS	equ	((SYS_TSS + TSS_LEN + 1) OR 7) - 1 ; (the next 6 mod 8)
 SYS_LDTTOP	equ	SYS_GDT + SEL_VIDEO - 2
 LDT_SESSIONS	equ	32	; LDTs (one for each session, at most)
 LDT_STEP	equ	32	; descriptors to add at a time
@@ -113,6 +120,7 @@ SV_GDTR		dw	3 dup (?) ; GDT limit and base (for LGDT)
 SV_PIDTR	dw	3 dup (?) ; protected mode's IDT limit and base
 SV_RMIDTR	dw	3 dup (?) ; real-mode IDT limit and base
 SV_FAULT	dd	?	; fault handler (see CPU_SETFAULT and to_fault)
+SV_TSSSP0	dw	?	; offset of SP0 in the TSS (see SYS_TSS)
 SV_LDT		dw	?	; active LDT's offset (see CPU_SETLDT)
 SV_LDTTOP	dw	?	; the end of LDT 0 (see ldt_grow)
 SV_LDTS		dw	LDT_SESSIONS dup (?) ; each LDT's offset
@@ -142,6 +150,10 @@ ACC_LDT		equ	82h	; present, LDT
 ACC_CALLGATE	equ	84h	; present, DPL 0, 80286 call gate
 ACC_INTGATE	equ	86h	; present, DPL 0, 80286 interrupt gate
 ACC_TSS		equ	81h	; present, DPL 0, available 80286 TSS
+ACC_TSS386	equ	89h	; present, DPL 0, available 80386 TSS
+EXT_LIMIT	equ	0Fh	; DESC_EXT: limit bits 19-16
+EXT_KEEP	equ	50h	; DESC_EXT: the AVL and D/B bits
+EXT_GRAN	equ	80h	; DESC_EXT: 4K granularity
 
 SEL_TI		equ	04h	; table indicator (set for LDT selectors)
 ;
@@ -671,7 +683,8 @@ ENDPROC	ddcpu_alias
 ; In real mode, there's nothing to do.
 ;
 ; Inputs:
-;	BX = selector, SI:DI = new length (1 to 64K)
+;	BX = selector, SI:DI = new length (1 to 64K, or on an 80386, to
+;	4G; see lim_desc)
 ;
 ; Outputs:
 ;	Carry clear if successful, set if error (AX = ERR_INVALID)
@@ -679,24 +692,67 @@ ENDPROC	ddcpu_alias
 DEFPROC	ddcpu_setlim
 	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM
 	jz	sl9			; (carry is clear)
-	mov	ax,di
-	sub	ax,1			; AX = new limit
-	sbb	si,0			; is SI:DI from 1 to 64K?
-	jnz	sl8			; no
 	test	bl,SEL_TI		; an LDT selector?
 	jnz	sl1			; yes
 	cmp	bx,GDT_FIXED * 8	; a fixed GDT selector?
 	jb	sl8			; yes
-sl1:	push	ax
+sl1:	push	si
 	call	sel_desc		; SI -> its descriptor
-	pop	ax
-	jc	sl9
-	mov	ds:[si].DESC_LIMIT,ax
-	ret				; (carry is clear)
-sl8:	mov	ax,ERR_INVALID
-	stc
+	mov	bx,si
+	pop	si
+	jnc	lim_desc
+	ret
+sl8:	jmp	cpu_inval
 sl9:	ret
 ENDPROC	ddcpu_setlim
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; lim_desc
+;
+; Sets the limit of a descriptor from a length, from 1 to 64K, or on an
+; 80386 (see SV_TYPE), any non-zero length, which above 1Mb uses 4K
+; granularity, rounding the length down to a multiple of 4K, so that the
+; descriptor never reaches beyond it; it keeps the descriptor's AVL and D/B
+; bits.
+;
+; Inputs:
+;	BX -> DESC, SI:DI = length
+;
+; Outputs:
+;	Carry clear if successful, set if error (AX = ERR_INVALID)
+;
+; Modifies:
+;	AX (if error), CX, DX, SI, DI, BP
+;
+DEFPROC	lim_desc
+	mov	bp,di
+	mov	cx,si
+	sub	bp,1
+	sbb	cx,0			; CX:BP = new limit
+	jc	ld8			; the length was zero
+	jcxz	ld1			; the length is 64K or less
+	cmp	ds:[SYS_VARS].SV_TYPE,CPUTYPE_80386
+	jb	ld8			; only an 80386 can have more
+	cmp	cx,10h			; is the length above 1Mb?
+	jb	ld1			; no
+	shr	di,12
+	mov	bp,si
+	shl	bp,4
+	or	bp,di
+	mov	cx,si
+	shr	cx,12			; CX:BP = length / 4K
+	sub	bp,1
+	sbb	cx,0			; CX:BP = new limit, in 4K units
+	or	cl,EXT_GRAN
+ld1:	mov	dl,byte ptr ds:[bx].DESC_EXT
+	and	dl,EXT_KEEP		; (always zero on an 80286)
+	or	dl,cl
+	mov	byte ptr ds:[bx].DESC_EXT,dl
+	mov	ds:[bx].DESC_LIMIT,bp	; (and carry is clear)
+	ret
+ld8:	jmp	cpu_inval
+ENDPROC	lim_desc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -709,8 +765,9 @@ ENDPROC	ddcpu_setlim
 ;	AL = ADDR_* flags, BX = segment or selector
 ;
 ; Outputs:
-;	Carry clear if successful: DX:CX = base address, AX = limit (or with
-;	ADDR_RIGHTS, the access rights in AL and the extended byte in AH)
+;	Carry clear if successful: DX:CX = base address, AX = limit (FFFFh if
+;	it's beyond 64K), or with ADDR_RIGHTS, the access rights in AL and the
+;	extended byte (the 80386 limit bits 19-16 and flags) in AH
 ;	Carry set if the selector isn't present (AX = ERR_INVALID)
 ;
 ; Modifies:
@@ -752,9 +809,12 @@ sg3:	test	ds:[si].DESC_ACC,ACC_PRESENT
 	mov	dl,ds:[si].DESC_BASE16
 	mov	dh,byte ptr ds:[si].DESC_EXT+1
 	test	al,ADDR_RIGHTS		; (carry is clear)
-	mov	ax,ds:[si].DESC_LIMIT
-	jz	sg9
 	mov	ax,word ptr ds:[si].DESC_ACC
+	jnz	sg9
+	mov	ax,ds:[si].DESC_LIMIT
+	test	byte ptr ds:[si].DESC_EXT,EXT_GRAN OR EXT_LIMIT
+	jz	sg9			; the limit is 64K or less
+	mov	ax,0FFFFh		; (and carry is clear)
 sg9:	ret
 sg4:	cmp	bx,LDT_SESSIONS		; a valid LDT #?
 	jae	sg8			; no
@@ -894,11 +954,13 @@ ENDPROC	ddcpu_sysregs
 ;
 DEFPROC	ddcpu_setfault
 	mov	bx,SYS_VARS + SV_FAULT
+	mov	si,2			; SI = offset of the segment (.SEG)
 	jmp	short sf1
 	DEFLBL	ddcpu_setstack,near
-	mov	bx,SYS_TSS + TSS_SP0
-sf1:	xchg	cx,ds:[bx].OFF
-	xchg	dx,ds:[bx].SEG
+	mov	si,ds:[SYS_VARS].SV_TSSSP0
+	lea	bx,[si+SYS_TSS]		; (on an 80386, ESP0 bits 31-16 stay 0)
+sf1:	xchg	cx,ds:[bx]
+	xchg	dx,ds:[bx+si]
 	clc
 	ret
 ENDPROC	ddcpu_setfault
@@ -1868,7 +1930,8 @@ ENDPROC	pm_map
 ; selector keeps what it had until the selector is loaded again.
 ;
 ; Inputs:
-;	BX = selector ID, DX:CX = address, SI:DI = length (64K or less)
+;	BX = selector ID, DX:CX = address, SI:DI = length (64K or less, or
+;	on an 80386, any length; see lim_desc)
 ;
 ; Outputs:
 ;	Carry clear if successful, set if error (AX = ERR_INVALID)
@@ -1881,11 +1944,14 @@ DEFPROC	pm_remap
 	mov	bp,si
 	or	bp,di			; a length of zero?
 	jz	pr2			; yes, so it's not present
-	mov	bp,di
-	sub	bp,1			; BP = new limit
-	sbb	si,0			; is SI:DI from 1 to 64K?
-	jnz	pr8			; no
-	mov	ds:[bx].DESC_LIMIT,bp
+	push	ax
+	push	cx
+	push	dx
+	call	lim_desc		; is the length valid?
+	pop	dx
+	pop	cx
+	pop	ax
+	jc	pr8			; no
 	mov	ds:[bx].DESC_BASE,cx
 	mov	ds:[bx].DESC_BASE16,dl
 	mov	byte ptr ds:[bx].DESC_EXT+1,dh
@@ -3154,14 +3220,12 @@ dm2:	mov	dx,BIOS
 	mov	[MEMORY_SIZE],ax
 di0:	mov	di,offset DEV:cfg_cpu
 	call	find_cfg		; is there a "CPU=80" line?
+	mov	bl,0			; BL = its next digit (zero if none)
 	jne	di0a			; no
-	mov	al,[si+6]
-	and	al,0FEh
-	cmp	al,'2'			; "CPU=802xx" or "CPU=803xx"?
+	mov	bl,[si+6]
 di0a:	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
-	pushf				; (ZF set if so; see di2)
 ;
 ; Even then, we determine the processor type (for CPU_HWTYPE).
 ;
@@ -3202,7 +3266,9 @@ di2:	mov	[CPU_HWTYPE],al
 ;
 	mov	ah,byte ptr [BOOT_KEY]
 	or	ah,20h			; AH = boot key, in lower-case
-	popf				; was there a "CPU=80x86" line?
+	mov	bh,bl
+	and	bh,0FEh
+	cmp	bh,'2'			; a "CPU=802xx" or "CPU=803xx" line?
 	je	di2c			; yes
 	cmp	ah,'p'			; was the boot key P?
 	jne	di2b			; no
@@ -3215,7 +3281,17 @@ di2c:	cmp	ah,'r'			; was the boot key R?
 	cmp	[MEMORY_SIZE],256	; enough conventional memory?
 	jae	di2a			; yes
 di2b:	mov	al,CPUTYPE_8086		; no, so act as if this is an 8088
-di2a:	mov	[CPU_TYPE],al
+di2a:
+;
+; On an 80386 or later, we use its features, unless there's a "CPU=80286"
+; line, and then we use only an 80286's (and CPU_TYPE says which).
+;
+	cmp	al,CPUTYPE_80386	; an 80386 or later?
+	jb	di2e			; no
+	cmp	bl,'2'			; but a "CPU=80286" line?
+	jne	di2e			; no
+	dec	ax			; AL = CPUTYPE_80286
+di2e:	mov	[CPU_TYPE],al
 	cmp	al,CPUTYPE_80286	; protected mode available?
 	jb	di9			; no
 ;
@@ -3275,11 +3351,14 @@ di3:	mov	ax,[MEMORY_SIZE]
 	rep	stosw
 
 	mov	di,SYS_VARS
-	mov	al,[CPU_TYPE]
-	mov	ah,al			; (the same as CPU_HWTYPE here)
+	mov	ax,word ptr [CPU_TYPE]	; AL = CPU_TYPE, AH = CPU_HWTYPE
 	ror	ah,1
 	ror	ah,1			; AH = CPUF_HWTYPE
 	mov	word ptr es:[di].SV_TYPE,ax	; (and SV_FLAGS)
+	cbw				; (AL is 2 or 3)
+	dec	ax
+	shl	ax,1
+	mov	es:[di].SV_TSSSP0,ax	; 2 (80286 TSS) or 4 (80386 TSS)
 	mov	es:[di].SV_RMCS,cs
 	mov	es:[di].SV_GDTR,GDT_LIMIT
 	mov	es:[di].SV_GDTR+2,SYS_GDT
@@ -3315,7 +3394,11 @@ di3:	mov	ax,[MEMORY_SIZE]
 	mov	es:[SYS_GDT+SEL_SYS].DESC_BASE16,al
 	mov	es:[SYS_GDT+SEL_LDTD].DESC_BASE16,al
 	mov	es:[SYS_GDT+SEL_TSS].DESC_BASE16,al
-	mov	ax,cs
+	cmp	es:[SYS_VARS].SV_TYPE,CPUTYPE_80386	; an 80386 TSS?
+	jb	di3a			; no
+	mov	es:[SYS_GDT+SEL_TSS].DESC_ACC,ACC_TSS386
+	mov	word ptr es:[SYS_TSS+TSS_IOMAP],TSS_LEN	; (no I/O bitmap)
+di3a:	mov	ax,cs
 	mov	dx,ax
 	shl	ax,4
 	shr	dx,12			; DX:AX = linear address of CS
@@ -3677,8 +3760,8 @@ pm1:	mov	ax,SEL_STACK
 	DEFLBL	pm_fault,near
 	mov	ax,SEL_SYS
 	mov	ds,ax
-	cmp	ds:[SYS_VARS].SV_TYPE,CPUTYPE_80386
-	jb	pm3
+	cmp	ds:[SYS_VARS].SV_FLAGS,CPUTYPE_80386 SHL 6
+	jb	pm3			; CPUF_HWTYPE is below an 80386's
 	db	0Fh,20h,0C0h		; MOV EAX,CR0
 	and	al,0FEh			; clear PE
 	db	0Fh,22h,0C0h		; MOV CR0,EAX

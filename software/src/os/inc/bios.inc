@@ -180,7 +180,7 @@ SIG_BUF		equ	'B'
 ; (eg, STC and RETF) until one is installed; a new one replaces the padding
 ; after DDINT_UTIL (moving the disk buffers that follow; see the ASSERTs in
 ; the BIOS segment).  DDINT_GETVEC and DDINT_SETVEC read and write interrupt
-; vectors (see rm_getvec in x86dev.asm and pm_getvec in 286dev.asm), so that
+; vectors (see rm_getvec in x86dev.asm and pm_getvec in 386dev.asm), so that
 ; other code needn't address the vector table with segment 00h.
 ;
 ; They're called through segment 50h, which in protected mode is also a code

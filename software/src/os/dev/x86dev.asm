@@ -8,7 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 ; This is the second of two CPU$ drivers (see cpu.inc), and it stays only if
-; the first (286dev.asm) didn't, ie, on an 8086 or 8088 (or an 80286 that
+; the first (386dev.asm) didn't, ie, on an 8086 or 8088 (or an 80286 that
 ; can't, or wasn't asked to, use protected mode).  It manages all of
 ; memory with a chain of MCBs (see MCB in dosapi.inc), as DOS always has: the
 ; first MCB is in the paragraph after our code (see cpu_mcb), and the chain
@@ -555,7 +555,7 @@ ENDPROC	ddcpu_rwmem
 ;
 ; ddcpu_setfault (CPU_SETFAULT)
 ;
-; We keep the handler, as the 80286 driver does, but never call it, since
+; We keep the handler, as the 80386 driver does, but never call it, since
 ; real-mode exceptions go through the vectors.
 ;
 ; Inputs:
@@ -1064,7 +1064,7 @@ ENDPROC	len_paras
 ;
 ; Driver initialization
 ;
-; If the 80286 driver stayed, we don't; otherwise, we put the first MCB in the
+; If the 80386 driver stayed, we don't; otherwise, we put the first MCB in the
 ; paragraph at cpu_mcb, with all the conventional memory after it free (our
 ; INIT code, the other drivers, and devinit, which claims what it's using as
 ; soon as we return; see chk_cpu), store its address in CPU_ARENA, and point

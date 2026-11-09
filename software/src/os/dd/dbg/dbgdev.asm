@@ -50,7 +50,7 @@
 ; every CPU$ call goes through), which checks every address, and can store
 ; breakpoints in code segments (but not in the parts of CPU$ that we call,
 ; such as DDINT_CPU itself).  When CPU$ is the
-; 80286 driver (see CPU_SYSREGS), we work in either mode: the prompt is #
+; 80386 driver (see CPU_SYSREGS), we work in either mode: the prompt is #
 ; in protected mode (- in real mode), an address may start with & (real
 ; mode) or # (protected mode), and otherwise has the processor's current
 ; mode, every address is displayed with its prefix, and the registers include
@@ -128,7 +128,7 @@ BP_ARMED	equ	04h	; breakpoint's INT 3 is in memory
 BP_STEP		equ	08h	; temporary breakpoint ends a P step
 BP_GO		equ	10h	; temporary breakpoint resumes (see r3_go)
 	public	BP_SET,BP_GO	; (see com_main)
-CPU_DUAL	equ	80h	; cpu_mode: CPU$ is the 80286 driver
+CPU_DUAL	equ	80h	; cpu_mode: CPU$ is the 80386 driver
 BP_SIZE		equ	6
 NUM_BPS		equ	10
 ;
@@ -600,7 +600,7 @@ DEFPROC	monitor
 	mov	ah,CPU_SYSREGS
 	call	cpu_call		; AX = MSW, CX = LDTR, DX = TR
 	mov	bl,0
-	jc	mon0			; it's not the 80286 driver
+	jc	mon0			; it's not the 80386 driver
 	mov	sys_regs[12],ax
 	mov	sys_regs[14],cx
 	mov	sys_regs[16],dx
@@ -2281,7 +2281,7 @@ ENDPROC	newline
 ;
 ; Inputs:
 ;	mem_seg:DI (hex_addr, which displays its mode's prefix if CPU$ is the
-;	80286 driver), AX (hex_word), AL (hex_byte), or AL = 0-15
+;	80386 driver), AX (hex_word), AL (hex_byte), or AL = 0-15
 ;
 ; Modifies:
 ;	AX
@@ -2380,7 +2380,7 @@ ENDPROC	show_step			; fall into show_regs
 ;
 ; Display the saved registers and flags, followed by the instruction at CS:IP.
 ; In real mode, they're in the same format as DEBUG, with a line for the MSW,
-; GDTR, and IDTR if CPU$ is the 80286 driver; in protected mode, they're in
+; GDTR, and IDTR if CPU$ is the 80386 driver; in protected mode, they're in
 ; the PCjs Debugger's format, with each segment register's [base,limit], the
 ; system registers, and the flags as 0 or 1 (and no IP, which the instruction
 ; shows).
@@ -2400,7 +2400,7 @@ sr2:	call	put_regval
 	jb	sr1
 	call	show_flags
 	call	newline
-	test	[cpu_mode],CPU_DUAL	; is CPU$ the 80286 driver?
+	test	[cpu_mode],CPU_DUAL	; is CPU$ the 80386 driver?
 	jz	sr9			; no
 	mov	si,offset SYS_MS+1
 	call	put_string		; "MS="

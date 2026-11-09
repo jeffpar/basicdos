@@ -11,7 +11,8 @@
 ; driver's memory arena, and then tests its functions: an allocation from
 ; the top of conventional memory, resized with CPU_REALLOC, copies with
 ; CPU_MOVE (including an overlapping one), and in protected mode, allocations
-; with GDT and LDT selectors, a mapping of video memory, and aliases (code
+; with GDT and LDT selectors (and limits beyond 64K, which only an 80386
+; allows; see bigseg), a mapping of video memory, and aliases (code
 ; and read-only), or in real mode, the segments that CPU_MAP and CPU_ALIAS
 ; return instead; then invalid requests, and freeing everything, which must
 ; leave the arena as it was.  Along the way, it names a block (CPU_SETBLK),
@@ -92,6 +93,7 @@ m2:	call	ring3
 	call	alloc
 	mov	[addr1].LOW,cx
 	mov	[addr1].HIW,dx
+	call	bigseg
 	inc	bp
 	mov	al,MEMF_LDT
 	sub	si,si
@@ -793,7 +795,7 @@ ENDPROC	blocks
 ; (which must then match), a CPU_RWMEM that would wrap past the end of the
 ; segment (which must fail), CPU_SETFAULT (which must return the handler we
 ; set, before we restore the original), and CPU_SYSREGS, which only the
-; 80286 driver supports.
+; 80386 driver supports.
 ;
 DEFPROC	debugfns
 	inc	bp
@@ -859,7 +861,7 @@ df1:	inc	bp
 	cmp	dx,5678h
 	jne	df8
 ;
-; CPU_SYSREGS must fail exactly when this isn't the 80286 driver.
+; CPU_SYSREGS must fail exactly when this isn't the 80386 driver.
 ;
 	inc	bp
 	mov	ah,CPU_SYSREGS
@@ -867,13 +869,81 @@ df1:	inc	bp
 	sbb	dx,dx
 	inc	dx			; DX = 1 if it succeeded, 0 if not
 	mov	cl,[pmflag]
-	and	cx,CPUF_PMOK		; CX = CPUF_PMOK if the 80286 driver
+	and	cx,CPUF_PMOK		; CX = CPUF_PMOK if the 80386 driver
 	shr	cx,1			; CX = 1 if so, 0 if not
 	cmp	dx,cx
 	jne	df8
 	PRINTF	<"SYSREGS %d (MSW %#x)",13,10>,dx,ax
 	ret
 ENDPROC	debugfns
+
+;
+; bigseg
+;
+; Sets the limit of the first selector (AX) of the 100000-byte block to the
+; whole block, which CPU$ allows only when it's using the 80386's features
+; (otherwise, it must return ERR_INVALID).  Then CPU_SEGINFO must report a
+; limit of FFFFh and limit bits 19-16 of 1 (byte granularity), a byte written
+; 64K into the block through that selector, with a 32-bit offset, must be the
+; byte 10h into the block's second selector, and a 2Mb limit must use 4K
+; granularity.
+;
+DEFPROC	bigseg
+	xchg	bx,ax			; BX = the block's first selector
+	inc	bp
+	mov	si,1
+	mov	di,86A0h		; SI:DI = 100000
+	mov	ah,CPU_SETLIM
+	push	es
+	mov	cx,BIOS
+	mov	es,cx
+	ASSUME	ES:BIOS
+	cmp	[CPU_TYPE],CPUTYPE_80386	; using the 80386's features?
+	pop	es
+	ASSUME	ES:CODE
+	je	bg1			; yes
+	mov	[experr],ERR_INVALID
+	jmp	cpu_err
+bg1:	call	cpu_ok
+	inc	bp
+	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_SEL
+	call	cpu_ok
+	inc	ax			; is the limit FFFFh?
+	jnz	bg8			; no
+	inc	bp
+	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_SEL OR ADDR_RIGHTS
+	call	cpu_ok
+	and	ah,8Fh
+	cmp	ah,01h			; limit bits 19-16 = 1, byte granular?
+	jne	bg8			; no
+	inc	bp
+	push	es
+	mov	es,bx
+	mov	al,5Ah
+	db	66h,0BEh		; MOV ESI,00010010h
+	dw	0010h,0001h
+	db	26h,67h,88h,06h		; MOV ES:[ESI],AL
+	db	66h,31h,0F6h		; XOR ESI,ESI
+	lea	ax,[bx+8]
+	mov	es,ax			; ES = the block's second selector
+	cmp	byte ptr es:[10h],5Ah	; is the byte there?
+	pop	es
+	jne	bg8			; no
+	inc	bp
+	mov	si,20h
+	sub	di,di			; SI:DI = 2Mb
+	mov	ah,CPU_SETLIM
+	call	cpu_ok
+	inc	bp
+	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_SEL OR ADDR_RIGHTS
+	call	cpu_ok
+	and	ah,8Fh
+	cmp	ah,80h			; limit bits 19-16 = 0, 4K granular?
+	jne	bg8			; no
+	PRINTF	<"Limits beyond 64K for sel %#x",13,10>,bx
+	ret
+bg8:	jmp	m8
+ENDPROC	bigseg
 
 ;
 ; info

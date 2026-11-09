@@ -97,7 +97,7 @@ si0:	lods	byte ptr es:[si]
 ;
 ; MEMORY_SIZE is in Kb (2^10 units), and mcb_limit is in paragraphs (2^4
 ; units), so shift left 6 bits.  CPU$ has already applied any "MEMSIZE="
-; line to MEMORY_SIZE (see ddcpu_init in 286dev.asm).  mem_total adds any
+; line to MEMORY_SIZE (see ddcpu_init in 386dev.asm).  mem_total adds any
 ; extended memory to it, for the total memory (see DV_MEM_SIZE).
 ;
 si1:	mov	ax,BIOS

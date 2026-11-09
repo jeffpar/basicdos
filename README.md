@@ -38,6 +38,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 ### Device Drivers
 
 - [x] VKD$ (video and keyboard), with a context for each console
+- [x] VKD$ virtual pages: consoles beyond an adapter's pages of video memory (eg, every console after the first full-screen one on an MDA) get pages of system memory, up to 8 pages per adapter, and switching focus to one exchanges its page with the page on the screen (see the [Multiple Pages demo](demos/p80/pc/) on an IBM PC with a Monochrome Display)
 - [x] COM, LPT, NUL, CLOCK$, and PIPE$ devices
 - [x] CPU$, loaded first, detects the processor and manages all memory, with the same functions in either mode: using a table of physical memory blocks and protected-mode descriptors in protected mode, and otherwise an MCB chain (see [The CPU$ Drivers](docs/bdtech/mmu/#cpu))
 - [x] CLOCK$ starts with the BIOS time of day and, on a PC AT, the real-time clock's date
@@ -72,7 +73,8 @@ On an 80286 or later with sufficient memory (256K or more), BASIC-DOS can run in
 - [ ] Ring 3 for the programs that still need `RING=0`: those that hook an interrupt issued by ring 0 code (eg, INT 1Ch or INT 13h), call CPU$ (eg, CPUTESTS), or use IN, OUT, CLI, or STI
 - [ ] MZ EXE files in protected mode, which fail with "Unable to load" (currently NOT under consideration for inclusion in BASIC-DOS, since NE programs take their place; see [Limitations](docs/bdtech/mmu/#limits))
 - [ ] VKD$ saving a blocked console's video memory in a buffer, and remapping its selector there, so that its programs keep running (and DEF SEG's video memory selectors through VKD$, too)
-- [ ] 80386 features: virtual-8086 mode, paging, and 32-bit segments
+- [x] CPU$ uses the 80386's features on an 80386 (unless CONFIG.SYS has `CPU=80286`): an 80386 TSS, and selectors that can cover more than 64K (CPU_SETLIM)
+- [ ] More 80386 features: paging, then virtual-8086 mode sessions for MZ programs, then 32-bit sessions for LE programs (built with MASM 5.10B and LINK386 from the Windows 3.1 DDK, in **TOOLS**)
 
 ### Kernel: Processes, Memory, and Sessions
 
@@ -319,6 +321,7 @@ These are the next steps, roughly in priority order:
 2. The rest of runtime error handling (messages for numeric errors other than "Division by zero", such as "Overflow")
 3. Common BASICA features that BASIC-DOS lacks: BEEP and COMMON
 4. The rest of protected mode on an 80286 or 80386: ring 3 for the programs that still need `RING=0` (interrupt hooks that DOS or the ROM BIOS calls, and CPUTESTS); see [Limitations](docs/bdtech/mmu/#limits)
+5. 80386 sessions: paging, virtual-8086 mode sessions for MZ programs, and 32-bit sessions for LE programs
 
 ### Ring 3 Security
 
@@ -382,13 +385,12 @@ That machine has no FPU, so BASIC-DOS emulates floating-point operations.  `boot
 
 - `fpu`: the same, but using the `configs/console/serial/fpu` folder, with pc.js's `--fpu` option (which gives the machine an 80287 coprocessor)
 - `hd`: a 10Mb hard disk (C:) that `pc.js` builds from the `configs/console/serial/hd` folder, with the BASIC-DOS system files
-- `bios` and `cga` (an alias): the VKD$ driver (from the `configs/console/bios` folder) on a Color Display, instead of a serial console
 
 For example:
 
     $ ./boot.sh hd
 
-The `tools/tests/testhd.sh` script instead builds a BASIC-DOS boot diskette (from the `configs/console/bios` folder, so it uses the keyboard and screen) and boots it on an `ibm5160` machine whose 10Mb hard disk is built from a directory (`tools/pc/disks/hdsrc` by default, which is created with a few sample files if it doesn't exist), so that BASIC-DOS can be tested with an MS-DOS-formatted drive C:.  Press a key (other than **Esc**) at the boot message to start BASIC-DOS:
+The `tools/tests/testhd.sh` script instead builds a BASIC-DOS boot diskette (from the `configs/console/serial/fpe` folder, so its console is on COM1, in your terminal) and boots it on an `ibm5160` machine whose 10Mb hard disk is built from a directory (`tools/pc/disks/hdsrc` by default, which is created with a few sample files if it doesn't exist), so that BASIC-DOS can be tested with an MS-DOS-formatted drive C:.  BASIC-DOS starts from the diskette after the boot message:
 
     $ tools/tests/testhd.sh [hard disk directory] [config folder]
 

@@ -17,8 +17,6 @@
 #   fpu     floppy, console on COM1, with an 80287
 #   hd      10Mb hard disk (C:), console on COM1 (see tools/tests/testhd.sh for booting BASIC-DOS from
 #           a diskette with an MS-DOS-formatted hard disk instead)
-#   bios    floppy, VKD$ driver (see configs/console/bios/CONFIG.SYS) on a CGA
-#   cga     alias for bios
 #
 cd "$(dirname "$0")" || exit 1
 name=${1:-fpe}
@@ -28,8 +26,7 @@ case "$name" in
     fpe)    cfg=serial/fpe; opts="--floppy --serial" ;;
     fpu)    cfg=serial/fpu; opts="--floppy --serial --fpu" ;;
     hd)     cfg=serial/hd;  opts="--target=10M --serial" ;;
-    bios|cga) cfg=bios;     opts="--floppy" ;;
-    *)      echo "usage: $0 [fpe|fpu|hd|bios|cga] [pc.js arguments...]" >&2; exit 1 ;;
+    *)      echo "usage: $0 [fpe|fpu|hd] [pc.js arguments...]" >&2; exit 1 ;;
 esac
 cfg=software/src/configs/console/$cfg
 ram=--ram=2M

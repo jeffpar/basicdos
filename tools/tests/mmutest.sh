@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Usage: tools/tests/mmutest.sh [8088] [real] [pm] [r3] [multi] [pool] [tools]
+# Usage: tools/tests/mmutest.sh [8088] [real] [pm] [r3] [386] [r386] [multi] [pool] [tools]
 #
 # Runs quick.sh's floppy tests (FPUTESTS through PRINTF), followed by CPUTESTS and R3TESTS, on these test machines:
 #
@@ -11,6 +11,9 @@
 #           HARDERR's INT 13h hook tests)
 #   r3      the same machine without the "RING=0" line, so that programs (and COMMAND.COM) run at ring 3, as they do
 #           by default in protected mode, where CPUTESTS and HARDERR's hook tests print that they were skipped instead
+#   386     a 2Mb COMPAQ DeskPro 386 (compaq386) with "CPU=80386" and "RING=0" lines, where CPU$ uses the 80386's
+#           features (CPUTESTS also tests its selectors beyond 64K)
+#   r386    the same machine without the "RING=0" line
 #   multi   the "r3" machine with a second console (on its video adapter), since sysinit then loads the first SHELL from
 #           another session's LDT; it runs only R3TESTS, since some tests (eg, HARDERR) won't run beside another session
 #   pool    the "r3" machine with 9 sessions, where MEMTESTS fills the system area's pool of PMBs and LDT descriptors
@@ -19,9 +22,9 @@
 #           tools in software/src/tools/bd (see tools/misc/mkne.js), which must match the binaries of the last build, and
 #           runs EXEMOD and MAPSYM, which must succeed
 #
-# By default, it runs all seven.  The "pm", "r3", "multi", "pool", and "tools" machines boot a copy of a configuration with a
-# "CPU=80286" line, in tools/pc/disks/tmp-mmupm, which is deleted afterward.  The exit code is non-zero if any test
-# failed.
+# By default, it runs all nine.  The "pm", "r3", "multi", "pool", and "tools" machines boot a copy of a configuration with a
+# "CPU=80286" line (and the "386" and "r386" machines, a "CPU=80386" line), in tools/pc/disks/tmp-mmupm, which is deleted
+# afterward.  The exit code is non-zero if any test failed.
 #
 cd "$(dirname "$0")/../.." || exit 1
 fpe=software/src/configs/console/serial/fpe
@@ -33,7 +36,7 @@ m='\TESTS\REGRESS\'
 cmds="VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}BUFTESTS;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;\\TESTS\\MISC\\CPUTESTS;$ok;\\TESTS\\MISC\\R3TESTS;$ok;SLEEP 1;QUIT"
 log=$(mktemp)
 failed=
-for name in ${@:-8088 real pm r3 multi pool tools}; do
+for name in ${@:-8088 real pm r3 386 r386 multi pool tools}; do
     meta="HARDERR metadata passed"; seek="HARDERR seek passed"; above="BUFTESTS passed"; r3t="R3TESTS skipped"
     case $name in
         8088)   args="ibm5160 $fpe"; cpu="CPU type 0 (hardware 0)" ;;
@@ -97,17 +100,22 @@ EOF
                     failed="$failed $name"
                 fi
                 continue ;;
-        pm|r3)  rm -rf $tmp
+        pm|r3|386|r386)
+                rm -rf $tmp
                 cp -R $fpe $tmp || exit 1
-                echo CPU=80286 >> $tmp/CONFIG.SYS
-                args="ibm5170 $tmp --ram=2M"; cpu="CPU type 2 (hardware 2)"
-                if [ $name = pm ]; then
+                case $name in
+                    *386) echo CPU=80386 >> $tmp/CONFIG.SYS
+                          args="compaq386 $tmp --ram=2M"; cpu="CPU type 3 (hardware 3)" ;;
+                    *)    echo CPU=80286 >> $tmp/CONFIG.SYS
+                          args="ibm5170 $tmp --ram=2M"; cpu="CPU type 2 (hardware 2)" ;;
+                esac
+                if [ $name = pm ] || [ $name = 386 ]; then
                     echo RING=0 >> $tmp/CONFIG.SYS
                     above="BUFTESTS block above 1Mb"
                 else
                     cpu="CPUTESTS skipped"; meta="HARDERR hook tests skipped"; seek=$meta; r3t="R3TESTS passed"
                 fi ;;
-        *)      echo "usage: $0 [8088] [real] [pm] [r3] [multi] [tools]" >&2; exit 1 ;;
+        *)      echo "usage: $0 [8088] [real] [pm] [r3] [386] [r386] [multi] [pool] [tools]" >&2; exit 1 ;;
     esac
     tools/pc/pc.js $args "$cmds" --sys=bd:2 --floppy --serial --normalize --nosync | tee "$log"
     if grep -q "Floating-point .*installed" "$log" || grep -q "failed" "$log" || grep -q "EXITBAD" "$log" ||

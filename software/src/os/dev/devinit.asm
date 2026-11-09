@@ -232,7 +232,7 @@ i2a:	mov	bx,[bp].DDPI_END.OFF
 	ASSUME	ES:NOTHING
 	jnc	i3
 ;
-; If CPU$ isn't loaded yet, the first driver (the 80286 CPU$) just unloaded
+; If CPU$ isn't loaded yet, the first driver (the 80386 CPU$) just unloaded
 ; itself, and the 8086 CPU$ is next, so we move the drivers down ourselves;
 ; this is the only memory we move without CPU$.
 ;
@@ -489,7 +489,7 @@ cu2:	mov	cx,si
 	mov	ah,CPU_PMODE
 	call	far ptr DDINT_CPU	; AX = data selector for our CS
 ;
-; The 80286 CPU$ stays only if it can switch to protected mode, and it fills
+; The 80386 CPU$ stays only if it can switch to protected mode, and it fills
 ; DDINT_GETVEC and DDINT_SETVEC only when it does, so a failure is fatal.
 ;
 	jc	$			; halt

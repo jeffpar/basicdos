@@ -3,10 +3,11 @@ BASIC-DOS Build Tools
 
 Most of the tools in this directory build BASIC-DOS from its source code (see
 SRC: type CD \SRC and then MK), and they can all be used with other software
-on BASIC-DOS, too.  None of them are part of BASIC-DOS: they came from the
-three Microsoft products described below.  They're unmodified, except for
-those on a BASIC-DOS disk that are protected-mode conversions (see the last
-section).
+on BASIC-DOS, too; the exceptions are the 80386 tools, which are for code that
+BASIC-DOS doesn't build yet.  None of them are part of BASIC-DOS: they came
+from the four Microsoft products described below.  They're unmodified, except
+for those on a BASIC-DOS disk that are protected-mode conversions (see the
+last section).
 
 Microsoft Macro Assembler Package, Version 4.00 (October 16, 1985)
 ------------------------------------------------------------------
@@ -67,6 +68,23 @@ DOS_MSC_GETVER in the BASIC-DOS technical reference.  The file is unmodified.
 
 The other tools have small stacks, too (MAPSYM's SP is 80h and LINK's is
 100h), but BASIC-DOS has built itself with them without trouble.
+
+Microsoft Windows 3.1 Device Development Kit (March 1992)
+--------------------------------------------------------
+
+Two files were taken from the DDK's 386\TOOLS folder, which has the tools for
+building Windows 386 enhanced mode virtual devices (VxDs):
+
+    LINK386  EXE    123008  01-05-92   Linear-Executable Linker 1.00.058
+    MASM5    EXE    111396  01-05-92   Macro Assembler 5.10B
+
+They're for 80386 code: MASM5 assembles .386P sources with 32-bit (USE32)
+segments, and LINK386 links them into a "linear executable" (LE) file, of
+4K pages and 32-bit fixups, as a paging loader needs.  A definitions file
+selects the kind of LE file: EXETYPE OS2 (with NAME) makes a program, and
+EXETYPE DEV386 (with LIBRARY) makes a VxD.  LINK386 is an OS/2 1.x program
+whose DOS stub runs it on DOS, too (it has been tried on MS-DOS 3.20), and
+the default stub of the programs it links says that they can't run on DOS.
 
 BASIC-DOS Protected-Mode Tools
 ------------------------------

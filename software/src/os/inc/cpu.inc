@@ -8,10 +8,11 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 ; CPU$ manages all of memory, and there are two built-in CPU$ drivers, of
-; which only one stays loaded: the first (286dev.asm) stores the processor
+; which only one stays loaded: the first (386dev.asm) stores the processor
 ; type in CPU_HWTYPE and CPU_TYPE (see bios.inc), and stays on an 80286 or
 ; later that can use protected mode, where it manages memory with a table of
-; PMBs (and protected-mode descriptors, too); otherwise, the second
+; PMBs (and protected-mode descriptors, too), using the 80386's features on
+; an 80386 or later (unless there's a "CPU=80286" line); otherwise, the second
 ; (x86dev.asm) stays, and manages memory with a chain of MCBs, as DOS always
 ; has.  Their functions are the same, and are called through DDINT_CPU (see
 ; bios.inc) with a function number in AH; until CPU$ is loaded, DDINT_CPU
@@ -20,8 +21,10 @@
 
 ;
 ; CPU types (CPU_TYPE and CPU_HWTYPE): CPU_TYPE is the type that BASIC-DOS
-; uses, which is CPUTYPE_8086 unless protected mode is requested, and
-; CPU_HWTYPE is always the processor's own (eg, for a disassembler).
+; uses, which is CPUTYPE_8086 unless protected mode is requested, and then
+; the type whose features the 80386 driver uses (CPUTYPE_80286 on an 80386
+; with a "CPU=80286" line), and CPU_HWTYPE is always the processor's own (eg,
+; for a disassembler).
 ;
 CPUTYPE_8086	equ	0	; 8086 or 8088 (or NEC V20 or V30)
 CPUTYPE_80186	equ	1	; 80186 or 80188
@@ -56,7 +59,7 @@ CPU_REALLOC	equ	08h	; DX:CX = block, SI:DI = new length
 CPU_MOVE	equ	09h	; ES:BX -> MOVEPKT
 CPU_SETBLK	equ	0Ah	; DX:CX = block, AL = type, BX = owner, ES:SI
 CPU_FREEALL	equ	0Bh	; BX = owner of the blocks to free
-CPU_SETLIM	equ	0Ch	; BX = selector, SI:DI = new length (<= 64K)
+CPU_SETLIM	equ	0Ch	; BX = selector, SI:DI = new length
 CPU_SEGINFO	equ	0Dh	; AL = ADDR_SEL or 0, BX = segment or selector
 CPU_RWMEM	equ	0Eh	; AL = ADDR_*, BX:SI = address, CX, ES:DI
 CPU_SYSREGS	equ	0Fh	; ES:DI -> 12-byte buffer (GDTR and IDTR)
@@ -67,7 +70,7 @@ CPU_MAXFUNC	equ	12h
 
 ;
 ; CPU_ALIAS with just MEMF_CODE, for the selector that CPU_ALLOC returned for a
-; block, returns that block's code alias, which the 80286 driver creates only
+; block, returns that block's code alias, which the 80386 driver creates only
 ; once (keeping it in PMB_CODE) and frees with the block, so it must not be
 ; freed with CPU_UNMAP (in real mode, a segment is its own alias).
 ;
@@ -76,7 +79,7 @@ CPU_MAXFUNC	equ	12h
 ; DOS (see PMB_MCBTYPE and PMB_NAME); CPU_FREE and CPU_FREEALL clear them.
 ;
 ; An owner (for CPU_ALLOC, CPU_SETBLK, and CPU_FREEALL) is a PSP (or a driver's
-; segment, or MCBOWNER_SYSTEM), which the 80286 driver stores as an owner ID
+; segment, or MCBOWNER_SYSTEM), which the 80386 driver stores as an owner ID
 ; (PMB_OWNER): in protected mode, a ring 3 program's PSP is an LDT selector,
 ; which a program with another LDT can share, so its ID is 80h plus its LDT #
 ; (see CPU_SETLDT) in the high byte and its LDT index in the low byte (eg,
@@ -85,11 +88,12 @@ CPU_MAXFUNC	equ	12h
 ; CPU_MAP with MEMF_LDT returns the same kind of ID for its selector in DX, so
 ; that a driver can change the memory that the selector maps later, from any
 ; session, with CPU_MAP and MEMF_REMAP (BX = the ID), or free it, with
-; CPU_UNMAP (BX = the ID).  A remapped selector that's 64K or less covers the
-; new address and length, and a length of zero makes it not present; a program
-; that then loads it (or returns to DOS with it in DS or ES) waits for wait ID
-; SELID_WAIT:ID, so the driver ends that wait (DOS_UTL_ENDWAIT, until it
-; returns carry, since each call ends one) once the selector is present again.
+; CPU_UNMAP (BX = the ID).  A remapped selector covers the new address and
+; length (as CPU_SETLIM allows), and a length of zero makes it not present; a
+; program that then loads it (or returns to DOS with it in DS or ES) waits for
+; wait ID SELID_WAIT:ID, so the driver ends that wait (DOS_UTL_ENDWAIT, until
+; it returns carry, since each call ends one) once the selector is present
+; again.
 ; A segment register that already holds the selector keeps what it had until
 ; it's loaded again, so a driver changes it only for a session that isn't
 ; running (eg, VKD$ takes away a console's video memory while another console
@@ -103,10 +107,10 @@ SELID_WAIT	equ	0FFFFh	; segment of a selector ID's wait ID
 ; change CPU$'s state, and work even when CPU$ itself was interrupted (eg, at
 ; a breakpoint).  An address (segment:offset) is in real-mode form unless
 ; ADDR_SEL is set, in which case its segment is a protected-mode selector
-; (which only the 80286 driver accepts), in either mode, or ADDR_PHYS is set,
+; (which only the 80386 driver accepts), in either mode, or ADDR_PHYS is set,
 ; in which case it's a physical address (the "segment" holds bits 16-31, and
 ; with the 8086 driver, it must be below 1Mb), or (in protected mode, with the
-; 80286 driver) ADDR_LDT is set, in which case the "segment" is an LDT # (see
+; 80386 driver) ADDR_LDT is set, in which case the "segment" is an LDT # (see
 ; CPU_SETLDT), and the segment is that LDT, whose limit is FFFFh if it's empty:
 ;
 ;	CPU_SEGINFO returns the segment's base address in DX:CX and its limit
@@ -125,7 +129,7 @@ SELID_WAIT	equ	0FFFFh	; segment of a selector ID's wait ID
 ;	in real mode); the 8086 driver returns ERR_INVALID instead.
 ;
 ; CPU_SETFAULT sets the handler that a fatal protected-mode exception goes to
-; (eg, a debugger's), before the 80286 driver reports it and stops the
+; (eg, a debugger's), before the 80386 driver reports it and stops the
 ; machine, unless it occurred in CPU$ or in the handler's own code, and
 ; returns the previous handler in DX:CX.  The handler is entered with the
 ; registers as they were, interrupts disabled, and SS:SP -> a far return
@@ -148,7 +152,7 @@ FAULT_HALTED	equ	80h	; CPU_SETFAULT: vector's high byte for a halt
 ;
 ; CPU_SETSTACK sets the ring 0 stack (SS:SP) that the processor switches to
 ; when an interrupt takes ring 3 code to ring 0, and returns the previous one
-; in DX:CX.  The 80286 driver keeps it in its TSS, which CPU_PMODE loads;
+; in DX:CX.  The 80386 driver keeps it in its TSS, which CPU_PMODE loads;
 ; until a caller sets one, there's none (0:0), so nothing can run at ring 3.
 ; Only INT 0 (eg, FPU$ signals a divide error with it), INT 03h and 04h, DOS's
 ; vectors (20h-2Fh, eg, INT 21h), the mouse (33h), and the user vectors
@@ -198,10 +202,14 @@ CPUF_HWTYPE	equ	0C0h	; CPU_HWTYPE (in bits 6-7)
 ; generated code, or for a COM program's PSP block; see docs/bdtech/mmu), with
 ; its base address in DX:CX; CPU_UNMAP frees it.  CPU_SETLIM changes the
 ; length that a selector covers (eg, to fit a driver's selectors to what it
-; keeps after its initialization), without changing the selector.  In real
-; mode, the same functions return the segment of the memory instead (a
-; segment is its own alias, and there's nothing to unmap or change), so
-; callers needn't check the mode.
+; keeps after its initialization), without changing the selector: up to 64K,
+; or when CPU_TYPE is CPUTYPE_80386, any length, so that one selector covers
+; a larger block (beyond 1Mb, with 4K granularity, rounding the length down
+; to a multiple of 4K).  Code that reads such a limit with a 16-bit LSL gets
+; only bits 15-0, and CPU_SEGINFO reports FFFFh.  CPU_REALLOC refits a
+; block's selectors to 64K each.  In real mode, the same functions return
+; the segment of the memory instead (a segment is its own alias, and there's
+; nothing to unmap or change), so callers needn't check the mode.
 ;
 ; CPU_ALLOC allocates from the first free block that's big enough, or with
 ; MEMF_HIGH, the top of the last one, anywhere in memory (conventional or
@@ -231,7 +239,7 @@ R3_USERMAX	equ	67h	; and the last
 ;
 ; Physical Memory Block (PMB)
 ;
-; The 80286 driver's arena is a table of PMBs, in address order, describing
+; The 80386 driver's arena is a table of PMBs, in address order, describing
 ; all memory from address 0 to the end of extended memory; the last PMB has
 ; signature PMBSIG_LAST.  Unlike DOS MCBs, PMBs aren't stored in the memory
 ; they describe, so blocks need no header, and the arena can describe memory

@@ -76,7 +76,7 @@ RVEC		ends
 ;
 ; The bits of a descriptor's access rights that make it a code segment, which
 ; are what an IRET requires of a selector that it loads into CS (see ACC_CODE
-; in 286dev.asm), and how far below a ring 3 caller's SP r3_sprintf requires
+; in 386dev.asm), and how far below a ring 3 caller's SP r3_sprintf requires
 ; its stack to reach, to run sprintf (and any interrupts) on it.
 ;
 R3_CODESEG	equ	18h

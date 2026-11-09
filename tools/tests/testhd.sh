@@ -6,16 +6,17 @@
 #   tools/tests/testhd.sh [hard disk directory] [config folder]
 #
 # The hard disk directory defaults to tools/pc/disks/hdsrc (created with a few sample files if it doesn't
-# exist), and the config folder defaults to software/src/configs/console/bios.  The hard disk is
-# formatted by MS-DOS 3.20 (so it also contains MS-DOS system files, and a DOS subdirectory).
+# exist), and the config folder defaults to software/src/configs/console/serial/fpe, whose console is on
+# COM1 (pc.js's --serial), so the session runs in this terminal.  The hard disk is formatted by MS-DOS 3.20
+# (so it also contains MS-DOS system files, and a DOS subdirectory).
 #
-# When the "System starting..." message appears, press any key other than ESC to boot BASIC-DOS from the
-# diskette (ESC boots MS-DOS from the hard disk instead).  Changes to the hard disk are NOT saved back to the
-# directory.
+# After the "System starting..." message, BASIC-DOS boots from the diskette (since this terminal's keys go
+# to COM1, there's no way to press ESC there to boot MS-DOS from the hard disk instead).  Changes to the hard
+# disk are NOT saved back to the directory.
 #
 cd "$(dirname "$0")/../.." || exit 1
 hdir="${1:-tools/pc/disks/hdsrc}"
-cfg="${2:-software/src/configs/console/bios}"
+cfg="${2:-software/src/configs/console/serial/fpe}"
 if [ ! -d "$cfg" ]; then
     echo "error: $cfg not found" >&2
     exit 1
@@ -44,10 +45,10 @@ if [ -f $fdir/AUTOEXEC.BAT ]; then
 fi
 echo "Building BASIC-DOS diskette..."
 tools/pc/pc.js ibm5160 $fdir "VER;$restore;QUIT /S BDHD.IMG" \
-    --system=bd --version=2 --floppy --normalize --nosync > /dev/null
+    --system=bd --version=2 --floppy --serial --normalize --nosync > /dev/null
 if [ ! -f tools/pc/disks/BDHD.IMG ]; then
     echo "error: unable to build tools/pc/disks/BDHD.IMG" >&2
     exit 1
 fi
 rm -rf $fdir
-tools/pc/pc.js ibm5160 --diskette=tools/pc/disks/BDHD.IMG --boot=A --dir="$hdir" --target=10M --sys=msdos:3.20 --nosync
+tools/pc/pc.js ibm5160 --diskette=tools/pc/disks/BDHD.IMG --boot=A --dir="$hdir" --target=10M --sys=msdos:3.20 --serial --nosync

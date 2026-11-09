@@ -3,7 +3,7 @@
 # Usage: tools/tests/pmboot.sh [ibm5170 or compaq386] [pc.js arguments...]
 #
 # Boots BASIC-DOS on a 2Mb machine (an IBM PC AT by default) from a floppy whose CONFIG.SYS has a "CPU=80286" line,
-# so that devinit switches to protected mode after CPU$ initializes (see CPU_PMODE in software/src/os/dev/286dev.asm,
+# so that devinit switches to protected mode after CPU$ initializes (see CPU_PMODE in software/src/os/dev/386dev.asm,
 # and docs/bdtech/mmu), initializes the rest of the drivers in protected mode, and jumps to sysinit in protected mode,
 # with BASIC-DOS's console on COM1 (ie, this terminal).  An exception that CPU$ can't handle prints "CPU fault" and
 # stops the machine.
@@ -30,6 +30,6 @@ show() {
         [ -n "$off" ] && printf "%-12s bp %%%X\n" $name $(($2 + 0x$off))
     done
 }
-show $obj/286DEV.MAP 0x970 "ddcpu_pmode sw_int irq_common exc_common cpu_fatal pm_setvec"
+show $obj/386DEV.MAP 0x970 "ddcpu_pmode sw_int irq_common exc_common cpu_fatal pm_setvec"
 show $obj/DEVINIT.MAP $devinit "chk_pm dv_init dv_jump"
 exec tools/pc/pc.js $machine $cfg "$@" --sys=bd:2 --floppy --serial --ram=2M --normalize --nosync

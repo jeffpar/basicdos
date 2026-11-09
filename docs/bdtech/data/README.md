@@ -184,7 +184,7 @@ File Control Blocks are compatible with PC DOS; see FCB, FCBF, and FCBEX in dosa
 
 ### MCB
 
-The CPU$ driver manages memory (see [Protected Mode](../mmu/)), and only its 8086 driver uses Memory Control Blocks, as PC DOS does: each MCB occupies the paragraph before the memory block it describes.  DOS keeps each block's owner, type, and name with CPU$ (see CPU_SETBLK), which stores them in the block's MCB (or with the 80286 driver, in its PMB).
+The CPU$ driver manages memory (see [Protected Mode](../mmu/)), and only its 8086 driver uses Memory Control Blocks, as PC DOS does: each MCB occupies the paragraph before the memory block it describes.  DOS keeps each block's owner, type, and name with CPU$ (see CPU_SETBLK), which stores them in the block's MCB (or with the 80386 driver, in its PMB).
 
 | Offset | Field | Description |
 |--------|-------|-------------|

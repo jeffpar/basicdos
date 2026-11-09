@@ -64,9 +64,15 @@ VKD	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 ; Where the next context goes on each adapter (primary, then alternate; see
 ; ddcon_open): the position (X,Y) of its top left, followed by its page (LO)
 ; and the adapter's number of pages (HI), which ddcon_init sets to 1 for an
-; MDA (a CGA has 4 pages of 4K each).
+; MDA (a CGA has 4 pages of 4K each).  Pages beyond those are virtual pages,
+; kept in system memory (see swap_page).
 ;
 	DEFWORD	con_place,<0,0400h,0,0400h>
+;
+; The page that each adapter is displaying (see show_page), indexed like
+; con_place (so only bytes 0 and 4 are used).
+;
+	DEFBYTE	shown_page,0,5
 
 	DEFPTR	kbd_int,0	; original keyboard hardware interrupt handler
 	DEFPTR	video_int,0	; original video services interrupt handler
@@ -114,7 +120,7 @@ CTS_PORT	dw	?	; 34h: saves ADDR_6845 before writing CT_PORT
 ; the mode is set back to the original mode (see update_mode).
 ;
 CTO_MODE	db	?	; 36h: original video mode
-CTO_STATUS	db	?	; 37h: original CTSTAT_BORDER and CTSTAT_INT10
+CTO_STATUS	db	?	; 37h: original CTSTAT_BORDER
 CTO_DIM		dw	?	; 38h: original columns (LO) and rows (HI)
 CTO_POS		dw	?	; 3Ah: original position (X,Y) of top left
 CT_SCAN		db	?	; 3Ch: pending scan code (see pull_kbd)
@@ -134,6 +140,9 @@ CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
 
 ADAPTER_MDA	equ	01h	; MDA (port 3B4h) is present
 ADAPTER_CGA	equ	02h	; CGA (port 3D4h) is present
+
+PAGE_LEN	equ	4000	; bytes of a page that contexts use (80*25*2)
+MAX_PAGES	equ	8	; pages per adapter (see CURSOR_POSN)
 
 ;
 ; CRT Controller Registers
@@ -334,9 +343,11 @@ DEFPROC	ddcon_getchar
 	add	dx,ds:[CT_CURMIN]	; DL, DH = col, row in the context
 	test	ds:[CT_STATUS],CTSTAT_INT10
 	jnz	dgr5
-	les	di,ds:[CT_SCREEN]	; ES:DI -> screen location
 	call	get_curpos		; BX = screen offset for (DL,DH)
+	cli				; (see write_curpos)
+	les	di,ds:[CT_SCREEN]	; ES:DI -> screen location
 	mov	dx,es:[di+bx]		; DL = character, DH = attributes
+	sti
 	clc
 	ret
 dgr5:	add	dx,ds:[CT_CONPOS]	; DL = screen col, DH = screen row
@@ -705,8 +716,8 @@ DEFPROC	ddcon_getmode
 	mov	ax,(CPU_MAP SHL 8) OR MEMF_LDT OR MEMF_USER
 	call	far ptr DDINT_CPU	; AX = selector (or segment), DX = ID
 	jc	dgm8
-	cmp	ax,ds:[CT_SCREEN].SEG	; the segment itself (real mode)?
-	je	dgm1			; yes (and DX isn't an ID)
+	test	al,4			; the segment itself (real mode)?
+	jz	dgm1			; yes (an LDT selector has TI set)
 	mov	ds:[CT_SLOT],dx
 	push	dx
 	call	set_slot		; (not present, if we're blocked)
@@ -773,6 +784,7 @@ dsm2:	push	ds
 	ASSUME	DS:NOTHING
 	mov	ah,DOS_UTL_LOCK
 	call	far ptr DDINT_UTIL	; ensure EQUIP_FLAG remains stable
+	call	swap_page		; (the BIOS can't reach a virtual page)
 	call	update_biosdata		; AX = previous EQUIP_FLAG
 	push	ax
 	push	bp			; some BIOS functions trash BP
@@ -928,11 +940,8 @@ ENDPROC	ddcon_write
 ;
 ; Each adapter's contexts are placed automatically, starting at the top left
 ; of its first page and filling the page downward, then rightward, and then
-; the next page, until the adapter has no pages left (see con_place).
-;
-; Alternatively, BIOS (or just B) can follow [rows] (eg, "VKD$:80,25,BIOS"),
-; in which case the remaining values are defaulted, and characters are written
-; using INT 10h instead of directly to the screen (see write_curpos).
+; the next page, until the adapter has no pages left (see con_place); the
+; pages after those (up to MAX_PAGES) are virtual pages (see swap_page).
 ;
 ; Obviously future hardware (imagine an ENHANCED Graphics Adapter, for example)
 ; will be able to support more rows and other features, but we're designing
@@ -993,10 +1002,6 @@ dco1:	push	cs
 	mov	cl,al			; CL = cols
 	DOSUTIL	ATOI16
 	mov	ch,al			; CH = rows
-	mov	al,[si]
-	or	al,20h			; fold to lower case
-	cmp	al,'b'			; BIOS option (eg, "VKD$:80,25,BIOS")?
-	pushf				; save the result (ZF) for later
 	DOSUTIL	ATOI16
 	mov	bh,al			; BH = border (0 for none)
 	ASSERT	CTSTAT_BORDER,EQ,01h
@@ -1004,10 +1009,7 @@ dco1:	push	cs
 	shl	al,1
 	or	bh,al			; BH includes adapter bit, too
 	ASSERT	CTSTAT_ADAPTER,EQ,02h
-	popf				; was the BIOS option specified?
-	jne	dco1z			; no
-	or	bh,CTSTAT_INT10		; yes
-dco1z:	pop	ds
+	pop	ds
 	ASSUME	DS:CODE
 	test	bh,CTSTAT_ADAPTER	; alternate adapter requested?
 	jz	dco1w			; no
@@ -1024,7 +1026,7 @@ dco1w:	mov	al,bh
 	shl	ax,1
 	xchg	si,ax			; SI = 0 (primary) or 4 (alternate)
 	mov	ax,con_place[si+2]	; AL = page, AH = # pages
-	cmp	al,ah			; does the adapter have a page left?
+	cmp	al,MAX_PAGES		; is there a page left?
 	cmc
 	jc	dco1x			; no
 	mov	bl,al			; BL = page
@@ -1049,6 +1051,10 @@ dco1u:	cmp	cl,16			; still at least the minimum columns?
 	mov	ax,DOS_MEM_ALLOC SHL 8
 	int	INT_DOSFUNC
 	pop	bx
+	jc	dco1x
+	cmp	bl,byte ptr con_place[si+3]
+	jb	dco1a			; not a virtual page
+	call	get_vbuf		; find (or allocate) its buffer
 	jnc	dco1a
 dco1x:	jmp	dco7
 ;
@@ -1115,7 +1121,7 @@ dco2b:	mov	es:[di],ds
 	mov	ds:[CTO_DIM],cx
 	mov	ds:[CTO_POS],dx
 	mov	al,bh
-	and	al,CTSTAT_BORDER OR CTSTAT_INT10
+	and	al,CTSTAT_BORDER
 	mov	ds:[CTO_STATUS],al
 	call	set_geometry
 	mov	ds:[CT_SCROFF],4000	; TODO: fix this hard-coded offset
@@ -1173,8 +1179,10 @@ dco4:	pop	ds:[CT_COLS]
 	mov	ds:[CT_EQUIP],cx
 	mov	ds:[CT_MODE],bl
 	mov	ds:[CTO_MODE],bl
+	call	chk_vpage		; is it on a virtual page?
+	jc	dco4b			; yes (see get_vbuf)
 	mov	ds:[CT_SCREEN].SEG,ax
-	xchg	ax,si
+dco4b:	xchg	ax,si
 	test	ax,ax
 	jnz	dco4a
 	call	update_curtype
@@ -1302,8 +1310,10 @@ dcc4:	mov	cx,es:[CT_NEXT]		; move this context's CT_NEXT
 	pop	ds
 	ASSUME	DS:CODE
 ;
-; We are now free to free the context segment in ES.
+; We are now free to free the context segment in ES (and its virtual page's
+; buffer, if no other context is on that page).
 ;
+	call	free_vbuf
 	call	free_ctx
 
 dcc7:	pop	es
@@ -1336,6 +1346,154 @@ fc1:	mov	ah,DOS_MEM_FREE
 	int	INT_DOSFUNC
 	ret
 ENDPROC	free_ctx
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_vbuf
+;
+; Every context on a virtual page shares the page's buffer (see swap_page),
+; so a new context on one uses the buffer of another context on the page, or
+; else allocates a cleared buffer, owned by the system, since it outlives any
+; program that opened a context.
+;
+; Inputs:
+;	AX = new CONSOLE context (not in our chain yet)
+;	BL = virtual page, BH = CTSTAT bits
+;
+; Outputs:
+;	Carry clear if successful (the context's CT_SCREEN.SEG is the buffer);
+;	otherwise, carry set, and the context has been freed
+;
+; Modifies:
+;	ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	get_vbuf
+	push	ax
+	push	bx
+	push	cx
+	push	dx
+	push	si
+	push	di
+	push	ax			; (context)
+	mov	al,bh
+	and	al,CTSTAT_ADAPTER
+	mov	ah,bl			; AH = page, AL = adapter bit
+	call	find_page		; ES = a context on the page, if any
+	jc	gvb1			; none
+	mov	ax,es:[CT_SCREEN].SEG	; AX = its buffer
+	jmp	short gvb2
+gvb1:	mov	ax,CPU_ALLOC SHL 8	; AL = 0 (a GDT data selector)
+	mov	bx,MCBOWNER_SYSTEM
+	sub	si,si
+	mov	di,PAGE_LEN		; SI:DI = length
+	call	far ptr DDINT_CPU	; AX = segment (or selector)
+	pop	es			; ES = context
+	jc	gvb8
+	push	es
+	mov	es,ax
+	mov	cx,PAGE_LEN SHR 1
+	sub	di,di
+	mov	ax,0720h
+	rep	stosw			; clear the buffer
+	mov	ax,es
+gvb2:	pop	es			; ES = context
+	mov	es:[CT_SCREEN].SEG,ax	; (and carry is clear)
+	jmp	short gvb9
+gvb8:	mov	ah,DOS_MEM_FREE
+	int	INT_DOSFUNC		; free the context
+	stc
+gvb9:	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	pop	bx
+	pop	ax
+	ret
+ENDPROC	get_vbuf
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; free_vbuf
+;
+; Frees a context's virtual page buffer if no other context is on that page.
+;
+; Inputs:
+;	ES = CONSOLE context (no longer in our chain)
+;
+; Modifies:
+;	AX, CX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	free_vbuf
+	push	ds
+	push	es
+	pop	ds			; DS = context
+	call	chk_vpage		; is it on a virtual page?
+	jnc	fvb9			; no
+	mov	al,ds:[CT_STATUS]
+	and	al,CTSTAT_ADAPTER
+	mov	ah,ds:[CTO_PAGE]	; AH = page, AL = adapter bit
+	call	find_page		; is another context on the page?
+	push	ds
+	pop	es			; (ES = context again)
+	jnc	fvb9			; yes
+	mov	cx,ds:[CT_SCREEN].SEG
+	call	free_buf		; no, so free the buffer
+fvb9:	pop	ds
+	ret
+ENDPROC	free_vbuf
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; free_buf
+;
+; Inputs:
+;	CX = virtual page buffer (from get_vbuf)
+;
+; Modifies:
+;	AX, CX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	free_buf
+	mov	dx,-1			; DX = -1 means CX is a segment
+	mov	ah,CPU_FREE
+	call	far ptr DDINT_CPU
+	ret
+ENDPROC	free_buf
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; find_page
+;
+; Inputs:
+;	AL = CTSTAT_ADAPTER bit, AH = page
+;
+; Outputs:
+;	Carry clear if a context in our chain is on that page (ES = context);
+;	carry set if none
+;
+; Modifies:
+;	ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	find_page
+	push	bx
+	mov	bx,[ct_head]
+fp1:	test	bx,bx			; any more contexts?
+	stc
+	jz	fp9			; no
+	mov	es,bx
+	mov	bl,es:[CT_STATUS]
+	and	bl,CTSTAT_ADAPTER
+	mov	bh,es:[CTO_PAGE]
+	cmp	bx,ax			; is this context on the page?
+	je	fp9			; yes (and carry is clear)
+	mov	bx,es:[CT_NEXT]
+	jmp	fp1
+fp9:	pop	bx
+	ret
+ENDPROC	find_page
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1642,7 +1800,11 @@ i10y:	pop	ds
 	jz	i10a			; no
 	push	ds			; yes
 	mov	ds,ax			; load it
-	call	update_biosdata		; returns current EQUIP_FLAG
+	mov	bp,sp
+	cmp	byte ptr [bp+5],VIDEO_SETMODE	; setting a video mode?
+	jne	i10z			; no
+	call	swap_page		; yes (see swap_page)
+i10z:	call	update_biosdata		; returns current EQUIP_FLAG
 	pop	ds
 
 i10a:	push	ax			; save EQUIP_FLAG
@@ -2369,11 +2531,15 @@ scr2:	mov	bh,ds:[CT_COLOR].LOB	; BH = fill attributes
 	jnc	scr3			; no
 	mov	bh,0			; yes, BH = fill pixels (background)
 scr3:	mov	ah,bl
+	call	chk_vpage		; is the context on a virtual page?
+	jnc	scr4			; no
+	call	scroll_buf		; yes, which the BIOS can't reach
+	jmp	short scr9
 ;
 ; This context may not be the session's (eg, a new context being cleared), so
 ; tell ddcon_int10 which context to use, with interrupts off until it has.
 ;
-	cli
+scr4:	cli
 	push	es
 	mov	es,cs:[0].DDH_DATA
 	ASSUME	ES:CODE
@@ -2382,11 +2548,103 @@ scr3:	mov	ah,bl
 	ASSUME	ES:NOTHING
 	int	INT_VIDEO
 	sti
-	pop	dx
+scr9:	pop	dx
 	pop	cx
 	pop	bx
 	ret
 ENDPROC	scroll
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scroll_buf
+;
+; Scrolls (or clears) a window of a virtual page's buffer, like the BIOS's
+; VIDEO_SCROLL and VIDEO_SCROLLDN functions do on the screen, with the BIOS
+; locked, so that no swap_page moves the buffer meanwhile.
+;
+; Inputs:
+;	AH = VIDEO_SCROLL or VIDEO_SCROLLDN
+;	AL = # lines (0 to clear the window)
+;	BH = fill attributes
+;	CH,CL = row,col of top left
+;	DH,DL = row,col of bottom right
+;	DS = CONSOLE context
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	scroll_buf
+	push	si
+	push	di
+	push	bp
+	push	es
+	push	ds
+	mov	ds,cs:[0].DDH_DATA
+	ASSUME	DS:CODE
+	inc	[bios_lock]
+	pop	ds
+	ASSUME	DS:NOTHING
+	push	ds
+	push	bx			; save BH (fill attributes)
+	sub	dx,cx
+	add	dx,0101h		; DH = rows, DL = columns
+	cmp	al,dh			; every line (or more)?
+	jae	sb1			; yes
+	test	al,al			; clearing the window?
+	jnz	sb2			; no
+sb1:	mov	al,dh			; AL = # lines to clear
+sb2:	mov	bl,[max_cols]
+	mov	bh,0
+	add	bx,bx
+	mov	bp,bx			; BP = bytes per row
+	cmp	ah,VIDEO_SCROLL		; scrolling up?
+	je	sb3			; yes
+	add	ch,dh
+	dec	ch			; no, so start at the bottom row
+	neg	bp			; and move upward
+sb3:	push	dx
+	mov	dx,cx
+	call	get_curpos		; BX = offset of the first row
+	pop	dx
+	mov	es,ds:[CT_SCREEN].SEG
+	push	es
+	pop	ds			; DS = ES = buffer
+	mov	di,bx			; DI -> first row
+	cbw
+	xchg	cx,ax			; CX = # lines
+	mov	bl,cl			; BL = # lines to fill
+	mov	si,di
+sb4:	add	si,bp
+	loop	sb4			; SI -> row that moves to the first row
+	sub	dh,bl			; DH = # lines to move
+	jmp	short sb6
+sb5:	mov	cl,dl
+	push	si
+	push	di
+	rep	movsw
+	pop	di
+	pop	si
+	add	si,bp
+	add	di,bp
+sb6:	dec	dh
+	jns	sb5
+	pop	ax			; AH = fill attributes
+	mov	al,' '
+sb7:	mov	cl,dl
+	push	di
+	rep	stosw
+	pop	di
+	add	di,bp
+	dec	bl
+	jnz	sb7
+	pop	ds
+	pop	es
+	pop	bp
+	pop	di
+	pop	si
+	jmp	unlock_bios
+ENDPROC	scroll_buf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2456,7 +2714,8 @@ ENDPROC	show_cursor
 ; show_page
 ;
 ; Displays the context's page, if it has focus and isn't blocked by another
-; context (see chk_blocked).
+; context (see chk_blocked); a virtual page is exchanged with the page that
+; the adapter is displaying first (see swap_page).
 ;
 ; Inputs:
 ;	DS = CONSOLE context
@@ -2474,6 +2733,17 @@ DEFPROC	show_page
 	jne	sp9			; no
 	call	chk_blocked		; is another context blocking it?
 	jc	sp9			; yes
+	call	swap_page
+	call	chk_vpage		; still on a virtual page?
+	jc	sp9			; yes (see swap_page)
+	call	get_place		; BX = con_place index
+	mov	al,ds:[CT_PAGE]
+	push	es
+	mov	es,cs:[0].DDH_DATA
+	ASSUME	ES:CODE
+	mov	shown_page[bx],al	; record the page being displayed
+	pop	es
+	ASSUME	ES:NOTHING
 	call	get_start		; AX = offset of the context's page
 	shr	ax,1
 	xchg	bx,ax			; BX = start address (in cells)
@@ -2519,6 +2789,10 @@ DEFPROC	switch_focus
 	push	si
 	push	di
 	push	ds
+	mov	ds,cs:[0].DDH_DATA
+	ASSUME	DS:CODE
+	inc	[bios_lock]		; defer switches until this one is done
+	ASSUME	DS:NOTHING
 	mov	ah,DOS_UTL_LOCK
 	call	far ptr DDINT_UTIL	; lock the current session
 	push	es
@@ -2545,6 +2819,7 @@ sf2:	mov	es,cs:[0].DDH_DATA
 sf8:	pop	es
 	mov	ah,DOS_UTL_UNLOCK
 	call	far ptr DDINT_UTIL	; unlock the current session
+	call	unlock_bios		; (and any switch requested meanwhile)
 	pop	ds
 	pop	di
 	pop	si
@@ -2806,7 +3081,7 @@ ENDPROC	set_slot
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	slot_addr
-	mov	ax,ds:[CT_SCREEN].SEG
+	call	get_frame
 	mov	di,4000h		; 16K for a CGA
 	cmp	ah,0B8h			; is it one?
 	je	sa1			; yes
@@ -3015,7 +3290,15 @@ um7:	mov	ax,1003h
 	mov	ax,0707h
 um8:	mov	ds:[CT_COLOR],ax
 um9:	call	draw_border		; redraw the border, if any
-	call	show_page		; (the BIOS displays page 0)
+;
+; The BIOS displays page 0 after a mode change, so display the page of the
+; context with focus again (which may also exchange a virtual page that the
+; mode change displayed for another context; see swap_page).
+;
+	push	ds
+	mov	ds,[ct_focus]
+	call	show_page
+	pop	ds
 	pop	es
 	pop	di
 	pop	si
@@ -3090,11 +3373,211 @@ ENDPROC	set_geometry
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	get_start
+	sub	ax,ax
+	call	chk_vpage		; is the page virtual?
+	jc	gs9			; yes, so it starts at offset 0
 	mov	al,16
 	mul	ds:[CT_PAGE]
 	xchg	al,ah			; AX = page * 1000h
-	ret
+gs9:	ret
 ENDPROC	get_start
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_place
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Outputs:
+;	BX = con_place index of the context's adapter (0 or 4)
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	get_place
+	mov	bl,ds:[CT_STATUS]
+	and	bx,CTSTAT_ADAPTER	; BX = 0 or 2
+	shl	bx,1
+	ret
+ENDPROC	get_place
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_vpage
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Outputs:
+;	Carry set if the context is on a virtual page (see swap_page)
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	chk_vpage
+	push	bx
+	call	get_place
+	mov	bl,byte ptr con_place[bx+3]	; BL = # pages of the adapter
+	cmp	ds:[CT_PAGE],bl		; is the page beyond them?
+	cmc				; (carry set if so)
+	pop	bx
+	ret
+ENDPROC	chk_vpage
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_frame
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Outputs:
+;	AX = segment of the context's adapter's video memory
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	get_frame
+	mov	ax,0B000h
+	cmp	ds:[CT_PORT].LOB,0B4h	; monochrome adapter?
+	je	gf9			; yes
+	mov	ah,0B8h
+gf9:	ret
+ENDPROC	get_frame
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; swap_page
+;
+; A context beyond its adapter's pages is on a virtual page instead: a buffer
+; in system memory, shared by every context on that page (see get_vbuf).  To
+; display it, its page is exchanged with the page that the adapter is
+; displaying (shown_page): both their contents and the page numbers of the
+; contexts on them, so the contexts that were displayed now use the buffer,
+; and the adapter's own pages never need buffers just to save them.  If no
+; context moves to the buffer (eg, they've all been closed), it's freed.
+;
+; Nothing is exchanged while the context is blocked (see chk_blocked), which
+; also keeps any context that uses INT 10h (CTSTAT_INT10, in a mode other than
+; its original mode) on the screen, since the BIOS can't write to a buffer.
+; The caller has locked the BIOS (see bios_lock), so no switch or other swap
+; can interrupt this one.
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	swap_page
+	call	chk_vpage		; is the context on a virtual page?
+	jnc	swp10			; no
+	push	ax
+	push	bx
+	push	cx
+	push	dx
+	push	si
+	push	di
+	push	bp
+	push	ds
+	push	es
+	call	swap_now
+	pop	es
+	pop	ds
+	pop	bp
+	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	pop	bx
+	pop	ax
+swp10:	ret
+ENDPROC	swap_page
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; swap_now
+;
+; Does the exchange for swap_page (see above).
+;
+; Inputs:
+;	DS = CONSOLE context (on a virtual page)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, BP, DS, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	swap_now
+	mov	ax,ds
+	call	chk_blocked		; is another context blocking it?
+	jnc	swp0			; no
+	ret
+swp0:	call	get_place		; BX = con_place index
+	mov	cl,shown_page[bx]	; CL = displayed page
+	mov	ch,ds:[CT_PAGE]		; CH = virtual page
+	mov	dx,ds:[CT_PORT]		; DX = adapter port
+;
+; The next context goes on the other page now, if it was going on either.
+;
+	mov	es,cs:[0].DDH_DATA
+	ASSUME	ES:CODE
+	mov	al,byte ptr con_place[bx+2]
+	cmp	al,ch
+	jne	swp2a
+	mov	byte ptr con_place[bx+2],cl
+swp2a:	cmp	al,cl
+	jne	swp2b
+	mov	byte ptr con_place[bx+2],ch
+	ASSUME	ES:NOTHING
+swp2b:	call	get_frame		; AX = adapter's video memory
+	mov	si,ds:[CT_SCREEN].SEG	; SI = buffer
+	mov	es,ax
+	mov	bp,ax			; BP = adapter's video memory, too
+	mov	al,16
+	mul	cl
+	xchg	al,ah
+	xchg	di,ax			; ES:DI -> displayed page
+	push	di
+	push	cx
+	mov	ds,si
+	sub	si,si			; DS:SI -> buffer
+	mov	cx,PAGE_LEN SHR 1
+swp3:	mov	ax,es:[di]
+	movsw
+	mov	[si-2],ax
+	loop	swp3
+	pop	cx
+	pop	di			; DI = offset of the displayed page
+	mov	si,ds			; SI = buffer again
+	mov	ax,bp			; AX = adapter's video memory again
+	sub	bp,bp			; BP = # contexts moved to the buffer
+	mov	bx,[ct_head]
+swp4:	test	bx,bx
+	jz	swp7
+	mov	es,bx
+	cmp	es:[CT_PORT],dx		; same adapter?
+	jne	swp6			; no
+	cmp	es:[CTO_PAGE],ch	; on the virtual page?
+	jne	swp5			; no
+	mov	es:[CT_SCREEN].SEG,ax	; yes, so it's displayed now
+	add	es:[CT_SCREEN].OFF,di
+	mov	es:[CT_PAGE],cl
+	mov	es:[CTO_PAGE],cl
+	jmp	short swp6
+swp5:	cmp	es:[CTO_PAGE],cl	; on the displayed page?
+	jne	swp6			; no
+	mov	es:[CT_SCREEN].SEG,si	; yes, so it's in the buffer now
+	sub	es:[CT_SCREEN].OFF,di
+	mov	es:[CT_PAGE],ch
+	mov	es:[CTO_PAGE],ch
+	inc	bp
+swp6:	mov	bx,es:[CT_NEXT]
+	jmp	swp4
+swp7:	test	bp,bp			; did any context move to the buffer?
+	jnz	swp9			; yes
+	mov	cx,si
+	call	free_buf		; no, so free it
+swp9:	ret
+ENDPROC	swap_now
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -3323,7 +3806,6 @@ DEFPROC	write_curpos
 	jnz	wcp8
 	push	bx
 	push	dx
-	les	di,ds:[CT_SCREEN]	; ES:DI -> screen location
 	call	get_curpos		; BX = screen offset for CURPOS
 	mov	dx,ds:[CT_PORT]
 	ASSERT	Z,<cmp dh,03h>
@@ -3337,17 +3819,23 @@ wcp1:	in	al,dx
 wcp2:	in	al,dx
 	test	al,01h
 	jz	wcp2			; loop until we're INSIDE horz retrace
-wcp3:	mov	al,cl
+;
+; A focus switch at interrupt time can move the context to another page (see
+; swap_page), so CT_SCREEN is loaded with interrupts off.
+;
+wcp3:	cli
+	les	di,ds:[CT_SCREEN]	; ES:DI -> screen location
+	mov	al,cl
 	mov	es:[di+bx],ax		; "write" the character and attributes
 	sti
 	pop	dx
 	pop	bx
 	ret
 ;
-; The context is using INT 10h passthrough (eg, "VKD$:80,25,BIOS"), so
-; position the BIOS cursor and write the character and attributes using INT 10h
-; instead of writing to the screen directly, allowing an emulator like pc.js to
-; capture all console output by monitoring INT 10h.
+; The context is using INT 10h passthrough (it's in a mode other than its
+; original mode; see update_mode), so position the BIOS cursor and write the
+; character and attributes using INT 10h instead of writing to the screen
+; directly.
 ;
 wcp8:	push	ax
 	push	bx

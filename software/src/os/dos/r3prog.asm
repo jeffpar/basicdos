@@ -48,7 +48,7 @@ RR_CTRLC	dd	?		; its parent's CTRLC handler
 RR_ERROR	dd	?		; its parent's ERROR handler
 RR_DTAPREV	dd	?		; its parent's DTA
 R3REC		ends
-R3_SELTI	equ	04h		; an LDT selector (see 286dev.asm)
+R3_SELTI	equ	04h		; an LDT selector (see 386dev.asm)
 
 DOS	segment word public 'CODE'
 

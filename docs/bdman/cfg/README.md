@@ -59,7 +59,6 @@ Sets the number of disk buffers, each of which holds one 512-byte sector of a FA
 ### CON
 
 > CON=VKD$:*cols*,*rows*[,*border*[,*adapter*]]  
-> CON=VKD$:*cols*,*rows*,BIOS  
 > CON=COM*n*:*baud*,*parity*,*databits*,*stopbits*[,*options*]
 
 Defines a console for a session: either a VKD$ console, which uses the video adapter and keyboard, or a COM console, which uses a serial port.  CON isn't a driver, but a name for the session's console, so a program that opens CON (or CON:) uses its session's console, whatever device it is.
@@ -72,11 +71,9 @@ For a VKD$ console:
 - *border* is 1 to draw a border around the console, or 0 for none; a border uses the outermost rows and columns of the console
 - *adapter* is 0 for the primary video adapter, or 1 for a second adapter (eg, a machine with both an MDA and a CGA)
 
-BIOS (or just B) following *rows* creates a console that writes characters using the BIOS (INT 10h), rather than directly to video memory.
-
 Consoles are positioned automatically, in the order of their CON lines.  Each adapter's first console starts at the top left corner of the screen, and each one after it starts below the previous one, or if the previous one reached the bottom of the screen, at the top of the screen, to its right.  A console that doesn't fit in the remaining space is made smaller to fit (but not below the minimum size, or the console isn't created).
 
-Once a screen is full, the next console starts on another page of video memory (a CGA has 4, an MDA only 1), which is displayed whenever one of its consoles has the focus; once every page is full, no more consoles can be created on that adapter.
+Once a screen is full, the next console starts on another page of video memory (a CGA has 4, an MDA only 1), which is displayed whenever one of its consoles has the focus.  Once the adapter's pages are full, the next consoles go on virtual pages, each 4,000 bytes of system memory, up to 8 pages per adapter in all (eg, 8 full-screen consoles on an MDA).  When a console on a virtual page gets the focus, its page trades places with the page on the screen, whose consoles move to the virtual page, and every console keeps running wherever its page is.  A program on a virtual page that calls the video BIOS (INT 10h) directly to write characters writes them on the screen instead.
 
 A COM console uses a serial port (eg, a terminal connected to COM1) for both input and output.  Its *options*, in any order, are:
 
@@ -109,12 +106,14 @@ Two full-screen consoles on a CGA, each on its own page:
 	CON=VKD$:80,25
 	SHELL=COMMAND.COM
 
+The same lines on an MDA put the second console on a virtual page.
+
 ### CPU
 
 > CPU=80286
 > CPU=80386
 
-Requests protected mode on an 80286 or later processor (either line works on either processor, since BASIC-DOS has no 80386-specific features yet).  Pressing `P` at the boot message also requests it, and pressing `R` there overrides these lines.  Protected mode needs at least 256K of conventional memory (after any [MEMSIZE](#memsize) line), and any extended memory is a bonus; with less, or on an 8088 or 8086, BASIC-DOS runs in real mode.
+Requests protected mode on an 80286 or later processor.  On an 80386 or later, `CPU=80386` uses the 80386's features (see [Protected Mode](../../bdtech/mmu/#cpu)), and `CPU=80286` only the 80286's; on an 80286, either line requests the 80286's.  Pressing `P` at the boot message also requests it (on an 80386, as `CPU=80386` does), and pressing `R` there overrides these lines.  Protected mode needs at least 256K of conventional memory (after any [MEMSIZE](#memsize) line), and any extended memory is a bonus; with less, or on an 8088 or 8086, BASIC-DOS runs in real mode.
 
 Without a request, BASIC-DOS runs in real mode, its most compatible mode, and treats an 80286 or later processor as an 8088: the processor type is recorded as 8086/8088 (the actual type is still recorded too, so that DEBUG disassembles instructions as the processor runs them), extended memory isn't used, and the A20 address line stays disabled, so addresses wrap at 1Mb as they do on an 8088.  A `CPU=8088` line is allowed, but isn't needed.
 
