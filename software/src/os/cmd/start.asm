@@ -110,8 +110,7 @@ DEFPROC	cmdStartSes
 	pop	cx
 	pop	si
 	jc	listSessions		; there's no program name
-st0:	jmp	openError		; report error (AX) for the program (SI)
-st1:	push	ax
+	push	ax
 	mov	dx,offset COM_EXT
 	call	findProgram		; LINEBUF = the program's name
 	pop	dx			; DX -> its arguments
@@ -188,7 +187,7 @@ st4:	lea	sp,[bx + size SPB]
 	pop	bx			; BX -> CMDHEAP
 	jnc	st9
 	mov	byte ptr [di],0		; the name alone, for openError
-	jmp	openError
+st0:	jmp	openError		; report error (AX) for the program (SI)
 st9:	ret
 ENDPROC	cmdStartSes
 

@@ -1,0 +1,24 @@
+BASIC-DOS 2.10
+Copyright (c) PCJS.ORG 1981-2026
+
+BASIC-DOS Command Shell
+Press Shift-Tab to switch sessions
+
+    H A P P Y
+    P R O G R A M M I N G
+    L O V E , P C J S . O R G
+
+C:\>START COMMAND.COM
+C:\>START
+* 1 VKD$     COMMAND
+  2 VKD$     COMMAND
+  3 VKD$     COMMAND
+C:\>
+
+
+
+
+
+
+
+
