@@ -90,6 +90,21 @@ FPU_ETOX	dw	?	; 42h: +EXP(A), e raised to A (D -> D)
 FPUTBL		ends
 
 ;
+; FPU$'s functions are in two parts: those that the FPUTBL lists, and code
+; that they share (eg, for FPU_ATOD and FPU_DTOA), at offset 0 of its own
+; segment, the driver's.  Only four far pointers connect them: two after the
+; FPUTBL, to the shared code (FPU_COMATOD and FPU_COMDTOA), and two in the
+; shared code, to the FPUTBL's FPU_TODEC and FPU_FROMDEC (at FPU_COMTODEC
+; and FPU_COMFROMDEC).  So a host that runs real-mode code (eg, V86.COM) can
+; copy both parts (each as long as its segment) into that code's memory, and
+; call the copy once those four pointers' segments are changed to match.
+;
+FPU_COMATOD	equ	size FPUTBL	; far pointer to the shared FPU_ATOD
+FPU_COMDTOA	equ	size FPUTBL + 4	; and to the shared FPU_DTOA
+FPU_COMTODEC	equ	16h		; shared code's pointer to FPU_TODEC
+FPU_COMFROMDEC	equ	1Ah		; and to FPU_FROMDEC
+
+;
 ; FPU_ATOD converts the number at DS:SI, consisting of an optional sign,
 ; digits with an optional decimal point, and an optional exponent (E or D,
 ; followed by an optional sign and digits), to a double at ES:DI.  On success,

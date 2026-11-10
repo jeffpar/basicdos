@@ -75,7 +75,8 @@ On an 80286 or later with sufficient memory (256K or more), BASIC-DOS can run in
 - [ ] VKD$ saving a blocked console's video memory in a buffer, and remapping its selector there, so that its programs keep running (and DEF SEG's video memory selectors through VKD$, too)
 - [x] CPU$ uses the 80386's features on an 80386 (unless CONFIG.SYS has `CPU=80286`): an 80386 TSS, selectors that can cover more than 64K (CPU_SETLIM), and paging, which maps physical memory at C0000000h, leaving the lower linear addresses free (see the [DeskPro 386 Protected Mode demo](demos/mmu/386/), whose CONFIG.SYS has `CPU=80386`)
 - [x] V86 machines on an 80386 (CPU_V86, through DOS_UTL_MAPSEG): real-mode code runs in virtual-8086 mode at ring 3, with CPU$ emulating CLI, STI, PUSHF, POPF, INT, and IRET, and V86.COM runs real-mode COM programs that use DOS functions in one (and when V86 has a session of its own, eg, START V86, a failure waits for a key before its console closes)
-- [ ] More of V86.COM: MZ programs, memory allocation, EXEC, and BASIC-DOS's own functions, so that COMMAND.COM can run in a V86 machine (eg, START V86)
+- [x] V86.COM runs COMMAND.COM (the default, so `START V86` opens a real-mode command shell) and the programs it runs in a V86 machine: COM and MZ EXE files (eg, MASM, SYMDEB), memory blocks, EXEC, BASIC-DOS's own functions, floating-point (through a copy of FPU$ in the machine), pipes (whose later programs run in protected mode), and CTRL-C
+- [ ] V86.COM: BIOS interrupts (eg, INT 10h and 16h) and video memory, for real-mode programs that use them
 - [ ] 32-bit sessions for LE programs (built with MASM 5.10B and LINK386 from the Windows 3.1 DDK, in **TOOLS**)
 
 ### Kernel: Processes, Memory, and Sessions
@@ -324,7 +325,7 @@ These are the next steps, roughly in priority order:
 2. The rest of runtime error handling (messages for numeric errors other than "Division by zero", such as "Overflow")
 3. Common BASICA features that BASIC-DOS lacks: BEEP and COMMON
 4. The rest of protected mode on an 80286 or 80386: ring 3 for the programs that still need `RING=0` (interrupt hooks that DOS or the ROM BIOS calls, and CPUTESTS); see [Limitations](docs/bdtech/mmu/#limits)
-5. 80386 sessions: V86 sessions for MZ programs (COMMAND.COM and the programs it runs, in V86.COM's V86 machine), and 32-bit sessions for LE programs
+5. 80386 sessions: BIOS interrupts and video memory for V86.COM's V86 machine, and 32-bit sessions for LE programs
 
 ### Ring 3 Security
 

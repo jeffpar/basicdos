@@ -226,7 +226,9 @@ ENDPROC	v86_resume
 ; it stores the registers there, too (with the vector in VR_VEC), loads the
 ; system's IDT and the kernel's ring 0 stack in the TSS, and goes back to the
 ; kernel's stack.  Without an error code, the return address is where the
-; upper half of VR_ERR goes, so it's moved to VR_VEC.
+; upper half of VR_ERR goes, so it's moved to VR_VEC.  The machine's DF (eg,
+; after its STD) is still set, so it's cleared for our string instructions
+; (and the machine's own is in its FLAGS, for the return).
 ;
 DEFPROC	v86_noerr
 	sub	sp,4			; (room for VR_VEC and half of VR_ERR)
@@ -239,6 +241,7 @@ DEFPROC	v86_noerr
 	db	66h,60h			; PUSHAD
 	mov	bp,sp
 	DEFLBL	v86_common,near
+	cld
 	mov	ax,[bp+VR_VEC]
 	sub	ax,offset DEV:v86_stubs + 3
 	mov	cl,3
@@ -799,7 +802,11 @@ ENDPROC	v86_stk
 ;
 DEFPROC	v86_create
 	push	bx
+	push	si
+	push	di
 	call	v86_setup		; the machines' IDT and selectors
+	pop	di
+	pop	si
 	pop	bx
 	jc	vcr0
 	add	di,PG_SIZE - 1
@@ -818,8 +825,8 @@ vcr0:	ret
 vcr1:	push	si
 	push	di
 	push	bx
-	mov	al,MEMF_LDT OR MEMF_USER OR MEMF_HIGH
-	call	alloc_page		; AX = selector, DX:CX = address
+	mov	al,MEMF_NONE OR MEMF_HIGH
+	call	alloc_page		; DX:CX = address (see v86_tiles)
 	pop	bx			; BX = owner
 	pop	di
 	pop	si
@@ -856,6 +863,19 @@ vcr1:	push	si
 	mov	cx,[bp+2]
 	mov	dx,[bp+4]
 	call	pmb_used		; BX -> memory's PMB
+	push	bx
+	mov	si,[bp+8]
+	mov	di,[bp+6]		; SI:DI = length
+	mov	dx,[bp+4]
+	push	bp
+	mov	bp,[bp+2]		; DX:BP = address
+	call	v86_tiles		; AX = first selector, CX = count
+	pop	bp
+	pop	bx
+	jc	vcr6
+	mov	[bp],ax			; (the memory's selector)
+	mov	ds:[bx].PMB_SEL,ax
+	mov	ds:[bx].PMB_NSEL,cx	; (so they're freed with it)
 	mov	ax,[bp-4]
 	mov	dx,[bp-2]
 	shr	ax,12
@@ -992,6 +1012,68 @@ vi_ptes:
 	loop	vi_ptes
 	ret
 ENDPROC	v86_init
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; v86_tiles
+;
+; Gives a machine's memory its selectors (in the active LDT, at DPL 3): one
+; for every 32K, each covering the next 64K (or whatever remains), so that
+; the host can reach anything smaller than 32K through a single selector.
+;
+; Inputs:
+;	DX:BP = address, SI:DI = length (non-zero)
+;
+; Outputs:
+;	Carry clear: AX = first selector, CX = # of selectors
+;	Carry set: AX = error code
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, BP
+;
+DEFPROC	v86_tiles
+	push	dx
+	push	si
+	push	di
+	mov	ax,di
+	mov	cx,si
+	add	ax,7FFFh
+	adc	cx,0
+	shl	ax,1
+	rcl	cx,1			; CX = # of 32K parts
+	push	cx
+	mov	al,MEMF_LDT OR MEMF_USER
+	call	desc_alloc		; AX = first selector, BX -> its DESC
+	pop	cx
+	pop	di
+	pop	si
+	pop	dx
+	jc	vt8
+	push	cx
+	add	dh,ds:[SYS_VARS].SV_LINHI	; (see LIN_HI)
+vt1:	mov	ds:[bx].DESC_BASE,bp
+	mov	ds:[bx].DESC_BASE16,dl
+	mov	byte ptr ds:[bx].DESC_EXT,0
+	mov	byte ptr ds:[bx].DESC_EXT+1,dh
+	push	ax
+	mov	ax,di
+	test	si,si			; 64K or more remaining?
+	jz	vt2			; no
+	sub	ax,ax			; yes, so the limit is FFFFh
+vt2:	dec	ax
+	mov	ds:[bx].DESC_LIMIT,ax
+	pop	ax
+	add	bp,8000h
+	adc	dx,0			; the next 32K
+	sub	di,8000h
+	sbb	si,0
+	add	bx,size DESC
+	loop	vt1
+	pop	cx
+	ret
+vt8:	mov	ax,ERR_NOMEMORY
+	ret
+ENDPROC	v86_tiles
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

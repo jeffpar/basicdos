@@ -39,6 +39,7 @@ software/src/os/cmd/obj/COMMAND.COM
 [EXT]
 software/src/os/util/misc/obj/*.COM
 software/src/os/util/vi/obj/VI.COM
+software/src/os/util/v86/obj/V86.COM
 software/src/os/dd/dbg/obj/DEBUG.COM
 software/src/os/util/bas/ATTRIB.BAS
 software/src/os/util/bas/CHKDSK.BAS

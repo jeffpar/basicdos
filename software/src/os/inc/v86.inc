@@ -16,8 +16,10 @@
 ;	CPU_V86 with AL = 0 creates a machine whose memory (SI:DI bytes,
 ;	rounded up to a multiple of 4K, at most 640K) starts at linear address
 ;	0, owned by BX (as for CPU_ALLOC); it returns the memory's first
-;	selector in AX (one for every 64K, as for CPU_ALLOC with MEMF_LDT and
-;	MEMF_USER), which names the machine, and its address in DX:CX.  The
+;	selector in AX, which names the machine, and its address in DX:CX.
+;	Its DPL 3 LDT selectors start every 32K, and each covers the 64K
+;	there (or what remains), so anything smaller than 32K at linear
+;	address L can be reached through selector AX + (L SHR 15) * 8.  The
 ;	machine also maps the ROMs (C0000h-FFFFFh, read-only) and wraps
 ;	the 64K above 1Mb to the first 64K, as an 8086 does; nothing else
 ;	(eg, video memory) is mapped.  Freeing the memory (or its owner

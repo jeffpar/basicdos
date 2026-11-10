@@ -13,9 +13,9 @@
 ; that the machine works as real mode would: CLI, STI, PUSHF, and POPF (with
 ; the machine's own IF), INTs to its vectors (reflected, with IF clear in the
 ; handler) and their IRETs, INT3, a divide error, the upper half of a 32-bit
-; register across a DOS call, and a hook of INT 21h that passes calls on to
-; the default handler.  It prints "V86TEST passed", or "V86TEST failed (n)"
-; for test n (and exits with 1).
+; register across a DOS call, PUSHF with the direction flag set, and a hook of
+; INT 21h that passes calls on to the default handler.  It prints "V86TEST
+; passed", or "V86TEST failed (n)" for test n (and exits with 1).
 ;
 	DOSPSP equ 1
 	DOSFUNC equ 1
@@ -128,7 +128,18 @@ t4:
 	cmp	bx,1234h
 	jne	fail
 ;
-; 7: A hook of INT 21h can pass calls on to the previous handler (which
+; 7: An instruction that CPU$ does for the machine (eg, PUSHF) works with the
+; direction flag set (which would otherwise loop here, or worse).
+;
+	inc	[test]
+	std
+	pushf
+	cld
+	pop	ax
+	test	ah,FL_DOWN SHR 8	; was DF in the FLAGS?
+	jz	f7			; no
+;
+; 8: A hook of INT 21h can pass calls on to the previous handler (which
 ; exits the machine at its HLT), and gets their results.
 ;
 	inc	[test]

@@ -52,6 +52,12 @@ FPU	DDH	<offset DEV:ddfpu_end+16,,DDATTR_CHAR+DDATTR_IOCTL,offset DEV:ddfpu_init
 	DEFWORD	fpuInfo,0		; FPUTBL entries (low), FPUTYPE (high)
 	DEFPTR	fpuToDec		; FPU_TODEC function (set by ddfpu_init)
 	DEFPTR	fpuFromDec		; FPU_FROMDEC function (set by ddfpu_init)
+	IF	(fpuToDec - FPU) NE FPU_COMTODEC
+	ERROR	<fpuToDec does not match fpu.inc>
+	ENDIF
+	IF	(fpuFromDec - FPU) NE FPU_COMFROMDEC
+	ERROR	<fpuFromDec does not match fpu.inc>
+	ENDIF
 
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
@@ -600,6 +606,9 @@ HWCODE	segment para public 'CODE'
 	ENDIF
 	DEFPTR	hwComAtoD		; comAtoD (set by ddfpu_init)
 	DEFPTR	hwComDtoA		; comDtoA (set by ddfpu_init)
+	IF	(hwComAtoD - hwTable) NE FPU_COMATOD
+	ERROR	<hwComAtoD does not match fpu.inc>
+	ENDIF
 
 	DEFWORD	hwCWNear,CW_NEAR
 	DEFWORD	hwCWDown,CW_DOWN
