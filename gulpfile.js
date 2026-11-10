@@ -155,6 +155,7 @@ let disks = {
     "BASICDOS-360K-D80": { config: "./demos/d80/CONFIG.SYS", title: "BASIC-DOS 80-Column Split Demo" },
     "BASICDOS-360K-P80": { config: "./demos/p80/CONFIG.SYS", title: "BASIC-DOS Multi-Page Demo" },
     "BASICDOS-360K-P80PM": { config: "./demos/mmu/CONFIG.SYS", title: "BASIC-DOS Protected Mode" },
+    "BASICDOS-360K-PM386": { config: "./demos/mmu/386/CONFIG.SYS", title: "BASIC-DOS Protected Mode (80386)" },
     "BASICDOS-360K-DUAL": { config: "./demos/dual/CONFIG.SYS", title: "BASIC-DOS Dual Monitor Demo" },
     "BASICDOS-360K-MULTI": { config: "./demos/dual/multi/CONFIG.SYS", title: "BASIC-DOS Multi-Console Demo" },
     "BASICDOS-360K-SERIAL": { config: "./demos/serial/CONFIG.SYS", title: "BASIC-DOS HD Serial Port Demo" },
@@ -166,6 +167,9 @@ let disks = {
     "BASICDOS-360K-TERMHD": { config: "./demos/term/hd/CONFIG.SYS", title: "BASIC-DOS HD Terminal Only Demo" },
     "BASICDOS-360K-TERM2": { config: "./demos/term/dual/CONFIG.SYS", title: "BASIC-DOS HD Dual Terminal Demo" },
     "BASICDOS-360K-MMU": { config: "./demos/mmu/vt100/CONFIG.SYS", title: "BASIC-DOS Protected Mode with VT100" },
+    "BASICDOS-360K-MMU386": {
+        config: "./demos/mmu/vt100/386/CONFIG.SYS", title: "BASIC-DOS Protected Mode (80386) with VT100"
+    },
     "BASICDOS-360K-TESTS": {
         title: "BASIC-DOS Tests",
         data: true,

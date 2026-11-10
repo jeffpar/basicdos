@@ -4,7 +4,7 @@ heading: BASIC-DOS Demos
 permalink: /demos/
 ---
 
-Each BASIC-DOS demo runs on up to four generations of PC hardware: the original IBM PC (Model 5150) with its 4.77Mhz 8088 and diskette drives, the IBM PC XT (Model 5160), which added a 10Mb hard disk, the IBM PC AT (Model 5170), with a 6Mhz 80286 and a battery-powered real-time clock that keeps the date and time, and the COMPAQ DeskPro 386, COMPAQ's first PC with a 16Mhz 80386, shown here with 1Mb of memory and a VGA.  Click a machine to run that demo on that hardware.
+Each BASIC-DOS demo runs on up to four generations of PC hardware: the original IBM PC (Model 5150) with its 4.77Mhz 8088 and diskette drives, the IBM PC XT (Model 5160), which added a 10Mb hard disk, the IBM PC AT (Model 5170), with a 6Mhz 80286 and a battery-powered real-time clock that keeps the date and time, and the COMPAQ DeskPro 386, COMPAQ's first PC with a 16Mhz 80386, shown here with 1Mb of memory (2Mb in some Protected Mode demos) and a VGA.  Click a machine to run that demo on that hardware.
 
 | Demo | IBM PC | IBM PC XT | IBM PC AT | COMPAQ DeskPro 386 |
 |------|--------|-----------|-----------|--------------------|
@@ -22,10 +22,10 @@ Each BASIC-DOS demo runs on up to four generations of PC hardware: the original 
 | 12. 10Mb Drive | | [640K, EGA](hd/xt/) | [640K, EGA](hd/at/) | [1Mb, VGA](hd/386/) |
 | 13. 10Mb (VT100) | | [640K, EGA, VT100](vt100/xt/) | [640K, EGA, VT100](vt100/at/) | [1Mb, VGA, VT100](vt100/386/) |
 | 14. Wolfenstein 3D | | | [640K, VGA, Sound Blaster](wolf3d/at/) | [1Mb, VGA, Sound Blaster](wolf3d/386/) |
-| 15. Protected Mode (640K) | | | [640K, CGA](mmu/640k/) | |
-| 16. Protected Mode | | | [2Mb, CGA](mmu/) | |
-| 17. Protected Mode (VT100) | | | [2Mb, CGA, VT100](mmu/vt100/) | |
+| 15. Protected Mode (640K) | | | [640K, CGA](mmu/640k/) | [1Mb, VGA](mmu/640k/386/) |
+| 16. Protected Mode (2Mb) | | | [2Mb, CGA](mmu/) | [2Mb, VGA](mmu/386/) |
+| 17. Protected Mode (VT100) | | | [2Mb, CGA, VT100](mmu/vt100/) | [2Mb, VGA, VT100](mmu/vt100/386/) |
 
-The boot sector first displays `System starting...`; press any key (or wait 2 seconds) to continue.  The PC XT, PC AT, and DeskPro 386 machines also have the 10Mb BASIC-DOS hard disk (drive C:), so when they boot a diskette, you can press **Esc** to boot from the hard disk instead.  On a PC AT or DeskPro 386, press **P** to run the demo in protected mode, or **R** for real mode (only the Protected Mode demos use protected mode by default).
+The boot sector first displays `System starting...`; press any key (or wait 2 seconds) to continue.  The PC XT, PC AT, and DeskPro 386 machines also have the 10Mb BASIC-DOS hard disk (drive C:), so when they boot a diskette, you can press **Esc** to boot from the hard disk instead.  On a PC AT or DeskPro 386, press **P** to run the demo in protected mode, or **R** for real mode (only the Protected Mode demos use protected mode by default, and on the DeskPro 386, they use the 80386's features too).
 
 In the demos with multiple consoles, use **SHIFT-TAB** to toggle keyboard focus between consoles.

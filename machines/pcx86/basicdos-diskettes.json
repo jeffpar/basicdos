@@ -5,6 +5,7 @@
   "/software/disks/BASICDOS-360K-D80.json": "BASIC-DOS 80-Column Split Demo",
   "/software/disks/BASICDOS-360K-P80.json": "BASIC-DOS Multi-Page Demo",
   "/software/disks/BASICDOS-360K-P80PM.json": "BASIC-DOS Protected Mode",
+  "/software/disks/BASICDOS-360K-PM386.json": "BASIC-DOS Protected Mode (80386)",
   "/software/disks/BASICDOS-360K-DUAL.json": "BASIC-DOS Dual Monitor Demo",
   "/software/disks/BASICDOS-360K-MULTI.json": "BASIC-DOS Multi-Console Demo",
   "/software/disks/BASICDOS-360K-SERIAL.json": "BASIC-DOS HD Serial Port Demo",
@@ -16,5 +17,6 @@
   "/software/disks/BASICDOS-360K-TERMHD.json": "BASIC-DOS HD Terminal Only Demo",
   "/software/disks/BASICDOS-360K-TERM2.json": "BASIC-DOS HD Dual Terminal Demo",
   "/software/disks/BASICDOS-360K-MMU.json": "BASIC-DOS Protected Mode with VT100",
+  "/software/disks/BASICDOS-360K-MMU386.json": "BASIC-DOS Protected Mode (80386) with VT100",
   "/software/disks/BASICDOS-360K-TESTS.json": "BASIC-DOS Tests"
 }

@@ -22,6 +22,8 @@ The diskette's **CONFIG.SYS** defines three full-screen 80-column consoles, each
 
 The boot sector first displays `System starting...`; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  Note that bypassing the diskette and booting from the hard disk will give you only one full-screen console.
 
+This demo is also available on a [COMPAQ DeskPro 386](386/).
+
 ### **CONFIG.SYS** from the BASIC-DOS Protected Mode Diskette
 
 ```

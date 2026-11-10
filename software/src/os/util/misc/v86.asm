@@ -7,11 +7,13 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Usage: V86 [program [arguments]]
+; Usage: V86 [PATH$="path"[:]] [program [arguments]]
 ;
-; Runs a real-mode program (COMMAND.COM if none is given) in a V86 machine
-; (see v86.inc), which needs an 80386 in protected mode (CPU_TYPE 3), and
-; provides the DOS services that the program asks for, passing most of its
+; Runs a real-mode program (COMMAND.COM if none is given; a name without a
+; drive or directory is also looked for in each directory of the PATH$ given
+; before it, as START gives one, or else of our environment's PATH) in a V86
+; machine (see v86.inc), which needs an 80386 in protected mode (CPU_TYPE 3),
+; and provides the DOS services that the program asks for, passing most of its
 ; DOS calls on to BASIC-DOS (with selectors for its DS and ES), and doing
 ; the ones that involve the machine itself (eg, its vectors, its PSP, and its
 ; memory) here.
@@ -63,7 +65,10 @@ DEFPROC	main
 	jmp	m8a
 ;
 ; Get the program's name, and its arguments, which follow it; any switch
-; before the name is one we don't accept.
+; before the name is one we don't accept.  A PATH$="..." before the name (as
+; START gives us, with a colon after it, as a SHELL line's has) is the path
+; to search, whose ending quote becomes a null; otherwise, our environment's
+; PATH (if any) is.
 ;
 m1:	mov	ax,DOS_MSC_GETSWC
 	int	21h			; DL = switch character
@@ -73,12 +78,29 @@ m1a:	lodsb
 	je	m1a
 	cmp	al,9
 	je	m1a
+	dec	si
 	cmp	al,dl			; a switch?
-	jne	m1b			; no
-	PRINTF	<"Syntax error",13,10>
+	je	m1e			; yes
+	mov	bx,si
+	mov	di,offset PATH_STR
+	mov	cx,PATH_STRLEN
+	repe	cmpsb			; a PATH$?
+	jne	m1c			; no
+	mov	[path_arg],si
+m1b:	lodsb
+	cmp	al,CHR_RETURN
+	je	m1e			; it has no ending quote
+	cmp	al,'"'
+	jne	m1b
+	mov	byte ptr [si-1],0
+	cmp	byte ptr [si],':'	; a colon after it?
+	jne	m1a			; no
+	inc	si
+	jmp	m1a
+m1e:	PRINTF	<"Syntax error",13,10>
 	jmp	m8a
-m1b:	dec	si
-	mov	di,offset prog_name
+m1c:	mov	si,bx
+	mov	di,offset base_name
 	cmp	al,CHR_RETURN		; no program?
 	jne	m2			; no
 	push	si
@@ -89,12 +111,74 @@ m1b:	dec	si
 m2:	call	copy_name		; DI -> the null after the name
 m3:	mov	[args],si		; SI -> the arguments
 ;
-; Open the program, and create a machine for it.
+; Only a name without a drive or directory is searched for.
 ;
-	mov	dx,offset prog_name
-	mov	ax,DOS_HDL_OPEN SHL 8	; AL = 0 (read)
-	int	21h
+	mov	cx,di
+	mov	di,offset base_name
+	sub	cx,di			; CX = the name's length
+	mov	al,'\'
+	repne	scasb			; a directory?
+	je	m3d			; yes
+	cmp	byte ptr [base_name+1],':'
+	je	m3d			; a drive
+	mov	ax,[path_arg]
+	test	ax,ax			; were we given a PATH$?
+	jz	m3a			; no
+	mov	[path].OFF,ax
+	mov	[path].SEG,ds
+	jmp	short m3d
+m3a:	mov	cx,ds:[PSP_ENVSEG]
+	jcxz	m3d			; we have no environment
+	mov	es,cx
+	sub	di,di			; ES:DI -> our environment
+m3b:	cmp	byte ptr es:[di],0	; the end of it?
+	je	m3d			; yes
+	mov	si,offset PATH_STR
+	mov	cx,4
+	repe	cmpsb			; "PATH"?
+	jne	m3c			; no
+	cmp	byte ptr es:[di],'='	; "PATH="?
+	jne	m3c			; no
+	inc	di
+	mov	[path].OFF,di
+	mov	[path].SEG,es
+	jmp	short m3d
+m3c:	dec	di			; (in case the mismatch was its null)
+	mov	al,0
+	mov	ch,4			; (CX >= 400h)
+	repne	scasb			; skip to the next variable
+	jmp	m3b
+m3d:	push	ds
+	pop	es
+;
+; Open the program, as named, and then in each directory of the path.
+;
+	mov	di,offset prog_name
+m3e:	call	try_open
 	jnc	m4
+	mov	cx,[path].SEG
+	jcxz	m3j			; no more directories
+	push	ds
+	lds	si,[path]
+	mov	di,offset prog_name
+m3f:	lodsb
+	cmp	al,';'			; the end of a directory?
+	je	m3h			; yes
+	test	al,al			; the end of the path?
+	jnz	m3g			; no
+	sub	cx,cx			; yes, so this is the last directory
+	jmp	short m3h
+m3g:	stosb
+	jmp	m3f
+m3h:	pop	ds
+	mov	[path].OFF,si
+	mov	[path].SEG,cx
+	cmp	byte ptr [di-1],'\'	; does the directory end with one?
+	je	m3e			; yes
+	mov	al,'\'
+	stosb
+	jmp	m3e
+m3j:	mov	dx,offset base_name
 	EPRINTF	<"Unable to find %s">,<13,10>,ax,dx
 	jmp	m8a
 m4:	mov	[handle],ax
@@ -152,8 +236,22 @@ m8a:	mov	al,1
 	jmp	short do_exit
 do_exit0:
 	mov	al,0
+;
+; If we're ending with an error (or the program did) and we're the first
+; program of our session (eg, START V86), its console closes as we end, so
+; wait for a key, so that the messages can be read.
+;
 do_exit:
-	mov	ah,DOS_PSP_RETURN
+	test	al,al			; an error?
+	jz	m9			; no
+	cmp	word ptr ds:[PSP_PARENT],0	; are we the first program?
+	jne	m9			; no
+	push	ax
+	PRINTF	<"Press any key">
+	mov	ah,DOS_TTY_IN
+	int	21h			; wait for a key
+	pop	ax
+m9:	mov	ah,DOS_PSP_RETURN
 	int	21h
 ENDPROC	main
 
@@ -266,7 +364,8 @@ ENDPROC	int21
 	DEFLBL	I21_FUNCS,byte
 	db	DOS_PSP_TERM, DOS_PSP_RETURN, DOS_MSC_SETVEC, DOS_MSC_GETVEC
 	db	DOS_DSK_SETDTA, DOS_DSK_GETDTA, DOS_PSP_GET, DOS_PSP_SET
-	db	DOS_MEM_FREE, DOS_MEM_REALLOC, DOS_MEM_ALLOC, DOS_PSP_EXEC SHR 8
+	db	DOS_MEM_FREE, DOS_MEM_REALLOC, DOS_MEM_ALLOC
+	db	DOS_PSP_EXEC SHR 8
 I21_NFUNCS	equ	$ - I21_FUNCS
 	DEFLBL	I21_PROCS,word
 	dw	i21x, i21x, i21sv, i21gv, i21sd, i21gd, i21gp, i21ok
@@ -310,15 +409,30 @@ im1:	xchg	ax,cx
 	mov	al,OP_HLT
 	rep	stosb			; the HLTs
 ;
-; The environment is a copy of ours, followed by a count (1) and the
-; program's name, as DOS 3.0 and up provide.
+; The environment is the PATH$ we were given (if any), as PATH, and a copy of
+; ours, followed by a count (1) and the program's name, as DOS 3.0 and up
+; provide.
 ;
 	push	ds
-	mov	cx,ds:[PSP_ENVSEG]
+	mov	si,[path_arg]
+	test	si,si			; were we given a PATH$?
+	jz	im2b			; no
+	push	si
+	mov	si,offset PATH_STR
+	movsw
+	movsw				; "PATH"
+	pop	si
+	mov	al,'='
+	stosb
+im1a:	lodsb				; and the path (and its null)
+	stosb
+	test	al,al
+	jnz	im1a
+im2b:	mov	cx,ds:[PSP_ENVSEG]
 	jcxz	im2a			; we have none
 	mov	ds,cx
 	sub	si,si
-	mov	cx,ENV_LEN - NAME_LEN - 4
+	mov	cx,ENV_LEN - NAME_LEN * 2 - 16
 im2:	lodsb
 	stosb
 	or	al,[si]			; two nulls?
@@ -421,6 +535,34 @@ ENDPROC	init_mem
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; try_open
+;
+; Appends the program's name to a directory (if any) in prog_name, and opens
+; it.
+;
+; Inputs:
+;	DI -> the end of the directory in prog_name
+;
+; Outputs:
+;	If carry clear, AX = handle; otherwise, AX = error
+;
+; Modifies:
+;	AX, DX, SI, DI
+;
+DEFPROC	try_open
+	mov	si,offset base_name
+to1:	lodsb
+	stosb
+	test	al,al
+	jnz	to1
+	mov	dx,offset prog_name
+	mov	ax,DOS_HDL_OPEN SHL 8	; AL = 0 (read)
+	int	21h
+	ret
+ENDPROC	try_open
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; copy_name
 ;
 ; Copies a name (up to whitespace, a CR, or a null) to DI, and adds ".COM"
@@ -512,17 +654,23 @@ DEFPROC	pop_word
 ENDPROC	pop_word
 
 	DEFSTR	COMMAND_COM,<"COMMAND.COM",0>
+	DEFSTR	PATH_STR,<"PATH$=",22h>
+PATH_STRLEN	equ	$ - PATH_STR
 	DEFWORD	machine,0
 	DEFWORD	handle,0
 	DEFWORD	args,0
 	DEFLONG	dta,0
+	DEFLONG	path,0			; the next directory to search, if any
+	DEFWORD	path_arg,0		; the PATH$ we were given, if any
 ;
-; The machine's registers (V86REGS) and the program's name are in the heap.
+; The machine's registers (V86REGS), the program's name (as given), and its
+; name with the directory where it was found are in the heap.
 ;
 NAME_LEN	equ	132
-	COMHEAP	<size V86REGS + NAME_LEN + 512>	; (must be the last item)
+	COMHEAP	<size V86REGS + NAME_LEN * 2 + 512>	; (the last item)
 regs	equ	$
-prog_name	equ	regs + size V86REGS
+base_name	equ	regs + size V86REGS
+prog_name	equ	base_name + NAME_LEN
 
 CODE	ENDS
 

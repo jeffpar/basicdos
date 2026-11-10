@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS in Protected Mode
+title: BASIC-DOS in Protected Mode (2Mb)
 permalink: /demos/mmu/
 machines:
   - id: ibm5170
@@ -21,6 +21,8 @@ See [Protected-Mode Initialization](/docs/bdtech/mmu/#pminit) for more details.
 The diskette's **CONFIG.SYS** defines three full-screen 80-column consoles, each running its own copy of COMMAND.COM: HELLO.BAT in the first, FIBO.BAT in the second, and PRIMES.BAS in the third.  Each session's memory is in its own LDT (local descriptor table), so a session's programs can't name another session's memory.  Only the page of the console with keyboard focus is displayed, but every console keeps running.
 
 The boot sector first displays `System starting...`; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  Note that bypassing the diskette and booting from the hard disk will give you only one full-screen console.
+
+This demo is also available on a [COMPAQ DeskPro 386](386/), where it uses the 80386's features.
 
 ### **CONFIG.SYS** from the BASIC-DOS Protected Mode Diskette
 

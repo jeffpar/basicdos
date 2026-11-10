@@ -29,9 +29,10 @@ CODE    SEGMENT
 ;
 ; addPath
 ;
-; If the program is COMMAND (its name includes COMMAND.COM), append our PATH$
-; to its name, ahead of any arguments, the way a SHELL line in CONFIG.SYS
-; gives a COMMAND one (eg, COMMAND.COM PATH$="A:\;A:\EXT":FIBO.BAS).
+; If the program is COMMAND or V86 (its name includes COMMAND.COM or V86.COM),
+; append our PATH$ to its name, ahead of any arguments, the way a SHELL line
+; in CONFIG.SYS gives a COMMAND one (eg, COMMAND.COM PATH$="A:\;A:\EXT":X.BAS),
+; since a new session has no environment.
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -48,7 +49,10 @@ DEFPROC	addPath
 	push	di
 	mov	dx,offset CMD_PATH+3	; DX -> "COMMAND.COM"
 	call	chkString		; is the program COMMAND?
-	pop	di
+	jnc	ap1			; yes
+	mov	dx,offset V86_COM
+	call	chkString		; or V86?
+ap1:	pop	di
 	jc	ap9			; no
 	mov	ax,('P' SHL 8) OR ' '
 	stosw
@@ -222,7 +226,7 @@ st3:	pop	ds
 	stosw				; SPB_SFHAUX and SPB_SFHPRN
 	mov	bx,sp			; ES:BX -> SPB
 	sub	cx,cx			; CH = 0 (no programs follow)
-	DOSUTIL	LOAD,1			; load it into a session with its own LDT
+	DOSUTIL	LOAD,1			; load it (into its own LDT)
 	jc	st4
 	DOSUTIL	START			; start the session (CL)
 st4:	lea	sp,[bx + size SPB]
@@ -237,11 +241,12 @@ st4:	lea	sp,[bx + size SPB]
 	pop	bx			; BX -> CMDHEAP
 	jnc	st9
 	mov	byte ptr [di],0		; the name alone, for openError
-	jmp	openError		; report error (AX) for the program (SI)
+	jmp	openError		; report error AX for program SI
 st9:	ret
 ENDPROC	cmdStartSes
 
 	DEFSTR	CON_NAME,<"VKD$:80,25,0,0,1",0>	; (1 takes the focus)
+	DEFSTR	V86_COM,<"V86.COM",0>
 
 CODE	ENDS
 
