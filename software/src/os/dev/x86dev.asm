@@ -45,7 +45,7 @@ mv_pkt	MOVEPKT	<0,0,0>			; CPU_MOVE's packet, as it goes
 	dw	ddcpu_unmap, ddcpu_query, ddcpu_alias, cpu_inval
 	dw	ddcpu_realloc, ddcpu_move, ddcpu_setblk, ddcpu_freeall
 	dw	ddcpu_unmap, ddcpu_seginfo, ddcpu_rwmem, cpu_inval
-	dw	ddcpu_setfault, cpu_inval, ddcpu_unmap
+	dw	ddcpu_setfault, cpu_inval, ddcpu_unmap, cpu_inval
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

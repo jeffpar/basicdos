@@ -500,7 +500,7 @@ Same as SPACE$ (eg, PRINT "A"; SPC(5); "B").
 Returns the square root of *x*, which must not be negative.
 
 [c+]START [*program* [*arguments*]]
-START alone lists the session number, console driver, and current program of every active session.  START *program* runs *program* (a COM or EXE file) in a new session, on a new full-screen console, which gets the focus (press Shift-Tab to switch).  When the program ends (eg, EXIT, for a new COMMAND), its session and console close, and the focus goes back to the console that had it.  The session starts without this session's environment (eg, START COMMAND PATH$="A:\EXT" sets the new COMMAND's PATH$).
+START alone lists the session number, console driver, and current program of every active session.  START *program* runs *program* (a COM or EXE file) in a new session, on a new full-screen console, which gets the focus (press Shift-Tab to switch).  When the program ends (eg, EXIT, for a new COMMAND), its session and console close, and the focus goes back to the console that had it.  A new COMMAND gets this session's PATH$.
 
 [b]STOP [*n*]
 Same as END.
@@ -555,6 +555,9 @@ Returns *string* with all lower-case letters converted to upper-case.
 [e]UNIQ [~C] [~D] [~I] [~U] [*file*]
 Displays input (or *file*) with each run of identical lines displayed only once, so input is usually sorted first (eg, SORT NAMES.TXT | UNIQ).  ~C displays the number of times each line occurred in front of it, ~D displays only the lines that were repeated, ~U only the lines that weren't, and ~I ignores case.
 ERRORLEVEL is set to 0, or 2 if *file* couldn't be opened.
+
+[e]V86 [*program* [*arguments*]]
+Runs a real-mode *program* (COMMAND.COM if none) in a V86 machine, which needs an 80386 and a CPU=80386 line in CONFIG.SYS.  So far, only COM programs that use just DOS functions can run (not COMMAND.COM, which uses BASIC-DOS's own), and they can't run other programs or allocate more memory.
 
 [f]VAL(*string*)
 Returns the numeric value of *string*, ignoring any blanks.  If *string* does not begin with a number, the result is 0.  The &H (hex) and &O (octal) prefixes are allowed (eg, VAL("&HFF") is 255).  Without floating-point (see MEM), the result is an integer (eg, VAL("3.9") is 3).

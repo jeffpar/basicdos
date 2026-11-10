@@ -64,7 +64,7 @@ On an 80286 or later with sufficient memory (256K or more), BASIC-DOS can run in
 - [x] A ring 3 program can issue only DOS's, the mouse's, and the user interrupts (not the BIOS's), and it can't reach another LDT's descriptors through the GDT, or another session's files through a forged handle
 - [x] A ring 3 program can hook only the exception vectors it can handle, INT 21h, and INT 60h-67h, and can't change the kernel's record of its parent, stack, or handlers by writing its PSP
 - [x] COM and NE programs (eg, PRIMES.EXE) run in protected mode
-- [x] MASM 4.00, MAKE 4.02, LINK 3.05, LINK4 5.00.12, EXEMOD 4.00, MAPSYM 4.00, and EXE2BIN in **TOOLS** on the hard disk are converted from MZ to NE executables, about the size of the originals, that run at ring 3 in protected mode and through an NE loader stub in real mode
+- [x] MASM 4.00, MASM 5.10B, MAKE 4.02, LINK 3.05, LINK4 5.00.12, EXEMOD 4.00, MAPSYM 4.00, and EXE2BIN in **TOOLS** on the hard disk are converted from MZ to NE executables, about the size of the originals, that run at ring 3 in protected mode and through an NE loader stub in real mode
 - [x] The NE loader stub (`mkne.js --stub`) replaces an NE program's MZ stub, so its one NE image also runs in real mode, without a second copy of the program: on BASIC-DOS, and if the program uses only DOS functions, on PC DOS 2.00 and MS-DOS 3.20
 - [x] BASIC-DOS can build itself with these tools, in real mode or at ring 3 in protected mode, with the same binaries as an MS-DOS build
 - [x] Exceptions: a fault in a program's own code ends that program with `CPU fault nn (EC=nnnn) at nnnn:nnnn` (ERRORLEVEL 255), as a divide error does; anywhere else, CPU$ prints the same line and `System halted`, and stops the machine, unless DEBUG.COM is loaded as a driver and takes over (see [Faults](docs/bdtech/mmu/#faults))
@@ -74,7 +74,9 @@ On an 80286 or later with sufficient memory (256K or more), BASIC-DOS can run in
 - [ ] MZ EXE files in protected mode, which fail with "Unable to load" (currently NOT under consideration for inclusion in BASIC-DOS, since NE programs take their place; see [Limitations](docs/bdtech/mmu/#limits))
 - [ ] VKD$ saving a blocked console's video memory in a buffer, and remapping its selector there, so that its programs keep running (and DEF SEG's video memory selectors through VKD$, too)
 - [x] CPU$ uses the 80386's features on an 80386 (unless CONFIG.SYS has `CPU=80286`): an 80386 TSS, selectors that can cover more than 64K (CPU_SETLIM), and paging, which maps physical memory at C0000000h, leaving the lower linear addresses free
-- [ ] More 80386 features: virtual-8086 mode sessions for MZ programs, then 32-bit sessions for LE programs (built with MASM 5.10B and LINK386 from the Windows 3.1 DDK, in **TOOLS**)
+- [x] V86 machines on an 80386 (CPU_V86, through DOS_UTL_MAPSEG): real-mode code runs in virtual-8086 mode at ring 3, with CPU$ emulating CLI, STI, PUSHF, POPF, INT, and IRET, and V86.COM runs real-mode COM programs that use DOS functions in one
+- [ ] More of V86.COM: MZ programs, memory allocation, EXEC, and BASIC-DOS's own functions, so that COMMAND.COM can run in a V86 machine (eg, START V86)
+- [ ] 32-bit sessions for LE programs (built with MASM 5.10B and LINK386 from the Windows 3.1 DDK, in **TOOLS**)
 
 ### Kernel: Processes, Memory, and Sessions
 
@@ -82,7 +84,7 @@ On an 80286 or later with sufficient memory (256K or more), BASIC-DOS can run in
 - [x] Memory allocation (through CPU$, which uses MCBs on an 8088), from all of memory (on an 80286 in protected mode, conventional and extended memory alike, and MEM and FRE count all of it), including per-program heap requests, and allocation from the top of memory (MCBTYPE_HIGH), which the interpreter uses for its own blocks so that the memory below them stays contiguous
 - [x] DOS_UTL_QRYMEM queries any memory block (its size in bytes, since a block can be 1Mb or more)
 - [x] INT 2Bh utility functions numbered contiguously (00h-28h) and grouped by purpose (see the [Technical Reference](docs/bdtech/util/))
-- [x] START *program* [*arguments*] runs a program in a new session, on a new full-screen console (eg, `START COMMAND` for another shell, which can EXIT, closing its console), which gets the focus (and gives it back to the console that had it when it closes), with an LDT of its own in protected mode; consoles' pages are reused once their consoles close; START alone lists the sessions
+- [x] START *program* [*arguments*] runs a program in a new session, on a new full-screen console (eg, `START COMMAND` for another shell, which can EXIT, closing its console), which gets the focus (and gives it back to the console that had it when it closes), with an LDT of its own in protected mode; consoles' pages are reused once their consoles close; a new COMMAND gets the caller's PATH$; START alone lists the sessions
 - [x] Preemptive multitasking of multiple sessions; a session closes when its last program ends (eg, KILL from another session), and the system halts when no session is left, but the shell that CONFIG.SYS starts in each session ignores EXIT, as PC DOS's COMMAND /P does; without SESSIONS=, there's a session for each console, plus 4 for pipeline filters if PIPE$ is loaded
 - [x] CTRL-C/CTRL-Break handling, CTRL-ALT-DEL session aborts, and divide and overflow errors, which end the program (as MS-DOS does) without aborting its parent (vectors 00h, 08h, 09h, 1Bh, and 1Ch that a terminated program left hooked, like MSBASIC's, are restored)
 - [x] Session END: abort the current program in a specified session, interrupting any pending wait; WAITEND waits for the session to close
@@ -322,7 +324,7 @@ These are the next steps, roughly in priority order:
 2. The rest of runtime error handling (messages for numeric errors other than "Division by zero", such as "Overflow")
 3. Common BASICA features that BASIC-DOS lacks: BEEP and COMMON
 4. The rest of protected mode on an 80286 or 80386: ring 3 for the programs that still need `RING=0` (interrupt hooks that DOS or the ROM BIOS calls, and CPUTESTS); see [Limitations](docs/bdtech/mmu/#limits)
-5. 80386 sessions: virtual-8086 mode sessions for MZ programs, and 32-bit sessions for LE programs
+5. 80386 sessions: V86 sessions for MZ programs (COMMAND.COM and the programs it runs, in V86.COM's V86 machine), and 32-bit sessions for LE programs
 
 ### Ring 3 Security
 

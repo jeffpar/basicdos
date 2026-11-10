@@ -29,7 +29,7 @@
 ;	2. Apply each segment's relocation records, which follow its data.
 ;	3. Starting with the last segment, move each one up to its final
 ;	   paragraph, since it can then only overwrite what's already been
-;	   used, and zero the rest of it, up to the next segment.
+;	   used, and zero the rest of it, up to the next segment (or 64K).
 ;	4. Start the program as load_ne does, with DS and ES addressing the
 ;	   PSP.
 ;
@@ -145,6 +145,16 @@ r1:	test	[di].NES_FLAGS,NESF_RELOCS
 	push	cx
 	push	di
 	mov	si,[di].NES_LENGTH
+	mov	es,ax			; ES:0 -> the segment's data
+;
+; The records can extend past the segment's first 64K (eg, a code segment
+; of nearly 64K with hundreds of records), so normalize their address.
+;
+	mov	bx,si
+	mov	cl,4
+	shr	bx,cl
+	add	ax,bx
+	and	si,0Fh
 	mov	ds,ax			; DS:SI -> # of records
 	lodsw
 	xchg	cx,ax			; CX = # of records
@@ -152,21 +162,21 @@ r1:	test	[di].NES_FLAGS,NESF_RELOCS
 r3:	mov	ax,[si].NER_SEG
 	call	seg_para		; AX = target's paragraph
 	mov	dx,[si].NER_OFFSET	; AX:DX = target
-	mov	di,[si].NER_SOURCE	; DS:DI -> first source
-r4:	mov	bx,[di]			; BX = next source
+	mov	di,[si].NER_SOURCE	; ES:DI -> first source
+r4:	mov	bx,es:[di]		; BX = next source
 	test	[si].NER_FLAGS,NERF_ADDITIVE
 	jz	r5
 	add	dx,bx			; add the target offset to the source
 	mov	bx,-1			; (and there's no next source)
 r5:	cmp	[si].NER_TYPE,NERT_SEL
 	je	r6
-	mov	[di],dx			; store the offset
+	mov	es:[di],dx		; store the offset
 	cmp	[si].NER_TYPE,NERT_OFF
 	je	r6a
 	inc	di
 	inc	di
-r6:	mov	[di],ax			; store the paragraph
-r6a:	mov	di,bx			; DS:DI -> next source
+r6:	mov	es:[di],ax		; store the paragraph
+r6a:	mov	di,bx			; ES:DI -> next source
 	inc	bx			; any more sources?
 	jnz	r4			; yes
 	add	si,size NEREL
@@ -208,7 +218,14 @@ m4:	pop	di			; ES:DI -> just past the data
 	mov	cx,dx
 	sub	cx,ax			; CX = paragraphs to the next segment
 	mov	dx,ax			; (DX is now the paragraph of this one)
-	add	cx,cx
+;
+; The next segment can be more than 64K away (eg, when a large segment's
+; relocation records lie in between), but zero only this segment's 64K.
+;
+	cmp	cx,1000h		; more than 64K of paragraphs?
+	jbe	m4a			; no
+	mov	cx,1000h		; yes
+m4a:	add	cx,cx
 	add	cx,cx
 	add	cx,cx			; CX = words (at most 64K's worth)
 	mov	bx,di

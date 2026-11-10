@@ -1679,11 +1679,13 @@ ENDPROC	chkStrVar
 ; command.  As for DOS commands, an unquoted argument that's a string variable
 ; name is replaced with its value (see chkStrVar), which is quoted if it
 ; contains whitespace, and an empty value removes the argument.  At most 126
-; characters are copied (the most that PSP_CMDTAIL can hold).
+; characters are copied (the most that PSP_CMDTAIL can hold); copyArgsTo
+; copies up to AX instead (eg, when the tail already has a part of its own).
 ;
 ; Inputs:
 ;	DS:SI -> current token (DS = SS)
 ;	ES:DI -> buffer
+;	AX -> end of buffer (copyArgsTo only)
 ;
 ; Outputs:
 ;	DI -> end of copy, CX = length of copy
@@ -1692,10 +1694,12 @@ ENDPROC	chkStrVar
 ;	AX, CX, SI, DI
 ;
 DEFPROC	copyArgs
+	lea	ax,[di+126]		; AX -> end of buffer
+	DEFLBL	copyArgsTo,near
 	push	bx
 	push	dx
 	push	di
-	lea	bx,[di+126]		; BX -> end of buffer
+	xchg	bx,ax			; BX -> end of buffer
 	sub	dx,dx			; DL = # arguments, DH = 1 if quoting
 	jmp	short ca3		; (the current token isn't an argument)
 ca1:	call	caPut

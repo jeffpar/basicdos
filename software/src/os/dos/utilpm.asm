@@ -20,6 +20,7 @@
 	include	dos.inc
 	include	dosapi.inc
 	include	cpu.inc
+	include	v86.inc
 
 DOS	segment word public 'CODE'
 
@@ -30,6 +31,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<utl_lock,utl_unlock,utl_wait,utl_endwait,utl_hotkey>
 	EXTNEAR	<utl_hprintf,hdl_ioctl,r3_chkstk,r3_chkrd,r3_gpcall>
 	EXTNEAR	<hdl_open,hdl_create,hdl_close,hdl_seek,hdl_time,get_psp>
+	EXTNEAR	<para_len>
 
 	.286p
 
@@ -113,20 +115,30 @@ ENDPROC	utl_alias
 ; uses nor replaces the session's selector, for a program that must not disturb
 ; the selector of another program in its session (eg, DEBUG.COM at ring 3).
 ;
+; With REG_AL = 2, it creates a V86 machine (see v86.inc), owned by the
+; current program, whose memory's first selector names it, and with REG_AL =
+; 3, it runs one until it exits; both need CPU_TYPE 3 (see CPU_V86).
+;
 ; Inputs:
 ;	REG_AL = 0, REG_BX = real-mode segment
 ;	REG_AL = 1, REG_BX:REG_SI = physical address (below 1Mb)
+;	REG_AL = 2, REG_BX = paragraphs of memory for a V86 machine
+;	REG_AL = 3, REG_BX = V86 machine, REG_ES:REG_DI -> V86REGS
 ;
 ; Outputs:
 ;	Carry clear if successful: REG_AX = selector (or segment), or the word
+;	(or with REG_AL = 2, the machine, and with REG_AL = 3, the V86X_* exit)
 ;	Carry set if error: REG_AX = error code
 ;
 DEFPROC	utl_mapseg,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
 	mov	bx,[bp].REG_BX		; BX = segment
-	cmp	byte ptr [bp].REG_AL,1	; read a word instead?
-	jne	ums0			; no
+	mov	al,byte ptr [bp].REG_AL
+	cmp	al,1			; read a word instead?
+	jbe	ums0a			; maybe
+	jmp	ums4			; no, a V86 machine
+ums0a:	jne	ums0			; no
 	mov	ax,ERR_BADADDR
 	cmp	bx,10h			; below 1Mb, as a selector would be?
 	cmc
@@ -185,6 +197,33 @@ ums9:	mov	[bp].REG_AX,bx		; (carry is clear)
 	ret
 ums8:	mov	[bp].REG_AX,ax		; (carry is set)
 	ret
+ums4:	cmp	al,3			; run a machine?
+	je	ums6			; yes
+	mov	ax,ERR_INVALID
+	cmc
+	jc	ums8			; no such option
+	xchg	ax,bx			; AX = paragraphs
+	call	para_len		; SI:DI = length
+	call	get_psp			; AX = owner
+	xchg	bx,ax
+	mov	ax,CPU_V86 SHL 8	; AL = 0 (create)
+	call	far ptr DDINT_CPU	; AX = machine
+	jc	ums8
+	or	al,3			; (RPL 3, as for mem_alloc)
+	jmp	short ums7
+ums6:	mov	dx,[bp].REG_ES
+	mov	di,[bp].REG_DI
+	mov	cx,size V86REGS
+	call	r3_chkstk		; can we write the caller's V86REGS?
+	mov	ax,ERR_BADADDR
+	jc	ums8			; no
+	mov	es,dx
+	mov	ax,(CPU_V86 SHL 8) OR 1	; AL = 1 (run)
+	call	far ptr DDINT_CPU	; AL = V86X_*
+	jc	ums8
+	mov	ah,0
+ums7:	xchg	bx,ax
+	jmp	ums9
 ENDPROC	utl_mapseg
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

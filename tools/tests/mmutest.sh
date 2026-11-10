@@ -2,7 +2,8 @@
 #
 # Usage: tools/tests/mmutest.sh [8088] [real] [pm] [r3] [386] [r386] [multi] [pool] [tools]
 #
-# Runs quick.sh's floppy tests (FPUTESTS through PRINTF), followed by CPUTESTS and R3TESTS, on these test machines:
+# Runs quick.sh's floppy tests (FPUTESTS through PRINTF), followed by CPUTESTS, R3TESTS, and V86TEST (in V86.COM's V86
+# machine, which only the "386" and "r386" machines have), on these test machines:
 #
 #   8088    an IBM PC XT (ibm5160), where CPU$ keeps only what an 8088 needs
 #   real    a 2Mb IBM PC AT (ibm5170), where CPU$ acts as it does on an 8088 by default, so BASIC-DOS runs in real mode
@@ -33,11 +34,12 @@ tools/tests/prep.sh $fpe || exit 1
 ok='IF ERRORLEVEL = 0 THEN PRINT "EXITOK" ELSE PRINT "EXITBAD"'
 abort='IF ERRORLEVEL = 255 THEN PRINT "ABORTOK" ELSE PRINT "ABORTBAD"'
 m='\TESTS\REGRESS\'
-cmds="VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}BUFTESTS;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;\\TESTS\\MISC\\CPUTESTS;$ok;\\TESTS\\MISC\\R3TESTS;$ok;SLEEP 1;QUIT"
+cmds="VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}BUFTESTS;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;\\TESTS\\MISC\\CPUTESTS;$ok;\\TESTS\\MISC\\R3TESTS;$ok;V86 \\TESTS\\MISC\\V86TEST;SLEEP 1;QUIT"
 log=$(mktemp)
 failed=
 for name in ${@:-8088 real pm r3 386 r386 multi pool tools}; do
     meta="HARDERR metadata passed"; seek="HARDERR seek passed"; above="BUFTESTS passed"; r3t="R3TESTS skipped"
+    v86="V86 mode not available"
     case $name in
         8088)   args="ibm5160 $fpe"; cpu="CPU type 0 (hardware 0)" ;;
         real)   args="ibm5170 $fpe --ram=2M"; cpu="CPU type 0 (hardware 2)" ;;
@@ -105,7 +107,7 @@ EOF
                 cp -R $fpe $tmp || exit 1
                 case $name in
                     *386) echo CPU=80386 >> $tmp/CONFIG.SYS
-                          args="compaq386 $tmp --ram=2M"; cpu="CPU type 3 (hardware 3)" ;;
+                          args="compaq386 $tmp --ram=2M"; cpu="CPU type 3 (hardware 3)"; v86="V86TEST passed" ;;
                     *)    echo CPU=80286 >> $tmp/CONFIG.SYS
                           args="ibm5170 $tmp --ram=2M"; cpu="CPU type 2 (hardware 2)" ;;
                 esac
@@ -133,7 +135,7 @@ EOF
        ! grep -q "$seek" "$log" || ! grep -q "IOERR passed" "$log" || ! grep -q "$r3t" "$log" ||
        ! grep -q "ABORTOK" "$log" || grep -q "ABORTBAD" "$log" || ! grep -q "1 FILE(S)" "$log" ||
        ! grep -q "Elapsed time is" "$log" || ! grep -q "Returns the square root" "$log" ||
-       ! grep -q "hello world!" "$log"; then
+       ! grep -q "hello world!" "$log" || ! grep -q "$v86" "$log"; then
         failed="$failed $name"
     fi
 done

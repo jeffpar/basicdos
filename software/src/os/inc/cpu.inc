@@ -70,7 +70,8 @@ CPU_SYSREGS	equ	0Fh	; ES:DI -> 12-byte buffer (GDTR and IDTR)
 CPU_SETFAULT	equ	10h	; DX:CX = fault handler (0:0 for none)
 CPU_SETSTACK	equ	11h	; DX:CX = ring 0 stack (SS:SP)
 CPU_SETLDT	equ	12h	; AL = LDT # (for a session; see SCB_LDT)
-CPU_MAXFUNC	equ	12h
+CPU_V86		equ	13h	; AL = 0 (create) or 1 (run); see v86.inc
+CPU_MAXFUNC	equ	13h
 
 ;
 ; CPU_ALIAS with just MEMF_CODE, for the selector that CPU_ALLOC returned for a
@@ -269,7 +270,8 @@ PMB_NSEL	dw	?	; 0Eh: number of selectors
 PMB_MCBTYPE	db	?	; 10h: MCBTYPE_*, or 0
 		db	?	; 11h: (reserved)
 PMB_CODE	dw	?	; 12h: code alias (see CPU_ALIAS), or 0
-		db	4 dup(?); 14h: (reserved)
+PMB_V86		dw	?	; 14h: V86 machine's page # (see v86.inc), or 0
+		db	2 dup(?); 16h: (reserved)
 PMB_NAME	db	8 dup(?); 18h: name of process (zero if none)
 PMB		ends
 

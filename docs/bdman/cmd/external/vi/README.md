@@ -96,4 +96,4 @@ In insert mode, typed characters are inserted, ENTER starts a new line, BACKSPAC
 
 Source: [software/src/os/util/vi](https://github.com/jeffpar/basicdos/tree/main/software/src/os/util/vi)
 
-{% include footer.html prev="UNIQ:../uniq/" next="VOL:../vol/" %}
+{% include footer.html prev="V86:../v86/" next="VOL:../vol/" %}

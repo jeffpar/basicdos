@@ -753,6 +753,56 @@ const PROGRAMS = [
     },
 
     /*
+     * MASM 5.10B (Windows 3.1 DDK)
+     *
+     * The MZ image is EXEPACKed, and it's a large-model C program with the same
+     * C run-time as MAPSYM.
+     */
+    {
+        name: "MASM5",
+        hash: "e8a09ca1b6f5c42162ac44f6278e715490e257720f5f8a3849f999d8cc2ffc3d",
+        convert({ source, image: packed }) {
+            const unpacked = unpackExepack(source, packed);
+            const { image, relocations } = unpacked;
+            const sp = patchStartup(image, 0x12319, 0x1235e, unpacked.sp);
+
+            /*
+             * The banner (in the listing header, too) is the SCCS string less its
+             * last 20 characters (the date), so "BD" replaces the space before it.
+             */
+            patch(image, 0x1b15f, "422041", "424441");
+
+            /*
+             * Each frame that a relocation names stays a separate NE segment,
+             * with the same offsets, extended by the next frame's first paragraph
+             * (see MAPSYM).  Frames 1640h through 19BDh are far data, and 1A2Eh
+             * is DGROUP.
+             */
+            const dgroup = 0x1a2e;
+            const frames = [...new Set(relocations.map(r => r.target))]
+                .sort((a, b) => a - b);
+            const segments = frames.map((frame, i) => ({
+                start: frame * 16,
+                end: frame === dgroup ? image.length :
+                    Math.min(frames[i + 1] * 16 + 16, dgroup * 16),
+                data: frame >= 0x1640
+            }));
+            segments[segments.length - 1].size = 0;
+            return {
+                image,
+                relocations,
+                frames: new Map(frames.map((frame, i) => [frame, i + 1])),
+                segments,
+                autoData: frames.length,
+                ip: unpacked.ip,
+                cs: frames.indexOf(unpacked.cs) + 1,
+                sp,
+                ss: frames.length
+            };
+        }
+    },
+
+    /*
      * EXE2BIN (MS-DOS 3.20)
      */
     {

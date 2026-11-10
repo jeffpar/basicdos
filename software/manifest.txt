@@ -101,6 +101,7 @@ software/src/tests/bin/CPUTESTS.COM
 software/src/tests/bin/DBGTESTS.COM
 software/src/tests/bin/FAULT.COM
 software/src/tests/bin/R3TESTS.COM
+software/src/tests/bin/V86TEST.COM
 software/src/tests/bin/MEMTESTS.COM
 software/src/tests/misc/GFXTESTS.BAS
 software/src/tests/misc/MICRO.BAS

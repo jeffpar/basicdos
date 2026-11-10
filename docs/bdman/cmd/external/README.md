@@ -57,6 +57,7 @@ These are the programs provided with BASIC-DOS, each of which has a page of its 
 - [TR.COM](tr/): a filter that replaces or deletes characters
 - [TREE.BAS](tree/): displays a directory tree
 - [UNIQ.COM](uniq/): a filter that removes repeated lines
+- [V86.COM](v86/): runs a real-mode program in a V86 machine
 - [VI.COM](vi/): a full-screen text editor
 - [VOL.BAS](vol/): displays a volume label
 - [WC.COM](wc/): a filter that counts lines, words, and bytes

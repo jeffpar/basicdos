@@ -19,10 +19,54 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<getToken,findProgram,chkString,copyArgs,openError>
+	EXTNEAR	<getToken,findProgram,chkString,copyArgsTo,openError>
+	EXTBYTE	<CMD_PATH>
 	EXTSTR	<COM_EXT,EXE_EXT>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; addPath
+;
+; If the program is COMMAND (its name includes COMMAND.COM), append our PATH$
+; to its name, ahead of any arguments, the way a SHELL line in CONFIG.SYS
+; gives a COMMAND one (eg, COMMAND.COM PATH$="A:\;A:\EXT":FIBO.BAS).
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	DS:SI -> the program's name
+;	ES:DI -> the null after it
+;
+; Outputs:
+;	DI -> the end of the name and any PATH$
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+DEFPROC	addPath
+	push	di
+	mov	dx,offset CMD_PATH+3	; DX -> "COMMAND.COM"
+	call	chkString		; is the program COMMAND?
+	pop	di
+	jc	ap9			; no
+	mov	ax,('P' SHL 8) OR ' '
+	stosw
+	mov	ax,('T' SHL 8) OR 'A'
+	stosw
+	mov	ax,('$' SHL 8) OR 'H'
+	stosw
+	mov	ax,('"' SHL 8) OR '='
+	stosw				; ' PATH$="'
+	lea	si,[bx].PATH_BUF
+	lodsb
+	cbw
+	xchg	cx,ax
+	rep	movsb			; PATH$
+	mov	ax,(':' SHL 8) OR '"'
+	stosw				; '":'
+ap9:	ret
+ENDPROC	addPath
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -72,6 +116,7 @@ lss8:	inc	cx
 	jmp	lss1
 lss9:	add	sp,16
 	ret
+st0:	jmp	openError		; (for cmdStartSes)
 ENDPROC	listSessions
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -129,8 +174,13 @@ st2:	pop	dx
 	add	di,ax			; DI -> the null after the name
 	push	di
 	push	si
-	mov	si,dx
-	call	copyArgs		; append the arguments
+	lea	ax,[di+126]		; AX -> the end of the longest tail
+	push	ax
+	push	dx
+	call	addPath			; add PATH$ for a new COMMAND
+	pop	si			; SI -> the arguments
+	pop	ax
+	call	copyArgsTo		; append the arguments
 	mov	al,0
 	stosb
 	pop	si			; DS:SI -> the command line
@@ -187,7 +237,7 @@ st4:	lea	sp,[bx + size SPB]
 	pop	bx			; BX -> CMDHEAP
 	jnc	st9
 	mov	byte ptr [di],0		; the name alone, for openError
-st0:	jmp	openError		; report error (AX) for the program (SI)
+	jmp	openError		; report error (AX) for the program (SI)
 st9:	ret
 ENDPROC	cmdStartSes
 

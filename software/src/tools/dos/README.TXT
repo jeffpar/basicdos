@@ -100,6 +100,10 @@ privileged CLI and STI instructions where necessary, and adapt the programs'
 real-mode memory setup.  Their banners end in "BD" (eg, "Version 4.00BD") to
 identify the conversions, except for EXE2BIN, which has no banner.
 
+MASM5.EXE is converted, too, and assembles the same object files as the
+original; its listings differ only in the banner, and in the far memory
+reported free, since its data segment is always 64K.
+
 Their data segments are always 64K, whereas the originals use less when memory
 is short, so in real mode, MAKE and MASM together need about 229K of free memory.
 

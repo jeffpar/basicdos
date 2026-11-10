@@ -18,6 +18,8 @@ INT_BP		EQU	03h	; #BP (breakpoint trap)
 INT_OF		EQU	04h	; #OF (overflow trap)
 INT_BR		EQU	05h	; #BR (BOUND error fault; 80186 and up)
 INT_UD		EQU	06h	; #UD (undefined opcode fault; 80186 and up)
+INT_NM		EQU	07h	; #NM (no math coprocessor fault; 80286 and up)
+INT_GP		EQU	0Dh	; #GP (general protection fault; 80286 and up)
 
 ;
 ; Processor flag definitions
@@ -56,10 +58,13 @@ OP_PUSH_DI	equ	057h
 OP_POP_AX	equ	058h
 OP_POP_DX	equ	05Ah
 OP_POP_BP	equ	05Dh
+OP_OPSIZE	equ	066h		; operand-size prefix
 OP_NOP		equ	090h
 OP_XCHG_DX	equ	092h
 OP_CWD		equ	099h
 OP_CALLF	equ	09Ah		; 32-bit absolute address
+OP_PUSHF	equ	09Ch
+OP_POPF		equ	09Dh
 OP_LODSW	equ	0ADh
 OP_MOV_AL	equ	0B0h
 OP_MOV_AX	equ	0B8h
@@ -71,11 +76,13 @@ OP_RETF_N	equ	0CAh
 OP_RETF		equ	0CBh
 OP_INT03	equ	0CCh		; INT3
 OP_INT		equ	0CDh		; INT n
+OP_INTO		equ	0CEh
 OP_IRET		equ	0CFh
 OP_CALL		equ	0E8h		; 16-bit displacement
 OP_JMP		equ	0E9h		; 16-bit displacement
 OP_JMPF		equ	0EAh		; 32-bit absolute address
 OP_JMPS		equ	0EBh		; 8-bit displacement
+OP_HLT		equ	0F4h
 OP_CLC		equ	0F8h
 OP_STC		equ	0F9h
 OP_CLI		equ	0FAh
