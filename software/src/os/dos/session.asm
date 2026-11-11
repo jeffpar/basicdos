@@ -161,7 +161,7 @@ sl5:	mov	[bx].SCB_STACK.OFF,ax	; DX:AX == initial stack
 	mov	[bx].SCB_ENVSEG,cx
 ;
 ; Since we start the SCB's first program by going through dos_leave, we need
-; to bump SCB_INDOS (TODO: Consider whether this is really a job for init_scb).
+; to bump SCB_INDOS (which init_scb has reset).
 ;
 	inc	[bx].SCB_INDOS
 
@@ -967,6 +967,20 @@ DEFPROC	init_scb,DOS
 ; (if any), switch character, current drive, etc.
 ;
 	mov	[bx].SCB_PARENT,ax	; TODO: What shall we do with this?
+;
+; A session that used this SCB before may have left a count in SCB_INDOS: once
+; psp_term closes a session, it spins in scb_yield, and if the yield that
+; finally switches away is one that a hardware interrupt issued (see
+; int_leave), that call's count is never removed.  With a stale count, the
+; new session's SCB_INDOS never returned to zero, so dos_leave never acted on
+; an ABORT (eg, KILL), and a program that retried its failed console read
+; (eg, DEBUG) hung the system.  So reset it, unless this SCB is the caller's
+; (ie, sysinit's, whose LOAD call is counted in the SCB it's loading).
+;
+	cmp	ax,bx			; is the caller using this SCB?
+	je	si0c			; yes, so its count is valid
+	mov	[bx].SCB_INDOS,0
+si0c:
 	xchg	si,ax			; DS:SI -> previous SCB
 	mov	dx,es:[di].SPB_ENVSEG	; DX = SPB_ENVSEG (-1 if from sysinit)
 ;
