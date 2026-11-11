@@ -381,7 +381,10 @@ ENDPROC	devinit
 ;
 ; If protected mode is available, the FDC driver will grow by up to a track
 ; (see ddfdc_init), moving the drivers after it up, so we move up first, and
-; include the room in the drivers' block (which i9 shrinks to fit).
+; include the room in the drivers' block (which i9 shrinks to fit).  If not,
+; the 80386 CPU$ unloaded itself and the drivers after it moved down, so we
+; move down to the end of the drivers (plus a paragraph for our MCB), rather
+; than leave a gap below us.
 ;
 ; Finally, if protected mode is available, we switch to it for good (see
 ; CPU_PMODE): our CS, DS, ES, and SS become selectors, and we give the link to
@@ -413,11 +416,11 @@ cu1:	push	si
 	ASSUME	ES:DEV
 	mov	es:[drv_addr],si
 	test	ah,CPUF_PMOK		; is protected mode available?
-	jz	cu2			; no
+	jz	cu1b			; no
 	add	di,DV_ROOM		; yes, so the drivers need more room
-	mov	cx,es:[dv_addr]
+cu1b:	mov	cx,es:[dv_addr]
 	mov	es:[mv_pkt].MV_SRC.LOW,cx
-	add	cx,DV_ROOM
+	lea	cx,[di+16]		; (the 8086 CPU$ puts our MCB at DI)
 	mov	es:[mv_pkt].MV_DST.LOW,cx
 	mov	es:[dv_addr],cx		; (the copy has our new address)
 	mov	cx,es:[buf_off]		; CX = our code and CFG_FILE length
@@ -425,15 +428,18 @@ cu1:	push	si
 	mov	bx,offset mv_pkt	; ES:BX -> MOVEPKT
 	mov	ah,CPU_MOVE
 	call	cpu_chk
-	mov	ax,cs
-	add	ax,DV_ROOM SHR 4
+	mov	ax,es:[dv_addr]
+	mov	cl,4
+	shr	ax,cl
 	push	ax
 	mov	ax,offset cu1a
 	push	ax
 	db	OP_RETF			; continue with the copy
 cu1a:	push	cs
 	pop	es
-cu2:	mov	cx,si
+	mov	es:[dv_data],cs		; (protected mode replaces these two)
+	mov	[bp].DDP_PTR.SEG,cs
+	mov	cx,si
 	sub	di,si			; DI = length of the drivers left
 	call	claim
 	mov	cx,es:[dv_addr]

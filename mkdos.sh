@@ -74,7 +74,7 @@ fi
 if [ -n "$clean" ]; then
     touch $src/CLEAN
 fi
-tools/pc/pc.js --disk=software/disks/MSDOS320-C400.json --dir=$src --normalize --speed=8 --target=30M --fat=16:2048:512
+tools/pc/pc.js --disk=software/disks/MSDOS320-C400.json --dir=$src --normalize --speed=16 --target=30M --fat=16:2048:512
 code=$?
 if [ $code -eq 0 ] && [ -n "$PCJS" ]; then
     if ! npx gulp demos --silent > /dev/null; then
