@@ -187,7 +187,7 @@ DEFPROC	v86_resume
 	lidt	qword ptr ds:[SYS_VARS].SV_V86IDTR
 	mov	ss,bx
 	mov	sp,V86_CTX
-	db	66h,61h			; POPAD
+vr_ret:	db	66h,61h			; POPAD
 	add	sp,VR_EIP - VR_VEC	; (past VR_VEC and VR_ERR)
 	db	66h,0CFh		; IRETD (to V86 mode)
 ENDPROC	v86_resume
@@ -241,6 +241,8 @@ DEFPROC	v86_noerr
 	db	66h,60h			; PUSHAD
 	mov	bp,sp
 	DEFLBL	v86_common,near
+	test	byte ptr [bp+VR_EFL+2],2	; from V86 mode?
+	jz	vc9			; no
 	cld
 	mov	ax,[bp+VR_VEC]
 	sub	ax,offset DEV:v86_stubs + 3
@@ -284,6 +286,13 @@ vc1:	mov	ah,0
 vc2:	jmp	v86_refl		; 05h-07h
 vc8:	mov	al,V86X_FAULT
 	jmp	v86_exit
+;
+; Only a debugger's trace (after the LIDT in v86_resume) or an NMI can get
+; here from the kernel, still on its stack and before the machine runs, so
+; the trace ends (as if it were a G) and v86_resume goes on.
+;
+vc9:	and	byte ptr [bp+VR_EFL+1],NOT (FL_TRAP SHR 8)
+	jmp	vr_ret
 ENDPROC	v86_noerr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -284,7 +284,7 @@ Executes *count* instructions (default 1), displaying the next instruction after
 
 > U [*range*]
 
-Disassembles instructions as the processor runs them: 80286 instructions on an 80286 or later (even in real mode), and 8086 instructions on an 8088 or 8086 (where, for example, opcode 0Fh is POP CS).  U displays 32 bytes by default, continuing from the last U, or from CS:IP.  An INT 2Bh that prints (eg, from the PRINTF macro) is followed by a tab, a semicolon, and its format string in quotes (with `\r`, `\n`, `\t`, or `\x`*nn* for each character that isn't printable), and the next instruction starts after the string.
+Disassembles instructions as the processor runs them: 80386 instructions on an 80386 or later (even in real mode), 80286 instructions on an 80286, and 8086 instructions on an 8088 or 8086 (where, for example, opcode 0Fh is POP CS).  Code is disassembled as 16-bit code, so a 66h prefix makes operands 32-bit (eg, `EAX`, `PUSHAD`, or `MOVSD`), and a 67h prefix makes addresses 32-bit (eg, `[EBX+ECX*4+10]`); an effective address shows only the low 16 bits of the offset, and none is shown for an FS or GS override.  U displays 32 bytes by default, continuing from the last U, or from CS:IP.  An INT 2Bh that prints (eg, from the PRINTF macro) is followed by a tab, a semicolon, and its format string in quotes (with `\r`, `\n`, `\t`, or `\x`*nn* for each character that isn't printable), and the next instruction starts after the string.
 
 	-U
 	0E2F:0100 BE8100        MOV     SI,0081

@@ -7,11 +7,11 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; The 80286 (and 8086) disassembler for U, BL, and the instruction at CS:IP
-; (see dis_line), and P's test for instructions to step over (see chk_over).
-; It's resident, like dbgdev.asm, which LINK puts first, and it's a module of
-; its own only for MASM's symbol space (its mnemonics alone define about 120
-; equates).
+; The 80386 (and 80286 and 8086) disassembler for U, BL, and the instruction
+; at CS:IP (see dis_line), and P's test for instructions to step over (see
+; chk_over).  It's resident, like dbgdev.asm, which LINK puts first, and it's
+; a module of its own only for MASM's symbol space (its mnemonics alone
+; define about 140 equates).
 ;
 	DOSFUNC equ 1
 	include	macros.inc
@@ -21,7 +21,8 @@
 CODE	segment word public 'CODE'
 
 	EXTNEAR	<at_ip,fetch,fetch_word,hex_addr,hex_byte,hex_word,ip_mem>
-	EXTNEAR	<newline,pad,put_char,put_reg,put_string,reg_val,space>
+	EXTNEAR	<newline,pad,put_2ch,put_char,put_reg,put_string,reg_val>
+	EXTNEAR	<space>
 	EXTBYTE	<col,mem_mode,mute>
 	EXTWORD	<mem_seg>
 
@@ -31,8 +32,10 @@ CODE	segment word public 'CODE'
 ; Disassembler state (see decode).
 ;
 	DEFBYTE	opcode,0
+	DEFBYTE	opcode2,0		; the byte after 0Fh (see oe1)
 	DEFBYTE	modrm,0			; ModRM byte (or opcode, if none)
 	DEFBYTE	wbit,0			; 0 (byte), 1 (word), or 2 (far)
+	DEFBYTE	sz,0			; SZ_* prefixes (66h and 67h)
 	DEFBYTE	opnds,0			; operand types (see OPND_TAB)
 	DEFBYTE	mnemonic,0		; MNEMS index (see chk_over)
 	DEFBYTE	pfx,0			; last LOCK or REP prefix (or 0)
@@ -41,14 +44,20 @@ CODE	segment word public 'CODE'
 	DEFBYTE	ea_seg,0		; memory operand's segment, likewise
 	DEFWORD	ea_off,0		; and its offset (see ea_start)
 
+SZ_OP	equ	01h			; 66h: 32-bit operands (dwords)
+SZ_ADDR	equ	02h			; 67h: 32-bit addressing
+
 	DEFLBL	EA_MSG,byte
 	db	9,"; EA = ",0
 	DEFLBL	FMT_MSG,byte
 	db	9,'; "',0
 ;
 ; Mnemonics, each with bit 7 set in its last character, and an M_ equate
-; with its index (see put_mnem); bit 7 of an index in OPTAB means "word"
-; and indexes 78h-7Eh are groups (see decode), so there can be only 120.
+; with its index (see put_mnem).  In OPTAB, bit 7 of an index means "word",
+; and indexes 78h-7Fh are groups (see decode), so OPTAB's mnemonics must be
+; below 78h, and those in GRPS (where bit 7 means "far") below 80h; the rest
+; (from OPTAB_0F, where 78h-7Fh are also groups, or used only by code) can
+; be anywhere else.
 ;
 _MN = 0
 MNEM	macro	text,name
@@ -86,7 +95,7 @@ _LC = '&c'
 	MNEM	???,BAD
 	MNEM	SAR
 	MNEM	JO			; 10h-1Fh: opcodes 70h-7Fh
-	MNEM	JNO
+	MNEM	JNO			; (and 0Fh 80h-8Fh; see dc5j)
 	MNEM	JB
 	MNEM	JNB
 	MNEM	JZ
@@ -105,27 +114,25 @@ _LC = '&c'
 	MNEM	DEC
 	MNEM	PUSH
 	MNEM	POP
-	MNEM	DAA			; 24h-27h: opcodes 27h-3Fh
-	MNEM	DAS
-	MNEM	AAA
-	MNEM	AAS
-	MNEM	MOVS			; 28h-2Eh: B or W is appended
+	MNEM	PUSHA			; D is appended for dwords (see dc8)
+	MNEM	POPA
+	MNEM	PUSHF
+	MNEM	POPF
+	MNEM	IRET
+	MNEM	MOVS			; B, W, or D is appended
 	MNEM	CMPS
 	MNEM	STOS
 	MNEM	LODS
 	MNEM	SCAS
 	MNEM	INS
 	MNEM	OUTS
-	MNEM	CALL			; 2Fh-35h: P steps over these
+	MNEM	CALL			; P steps over these
 	MNEM	<INT 3>,INT3
 	MNEM	INT
 	MNEM	INTO
 	MNEM	LOOPNZ
 	MNEM	LOOPZ
 	MNEM	LOOP
-	MNEM	<BYTE PTR>,BYTE		; (see op_e)
-	MNEM	<WORD PTR>,WORD
-	MNEM	FAR
 	MNEM	TEST
 	MNEM	NOT
 	MNEM	NEG
@@ -138,23 +145,17 @@ _LC = '&c'
 	MNEM	MOV
 	MNEM	LEA
 	MNEM	NOP
-	MNEM	CBW
-	MNEM	CWD
 	MNEM	WAIT
-	MNEM	PUSHF
-	MNEM	POPF
 	MNEM	SAHF
 	MNEM	LAHF
 	MNEM	RET
 	MNEM	RETF
 	MNEM	LES
 	MNEM	LDS
-	MNEM	IRET
 	MNEM	AAM
 	MNEM	AAD
 	MNEM	XLAT
 	MNEM	ESC
-	MNEM	JCXZ
 	MNEM	IN
 	MNEM	OUT
 	MNEM	LOCK
@@ -168,12 +169,27 @@ _LC = '&c'
 	MNEM	STI
 	MNEM	CLD
 	MNEM	STD
-	MNEM	PUSHA			; 80286
-	MNEM	POPA
-	MNEM	BOUND
+	MNEM	DAA			; opcodes 27h-3Fh
+	MNEM	DAS
+	MNEM	AAA
+	MNEM	AAS
+	MNEM	BOUND			; 80286
 	MNEM	ARPL
 	MNEM	ENTER
 	MNEM	LEAVE
+	MNEM	BT			; 80386 (in GRPS and OPTAB_0F)
+	MNEM	BTS
+	MNEM	BTR
+	MNEM	BTC
+	MNEM	CBW			; these 3, with a 32-bit prefix,
+	MNEM	CWD			; become the next 3 (see dc8)
+	MNEM	JCXZ
+	IF	M_JCXZ GE 78h
+	ERROR	<Too many OPTAB mnemonics>
+	ENDIF
+	MNEM	CWDE
+	MNEM	CDQ
+	MNEM	JECXZ
 	MNEM	SLDT			; group 6
 	MNEM	STR
 	MNEM	LLDT
@@ -186,10 +202,35 @@ _LC = '&c'
 	MNEM	LIDT
 	MNEM	SMSW
 	MNEM	LMSW
-	MNEM	LAR
+	MNEM	<BYTE PTR>,BYTE		; (see oe1)
+	MNEM	<WORD PTR>,WORD
+	MNEM	FAR
+	MNEM	SET			; (see dc8)
+	IF	_MN GT 80h
+	ERROR	<Too many GRPS mnemonics>
+	ENDIF
+	REPT	80h-_MN			; (unused)
+	db	'?' OR 80h
+	ENDM
+_MN = 80h
+	MNEM	LAR			; OPTAB_0F only
 	MNEM	LSL
 	MNEM	CLTS
-	IF	_MN GT 78h
+	MNEM	SHLD
+	MNEM	SHRD
+	MNEM	LSS
+	MNEM	LFS
+	MNEM	LGS
+	MNEM	MOVZX
+	MNEM	MOVSX
+	MNEM	BSF
+	MNEM	BSR
+;
+; SETcc isn't in MNEMS: its "index" is M_SETO plus the condition (0-0Fh), and
+; it's displayed as SET and the matching Jcc without its J (see dc8).
+;
+M_SETO	equ	0F0h
+	IF	_MN GT M_SETO
 	ERROR	<Too many mnemonics>
 	ENDIF
 ;
@@ -201,13 +242,20 @@ _LC = '&c'
 ;	3: segment reg	7: signed imm8	   B: rel16	F: 1 or CL
 ;	4: AL or AX	8: imm8		   C: seg:off
 ;
-; Sizes come from bit 0 of the opcode, unless the operands say otherwise.
+; After 0Fh, C-F have other meanings (none of those operands occur there):
+;
+;	C: CRn, DRn, or TRn (ModRM reg)	   E: ModRM reg, and imm8 or CL
+;	D: byte or word ModRM r/m	   F: 32-bit register (ModRM r/m)
+;
+; Sizes come from bit 0 of the opcode, unless the operands say otherwise;
+; with a 66h prefix, words (and rel16 and imm16, except for 9) are dwords.
 ;
 	DEFLBL	OPND_TAB,word
 	dw	op_e, op_g, op_s, op_a, op_z, op_i, op_sib, op_ib
 	dw	op_iw, op_j8, op_j16, op_ap, op_o, op_dx, op_shift
+	dw	op_sr, op_ex, op_gx, op_r32
 ;
-; Groups 3 through 7 (mnemonics for each ModRM reg); bit 7 means "far".
+; Groups 3 through 8 (mnemonics for each ModRM reg); bit 7 means "far".
 ;
 	DEFLBL	GRPS,byte
 	db	M_TEST,M_BAD,M_NOT,M_NEG,M_MUL,M_IMUL,M_DIV,M_IDIV
@@ -215,9 +263,12 @@ _LC = '&c'
 	db	M_INC,M_DEC,M_CALL,M_CALL+80h,M_JMP,M_JMP+80h,M_PUSH,M_BAD
 	db	M_SLDT,M_STR,M_LLDT,M_LTR,M_VERR,M_VERW,M_BAD,M_BAD
 	db	M_SGDT,M_SIDT,M_LGDT,M_LIDT,M_SMSW,M_BAD,M_LMSW,M_BAD
+	db	M_BAD,M_BAD,M_BAD,M_BAD,M_BT,M_BTS,M_BTR,M_BTC
 ;
-; Opcodes 60h-FFh: mnemonic (or group) and operand types; operand type FFh
-; marks a prefix.  On an 8086 or 8088, set_cpu changes some of them.
+; Opcodes 60h-FFh: mnemonic (or group) and operand types; operand types
+; PFX_SEG, PFX_SIZE, and PFX_REP mark prefixes: a segment register (FS or GS),
+; SZ_* bits, or a mnemonic.  On an 8086 or 8088 (or 80286), set_cpu changes
+; some of them.
 ;
 G1	equ	78h
 G2	equ	79h
@@ -226,10 +277,14 @@ G4	equ	7Bh
 G5	equ	7Ch
 G6	equ	7Dh
 G7	equ	7Eh
+G8	equ	7Fh
+PFX_SEG	equ	0FDh
+PFX_SIZE equ	0FEh
+PFX_REP	equ	0FFh
 	DEFLBL	OPTAB,byte
-	db	M_PUSHA,0, M_POPA,0, M_BOUND+80h,21h, M_ARPL,12h	; 60h
-	db	4 dup (M_BAD,0)
-	db	M_PUSH,90h, M_IMUL,21h, M_PUSH,70h, M_IMUL,21h	; 68h
+	db	M_PUSHA+80h,0, M_POPA,0, M_BOUND+80h,21h, M_ARPL,12h	; 60h
+	db	20,PFX_SEG, 21,PFX_SEG, SZ_OP,PFX_SIZE, SZ_ADDR,PFX_SIZE
+	db	M_PUSH+80h,60h, M_IMUL,21h, M_PUSH,70h, M_IMUL,21h	; 68h
 	db	M_INS,0, M_INS,0, M_OUTS,0, M_OUTS,0
 	IRP	j,<JO,JNO,JB,JNB,JZ,JNZ,JBE,JA>			; 70h
 	db	M_&j,0A0h
@@ -243,7 +298,7 @@ G7	equ	7Eh
 	db	M_MOV+80h,13h, M_LEA,21h, M_MOV+80h,31h, M_POP,10h
 	db	M_NOP,0, 7 dup (M_XCHG+80h,45h)			; 90h
 	db	M_CBW,0, M_CWD,0, M_CALL,0C0h, M_WAIT,0		; 98h
-	db	M_PUSHF,0, M_POPF,0, M_SAHF,0, M_LAHF,0
+	db	M_PUSHF+80h,0, M_POPF,0, M_SAHF,0, M_LAHF,0
 	db	M_MOV,4Dh, M_MOV,4Dh, M_MOV,0D4h, M_MOV,0D4h	; A0h
 	db	M_MOVS,0, M_MOVS,0, M_CMPS,0, M_CMPS,0
 	db	M_TEST,46h, M_TEST,46h, M_STOS,0, M_STOS,0	; A8h
@@ -261,23 +316,34 @@ G7	equ	7Eh
 	db	M_IN,48h, M_IN,48h, M_OUT,84h, M_OUT,84h
 	db	M_CALL,0B0h, M_JMP,0B0h, M_JMP,0C0h, M_JMP,0A0h	; E8h
 	db	M_IN,4Eh, M_IN,4Eh, M_OUT,0E4h, M_OUT,0E4h
-	db	M_LOCK,0FFh, M_BAD,0, M_REPNZ,0FFh, M_REPZ,0FFh	; F0h
+	db	M_LOCK,PFX_REP, M_BAD,0, M_REPNZ,PFX_REP, M_REPZ,PFX_REP ; F0h
 	db	M_HLT,0, M_CMC,0, G3,10h, G3,10h
 	db	M_CLC,0, M_STC,0, M_CLI,0, M_STI,0		; F8h
 	db	M_CLD,0, M_STD,0, G4,10h, G5,10h
 ;
-; Opcodes 0Fh 00h-06h (the 80286's two-byte opcodes, whose sizes are fixed,
-; so op_e never displays one), with LOADALL (05h) left out.
+; Opcodes 0Fh 00h-07h (the 80286's two-byte opcodes, whose sizes are fixed,
+; so op_e never displays one), with LOADALL (05h) left out, and 0Fh A0h-BFh
+; (the 80386's, except PUSH and POP FS and GS; see dc5f).  Other 80386
+; two-byte opcodes (MOV with CRn, DRn, or TRn, Jcc, and SETcc) are decoded
+; from their bits.
 ;
 	DEFLBL	OPTAB_0F,byte
-	db	G6,10h, G7,10h, M_LAR,21h, M_LSL,21h, M_BAD,0, M_BAD,0
-	db	M_CLTS,0
+	db	G6,10h, G7,10h, M_LAR,21h, M_LSL,21h		; 00h
+	db	M_BAD,0, M_BAD,0, M_CLTS,0, M_BAD,0
+	db	M_BAD,0, M_BAD,0, M_BAD,0, M_BT,12h		; A0h
+	db	M_SHLD,1Eh, M_SHLD,1Eh, M_BAD,0, M_BAD,0
+	db	M_BAD,0, M_BAD,0, M_BAD,0, M_BTS,12h		; A8h
+	db	M_SHRD,1Eh, M_SHRD,1Eh, M_BAD,0, M_IMUL,21h
+	db	M_BAD,0, M_BAD,0, M_LSS,21h, M_BTR,12h		; B0h
+	db	M_LFS,21h, M_LGS,21h, M_MOVZX,2Dh, M_MOVZX,2Dh
+	db	M_BAD,0, M_BAD,0, G8,18h, M_BTC,12h		; B8h
+	db	M_BSF,21h, M_BSR,21h, M_MOVSX,2Dh, M_MOVSX,2Dh
 
 	DEFLBL	ALU_OPS,byte		; operands of ALU opcodes 00h-3Fh
 	db	12h,21h,46h
 ;
-; ModRM r/m (when mod isn't 3): base and index register names (as in
-; REGNAMES, with index 0 meaning none).
+; ModRM r/m (when mod isn't 3), with 16-bit addressing: base and index
+; register names (as in REGNAMES, with index 0 meaning none).
 ;
 	DEFLBL	RMTAB,byte
 	db	0EBh,0FBh,0EDh,0FDh,0Eh,0Fh,0Dh,0Bh
@@ -323,6 +389,8 @@ dl1:	call	fetch
 	push	di			; (DI -> next instruction)
 	cmp	[ea_seg],0		; a memory operand?
 	je	dl8			; no
+	cmp	[ea_seg],20		; with FS or GS (which aren't saved)?
+	jae	dl8			; yes
 	xchg	di,ax
 	call	at_ip			; is it CS:IP?
 	jne	dl8			; no
@@ -419,12 +487,13 @@ ENDPROC	chk_over
 ;
 ; decode
 ;
-; Display an 80286 instruction (prefixes, mnemonic, and operands), or on an
-; 8086 or 8088, an instruction as it runs there (see set_cpu).  A segment
-; override is displayed with the memory operand (or after the instruction,
-; if there isn't one).  The mnemonic, the last LOCK or REP prefix, and any
-; memory operand's address are recorded, too (in mnemonic, pfx, ea_seg, and
-; ea_off).
+; Display an 80386 instruction (prefixes, mnemonic, and operands), or on an
+; 8086, 8088, or 80286, an instruction as it runs there (see set_cpu).  A
+; segment override is displayed with the memory operand (or after the
+; instruction, if there isn't one), and 66h and 67h prefixes only change
+; sizes (eg, AX to EAX, or [BX] to [EBX]), as if in a 16-bit code segment.
+; The mnemonic, the last LOCK or REP prefix, and any memory operand's address
+; are recorded, too (in mnemonic, pfx, ea_seg, and ea_off).
 ;
 ; Inputs:
 ;	mem_seg:DI -> instruction
@@ -440,6 +509,7 @@ DEFPROC	decode
 	mov	word ptr [seg_ovr],ax	; (and ea_seg)
 	mov	[ea_off],ax
 	mov	word ptr [pfx],ax	; (and fmt_str)
+	mov	[sz],al
 dc1:	call	fetch
 	mov	[opcode],al
 	mov	[modrm],al		; (see op_s and op_z)
@@ -452,9 +522,15 @@ dc1:	call	fetch
 	mov	bh,0
 	shl	bx,1
 	mov	dx,word ptr OPTAB[bx-0C0h]
-	cmp	dh,0FFh			; prefix?
-	jne	dc6			; no
-	mov	al,dl
+	cmp	dh,PFX_SEG		; prefix?
+	jb	dc6			; no
+	mov	ah,dl
+	je	dc3s			; FS or GS
+	cmp	dh,PFX_SIZE		; operand or address size?
+	jne	dc1a			; no, LOCK or REP
+	or	[sz],dl
+	jmp	dc1
+dc1a:	mov	al,dl
 	mov	[pfx],al
 	call	put_mnem
 	call	space
@@ -479,27 +555,19 @@ dc3:	and	ah,3
 	cmp	al,20h			; PUSH or POP segment?
 	jae	dc3a			; no
 	DEFLBL	dc_0f			; (set_cpu changes this on an 8086)
-	cmp	al,0Fh			; 80286 two-byte opcode?
+	cmp	al,0Fh			; two-byte opcode?
 	je	dc5			; yes
 	lea	dx,[bx+3000h+M_PUSH-6]
 	jmp	short dc8		; (there's no ModRM)
 dc3a:	cmp	bl,7			; DAA, DAS, AAA, or AAS?
 	je	dc3b			; yes
 	add	ah,16
-	mov	[seg_ovr],ah
+dc3s:	mov	[seg_ovr],ah
 	jmp	dc1
 dc3b:	mov	dx,M_DAA
 	add	dl,ah
 	jmp	short dc6
-dc5:	call	fetch			; AL = second opcode byte
-	cmp	al,7			; one of OPTAB_0F's?
-	jb	dc5a			; yes
-	mov	al,4			; no, so use an undefined one
-dc5a:	cbw
-	shl	ax,1
-	xchg	bx,ax
-	mov	dx,word ptr OPTAB_0F[bx]
-	jmp	short dc6
+dc5:	jmp	dc0f
 dc4:	and	ah,3			; INC, DEC, PUSH, or POP
 	mov	dx,5000h+M_INC
 	add	dl,ah
@@ -516,8 +584,8 @@ dc6a:	mov	al,dh
 	jae	dc8			; no, so there's no ModRM
 	call	fetch
 	mov	[modrm],al
-	cmp	dl,G1			; group?
-	jb	dc8			; no
+	cmp	dl,G1			; group (78h-7Fh, not 80h and up)?
+	jl	dc8			; no
 	mov	cl,3
 	shr	al,cl
 	and	ax,7			; AX = ModRM reg
@@ -539,16 +607,38 @@ dc7:	cmp	dl,M_TEST		; TEST has an immediate operand, too
 
 dc8:	mov	[opnds],dh
 	mov	al,dl
+	sub	al,M_CBW
+	cmp	al,3			; CBW, CWD, or JCXZ?
+	jae	dc8a			; no
+	shr	al,1
+	inc	ax			; AL = SZ_OP (or for JCXZ, SZ_ADDR)
+	test	[sz],al			; 32-bit?
+	jz	dc8a			; no
+	add	dl,M_CWDE-M_CBW		; yes, so CWDE, CDQ, or JECXZ
+dc8a:	mov	al,dl
 	mov	[mnemonic],al
+	mov	cl,0
+	cmp	al,M_SETO		; SETcc?
+	jb	dc8b			; no
+	mov	al,M_SET
 	call	put_mnem
-	sub	dl,M_MOVS		; string instruction?
-	cmp	dl,M_CALL-M_MOVS
+	mov	al,dl
+	sub	al,M_SETO-M_JO		; AL = the matching Jcc
+	mov	cl,1			; (without its J)
+dc8b:	call	put_mnemx
+	sub	dl,M_PUSHA		; PUSHA through IRET, or a string op?
+	cmp	dl,M_CALL-M_PUSHA
 	jae	dc9			; no
+	call	chk_dw			; dwords?
+	mov	al,'D'
+	jc	dc8c			; yes
+	cmp	dl,M_MOVS-M_PUSHA	; string op?
+	jb	dc9			; no
 	mov	al,'B'
 	cmp	[wbit],0
-	je	dc8a
+	je	dc8c
 	mov	al,'W'
-dc8a:	call	put_char
+dc8c:	call	put_char
 dc9:	mov	al,[opnds]
 	test	al,al
 	jz	dc10
@@ -579,8 +669,8 @@ dc9a:	mov	al,[opnds]
 	xor	al,69h
 	test	al,0FDh			; IMUL reg,r/m,imm (69h or 6Bh)?
 	jnz	dc10			; no
-	neg	al
-	add	al,9			; AL = 9 (imm16) or 7 (signed imm8)
+	shr	al,1
+	add	al,6			; AL = 6 (imm) or 7 (signed imm8)
 	call	dc12			; the third operand
 dc10:	cmp	[ea_seg],0		; a memory operand?
 	jne	dc11			; yes (so any override was displayed)
@@ -596,6 +686,56 @@ dc12:	push	ax
 	call	put_char
 	pop	ax
 	jmp	put_opnd
+;
+; Two-byte opcodes (0Fh and AL): DX = M_BAD (and no operands) unless it's
+; one of the 80286's or 80386's (on an 80286, set_cpu limits it to the
+; 80286's, 00h-07h).
+;
+dc0f:	call	fetch
+	mov	[opcode2],al
+	mov	dx,M_BAD
+	DEFLBL	dc_386			; (set_cpu changes this on an 80286)
+	cmp	al,0C0h			; past the 80386's?
+	jae	dc5x			; yes
+	cmp	al,0A0h			; one of OPTAB_0F's last 32?
+	jae	dc5f			; yes
+	cmp	al,80h			; Jcc or SETcc?
+	jae	dc5j			; yes
+	cmp	al,8			; one of OPTAB_0F's first 8?
+	jb	dc5t			; yes
+	sub	al,20h			; MOV with CRn, DRn, or TRn?
+	cmp	al,7
+	ja	dc5x			; no
+	and	al,5
+	cmp	al,5			; TR with bit 0 (25h or 27h)?
+	je	dc5x			; yes, so it's not
+	call	fetch
+	mov	[modrm],al
+	mov	dx,0FC00h+M_MOV		; (F: 32-bit register, C: CRn)
+	test	[opcode2],2		; to CRn?
+	jz	dc5x			; no
+	mov	dh,0CFh
+dc5x:	jmp	dc8
+dc5f:	test	al,16h			; PUSH or POP FS or GS?
+	jnz	dc5g			; no (not A0h, A1h, A8h, or A9h)
+	mov	[modrm],al		; (for op_s)
+	and	ax,1
+	xchg	bx,ax
+	lea	dx,[bx+3000h+M_PUSH]
+	jmp	dc8			; (there's no ModRM)
+dc5g:	sub	al,0A0h-8		; AL = OPTAB_0F index
+dc5t:	cbw
+	shl	ax,1
+	xchg	bx,ax
+	mov	dx,word ptr OPTAB_0F[bx]
+	jmp	dc6a
+dc5j:	mov	dx,0B000h+((M_JO-80h) AND 0FFh)	; Jcc (rel16)
+	cmp	al,90h			; SETcc?
+	jb	dc5k			; no
+	mov	dx,1000h+((M_SETO-90h) AND 0FFh)
+	dec	[wbit]			; (a byte)
+dc5k:	add	dl,al
+	jmp	dc6a
 ENDPROC	decode
 ;
 ; chk_fmt
@@ -693,31 +833,38 @@ ENDPROC	skip_fmt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; put_mnem
+; put_mnem, put_mnemx
 ;
 ; Inputs:
 ;	AL = mnemonic index
+;	CL = number of its characters to skip (put_mnemx only)
 ;
 ; Modifies:
-;	AX, SI
+;	AX, CL, SI
 ;
 DEFPROC	put_mnem
+	mov	cl,0
+ENDPROC	put_mnem			; fall into put_mnemx
+
+DEFPROC	put_mnemx
 	mov	si,offset MNEMS
 	mov	ah,al
-pm1:	dec	ah
-	js	pm3
+pm1:	sub	ah,1
+	jb	pm3
 pm2:	lodsb
 	test	al,al
 	jns	pm2
 	jmp	pm1
 pm3:	lodsb
+	dec	cl			; skip this character?
+	jns	pm3			; yes
 	mov	ah,al
 	and	al,7Fh
 	call	put_char
 	test	ah,ah
 	jns	pm3
 	ret
-ENDPROC	put_mnem
+ENDPROC	put_mnemx
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -748,13 +895,28 @@ ENDPROC	put_seg
 ;	AL = operand type (1-15; see OPND_TAB)
 ;
 ; Modifies:
-;	AX, BX, CX, SI, DI
+;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	put_opnd
-	cbw
+	cmp	[opcode],0Fh		; two-byte opcode?
+	jne	po1			; no
+	cmp	al,0Ch			; one of its own operand types?
+	jb	po1			; no
+	add	al,4			; yes (see OPND_TAB)
+po1:	cbw
 	shl	ax,1
 	xchg	bx,ax
 	jmp	OPND_TAB[bx-2]
+;
+; MOVZX and MOVSX: the size of r/m comes from bit 0 of the opcode, and it's
+; displayed for memory, since it isn't the size of reg.
+;
+op_ex:	and	[sz],SZ_ADDR		; (r/m is never a dword)
+	mov	al,[opcode2]
+	and	al,1
+	mov	[wbit],al
+	cmp	[modrm],0C0h		; register?
+	jb	oe1b			; no
 
 op_e:	mov	al,[modrm]
 	cmp	al,0C0h			; register?
@@ -764,10 +926,14 @@ op_reg:	mov	ah,[wbit]		; AL = register 0-7, sized by wbit
 	mov	cl,3
 	shl	ah,cl
 	add	al,ah
-	jmp	put_reg
+	call	chk_dw			; a dword?
+	jnc	or1			; no
+put_e:	mov	ah,'E'			; AL = 16-bit register (as in REGNAMES)
+	call	put_ah
+or1:	jmp	put_reg
 ;
 ; Display the size of a memory operand, unless there's a register operand,
-; or it's ESC.
+; or it's ESC (or one of the 80286's two-byte opcodes).
 ;
 oe1:	mov	al,[opnds]
 	and	al,0EEh
@@ -775,18 +941,26 @@ oe1:	mov	al,[opnds]
 	je	oe2			; yes
 	cmp	al,20h			; likewise
 	je	oe2
-	mov	al,[opcode]
-	cmp	al,0Fh			; 80286 two-byte opcode?
-	je	oe2			; yes
-	and	al,0F8h
+	mov	ax,word ptr [opcode]	; AL = opcode, AH = opcode2
+	cmp	al,0Fh			; two-byte opcode?
+	jne	oe1a			; no
+	cmp	ah,8			; the 80286's?
+	jb	oe2			; yes
+oe1a:	and	al,0F8h
 	cmp	al,0D8h			; ESC?
 	je	oe2			; yes
-	mov	al,M_BYTE
+oe1b:	call	chk_dw			; a dword?
+	jnc	oe1c			; no
+	mov	ah,'D'
+	call	put_ah
+oe1c:	mov	al,M_BYTE
 	add	al,[wbit]
 	call	put_mnem
 	call	space
 oe2:	call	ea_start
 	mov	al,[modrm]
+	test	[sz],SZ_ADDR		; 32-bit addressing?
+	jnz	oe32			; yes
 	and	al,0C7h
 	cmp	al,06h			; direct address?
 	je	oe_dir			; yes
@@ -800,38 +974,80 @@ oe2:	call	ea_start
 	mov	cl,4
 	shr	al,cl
 	jz	oe3
-	push	ax
-	mov	al,'+'
-	call	put_char
-	pop	ax
 	call	ea_reg			; index register
 oe3:	mov	al,[modrm]
 	test	al,40h			; 8-bit displacement?
 	jnz	oe4			; yes
-	test	al,al			; 16-bit displacement?
+	test	al,al			; 16-bit (or 32-bit) displacement?
 	jns	oe_end			; no
-	mov	al,'+'
-	call	put_char
+	call	oe_sep
 	jmp	short oe_dir
 oe4:	call	fetch
 	cbw
 	add	[ea_off],ax
 	call	put_sbyte
 	jmp	short oe_end
-
 op_o:	call	ea_start
-oe_dir:	call	fetch_word
+oe_dir:	mov	cl,SZ_ADDR
+	call	fetch_v
 	add	[ea_off],ax
-	call	hex_word
+	call	put_v
 oe_end:	mov	al,']'
 	jmp	put_char
 ;
+; 32-bit addressing: r/m 4 means a SIB byte follows (scale in bits 6-7, index
+; in bits 3-5, where 4 means none, and base in bits 0-2), and base 5 (EBP)
+; with mod 0 means a 32-bit displacement instead (as with mod 2).  Only the
+; low 16 bits of the address are recorded (see dis_line).
+;
+oe32:	and	al,7			; AL = r/m
+	cmp	al,4			; SIB?
+	je	o32a			; yes
+	or	al,20h			; no, so make one (with no index)
+	jmp	short o32b
+o32a:	call	fetch			; AL = SIB
+o32b:	push	ax
+	and	al,7			; AL = base
+	cmp	al,5			; EBP?
+	jne	o32c			; no
+	test	[modrm],0C0h		; with mod 0?
+	jnz	o32c			; no
+	or	[modrm],80h		; yes, so a displacement instead
+	jmp	short o32d
+o32c:	add	al,8
+	call	ea_reg			; base register
+o32d:	pop	ax
+	mov	ah,al
+	mov	cl,3
+	shr	al,cl
+	and	al,7			; AL = index
+	cmp	al,4			; none?
+	je	o32x			; right
+	add	al,8
+	mov	cl,6
+	shr	ah,cl
+	mov	cl,ah			; CL = scale
+	call	ea_idx			; index register
+	test	cl,cl			; scaled?
+	jz	o32x			; no
+	mov	al,'*'
+	call	put_char
+	mov	al,1
+	shl	al,cl
+	add	al,'0'			; AL = '2', '4', or '8'
+	call	put_char
+o32x:	jmp	oe3
+
+;
 ; ea_start begins a memory operand: it records the operand's segment (the
 ; override, or DS) in ea_seg, and displays any override and the bracket;
-; ea_reg displays a base or index register (AL, as in REGNAMES), and adds
-; its value to ea_off (BP makes SS the segment, unless there's an override).
+; ea_reg displays a base or index register (AL, as in REGNAMES), after any
+; '+' (see oe_sep), and adds its value to ea_off (SP or BP makes SS the
+; segment, unless there's an override); ea_idx displays an index register
+; likewise, but adds its value shifted left by CL (and preserves CL).
 ;
 ea_start:
+	mov	dl,0			; (nothing displayed yet; see oe_sep)
 	mov	al,[seg_ovr]
 	test	al,al			; an override?
 	jnz	es1			; yes
@@ -841,16 +1057,37 @@ es1:	mov	[ea_seg],al
 	mov	al,'['
 	jmp	put_char
 
-ea_reg:	push	ax
-	call	put_reg
-	pop	ax
-	cmp	al,13			; BP?
-	jne	er1			; no
+ea_reg:	cmp	al,12			; SP or BP?
+	jb	er1			; no
+	cmp	al,13
+	ja	er1			; no
 	cmp	[seg_ovr],0		; an override?
 	jne	er1			; yes
 	mov	[ea_seg],18		; no, so SS
-er1:	call	reg_val
+er1:	mov	cl,0
+ea_idx:	call	oe_sep
+	push	ax
+	test	[sz],SZ_ADDR		; 32-bit register?
+	jz	er2			; no
+	mov	ah,'E'
+	call	put_ah
+er2:	call	put_reg
+	pop	ax
+	call	reg_val
+	shl	ax,cl
 	add	[ea_off],ax
+	ret
+;
+; oe_sep displays a '+' before each part of a memory operand after the first
+; (DL is 0 before the first, and '+' after).
+;
+oe_sep:	test	dl,dl			; the first part?
+	jz	os1			; yes
+	push	ax
+	mov	al,dl
+	call	put_char
+	pop	ax
+os1:	mov	dl,'+'
 	ret
 
 op_g:	mov	al,[modrm]
@@ -861,7 +1098,8 @@ op_g:	mov	al,[modrm]
 op_s:	mov	al,[modrm]
 	mov	cl,3
 	shr	al,cl
-	and	al,3
+	DEFLBL	op_sreg			; (set_cpu changes this before 80386s)
+	and	al,7
 	add	al,16
 	jmp	put_reg
 
@@ -879,9 +1117,11 @@ oz1:	mov	[wbit],ah
 	jmp	oe0
 
 op_i:	cmp	[wbit],0
-	jne	op_iw
+	jne	op_iv
 op_ib:	call	fetch
 	jmp	hex_byte
+op_iv:	call	fetch_vo
+	jmp	put_v
 op_iw:	call	fetch_word
 	jmp	hex_word
 
@@ -891,30 +1131,121 @@ op_sib:	call	fetch
 op_j8:	call	fetch
 	cbw
 	jmp	short oj1
-op_j16:	call	fetch_word
+op_j16:	call	fetch_vo
 oj1:	add	ax,di
 	jmp	hex_word
 
-op_ap:	call	fetch_word
+op_ap:	call	fetch_vo
 	push	ax
 	call	fetch_word
 	call	hex_word
 	mov	al,':'
 	call	put_char
 	pop	ax
-	jmp	hex_word
+	jmp	short put_v
 
 op_dx:	mov	al,10
 	jmp	put_reg
 
 op_shift:
-	mov	al,1			; CL
 	test	[opcode],2
-	jnz	os1
+	jnz	op_cl
 	mov	al,'1'
 	jmp	put_char
-os1:	jmp	put_reg
+op_cl:	mov	al,1			; CL
+	jmp	put_reg
+;
+; After 0Fh: CRn, DRn, or TRn (0Fh 20h-26h, with bits 0 and 2 of the
+; opcode giving the kind), and the operand after it.
+;
+op_sr:	mov	al,[opcode2]
+	and	al,5			; AL = 0 (CR), 1 (DR), or 4 (TR)
+	cmp	al,4
+	jb	osr1
+	mov	al,'T'-'C'
+osr1:	add	al,'C'
+	mov	ah,'R'
+	call	put_2ch
+	mov	al,[modrm]
+	mov	cl,3
+	shr	al,cl
+	and	al,7
+	add	al,'0'
+	jmp	put_char
+
+op_r32:	mov	al,[modrm]
+	and	al,7
+	add	al,8
+	jmp	put_e
+;
+; SHLD and SHRD: reg, and then imm8 or (with bit 0 of the opcode) CL.
+;
+op_gx:	call	op_g
+	mov	al,','
+	call	put_char
+	test	[opcode2],1		; CL?
+	jnz	op_cl			; yes
+	jmp	op_ib
+;
+; fetch_v fetches a word, or a dword if CL (SZ_OP or SZ_ADDR) is in sz (and
+; fetch_vo uses SZ_OP), and put_v displays it.
+;
+; Outputs (fetch_v):
+;	AX = word (or the dword's low word), DX = the dword's high word
+;	CH = nonzero if a dword (for put_v)
+;
+fetch_vo:
+	mov	cl,SZ_OP
+fetch_v:
+	call	fetch_word
+	mov	ch,[sz]
+	and	ch,cl			; a dword?
+	jz	fv9			; no
+	push	ax
+	call	fetch_word
+	xchg	dx,ax
+	pop	ax
+fv9:	ret
+
+put_v:	test	ch,ch			; a dword?
+	jz	pv1			; no
+	xchg	ax,dx
+	call	hex_word		; its high word
+	xchg	ax,dx
+pv1:	jmp	hex_word
 ENDPROC	put_opnd
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_dw
+;
+; Outputs:
+;	Carry set if the operands are dwords (words, with a 66h prefix)
+;
+; Modifies:
+;	AH
+;
+DEFPROC	chk_dw
+	mov	ah,[wbit]
+	and	ah,[sz]
+	shr	ah,1			; (SZ_OP is bit 0)
+	ret
+ENDPROC	chk_dw
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; put_ah
+;
+; Inputs:
+;	AH = character
+;
+DEFPROC	put_ah
+	push	ax
+	mov	al,ah
+	call	put_char
+	pop	ax
+	ret
+ENDPROC	put_ah
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

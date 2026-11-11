@@ -32,7 +32,7 @@ CODE	segment word public 'CODE'
 	EXTNEAR	<chk_over,end_command,parse_addr,parse_hex,poke_b>
 	EXTNEAR	<get_char,gl1,hex_digit,mon3a,mon4,mon4a,mon_sp,newline>
 	EXTNEAR	<put_char,put_raw,put_string>
-	EXTNEAR	<dc_0f>
+	EXTNEAR	<dc_0f,dc_386,op_sreg>
 	EXTBYTE	<CMD_LN,CMD_Q,CMD_VEC,HELP_MSG,OPTAB,bp_tab,com_flow,command>
 	EXTBYTE	<HELP_END,brk_skip,mute,notstart,tracing>
 	EXTWORD	<VEC_DRV,dump_seg,start_hook>
@@ -345,10 +345,12 @@ ENDPROC	set_dos				; fall into set_cpu
 ;
 ; set_cpu
 ;
-; On an 8086 or 8088, opcodes 60h-6Fh are copies of 70h-7Fh, C0h-C1h of
-; C2h-C3h, and C8h-C9h of CAh-CBh, and 0Fh is POP CS, so if CPU$ says that's
-; the processor (with CPUF_HWTYPE, which real mode doesn't change),
-; we change the disassembler's OPTAB entries and 0Fh test to match.
+; Before an 80386, opcodes 64h-67h aren't prefixes, MOV with a segment
+; register has only ES, CS, SS, and DS, and only 0Fh 00h-07h are two-byte
+; opcodes; on an 8086 or 8088, opcodes 60h-6Fh are copies of 70h-7Fh, C0h-C1h
+; of C2h-C3h, and C8h-C9h of CAh-CBh, and 0Fh is POP CS.  So if CPU$ says
+; that's the processor (with CPUF_HWTYPE, which real mode doesn't change), we
+; change the disassembler's OPTAB entries and tests to match.
 ;
 ; Inputs:
 ;	DS = our data (DDH_DATA)
@@ -362,14 +364,23 @@ DEFPROC	set_cpu
 	push	dx
 	mov	ah,CPU_GETINFO
 	call	cpu_call		; AH = CPUF_* flags
-	test	ah,CPUF_HWTYPE		; an 8086 or 8088?
-	jnz	sc9			; no
+	cmp	ah,CPUTYPE_80386 SHL 6	; an 80386?
+	jae	sc9			; yes
+	mov	dl,ah
 	push	si
 	push	di
 	push	es
 	push	ds
 	pop	es
 	cld
+	mov	byte ptr [dc_386+1],8	; (only 0Fh 00h-07h)
+	mov	byte ptr [op_sreg+1],3	; (only ES, CS, SS, and DS)
+	mov	di,offset OPTAB+(64h-60h)*2
+	mov	ax,word ptr OPTAB+(0D6h-60h)*2
+	mov	cx,4
+	rep	stosw			; 64h-67h = D6h (M_BAD, no operands)
+	test	dl,CPUF_HWTYPE		; an 8086 or 8088?
+	jnz	sc8			; no
 	mov	si,offset OPTAB+(70h-60h)*2
 	mov	di,offset OPTAB
 	mov	cx,16
@@ -383,7 +394,7 @@ DEFPROC	set_cpu
 	movsw
 	movsw				; C8h-C9h = CAh-CBh
 	mov	byte ptr [dc_0f+1],0FFh	; (AL is below 20h there, so no 0Fh)
-	pop	es
+sc8:	pop	es
 	pop	di
 	pop	si
 sc9:	pop	dx
