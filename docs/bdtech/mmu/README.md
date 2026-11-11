@@ -93,6 +93,8 @@ Physical memory on a 2Mb PC AT:
 | 100000h | 1408K | FREE | Extended memory, if any |
 | 260000h | | | End of memory |
 
+On a COMPAQ 80386 machine (eg, a DeskPro 386), the part of its first 1Mb of RAM that isn't conventional memory (eg, 384K) ends at 16Mb.  The ROM BIOS keeps the last 128K (FE0000h), where it copies the ROMs, and describes the rest (*COMPAQ Built-in Memory*; eg, 256K at FA0000h) with a table in segment F000h, at the offset in F000:FFE0h: unless its first word is FFFFh, its third word is the number of free paragraphs, and its fourth is the paragraph (in F0000h) where they end.  CPU$ adds that memory as one more FREE block (with an RSVD block for the addresses between it and extended memory), usable in protected mode like extended memory, and on an 80386, it then needs page tables for all 16Mb (16K more).  It leaves the table alone, since nothing that reads it (eg, COMPAQ's CEMM) runs on BASIC-DOS, and the ROM BIOS rebuilds it on every reset.
+
 The PMB types (PMBTYPE_* in cpu.inc) are FREE (0), USED (1, allocated by CPU_ALLOC), SYS (2), and RSVD (3).  The end of conventional memory comes from the BIOS, so a machine with less than 640K (or a `MEMSIZE=` line) has a larger RSVD block.
 
 #### The System Area {#sysarea}

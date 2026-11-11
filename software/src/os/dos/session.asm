@@ -40,7 +40,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<dos_check,dos_leave,load_command,psp_termcode,r3_sp0,r3_load>
 	EXTNEAR	<r3_setldt,r3_stage>
 	EXTNEAR	<sfh_add_ref,sfh_context,sfh_close,get_cdir>
-	EXTNEAR	<sfb_from_sfh,sfb_read,sfb_write,get_pname>
+	EXTNEAR	<sfb_from_sfh,sfb_read,sfb_write,mem_session>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -556,21 +556,21 @@ ENDPROC	scb_waitend
 ; scb_query
 ;
 ; Returns info about a session (see utl_qryscb), such as its program's PSP
-; and its console's name, so that commands (eg, KILL) don't need the
-; kernel's internal structures.  Unlike get_scb, this accepts any SCB in the
-; table, so that a caller can step past unused sessions (no program, no
-; console) to the end of the table.
+; and name, and how much memory it's using, so that commands (eg, START)
+; don't need the kernel's internal structures.  Unlike get_scb, this accepts
+; any SCB in the table, so that a caller can step past unused sessions (no
+; program) to the end of the table.
 ;
 ; Inputs:
 ;	CL = SCB #
-;	REG_ES:REG_DI -> 16-byte buffer
+;	REG_ES:REG_DI -> 8-byte buffer
 ;
 ; Outputs:
 ;	On success, carry clear:
 ;		REG_AX = PSP of the session's program (zero if none)
-;		REG_ES:REG_DI buffer: the first 8 bytes are the name of the
-;		session's console device, the next 8 the name of its program
-;		(each zero-filled if absent)
+;		REG_SI:REG_DX = the session's memory (in bytes)
+;		REG_ES:REG_DI buffer: the name of its program (zero-filled
+;		if there's none, or it's unknown)
 ;	On failure, carry set (ie, invalid SCB #)
 ;
 ; Modifies:
@@ -591,20 +591,8 @@ DEFPROC	scb_query,DOS
 	jz	sq1			; no program loaded
 	mov	ax,[bx].SCB_PSP
 sq1:	mov	[bp].REG_AX,ax
-	mov	bl,[bx].SCB_SFHOUT
-	call	sfb_from_sfh		; BX -> SFB
-	les	di,dword ptr [bp].REG_DI; ES:DI -> the caller's buffer
-	ASSUME	ES:NOTHING
-	mov	cx,4			; (8 bytes)
-	ASSERT	<SFB_NAME>,EQ,0
-	mov	si,bx			; DS:SI -> SFB_NAME
-	jnc	sq2			; (the console's name)
-	sub	ax,ax
-	rep	stosw			; or zeros, if there's no console
-	jmp	short sq2b
-sq2:	rep	movsw			; (the console's name)
-sq2b:	mov	ax,[bp].REG_AX		; AX = PSP (zero if none)
-	call	get_pname		; then the program's name (8 bytes)
+	mov	dh,[bx].SCB_LDT
+	call	mem_session		; its program's name, and its memory
 	clc
 sq9:	ret
 ENDPROC	scb_query

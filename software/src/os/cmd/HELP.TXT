@@ -503,7 +503,7 @@ Same as SPACE$ (eg, PRINT "A"; SPC(5); "B").
 Returns the square root of *x*, which must not be negative.
 
 [c+]START [*program* [*arguments*]]
-START alone lists the session number, console driver, and current program of every active session.  START *program* runs *program* (a COM or EXE file) in a new session, on a new full-screen console, which gets the focus (press Shift-Tab to switch).  When the program ends (eg, EXIT, for a new COMMAND), its session and console close, and the focus goes back to the console that had it.  A new COMMAND (or V86) gets this session's PATH$.
+START alone lists the session number, memory in use (in K), and current program of every active session.  START *program* runs *program* (a COM or EXE file) in a new session, on a new full-screen console, which gets the focus (press Shift-Tab to switch).  When the program ends (eg, EXIT, for a new COMMAND), its session and console close, and the focus goes back to the console that had it.  A new COMMAND (or V86) gets this session's PATH$.
 
 [b]STOP [*n*]
 Same as END.

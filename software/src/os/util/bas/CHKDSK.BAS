@@ -11,12 +11,15 @@
 	' (eg, to "-").
 	'
 	' The volume is read directly: first with 32-byte records, for the boot
-	' sector's BPB and the FAT, which is kept in 192-byte strings (Z$), so
-	' that 12-bit and 16-bit entries can be decoded; and then with 224-byte
-	' records (7 directory entries each), for the directories.  Records are
-	' numbered from 1 to 65535, so only the first 14Mb of a volume can be
-	' read, and a directory beyond that isn't checked.  A bitmap (U) marks
-	' each cluster that's in a chain.
+	' sector's BPB and the FAT, which is decoded 192 bytes at a time (Z$)
+	' into an array with an element per cluster (FT); and then with
+	' 224-byte records (7 directory entries each), for the directories.
+	' Records are numbered from 1 to 65535, so only the first 14Mb of a
+	' volume can be read, and a directory beyond that isn't checked.  An
+	' array can't have more than about 16370 elements, so a volume with
+	' more clusters can't be checked (error 7).  Each FT element also has
+	' two flags above its FAT entry: 65536 if the cluster is in a chain,
+	' and 131072 if a lost cluster leads to it.
 	'
 	DEFINT A-Z
 	DOS &H3700 : W$ = CHR$(DOS(3) AND 255)
@@ -48,14 +51,31 @@
 	' chain at FF8h or above, and FF7h for a bad cluster)
 	F16 = (NC >= 4085) : EC = &HFF8 : BC = &HFF7
 	IF F16 THEN EC = &HFFF8 : BC = &HFFF7
-	DIM Z$(FS * 512 \ 192 + 1), U(NC \ 32 + 1), W(NC \ 32 + 1)
-	FOR I = 0 TO FS * 512 \ 192
-	Z$(I) = ""
+	' Decode the FAT, 192 bytes (M entries) at a time: in a 12-bit FAT,
+	' each pair of entries takes 3 bytes (decoded from 4, so a byte is
+	' added for the last pair), and in a 16-bit FAT, each entry takes 2
+	DIM FT(NC + 2)
+	C = 0 : R = F0 * 16
+	WHILE C <= NC + 1
+	Z$ = ""
 	FOR J = 1 TO 6
-	R = F0 * 16 + I * 6 + J
-	IF R <= (F0 + FS) * 16 THEN GET #1, R : Z$(I) = Z$(I) + E$
+	R = R + 1
+	IF R <= (F0 + FS) * 16 THEN GET #1, R : Z$ = Z$ + E$
 	NEXT
+	M = NC + 2 - C
+	IF F16 THEN GOTO 7
+	Z$ = Z$ + CHR$(0)
+	IF M > 128 THEN M = 128
+	FOR J = 1 TO 3 * ((M + 1) \ 2) STEP 3
+	G = CVL(MID$(Z$, J, 4))
+	FT(C) = G AND 4095 : FT(C + 1) = (G >> 12) AND 4095 : C = C + 2
 	NEXT
+	GOTO 8
+7	IF M > 96 THEN M = 96
+	FOR J = 1 TO M * 2 STEP 2
+	FT(C) = CVI(MID$(Z$, J, 2)) AND &HFFFF : C = C + 1
+	NEXT
+8	WEND
 	CLOSE #1
 	OPEN D$ AS #1 LEN = 224
 	FIELD #1, 224 AS E$
@@ -88,31 +108,34 @@
 	NU = NU + 1 : BU = BU + L * CB
 	GOTO 10
 20	ND = ND + 1 : BD = BD + L * CB
+	' A directory without a valid first cluster can't be read
+	IF L = 0 THEN GOTO 10
 	IF QN > 300 THEN PRINT N$; " not checked (too many subdirectories)" : QX = 1 : GOTO 10
 	QC(QN) = C0 : QP$(QN) = N$ + PC$ : QN = QN + 1
 	GOTO 10
 30	NEXT
 40	CLOSE #1
 	' Count the free and bad clusters, and the lost ones (in use, but in no
-	' chain), and their chains (lost clusters that no lost cluster leads to)
+	' chain), marking the cluster that each lost one leads to
 	NF = 0 : NB = 0 : NL = 0 : NX = 0
 	FOR C = 2 TO NC + 1
-	GOSUB 300
+	G = FT(C) : F = G AND 65535
 	IF F = 0 THEN NF = NF + 1 : GOTO 50
 	IF F = BC THEN NB = NB + 1 : GOTO 50
-	IF U(C \ 32) AND (1 << (C AND 31)) THEN GOTO 50
+	IF G AND 65536 THEN GOTO 50
 	NL = NL + 1
-	IF F >= 2 AND F <= NC + 1 THEN W(F \ 32) = W(F \ 32) OR (1 << (F AND 31))
+	IF F >= 2 AND F <= NC + 1 THEN FT(F) = FT(F) OR 131072
 50	NEXT
-	FOR C = 2 TO NC + 1
-	GOSUB 300
-	IF F = 0 OR F = BC OR (U(C \ 32) AND (1 << (C AND 31))) THEN GOTO 60
-	IF (W(C \ 32) AND (1 << (C AND 31))) = 0 THEN NX = NX + 1
-60	NEXT
 	' Clusters of a directory that wasn't checked would look lost
 	IF QX THEN PRINT "Not all directories were checked, so lost clusters aren't reported" : NL = 0
-	IF NL THEN PRINT NL; "lost clusters found in"; NX; "chains" : ER = ER + 1
-	IF ER THEN PRINT "Errors found (CHKDSK reports them, but can't fix them)"
+	IF NL = 0 THEN GOTO 65
+	' Count the lost chains (lost clusters that no lost cluster leads to)
+	FOR C = 2 TO NC + 1
+	G = FT(C) : F = G AND 65535
+	IF F <> 0 AND F <> BC AND (G AND 196608) = 0 THEN NX = NX + 1
+	NEXT
+	PRINT NL; "lost clusters found in"; NX; "chains" : ER = ER + 1
+65	IF ER THEN PRINT "Errors found (CHKDSK reports them, but can't fix them)"
 	' Report the label (with its date and time) and the space on the volume
 	PRINT
 	IF VL$ = "" THEN GOTO 70
@@ -147,7 +170,7 @@
 	DJ = 0 : DS = DS + 1 : DN = DN - 1
 	IF DN > 0 THEN GOTO 210
 	Q$ = "" : IF DC = 0 THEN RETURN
-	C = DC : GOSUB 300 : DC = F
+	DC = FT(DC) AND 65535
 	IF DC < 2 OR DC > NC + 1 THEN RETURN
 	DS = DB + (DC - 2) * K : DN = K
 210	O = DS * 512 + DJ * 32 : DJ = DJ + 1
@@ -159,27 +182,17 @@
 220	IF R <> LR THEN GET #1, R : LR = R
 	Q$ = MID$(E$, (O MOD 224) + 1, 32)
 	RETURN
-300	' Get the FAT entry (F) for cluster C: in a 12-bit FAT, each pair of
-	' entries takes 3 bytes (64 pairs per string), and in a 16-bit FAT,
-	' each entry takes 2 bytes (96 per string)
-	IF F16 = 0 THEN GOTO 310
-	F = CVI(MID$(Z$(C \ 96), (C MOD 96) * 2 + 1, 2)) AND &HFFFF
-	RETURN
-310	G$ = MID$(Z$(C \ 128), ((C MOD 128) \ 2) * 3 + 1, 3)
-	IF C AND 1 THEN F = ASC(MID$(G$, 2)) \ 16 + ASC(MID$(G$, 3)) * 16 : RETURN
-	F = ASC(G$) + (ASC(MID$(G$, 2)) AND 15) * 256
-	RETURN
 400	' Follow the chain that starts with cluster C0 (for N$), counting its
-	' clusters (L) and marking each one in U, and report a cluster that's
+	' clusters (L) and marking each one in FT, and report a cluster that's
 	' already marked (cross-linked) or invalid
 	L = 0 : C = C0
 	WHILE C >= 2 AND C <= NC + 1
-	B = 1 << (C AND 31)
-	IF (U(C \ 32) AND B) = 0 THEN GOTO 410
+	F = FT(C)
+	IF F < 65536 THEN GOTO 410
 	PRINT N$; " is cross-linked on cluster"; C : ER = ER + 1
 	RETURN
-410	U(C \ 32) = U(C \ 32) OR B
-	L = L + 1 : GOSUB 300 : C = F
+410	FT(C) = F + 65536
+	L = L + 1 : C = F
 	WEND
 	IF L = 0 AND C = 0 THEN RETURN
 	IF C < EC THEN PRINT N$; " has an invalid cluster"; C : ER = ER + 1

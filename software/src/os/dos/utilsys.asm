@@ -405,15 +405,15 @@ ENDPROC	utl_qrymem
 ;
 ; Inputs:
 ;	REG_CL = session (SCB) #
-;	REG_ES:REG_DI -> 16-byte buffer
+;	REG_ES:REG_DI -> 8-byte buffer
 ;
 ; Outputs:
 ;	On success, carry clear:
 ;		REG_AX = PSP of the session's program (zero if none)
-;		REG_ES:REG_DI buffer filled with the names of the session's
-;		console device and program (8 bytes each, zeros if none),
-;		which a ring 3 program couldn't read in our memory, and which
-;		(unlike PSP-1) are valid to address in protected mode
+;		REG_SI:REG_DX = the session's memory (in bytes)
+;		REG_ES:REG_DI buffer filled with the name of the session's
+;		program (zeros if none, or unknown), which can't be found
+;		through its PSP: the PSP may be in another session's LDT
 ;	On failure, carry set (ie, invalid session #)
 ;
 DEFPROC	utl_qryscb,DOS

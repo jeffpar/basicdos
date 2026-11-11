@@ -164,7 +164,19 @@ p8:	cmp	ax,ERR_NOSESSION	; not enough sessions?
 	jne	pf			; no
 	cmp	bp,NROUNDS		; (the first round had enough)
 	jne	pf
-	PRINTF	<"MEMTESTS skipped (needs more sessions)",13,10>
+;
+; The copies we loaded hold their sessions and memory until they end (and
+; if we left one above COMMAND, it couldn't grow back to reload itself), so
+; end each one: mark it, and then start it, so that it ends.
+;
+p8a:	dec	si			; any (more) copies loaded?
+	js	p8b			; no
+	mov	cl,[sessions][si]
+	DOSUTIL	END,1
+	DOSUTIL	START
+	DOSUTIL	WAITEND
+	jmp	p8a
+p8b:	PRINTF	<"MEMTESTS skipped (needs more sessions)",13,10>
 	int	20h
 ENDPROC	parent
 

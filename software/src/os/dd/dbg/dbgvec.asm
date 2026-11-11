@@ -654,8 +654,8 @@ ENDPROC	fcb_mem
 ; list_sess
 ;
 ; Displays each session with a program, for DL with no arguments: "*" if its
-; LDT is the active one, its number (from 1, as in KILL), its console, and its
-; program.
+; LDT is the active one, its number (from 1, as in KILL), its program, and
+; its console, in brackets (eg, "*01 COMMAND  [VKD$]").
 ; We could be stopped anywhere, even in DOS, so we read DOS's tables rather
 ; than call it (see scb_query).  A program's PSP may be a selector in its own
 ; session's LDT, which isn't necessarily the active one, so we read that LDT to
@@ -730,25 +730,6 @@ ls2:	mov	al,dl
 	call	hex_byte
 	call	space
 	mov	di,[lsSCB]
-	add	di,SCB_SFHOUT
-	call	peek_b			; AL = SFH of the session's console
-	cmp	al,SFH_NODEV		; is there one?
-	jae	ls4			; no (it's SFH_NODEV or SFH_NONE)
-	mov	ah,size SFB
-	mul	ah
-	add	ax,[lsSFB]
-	xchg	di,ax			; DI -> SFB
-	ASSERT	<SFB_NAME>,EQ,0
-	mov	cx,8
-ls3:	call	peek_b			; display up to 8 characters of it
-	inc	di
-	test	al,al
-	jz	ls4
-	call	put_char
-	loop	ls3
-ls4:	mov	ah,12			; (the column after the console's name)
-	call	pad
-	mov	di,[lsSCB]
 	add	di,SCB_PSP
 	call	peek_w			; AX = its program's PSP
 	xchg	si,ax			; SI = PSP
@@ -782,7 +763,30 @@ ls6:	jc	ls7			; (we can't tell)
 	lea	si,[di].PMB_NAME	; ES:SI -> its name
 	mov	cx,size PMB_NAME
 	call	put_n
-ls7:	call	newline
+ls7:	mov	di,[lsSCB]
+	add	di,SCB_SFHOUT
+	call	peek_b			; AL = SFH of the session's console
+	cmp	al,SFH_NODEV		; is there one?
+	jae	ls4			; no (it's SFH_NODEV or SFH_NONE)
+	mov	ah,size SFB
+	mul	ah
+	add	ax,[lsSFB]
+	xchg	di,ax			; DI -> SFB
+	mov	ah,13			; (the column after the program's name)
+	call	pad
+	mov	al,'['
+	call	put_char
+	ASSERT	<SFB_NAME>,EQ,0
+	mov	cx,8
+ls3:	call	peek_b			; display up to 8 characters of it
+	inc	di
+	cmp	al,' '			; (it's padded with spaces)
+	jbe	ls3a
+	call	put_char
+	loop	ls3
+ls3a:	mov	al,']'
+	call	put_char
+ls4:	call	newline
 	jmp	ls8
 ENDPROC	list_sess
 

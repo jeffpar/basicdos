@@ -385,6 +385,18 @@ ENDPROC	cpu_len
 ; area (and on an 80386, the page tables below it; see LIN_HI), the rest of
 ; the first 1Mb is reserved, and any extended memory is free.
 ;
+; A COMPAQ 80386 machine (eg, a DeskPro 386) has more: the memory that isn't
+; conventional memory in its first 1Mb of RAM (eg, 384K) ends at 16Mb.  Its
+; ROM BIOS keeps the last 128K, where it copies the ROMs (and then maps that
+; copy at E0000h), and the rest is "COMPAQ Built-in Memory", described by a
+; table in segment F000h, at the offset in F000:FFE0h: unless the table's
+; first word is FFFFh, its third word is the number of free paragraphs, which
+; end at the paragraph in its fourth word (the low word of FE000h, less
+; whatever COMPAQ's own software has allocated).  That memory is free, too,
+; and the addresses between it and extended memory are reserved.  We leave
+; the table alone, since updating it means unprotecting the ROM copy, and
+; nothing that reads it (eg, CEMM) runs here; the BIOS rebuilds it on a reset.
+;
 ; Inputs:
 ;	AX = length of CPU$ (rounded up to a multiple of 16 here)
 ;	SI = Kb of extended memory (zero if none)
@@ -406,10 +418,32 @@ DEFPROC	init_arena
 	call	pmb_add			; 0 to BIOS_END
 	add	ax,bp
 	call	pmb_add			; CPU$
-	mov	cx,es			; CX = segment of the system area
+	sub	cx,cx			; CX = built-in paragraphs (none yet)
+	cmp	[CPU_HWTYPE],CPUTYPE_80386
+	jb	ia0a			; not an 80386, so there are none
+	push	ds
+	mov	ax,0F000h
+	mov	ds,ax
+	ASSUME	DS:NOTHING
+	cmp	word ptr ds:[0FFEAh],'OC'
+	jne	ia0b
+	cmp	word ptr ds:[0FFEEh],'QA'
+	jne	ia0b			; the ROM isn't COMPAQ's ("03COMPAQ")
+	mov	bx,ds:[0FFE0h]		; DS:BX -> built-in memory table
+	cmp	word ptr [bx],-1	; is there any?
+	je	ia0b			; no
+	mov	cx,[bx+4]		; CX = free paragraphs
+	mov	ax,[bx+6]		; AX = where they end (in F0000h)
+ia0b:	pop	ds
+	ASSUME	DS:BIOS
+ia0a:	push	ax
+	push	cx			; save them for ia8
+	mov	ax,si
+	jcxz	ia0c
+	mov	ax,15 * 1024		; (as if extended memory ended at 16Mb)
+ia0c:	mov	cx,es			; CX = segment of the system area
 	cmp	es:[SYS_VARS].SV_TYPE,CPUTYPE_80386
 	jb	ia0			; no paging (see LIN_HI)
-	mov	ax,si
 	add	ax,1024 + 4095
 	rcr	ax,1
 	shr	ax,11			; AX = # of page tables (one per 4Mb)
@@ -447,12 +481,27 @@ ia1:	mov	dx,10h
 	mov	bl,PMBTYPE_RSVD
 	call	pmb_add			; the rest of the first 1Mb
 	test	si,si			; any extended memory?
-	jz	ia9			; no
+	jz	ia8			; no
 	mov	ax,si
 	call	kb_addr
 	add	dx,10h			; DX:AX = end of extended memory
 	mov	bl,PMBTYPE_FREE
 	call	pmb_add			; extended memory
+ia8:	pop	cx			; CX = built-in paragraphs
+	pop	ax			; AX = where they end (in F0000h)
+	jcxz	ia9			; there aren't any
+	push	ax
+	sub	ax,cx			; AX = where they begin
+	mov	bl,PMBTYPE_RSVD
+	call	ia8a			; the addresses up to there
+	pop	ax
+	mov	bl,PMBTYPE_FREE
+	push	offset ia9		; built-in memory
+ia8a:	mov	dx,ax
+	shl	ax,4
+	shr	dx,12
+	add	dx,0F0h			; DX:AX = address of paragraph F000h:AX
+	jmp	pmb_add
 ia9:	mov	es:[di-(size PMB)].PMB_SIG,PMBSIG_LAST
 	sub	di,SYS_PMBS
 	mov	cl,5

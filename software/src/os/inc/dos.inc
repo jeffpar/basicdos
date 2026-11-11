@@ -116,6 +116,7 @@ SCB_LDT		db	?	; 44h: its LDT # (see init_scb)
 SCB		ends		; 46h bytes
 
 SIG_SCB		equ	'S'
+R3_SELTI	equ	04h	; an LDT selector (see SCB_LDT and 386dev.asm)
 MAX_SESSIONS	equ	32	; the limit for SESSIONS=
 
 SCSTAT_INIT	equ	01h	; set if SCB initialized

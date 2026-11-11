@@ -37,6 +37,8 @@ CHKDSK can report these problems with a drive, and if it reports any of them, it
 
 CHKDSK reads the volume directly (see [OPEN](../../basic/#open)), so it can't check directories beyond the first 14Mb of a volume, which it reports (*path* `is beyond the first 14Mb (not checked)`).  It can also keep track of only so many subdirectories, and reports any others (*path* `not checked (too many subdirectories)`).  The clusters of a directory that wasn't checked would look lost, so in either case, CHKDSK displays `Not all directories were checked, so lost clusters aren't reported`, and doesn't report any.
 
+CHKDSK keeps the entire FAT in an array, which limits it to volumes with no more than about 16,000 clusters (eg, a 32Mb volume with 2K clusters); a larger one displays `Unable to check drive` *drive* `(error 7)`.
+
 CHKDSK can't check a drive if it finds one of these problems:
 
 - `Drive not ready`

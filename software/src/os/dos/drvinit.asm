@@ -331,7 +331,8 @@ ENDPROC	move_init
 ; mem_total
 ;
 ; Records the total memory in mem_size (see DV_MEM_SIZE): the conventional
-; memory in AX, plus all the memory that CPU$ describes above 1Mb.
+; memory in AX, plus all the memory that CPU$ describes above 1Mb, other
+; than addresses with no memory (eg, below a COMPAQ's built-in memory).
 ;
 ; Inputs:
 ;	AX = Kb of conventional memory
@@ -357,6 +358,8 @@ mt1:	mov	ah,CPU_QUERY
 	jc	mt9			; no more
 	cmp	es:[di].PMB_ADDR.HIW,10h; is the block above 1Mb?
 	jb	mt2			; no
+	cmp	es:[di].PMB_TYPE,PMBTYPE_RSVD
+	je	mt2			; (it isn't memory)
 	mov	ax,es:[di].PMB_LEN.LOW
 	mov	dx,es:[di].PMB_LEN.HIW
 	mov	cx,1024

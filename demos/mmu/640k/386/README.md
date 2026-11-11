@@ -12,7 +12,7 @@ machines:
       B: "PC DOS 2.00 (Disk 1)"
 ---
 
-The machine below is a COMPAQ DeskPro 386 with a 16Mhz 80386, 1Mb of memory (640K of conventional memory, plus 384K that COMPAQ reserves at FA0000h, so no extended memory), a VGA Color Display, a 1.2Mb and a 1.44Mb diskette drive, and a 10Mb hard disk.  It boots the BASIC-DOS Protected Mode (80386) diskette, which runs the same three consoles as the [2Mb DeskPro 386](../../386/) demo, each on its own page of video memory, with the 80386's features.  Use **SHIFT-TAB** to switch between them.
+The machine below is a COMPAQ DeskPro 386 with a 16Mhz 80386, 1Mb of memory (640K of conventional memory, plus 384K that ends at 16Mb: the last 128K holds the ROM BIOS's copy of the ROMs, and BASIC-DOS uses the other 256K, at FA0000h, so there's no extended memory, but there is memory above 1Mb), a VGA Color Display, a 1.2Mb and a 1.44Mb diskette drive, and a 10Mb hard disk.  It boots the BASIC-DOS Protected Mode (80386) diskette, which runs the same three consoles as the [2Mb DeskPro 386](../../386/) demo, each on its own page of video memory, with the 80386's features.  Use **SHIFT-TAB** to switch between them.
 
 Protected mode can run in as little as 256K of conventional memory; any additional conventional or extended memory is just a bonus.  See [Supported Machines](/docs/bdtech/mmu/#machines) and [The System Area](/docs/bdtech/mmu/#sysarea) for more details.
 

@@ -86,12 +86,12 @@ DEFPROC	main
 	cld
 	mov	[data_seg],ds		; (for handlers; CS is read-only)
 	DOSUTIL	GETCSN			; CL = our session #
-	mov	dl,cl
+	mov	bl,cl			; (QRYSCB changes DX and SI)
 	sub	cx,cx			; CL = session # (from 0)
-	mov	di,ds:[PSP_HEAP]	; ES:DI -> buffer for console names
+	mov	di,ds:[PSP_HEAP]	; ES:DI -> buffer for program names
 m0:	DOSUTIL	QRYSCB			; AX = session's PSP (zero if none)
 	jc	m1			; no more sessions
-	cmp	cl,dl			; is it our session?
+	cmp	cl,bl			; is it our session?
 	je	m0a			; yes
 	test	ax,ax			; does it have a program?
 	jnz	m0b			; yes

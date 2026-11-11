@@ -74,61 +74,10 @@ ENDPROC	addPath
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; listSessions
-;
-; Used by START with no argument to list every session with a program: its
-; number (from 1, as used by KILL), its console (the name of the device its
-; output goes to), and its program, marking the current session with "*".
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX, BX, CX, DX, SI, DI, ES
-;
-DEFPROC	listSessions
-	sub	sp,16
-	mov	di,sp
-	push	ss
-	pop	es			; ES:DI -> buffer for the names
-	DOSUTIL	GETCSN			; CL = current session #
-	mov	dl,cl			; DL = current session #
-	sub	cx,cx			; CL = session # (from 0)
-lss1:	DOSUTIL	QRYSCB			; AX = PSP, buffer = console + program
-	jc	lss9			; no more sessions
-	test	ax,ax			; does the session have a program?
-	jz	lss8			; no
-	mov	bl,' '
-	cmp	cl,dl			; is it the current session?
-	jne	lss3			; no
-	mov	bl,'*'			; BL = marker
-lss3:	mov	si,cx
-	inc	si			; SI = session # (from 1)
-	push	dx
-;
-; The console name is at the buffer (ES:DI) and the program name follows it,
-; both in our stack segment; unlike PSP-1, those are valid to address in
-; protected mode (see scb_query).
-;
-	lea	dx,[di+8]		; ES:DX -> the program's name
-	PRINTF	<"%c%2d %-8.8ls %-8.8ls",13,10>,bx,si,di,es,dx,es
-	pop	dx
-lss8:	inc	cx
-	jmp	lss1
-lss9:	add	sp,16
-	ret
-st0:	jmp	openError		; (for cmdStartSes)
-ENDPROC	listSessions
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; cmdStartSes
 ;
 ; Process "START program [arguments]" (or START alone, which lists the
-; sessions; see listSessions), which runs the program (a COM or EXE
+; sessions; see below), which runs the program (a COM or EXE
 ; file, found the way an external command is; see findProgram) in a new
 ; session, whose console is a new full-screen VKD$ console, which takes the
 ; focus.  Like a session from CONFIG.SYS, it has its own LDT (see
@@ -158,8 +107,54 @@ DEFPROC	cmdStartSes
 	popf
 	pop	cx
 	pop	si
-	jc	listSessions		; there's no program name
-	push	ax
+	jnc	st1
+;
+; There's no program name, so list every session with a program: its number
+; (from 1, as used by KILL), how much memory it's using (in K), and its
+; program ("UNKNOWN" if DOS can't tell), marking the current session with "*".
+;
+	sub	sp,8
+	mov	di,sp
+	push	ss
+	pop	es			; ES:DI -> buffer for the name
+	DOSUTIL	GETCSN			; CL = current session #
+	mov	bl,cl			; BL = current session #
+	sub	cx,cx			; CL = session # (from 0)
+lss1:	DOSUTIL	QRYSCB			; AX = PSP, SI:DX = bytes, and name
+	jc	lss9			; no more sessions
+	test	ax,ax			; does the session have a program?
+	jz	lss8			; no
+	add	dx,1023
+	adc	si,0			; (round up to the next K)
+	push	cx
+	mov	cl,10
+	shr	dx,cl
+	mov	cl,6
+	shl	si,cl
+	pop	cx
+	or	si,dx			; SI = its memory (in K)
+	mov	al,' '
+	cmp	cl,bl			; is it the current session?
+	jne	lss3			; no
+	mov	al,'*'			; AL = marker
+lss3:	mov	dx,cx
+	inc	dx			; DX = session # (from 1)
+	PRINTF	<"%c%2d %5dK ">,ax,dx,si
+;
+; The name is in our stack segment; unlike PSP-1, that's valid to address in
+; protected mode (see scb_query).
+;
+	cmp	byte ptr es:[di],0	; is there a name?
+	jne	lss4			; yes
+	PRINTF	<"UNKNOWN",13,10>
+	jmp	short lss8
+lss4:	PRINTF	<"%.8ls",13,10>,di,es
+lss8:	inc	cx
+	jmp	lss1
+lss9:	add	sp,8
+	ret
+st0:	jmp	openError
+st1:	push	ax
 	mov	dx,offset COM_EXT
 	call	findProgram		; LINEBUF = the program's name
 	pop	dx			; DX -> its arguments

@@ -318,48 +318,114 @@ ENDPROC	mem_pmb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; get_pname
+; mem_session
 ;
-; Copies the 8-byte name of the program whose PSP is in AX to the caller's
-; buffer at ES:DI (filled with zeros if there's no program, or no block for
-; it), so that a caller (eg, KILL, via scb_query) needn't treat PSP-1 as
-; an MCB segment, which isn't a valid selector in protected mode.
+; Returns the name of a session's program, and how much memory the session
+; is using: every block owned by its program, and by that program's parent,
+; and so on (eg, a COMMAND and the program it's running).
+;
+; The session's PSP may be a selector in an LDT that isn't the active one
+; (and in the caller's LDT, the same selector is the caller's own PSP), so
+; nothing here uses a PSP as a selector, or treats PSP-1 as an MCB.  A PSP's
+; block owns itself, so we look for the block with the PSP's owner ID (see
+; psp_owner, which we can't use for a PSP in another LDT) and selector, and
+; read the PSP's parent at the block's address.
 ;
 ; Inputs:
-;	AX = PSP (zero if none)
-;	ES:DI -> 8-byte buffer
+;	AX = the session's PSP (zero if none)
+;	DH = the session's LDT #
+;	REG_ES:REG_DI -> 8-byte buffer
 ;	DS = DOS
 ;
 ; Outputs:
-;	ES:DI buffer filled; ES:DI advanced by 8
+;	REG_ES:REG_DI buffer = the program's name (zeros if it's unknown)
+;	REG_SI:REG_DX = the session's memory (in bytes)
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI, DI
+;	AX, BX, CX, DX, SI, DI, ES
 ;
-DEFPROC	get_pname,DOS
-	test	ax,ax			; is there a program?
-	jz	gpn8			; no
-	push	es
-	push	di			; save the caller's buffer
-	mov	cx,ax
-	mov	dx,-1			; DX:CX = the PSP's block
-	mov	bx,-1			; BX = -1 (query the block at DX:CX)
+MAX_PARENTS	equ	8		; (PSPs are in their programs' hands)
+
+DEFPROC	mem_session,DOS
+	LOCK_SCB
+	les	di,dword ptr [bp].REG_DI; ES:DI -> the caller's buffer
+	ASSUME	ES:NOTHING
+	xchg	si,ax			; SI = PSP
+	sub	ax,ax
+	mov	[bp].REG_DX,ax
+	mov	[bp].REG_SI,ax		; no memory yet
+	mov	cx,4
+	rep	stosw			; and no name
 	push	ds
 	pop	es
-	mov	di,offset pmb_buf	; ES:DI -> our PMB buffer
-	call	mem_pmb
+	mov	di,offset pmb_buf	; ES:DI -> PMB buffer
+	mov	dl,MAX_PARENTS
+ms1:	xchg	ax,si			; AX = PSP
+	test	ax,ax			; is there one?
+	jz	ms9			; no
+	mov	cx,ax			; CX = the PSP block's selector, and
+	mov	si,ax			; SI = its owner ID, unless...
+	test	al,R3_SELTI		; is it an LDT selector?
+	jz	ms2			; no
+	cmp	[prog_user],0		; are there any (ring 3 programs)?
+	je	ms2			; no, so it's a segment
+	and	cl,NOT 3		; CX = the block's selector (RPL 0)
+	shr	ax,1
+	shr	ax,1
+	shr	ax,1			; AL = its LDT index
+	mov	ah,dh
+	or	ah,80h			; AH = 80h + its LDT #
+	xchg	si,ax			; SI = its owner ID
+ms2:	mov	ax,-2			; (not -1, which isn't a PMB #)
+	push	ax			; the PSP's PMB # (none yet)
+	sub	bx,bx			; BX = PMB #
+ms3:	call	mem_pmb			; get PMB # BX
+	jc	ms5			; no more
+	cmp	[di].PMB_OWNER,si	; one of the program's blocks?
+	jne	ms4			; no
+	mov	ax,[di].PMB_LEN.LOW
+	add	[bp].REG_DX,ax
+	mov	ax,[di].PMB_LEN.HIW
+	adc	[bp].REG_SI,ax
+	cmp	[di].PMB_SEL,cx		; the PSP's block?
+	jne	ms4			; no
+	pop	ax
+	push	bx			; yes, so save its PMB #
+ms4:	inc	bx
+	jmp	ms3
+ms9:	UNLOCK_SCB_RET
+ms5:	pop	bx			; BX = the PSP's PMB #
+	call	mem_pmb			; get its PMB again
+	jc	ms9			; there isn't one, so we can't go on
+	cmp	dl,MAX_PARENTS		; the session's program?
+	jne	ms6			; no, one of its parents
+	push	di
+	push	es
+	lea	si,[di].PMB_NAME
+	les	di,dword ptr [bp].REG_DI
+	mov	cx,4
+	rep	movsw			; DS:SI (its name) -> ES:DI (caller)
+	pop	es
 	pop	di
-	pop	es			; ES:DI -> the caller's buffer again
-	jc	gpn8			; no such block, so no name
-	mov	si,offset pmb_buf + PMB_NAME
-	mov	cx,4
-	rep	movsw			; DS:SI (our PMB) -> ES:DI (caller)
-	ret
-gpn8:	sub	ax,ax
-	mov	cx,4
-	rep	stosw			; no name, so zero the 8 bytes
-	ret
-ENDPROC	get_pname
+;
+; Read the PSP's PSP_PARENT (into the PMB buffer, which we're done with) at
+; the block's physical address.
+;
+ms6:	mov	si,[di].PMB_ADDR.LOW
+	mov	bx,[di].PMB_ADDR.HIW
+	add	si,PSP_PARENT
+	adc	bx,0			; BX:SI = address of PSP_PARENT
+	mov	cx,2
+	push	dx
+	mov	ax,(CPU_RWMEM SHL 8) OR ADDR_PHYS
+	call	far ptr DDINT_CPU
+	pop	dx
+	jc	ms9
+	mov	si,[di]			; SI = the parent's PSP (zero if none)
+	dec	dl			; any more parents allowed?
+	jz	ms9			; no
+	jmp	ms1
+ENDPROC	mem_session
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
