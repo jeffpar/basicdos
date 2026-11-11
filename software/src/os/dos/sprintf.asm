@@ -211,6 +211,7 @@ ENDPROC	itoa
 ;	%N:	minute portion of a 16-bit TIME value, as number (0-59)
 ;	%S:	second portion of a 16-bit TIME value, as number (0-59)
 ;	%A:	'a' if AM, 'p' if PM (from 16-bit TIME value)
+;	%n:	newline (CR and LF), which takes no parameter
 ;
 ; "%%" outputs a single '%'.
 ;
@@ -322,11 +323,20 @@ pf8:	cmp	al,'l'			; long value?
 	jmp	pf4
 
 pf9:	cmp	al,'d'			; %d: decimal value?
-	jne	pf11
+	jne	pf9a
 	or	ch,PF_SIGN		; yes, so mark as explicitly signed
 pf10:	call	pfd
 	jnc	pf1g
 	jmp	pferr
+
+pf9a:	cmp	al,'n'			; %n newline?
+	jne	pf11
+	mov	al,CHR_RETURN
+	cmp	di,[bp].SPF_LIMIT	; room for the CR?
+	jae	pf1g			; no
+	stosb
+	mov	al,CHR_LINEFEED
+	jmp	pf1f			; and the LF, if there's room
 
 pf11:	cmp	al,'c'			; %c character value?
 	jne	pf12

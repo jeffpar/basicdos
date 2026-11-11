@@ -72,12 +72,17 @@ DEFPROC	psp_term,DOS
 ; which a shell's CTRLC handler answers by returning to its prompt.  Any other
 ; exit (eg, EXIT, or a CTRLC its handler doesn't catch) ends the program, and
 ; its session closes (see pt1b); when no session is left, the system halts.
+; A KILL (see scb_end) ends the last program too, unless it's the SHELL of a
+; session that sysinit loaded (see PSP_SHELL), which KILL only interrupts.
 ;
 	cmp	ah,EXTYPE_ABORT		; ABORT request?
 	jne	pt0			; no
 	test	[bx].SCB_STATUS,SCSTAT_KILL
-	jnz	pt1			; the session is ending (see scb_end)
-	sti
+	jz	pt0a			; the session isn't ending
+	cmp	es:[PSP_SHELL],0	; is it a SHELL? (see scb_load)
+	je	pt1			; no, so it ends (see scb_end)
+	and	[bx].SCB_STATUS,NOT SCSTAT_KILL
+pt0a:	sti
 	jmp	msc_sigctrlc		; signal CTRLC (does not return)
 ;
 ; EXTYPE_ERROR and up (nothing uses EXTYPE_KEEP yet, and EXTYPE_ABORT was
@@ -179,7 +184,11 @@ pt8:	mov	es,ax			; ES = PSP of parent
 	mov	bx,[scb_active]
 	test	[bx].SCB_STATUS,SCSTAT_KILL
 	jz	pt8k			; the session isn't ending
-	call	scb_abort		; it is, so the parent must end, too
+	cmp	es:[PSP_SHELL],0	; is the parent a SHELL?
+	je	pt8j			; no
+	and	[bx].SCB_STATUS,NOT SCSTAT_KILL
+	jmp	short pt8k		; yes, so it keeps running
+pt8j:	call	scb_abort		; the parent must end, too
 pt8k:	cmp	[prog_user],0		; ring 3 programs?
 	je	pt8a			; no
 	call	r3_resume		; the parent's ring 0 stack
@@ -556,6 +565,9 @@ pc1:	lodsb
 	stosw
 	mov	al,OP_RETF
 	stosb
+	call	mem_pmode		; carry set in protected mode
+	ASSERT	<PSPMODE_REAL + 1>,EQ,<PSPMODE_PROT>
+	adc	es:[PSP_MODE],PSPMODE_REAL
 	mov	di,PSP_FCB1
 	mov	al,' '
 	mov	cl,size FCB_NAME

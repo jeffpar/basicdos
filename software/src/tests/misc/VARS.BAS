@@ -17,6 +17,7 @@
 160 OPEN "VARS.TMP" FOR INPUT AS #1
 170 LINE INPUT #1, L$
 175 IF L$ <> "PATH$ = " + CHR$(34) + K$ + CHR$(34) THEN PRINT "LIST PATH failed" : FAILS = FAILS + 1
+176 LINE INPUT #1, L$ : IF L$ <> "PROMPT$ = " + CHR$(34) + CHR$(34) THEN PRINT "LIST PROMPT failed" : FAILS = FAILS + 1
 177 LINE INPUT #1, L$ : CLOSE #1
 180 IF L$ <> "K$ = " + CHR$(34) + K$ + CHR$(34) THEN PRINT "LIST redirection failed" : FAILS = FAILS + 1
 185 IF PATH$ <> K$ THEN PRINT "LIST preserved value failed" : FAILS = FAILS + 1

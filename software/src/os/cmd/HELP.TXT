@@ -256,7 +256,7 @@ ESCAPE  Cancel      CTRL-C  Abort
 Use CTRL-BREAK or CTRL-ALT-DELETE to terminate programs, and use KILL to end sessions or restart the system.
 
 [c]KILL *session*|~A
-KILL *session* ends all of the programs in that session (a number that START lists) and closes it.  KILL ~A restarts the system.
+KILL *session* ends all of the programs in that session (a number that START lists) and closes it, unless CONFIG.SYS started the session, whose shell returns to its prompt instead.  KILL ~A restarts the system.
 
 [e]LABEL [*drive*:][*label*]
 Gives *drive* (or the current drive) a volume label (up to 11 characters), or without a *label*, displays the current label and asks for a new one (or ENTER to delete it).
@@ -412,7 +412,10 @@ Same as PSET, except that the default color is the background color.
 Prints a series of values (or with #*n*, writes them to file *n*).  Each *separator* is a semicolon (the next value follows immediately), a comma (a tab), or a space or tab (like a semicolon), and a semicolon or comma at the end keeps the cursor on the same line.  To send the output of a line to a file instead, end the line with :> *file* (or :>> *file* to append).  At the prompt, a line can also end with a pipe to other commands (eg, | MORE), except on low memory systems.  For formatted output, use PRINTF USING (PRINT USING isn't supported).
 
 [b+]PRINTF [#*n*,]USING *format*;[*value*][*separator*][*value*]...
-Prints the values with the C-style *format* (or with #*n*, writes them to file *n*): %d prints a number (%x in hex), %f a double, %s a string, and %c a character, with an optional width and precision (eg, "%5d", "%-8.3s", "%.2f"); %% prints a percent sign.  For a packed date or time (eg, from DIR$), %M, %D, and %Y print the month, day, and year, %F and %W the month and weekday names, and %H, %N, and %S the hour, minute, and second.  A trailing ; or , suppresses the newline.
+Prints the values with the C-style *format* (or with #*n*, writes them to file *n*): %d prints a number (%x in hex), %f a double, %s a string, and %c a character, with an optional width and precision (eg, "%5d", "%-8.3s", "%.2f"); %% prints a percent sign.  For a packed date or time (eg, from DIR$), %M, %D, and %Y print the month, day, and year, %F and %W the month and weekday names, and %H, %N, and %S the hour, minute, and second; %n starts a new line.  A trailing ; or , suppresses the newline.
+
+[f+]PROMPT$ or PROMPT$=*string*
+Returns (or sets) the format of the command prompt, a PRINTF format whose specifiers supply their own values: %s is the current drive and directory, %g is > (] in protected mode, } in V86 mode), %l is < ([ or {), %d is the session number, %n starts a new line, and PRINTF's date and time letters show the current date and time (eg, PROMPT$ = "%H:%02N %s%g").  PROMPT$ is empty unless set, which is the same as "%s%g".  It holds up to 62 characters, and like PATH$, it keeps its value when variables are cleared.
 
 [b+]PSET (*x*,*y*)[,*color*]
 Draws a point in a graphics mode, using the foreground color if no *color* is specified.
@@ -471,7 +474,7 @@ SCREEN(*row*,*col*[,*z*])
 Returns the character code at *row* and *col*, or its attributes if *z* is non-zero.
 
 [e]SED [~I] [~N] *script* [*file*]
-Runs the commands in *script* (separated by ;) on each line of input (or *file*), and then displays the line, unless ~N is given (eg, DIR | SED s/BAS/BAK/).  *script* needs quotes only if it contains spaces.  A command can start with an address (a line number, $, or /*regex*/), or with two addresses separated by a comma for a range of lines, and ! after the addresses selects the other lines.  The commands are s/*regex*/*text*/ (replaces the first match, or every match with g after the last /), d (deletes the line), p (displays the line), q (quits), and = (displays the line number).  ~I ignores case.  The user manual describes the regular expressions, which FIND ~R also uses.
+Runs the commands in *script* (separated by ;) on each line of input (or *file*), and then displays the line, unless ~N is given (eg, DIR | SED s/BAS/BAK/).  *script* needs quotes only if it contains spaces.  A command can start with an address (a line number, $, or /*regex*/), or with two addresses separated by a comma for a range of lines, and ! after the addresses selects the other lines.  The commands are s/*regex*/*text*/ (replaces the first match, or every match with g after the last /; \n in *text* starts a new line), d (deletes the line), p (displays the line), q (quits), and = (displays the line number).  ~I ignores case.  The user manual describes the regular expressions, which FIND ~R also uses.
 ERRORLEVEL is set to 0, or 2 if *script* is missing or invalid, or *file* couldn't be opened.
 
 [f+]SGN(*x*)

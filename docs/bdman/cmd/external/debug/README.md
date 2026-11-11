@@ -15,7 +15,7 @@ DEBUG.COM is a debugger that can be used in two ways:
 - [As a program](#running-debug-as-a-program), run from the prompt, it debugs a program that it loads, using the session's console
 - [As a device driver](#loading-debug-as-a-driver), loaded by a line in CONFIG.SYS, it debugs the whole system (other drivers, BASIC-DOS itself, and the programs in every session), using a terminal connected to a serial port
 
-Either way, it displays the registers and the next instruction, and then accepts [commands](#commands) at a `-` prompt.
+Either way, it displays the registers and the next instruction, and then accepts [commands](#commands) at a prompt that shows the processor's mode, as the [command prompt](../../../intro/) does: `>` in real mode, or `]` in protected mode.
 
 ### Running DEBUG as a Program
 

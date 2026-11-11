@@ -380,7 +380,8 @@ SWITCH_CHAR	db	?		; 535h: switch char (fixed at boot)
 FILE_DATA	db   44 dup (?)		; 536h: OPEN files (see fileio.inc)
 PIPE_SCB	dd	?		; 562h: pipeline sessions (endPipes)
 PATH_BUF	db  128 dup (?)		; 566h: PATH$ (length, 120 chars, null)
-DOS_REGS	dw    4 dup (?)		; 5E6h: AX-DX from DOS (see dosCall)
+PROMPT_BUF	db   64 dup (?)		; 5E6h: PROMPT$ (length, 62 chars, null)
+DOS_REGS	dw    4 dup (?)		; 626h: AX-DX from DOS (see dosCall)
 ;
 ; The BASIC-DOS loader always set the stack pointer for a COM file to the top
 ; of the segment, which means we must declare our stack at the end of CMDHEAP.
@@ -391,7 +392,7 @@ DOS_REGS	dw    4 dup (?)		; 5E6h: AX-DX from DOS (see dosCall)
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-STACK		dw  977 dup (?)		; 5EEh
+STACK		dw  945 dup (?)		; 62Eh
 CMDHEAP		ends			 ; D90h
 SIG_CMD		equ	'H'
 

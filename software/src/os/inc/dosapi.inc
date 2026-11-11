@@ -408,7 +408,7 @@ PSP_EXTYPE	db	?	; 4Fh: BASIC-DOS: exit type (see EXTYPE_*)
 PSP_DOSCALL	db	3 dup(?); 50h: INT 21h/RETF
 PSP_RAWKEYS	db	?	; 53h: BASIC-DOS: non-zero if raw keys enabled
 PSP_SHELL	db	?	; 54h: BASIC-DOS: non-zero in a SHELL
-		db	?	; 55h: unused
+PSP_MODE	db	?	; 55h: BASIC-DOS: CPU mode (see PSPMODE_*)
 PSP_DIGITS	dw	?	; 56h: digit switches (see DOS_UTL_PARSESW)
 PSP_LETTERS	dd	?	; 58h: letters switches (see DOS_UTL_PARSESW)
 PSP_FCB1	db     16 dup(?); 5Ch
@@ -418,6 +418,15 @@ PSP_CMDTAIL	db    128 dup(?); 80h: length byte, command tail, CHR_RETURN
 PSP		ends
 
 PSP_DTA		equ	PSP_CMDTAIL
+
+;
+; The CPU mode that a program runs in (PSP_MODE), which never changes: DOS
+; sets it in every PSP it creates, and V86.COM in every PSP it creates for
+; its V86 machine.
+;
+PSPMODE_REAL	equ	0	; real mode
+PSPMODE_PROT	equ	1	; protected mode
+PSPMODE_V86	equ	2	; V86 mode
 
 ;
 ; Exec Parameter Block (EPB)

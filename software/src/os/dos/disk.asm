@@ -22,7 +22,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<read_buffer,flush_buffers,zap_buffers,chk_buffers,scb_release>
 	EXTBYTE	<scb_locked>
 
-	EXTWORD	<buf_head,scb_active>
+	EXTWORD	<buf_head,scb_active,cwd_cln,cwd_key>
 	EXTLONG	<bpb_table,cdir_table>
 	EXTBYTE	<bpb_total>
 
@@ -359,7 +359,10 @@ gb7:	push	ds
 	push	bx
 	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
-	mov	bx,sp
+	cmp	cl,byte ptr [cwd_key]	; did dsk_getcwd save a path for this
+	jne	gb7a			; drive?
+	mov	[cwd_cln],0		; yes, and it may be for another disk
+gb7a:	mov	bx,sp
 	mov	bx,ss:[bx+6]		; saved BPB ptr (past BX, DS, and ES)
 	mov	[bx].BPB_FREECLNS,-1
 	mov	word ptr [bx+BPB_NEXTCLN],0	; (the media may have changed)

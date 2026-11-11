@@ -34,13 +34,14 @@ CODE	segment word public 'CODE'
 	EXTNEAR	<put_char,put_raw,put_string>
 	EXTNEAR	<dc_0f,dc_386,op_sreg>
 	EXTBYTE	<CMD_LN,CMD_Q,CMD_VEC,HELP_MSG,OPTAB,bp_tab,com_flow,command>
-	EXTBYTE	<HELP_END,brk_skip,mute,notstart,tracing>
+	EXTBYTE	<HELP_END,brk_skip,mute,notstart,prog_char,tracing>
 	EXTWORD	<VEC_DRV,dump_seg,start_hook>
 	EXTWORD	<com_port,dos_seg,dos_vars,mem_seg,vec_save>
 	EXTLONG	<old_com,old_fault>
 	EXTABS	<BP_SET,BP_GO>
 
 CMD_TAIL	equ	80h	; PSP_CMDTAIL (see com_main)
+CMD_MODE	equ	55h	; PSP_MODE (see com_main)
 SEC_BYTES	equ	512	; bytes per sector (see com_rd)
 
 	DEFLBL	resident_end
@@ -544,6 +545,10 @@ cm1:	mov	ds,dx
 	mov	[com_cs],bp
 	inc	[com_runs]
 	mov	[CMD_Q],'Q'
+	mov	bl,es:[CMD_MODE]
+	mov	bh,0
+	mov	al,MODE_CHARS[bx]
+	mov	[prog_char],al		; (see put_prompt)
 	mov	[VEC_DRV],-1		; (we hook only INT 00h; see VEC_TAB)
 	mov	[start_hook],offset com_exec2
 	mov	word ptr [CMD_LN+1],offset com_l
@@ -748,6 +753,7 @@ cm9e:	mov	ah,DOS_PSP_RETURN
 	int	21h
 ENDPROC	com_main
 
+MODE_CHARS	db	">]}"		; for PSPMODE_REAL, PROT, and V86
 
 	DEFLBL	UNABLE_MSG,byte
 	db	"Unable to ",0

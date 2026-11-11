@@ -292,9 +292,14 @@ dc3:	adc	[bp].REG_FL,0
 ; on REG_FRAME for their inputs, so while this is not completely kosher, we'll
 ; be fine.  The same is true for the termination code in int_leave.
 ;
+; BP must point to REG_FRAME again (eg, for msc_sigctrlc), but if the function
+; switched sessions (eg, DOSUTIL YIELD), it holds another session's BP, and
+; SP is at REG_FRAME now.
+;
 	mov	dh,[bx].SCB_ABTYPE	; DH = exit type
 	mov	dl,0FFh			; DL = exit code
 	mov	ah,DOS_UTL_TERM + 80h
+	mov	bp,sp
 	jmp	dc0
 
 dc4:	jmp	msc_readctrlc

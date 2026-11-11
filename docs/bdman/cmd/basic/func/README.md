@@ -11,7 +11,7 @@ Functions can be used in any expression, in BASIC programs or at the prompt (eg,
 - Numeric functions: [ABS](#abs), [ATN](#atn), [CDBL](#cdbl), [CINT](#cint), [COS](#cos), [CSNG](#cdbl), [EXP](#exp), [FIX](#fix), [INT](#int), [LOG](#log), [RND](#rnd), [RND%](#rnd-int), [SGN](#sgn), [SIN](#sin), [SQR](#sqr), [TAN](#tan)
 - String functions: [ASC](#asc), [CHR$](#chr), [HEX$](#hex), [INSTR](#instr), [LCASE$](#lcase), [LEFT$](#left), [LEN](#len), [MID$](#mid), [OCT$](#oct), [RIGHT$](#right), [SPACE$](#space), [SPC](#space), [STR$](#str), [STRING$](#string), [TAB](#tab), [UCASE$](#ucase), [VAL](#val)
 - File functions: [CVD](#cvi), [CVI](#cvi), [CVL](#cvi), [DIR$](#dir), [EOF](#eof), [EXISTS](#exists), [INPUT$](#input), [LOC](#loc), [LOF](#lof), [MKD$](#mki), [MKI$](#mki), [MKL$](#mki)
-- System functions: [ARG$](#arg), [CSRLIN](#csrlin), [CURDIR$](#curdir), [DATE$](#date), [DOS](#dos), [ERL](#erl), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PATH$](#path), [LPOS](#lpos), [PEEK](#peek), [POS](#pos), [SCREEN](#screen), [TIME$](#time), [TIMER](#timer)
+- System functions: [ARG$](#arg), [CSRLIN](#csrlin), [CURDIR$](#curdir), [DATE$](#date), [DOS](#dos), [ERL](#erl), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PATH$](#path), [LPOS](#lpos), [PEEK](#peek), [POS](#pos), [PROMPT$](#prompt), [SCREEN](#screen), [TIME$](#time), [TIMER](#timer)
 - Predefined constants: [ERRORLEVEL](#errorlevel), [MAXINT](#maxint)
 
 You can also define your own functions with [DEF](../def/).
@@ -395,6 +395,27 @@ Returns the byte at *offset* in the segment set by [DEF SEG](../#def-seg).  For 
 > POS(*n*)
 
 Returns the cursor's column, starting at 1 (*n* is ignored).
+
+#### PROMPT$ {#prompt}
+
+> PROMPT$
+> PROMPT$=*string*
+
+Returns (or sets) the format of the command prompt, which is a [PRINTF](../../device/screen/#printf) format whose specifiers supply their own values each time the prompt is displayed:
+
+| Specifier | Displays |
+|---|---|
+| `%s` | The current drive and directory (eg, `A:\SAMPLES`), as [CURDIR$](#curdir) returns them |
+| `%g` | `>` in real mode, `]` in protected mode, or `}` in V86 mode (see [V86](../../external/v86/)) |
+| `%l` | The matching left character: `<`, `[`, or `{` |
+| `%d` | The session number, as [START](../../system/#start) lists it |
+| `%n` | A new line |
+| `%M`, `%D`, `%Y`, `%X`, `%F`, `%W` | Today's month, day, year, 2-digit year, month name, and day of the week |
+| `%H`, `%G`, `%N`, `%S`, `%A` | The current hour, 12-hour hour, minute, second, and `a` or `p` |
+
+Widths and precisions work as they do in PRINTF (eg, `PROMPT$ = "%.3W %H:%02N %s%g"` displays a prompt like `Tue 14:05 A:\>`), and `%%` displays a percent sign.  A specifier that would need a value of its own (eg, `%c` or `%f`) is displayed as-is.  PROMPT$ is empty unless it's set, which displays the default prompt, the same as `PROMPT$ = "%s%g"`; `PROMPT$ = ""` restores it.
+
+Like [PATH$](#path), PROMPT$ keeps its value when variables are cleared, each session has its own (a new [COMMAND.COM](../../external/command/) starts with an empty one), and it can be set on a [SHELL](../../../cfg/#shell) line in CONFIG.SYS.  It's limited to 62 characters.  PROMPT$ isn't available on low memory systems, which always display the default prompt.
 
 #### SCREEN {#screen}
 

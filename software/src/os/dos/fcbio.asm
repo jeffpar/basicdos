@@ -800,9 +800,11 @@ pf0:	lodsb
 	je	pf0			; keep looping until no more whitespace
 
 pf1:	sar	ah,1
+	test	al,al			; end of the name?
+	jz	pf1e			; yes (so what follows isn't a colon)
 	cmp	byte ptr [si],':'	; drive letter?
 	je	pf1a			; yes
-	dec	si
+pf1e:	dec	si
 	test	ah,01h			; update drive #?
 	jnz	pf1d			; no
 	mov	al,0			; yes, specify 0 for default drive

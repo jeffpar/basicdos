@@ -13,14 +13,14 @@
 CODE    SEGMENT
 
 	IF DETOK
-	EXTNEAR	<chkExt,getCwd,chkColon,splitCmd,findProgram>
+	EXTNEAR	<chkExt,getCurDir,chkColon,splitCmd,findProgram>
 	EXTNEAR	<openInput,openError,closeInput>
 	EXTNEAR	<openHandle,syncFiles,openPipe,addPipe,endPipes>
 	EXTNEAR	<pipeStages>
 	ENDIF
 	EXTNEAR	<freeAllText,genCode,keepCode,freeAllVars,cmdLoad>
 	EXTNEAR	<freeIdleVars,resetVars,findVar,cmdPipe,runLine,syntaxError>
-	EXTNEAR	<enterLine,editPrompt,genUpper,runFile>
+	EXTNEAR	<enterLine,editPrompt,genUpper,runFile,showPrompt>
 	EXTNEAR	<saveChains,restoreChains,compactStrs>
 	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resSum,resParas>
 	EXTNEAR	<initEnv,buildEnv,freeEnv>
@@ -210,15 +210,7 @@ m1:	test	[bx].CMD_FLAGS,CMD_SINGLE
 	jc	m1			; input was processed
 	jmp	short m2
 
-m1a:	mov	ah,DOS_DSK_GETDRV
-	int	21h
-	add	al,'A'			; AL = current drive letter
-	push	ds
-	call	getCwd			; DS:SI -> current directory path
-	jnc	m1b
-	mov	byte ptr [si],0		; (no path if it's unavailable)
-m1b:	PRINTF	<"%c:%c%s",CHR_GT>,cx,dx,si
-	pop	ds
+m1a:	call	printPrompt
 
 	lea	dx,[bx].INPUTBUF
 	mov	[bx].INPUT_BUF,dx
@@ -252,6 +244,55 @@ m9:	mov	al,[bx].EXIT_CODE
 	and	[bx].CMD_FLAGS,NOT CMD_SINGLE	; which goes on to the prompt
 	jmp	m1
 ENDPROC	main
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; printPrompt
+;
+; Displays the prompt for the next command: the default prompt, or the one
+; that PROMPT$ describes (see showPrompt).
+;
+; Inputs:
+;	BX -> CMDHEAP
+;
+; Outputs:
+;	ES = SS
+;
+; Modifies:
+;	AX, CX, DX, SI, DI, ES
+;
+DEFPROC	printPrompt
+	push	ds
+	lea	di,[bx].LINEBUF
+	call	getCurDir		; SS:SI -> current drive and directory
+;
+; The prompt ends with '>' in real mode, ']' in protected mode, or '}' in V86
+; mode (see PSP_MODE).
+;
+	mov	al,ds:[PSP_MODE]
+	cbw
+	xchg	di,ax
+	mov	al,cs:MODE_CHARS[di]	; AL = mode character
+;
+; If PROMPT$ has a format (and showPrompt is loaded; see genUpper), it does
+; the rest; otherwise, we display the default prompt, which is the same as
+; PROMPT$ = "%s%g" (eg, "A:\>").
+;
+	mov	dx,offset showPrompt
+	cmp	[bx].PROMPT_BUF,0	; does PROMPT$ have a format?
+	je	pp3			; no
+	cmp	dx,ds:[PSP_CODESIZE]	; is showPrompt loaded?
+	jae	pp3			; no
+	call	dx
+	pop	ds
+	ret
+pp3:	inc	si			; SS:SI -> characters
+	PRINTF	<"%s%c">,si,ax
+	pop	ds
+	ret
+ENDPROC	printPrompt
+
+MODE_CHARS	db	">]}"		; for PSPMODE_REAL, PROT, and V86
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

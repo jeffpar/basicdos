@@ -59,7 +59,7 @@ CODE    SEGMENT
 	EXTNEAR	<memError,strPath,setPath,callDOS,rtError,findMsg>
 	EXTNEAR	<genExpr,genCvtType,genCallCS,genPushImmLong>
 	EXTNEAR	<getNextLine,getNextSymbol,getNextToken,peekNextToken>
-	EXTNEAR	<getLineNum,genMidSet,codeSeg>
+	EXTNEAR	<getLineNum,genMidSet,codeSeg,strPrompt,genSetPrompt>
 	EXTBYTE	<MID_DATA>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -856,14 +856,17 @@ gl8:	mov	cx,dx
 gl9:	stc
 	ret
 ;
-; PATH$ is a function, but it can also be assigned (see setPath), and MID$
-; can be the target of a MID$ statement (see genMidSet).
+; PATH$ is a function, but it can also be assigned (see setPath), and so can
+; PROMPT$ (see genSetPrompt), and MID$ can be the target of a MID$ statement
+; (see genMidSet).
 ;
 gl2:	cmp	si,offset MID_DATA	; a MID$ statement?
-	jne	gl2a			; no
 	mov	dx,offset genMidSet
-	jmp	genUpper
-gl2a:	cmp	word ptr cs:[si+2],offset strPath
+	je	gl2u			; yes
+	mov	dx,offset genSetPrompt
+	cmp	word ptr cs:[si+2],offset strPrompt
+	je	gl2u			; PROMPT$
+	cmp	word ptr cs:[si+2],offset strPath
 	jne	gl9			; TODO: Generate a better error message
 	call	getNextSymbol
 	jbe	gl9
@@ -876,6 +879,7 @@ gl2a:	cmp	word ptr cs:[si+2],offset strPath
 	jc	gl9
 	GENCALL	setPath
 	ret
+gl2u:	jmp	genUpper
 ENDPROC	genLet
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

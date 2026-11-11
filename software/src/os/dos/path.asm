@@ -21,7 +21,8 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<chk_filename,chk_volopen,sfb_chkopen,flush_buffers,free_clns>
 	EXTNEAR	<add_dirent,read_buffer>
 	EXTBYTE	<bpb_total,scb_locked>
-	EXTWORD	<scb_active>
+	EXTWORD	<scb_active,cwd_cln,cwd_key>
+	EXTBYTE	<cwd_path>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -211,6 +212,7 @@ ENDPROC	del_dirent
 ;
 DEFPROC	dsk_rename,DOS
 	LOCK_SCB
+	mov	[cwd_cln],0		; a renamed directory has a new path
 	mov	si,di
 	mov	ds,[bp].REG_ES		; DS:SI -> new filename
 	ASSUME	DS:NOTHING
@@ -869,7 +871,7 @@ DEFPROC	dsk_getcwd,DOS
 cw1:	mov	ax,ERR_BADDRIVE
 	cmp	dl,[bpb_total]		; valid drive #?
 	cmc
-	jc	cw8			; no
+	jc	cw0c			; no
 	mov	al,dl
 	call	get_cdir		; BX -> drive's current directory
 	mov	cx,cs:[bx]		; CX = current directory
@@ -877,10 +879,31 @@ cw1:	mov	ax,ERR_BADDRIVE
 cw0:	les	di,cs:[bx].SCB_DTA	; ES:DI -> DTA (FFB)
 	mov	dl,es:[di].FFB_DRIVE	; DL = drive #
 	mov	cx,es:[di].FFB_DIRCLN	; CX = directory searched
-cw0a:	jcxz	cw1a			; the root doesn't require a fresh BPB
+cw0a:	jcxz	cw1b			; the root doesn't require a fresh BPB
 	call	get_bpb			; DI -> BPB
-	jc	cw8
-cw1a:	mov	dx,cx			; DX = current directory
+cw0c:	jc	cw8
+;
+; If this is the directory whose path we built last (with the same drive #
+; and path char), then the path is still valid: get_bpb, dsk_rename, and
+; dsk_rmdir zero cwd_cln whenever it might not be.
+;
+	mov	bx,[scb_active]
+	mov	al,dl
+	mov	ah,[bx].SCB_PATHCHAR	; AX = drive # and path char
+	cmp	cx,[cwd_cln]		; same directory?
+	jne	cw1a			; no
+	cmp	ax,[cwd_key]		; same drive # and path char?
+	jne	cw1a			; no
+	mov	si,offset cwd_path	; DS:SI -> saved path
+	mov	di,[bp].REG_SI
+	mov	es,[bp].REG_DS		; ES:DI -> start of buffer
+	ASSUME	ES:NOTHING
+	mov	cx,64			; (the caller's buffer is 64 bytes)
+cw0b:	rep	movsb
+	jmp	short cw9		; (carry is clear)
+cw1a:	mov	[cwd_cln],cx		; cw6 saves this directory's path
+	mov	[cwd_key],ax		; (and cw8 zeros cwd_cln on failure)
+cw1b:	mov	dx,cx			; DX = current directory
 	mov	bx,[bp].REG_SI
 	add	bx,63			; BX -> last byte of buffer
 	mov	es,[bp].REG_DS
@@ -909,23 +932,33 @@ cw2:	mov	es,cs:[dos_data]
 	pop	di
 	jmp	cw2
 
+cw7:	mov	ax,ERR_NOPATH
+	stc
+cw8:	mov	[cwd_cln],0		; (this doesn't affect carry)
+	mov	[bp].REG_AX,ax
+cw9:	UNLOCK_SCB_RET
+
 cw6:	mov	es,[bp].REG_DS		; ES:BX -> path
-	cmp	byte ptr es:[bx],0	; empty?
-	je	cw6a			; yes
-	inc	bx			; skip the leading SCB_PATHCHAR
-cw6a:	mov	di,[bp].REG_SI		; ES:DI -> start of buffer
+	mov	di,[bp].REG_SI		; ES:DI -> start of buffer
+	cmp	es:[bx],dl		; empty (DL is 0)?
+	jne	cw6a			; no
+	mov	es:[di],dl		; yes, and the root's path isn't saved
+	jmp	short cw9		; (carry is clear)
+cw6a:	inc	bx			; skip the leading SCB_PATHCHAR
 	lea	cx,[di+64]
 	sub	cx,bx			; CX = length of path (incl. null)
 	mov	si,bx
 	push	es
 	pop	ds			; DS:SI -> path
+	ASSUME	DS:NOTHING
+	push	cx
 	rep	movsb			; (carry is clear)
-	jmp	short cw9
-
-cw7:	mov	ax,ERR_NOPATH
-	stc
-cw8:	mov	[bp].REG_AX,ax
-cw9:	UNLOCK_SCB_RET
+	pop	cx
+	mov	si,[bp].REG_SI		; DS:SI -> start of buffer
+	mov	es,cs:[dos_data]
+	ASSUME	ES:DOS
+	mov	di,offset cwd_path	; ES:DI -> saved path
+	jmp	cw0b			; save it (just the CX bytes of path)
 ENDPROC	dsk_getcwd
 
 DOS	ends

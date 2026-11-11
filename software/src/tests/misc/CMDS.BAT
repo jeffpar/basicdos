@@ -33,6 +33,9 @@ IF L$ <> "he[ll],  w[]rld" THEN PRINT "SED groups failed" : FAILS = FAILS + 1
 TYPE T.TMP | SED p | SED /N "$=;/^h/s/  */ /gp" > T2.TMP
 OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : LINE INPUT #1, M$ : CLOSE #1
 IF L$ + M$ <> "hello, world2" THEN PRINT "SED addresses failed" : FAILS = FAILS + 1
+SED "s/,  */\n/" T.TMP > T2.TMP
+OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : LINE INPUT #1, M$ : CLOSE #1
+IF L$ + M$ <> "helloworld" THEN PRINT "SED line break failed" : FAILS = FAILS + 1
 TYPE T.TMP | SED p | UNIQ /C > T2.TMP
 OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
 IF L$ <> "      2 hello,  world" THEN PRINT "UNIQ failed" : FAILS = FAILS + 1

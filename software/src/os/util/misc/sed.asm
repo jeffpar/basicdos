@@ -21,7 +21,8 @@
 ;
 ;	s/RE/text/[g][p]	replaces the first (or with g, every) match
 ;				of RE with text, in which '&' is the match and
-;				\1-\9 are its groups (and p prints the result)
+;				\1-\9 are its groups and \n is a line break
+;				(CR/LF), and p prints the result
 ;	d			deletes the line (and starts the next one)
 ;	p			prints the line
 ;	q			prints the line (unless -N) and quits
@@ -552,6 +553,11 @@ pr1:	lodsb
 	cmp	al,9			; \1-\9?
 	jb	pr3			; yes
 	mov	al,ah
+	cmp	al,'n'			; \n (a line break)?
+	jne	pr2			; no
+	mov	al,CHR_RETURN		; yes, so it's CR/LF
+	call	putChar
+	mov	al,CHR_LINEFEED
 pr2:	call	putChar
 	jmp	pr1
 pr3:	push	si

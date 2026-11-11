@@ -69,6 +69,14 @@ DOS	segment word public 'CODE'
 	DEFWORD	sfb_hook,<offset sfb_nohook>	; (see r3_sfbfree)
 
 	DEFBYTE	bpb_total,0		; total number of BPBs
+;
+; The path that dsk_getcwd built last, so that it needn't be rebuilt until
+; something changes: cwd_cln is the path's directory (1st cluster, or 0 if
+; there is no path), and cwd_key is its drive # (low byte) and path char.
+;
+	DEFWORD	cwd_cln,0
+	DEFWORD	cwd_key,0
+	DEFBYTE	cwd_path,0,64
 	DEFBYTE	sfh_debug,-1		; system file handle for DEBUG device
 ;
 ; def_drive, def_swchar, and def_pathchar must match the order of

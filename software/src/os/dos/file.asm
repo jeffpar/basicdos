@@ -26,7 +26,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<get_cdir,get_dirpath,new_buffer,write_buffer,zap_buffers>
 
 	EXTBYTE	<scb_locked>
-	EXTWORD	<scb_active>
+	EXTWORD	<scb_active,cwd_cln>
 	EXTLONG	<clk_ptr,scb_table>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -808,6 +808,7 @@ ENDPROC	dsk_mkdir
 ;
 DEFPROC	dsk_rmdir,DOS
 	LOCK_SCB
+	mov	[cwd_cln],0		; a removed directory's cluster is reused
 	call	chk_dirname		; DL = drive #, DI -> BPB
 	jc	rd0
 	push	bx

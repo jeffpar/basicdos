@@ -45,6 +45,7 @@ The Program Segment Prefix is compatible with PC DOS, but BASIC-DOS uses several
 | 50h | PSP_DOSCALL | INT 21h / RETF |
 | 53h | PSP_RAWKEYS | * Non-zero if the program enabled raw keys (see [Raw Keys](../dev/#raw-keys)) |
 | 54h | PSP_SHELL | * Non-zero in a session's SHELL (see [Exit Types](../dos/#exit-types)) |
+| 55h | PSP_MODE | * The program's CPU mode, which never changes: PSPMODE_REAL (0), PSPMODE_PROT (1), or PSPMODE_V86 (2); DOS sets it in every PSP it creates, and V86.COM in the PSPs of its V86 machine's programs |
 | 56h | PSP_DIGITS | * Digit switches (see DOS_UTL_PARSESW) |
 | 58h | PSP_LETTERS | * Letter switches (see DOS_UTL_PARSESW) |
 | 5Ch | PSP_FCB1 | First FCB |

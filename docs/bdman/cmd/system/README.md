@@ -50,13 +50,13 @@ Displays the specified program line (with its line number) for editing, using th
 
 > EXIT
 
-Exits the command shell (see [COMMAND.COM](../external/command/)), returning to the program that ran it (eg, the copy of COMMAND.COM that loaded it).  A shell that a [SHELL=](../../cfg/#shell) line starts ignores EXIT (as PC DOS's `COMMAND /P` does), since its session would close, and with no other session, the system would halt; use [KILL](#kill) to end such a session.  Any other shell with no program to return to closes its session.
+Exits the command shell (see [COMMAND.COM](../external/command/)), returning to the program that ran it (eg, the copy of COMMAND.COM that loaded it).  A shell that a [SHELL=](../../cfg/#shell) line starts ignores EXIT (as PC DOS's `COMMAND /P` does), since its session would close, and with no other session, the system would halt; [KILL](#kill) doesn't end such a shell either.  Any other shell with no program to return to closes its session.
 
 ### KILL
 
 > KILL *session*\|/A
 
-`KILL` *session* ends the specified session (a number from the list that [START](#start) displays): every program running in it is stopped, as **Ctrl-Alt-Del** stops a program on its console, even one stuck in a loop that never uses DOS, including the session's shell, and then the session closes, so its console no longer responds.  For example, `KILL 2` ends a looping program and its shell on a serial display, from the PC's own console display.  If no other session is left, the system halts.  A number that isn't in the list is reported as `Invalid session`.
+`KILL` *session* ends the specified session (a number from the list that [START](#start) displays): every program running in it is stopped, as **Ctrl-Alt-Del** stops a program on its console, even one stuck in a loop that never uses DOS, including the session's shell, and then the session closes, so its console no longer responds.  For example, `KILL 2` ends a looping program and its shell in a session that [START](#start) created, from another session's console.  If no other session is left, the system halts.  In a session that a [SHELL=](../../cfg/#shell) line starts, the shell itself is never ended: KILL stops only the programs it's running, and the shell returns to its prompt (as it does when a program is stopped with **Ctrl-Alt-Del**), so that session never closes.  A number that isn't in the list is reported as `Invalid session`.
 
 `KILL /A` restarts the system, with a warm boot, which skips the ROM's memory tests, after writing any modified disk data, but first it asks `Are you sure (Y/N)? `, until you answer Y or N.  It takes no session number.  KILL alone is a syntax error.
 

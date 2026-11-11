@@ -29,7 +29,7 @@ A command with no address applies to every line, a command with one address appl
 
 The commands are:
 
-- `s/regex/text/[g][p]`: replaces the first match of *regex* with *text*, or with `g`, every match (eg, `s/  */ /g` changes each run of spaces to one space); in *text*, `&` is the match, `\1` through `\9` are the parts of the match that `\(` and `\)` marked in *regex*, and `\` makes any other character ordinary (eg, `\&` or `\\`).  With `p`, the line is displayed if anything was replaced.  Any character can be used instead of `/` (eg, `s,/,\\,g` replaces each `/` with `\`).
+- `s/regex/text/[g][p]`: replaces the first match of *regex* with *text*, or with `g`, every match (eg, `s/  */ /g` changes each run of spaces to one space); in *text*, `&` is the match, `\1` through `\9` are the parts of the match that `\(` and `\)` marked in *regex*, `\n` starts a new line (eg, `PRINT PATH$ | SED "s/;/\n/g"` displays each directory in the path on its own line), and `\` makes any other character ordinary (eg, `\&` or `\\`).  With `p`, the line is displayed if anything was replaced.  Any character can be used instead of `/` (eg, `s,/,\\,g` replaces each `/` with `\`).
 - `d`: deletes the line (skipping the rest of the commands)
 - `p`: displays the line
 - `q`: quits, after displaying the line (unless `/N` was given)
@@ -43,6 +43,7 @@ The commands are:
 	SED "/^$/d" README.TXT               removes empty lines
 	SED "s/\(.*\)=\(.*\)/\2=\1/" X.TXT   swaps the two sides of each "="
 	SED "1,/^$/d" MAIL.TXT               removes the lines through the first empty one
+	PRINT PATH$ | SED "s/;/\n/g"         displays each directory in the path on its own line
 
 ### Limits and Messages
 

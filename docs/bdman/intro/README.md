@@ -24,7 +24,7 @@ Press any key (or wait 2 seconds) to start BASIC-DOS.  If you booted a diskette 
 
 Use `MEM` to see memory usage.  If the FPU$ driver isn't loaded, numeric variables default to integers (see [SKIP=](../cfg/#skip)).
 
-The `A:\>` is the BASIC-DOS prompt.  The prompt displays the default drive and its current directory (`\` is the root directory; see [CD](../cmd/disk/#cd)), and indicates that BASIC-DOS is ready to accept [commands](../cmd/) from the keyboard.
+The `A:\>` is the BASIC-DOS prompt.  The prompt displays the default drive and its current directory (`\` is the root directory; see [CD](../cmd/disk/#cd)), and indicates that BASIC-DOS is ready to accept [commands](../cmd/) from the keyboard.  Its last character shows the processor's mode: `>` in real mode, `]` in protected mode (see [CPU=](../cfg/#cpu)), and `}` in a [V86](../cmd/external/v86/) machine.  [PROMPT$](../cmd/basic/func/#prompt) can change the prompt (eg, `PROMPT$ = "%H:%02N %s%g"` adds the time).
 
 Unlike PC DOS, BASIC-DOS doesn't automatically run an AUTOEXEC.BAT file.  Instead, each session's startup command (if any) is specified on a [SHELL=](../cfg/#shell) line in CONFIG.SYS.
 

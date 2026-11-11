@@ -842,6 +842,7 @@ DEFPROC	psp_build
 	mov	es:[di].PSP_PARAS,ax
 	mov	al,ds:[PSP_SCB]
 	mov	es:[di].PSP_SCB,al
+	mov	es:[di].PSP_MODE,PSPMODE_V86
 	mov	word ptr es:[di].PSP_DOSCALL,21CDh	; INT 21h
 	mov	es:[di].PSP_DOSCALL+2,0CBh		; RETF
 	mov	es:[di].PSP_HDLFREE,PFT_LEN

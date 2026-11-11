@@ -101,6 +101,7 @@ Supported format specifiers include:
 | `%f` | Double, formatted by the FPU$ driver; the parameter is a far pointer to the double |
 | `%W`, `%F`, `%M`, `%D`, `%X`, `%Y` | Day of week, month name, month, day, 2-digit year, and 4-digit year of a packed date |
 | `%G`, `%H`, `%N`, `%S`, `%A` | 12-hour hour, 24-hour hour, minute, second, and `a` or `p` of a packed time |
+| `%n` | A new line: a carriage return and line feed (no parameter) |
 | `%%` | A percent sign (no parameter) |
 
 Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-10.4s`).  32-bit values are passed as two 16-bit parameters, low word first (as in the PRINTF example above, where AX is the low word of `%ld`).
@@ -137,7 +138,7 @@ Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-
 
 **DOS_UTL_STOP (15h)**: CL = session number.  Not implemented yet.
 
-**DOS_UTL_END (16h)**: CL = session number, AL = 0 to end the session's current program, or 1 to end the session.  AL = 0 aborts the current program (as CTRL-ALT-DEL does); the program can't intercept the abort, which takes effect the next time the session leaves DOS (a session waiting on a pipe or device is interrupted first).  Use DOS_UTL_WAITEND to wait for the session to end.  Carry is set (AX = ERR_BADSESSION) if the session number is invalid or the session isn't running a program.  AL = 1 aborts each of the session's programs in turn, including its last one, which an abort otherwise returns to its prompt (see CTRL-ALT-DEL), and then closes the session; if no other session is left, the system halts.  COMMAND.COM uses AL = 0 to end the other commands of a pipeline when one of them fails, and AL = 1 for KILL *session*.
+**DOS_UTL_END (16h)**: CL = session number, AL = 0 to end the session's current program, or 1 to end the session.  AL = 0 aborts the current program (as CTRL-ALT-DEL does); the program can't intercept the abort, which takes effect the next time the session leaves DOS (a session waiting on a pipe or device is interrupted first).  Use DOS_UTL_WAITEND to wait for the session to end.  Carry is set (AX = ERR_BADSESSION) if the session number is invalid or the session isn't running a program.  AL = 1 aborts each of the session's programs in turn, including its last one, which an abort otherwise returns to its prompt (see CTRL-ALT-DEL), and then closes the session; if no other session is left, the system halts.  The exception is the shell of a session that sysinit loaded (PSP_SHELL): the aborts stop there, and the shell returns to its prompt, so the session stays open.  COMMAND.COM uses AL = 0 to end the other commands of a pipeline when one of them fails, and AL = 1 for KILL *session*.
 
 **DOS_UTL_WAITEND (17h)**: CL = session number.  Waits for all programs in the session to end.
 

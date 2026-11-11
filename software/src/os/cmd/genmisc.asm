@@ -7,11 +7,11 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Generates code for DEF SEG, POKE, RANDOMIZE, SCREEN, SWAP, and WIDTH, whose
-; runtime functions are in upmisc.asm.  This module is linked after CONST.OBJ,
-; so it's outside COMMAND's core (see CMD.LRF): genCommands reports "Not enough
-; memory" for these statements if only the core was loaded, and genDef checks
-; DEF SEG with genUpper.
+; Generates code for DEF SEG, POKE, PROMPT$ =, RANDOMIZE, SCREEN, SWAP, and
+; WIDTH, whose runtime functions are in upmisc.asm.  This module is linked
+; after CONST.OBJ, so it's outside COMMAND's core (see CMD.LRF): genCommands
+; reports "Not enough memory" for these statements if only the core was
+; loaded, and genDef and genLet check DEF SEG and PROMPT$ with genUpper.
 ;
 	DOSFUNC equ 1
 	include	cmd.inc
@@ -27,7 +27,7 @@ CODE	SEGMENT
 	EXTNEAR	<genLongs,genArgs,genUpper,genWidthDev,genArrayRef,addVar>
 	EXTNEAR	<genPushVarPtr>
 	EXTNEAR	<defSeg,defSegBasic,pokeByte,randomize,setScreen,setWidth>
-	EXTNEAR	<swapVars>
+	EXTNEAR	<swapVars,setPrompt>
 
 	ASSUME	CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -250,6 +250,38 @@ gvr7:	clc
 gvr8:	stc
 gvr9:	ret
 ENDPROC	genVarRef
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genSetPrompt
+;
+; Generate code for "PROMPT$ = string" (after genLet has consumed PROMPT$).
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genSetPrompt
+	call	getNextSymbol
+	jbe	gsp9
+	cmp	al,'='
+	jne	gsp9
+	call	genExpr
+	jc	gsp9
+	mov	al,VAR_STR
+	call	genCvtType
+	jc	gsp9
+	GENCALL	setPrompt
+	ret
+gsp9:	stc
+	ret
+ENDPROC	genSetPrompt
 
 CODE	ENDS
 

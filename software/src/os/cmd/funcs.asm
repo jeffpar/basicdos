@@ -22,7 +22,7 @@ CODE    SEGMENT
 	EXTNEAR	<strLCase,strLeft,strLen,strMid,strOct,strRight,strSpace>
 	EXTNEAR	<strStr,strString,strTime,strUCase,strVal,strCurDir,strPath>
 	EXTNEAR	<getExists,strDir,getDos,gfxPoint,gfxPmap,getLpos,strInput>
-	EXTNEAR	<getTimer>
+	EXTNEAR	<getTimer,strPrompt>
 
 	DEFLBL	PREDEF_VARS,byte
 ;
@@ -257,6 +257,9 @@ CODE    SEGMENT
 	dw	offset getExists,0
 	db	VAR_LONG + 6,"MAXINT"
 	dd	7FFFFFFFh		; largest positive value
+	db	VAR_FUNC + 6,"PROMPT"
+	db	VAR_STR,0
+	dw	offset strPrompt,0
 	db	VAR_FUNC + 6,"SCREEN"	; (see genExpr's TOK_SCREEN check)
 	db	VAR_LONG,3
 	db	VAR_LONG,PARM_REQUIRED

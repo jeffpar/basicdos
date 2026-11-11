@@ -50,9 +50,9 @@
 ; every CPU$ call goes through), which checks every address, and can store
 ; breakpoints in code segments (but not in the parts of CPU$ that we call,
 ; such as DDINT_CPU itself).  When CPU$ is the
-; 80386 driver (see CPU_SYSREGS), we work in either mode: the prompt is #
-; in protected mode (- in real mode), an address may start with & (real
-; mode) or # (protected mode), and otherwise has the processor's current
+; 80386 driver (see CPU_SYSREGS), we work in either mode: the prompt is ]
+; in protected mode (> in real mode; see put_prompt), an address may start
+; with & (real mode) or # (protected mode), and otherwise has the current
 ; mode, every address is displayed with its prefix, and the registers include
 ; the MSW, GDTR, and IDTR, plus in protected mode, the LDTR, the TR, and each
 ; segment register's base and limit (see CPU_SEGINFO).
@@ -186,6 +186,7 @@ TRACE_OVER	equ	02h	; step over CALL, INT, LOOP, and REP (P)
 	DEFBYTE	trap_21,0		; nonzero if INT 21h has traps
 	DEFBYTE	brk_skip,0		; nonzero to resume past a DBGBRK
 	DEFBYTE	notstart,0		; loaded, not yet started (prog mode)
+	DEFBYTE	prog_char,0		; prompt char in prog mode (put_prompt)
 	DEFWORD	start_hook,0		; -> com_exec2 (see com_main)
 	DEFBYTE	tracing,0		; 1 for T or P, 2 for G past a BP
 	DEFBYTE	trace_mode,0		; TRACE_* flags (0 after other stops)
@@ -2551,14 +2552,23 @@ ENDPROC	put_desc
 ;
 ; put_prompt
 ;
-; Display the prompt (-), in either mode, since addresses show their mode.
+; Display the prompt, which shows the CPU's mode, as COMMAND's does: '>' in
+; real mode, ']' in protected mode, or '}' in V86 mode.  In program mode,
+; com_main sets prog_char from our PSP's PSP_MODE, since cpu_mode can't tell
+; at ring 3 (or in a V86 machine); a driver uses cpu_mode.
 ;
 ; Modifies:
 ;	AL
 ;
 DEFPROC	put_prompt
-	mov	al,'-'
-	jmp	put_char
+	mov	al,[prog_char]
+	test	al,al			; program mode?
+	jnz	pp9			; yes
+	mov	al,'>'
+	test	[cpu_mode],ADDR_SEL	; protected mode?
+	jz	pp9			; no
+	mov	al,']'
+pp9:	jmp	put_char
 ENDPROC	put_prompt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

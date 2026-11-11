@@ -1364,6 +1364,8 @@ ENDPROC	listKeep
 keepStr	label	word
 	dw	PATH_BUF
 	db	'PATH$',0
+	dw	PROMPT_BUF
+	db	'PROMPT$',0
 	dw	0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

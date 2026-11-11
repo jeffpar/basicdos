@@ -733,36 +733,63 @@ DEFPROC	strCurDir,FAR
 	LOCVAR	dirBuf,byte,68
 	ENTER
 	push	ds
-	push	ss
-	pop	ds
-	push	ss
-	pop	es
-	mov	ah,DOS_DSK_GETDRV
-	int	21h			; AL = current drive #
-	add	al,'A'
-	mov	ah,':'
 	lea	di,[dirBuf]
-	stosw				; "d:"
-	mov	bx,ds:[PSP_HEAP]
-	mov	al,[bx].PATH_CHAR
-	stosb				; path char
-	mov	si,di			; DS:SI -> rest of buffer
-	mov	dl,0			; DL = 0 (current drive)
-	mov	ah,DOS_DSK_GETCWD
-	int	21h
-	mov	cx,64
-	mov	al,0
-	repne	scasb			; find the null
+	call	getCurDir		; SS:SI -> length-prefixed string
 	pop	ds
-	lea	si,[dirBuf]
-	lea	cx,[di-1]
-	sub	cx,si			; CX = length
+	inc	si			; SS:SI -> characters, CX = length
 	call	newStr
 	mov	[retDir].OFF,ax
 	mov	[retDir].SEG,dx
 	LEAVE
 	RETURN
 ENDPROC	strCurDir
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getCurDir
+;
+; Gets the current drive and directory (eg, "C:\SAMPLES"), as CD displays
+; them, as a length-prefixed string followed by a null (eg, for CURDIR$ and
+; the prompt).  If the directory is unavailable, only the drive is returned.
+;
+; Inputs:
+;	SS:DI -> buffer (68 bytes)
+;
+; Outputs:
+;	SS:SI -> buffer, CX = length; DS = ES = SS
+;
+; Modifies:
+;	AX, CX, DX, SI, DI, DS, ES
+;
+DEFPROC	getCurDir
+	push	ss
+	pop	ds
+	push	ss
+	pop	es
+	push	di
+	inc	di			; (skip the length byte)
+	mov	ah,DOS_DSK_GETDRV
+	int	21h			; AL = current drive #
+	add	al,'A'
+	mov	ah,':'
+	stosw				; "d:"
+	mov	si,ds:[PSP_HEAP]
+	mov	al,[si].PATH_CHAR
+	stosb				; path char
+	mov	dl,0			; DL = 0 (current drive)
+	mov	[di],dl			; (no path if it's unavailable)
+	mov	si,di			; DS:SI -> rest of buffer
+	mov	ah,DOS_DSK_GETCWD
+	int	21h
+	mov	cx,64
+	mov	al,0
+	repne	scasb			; find the null
+	pop	si
+	lea	cx,[di-2]
+	sub	cx,si			; CX = length
+	mov	[si],cl
+	ret
+ENDPROC	getCurDir
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -927,10 +954,12 @@ ENDPROC	findSpec
 ;
 ; Returns the directories that COMMAND searches for programs (see setPath
 ; and findProgram).  PATH$ is kept in CMDHEAP (PATH_BUF), so unlike other
-; variables, it survives NEW, CLEAR, RUN, etc.
+; variables, it survives NEW, CLEAR, RUN, etc.  PROMPT$ (see strPrompt) is
+; kept the same way, so it uses strKeep with its own buffer.
 ;
 ; Inputs:
 ;	32-bit return value
+;	SI = buffer in CMDHEAP (strKeep only)
 ;
 ; Outputs:
 ;	32-bit return value updated
@@ -939,10 +968,11 @@ ENDPROC	findSpec
 ;	AX, BX, CX, DX, SI, DI, ES
 ;
 DEFPROC	strPath,FAR
+	mov	si,PATH_BUF
+	DEFLBL	strKeep,near
 	RETVAR	retPath,dword
 	ENTER
-	mov	si,ss:[PSP_HEAP]
-	lea	si,[si].PATH_BUF
+	add	si,ss:[PSP_HEAP]	; SS:SI -> length-prefixed string
 	mov	cl,ss:[si]
 	mov	ch,0
 	inc	si			; SS:SI -> characters, CX = length
@@ -958,10 +988,14 @@ ENDPROC	strPath
 ; setPath (PATH$ = string)
 ;
 ; Copies up to 120 characters of the string to PATH_BUF (as a length byte,
-; the characters, and a null).
+; the characters, and a null).  setPrompt uses setKeep with its own buffer
+; and maximum.
 ;
 ; Input stack:
 ;	string value
+;
+; Inputs:
+;	DI = buffer in CMDHEAP, DL = maximum length (setKeep only)
 ;
 ; Output stack:
 ;	None
@@ -970,22 +1004,24 @@ ENDPROC	strPath
 ;	AX, BX, CX, DX, SI, DI, ES
 ;
 DEFPROC	setPath,FAR
+	mov	di,PATH_BUF
+	mov	dl,120
+	DEFLBL	setKeep,near
 	ARGVAR	pPath,dword
 	ENTER
 	push	ds
 	push	ss
 	pop	es
-	mov	di,es:[PSP_HEAP]
-	lea	di,[di].PATH_BUF	; ES:DI -> PATH_BUF
+	add	di,es:[PSP_HEAP]	; ES:DI -> buffer
 	lds	si,[pPath]
 	sub	cx,cx
 	test	si,si			; empty string?
 	jz	sp1			; yes
 	lodsb
 	mov	cl,al			; CX = length
-	cmp	cl,120
-	jbe	sp1
-	mov	cl,120
+	cmp	cl,dl			; longer than the maximum?
+	jbe	sp1			; no
+	mov	cl,dl
 sp1:	mov	al,cl
 	stosb
 	rep	movsb

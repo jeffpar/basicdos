@@ -7,10 +7,11 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; The functions behind the statements in genmisc.asm, and CSRLIN, PEEK, POS,
-; RND, SCREEN, SGN, and TAB.  This module is linked after CONST.OBJ, so it's
-; outside COMMAND's core (see CMD.LRF): genFuncExpr reports "Not enough memory"
-; for these functions if only the core was loaded.
+; The functions behind the statements in genmisc.asm, CSRLIN, PEEK, POS,
+; PROMPT$, RND, SCREEN, SGN, and TAB, and the prompt that PROMPT$ describes.
+; This module is linked after CONST.OBJ, so it's outside COMMAND's core (see
+; CMD.LRF): genFuncExpr reports "Not enough memory" for these functions if
+; only the core was loaded, and main uses the default prompt.
 ;
 	DOSFUNC equ 1
 	GFXDEFS equ 1
@@ -21,7 +22,7 @@
 CODE	SEGMENT
 
 	EXTNEAR	<getArgs,getMode,ioctlCon,mouseCall,strIllegal,allocStr>
-	EXTNEAR	<rtError>
+	EXTNEAR	<rtError,strKeep,setKeep>
 	EXTWORD	<CODE_DS>
 
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -804,6 +805,175 @@ DEFPROC	swapOwner
 	mov	es:[di-STR_HDR+3],ds
 so9:	ret
 ENDPROC	swapOwner
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; strPrompt (PROMPT$)
+;
+; Returns the format of the prompt (see showPrompt), which is kept in CMDHEAP
+; (PROMPT_BUF), like PATH$ (see strPath), so it survives NEW, CLEAR, RUN, etc.
+;
+; Inputs:
+;	32-bit return value
+;
+; Outputs:
+;	32-bit return value updated
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+PROMPT_MAX	equ	DOS_REGS - PROMPT_BUF - 2
+
+DEFPROC	strPrompt,FAR
+	mov	si,PROMPT_BUF
+	jmp	strKeep
+ENDPROC	strPrompt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; setPrompt (PROMPT$ = string)
+;
+; Copies up to PROMPT_MAX characters of the string to PROMPT_BUF (see setPath).
+;
+; Input stack:
+;	string value
+;
+; Output stack:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	setPrompt,FAR
+	mov	di,PROMPT_BUF
+	mov	dl,PROMPT_MAX
+	jmp	setKeep
+ENDPROC	setPrompt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; showPrompt
+;
+; Displays the prompt that PROMPT$ describes.  It's a PRINTF format whose
+; specifiers get their values from their letters: %s is the current drive and
+; directory, %g is the mode character ('>', ']', or '}'; see printPrompt), %l
+; is its left counterpart ('<', '[', or '{'), %d (or %u or %x) is the session
+; number, the date letters (%F, %W, %M, %D, %X, and %Y) use today's date, and
+; the time letters (%G, %H, %N, %S, and %A) use the current time.  sprintf
+; has no %g, and its l is a size, so we change both to c in a copy of the
+; format.
+;
+; We pass the values as typed parameters (see DOS_UTL_TPRINTF), and any other
+; specifier that takes a value (%c, %f, or a * width or precision) gets a
+; VAR_NONE value, which sprintf displays as-is, so every specifier gets the
+; value it expects, and none of them reads past the values we pushed.
+;
+; Inputs:
+;	AL = mode character (see printPrompt)
+;	DS = SS
+;	LINEBUF = current drive and directory (see getCurDir)
+;
+; Outputs:
+;	ES = SS
+;
+; Modifies:
+;	AX, CX, DX, SI, DI, ES
+;
+DEFPROC	showPrompt
+	push	bx
+	push	bp
+	mov	bp,sp
+	push	ax			; [bp-2] = mode character
+	DOSUTIL	GETCSN			; CL = session #
+	mov	ch,0
+	inc	cx			; (from 1, as START lists them)
+	push	cx			; [bp-4] = session #
+	DOSUTIL	GETDATE			; AX = date
+	push	ax			; [bp-6] = date
+	DOSUTIL	GETTIME,0		; AX = time
+	push	ax			; [bp-8] = time
+	sub	sp,PROMPT_MAX + 2	; [bp-8-PROMPT_MAX-2] = format copy
+	mov	di,sp
+	push	ss
+	pop	es
+	mov	si,ds:[PSP_HEAP]
+	lea	si,[si].PROMPT_BUF+1
+	mov	cx,PROMPT_MAX + 1
+	rep	movsb			; copy the format and its null
+	mov	si,sp			; DS:SI -> format copy
+	sub	sp,(PROMPT_MAX / 2) * 6	; room for every value
+	mov	bx,sp			; SS:BX -> next value
+	push	cs
+	pop	es
+shp1:	lodsb
+	cmp	al,'%'			; a specifier?
+	je	shp3			; yes
+shp2:	test	al,al			; end of the format?
+	jnz	shp1			; no
+	push	ss
+	pop	es			; (main's ES, which CS isn't in PM)
+	lea	bx,[bp-8-PROMPT_MAX-2]	; DS:BX -> format copy
+	DOSUTIL	TPRINTF
+	mov	sp,bp
+	pop	bp
+	pop	bx
+	ret
+;
+; Look up the specifier's next character.  If it isn't in PROMPT_SPECS (eg,
+; %n, %%, or the null), the specifier ends without a value; otherwise, CX is
+; its distance from the end of PROMPT_SPECS, which tells us what it needs.
+;
+shp3:	lodsb
+	mov	di,offset PROMPT_SPECS
+	mov	cx,PROMPT_SPECLEN
+	repne	scasb
+	jne	shp2			; the specifier ends
+	cmp	cl,14			; a flag, width, precision, or size?
+	jb	shp3			; yes, so the specifier continues
+	sub	ax,ax			; AX = VAR_NONE
+	cmp	cl,17			; %c, %f, or *?
+	jb	shp8			; yes
+	mov	dx,ss
+	mov	di,ds:[PSP_HEAP]
+	lea	di,[di].LINEBUF		; DX:DI -> current directory
+	mov	al,VAR_STR
+	je	shp8			; %s
+	mov	al,VAR_LONG
+	sub	dx,dx
+	mov	di,[bp-2]		; the mode character
+	cmp	cl,20			; %g or %l?
+	jae	shp4			; no
+	mov	byte ptr [si-1],'c'	; yes, so sprintf sees %c
+	cmp	cl,18			; %g?
+	je	shp8			; yes
+	dec	di			; the left character is 2 less
+	dec	di			; (eg, '<' for '>')
+	jmp	short shp8
+shp4:	mov	di,[bp-4]		; the session #
+	cmp	cl,23			; %d, %u, or %x?
+	jb	shp8			; yes
+	mov	di,[bp-6]		; the date
+	cmp	cl,29			; a date letter?
+	jb	shp8			; yes
+	mov	di,[bp-8]		; the time
+shp8:	mov	[bx],ax			; type
+	mov	[bx+2],di		; value
+	mov	[bx+4],dx
+	add	bx,6
+	jmp	shp1
+ENDPROC	showPrompt
+;
+; The characters that can follow a '%', in order of decreasing CX (see shp3).
+;
+PROMPT_SPECS	db	"GHNSA"		; time letters (29-33)
+		db	"FWMDXY"	; date letters (23-28)
+		db	"dux"		; session # (20-22)
+		db	"l"		; left character (19)
+		db	"g"		; mode character (18)
+		db	"s"		; current directory (17)
+		db	"cf*"		; no value (14-16)
+		db	"-#.b0123456789"; flags, width, precision, size (0-13)
+PROMPT_SPECLEN	equ	$ - PROMPT_SPECS
 
 CODE	ENDS
 
