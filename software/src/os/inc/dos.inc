@@ -130,11 +130,16 @@ SCSTAT_KILL	equ	20h	; set while a session is ending (see scb_end)
 ;
 SCSTAT_PROG	equ	SCSTAT_LOAD OR SCSTAT_START OR SCSTAT_KILL
 ;
-; The hard error stack (see dev_error) is reserved by sysinit, which records
-; the DS-relative offset of its top in err_stack; ERR_FRAME is the number of
-; bytes dev_error pushes on it before calling the session's ERROR handler.
+; The hard error stack (see dev_error) ends at err_stack; ERR_FRAME is the
+; number of bytes dev_error pushes on it before calling the session's ERROR
+; handler.  In real mode, it's the second half of the interrupt vector table
+; (it ends at 0:ERR_STACK_TOP), so DOS_MSC_GETVEC and DOS_MSC_SETVEC don't
+; allow vectors ERR_VECTORS and up; in protected mode, where real-mode code
+; (eg, the ROM BIOS) uses that memory, sysinit reserves the stack instead.
 ;
 ERR_STACK_SIZE	equ	512
+ERR_STACK_TOP	equ	400h
+ERR_VECTORS	equ	(ERR_STACK_TOP - ERR_STACK_SIZE) / 4
 ERR_FRAME	equ	8
 ;
 ; With programs at ring 3, sysinit also allocates a ring 0 stack for each

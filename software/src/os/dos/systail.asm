@@ -28,7 +28,7 @@ DOS	segment word public 'CODE'
 	EXTBYTE	<def_drive,scb_locked,prog_user,r3_stubs>
 	EXTWORD	<scb_active,ivt_save,sprintf_hook,r3_code,r3_stseg,r3_vsel>
 	EXTWORD	<FUNCTBL,UTILTBL,r3_ksel,r3_sfbtab,sfb_hook>
-	EXTLONG	<scb_table,clk_ptr,sfb_table>
+	EXTLONG	<scb_table,clk_ptr,sfb_table,err_stack>
 	EXTNEAR	<dos_leave,int_enter,int_leave,dos_fault,sysinit_start>
 	EXTNEAR	<r3_sprintf,r3_free,r3_realloc,init_fpu,utl_alias,utl_mapseg>
 	EXTNEAR	<r3_term,r3_return,r3_uterm,r3_exec,r3_pspset>
@@ -360,8 +360,11 @@ ENDPROC	set_ddint
 ; vectors, so the kernel doesn't need dos_fault or the NE loader that follows
 ; it (see neload.asm), and its resident code ends at dos_fault.
 ;
+; In protected mode, the hard error stack (see dev_error) follows the
+; resident code; in real mode, it's in the vector table (see ERR_STACK_TOP).
+;
 ; Outputs:
-;	AX = offset of the end of the kernel's resident code
+;	AX = offset of the end of the kernel's resident code (and stack)
 ;
 ; Modifies:
 ;	AX, CX, DX
@@ -443,7 +446,10 @@ sf7a:
 	mov	[r3_vsel],ax
 sf8:	pop	di
 	pop	si
-	mov	ax,offset sysinit_start
+	mov	ax,offset sysinit_start + ERR_STACK_SIZE + 1
+	and	al,0FEh			; AX = top of the stack (word-aligned)
+	mov	[err_stack].OFF,ax
+	mov	[err_stack].SEG,ds
 sf9:	ret
 ENDPROC	set_fault
 ;

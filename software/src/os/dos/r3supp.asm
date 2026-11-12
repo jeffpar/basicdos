@@ -85,7 +85,8 @@ R3_SPMIN	equ	512
 DOS	segment word public 'CODE'
 
 	EXTBYTE	<load_user,scb_locked,err_active,r3_cblock>
-	EXTWORD	<dos_data,err_stack,r3_code,r3_cbsp,r3_stseg,r3_vsel>
+	EXTLONG	<err_stack>
+	EXTWORD	<dos_data,r3_code,r3_cbsp,r3_stseg,r3_vsel>
 	EXTWORD	<scb_active>
 	EXTLONG	<r3_cbsp0>
 	EXTNEAR	<dos_func,dos_abort,dos_fterm,dos_ctrlc,dos_error,sprintf>
@@ -425,7 +426,7 @@ re3:	mov	[r3_cbsp],sp		; SP -> our return address
 	mov	[r3_cblock],cl		; (see r3_cbabort)
 	push	ax
 	push	di			; save the handler's AX and DI
-	mov	di,[err_stack]
+	mov	di,[err_stack].OFF
 	mov	cx,[di-4]
 	mov	dx,[di-2]		; DX:CX = dev_error's caller's stack
 	mov	ah,CPU_SETSTACK

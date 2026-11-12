@@ -469,7 +469,8 @@ Saves the currently loaded program as a text file (if no file extension is speci
 [b+]SCREEN [*mode*][,*burst*]
 Sets the screen mode: 0 (text), 1 (320x200 graphics), or 2 (640x200 graphics).
 A *burst* of 0 disables color in mode 0, and a *burst* of 1 disables color in mode 1.
-Changing the mode clears the screen and removes the console's border, if any.
+Changing the mode clears the screen and removes the console's border, if any;
+in a console without the focus, it waits until the console gets the focus.
 SCREEN(*row*,*col*[,*z*])
 Returns the character code at *row* and *col*, or its attributes if *z* is non-zero.
 

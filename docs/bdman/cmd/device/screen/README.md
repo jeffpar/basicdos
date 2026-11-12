@@ -139,6 +139,8 @@ A *burst* of 0 disables color in mode 0, and a *burst* of 1 disables color in mo
 
 While a console is in any mode other than its original mode (eg, a graphics mode, or 40 columns in an 80-column console), it uses the entire screen, so other consoles on the same display are paused: any output they produce waits until that console returns to its original mode (eg, when its BAS program ends, which restores the mode), and then their borders are redrawn and their output continues.  Their earlier screen contents are not restored.
 
+A mode change affects the entire screen, so a SCREEN statement that changes the mode in a console without the focus waits until the console gets the focus (eg, with Shift-Tab).
+
 ### WIDTH
 
 > WIDTH 40\|80  

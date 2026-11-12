@@ -45,10 +45,11 @@ DOS	segment word public 'CODE'
 	DEFBYTE	scb_locked,-1		; -1 if unlocked, >= 0 if locked
 	DEFBYTE	int_level,-1		; device driver interrupt level
 ;
-; Hard error state (see dev_error): the top of the hard error stack, which
-; sysinit reserves, and a non-zero count while a hard error is being handled.
+; Hard error state (see dev_error): the top of the hard error stack (which
+; sysinit moves in protected mode; see ERR_STACK_TOP), and a non-zero count
+; while a hard error is being handled.
 ;
-	DEFWORD	err_stack,0
+	DEFPTR	err_stack,ERR_STACK_TOP,0
 	DEFWORD	dos_data,0		; our data segment (see sysinit)
 	DEFBYTE	err_active,0
 	DEFWORD	call5_gate,0		; CALL 5 call gate (see set_call5)

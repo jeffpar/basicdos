@@ -64,7 +64,8 @@ In DEBUG builds, the [DOS_UTL_DPRINTF](../util/#formatted-output) messages are p
 
 | Address | Contents |
 |---------|----------|
-| 0000h | Interrupt vector table |
+| 0000h | Interrupt vector table (vectors 00h-7Fh) |
+| 0200h | In real mode, the critical error handler's stack, in place of vectors 80h-FFh (see [Critical Errors](../dos/#critical-errors)) |
 | 0400h | ROM BIOS data area |
 | 0500h | BASIC-DOS low memory data: drive info, device list head (50Ah), CPU_TYPE (512h), CPU_HWTYPE (513h), CPU_ARENA (514h), DPT (522h), BOOT_KEY (52Dh), and the DDINT entry points (530h, called through segment 50h: DDINT_CPU, DDINT_GETVEC, DDINT_SETVEC, DDINT_ENTER, DDINT_LEAVE, and DDINT_UTIL) |
 | 0550h | First disk buffer (16-byte header and 512-byte sector; initially the FAT sector the boot code read) |
@@ -109,6 +110,6 @@ Each session has its own console context (if it was given one by a CON= line), a
 | 2Ch-2Fh | Reserved (default handlers only) |
 | 30h | CALL 5 far jump (overlaps vector 31h) |
 
-Programs should use DOS_MSC_SETVEC (25h) to set vectors 22h, 23h, and 24h, which BASIC-DOS stores in the current session's SCB, rather than writing the vector table directly.
+Programs should use DOS_MSC_SETVEC (25h) to set vectors 22h, 23h, and 24h, which BASIC-DOS stores in the current session's SCB, rather than writing the vector table directly.  Vectors 80h-FFh aren't available: DOS_MSC_SETVEC ignores them, and DOS_MSC_GETVEC returns 0:0.
 
 {% include footer.html prev="Contents:../" next="DOS Functions:../dos/" %}

@@ -22,7 +22,7 @@ DOS	segment word public 'CODE'
 	EXTBYTE	<bpb_total,sfh_debug,def_drive,def_swchar,def_pathchar>
 	EXTBYTE	<scb_locked>
 	EXTWORD	<mcb_limit,buf_head,key_boot,scb_active,ivt_save,tbl_next>
-	EXTWORD	<err_stack,dos_data,mem_size>
+	EXTWORD	<dos_data,mem_size>
 	EXTLONG	<bpb_table,scb_table,sfb_table,cdir_table,clk_ptr,fpu_table>
 	EXTLONG	<dev_head>
 	EXTNEAR	<find_cfg,def_sessions,init_table,set_bpbtime,load_devices>
@@ -239,19 +239,16 @@ si3:	mov	ax,[DD_LIST].OFF	; copy the device driver list head
 	je	si3a
 	mov	[key_boot],ax
 ;
-; Now grow the kernel's block (see dos_size) as much as possible; the hard
-; error stack (see dev_error) goes in the next paragraph after our resident
-; code (see set_fault) and stack, and the first resident table follows it
-; (see init_table).
+; Now grow the kernel's block (see dos_size) as much as possible; the first
+; resident table (see init_table) goes in the next paragraph after our
+; resident code and, in protected mode, the hard error stack (see set_fault).
 ;
 si3a:	sub	bx,bx
 	mov	[BOOT_KEY],bx
 	call	dos_size
 	call	set_fault		; AX = end of the resident code
 	add	ax,15
-	and	al,0F0h			; AX = DS-relative offset of the stack
-	add	ax,ERR_STACK_SIZE
-	mov	[err_stack],ax		; record the top of the stack
+	and	al,0F0h			; AX = DS-relative offset of the table
 	mov	ss:[tbl_next],ax
 ;
 ; The first resident table (scb_table) contains our Session Control Blocks.

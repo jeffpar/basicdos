@@ -21,7 +21,8 @@ DOS	segment word public 'CODE'
 	EXTWORD	<dos_data>
 	EXTNEAR	<copy_name,sfb_from_sfh,sfb_read,sfb_write,strlen>
 	EXTNEAR	<scb_release,r3_error>
-	EXTWORD	<scb_active,err_stack>
+	EXTWORD	<scb_active>
+	EXTLONG	<err_stack>
 	EXTBYTE	<err_active,scb_locked,prog_user>
 	EXTLONG	<bpb_table>
 
@@ -533,8 +534,8 @@ he2:	mov	ah,cl			; AH = flags
 	mov	dx,ss
 	mov	cx,sp
 	cli
-	mov	ss,cs:[dos_data]
-	mov	sp,[err_stack]
+	mov	ss,[err_stack].SEG
+	mov	sp,[err_stack].OFF
 	sti
 	mov	bx,[scb_active]
 	push	dx

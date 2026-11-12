@@ -99,33 +99,30 @@ CT_SIG		db	?	; 15h: (holds SIG_CT in DEBUG builds)
 CT_COLS		dw	?	; 16h: eg, 80 (50h; ie, column width of screen)
 CT_PARENT	dw	?	; 18h: context that it took focus from
 CT_SCREEN	dd	?	; 1Ah: eg, B800:00A2h with full-screen border
-CT_BUFFER	dd	?	; 1Eh: used only for background contexts
-CT_BUFLEN	dw	?	; 22h: eg, 4000 for full-screen 25*80*2 buffer
-CT_COLOR	dw	?	; 24h: fill (LO) and border (HI) attributes
-CT_CURTYPE	dw	?	; 26h: current cursor type (HI=top, LO=bottom)
-CT_DEFTYPE	dw	?	; 28h: default cursor type (HI=top, LO=bottom)
+CT_COLOR	dw	?	; 1Eh: fill (LO) and border (HI) attributes
+CT_CURTYPE	dw	?	; 20h: current cursor type (HI=top, LO=bottom)
+CT_DEFTYPE	dw	?	; 22h: default cursor type (HI=top, LO=bottom)
 ;
 ; Context save region, used to save critical BIOS data area variables around
 ; BIOS operations.  TODO: Decide where/how to handle TBD variables.
 ;
-CTS_MODE	db	?	; 2Ah: saves CRT_MODE before writing CT_MODE
-CTS_PAGE	db	?	; 2Bh: saves ACTIVE_PAGE before writing TBD
-CTS_COLS	dw	?	; 2Ch: saves CRT_COLS before writing CT_COLS
-CT_SLOT		dw	?	; 2Eh: video memory selector ID (set_slot)
-CTS_START	dw	?	; 30h: saves CRT_START before writing TBD
-CTS_CURTYPE	dw	?	; 32h: saves CURSOR_MODE before writing CT_CURTYPE
-CTS_PORT	dw	?	; 34h: saves ADDR_6845 before writing CT_PORT
+CTS_MODE	db	?	; 24h: saves CRT_MODE before writing CT_MODE
+CTS_PAGE	db	?	; 25h: saves ACTIVE_PAGE before writing TBD
+CTS_COLS	dw	?	; 26h: saves CRT_COLS before writing CT_COLS
+CT_SLOT		dw	?	; 28h: video memory selector ID (set_slot)
+CTS_START	dw	?	; 2Ah: saves CRT_START before writing TBD
+CTS_PORT	dw	?	; 2Ch: saves ADDR_6845 before writing CT_PORT
 ;
 ; The context's original mode and geometry, so that they can be restored when
 ; the mode is set back to the original mode (see update_mode).
 ;
-CTO_MODE	db	?	; 36h: original video mode
-CTO_STATUS	db	?	; 37h: original CTSTAT_BORDER
-CTO_DIM		dw	?	; 38h: original columns (LO) and rows (HI)
-CTO_POS		dw	?	; 3Ah: original position (X,Y) of top left
-CT_SCAN		db	?	; 3Ch: pending scan code (see pull_kbd)
-CT_PAGE		db	?	; 3Dh: video page (see get_start)
-CTO_PAGE	db	?	; 3Eh: original video page
+CTO_MODE	db	?	; 2Eh: original video mode
+CTO_STATUS	db	?	; 2Fh: original CTSTAT_BORDER
+CTO_DIM		dw	?	; 30h: original columns (LO) and rows (HI)
+CTO_POS		dw	?	; 32h: original position (X,Y) of top left
+CT_SCAN		db	?	; 34h: pending scan code (see pull_kbd)
+CT_PAGE		db	?	; 35h: video page (see get_start)
+CTO_PAGE	db	?	; 36h: original video page
 CONTEXT		ends
 SIG_CT		equ	'C'
 
@@ -148,10 +145,8 @@ MAX_PAGES	equ	8	; pages per adapter (see CURSOR_POSN)
 ; CRT Controller Registers
 ;
 CRTC_CURTOP	equ	0Ah	; cursor top (mirrored at CURSOR_MODE.HIB)
-CRTC_CURBOT	equ	0Bh	; cursor bottom (mirrored at CURSOR_MODE.LOB)
 CRTC_STARTHI	equ	0Ch	; display start address (high)
 CRTC_CURHI	equ	0Eh	; cursor start address (high)
-CRTC_CURLO	equ	0Fh	; cursor start address (low)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -216,13 +211,25 @@ dio1:	mov	dx,es:[di].DDP_CONTEXT
 	jne	dio3
 dio1a:	mov	ax,ds
 	call	chk_blocked		; is another context blocking us?
-	jnc	dio3			; no
+	jnc	dio1b			; no
 	push	bx
 	call	add_packet		; yes, so wait (as ddcon_write does)
 	pop	bx
 	jnc	dio1a			; check again
-	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
+dio1c:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
 	ret
+;
+; A mode change affects the entire screen, so it also waits until the context
+; has focus (see wait_focus).
+;
+dio1b:	cmp	bl,IOCTL_SETMODE - (IOCTL_CON - 8)
+	jne	dio3
+	cli
+	call	wait_focus
+	sti
+	je	dio3			; no wait was needed
+	jnc	dio1a			; the wait ended, so check again
+	jmp	dio1c			; the wait was interrupted
 dio2:	mov	bl,8			; no, use entry for C0h (ddcon_none)
 dio3:	mov	bh,0
 	add	bx,bx
@@ -353,9 +360,9 @@ DEFPROC	ddcon_getchar
 dgr5:	add	dx,ds:[CT_CONPOS]	; DL = screen col, DH = screen row
 	mov	bh,ds:[CT_PAGE]		; BH = display page
 	mov	ah,VIDEO_SETCPOS
-	int	INT_VIDEO
+	call	video_ctx
 	mov	ah,08h			; AL = character, AH = attributes
-	int	INT_VIDEO		; (read char and attributes)
+	call	video_ctx		; (read char and attributes)
 	push	ax
 	call	draw_cursor		; restore the cursor
 	pop	dx
@@ -522,11 +529,23 @@ dsi1:	xchg	ds:[CT_CURTYPE],ax	; AX = previous CT_CURTYPE
 	inc	dx			; yes, DX = 1
 
 	DEFLBL	focus_curtype,near
-dsi2:	mov	ax,ds
+;
+; Lock the BIOS first, so that a focus switch at interrupt time can't come
+; between the focus check and the BIOS call (which would give the new focus
+; context our cursor type) or in the middle of the BIOS's 6845 writes.
+;
+dsi2:	push	ds
+	mov	ds,cs:[0].DDH_DATA
+	ASSUME	DS:CODE
+	inc	[bios_lock]
+	pop	ds
+	ASSUME	DS:NOTHING
+	mov	ax,ds
 	cmp	ax,[ct_focus]		; does this context have focus?
 	jne	dsi9			; no, leave cursor alone
 	call	set_curtype		; update CT_CURTYPE
-dsi9:	clc				; (ddcon_ioctl requires carry clear)
+dsi9:	call	unlock_bios
+	clc				; (ddcon_ioctl requires carry clear)
 	ret
 ENDPROC	ddcon_setins
 
@@ -629,9 +648,7 @@ sc5:	mov	ds:[CT_COLOR].HIB,cl
 	inc	bx			; yes
 	DEFLBL	set_palette,near
 	mov	ah,VIDEO_SETPAL
-	pushf
-	call	[video_int]		; bypass ddcon_int10 (see set_curtype)
-	ret
+	jmp	video_ctx		; (with the context's BIOS data)
 ENDPROC	ddcon_setclr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -789,32 +806,13 @@ DEFPROC	ddcon_setmode
 dsm1:	cmp	cl,6			; CGA modes 0-6 only
 	ja	dsm8
 ;
-; Like ddcon_int10, we lock the BIOS and the session around the mode change,
-; but since this context may not be the session's context, we update the
-; BIOS data ourselves and bypass ddcon_int10 (see set_curtype).
+; ddcon_int10 does the rest for this context, which may not be the session's
+; context (see video_ctx): it locks the BIOS and the session, displays a
+; virtual page, and updates the context for the new mode (see update_mode).
 ;
-dsm2:	push	ds
-	mov	ds,cs:[0].DDH_DATA
-	ASSUME	DS:CODE
-	inc	[bios_lock]
-	pop	ds
-	ASSUME	DS:NOTHING
-	mov	ah,DOS_UTL_LOCK
-	call	far ptr DDINT_UTIL	; ensure EQUIP_FLAG remains stable
-	call	swap_page		; (the BIOS can't reach a virtual page)
-	call	update_biosdata		; AX = previous EQUIP_FLAG
-	push	ax
-	push	bp			; some BIOS functions trash BP
-	mov	al,cl
+dsm2:	mov	al,cl
 	mov	ah,VIDEO_SETMODE
-	pushf
-	call	[video_int]
-	pop	bp
-	pop	ax
-	call	update_mode
-	mov	ah,DOS_UTL_UNLOCK
-	call	far ptr DDINT_UTIL	; unlock the current session
-	call	unlock_bios
+	call	video_ctx
 	clc
 	ret
 dsm8:	jmp	ddcon_none
@@ -1114,10 +1112,7 @@ dco1b:	mov	con_place[si],ax
 	neg	di			; set carry if taking the focus
 	sbb	di,di
 	and	di,[ct_focus]		; DI = context giving it up, if any
-	cmp	[ct_focus],0
-	jne	dco1c
-	mov	[ct_focus],ax
-dco1c:	mov	ds,ax
+	mov	ds,ax
 	ASSUME	DS:NOTHING
 	DBGINIT	STRUCT,ds:[0],CT
 ;
@@ -1239,7 +1234,17 @@ dco4a:	mov	ds:[CT_CURTYPE],ax
 	mov	cl,100
 	call	scroll			; clear the context's interior
 	pop	[EQUIP_FLAG]
-
+;
+; If no context has focus, this one gets it, now that it's in our chain and
+; ready for a focus switch at interrupt time.
+;
+	mov	es,cs:[0].DDH_DATA
+	ASSUME	ES:CODE
+	cmp	[ct_focus],0
+	jne	dco5
+	mov	[ct_focus],ds
+dco5:
+	ASSUME	ES:NOTHING
 	call	draw_border		; draw the context's border, if any
 
 	mov	ax,ds
@@ -1249,6 +1254,7 @@ dco4a:	mov	ds:[CT_CURTYPE],ax
 	push	ds			; and restore BIOS with data from focus
 	mov	ds,[ct_focus]
 	call	update_biosdata
+	call	draw_cursor		; (whose cursor we may have hidden)
 	pop	ds
 	mov	cx,ds:[CT_PARENT]	; CX = context with focus, if taking it
 	mov	bx,ds			; BX = this context
@@ -1294,24 +1300,14 @@ dcc0a:
 ;
 	cmp	[mode_ctx],cx
 	jne	dcc1
-	push	cx
-	push	di
 	push	ds
-	push	es
-	inc	[bios_lock]
-	mov	al,es:[CTO_MODE]
-	mov	ah,VIDEO_SETMODE
-	push	bp			; some BIOS functions trash BP
-	pushf
-	call	[video_int]
-	pop	bp
 	mov	ds,cx
-	call	release_mode
-	call	unlock_bios
-	pop	es
+	ASSUME	DS:NOTHING
+	mov	al,ds:[CTO_MODE]
+	mov	ah,VIDEO_SETMODE
+	call	video_ctx		; (see update_mode and release_mode)
 	pop	ds
-	pop	di
-	pop	cx
+	ASSUME	DS:CODE
 
 ;
 ; Any context that took the focus from this one takes it back from this one's
@@ -1871,7 +1867,35 @@ DEFPROC	ddcon_int10,far
 	push	ds
 	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
-	inc	[bios_lock]
+;
+; BASIC-DOS programs have no reason to call INT 10h, and the BIOS knows only
+; about the screen (eg, it can't draw on a virtual page, and its cursor calls
+; change the cursor that's displayed), so a session whose context doesn't
+; have focus waits here until it does (see wait_focus).  Our own calls on
+; behalf of a context (bios_ctx) and calls made while the BIOS is locked (eg,
+; by the BIOS itself, in the middle of another INT 10h) never wait.  If the
+; wait is interrupted (eg, by KILL), we return without calling the BIOS.
+;
+	cmp	[bios_ctx],0		; is this one of our own calls?
+	jne	i10v			; yes
+	cmp	[bios_lock],0		; is the BIOS locked?
+	jne	i10v			; yes
+i10u:	mov	ah,DOS_UTL_LOCK
+	call	far ptr DDINT_UTIL	; AX = the session's context
+	push	ax
+	mov	ah,DOS_UTL_UNLOCK
+	call	far ptr DDINT_UTIL
+	pop	ax
+	call	chk_context		; is the context ours?
+	jz	i10v			; no
+	call	wait_focus
+	je	i10v			; no wait was needed
+	jnc	i10u			; the wait ended, so check again
+	pop	ds
+	pop	ax
+	pop	bp
+	iret
+i10v:	inc	[bios_lock]
 ;
 ; DOSUTIL LOCK has been updated to return the active session's CONSOLE
 ; context in AX.  However, during system initialization, that context may
@@ -1901,13 +1925,26 @@ i10z:	call	update_biosdata		; returns current EQUIP_FLAG
 
 i10a:	push	ax			; save EQUIP_FLAG
 	mov	bp,sp
+;
+; Each context has a page of its own, and selecting another would display
+; some other context's page, so we ignore VIDEO_SETPAGE, unless the context
+; is using the entire screen (see mode_ctx).
+;
+	cmp	byte ptr [bp+5],VIDEO_SETPAGE
+	jne	i10d
+	mov	ax,[bp+2]		; AX = context
+	test	ax,ax			; is it ours?
+	jz	i10d			; no
+	cmp	ax,[mode_ctx]
 	mov	ax,[bp+4]		; AX = caller's AX
+	jne	i10e			; ignore it
+i10d:	mov	ax,[bp+4]		; AX = caller's AX
 	mov	bp,[bp+6]		; BP = caller's BP
 
 	pushf
 	call	[video_int]		; issue the original INT 10h
 
-	mov	bp,sp
+i10e:	mov	bp,sp
 	xchg	[bp+4],ax		; update AX return value on stack
 	cmp	word ptr [bp+2],0	; is the context segment valid?
 	je	i10x			; no
@@ -2329,6 +2366,13 @@ ENDPROC	draw_char
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	draw_cursor
+;
+; A context that another context is blocking isn't on the screen, so the
+; cursor there isn't ours to move (see chk_blocked).
+;
+	mov	ax,ds
+	call	chk_blocked
+	jc	dcu9
 	mov	dx,ds:[CT_CURPOS]
 	test	ds:[CT_STATUS],CTSTAT_INT10
 	jnz	dcs8
@@ -2339,7 +2383,7 @@ DEFPROC	draw_cursor
 	shr	bx,1			; screen offset to cell offset
 	mov	ah,CRTC_CURHI		; AH = 6845 CURSOR ADDR (HI) register
 	call	write_crtc16		; update cursor position using BX
-	ret
+dcu9:	ret
 ;
 ; The context is using INT 10h passthrough, so position the cursor using
 ; INT 10h as well; otherwise, an emulator like pc.js wouldn't see the cursor
@@ -2348,8 +2392,7 @@ DEFPROC	draw_cursor
 dcs8:	add	dx,ds:[CT_CONPOS]	; DL = screen col, DH = screen row
 	mov	bh,ds:[CT_PAGE]		; BH = display page
 	mov	ah,VIDEO_SETCPOS
-	int	INT_VIDEO
-	ret
+	jmp	video_ctx
 ENDPROC	draw_cursor
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2446,8 +2489,16 @@ ENDPROC	get_curpos
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	hide_cursor
+;
+; If the context with focus is blocked, then the cursor on the screen belongs
+; to the context that's blocking it, and stays there.
+;
+	mov	ax,[ct_focus]
+	call	chk_blocked
+	jc	hc9
 	mov	bx,4000			; (an offset past the visible screen)
 	jmp	set_cursor
+hc9:	ret
 ENDPROC	hide_cursor
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2499,10 +2550,18 @@ mc2a:	cmp	dl,ds:[CT_CURMAX].LOB
 	DEFLBL	update_cursor,near
 mc8:	mov	ds:[CT_CURPOS],dx
 	mov	ax,ds
+;
+; Interrupts stay off from the focus check until the cursor is drawn (see
+; write_crtc16); otherwise, a focus switch at interrupt time could come
+; between them, and we'd then move the new focus context's cursor to our
+; position.
+;
+	cli
 	cmp	ax,[ct_focus]		; does this context have focus?
 	jne	mc9			; no, leave cursor alone
 	call	draw_cursor
-mc9:	clc
+mc9:	sti
+	clc
 	ret
 ENDPROC	move_cursor
 
@@ -2622,24 +2681,30 @@ scr2:	mov	bh,ds:[CT_COLOR].LOB	; BH = fill attributes
 	call	chk_graphics		; graphics mode?
 	jnc	scr3			; no
 	mov	bh,0			; yes, BH = fill pixels (background)
+;
+; The BIOS scrolls a context only if it draws the context (CTSTAT_INT10) or
+; the context's page is displayed (the mouse driver hides its pointer around
+; a BIOS scroll); otherwise, we scroll the page ourselves, with no BIOS data
+; to update (and a virtual page is one the BIOS can't reach anyway).
+;
+; A focus switch at interrupt time can change which page is displayed, and
+; move the context to or from a virtual page (see swap_page), so interrupts
+; stay off from this check until the BIOS is locked (by scroll_buf, or by
+; ddcon_int10; see video_ctx).
+;
 scr3:	mov	ah,bl
-	call	chk_vpage		; is the context on a virtual page?
-	jnc	scr4			; no
-	call	scroll_buf		; yes, which the BIOS can't reach
+	cli
+	test	ds:[CT_STATUS],CTSTAT_INT10
+	jnz	scr4
+	push	bx
+	call	get_place		; BX = con_place index
+	mov	bl,shown_page[bx]
+	cmp	bl,ds:[CT_PAGE]		; is the context's page displayed?
+	pop	bx
+	je	scr4			; yes
+	call	scroll_buf
 	jmp	short scr9
-;
-; This context may not be the session's (eg, a new context being cleared), so
-; tell ddcon_int10 which context to use, with interrupts off until it has.
-;
-scr4:	cli
-	push	es
-	mov	es,cs:[0].DDH_DATA
-	ASSUME	ES:CODE
-	mov	[bios_ctx],ds
-	pop	es
-	ASSUME	ES:NOTHING
-	int	INT_VIDEO
-	sti
+scr4:	call	video_ctx
 scr9:	pop	dx
 	pop	cx
 	pop	bx
@@ -2648,11 +2713,83 @@ ENDPROC	scroll
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; video_ctx
+;
+; Issues INT 10h on behalf of a context, which ddcon_int10 uses instead of the
+; session's context, and without waiting for the context to have focus.
+;
+; Inputs:
+;	DS = CONSOLE context
+;	Other inputs are those of the INT 10h function
+;
+; Outputs:
+;	Those of the INT 10h function
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	video_ctx
+	cli
+	push	es
+	mov	es,cs:[0].DDH_DATA
+	ASSUME	ES:CODE
+	mov	[bios_ctx],ds
+	pop	es
+	ASSUME	ES:NOTHING
+	int	INT_VIDEO
+	sti
+	ret
+ENDPROC	video_ctx
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; wait_focus
+;
+; Waits until the context has focus, unless it's the context that is blocking
+; the others (mode_ctx), which owns the screen whether it has focus or not.
+; The wait ID is the context segment with an offset of 1 (which no packet
+; has); switch_focus ends the wait.
+;
+; Inputs:
+;	AX = CONSOLE context
+;	Interrupts off (so that no focus switch comes between the check and
+;	the wait)
+;
+; Outputs:
+;	ZF set (and carry clear) if no wait was needed; otherwise, ZF clear,
+;	and carry set if the wait was interrupted (eg, by ABORT)
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	wait_focus
+	cmp	ax,[ct_focus]		; does the context have focus?
+	je	wf9			; yes
+	cmp	ax,[mode_ctx]		; is it blocking the others?
+	je	wf9			; yes
+	push	dx
+	push	di
+	mov	dx,ax
+	mov	di,1			; DX:DI = wait ID
+	mov	ah,DOS_UTL_WAIT		; (int_util preserves all but carry,
+	call	far ptr DDINT_UTIL	; so ZF is still clear)
+	mov	ax,dx
+	pop	di
+	pop	dx
+wf9:	ret
+ENDPROC	wait_focus
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; scroll_buf
 ;
-; Scrolls (or clears) a window of a virtual page's buffer, like the BIOS's
-; VIDEO_SCROLL and VIDEO_SCROLLDN functions do on the screen, with the BIOS
-; locked, so that no swap_page moves the buffer meanwhile.
+; Scrolls (or clears) a window of a page that isn't displayed (a virtual
+; page's buffer, or another page of the adapter), like the BIOS's VIDEO_SCROLL
+; and VIDEO_SCROLLDN functions do on the screen, with the BIOS locked, so that
+; no swap_page moves the context meanwhile.
+;
+; Like the BIOS, we blank a CGA while we move its memory (which would cause
+; "snow" on the page it's displaying), starting at vertical retrace, and with
+; the session locked, so that no other session runs while it's blank.
 ;
 ; Inputs:
 ;	AH = VIDEO_SCROLL or VIDEO_SCROLLDN
@@ -2677,7 +2814,23 @@ DEFPROC	scroll_buf
 	inc	[bios_lock]
 	pop	ds
 	ASSUME	DS:NOTHING
-	push	ds
+	sti				; (see scroll)
+	call	chk_snow		; is the page in CGA memory?
+	jnc	sb0			; no
+	push	ax
+	push	dx
+	mov	ah,DOS_UTL_LOCK
+	call	far ptr DDINT_UTIL
+	mov	dx,3DAh
+sb0a:	in	al,dx
+	test	al,08h			; in vertical retrace?
+	jz	sb0a			; not yet
+	mov	dl,0D8h
+	mov	al,25h			; (80-column text, video off)
+	out	dx,al
+	pop	dx
+	pop	ax
+sb0:	push	ds
 	push	bx			; save BH (fill attributes)
 	sub	dx,cx
 	add	dx,0101h		; DH = rows, DL = columns
@@ -2699,6 +2852,10 @@ sb3:	push	dx
 	mov	dx,cx
 	call	get_curpos		; BX = offset of the first row
 	pop	dx
+	push	ax
+	call	get_start		; (an adapter's page has an offset)
+	add	bx,ax
+	pop	ax
 	mov	es,ds:[CT_SCREEN].SEG
 	push	es
 	pop	ds			; DS = ES = buffer
@@ -2731,12 +2888,46 @@ sb7:	mov	cl,dl
 	dec	bl
 	jnz	sb7
 	pop	ds
-	pop	es
+	call	chk_snow		; did we blank a CGA?
+	jnc	sb9			; no
+	mov	ax,BIOS
+	mov	es,ax
+	ASSUME	ES:BIOS
+	mov	al,[CRT_MODE_SET]
+	ASSUME	ES:NOTHING
+	mov	dx,3D8h
+	out	dx,al			; restore the mode register
+	mov	ah,DOS_UTL_UNLOCK
+	call	far ptr DDINT_UTIL
+sb9:	pop	es
 	pop	bp
 	pop	di
 	pop	si
 	jmp	unlock_bios
 ENDPROC	scroll_buf
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_snow
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Outputs:
+;	Carry set if the context's page is in a CGA's video memory
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	chk_snow
+	call	chk_vpage
+	cmc
+	jnc	cn9			; it's on a virtual page
+	cmp	ds:[CT_PORT].LOB,0B5h	; carry set if it's an MDA (0B4h)
+	cmc
+cn9:	ret
+ENDPROC	chk_snow
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2772,12 +2963,15 @@ DEFPROC	set_curtype
 ; required for any video BIOS call made on behalf of a context that is not
 ; ALSO the running context.
 ;
+	mov	ax,ds
+	call	chk_blocked		; (see draw_cursor)
+	jc	sct9
 	call	update_biosdata
 	mov	cx,ds:[CT_CURTYPE]
 	mov	ah,VIDEO_SETCTYPE
 	pushf
 	call	[video_int]
-	ret
+sct9:	ret
 ENDPROC	set_curtype
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2917,6 +3111,15 @@ sf2:	mov	es,cs:[0].DDH_DATA
 	call	show_page		; display the page, redraw the border,
 	call	draw_border		; and show the cursor of the incoming
 	call	show_cursor		; context
+;
+; End the wait of every session that was waiting for this context to have
+; focus (see wait_focus).
+;
+	mov	dx,ds
+	mov	di,1			; DX:DI = wait ID
+sf7:	mov	ah,DOS_UTL_ENDWAIT
+	call	far ptr DDINT_UTIL
+	jnc	sf7			; (until no more are found)
 sf8:	pop	es
 	mov	ah,DOS_UTL_UNLOCK
 	call	far ptr DDINT_UTIL	; unlock the current session
@@ -3062,7 +3265,15 @@ rg1:	jcxz	rg3
 	push	ax
 	call	draw_border		; yes, redraw its border (if any)
 	call	show_page		; and display its page (if it has focus)
-	pop	ax
+;
+; The mode change also moved the cursor and reset its type, so restore those
+; of the context with focus.
+;
+	mov	ax,ds
+	cmp	ax,[ct_focus]
+	jne	rg1a
+	call	show_cursor
+rg1a:	pop	ax
 rg2:	mov	cx,ds:[CT_NEXT]
 	jmp	rg1
 rg3:	pop	ds
@@ -3269,8 +3480,7 @@ DEFPROC	update_biosdata
 	mov	ds:[CTS_PORT],ax
 
 	mov	ax,ds:[CT_CURTYPE]
-	xchg	[CURSOR_MODE],ax
-	mov	ds:[CTS_CURTYPE],ax
+	mov	[CURSOR_MODE],ax
 ;
 ; To the BIOS, the context's page is the active page (eg, so that a BIOS
 ; scroll affects that page), whether or not it's displayed (see show_page).
@@ -3353,6 +3563,8 @@ um1:	mov	ds:[CT_PAGE],ah
 	call	set_geometry
 	mov	ax,ds:[CT_CURMIN]
 	mov	ds:[CT_CURPOS],ax	; (the BIOS homes the cursor, too)
+	mov	ax,ds:[CT_DEFTYPE]
+	mov	ds:[CT_CURTYPE],ax	; (and resets its type)
 ;
 ; Graphics modes start with text color 3, background 0, and palette 1 (the
 ; BIOS default).  Text modes keep the current colors, unless we're leaving a
@@ -3853,7 +4065,8 @@ wc1:	cmp	al,CHR_LINEFEED		; LINEFEED?
 ;
 	cmp	al,CHR_CTRLG		; BELL?
 	jne	wc7			; no
-	call	write_char		; yes, so let the BIOS beep
+	mov	ah,VIDEO_TTYOUT		; yes, so let the BIOS beep
+	call	video_ctx
 	jmp	short wc9
 
 wc4:	mov	bl,dl			; emulate a (horizontal) TAB
@@ -3947,11 +4160,11 @@ wcp8:	push	ax
 	mov	bl,ah			; BL = attributes
 	mov	bh,ds:[CT_PAGE]		; BH = display page
 	mov	ah,VIDEO_SETCPOS
-	int	INT_VIDEO
+	call	video_ctx
 	mov	al,cl			; AL = character
 	mov	cx,1			; CX = count
 	mov	ah,VIDEO_WRITECA
-	int	INT_VIDEO
+	call	video_ctx
 	pop	dx
 	pop	cx
 	pop	bx

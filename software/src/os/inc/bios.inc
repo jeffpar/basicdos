@@ -46,6 +46,7 @@ INT_VGCDATA	equ	1Fh	; VIDEO GRAPHICS CHARACTER DATA
 VIDEO_SETMODE	equ	00h	; AL=mode
 VIDEO_SETCTYPE	equ	01h	; CH=cursor top, CL=cursor bottom
 VIDEO_SETCPOS	equ	02h	; DH=row, DL=col, BH=display page
+VIDEO_SETPAGE	equ	05h	; AL=display page
 VIDEO_SCROLL	equ	06h	; AL=# lines, BH=fill attr, CX/DX=coords
 VIDEO_SCROLLDN	equ	07h	; scroll down (same inputs as VIDEO_SCROLL)
 VIDEO_WRITECA	equ	09h	; AL=char, BL=attr, BH=display page, CX=count

@@ -24,7 +24,8 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<sfb_get,flush_console,err_jump,get_psp,mem_alias>
 	EXTNEAR	<r3_ctrlc,r3_cbabort,r3_getvec,r3_setvec>
 	EXTBYTE	<err_active,prog_user>
-	EXTWORD	<err_stack,r3_cbsp>
+	EXTWORD	<r3_cbsp>
+	EXTLONG	<err_stack>
 	EXTSTR	<STR_CTRLC>
 
 	EXTWORD	<mcb_head,mem_size>
@@ -51,12 +52,20 @@ DOS	segment word public 'CODE'
 ; Notes:
 ; 	Too bad this function wasn't defined to also return the original vector.
 ;
+;	Vectors ERR_VECTORS (80h) and up can't be set: in real mode, their
+;	half of the vector table is the hard error stack (see ERR_STACK_TOP).
+;
 ;	A program's handler is often in the block that DS addresses (eg, a
 ;	COM program's PSP block), but in protected mode, DS is the block's data
 ;	selector, which can't be executed, so the vector gets the block's code
 ;	alias instead (see mem_alias), which in real mode is the same segment.
 ;
 DEFPROC	msc_setvec,DOS
+;
+; Ignore vectors that the hard error stack replaced (see ERR_STACK_TOP).
+;
+	cmp	al,ERR_VECTORS
+	jae	msv9
 	mov	cx,[bp].REG_DX
 	mov	dx,[bp].REG_DS		; DX:CX = new vector
 	push	ax
@@ -436,8 +445,8 @@ msg1:	cmp	[err_active],0		; inside a hard error handler?
 	cmp	[r3_cbsp],0		; a ring 3 ERROR handler?
 	je	msg1b			; no
 	jmp	r3_cbabort		; yes (see r3_error)
-msg1b:	mov	ss,cs:[dos_data]
-	mov	sp,[err_stack]
+msg1b:	mov	ss,[err_stack].SEG
+	mov	sp,[err_stack].OFF
 	sub	sp,ERR_FRAME
 	jmp	err_jump
 
@@ -547,12 +556,21 @@ ENDPROC	flush_stdin
 ;	REG_AL = vector #
 ;
 ; Outputs:
-;	REG_ES:REG_BX = address from vector
+;	REG_ES:REG_BX = address from vector (0:0 for vectors ERR_VECTORS and
+;	up, which can't be set; see msc_setvec)
 ;
 ; Modifies:
 ;	AX, CX, DX, SI
 ;
 DEFPROC	msc_getvec,DOS
+;
+; Return 0:0 for vectors that the hard error stack replaced (see
+; ERR_STACK_TOP).
+;
+	sub	cx,cx
+	sub	dx,dx
+	cmp	al,ERR_VECTORS
+	jae	mgv2
 	push	ax
 	call	get_vecoff		; AX = vector offset
 	xchg	si,ax			; SI -> vector, if it's in the SCB
