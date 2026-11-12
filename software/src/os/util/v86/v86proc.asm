@@ -16,7 +16,7 @@
 CODE    SEGMENT word public 'CODE'
 
 	EXTBYTE	<VARS>
-	EXTWORD	<cur_psp>
+	EXTWORD	<cur_psp,mach_paras>
 	EXTLONG	<dta>
 	EXTNEAR	<seg_ptr,v86_get,v86_put,get_word,put_word>
 
@@ -38,7 +38,9 @@ DEFPROC	mem_init
 	sub	di,di
 	call	seg_ptr
 	mov	es:[di].MCB_SIG,MCBSIG_LAST
-	mov	es:[di].MCB_PARAS,V86_PARAS - ARENA_SEG - 1
+	mov	cx,[mach_paras]
+	sub	cx,ARENA_SEG + 1
+	mov	es:[di].MCB_PARAS,cx
 	sub	ax,ax
 	mov	es:[di].MCB_OWNER,ax
 	inc	di
@@ -333,7 +335,7 @@ ENDPROC	mem_query
 DEFPROC	mcb_ptr
 	cmp	ax,ARENA_SEG		; in the machine's arena?
 	jb	mp8			; no
-	cmp	ax,V86_PARAS
+	cmp	ax,[mach_paras]
 	jae	mp8			; no
 	sub	di,di
 	call	seg_ptr

@@ -17,7 +17,7 @@
 CODE    SEGMENT word public 'CODE'
 
 	EXTBYTE	<VARS,in_call>
-	EXTWORD	<cur_psp,root_psp>
+	EXTWORD	<cur_psp,root_psp,mach_paras>
 	EXTLONG	<dta>
 	EXTNEAR	<run,do_exit,do_ctrlc,seg_ptr,v86_get,v86_put>
 	EXTNEAR	<get_word,put_word,push_word,pop_word>
@@ -203,7 +203,9 @@ i21esbx:mov	word ptr [VARS+VR_EBX],ax
 	DEFLBL	i21vars,near
 	mov	al,INT_DOSFUNC
 	call	call_dos
-	mov	word ptr [VARS+VR_EAX],V86_PARAS SHR 6
+	mov	cx,[mach_paras]
+	shr	cx,6
+	mov	word ptr [VARS+VR_EAX],cx
 	jmp	i21f
 ENDPROC	i21sv
 

@@ -390,6 +390,32 @@ ENDPROC	cleanUp
 ;
 DEFPROC	ctrlc,FAR
 ;
+; Restore every symbol that parseDOS replaced with a null and hasn't restored
+; yet (eg, the '|' of "TYPE FILE | MORE"), so that the line can be recalled
+; (or run again); each is recorded on the stack (see SYM_CHAIN in parseDOS),
+; which is still intact.  A '<' is restored by cleanUp, so a null recorded
+; here (see pd9f) is harmless.
+;
+	cld
+	push	ss
+	pop	ds
+	mov	bx,ds:[PSP_HEAP]
+	sub	si,si
+	xchg	si,[bx].SYM_CHAIN	; SI -> the last record, if any
+ctb:	mov	cx,si
+	jcxz	ctb1			; no more records
+	lodsw
+	xchg	cx,ax			; CX -> the previous record
+	lodsw
+	xchg	di,ax			; DI -> the symbol (0 if none)
+	lodsw				; AL = the symbol
+	mov	si,cx
+	test	di,di
+	jz	ctb
+	mov	[di],al
+	jmp	ctb
+ctb1:
+;
 ; If STDOUT is a device, write zero bytes to it, which tells a pipe that its
 ; input has ended (see pd9b), so that the commands reading it can finish (and
 ; endPipes doesn't wait forever) when a runtime error ends the statements
@@ -780,6 +806,13 @@ pd4d:	pop	ax
 pd5:	jcxz	pd8			; no valid initial token
 	push	ax
 	push	dx			; save the symbol and its offset
+;
+; The symbol and its offset are a record that SYM_CHAIN links to any earlier
+; one (eg, of a parseDOS that's running the file that's running us), so that
+; ctrlc, which never returns here, can restore the symbol.
+;
+	push	[bp].SYM_CHAIN
+	mov	[bp].SYM_CHAIN,sp
 
 	push	si
 ;
@@ -833,12 +866,14 @@ pd6:	push	bx			; cmdDOS can modify most registers
 	pop	di
 	pop	bx
 
-pd6a:	pop	si			; restore the symbol and its offset
+pd6a:	pop	[bp].SYM_CHAIN		; unlink the record
+	pop	si			; restore the symbol and its offset
 	pop	ax
-	jc	pd9
-	test	si,si			; does a symbol offset exist?
-	jz	pd9			; no, we must be done
-	mov	[si],al			; restore symbol
+	mov	cx,si			; does a symbol offset exist?
+	jcxz	pd6b			; no, we must be done (carry unchanged)
+	mov	[si],al			; restore symbol (even after a failure)
+	jnc	pd8
+pd6b:	jmp	pd9
 
 pd8:	add	bx,size TOKLET
 	mov	ax,bx
@@ -871,11 +906,11 @@ pd9:	jnc	pd9e
 	mov	bx,bp
 	call	endPipes
 	stc
-	jmp	short pd9c
+pd9g:	jmp	pd9c
 
 pd9e:	mov	ax,[bp].CMD_DEFER[0]
 	test	ax,ax			; is there a deferred command?
-	jz	pd9c			; no
+	jz	pd9g			; no (and carry is clear)
 ;
 ; The deferred command may run commands of its own (eg, the BASIC statements
 ; that runLine runs), which call parseDOS again, so save the pipe handle and
@@ -905,15 +940,18 @@ pd9f:	add	bx,size TOKLET
 	mov	bx,[di].TOK_DATA[bx].TOKLET_OFF
 	mov	dl,0
 	xchg	[bx],dl			; DL = symbol (0 if it's still a '<')
-	push	bx
 	push	dx
+	push	bx
+	push	[bp].SYM_CHAIN		; (a record for ctrlc; see pd5)
+	mov	[bp].SYM_CHAIN,sp
 	mov	dx,[bp].CMD_DEFER[2]
 	mov	si,[bp].CMD_DEFER[4]
 	mov	cx,[bp].CMD_DEFER[6]
 	mov	bx,bp
 	call	cmdDOS			; invoke deferred internal command
-	pop	dx
+	pop	[bp].SYM_CHAIN
 	pop	bx
+	pop	dx
 	mov	[bx],dl			; restore the symbol
 	jmp	short pd9b
 

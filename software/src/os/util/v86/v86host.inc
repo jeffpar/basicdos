@@ -26,9 +26,12 @@
 ; at STUB_SEG:vector, so that the machine exits when a program's interrupt
 ; or exception goes to a default handler), then a copy of the BIOS data, the
 ; HLTs (and STUB_CTRLC, for the return from a program's CTRLC handler), and
-; then MCBs, from ARENA_SEG to V86_PARAS, for the programs' memory.
+; then MCBs, from ARENA_SEG to the end of its memory (V86_PARAS, unless the
+; /M switch gave a size, from V86_MINK to V86_MAXK), for the programs' memory.
 ;
-V86_PARAS	equ	0A000h	; the machine's memory (640K), in paragraphs
+V86_MINK	equ	4	; least memory a machine can have, in K
+V86_MAXK	equ	640	; and the most
+V86_PARAS	equ	V86_MAXK SHL 6	; the default, in paragraphs
 STUB_SEG	equ	0050h	; the HLTs (one for each vector)
 STUB_CTRLC	equ	0100h	; (at STUB_SEG) a CTRLC handler's return
 ARENA_SEG	equ	0061h	; the first MCB

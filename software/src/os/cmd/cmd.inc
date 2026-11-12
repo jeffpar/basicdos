@@ -392,7 +392,8 @@ DOS_REGS	dw    4 dup (?)		; 626h: AX-DX from DOS (see dosCall)
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-STACK		dw  945 dup (?)		; 62Eh
+SYM_CHAIN	dw	?		; 62Eh: nulled symbols (see parseDOS)
+STACK		dw  944 dup (?)		; 630h
 CMDHEAP		ends			 ; D90h
 SIG_CMD		equ	'H'
 

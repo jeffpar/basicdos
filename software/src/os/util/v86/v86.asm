@@ -7,12 +7,13 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Usage: V86 [PATH$="path"[:]] [program [arguments]]
+; Usage: V86 [PATH$="path"[:]] [/M:size] [program [arguments]]
 ;
 ; Runs a real-mode program (COMMAND.COM if none is given; a name without a
 ; drive or directory is also looked for in each directory of the PATH$ given
 ; before it, as START gives one, or else of our environment's PATH) in a V86
-; machine (see v86.inc), which needs an 80386 in protected mode (CPU_TYPE 3),
+; machine (see v86.inc) with size K of memory (640 if none is given),
+; which needs an 80386 in protected mode (CPU_TYPE 3),
 ; and provides the DOS services that its programs ask for: the ones that
 ; involve the machine itself (eg, its vectors, its PSPs, its memory, and
 ; running programs) here, and the rest by passing them on to BASIC-DOS (with
@@ -44,25 +45,53 @@ DEFPROC	main
 	PRINTF	<"V86 mode not available",13,10>
 	jmp	m8a
 ;
-; Get the program's name, and its arguments, which follow it; any switch
-; before the name is one we don't accept.  A PATH$="..." before the name (as
-; START gives us, with a colon after it, as a SHELL line's has) is the path
-; to search, whose ending quote becomes a null; otherwise, our environment's
-; PATH (if any) is.
+; Get the program's name, and its arguments, which follow it; the only switch
+; we accept before the name is /M:size (the machine's memory, in K).  A
+; PATH$="..." before the name (as START gives us, with a colon after it, as
+; a SHELL line's has) is the path to search, whose ending quote becomes a
+; null; otherwise, our environment's PATH (if any) is.
 ;
 m1:	mov	[our_ds],ds		; (for v86_ctrlc)
-	mov	ax,DOS_MSC_GETSWC
-	int	21h			; DL = switch character
 	mov	si,PSP_CMDTAIL + 1
-m1a:	lodsb
+m1a:	mov	ax,DOS_MSC_GETSWC
+	int	21h			; DL = switch character
+m1f:	lodsb
 	cmp	al,' '			; skip leading whitespace
-	je	m1a
+	je	m1f
 	cmp	al,9
-	je	m1a
+	je	m1f
 	dec	si
-	cmp	al,dl			; a switch?
-	je	m1e			; yes
 	mov	bx,si
+	cmp	al,dl			; a switch?
+	jne	m1g			; no
+	inc	si
+	lodsw
+	and	al,NOT 20h		; (upper-case)
+	cmp	ax,(':' SHL 8) OR 'M'
+	jne	m1e
+	DOSUTIL	ATOI32D			; DX:AX = size, SI -> what follows it
+	jc	m1e			; no digits
+	cmp	byte ptr [si],' '	; whitespace (or a CR) after it?
+	ja	m1e			; no
+;
+; The size must be at least V86_MINK (so that there's an arena, which
+; mem_init assumes) and at most V86_MAXK (the most that a machine can have).
+;
+	sub	ax,V86_MINK
+	sbb	dx,0
+	jnz	m1e			; too small (or much too large)
+	cmp	ax,V86_MAXK - V86_MINK
+	ja	m1e			; too large
+	add	ax,V86_MINK
+	shl	ax,6			; AX = size in paragraphs
+	mov	[mach_paras],ax
+	mov	dx,ax
+	shl	ax,4
+	shr	dx,12			; DX:AX = size in bytes
+	mov	[mach_top].OFF,ax
+	mov	[mach_top].SEG,dx
+	jmp	m1a
+m1g:
 	mov	di,offset PATH_STR
 	mov	cx,PATH_STR_LEN
 	repe	cmpsb			; a PATH$?
@@ -167,7 +196,7 @@ m3j:	mov	dx,offset VARS + V_NAME
 ; Create a machine, fill in its memory, and load the program into it.
 ;
 m4:	push	ax			; save the program's handle
-	mov	bx,V86_PARAS
+	mov	bx,[mach_paras]
 	DOSUTIL	MAPSEG,2		; AX = machine
 	jc	m4d
 	mov	[machine],ax
@@ -397,8 +426,9 @@ ENDPROC	v86_ctrlc
 ;
 ; init_mem
 ;
-; Fills in the machine's vectors, BIOS data (a copy, with CPU_TYPE zero, as
-; in real mode), and HLTs, starts its memory blocks (see mem_init), and makes
+; Fills in the machine's vectors, BIOS data (a copy, with the machine's
+; MEMORY_SIZE, and CPU_TYPE zero, as in real mode), and HLTs, starts its
+; memory blocks (see mem_init), and makes
 ; the first program's environment: the PATH$ we were given (if any), as PATH,
 ; and a copy of ours, followed by a count (1) and the program's name, as DOS
 ; 3.0 and up provide.
@@ -433,6 +463,9 @@ im1:	xchg	ax,cx
 	pop	ds
 	mov	bx,BIOS_DATA + offset CPU_TYPE
 	mov	byte ptr es:[bx],0	; (in real mode, CPU_TYPE is 0)
+	mov	ax,[mach_paras]
+	shr	ax,6			; AX = the machine's memory, in K
+	mov	es:[bx + offset MEMORY_SIZE - offset CPU_TYPE],ax
 	mov	cx,100h + 16
 	mov	al,OP_HLT
 	rep	stosb			; the HLTs (and STUB_CTRLC)
@@ -566,8 +599,9 @@ ENDPROC	copy_name
 ; Return a pointer to the machine's memory at a linear address (or at a
 ; segment and offset), through the machine's selectors (one for every 32K,
 ; each covering 64K), so that anything smaller than 32K is in reach; above
-; its memory, the ROMs (and video memory) are the system's, and the 64K above
-; 1Mb wraps to the first 64K, as on an 8086.
+; its memory (mach_top), everything below 1Mb (eg, the ROMs and video memory)
+; is the system's, and the 64K above 1Mb wraps to the first 64K, as on an
+; 8086.
 ;
 ; Inputs:
 ;	DX:AX = linear address (v86_ptr), or AX:DI = segment:offset (seg_ptr)
@@ -593,17 +627,21 @@ DEFPROC	seg_ptr
 ENDPROC	seg_ptr
 
 DEFPROC	v86_ptr
-	cmp	dx,0Ah			; in the machine's memory?
-	jb	vp1			; yes
-	cmp	dx,10h			; in the ROMs (or video memory)?
-	jb	vp2			; yes
+	cmp	dx,10h			; below 1Mb?
+	jb	vp0			; yes
 	sub	dx,10h			; no, the 64K above 1Mb, which wraps
-	call	vp1			; to the first 64K
+	call	v86_ptr			; to the first 64K
 	add	dx,10h
 	ret
+vp0:	cmp	dx,[mach_top].SEG	; in the machine's memory?
+	jb	vp1			; yes
+	ja	vp2			; no
+	cmp	ax,[mach_top].OFF
+	jb	vp1			; yes
 ;
-; The machine's ROMs are the system's, so we get a selector for that real
-; segment (and DI is the offset in its first paragraph).
+; Everything above the machine's memory (eg, the ROMs) is the system's, so we
+; get a selector for that real segment (and DI is the offset in its first
+; paragraph).
 ;
 vp2:	push	ax
 	push	bx
@@ -734,6 +772,8 @@ ENDPROC	stk_ptr
 
 	DEFWORD	our_ds,0		; our DS (for v86_ctrlc)
 	DEFWORD	machine,0		; the machine's first selector
+	DEFWORD	mach_paras,V86_PARAS	; its memory, in paragraphs
+	DEFWORD	mach_top,<0,V86_PARAS SHR 12>	; and in bytes (a long)
 	DEFWORD	root_psp,0		; the PSP of its first program
 	DEFWORD	cur_psp,0		; and its current PSP
 	DEFLONG	dta,0			; and the DTA
