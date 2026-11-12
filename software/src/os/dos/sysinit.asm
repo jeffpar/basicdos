@@ -32,7 +32,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<set_call5,mem_total,init_sess>
 	EXTNEAR	<open_dev,open_warning,open_error>
 	EXTNEAR	<sysinit_tail,fatal_error,set_ddint,set_fault>
-	EXTWORD	<dos_seg,dos_code,cfg_data,cfg_size>
+	EXTWORD	<dos_seg,dos_code,cfg_data,cfg_size,dos_addr>
 	EXTLONG	<pCacheInt21,con_fails>
 	EXTERNS	<cache_int21>,far
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>
@@ -110,6 +110,14 @@ si1:	mov	ax,BIOS
 	mov	cl,6
 	shl	ax,cl			; available memory in paras
 	mov	[mcb_limit],ax
+;
+; With little memory, devinit makes our block longer than our image and the
+; CFG data (see devinit's i9a), so it's resized to fit them (through DI)
+; before move_init allocates memory.
+;
+	mov	[dos_addr],bp
+	mov	bx,di
+	call	dos_size
 	mov	si,offset sysinit_start - 200h
 	call	move_init		; AX = code selector, DX = data
 	push	ax

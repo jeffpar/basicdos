@@ -677,8 +677,11 @@ ENDPROC	mcb_getsize
 ; an LDT selector means something else in another session's LDT, and COMMAND's
 ; shared code has variables (eg, CMD_REFS) that every copy must write.
 ;
+; mcb_findsize matches PSP_CODESIZE alone, so that the loader can tell whether
+; any copy could match before it reads a file just to checksum it.
+;
 ; Inputs:
-;	AX = code size, DX = checksum
+;	AX = code size, DX = checksum (mcb_findpsp only)
 ;
 ; Outputs:
 ;	CX = code segment (PSP_START.SEG, which in protected mode is a code
@@ -689,7 +692,13 @@ ENDPROC	mcb_getsize
 ;
 DEFPROC	mcb_findpsp,DOS
 	ASSUME	DS:NOTHING, ES:NOTHING
-	push	bx
+	push	si
+	mov	si,sp			; SI != 0: the checksum must match
+	jmp	short fp0
+	DEFLBL	mcb_findsize,near
+	push	si
+	sub	si,si			; SI = 0: any checksum will do
+fp0:	push	bx
 	push	di
 	push	es
 	mov	es,cs:[dos_data]
@@ -710,8 +719,10 @@ fp2:	push	ds
 	cmp	ds:[PSP_CODESIZE],ax
 	jne	fp2a
 	cmp	ds:[PSP_CHECKSUM],dx
-	jne	fp2a
-	mov	cx,ds:[PSP_START].SEG	; CX = its code (and ZF is still set)
+	je	fp2b
+	test	si,si			; does the checksum matter?
+	jnz	fp2a			; yes
+fp2b:	mov	cx,ds:[PSP_START].SEG	; CX = its code (and ZF is still set)
 fp2a:	pop	ds
 	je	fp9			; a match
 fp3:	inc	bx
@@ -720,6 +731,7 @@ fp8:	sub	cx,cx			; no match
 fp9:	pop	es
 	pop	di
 	pop	bx
+	pop	si
 	ret
 ENDPROC	mcb_findpsp
 

@@ -462,17 +462,15 @@ fh12:	push	ax
 fh13:	cmp	al,0			; anything printed?
 	mov	al,-1
 	je	fh15			; no
-fh14:	push	ax
-	mov	al,' '
-	call	printChar
-	pop	ax
-	inc	byte ptr [bp-10]
-	test	byte ptr [bp-10],7	; at the next column yet?
-	jnz	fh14			; no
+;
+; If the longest name (10 characters) wouldn't fit at the next column, end
+; the line instead, without padding it (so the cursor never wraps).
+;
 	mov	ah,[bp-10]
-	add	ah,16
+	or	ah,7			; AH = next column - 1
+	add	ah,10
 	cmp	ah,[CON_COLS]		; is there room for another name?
-	jb	fh15			; yes
+	jb	fh14			; yes
 	push	ax
 	push	cx
 	push	dx
@@ -482,6 +480,14 @@ fh14:	push	ax
 	pop	ax
 	mov	byte ptr [bp-10],0
 fh15:	jmp	fh7
+fh14:	push	ax
+	mov	al,' '
+	call	printChar
+	pop	ax
+	inc	byte ptr [bp-10]
+	test	byte ptr [bp-10],7	; at the next column yet?
+	jnz	fh14			; no
+	jmp	fh15
 ;
 ; At the start of an entry, skip its tags and their brackets, recording the
 ; tags in [bp-9] (the category letter, and bit 7 for "+"), and since the next

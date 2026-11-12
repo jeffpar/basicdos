@@ -27,7 +27,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<sfh_add_ref,pfh_close,sfh_close,sfb_close,reset_keys>
 	EXTNEAR	<mcb_getsize,mcb_free_all,mcb_findpsp,scb_endio>
 	EXTNEAR	<mem_alias,mem_pmode,load_ne,r3_start,r3_resume>
-	EXTNEAR	<r3_setldt,r3_endvec,get_scb>
+	EXTNEAR	<r3_setldt,r3_endvec,get_scb,mcb_findsize>
 	EXTNEAR	<dos_check,dos_leave,dos_leave2,dos_ctrlc,dos_error>
 	EXTNEAR	<mcb_setname,scb_getnum,scb_release,scb_close,scb_yield>
 	EXTNEAR	<msc_sigctrlc,msc_retctrlc,scb_abort>
@@ -1465,6 +1465,13 @@ lpm0:	mov	cx,-1
 	mov	si,[si].CD_CODESIZE
 	sub	si,100h			; SI = # bytes of shared code
 	jbe	lpm9			; none
+;
+; The checksum pass reads all the shared code, so skip it unless some
+; program in memory has code of the same size (eg, never for the first SHELL).
+;
+	lea	ax,[si+100h]		; AX = end of code
+	call	mcb_findsize		; CX = candidate segment, if any
+	jcxz	lpm4a			; none, but maybe the core fits
 	push	si
 	sub	cx,cx
 	sub	dx,dx
@@ -1505,7 +1512,7 @@ lpm4:	pop	ax
 	pop	ax
 	test	cx,cx			; any match?
 	jnz	$+5			; yes
-	jmp	lpmc			; no, but maybe the core fits
+lpm4a:	jmp	lpmc			; no, but maybe the core fits
 	mov	ds:[PSP_START].OFF,100h
 	mov	ds:[PSP_START].SEG,cx
 	mov	ds:[PSP_CODESIZE],ax

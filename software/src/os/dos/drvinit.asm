@@ -270,7 +270,7 @@ ENDPROC	load_devices
 ;
 ; Inputs:
 ;	SI = offset of the start, DI = offset of the end
-;	BP = address of the kernel (from devinit)
+;	BP = address of the kernel (from devinit; also in dos_addr)
 ;	DS = kernel's data segment (or selector)
 ;
 ; Outputs:
@@ -283,7 +283,6 @@ ENDPROC	load_devices
 DEFPROC	move_init
 	and	si,0FFF0h
 	mov	[init_base],si
-	mov	[dos_addr],bp
 	sub	di,si
 	mov	[init_len],di
 	mov	[init_pkt].MV_LEN.LOW,di
@@ -553,7 +552,7 @@ if1:	fsave	es:[di]			; (which also does an FNINIT)
 if9:	ret
 ENDPROC	init_fpu
 
-	DEFWORD	dos_addr,0		; kernel's address (see move_init)
+	DEFWORD	dos_addr,0		; kernel's address (see sysinit)
 init_pkt	MOVEPKT	<0,0,0>
 
 CFG_DEVICE	db	7,"DEVICE="

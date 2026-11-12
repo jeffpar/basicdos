@@ -18,6 +18,7 @@
 
 DV_BUFLEN	equ	1024		; scratch buffer size (see DDPI_BUFPTR)
 DV_ROOM		equ	FDC_BUFSECS * 512 ; how far we move up (see chk_cpu)
+DV_SLACK	equ	32		; after DOS_FILE and CFG_FILE (see i9a)
 
 DEV	segment para public 'CODE'
 
@@ -316,9 +317,8 @@ i9:	add	sp,DDP_MAXSIZE
 ;
 ; That home overlaps our block, and the 8086 CPU$ puts a free MCB at the end of
 ; it, so the block must reach devinit_end at least, or that MCB could land on
-; code or data we still need; but no further, because with little memory, the
-; block we loaded DOS_FILE into isn't far beyond us, and an MCB inside it would
-; be moved with DOS_FILE (sysinit resizes the block anyway; see dos_size).
+; code or data we still need.  We allocate that much first, to learn the
+; block's address, and then lengthen it to hold DOS_FILE (see i9a).
 ;
 	mov	ax,cs:[dv_addr]
 	add	ax,offset devinit_end
@@ -335,14 +335,35 @@ i9:	add	sp,DDP_MAXSIZE
 	mov	dx,cs:[dos_pkt].MV_SRC.HIW
 	mov	ah,CPU_FREE
 	call	cpu_chk
-	pop	ax
-	mov	di,cs:[dos_pkt].MV_LEN.LOW
-	cmp	di,ax			; is DOS_FILE at least that long?
-	jae	i9a			; yes
-	xchg	di,ax
-i9a:	mov	ax,(CPU_ALLOC SHL 8) OR MEMF_LOW OR MEMF_NONE
+	pop	di			; DI = length through devinit_end
+	mov	ax,(CPU_ALLOC SHL 8) OR MEMF_LOW OR MEMF_NONE
 	call	cpu_blk			; DX:CX = address (in the first 64K)
-	mov	es,cs:[dv_data]
+;
+; With little memory (eg, 64K), DOS_FILE's new home overlaps the block we
+; loaded it into, and a free MCB at the end of its home would land inside the
+; data we're about to move, and be moved with it.  So if the two overlap (or
+; nearly do), the home extends past the end of that data instead, where the
+; MCB lands in the slack that chk_cpu left; sysinit resizes the block before
+; it needs the memory (see dos_size).
+;
+	mov	bx,cs:[dos_pkt].MV_LEN.LOW
+	mov	ax,cs:[dos_pkt].MV_SRC.LOW
+	mov	dx,cs:[dos_pkt].MV_SRC.HIW
+	sub	ax,cx
+	sbb	dx,0			; DX:AX = how far DOS_FILE moves
+	jnz	i9a			; too far to overlap
+	lea	si,[bx+DV_SLACK]
+	cmp	ax,si			; does the MCB land before the data?
+	jae	i9a			; yes
+	add	bx,ax			; no, so BX = length through the data
+i9a:	cmp	bx,di			; is the block long enough already?
+	jbe	i9b			; yes
+	mov	di,bx
+	push	cx
+	mov	ah,CPU_REALLOC
+	call	cpu_blk
+	pop	cx			; CX = address of the block again
+i9b:	mov	es,cs:[dv_data]
 	ASSUME	ES:DEV
 	mov	es:[dos_pkt].MV_DST.LOW,cx
 	mov	si,cx
@@ -458,6 +479,7 @@ cu1a:	push	cs
 	not	ax
 	and	di,ax			; DI = DOS_FILE size, in whole clusters
 	add	di,es:[cfg_size]	; plus CFG_FILE data
+	add	di,DV_SLACK		; and room for a free MCB (see i9a)
 	push	bx
 	push	si
 	sub	si,si			; SI:DI = length
