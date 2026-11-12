@@ -137,6 +137,7 @@ CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
 
 ADAPTER_MDA	equ	01h	; MDA (port 3B4h) is present
 ADAPTER_CGA	equ	02h	; CGA (port 3D4h) is present
+ADAPTER_EGA	equ	04h	; and it's an EGA or VGA (see chk_snow)
 
 PAGE_LEN	equ	4000	; bytes of a page that contexts use (80*25*2)
 MAX_PAGES	equ	8	; pages per adapter (see CURSOR_POSN)
@@ -2787,9 +2788,10 @@ ENDPROC	wait_focus
 ; and VIDEO_SCROLLDN functions do on the screen, with the BIOS locked, so that
 ; no swap_page moves the context meanwhile.
 ;
-; Like the BIOS, we blank a CGA while we move its memory (which would cause
-; "snow" on the page it's displaying), starting at vertical retrace, and with
-; the session locked, so that no other session runs while it's blank.
+; Moving a CGA's memory causes "snow" on the page it's displaying, but unlike
+; the BIOS, we don't blank the display meanwhile, since the flicker would have
+; no visible cause; instead, each row is moved (or filled) during vertical
+; retrace (see scroll_wait), so a scroll can take a number of frames.
 ;
 ; Inputs:
 ;	AH = VIDEO_SCROLL or VIDEO_SCROLLDN
@@ -2815,22 +2817,7 @@ DEFPROC	scroll_buf
 	pop	ds
 	ASSUME	DS:NOTHING
 	sti				; (see scroll)
-	call	chk_snow		; is the page in CGA memory?
-	jnc	sb0			; no
-	push	ax
-	push	dx
-	mov	ah,DOS_UTL_LOCK
-	call	far ptr DDINT_UTIL
-	mov	dx,3DAh
-sb0a:	in	al,dx
-	test	al,08h			; in vertical retrace?
-	jz	sb0a			; not yet
-	mov	dl,0D8h
-	mov	al,25h			; (80-column text, video off)
-	out	dx,al
-	pop	dx
-	pop	ax
-sb0:	push	ds
+	push	ds
 	push	bx			; save BH (fill attributes)
 	sub	dx,cx
 	add	dx,0101h		; DH = rows, DL = columns
@@ -2856,10 +2843,12 @@ sb3:	push	dx
 	call	get_start		; (an adapter's page has an offset)
 	add	bx,ax
 	pop	ax
+	mov	di,bx			; DI -> first row
+	call	chk_snow		; is the page in CGA memory?
+	sbb	bh,bh			; BH = -1 if so (see scroll_wait)
 	mov	es,ds:[CT_SCREEN].SEG
 	push	es
 	pop	ds			; DS = ES = buffer
-	mov	di,bx			; DI -> first row
 	cbw
 	xchg	cx,ax			; CX = # lines
 	mov	bl,cl			; BL = # lines to fill
@@ -2868,7 +2857,8 @@ sb4:	add	si,bp
 	loop	sb4			; SI -> row that moves to the first row
 	sub	dh,bl			; DH = # lines to move
 	jmp	short sb6
-sb5:	mov	cl,dl
+sb5:	call	scroll_wait
+	mov	cl,dl
 	push	si
 	push	di
 	rep	movsw
@@ -2880,31 +2870,59 @@ sb6:	dec	dh
 	jns	sb5
 	pop	ax			; AH = fill attributes
 	mov	al,' '
-sb7:	mov	cl,dl
+sb7:	call	scroll_wait
+	mov	cl,dl
 	push	di
 	rep	stosw
 	pop	di
 	add	di,bp
 	dec	bl
 	jnz	sb7
+	sti				; (see scroll_wait)
 	pop	ds
-	call	chk_snow		; did we blank a CGA?
-	jnc	sb9			; no
-	mov	ax,BIOS
-	mov	es,ax
-	ASSUME	ES:BIOS
-	mov	al,[CRT_MODE_SET]
-	ASSUME	ES:NOTHING
-	mov	dx,3D8h
-	out	dx,al			; restore the mode register
-	mov	ah,DOS_UTL_UNLOCK
-	call	far ptr DDINT_UTIL
-sb9:	pop	es
+	pop	es
 	pop	bp
 	pop	di
 	pop	si
 	jmp	unlock_bios
 ENDPROC	scroll_buf
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scroll_wait
+;
+; Before scroll_buf moves or fills a row of a CGA's memory, waits until the
+; CGA is in vertical retrace, and returns with interrupts off.  The retrace
+; bit is set for the first 16 of the 38 scan lines between frames, so when
+; it's set, at least 22 scan lines (1.4ms) remain, and a row of 80 columns
+; takes an 8088 about 0.4ms.  Interrupts are allowed between rows; whatever
+; time they take, the bit is tested again afterward.
+;
+; Inputs:
+;	BH = 0 if the page isn't in a CGA's memory (nothing to wait for)
+;
+; Outputs:
+;	Interrupts off (unless BH = 0)
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	scroll_wait
+	test	bh,bh
+	jz	sw9
+	push	ax
+	push	dx
+sw1:	sti				; (in effect after the next opcode)
+	mov	dx,3DAh
+	cli
+	in	al,dx
+	test	al,08h			; in vertical retrace?
+	jz	sw1			; not yet
+	pop	dx
+	pop	ax
+sw9:	ret
+ENDPROC	scroll_wait
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2914,7 +2932,8 @@ ENDPROC	scroll_buf
 ;	DS = CONSOLE context
 ;
 ; Outputs:
-;	Carry set if the context's page is in a CGA's video memory
+;	Carry set if the context's page is in a CGA's video memory (not an
+;	EGA's or VGA's, which have no "snow"; see ddcon_init)
 ;
 ; Modifies:
 ;	None
@@ -2926,6 +2945,9 @@ DEFPROC	chk_snow
 	jnc	cn9			; it's on a virtual page
 	cmp	ds:[CT_PORT].LOB,0B5h	; carry set if it's an MDA (0B4h)
 	cmc
+	jnc	cn9
+	ASSERT	ADAPTER_EGA,GT,<ADAPTER_MDA OR ADAPTER_CGA>
+	cmp	[adapters],ADAPTER_EGA	; carry clear if it's an EGA or VGA
 cn9:	ret
 ENDPROC	chk_snow
 
@@ -4122,10 +4144,10 @@ DEFPROC	write_curpos
 	push	bx
 	push	dx
 	call	get_curpos		; BX = screen offset for CURPOS
+	call	chk_snow		; is the page in CGA memory?
+	jnc	wcp3			; no, don't worry about horz retrace
 	mov	dx,ds:[CT_PORT]
 	ASSERT	Z,<cmp dh,03h>
-	cmp	dl,0B4h			; monochrome adapter?
-	je	wcp3			; yes, don't worry about horz retrace
 	add	dl,6			; DX = status port
 wcp1:	in	al,dx
 	test	al,01h
@@ -4285,7 +4307,20 @@ ddn3:	mov	dx,3D4h			; then the CGA
 	shl	bl,1
 	cmp	bl,ADAPTER_CGA
 	je	ddn2
-	pop	bx
+;
+; An EGA or VGA at the CGA's ports has no "snow" to avoid (see chk_snow), and
+; only their BIOS has this function, which returns BH = 0 if the adapter is
+; using those ports (an older BIOS returns with BL unchanged).
+;
+	mov	ah,VIDEO_ALTSEL
+	mov	bl,VALT_EGAINFO
+	int	INT_VIDEO
+	cmp	bl,VALT_EGAINFO		; is there an EGA or VGA?
+	je	ddn4			; no
+	test	bh,bh			; at the CGA's ports?
+	jnz	ddn4			; no
+	or	[adapters],ADAPTER_EGA
+ddn4:	pop	bx
 ;
 ; Install an INT 09h hardware interrupt handler, which we'll use to detect
 ; keys added to the BIOS keyboard buffer.

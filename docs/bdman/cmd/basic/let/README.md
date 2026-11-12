@@ -10,7 +10,7 @@ The **LET** statement assigns the value of *expression* to *variable*:
 
 > [LET] *variable*=*expression*
 
-Values cannot be assigned to predefined variables (eg, ERRORLEVEL and MAXINT).
+Values cannot be assigned to predefined variables (eg, ERRORLEVEL and MAXINT).  An assignment to [TRUE](../func/#true) or [FALSE](../func/#true) is accepted, for programs that define their own, but it has no effect.
 
 As in IBM PC BASIC, the LET keyword is optional (eg, `A = 1`), in BAS and BAT files and at the prompt.  At the prompt, a name followed by `=` (or by a subscript and `=`, eg, `A(1) = 2`) is an assignment, rather than the name of a program to run.
 

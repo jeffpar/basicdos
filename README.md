@@ -182,7 +182,7 @@ Utilities live in the EXT directory of every BASIC-DOS disk.  The filters, HELP,
 - [x] Assignments without LET, in BAS and BAT files and at the prompt
 - [x] LOAD, LIST (which shows each line as SAVE writes it, so tabs line up as they do with TYPE), NEW, RUN, and SAVE
 - [x] Entering programs at the prompt: a line that begins with a line number is added to the loaded program (in line number order, replacing any line with the same number), and a line number by itself deletes that line; AUTO, DELETE, EDIT, and LIST with line ranges (eg, `LIST 100-200`) work with program lines, too
-- [x] Functions: ARG$ (command-line arguments of a BAS or BAT file), DIR$ (file searches, returning each match's attributes, time, date, size, and name), ERR, ERRORLEVEL, MAXINT, PEEK, RND, and RND%
+- [x] Functions: ARG$ (command-line arguments of a BAS or BAT file), DIR$ (file searches, returning each match's attributes, time, date, size, and name), ERR, ERRORLEVEL, FALSE, MAXINT, PEEK, RND, RND%, and TRUE
 - [x] Arrays of integers, doubles, and strings, with up to 255 dimensions: DIM, ERASE, OPTION BASE, automatic dimensioning (with a largest subscript of 10) of arrays used without DIM, and "Subscript out of range" and "Duplicate definition" errors
 - [x] Control flow: END, FOR/NEXT (with STEP, and integer or double loop variables), GOSUB/RETURN, ON ... GOTO/GOSUB, STOP, and WHILE/WEND
 - [x] Memory management that's forgiving of low or fragmented memory: code, text, variable, and string blocks are modest (4K) blocks that are chained together as needed (generated code continues in another code block via a far JMP), no block type takes more than a quarter of the largest free block, and smaller blocks (down to 512 bytes) are used when necessary

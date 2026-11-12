@@ -101,7 +101,7 @@ Numeric variables start with a value of zero, and string variables start empty. 
 
 Integer arithmetic is much faster than floating-point arithmetic, so programs that don't need fractions should begin with `DEFINT A-Z`.
 
-The predefined variables [ERRORLEVEL](../cmd/basic/func/#errorlevel) and [MAXINT](../cmd/basic/func/#maxint) can't be assigned new values.
+The predefined variables [ERRORLEVEL](../cmd/basic/func/#errorlevel) and [MAXINT](../cmd/basic/func/#maxint) can't be assigned new values, and neither can the constants [TRUE](../cmd/basic/func/#true) (-1) and [FALSE](../cmd/basic/func/#true) (0), although assignments to those two are accepted and ignored.
 
 ### Constants
 

@@ -60,7 +60,7 @@ CODE    SEGMENT
 	EXTNEAR	<genExpr,genCvtType,genCallCS,genPushImmLong>
 	EXTNEAR	<getNextLine,getNextSymbol,getNextToken,peekNextToken>
 	EXTNEAR	<getLineNum,genMidSet,codeSeg,strPrompt,genSetPrompt>
-	EXTBYTE	<MID_DATA>
+	EXTBYTE	<MID_DATA,TRUE_DATA,FALSE_DATA>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -860,6 +860,10 @@ gl9:	stc
 ; PROMPT$ (see genSetPrompt), and MID$ can be the target of a MID$ statement
 ; (see genMidSet).
 ;
+; TRUE and FALSE are constants, but programs written for other BASICs often
+; define them (eg, FALSE=0: TRUE=NOT FALSE), so an assignment to either one
+; is accepted and generates no code (ie, the expression's code is discarded).
+;
 gl2:	cmp	si,offset MID_DATA	; a MID$ statement?
 	mov	dx,offset genMidSet
 	je	gl2u			; yes
@@ -867,12 +871,21 @@ gl2:	cmp	si,offset MID_DATA	; a MID$ statement?
 	cmp	word ptr cs:[si+2],offset strPrompt
 	je	gl2u			; PROMPT$
 	cmp	word ptr cs:[si+2],offset strPath
+	je	gl2p			; PATH$
+	cmp	si,offset TRUE_DATA
+	je	gl2c
+	cmp	si,offset FALSE_DATA
 	jne	gl9			; TODO: Generate a better error message
-	call	getNextSymbol
+gl2c:	push	di
+	call	gl2e
+	pop	di			; discard the expression's code
+	ret
+gl2e:	call	getNextSymbol
 	jbe	gl9
 	cmp	al,'='
 	jne	gl9
-	call	genExpr
+	jmp	genExpr
+gl2p:	call	gl2e
 	jc	gl9
 	mov	al,VAR_STR
 	call	genCvtType

@@ -195,6 +195,12 @@ CODE    SEGMENT
 	db	VAR_FUNC + 4,"TIME"
 	db	VAR_STR,0
 	dw	offset strTime,0
+	db	VAR_LONG + 4,"TRUE"
+	DEFLBL	TRUE_DATA,byte		; (see genLet)
+	dd	-1
+	db	VAR_LONG + 5,"FALSE"
+	DEFLBL	FALSE_DATA,byte		; (see genLet)
+	dd	0
 	db	VAR_FUNC + 5,"INKEY"
 	db	VAR_STR,0
 	dw	offset strInkey,0

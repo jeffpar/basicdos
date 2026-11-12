@@ -12,7 +12,7 @@ Functions can be used in any expression, in BASIC programs or at the prompt (eg,
 - String functions: [ASC](#asc), [CHR$](#chr), [HEX$](#hex), [INSTR](#instr), [LCASE$](#lcase), [LEFT$](#left), [LEN](#len), [MID$](#mid), [OCT$](#oct), [RIGHT$](#right), [SPACE$](#space), [SPC](#space), [STR$](#str), [STRING$](#string), [TAB](#tab), [UCASE$](#ucase), [VAL](#val)
 - File functions: [CVD](#cvi), [CVI](#cvi), [CVL](#cvi), [DIR$](#dir), [EOF](#eof), [EXISTS](#exists), [INPUT$](#input), [LOC](#loc), [LOF](#lof), [MKD$](#mki), [MKI$](#mki), [MKL$](#mki)
 - System functions: [ARG$](#arg), [CSRLIN](#csrlin), [CURDIR$](#curdir), [DATE$](#date), [DOS](#dos), [ERL](#erl), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PATH$](#path), [LPOS](#lpos), [PEEK](#peek), [POS](#pos), [PROMPT$](#prompt), [SCREEN](#screen), [TIME$](#time), [TIMER](#timer)
-- Predefined constants: [ERRORLEVEL](#errorlevel), [MAXINT](#maxint)
+- Predefined constants: [ERRORLEVEL](#errorlevel), [FALSE](#true), [MAXINT](#maxint), [TRUE](#true)
 
 You can also define your own functions with [DEF](../def/).
 
@@ -444,5 +444,11 @@ Equal to the return code from the last program executed, for an internal command
 #### MAXINT {#maxint}
 
 Equal to the largest positive integer (2147483647).
+
+#### TRUE and FALSE {#true}
+
+TRUE is equal to -1 and FALSE is equal to 0, the values that relational operators (and functions such as [EOF](#eof) and [EXISTS](#exists)) return, so `NOT TRUE` is FALSE, and `DONE = FALSE` or `WHILE TRUE` reads as it should.  Any non-zero value is true in an [IF](../if/) or WHILE, so test a value with `IF X THEN`, not `IF X = TRUE THEN`.
+
+Programs written for IBM PC BASIC often define their own (eg, `FALSE=0: TRUE=NOT FALSE`), so an assignment to TRUE or FALSE is accepted, but it has no effect; the values never change.  The names can't be used for other variables (and since predefined names match any type, neither can `TRUE%` or `FALSE$`).
 
 {% include footer.html prev="RETURN:../return/" next="Device Commands:../../device/" %}

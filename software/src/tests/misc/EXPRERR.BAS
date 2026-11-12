@@ -9,6 +9,7 @@
 90 E$ = "MID$(" + Q$ + "hello" + Q$ + ",2,1+)" : GOSUB 1000
 100 DEL ET.BAS
 110 IF MID$("hello",2,) + "!" <> "ello!" THEN PRINT "empty parameter failed" : FAILS = FAILS + 1
+115 TRUE = 5 : FALSE% = 5 : IF TRUE <> -1 OR FALSE THEN PRINT "TRUE/FALSE failed" : FAILS = FAILS + 1
 120 IF FAILS THEN PRINT "EXPRERR failed" ELSE PRINT "EXPRERR passed"
 130 END
 1000 OPEN "ET.BAS" FOR OUTPUT AS #1
