@@ -387,8 +387,8 @@ Sets the smallest subscript (0 or 1) of arrays dimensioned afterward.  The defau
 [b+]PAINT (*x*,*y*)[,[*paint*][,[*border*][,*background*]]]
 Fills the area around *x*,*y* with the *paint* color, up to the *border* color (which defaults to the *paint* color).  *paint* can also be a tile string of 1 to 64 bytes, one per row (each byte holds 4 pixels in SCREEN 1, or 8 in SCREEN 2); then *background* (default CHR$(0)) is a tile byte that unpainted rows may already match.
 
-[f]PATH$ or PATH$=*string*
-Returns (or sets) the directories, separated by semicolons, that are searched for a program that isn't in the current directory (eg, PATH$ = "A:\;A:\EXT;A:\SAMPLES").  A program name that includes a drive or directory isn't searched for.  PATH$ keeps its value when variables are cleared (eg, by NEW or CLEAR); CONFIG.SYS usually sets it on the SHELL line.
+[f]PATH$[=*string*]
+Contains a series of directories separated by semicolons (eg, PATH$ = "A:\;A:\EXT;A:\SAMPLES") that are searched when an unqualified program name cannot be found in the current directory.  PATH$ keeps its value when variables are cleared (eg, by NEW or CLEAR).  It can also be set on the SHELL line in CONFIG.SYS.
 
 [f+]PEEK(*offset*)
 Returns the byte at *offset* in the segment set by DEF SEG.
@@ -415,10 +415,32 @@ Same as PSET, except that the default color is the background color.
 Prints a series of values (or with #*n*, writes them to file *n*).  Each *separator* is a semicolon (the next value follows immediately), a comma (a tab), or a space or tab (like a semicolon), and a semicolon or comma at the end keeps the cursor on the same line.  To send the output of a line to a file instead, end the line with :> *file* (or :>> *file* to append).  At the prompt, a line can also end with a pipe to other commands (eg, | MORE), except on low memory systems.  For formatted output, use PRINTF USING (PRINT USING isn't supported).
 
 [b+]PRINTF [#*n*,]USING *format*;[*value*][*separator*][*value*]...
-Prints the values with the C-style *format* (or with #*n*, writes them to file *n*): %d prints a number (%x in hex), %f a double, %s a string, and %c a character, with an optional width and precision (eg, "%5d", "%-8.3s", "%.2f"); %% prints a percent sign.  For a packed date or time (eg, from DIR$), %M, %D, and %Y print the month, day, and year, %F and %W the month and weekday names, and %H, %N, and %S the hour, minute, and second; %n starts a new line.  A trailing ; or , suppresses the newline.
+Writes values to the screen (or, with #*n*, to file *n*) using format codes:
+%c  character\
+%d  integer (decimal)\
+%f  double-precision number\
+%n  new line\
+%s  string\
+%x  integer (hexadecimal)\
+%%  percent sign
+Packed DATE and TIME values (eg, from DIR$) can also use these format codes:
+%M  month\
+%D  day\
+%Y  year\
+%F  month (string)\
+%W  weekday (string)\
+%H  hour\
+%N  minute\
+%S  second\
+Most format codes also support numeric width and precision values (eg, "%5d", "%-8.3s", "%.2f"). A trailing ; or , suppresses a final new line.
 
-[f+]PROMPT$ or PROMPT$=*string*
-Returns (or sets) the format of the command prompt, a PRINTF format whose specifiers supply their own values: %s is the current drive and directory, %g is > (] in protected mode, } in V86 mode), %l is < ([ or {), %d is the session number, %n starts a new line, and PRINTF's date and time letters show the current date and time (eg, PROMPT$ = "%H:%02N %s%g").  PROMPT$ is empty unless set, which is the same as "%s%g".  It holds up to 62 characters, and like PATH$, it keeps its value when variables are cleared.
+[f+]PROMPT$[=*string*]
+Determines how the command prompt is displayed, using a PRINTF format string that supports any of the DATE or TIME format codes (using the current date and time) along with these special format codes:
+%d  session number\
+%g  close bracket\
+%l  open bracket\
+%s  current drive and directory
+The bracket options will vary depending on whether the processor is running in Real (<>), Protected ([]), or V86 ({}) mode.  If no PROMPT$ is set, the default is "%s%g".  It holds up to 62 characters, and like PATH$, it keeps its value when variables are cleared.
 
 [b+]PSET (*x*,*y*)[,*color*]
 Draws a point in a graphics mode, using the foreground color if no *color* is specified.
