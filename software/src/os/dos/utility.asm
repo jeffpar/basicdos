@@ -707,6 +707,20 @@ tc4:	cmp	al,'0'
 	test	ah,CLS_OCT OR CLS_HEX OR CLS_DEC OR CLS_VAR
 	jnz	tc4a
 	mov	ah,CLS_DEC		; must be decimal
+;
+; A '0' that starts a number and precedes an 'x' is the "0x" hex prefix,
+; so it's treated like an ampersand (and the 'x' like the 'H' of "&H").
+;
+	cmp	al,'0'
+	jne	tc6a
+	cmp	word ptr [bp].TMP_CX,0	; does anything follow the '0'?
+	jle	tc6a			; no
+	mov	al,[si]
+	or	al,20h			; lower-case the next character
+	cmp	al,'x'
+	jne	tc6a
+	mov	ah,CLS_OCT OR CLS_HEX
+	ret
 tc4a:	cmp	ah,CLS_OCT OR CLS_HEX
 	jne	tc4b
 	and	ah,CLS_OCT
@@ -739,13 +753,16 @@ tc5b:	test	ah,CLS_DEC		; preceded by some decimal value?
 	jmp	short tc7a		; change previous class and exit
 ;
 ; If we're on the heels of an ampersand, check for letters that determine
-; the base of the number ('H' for hex, 'O' for octal).
+; the base of the number ('H' for hex, 'O' for octal); the '0' of a "0x"
+; prefix is treated like an ampersand, so 'X' means hex, too.
 ;
 tc5c:	cmp	ah,CLS_OCT OR CLS_HEX	; did we see an ampersand previously?
 	jne	tc6			; no
 	cmp	al,'H'
+	je	tc5c1
+	cmp	al,'X'
 	jne	tc5d
-	and	ah,CLS_HEX
+tc5c1:	and	ah,CLS_HEX
 	jmp	short tc7a		; change previous class and exit
 
 tc5d:	cmp	al,'O'

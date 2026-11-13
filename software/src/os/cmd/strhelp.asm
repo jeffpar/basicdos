@@ -609,8 +609,8 @@ ENDPROC	strStr
 ;
 ; Like MSBASIC, blanks (spaces, tabs, and linefeeds) are ignored, and if the
 ; string doesn't begin with a number, the result is zero.  The &H (hex) and
-; &O (octal) prefixes are supported too (as is & alone, for octal); such a
-; value is converted to decimal digits for FPU_ATOD.
+; &O (octal) prefixes are supported too (as is & alone, for octal, and 0x,
+; for hex); such a value is converted to decimal digits for FPU_ATOD.
 ;
 ; Without the FPU$ driver, there are no doubles, so VAL returns a long instead
 ; (see genFuncExpr), converting only an integer (eg, "3.9" is 3).
@@ -658,13 +658,19 @@ sv3:	mov	al,0
 	pop	ds
 	lea	si,[valBuf]		; DS:SI -> buffer
 	mov	bl,10			; BL = base 10 (if no prefix)
-	cmp	byte ptr [si],'&'	; hex or octal prefix?
+	mov	ax,[si]
+	or	ah,20h			; lower-case the 2nd character
+	cmp	ax,'x0'			; "0x" hex prefix?
+	je	sv3a			; yes
+	cmp	al,'&'			; hex or octal prefix?
 	jne	sv5			; no
-	inc	si
+sv3a:	inc	si
 	lodsb
 	and	al,NOT 20h		; upper-case the prefix letter
 	mov	bl,16
 	cmp	al,'H'
+	je	sv4
+	cmp	al,'X'
 	je	sv4
 	mov	bl,8
 	cmp	al,'O'

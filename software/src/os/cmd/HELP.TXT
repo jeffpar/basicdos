@@ -592,7 +592,7 @@ ERRORLEVEL is set to 0, or 2 if *file* couldn't be opened.
 Runs a real-mode *program* (a COM or EXE file, found in the current directory or PATH$; COMMAND.COM if none) in a V86 machine, with *size* K of memory (4 to 640; 640 if no ~M), which needs an 80386 and a CPU=80386 line in CONFIG.SYS.  Its programs (eg, COMMAND.COM and the programs it runs) can use DOS and BASIC-DOS functions, including floating-point, but not BIOS interrupts (eg, INT 10h) or video memory.  If V86 or its program fails in a session of its own (eg, START V86), V86 displays `Press any key` and waits for one before its console closes.
 
 [f]VAL(*string*)
-Returns the numeric value of *string*, ignoring any blanks.  If *string* does not begin with a number, the result is 0.  The &H (hex) and &O (octal) prefixes are allowed (eg, VAL("&HFF") is 255).  Without floating-point (see MEM), the result is an integer (eg, VAL("3.9") is 3).
+Returns the numeric value of *string*, ignoring any blanks.  If *string* does not begin with a number, the result is 0.  The &H or 0x (hex) and &O (octal) prefixes are allowed (eg, VAL("&HFF") is 255).  Without floating-point (see MEM), the result is an integer (eg, VAL("3.9") is 3).
 
 [c]VER
 Displays the BASIC-DOS version number.

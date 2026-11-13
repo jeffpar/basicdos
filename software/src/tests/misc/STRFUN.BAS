@@ -14,6 +14,7 @@
 140 IF VAL("123") <> 123 OR VAL(" -1 2.5") <> -12.5 OR VAL("1E3") <> 1000 THEN PRINT "VAL failed" : FAILS = FAILS + 1
 150 IF VAL("") <> 0 OR VAL("ABC") <> 0 OR VAL("12ABC") <> 12 THEN PRINT "VAL edge failed" : FAILS = FAILS + 1
 155 IF VAL("&HFF") <> 255 OR VAL(" &h 1f") <> 31 OR VAL("&O17") <> 15 OR VAL("&17") <> 15 OR VAL("&HFFFFFFFF") <> -1 OR VAL("&H") <> 0 THEN PRINT "VAL &H/&O failed" : FAILS = FAILS + 1
+157 IF VAL("0xFF") <> 255 OR VAL(" 0X 1f") <> 31 OR VAL("0x") <> 0 OR VAL("10x") <> 10 OR 0x1F <> 31 OR 0XFFFFFFFF <> -1 OR 10 + 0x10 <> 26 THEN PRINT "0x failed" : FAILS = FAILS + 1
 160 IF INSTR(B$,"WORLD") <> 7 OR INSTR(B$,"X") <> 0 OR INSTR(8,B$,"O") <> 8 THEN PRINT "INSTR failed" : FAILS = FAILS + 1
 170 IF INSTR(B$,"") <> 1 OR INSTR(3,B$,"") <> 3 OR INSTR(E$,"A") <> 0 THEN PRINT "INSTR edge failed" : FAILS = FAILS + 1
 180 IF INSTR(B$,"HELLO WORLD!") <> 0 OR INSTR(12,B$,"") <> 0 THEN PRINT "INSTR bound failed" : FAILS = FAILS + 1

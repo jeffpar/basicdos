@@ -107,7 +107,7 @@ The predefined variables [ERRORLEVEL](../cmd/basic/func/#errorlevel) and [MAXINT
 
 - Integers: `123`, `-5`
 - Doubles: `1.5`, `.25`, `6.02E23`, `1D-10`; any number with a decimal point or exponent is a double
-- Hexadecimal and octal integers: `&H1F`, `&O17`
+- Hexadecimal and octal integers: `&H1F`, `&O17`; `0x1F` is the same as `&H1F`
 - Strings: `"Hello"`; a string at the end of a line doesn't need a closing quote
 
 A numeric constant can also have a type suffix: `#` or `!` makes it a double (eg, `2!`), and `%` keeps it an integer (eg, `7%`).

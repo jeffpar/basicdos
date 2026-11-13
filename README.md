@@ -190,6 +190,7 @@ Utilities live in the EXT directory of every BASIC-DOS disk.  The filters, HELP,
 - [x] MOUSE ON/OFF and the MOUSE(*n*) function (modeled on MSBASIC's PEN), which returns button events, their positions, and the current position and buttons, in pixels (graphics modes) or columns and rows (text modes); the pointer is hidden while graphics statements run (until the next MOUSE function), and the mouse is turned off when a BAS program ends
 - [x] INPUT and LINE INPUT, from the keyboard or an open file
 - [x] `&H` and `&O` prefixes in VAL (`&` alone also means octal)
+- [x] `0x` as an alternative to the `&H` hex prefix, in numeric constants and VAL
 - [x] PRINTF [#*n*,] USING: formatted output with C-style `%` specifiers (eg, `PRINTF USING "%5.2f";X#`), plus specifiers for the parts of packed dates and times (eg, `%.3F %2D %Y`) and `%n` for a new line
 - [x] Sequential file I/O: OPEN FOR INPUT, OUTPUT, and APPEND, CLOSE, PRINT #, WRITE #, INPUT #, LINE INPUT #, EOF, LOC, and LOF
 - [x] Random access file I/O: OPEN FOR RANDOM with LEN, FIELD, LSET, RSET, GET #, PUT #, and binary conversion functions (CVI, CVL, CVD, MKI$, MKL$, and MKD$)
