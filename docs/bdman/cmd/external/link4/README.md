@@ -19,7 +19,7 @@ exports, and protected-mode attributes.  BASIC-DOS uses LINK4 to build
 switch follows the program field (for example,
 `PRIMES.EXE/ALIGN:16`) and selects a power-of-two segment alignment.
 
-The hard disk demo provides LINK4 in **TOOLS**.  It's an NE executable that
+The hard disk demo provides LINK4 in **TOOLS\BIN**.  It's an NE executable that
 runs at ring 3 in protected mode, and through an NE loader stub in real mode,
 and its banner ends in `Version 5.00.12BD`.
 

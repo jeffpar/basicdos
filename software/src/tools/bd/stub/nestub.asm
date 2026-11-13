@@ -38,7 +38,7 @@
 ; the copy of the NE header and segment table) is fine.
 ;
 ; Assemble with MASM 4.00, and make a flat binary (the code has no relocations
-; of its own), which mkne.js reads from software/src/tools/NESTUB.BIN (on a
+; of its own), which mkne.js reads from NESTUB.BIN in this folder (on a
 ; BASIC-DOS hard disk, the include files are in \SRC\INC):
 ;
 ;	MASM /MX /R /DFINAL /I\SRC\INC NESTUB.ASM,NESTUB.OBJ,NUL;

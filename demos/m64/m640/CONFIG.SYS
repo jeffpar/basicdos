@@ -1,2 +1,2 @@
 REM 640K demonstration with one console, with its shell on the hard disk
-SHELL=C:COMMAND.COM PATH$="C:\;C:\EXT;C:\DEMOS;C:\SAMPLES;C:\TOOLS"
+SHELL=C:COMMAND.COM PATH$="C:\;C:\EXT;C:\DEMOS;C:\SAMPLES;C:\TOOLS\BIN"

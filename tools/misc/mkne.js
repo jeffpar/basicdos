@@ -323,7 +323,7 @@ function stubNE(file, stub) {
     return output;
 }
 
-const readStub = () => fs.readFileSync(new URL("NESTUB.BIN", TOOLS));
+const readStub = () => fs.readFileSync(new URL("bd/stub/NESTUB.BIN", TOOLS));
 
 /**
  * Converts one of the C compiler's passes, whose MZ image is EXEPACKed.

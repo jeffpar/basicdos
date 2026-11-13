@@ -23,7 +23,8 @@
 ;	DOSSEG CRT0.OBJ
 ;	LIB SLIBC -+CRT0;
 ;
-; The libraries in TOOLS\LIB were made that way (see TOOLS\README.TXT).
+; The libraries in TOOLS\LIB were made that way (see README.md in the BASIC-DOS
+; repository's software/src/tools folder).
 ;
 ; The program's module definition (DEF) file needs PROTMODE, CODE FIXED, DATA
 ; FIXED, and STACKSIZE and HEAPSIZE statements.  There is no stack segment:

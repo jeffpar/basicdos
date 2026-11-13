@@ -266,7 +266,7 @@ In protected mode, the DOS_PSP_EXEC functions run COM and NE programs, but not "
 - **MZ EXE files**: an EXE file's relocations are paragraph arithmetic, which doesn't work with selectors, so in protected mode, the DOS_PSP_EXEC functions refuse them with ERR_NOMEMORY, which COMMAND reports as "Unable to load X".
 - **NE programs**: an NE ("new executable") file lists each segment's type and size, and its relocations refer to segments by number, so each segment gets a block of its own, owned by the program's PSP, and a selector whose limit fits the segment exactly (for a code segment, the block's code alias).  The program must be marked PROTMODE, with FIXED segments, no imports, and only internal relocations; it starts with DS and ES addressing its PSP, as an MZ program does.  In real mode, an NE file runs its MS-DOS stub, like any MZ EXE file.
 
-`TESTS\BIN\PRIMES.EXE` is an NE program, linked by LINK4 (see `tests/primes/PRIMES.DEF` and the [build tools](../../../software/src/tools/dos/README.TXT)), with the real-mode program as its MS-DOS stub, so it runs in either mode.  LINK4 makes a segment code only if its class is `CODE`, and requires a DGROUP.
+`TESTS\BIN\PRIMES.EXE` is an NE program, linked by LINK4 (see `tests/primes/PRIMES.DEF` and the [build tools](../../../software/src/tools/README.TXT)), with the real-mode program as its MS-DOS stub, so it runs in either mode.  LINK4 makes a segment code only if its class is `CODE`, and requires a DGROUP.
 
 ### DEF SEG, PEEK, and POKE {#defseg}
 

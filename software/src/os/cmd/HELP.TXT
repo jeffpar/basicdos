@@ -281,7 +281,7 @@ Draws a line (or with B, a box; or with BF, a filled box) in a graphics mode.  I
 LINE INPUT [*prompt*;]*variable$* (or LINE INPUT #*n*,*variable$*) reads a whole line from the keyboard (or file *n*) into the string variable.
 
 [e]LINK4 [*objects* [,*program* [,*map* [,*libraries* [,*definitions*]]]]]
-Links object modules into a segmented NE executable, in real or protected mode (where it runs at ring 3).  Only the hard disk demo has it, in TOOLS.
+Links object modules into a segmented NE executable, in real or protected mode (where it runs at ring 3).  Only the hard disk demo has it, in TOOLS\BIN.
 
 [b]LIST [*line*][-[*line*]] or LIST VARS
 Lists all lines (or the specified range of lines) of the currently loaded BAS or BAT program, as SAVE would write them.

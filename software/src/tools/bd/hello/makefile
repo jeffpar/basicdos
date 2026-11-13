@@ -1,7 +1,7 @@
 #
 # Builds HELLO.EXE, a C program that runs in protected mode and real mode.
 #
-# Run "MAKE MAKEFILE" in this folder, with TOOLS in PATH$.  The steps are:
+# Run "MAKE MAKEFILE" in this folder, with TOOLS\BIN in PATH$.  The steps are:
 #
 #   1. CL compiles HELLO.C (/c means compile only, since CL would run LINK).
 #      BASIC-DOS has no INCLUDE variable, so /I names the include folder.

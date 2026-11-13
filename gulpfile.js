@@ -120,6 +120,12 @@ for (let line of fs.readFileSync("./software/manifest.txt", "utf8").split(/\r?\n
         manifest[section].push(line);
     }
 }
+/*
+ * toolFiles(dir) returns the files (not the folders) in software/src/tools/dir.
+ */
+const toolFiles = (dir) => globSync(SRC + "/tools/" + dir + "/*").sort().filter((file) =>
+    !fs.statSync(file).isDirectory());
+
 const diskFolders = { EXT: manifest.EXT, DEMOS: manifest.DEMOS, SAMPLES: manifest.SAMPLES };
 /**
  * diskFiles(diskName, fileSpecs)
@@ -196,11 +202,15 @@ let disks = {
             "TESTS/REGRESS": manifest["TESTS/REGRESS"],
             "TESTS/MISC": manifest["TESTS/MISC"],
             //
-            // The tools in software/src/tools/dos (see its README.TXT), overlaid with the BASIC-DOS versions in
+            // The tools in software/src/tools/dos (see software/src/tools/README.TXT), overlaid with the BASIC-DOS versions in
             // software/src/tools/bd (eg, MASM, MAKE, and LINK4; mk.sh gets the same result from the order of its PATH$), and then
             // the manifest's TOOLS (eg, MSBASIC).
             //
-            TOOLS: [ SRC + "/tools/dos/*", SRC + "/tools/bd/*" ].concat(manifest.TOOLS),
+            // All of those go in TOOLS/BIN (which the hard disk configurations add to PATH$); TOOLS itself has
+            // only README.TXT.
+            //
+            TOOLS: [ SRC + "/tools/README.TXT" ],
+            "TOOLS/BIN": toolFiles("dos").concat(toolFiles("bd"), manifest.TOOLS),
             //
             // The C compiler's include files and libraries; the BASIC-DOS libraries replace the originals with the
             // same names, just as the BASIC-DOS tools do.

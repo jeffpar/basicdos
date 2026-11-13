@@ -67,13 +67,13 @@ Existing MZ programs can be converted without their sources.  `tools/misc/mkne.j
 
 #### The NE Loader Stub {#stub}
 
-A pure NE program doesn't have to carry a second copy of itself.  It should already be safe to run in real mode, since what protected mode forbids (eg, segment arithmetic, or writes through CS) still works when it isn't done, whereas an MZ program rarely runs in protected mode as it stands.  So BASIC-DOS's stub can be a small NE loader (`NESTUB.BIN`, 398 bytes), rather than a real-mode program: `node tools/misc/mkne.js --stub in.exe out.exe` (or on BASIC-DOS, `STUB in.exe out.exe`, in **TOOLS** on the hard disk) replaces an NE file's stub with it, and the result runs in real mode on BASIC-DOS, and if the program uses only DOS functions, on PC DOS 2.00 and MS-DOS 3.20.
+A pure NE program doesn't have to carry a second copy of itself.  It should already be safe to run in real mode, since what protected mode forbids (eg, segment arithmetic, or writes through CS) still works when it isn't done, whereas an MZ program rarely runs in protected mode as it stands.  So BASIC-DOS's stub can be a small NE loader (`NESTUB.BIN`, 398 bytes), rather than a real-mode program: `node tools/misc/mkne.js --stub in.exe out.exe` (or on BASIC-DOS, `STUB in.exe out.exe`, in **TOOLS\BIN** on the hard disk) replaces an NE file's stub with it, and the result runs in real mode on BASIC-DOS, and if the program uses only DOS functions, on PC DOS 2.00 and MS-DOS 3.20.
 
 The stub needs no file I/O.  Its MZ header gives a header size of zero, and a load image that's the entire file, so DOS loads the stub and the NE image together, and the stub doesn't need the program's name.  It applies the NE program's relocations with paragraphs in place of selectors, moves any segments that need more room than they have in the file, zeroes what they don't initialize, and starts the program with the same registers that the kernel's NE loader gives it.  In protected mode, the kernel ignores the stub, as it does any other.
 
 The cost is memory when it's short: a converted C program's data segment is always 64K, whereas the original uses less when memory is short.  So MASM, for example, always needs a 144K block in real mode, compared to as little as about 88K for the original.
 
-`TESTS\BIN\PRIMES.EXE`, a pure NE program, would go from 1,348 bytes to 788, and EXE2BIN in **TOOLS** already went from 5,536 bytes to 2,960.  There are limits:
+`TESTS\BIN\PRIMES.EXE`, a pure NE program, would go from 1,348 bytes to 788, and EXE2BIN in **TOOLS\BIN** already went from 5,536 bytes to 2,960.  There are limits:
 
 - A program that may run on an 8088 can use only 8086 instructions, as any program that targets both processors must.
 - Real mode uses the program's protected-mode layout, including any fixed 64K segment (eg, EXE2BIN's file buffer), rather than sizing itself to the memory available.

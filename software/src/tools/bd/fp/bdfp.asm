@@ -20,9 +20,9 @@
 ;   - The math functions that FPU$ provides (see bdmath.c for the others).
 ;
 ; Assemble it with /MX, and /DMEM_S, /DMEM_M, /DMEM_C, or /DMEM_L for the
-; small, medium, compact, or large memory model (see TOOLS\README.TXT for how
-; the libraries in TOOLS\LIB were made; on a BASIC-DOS hard disk, the include
-; files are in \SRC\INC):
+; small, medium, compact, or large memory model (see README.md in the BASIC-DOS
+; repository's software/src/tools folder for how the libraries in TOOLS\LIB
+; were made; on a BASIC-DOS hard disk, the include files are in \SRC\INC):
 ;
 ;	MASM /MX /DMEM_S /I\SRC\INC BDFP.ASM,BDFP.OBJ;
 ;
