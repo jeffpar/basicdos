@@ -38,11 +38,17 @@
 ; the copy of the NE header and segment table) is fine.
 ;
 ; Assemble with MASM 4.00, and make a flat binary (the code has no relocations
-; of its own), which mkne.js reads:
+; of its own), which mkne.js reads from software/src/tools/NESTUB.BIN (on a
+; BASIC-DOS hard disk, the include files are in \SRC\INC):
 ;
-;	MASM /MX /R /DFINAL /I..\OS\INC NESTUB.ASM,NESTUB.OBJ,NUL;
+;	MASM /MX /R /DFINAL /I\SRC\INC NESTUB.ASM,NESTUB.OBJ,NUL;
 ;	LINK NESTUB.OBJ,NESTUB.EXE;
 ;	EXE2BIN NESTUB.EXE NESTUB.BIN
+;
+; STUB.EXE (see stub.c), which adds this code to an NE file on BASIC-DOS, gets
+; it from an object file assembled with /DSTUBLIB (see the makefile), which
+; makes the code a far data segment of that program, between the publics
+; _nestub and _nestubend.
 ;
 	DOSPSP equ 1
 	DOSNE equ 1
@@ -50,12 +56,23 @@
 	include	8086.inc
 	include	dosapi.inc
 
+;
+; LINK4 warns about a private segment in an NE program.
+;
+IFDEF	STUBLIB
+CODE	segment	para public 'NESTUB'
+ELSE
 CODE	segment
+ENDIF
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 ;
 ; Every register gets reused, so the initial AX and the PSP go on the stack.
 ;
+IFDEF	STUBLIB
+	public	_nestub,_nestubend
+_nestub	label	byte
+ENDIF
 main:	push	ax
 	push	es
 	push	cs
@@ -287,6 +304,17 @@ seg_para:
 	mov	ax,cs:[di].NES_SIZE
 	ret
 
+IFDEF	STUBLIB
+_nestubend label byte
+ENDIF
+
 CODE	ends
 
+;
+; A data segment has no entry point.  MASM stops reading here, so it reports
+; one open conditional.
+;
+IFDEF	STUBLIB
+	end
+ENDIF
 	end	main

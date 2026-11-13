@@ -365,7 +365,7 @@ Returns the next button event (*n* = 0: 0 if none, 1 = left pressed, 2 = left re
 Positions are pixels in graphics modes, or a column and row (starting at 1) in text modes.
 
 [b]NEW
-Erases the loaded program, functions, and variables.
+Erases the loaded program, functions, and variables (not allowed in a program).
 
 [b]NEXT [*variable*[,*variable*]...]
 Ends the innermost FOR loop (or, for each *variable*, the FOR loop with that *variable*).

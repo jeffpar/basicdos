@@ -18,7 +18,7 @@ CODE    SEGMENT
 	EXTNEAR	<openHandle,syncFiles,openPipe,addPipe,endPipes>
 	EXTNEAR	<pipeStages>
 	ENDIF
-	EXTNEAR	<freeAllText,genCode,keepCode,freeAllVars,cmdLoad>
+	EXTNEAR	<freeAllText,genCode,keepCode,freeAllVars,cmdLoad,chkProgram>
 	EXTNEAR	<freeIdleVars,resetVars,findVar,cmdPipe,runLine,syntaxError>
 	EXTNEAR	<enterLine,editPrompt,genUpper,runFile,showPrompt>
 	EXTNEAR	<saveChains,restoreChains,compactStrs>
@@ -1971,10 +1971,19 @@ ENDPROC	printCRLF
 ;	Any
 ;
 DEFPROC	cmdNew
+;
+; A running program's text is the loaded program (even a BAT file's), and
+; the lines it hasn't reached yet are read from it, so it can't be freed.
+;
+	push	bx
+	mov	bx,ds:[PSP_HEAP]
+	call	chkProgram		; is a program running?
+	pop	bx
+	jc	cn9			; yes
 	call	freeAllText
 	call	freeAllVars
 	clc
-	ret
+cn9:	ret
 ENDPROC	cmdNew
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

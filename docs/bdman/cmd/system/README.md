@@ -94,7 +94,7 @@ To see every device driver and memory block, use the DM command of [DEBUG.COM](.
 
 > NEW
 
-Erases the loaded program, functions, and variables.
+Erases the loaded program, functions, and variables.  It's not allowed in a program (a BAS or BAT file), since it would erase the program that's running.
 
 ### RUN
 

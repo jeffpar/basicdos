@@ -200,7 +200,22 @@ let disks = {
             // software/src/tools/bd (eg, MASM, MAKE, and LINK4; mk.sh gets the same result from the order of its PATH$), and then
             // the manifest's TOOLS (eg, MSBASIC).
             //
-            TOOLS: [ SRC + "/tools/dos/*", SRC + "/tools/bd/*" ].concat(manifest.TOOLS)
+            TOOLS: [ SRC + "/tools/dos/*", SRC + "/tools/bd/*" ].concat(manifest.TOOLS),
+            //
+            // The C compiler's include files and libraries; the BASIC-DOS libraries replace the originals with the
+            // same names, just as the BASIC-DOS tools do.
+            //
+            "TOOLS/INCLUDE": [ SRC + "/tools/dos/include/*" ],
+            "TOOLS/INCLUDE/SYS": [ SRC + "/tools/dos/include/SYS/*" ],
+            "TOOLS/LIB": [ SRC + "/tools/dos/lib/*", SRC + "/tools/bd/lib/*" ],
+            //
+            // The BASIC-DOS C startup code and floating-point library sources (with a test), a C sample, and the
+            // source of STUB.EXE; all but the first have a makefile that builds a program there.
+            //
+            "TOOLS/CRT": [ SRC + "/tools/bd/crt/*" ],
+            "TOOLS/FP": [ SRC + "/tools/bd/fp/*" ],
+            "TOOLS/HELLO": [ SRC + "/tools/bd/hello/*" ],
+            "TOOLS/STUB": [ SRC + "/tools/bd/stub/*" ]
         }
     }
 };
@@ -227,6 +242,11 @@ function stageDisk(diskName)
             if (disk) fileSpec = diskFiles(disk[1], [disk[2]])[0];
             let files = fileSpec.indexOf('*') >= 0? globSync(fileSpec).sort() : [fileSpec];
             for (let file of files) {
+                /*
+                 * A wildcard doesn't include folders (eg, the C compiler's lib and include folders in
+                 * software/src/tools/dos), which a disk lists as folders of their own.
+                 */
+                if (fileSpec.indexOf('*') >= 0 && fs.statSync(file).isDirectory()) continue;
                 let target = path.join(dirTarget, name || path.basename(file));
                 if (!name && path.extname(file).toLowerCase() == ".zip") {
                     execSync("unzip -q -o \"" + file + "\" -d \"" + dirTarget + "\"");

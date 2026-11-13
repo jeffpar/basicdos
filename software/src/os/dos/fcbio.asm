@@ -725,12 +725,16 @@ ENDPROC	get_fcb
 ;
 ; Copy the eleven-byte FCB name and extension, converting to uppercase.
 ;
+; The name can also be a null-terminated one (see chk_devname), which may be
+; less than eleven bytes from the end of a protected-mode caller's segment,
+; so the copy ends with a null.
+;
 ; Inputs:
 ;	DS:SI -> device or filename
 ;	ES:DI -> filename buffer
 ;
 ; Outputs:
-;	filename buffer filled in
+;	filename buffer filled in (through any null)
 ;
 ; Modifies:
 ;	AX, CX, SI, DI
@@ -745,7 +749,8 @@ DEFPROC	copy_name,DOS
 cn2:	lodsb
 	call	upper
 	stosb
-	loop	cn2
+	test	al,al			; end of a null-terminated name?
+	loopnz	cn2			; no
 	ret
 ENDPROC	copy_name
 

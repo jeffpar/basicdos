@@ -708,11 +708,13 @@ si11a:	mov	es:[bx].SCB_SFHIN,al
 ;
 ; Get the address of the FPU$ driver's function table (FPUTBL), if any, for
 ; sprintf's %f formatter, and if FPU$ uses an FPU, a place for every
-; session's FPU state (see init_fpu).
+; session's FPU state (see init_fpu).  Without FPU$ (eg, SKIP=FPU$), the
+; sessions still need what init_sess allocates for programs at ring 3.
 ;
 si12:	mov	dx,offset FPU_DEVICE
 	mov	ax,DOS_HDL_OPENRO
 	int	21h
+	cwd				; DX = 0 if it failed (AX is an error)
 	jc	si12a
 	xchg	bx,ax			; BX = SFH
 	push	ds
@@ -725,7 +727,7 @@ si12:	mov	dx,offset FPU_DEVICE
 	pop	ds
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
-	mov	ax,es:[scb_table].SEG
+si12a:	mov	ax,es:[scb_table].SEG
 	sub	ax,es:[scb_table].OFF
 	mov	dl,size SCB
 	div	dl			; AL = # of sessions
@@ -735,7 +737,7 @@ si12:	mov	dx,offset FPU_DEVICE
 ; If the DEBUG.COM driver is installed, open its DEBUG$ device for DPRINTF
 ; (see utl_dprintf).
 ;
-si12a:	mov	dx,offset DBG_DEVICE
+	mov	dx,offset DBG_DEVICE
 	mov	ax,DOS_HDL_OPENRW
 	int	21h
 	jc	si14

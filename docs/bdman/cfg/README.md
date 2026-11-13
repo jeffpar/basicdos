@@ -178,7 +178,7 @@ Everything after the *program* name becomes the program's command tail, which ca
 
 > SKIP=*device*[,*device*]...
 
-Lists built-in device drivers that should not be loaded, using their exact device names (eg, `SKIP=VKD$,FPU$`).  A skipped driver is never initialized, and its memory is reclaimed.  The CPU$ driver, which manages memory, can't be skipped.
+Lists built-in device drivers that should not be loaded, using their exact device names (eg, `SKIP=VKD$,FPU$`); there can be more than one SKIP line.  A skipped driver is never initialized, and its memory is reclaimed.  The CPU$ driver, which manages memory, can't be skipped.
 
 For example, a configuration that uses only serial consoles doesn't need the VKD$ driver, and skipping the FPU$ driver disables floating-point support (so variables default to integers, and `/` and `^` become integer operations).  On a machine with 64K of memory or less, the FPU$ and PIPE$ drivers unload themselves, as if they had been skipped.  Skipping the MOUSE$ driver avoids the time it takes to look for a serial mouse at boot.
 

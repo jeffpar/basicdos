@@ -111,22 +111,10 @@ d1:	mov	byte ptr es:[di],0	; null-terminate the CFG_FILE data
 	sub	ax,offset devinit_end
 	mov	es:[cfg_size],ax
 	inc	di
-	mov	si,offset devinit_end	; look for "SKIP=" at the start of a line
-d1a:	cmp	word ptr cs:[si],'KS'
-	jne	d1b
-	cmp	word ptr cs:[si+2],'PI'
-	jne	d1b
-	cmp	byte ptr cs:[si+4],'='
-	jne	d1b
-	add	si,5
+	mov	si,offset devinit_end	; look for the first "SKIP=" line
+	call	find_skip
+	jc	d2
 	mov	es:[skip_list],si	; CS:SI -> list of driver names
-	jmp	short d2
-d1b:	lods	byte ptr cs:[si]
-	test	al,al			; end of CFG_FILE data?
-	jz	d2			; yes
-	cmp	al,CHR_LINEFEED
-	jne	d1b
-	jmp	d1a
 d2:	mov	es:[buf_off],di		; scratch buffer follows CFG_FILE data
 	pop	di			; DI = end of drivers again
 	push	ds
@@ -694,10 +682,44 @@ ENDPROC	rd_file
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; find_skip
+;
+; Finds the next line of the CFG_FILE data that starts with "SKIP=".
+;
+; Inputs:
+;	CS:SI -> start of a line (find_skip), or anywhere before the end of
+;	a line (next_skip)
+;
+; Outputs:
+;	Carry clear if found, CS:SI -> list of driver names; otherwise, set
+;
+; Modifies:
+;	AL, SI
+;
+DEFPROC	find_skip
+	cmp	word ptr cs:[si],'KS'
+	jne	next_skip
+	cmp	word ptr cs:[si+2],'PI'
+	jne	next_skip
+	cmp	byte ptr cs:[si+4],'='
+	jne	next_skip
+	add	si,5			; (carry clear)
+	ret
+	DEFLBL	next_skip,near
+	lods	byte ptr cs:[si]
+	cmp	al,CHR_LINEFEED
+	je	find_skip
+	cmp	al,1			; end of CFG_FILE data?
+	jnb	next_skip		; no
+	ret				; yes (carry set)
+ENDPROC	find_skip
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; chk_skip
 ;
-; Checks the driver's name against the "SKIP=" list (eg, "SKIP=VKD$,FPU$"),
-; which is a list of driver names separated by commas.
+; Checks the driver's name against the "SKIP=" lists (eg, "SKIP=VKD$,FPU$"),
+; each of which is a list of driver names separated by commas.
 ;
 ; Inputs:
 ;	DS:SI -> driver header
@@ -746,9 +768,16 @@ ck4b:	inc	si
 ck5:	pop	si
 	cmp	bl,1			; carry set if BL is zero (a match)
 	jb	ck9
-	inc	di			; skip the delimiter
 	cmp	al,','			; more names?
-	je	ck1			; yes
+	jne	ck6			; no
+	inc	di			; skip the delimiter
+	jmp	ck1
+ck6:	push	si
+	mov	si,di
+	call	next_skip		; is there another "SKIP=" line?
+	mov	di,si
+	pop	si
+	jnc	ck1			; yes
 	clc
 ck9:	pop	di
 	ret

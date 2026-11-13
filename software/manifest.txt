@@ -25,7 +25,9 @@
 # diskette with ROOT, EXT, DEMOS, and SAMPLES, the BASICDOS-360K-TESTS diskette
 # with TESTS (and its subfolders) and TOOLS, and the BASICDOS-10MB hard disk with
 # all of them (plus DEMOS/WOLF3D, the WOLF3D.BAT and JIVE files that only it has
-# in DEMOS, SRC, and the build tools in TOOLS).  tools/tests/prep.sh copies EXT
+# in DEMOS, SRC, and the build tools in TOOLS, with the C compiler's include
+# files and libraries in TOOLS/INCLUDE and TOOLS/LIB, and the C startup,
+# floating-point, sample, and STUB sources in TOOLS/CRT, FP, HELLO, and STUB).  tools/tests/prep.sh copies EXT
 # into each test configuration's EXT folder, DEMOS and TESTS into its TESTS
 # folder, TESTS/REGRESS and TESTS/MISC into its TESTS\REGRESS and TESTS\MISC
 # folders, and TOOLS into TOOLS.

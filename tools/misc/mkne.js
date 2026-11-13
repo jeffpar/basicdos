@@ -3,7 +3,7 @@
  * Converts the MZ tools in software/src/tools/dos to NE executables in
  * software/src/tools/bd.  BASIC-DOS loads the NE image, a restricted form of
  * NE, in protected mode, and in real mode, NESTUB.BIN (see
- * software/src/tools/nestub.asm), an NE loader that replaces the MZ image, does
+ * software/src/tools/bd/stub/nestub.asm), an NE loader that replaces the MZ image, does
  * the same, so one image runs in either mode, including under other versions of
  * DOS.  All of a program's patches must therefore be safe in real mode, using
  * only 8086 instructions, since these tools run on an 8088, too.
@@ -324,6 +324,183 @@ function stubNE(file, stub) {
 }
 
 const readStub = () => fs.readFileSync(new URL("NESTUB.BIN", TOOLS));
+
+/**
+ * Converts one of the C compiler's passes, whose MZ image is EXEPACKed.
+ *
+ * Each frame that a relocation names stays a separate NE segment, with the
+ * same offsets, extended by the next frame's first paragraph (see MAPSYM).
+ * The frames from emuData up are data, and the last one is DGROUP.  A group's
+ * member frame is in the same segment as its base frame (some of its data is
+ * addressed from the base, and some from the member, as with MAKE's DGROUP),
+ * so the offset that goes with each of the member's relocations (a far
+ * pointer's, or the MOV AX before a MOV DX with the frame) is adjusted.
+ *
+ * Every pass contains the same copy of Microsoft's 8087 emulator (which the
+ * compiler uses for floating-point constants), in the code segment at frame
+ * emuCode, with its data in the first data segment, at frame emuData.  It
+ * can't run at ring 3 as it is:
+ *
+ *   - It finds its data segment in the segment of INT 3Eh's vector, which it
+ *     sets at startup.  Low memory is out of reach, so the four places that
+ *     read the vector load the data segment's selector instead, from a MOV
+ *     with a relocation.
+ *   - The compiler's floating-point instructions are INT 34h through 3Dh, but
+ *     ring 3 code can't issue or hook those.  It can use INT 3, so each of the
+ *     instructions (see sites) begins with a one-byte INT 3 instead of an
+ *     INT's first byte, and a handler for INT 3 moves the return address past
+ *     the second byte, and jumps to the emulator's handler for it.  That takes
+ *     one vector, in either mode, where the emulator took eleven.
+ *   - INT 3Dh's handler (FWAIT) replaces its INT with MOV AX,AX, in a code
+ *     segment, so those are replaced here.
+ *   - It saves the vectors it replaces in its code segment.  INT 3's goes in
+ *     the data segment instead, which is 16 bytes larger.
+ *   - Two of its handlers begin with STI.  INT 3's handler restores the
+ *     caller's flags with POPF instead, which never faults.
+ *
+ * start and shrink are patchStartup's offsets.
+ */
+function convertPass({ source, image: packed }, start, shrink, emuCode,
+    emuData, sites, options = {}) {
+    const { group } = options;
+    const unpacked = unpackExepack(source, packed);
+    const { image, relocations } = unpacked;
+    const sp = patchStartup(image, start, shrink, unpacked.sp);
+    const targets = [...new Set(relocations.map(r => r.target))]
+        .sort((a, b) => a - b);
+    const frames = targets.filter(frame => frame !== group?.member);
+    if (group) {
+        const delta = (group.member - group.base) * 16;
+        for (const { linear, target } of relocations) {
+            if (target === group.member) {
+                const offset = image[linear - 1] === 0xba &&
+                    image[linear - 4] === 0xb8 ? linear - 3 : linear - 2;
+                image.writeUInt16LE(word(image, offset) + delta, offset);
+            }
+        }
+    }
+    const dgroup = frames[frames.length - 1];
+    const segments = frames.map((frame, i) => ({
+        start: frame * 16,
+        end: frame === dgroup ? image.length :
+            frame >= emuData ? frames[i + 1] * 16 :
+            Math.min(frames[i + 1] * 16 + 16, emuData * 16),
+        data: frame >= emuData
+    }));
+    segments[segments.length - 1].size = 0;
+
+    const emu = emuCode * 16;
+    const data = hexWord(emuData);
+    const loadData = (offset, original, replacement) => {
+        patch(image, emu + offset, original, replacement);
+        relocations.push({ linear: emu + offset + 1, target: emuData });
+    };
+    loadData(0x0027, "33c9 8ed9 8e1efa00", `b9 ${data} 8ed9 33c9`);
+    loadData(0x016e, "33c0 8ed8 8e1efa00", `b8 ${data} 8ed8 33c0`);
+    loadData(0x04b6, "33c0 8ed8 8e1efa00", `b8 ${data} 8ed8 33c0`);
+    loadData(0x04fa, "33c0 8ed8 8b3efa00 8edf 8ec7",
+        `bf ${data} 8edf 8ec7 33c0`);
+    patch(image, emu + 0x03f3, "fb");
+    patch(image, emu + 0x0434, "fb");
+
+    const emuSegment = segments[frames.indexOf(emuCode)];
+    const dataSegment = segments[frames.indexOf(emuData)];
+    const saved = dataSegment.end - dataSegment.start;
+    dataSegment.size = saved + 16;
+
+    const handler = emuSegment.end - emuSegment.start;
+    const jump = (from, to) => `e9 ${hexWord(to - (from + 3))}`;
+    const int3 = bytes(`
+        55                      // push bp
+        8bec                    // mov bp,sp
+        50 53 1e                // push ax / push bx / push ds
+        c55e02                  // lds bx,[bp+2] (the return address)
+        8a07                    // mov al,[bx] (the INT's second byte)
+        ff4602                  // inc word ptr [bp+2]
+        1f 5b                   // pop ds / pop bx
+        ff7606 9d               // push [bp+6] / popf (the caller's flags)
+        3c3c                    // cmp al,3Ch
+        58 5d                   // pop ax / pop bp
+        7203                    // jb $+5
+        ${jump(handler + 0x1a, 0x03f3)}     // INT 3Ch
+        ${jump(handler + 0x1d, 0x0434)}     // INT 34h-3Bh
+    `);
+    const hook = handler + int3.length;
+    const hookCode = bytes(`
+        50 53 52 1e 06          // push ax, bx, dx, ds, and es
+        8eda                    // mov ds,dx (the emulator's data)
+        b80335 cd21             // DOS_MSC_GETVEC, INT 3
+        891e ${hexWord(saved)}  // mov [saved],bx
+        8c06 ${hexWord(saved + 2)}  // mov [saved+2],es
+        0e 1f                   // push cs / pop ds
+        ba ${hexWord(handler)}  // mov dx,handler
+        b80325 cd21             // DOS_MSC_SETVEC, INT 3
+        07 1f 5a 5b 58          // pop es, ds, dx, bx, and ax
+        c3                      // ret
+    `);
+    const unhook = hook + hookCode.length;
+    const unhookCode = bytes(`
+        50 52 1e                // push ax, dx, and ds
+        c516 ${hexWord(saved)}  // lds dx,[saved]
+        b80325 cd21             // DOS_MSC_SETVEC, INT 3
+        1f 5a 58                // pop ds, dx, and ax
+        c3                      // ret
+    `);
+    emuSegment.extra = Buffer.concat([int3, hookCode, unhookCode]);
+
+    /*
+     * The emulator's startup saves and sets its vectors, and its shutdown
+     * restores them; ours do the same for INT 3 alone.
+     */
+    patch(image, emu + 0x0079, `
+        50 51 53 57 06 b90b00 b83435 bf4c00 cd21 40 2e891d 2e8c4502 83c704
+        e2f1 07 5f 5b 59 58
+    `, nearCall(0x0079, hook));
+    patch(image, emu + 0x00a2, "b83e25 cd21");
+    patch(image, emu + 0x00c0, `
+        ba3404 bef303 bfd603 1e 0e 1f b83425 b90800 cd21 40 e2fb 8bd6 cd21
+        40 8bd7 cd21 1f
+    `, "eb1f");
+    patch(image, emu + 0x0106, `
+        50 51 52 57 1e b90b00 b83425 bf4c00 2ec515 cd21 40 83c704 e2f5 1f
+        5f 5a 59 58 c3
+    `, `${nearCall(0x0106, unhook)} c3`);
+
+    /*
+     * C1 joins each include directory and a file's name with "/", which
+     * BASIC-DOS doesn't accept in a path, so it stores "\\" instead.
+     */
+    if (options.slash) {
+        patch(image, options.slash, "26c647ff2f", "26c647ff5c");
+    }
+
+    for (const site of sites) {
+        if (image[site] !== 0xcd || image[site + 1] < 0x34 ||
+            image[site + 1] > 0x3d) {
+            throw new Error(`unexpected bytes at ${hex(site)}`);
+        }
+        if (image[site + 1] === 0x3d) {
+            image.writeUInt16BE(0x89c0, site);
+        } else {
+            image[site] = 0xcc;
+        }
+    }
+    const numbers = new Map(frames.map((frame, i) => [frame, i + 1]));
+    if (group) {
+        numbers.set(group.member, numbers.get(group.base));
+    }
+    return {
+        image,
+        relocations,
+        frames: numbers,
+        segments,
+        autoData: frames.length,
+        ip: unpacked.ip,
+        cs: frames.indexOf(unpacked.cs) + 1,
+        sp,
+        ss: frames.length
+    };
+}
 
 const PROGRAMS = [
 
@@ -800,6 +977,189 @@ const PROGRAMS = [
                 ss: frames.length
             };
         }
+    },
+
+    /*
+     * CL 4.00 (the C compiler's driver)
+     *
+     * The MZ image is EXEPACKed.  It's a small-model C program, with a far
+     * data segment (a table of far pointers to its messages) between its code
+     * and DGROUP.
+     */
+    {
+        name: "CL",
+        hash: "91b71ef0b411b63c153b76db2985c6d335fde7191ac682fe15c683d7aec666d7",
+        convert({ source, image: packed }) {
+            const unpacked = unpackExepack(source, packed);
+            const { image, relocations } = unpacked;
+            const sp = patchStartup(image, 0x2f33, 0x2f70, unpacked.sp);
+
+            /*
+             * The run-time's argument parser (with wildcards) removes a word
+             * from under its return address, holding the address in ES, which
+             * faults in protected mode, since it's not a selector.  AX is free.
+             */
+            patch(image, 0x259e, "07 5f 06", "58 5f 50");
+
+            /*
+             * CL changes each "\\" in an include directory to "/", which
+             * BASIC-DOS doesn't accept in a path, so both loops that do that
+             * store the "\\" they found (see C1, too).
+             */
+            patch(image, 0x161a, "c6052f", "c6055c");
+            patch(image, 0x1af3, "c6042f", "c6045c");
+
+            /*
+             * Before DOS 3.00, the C run-time's EXEC helper saves SS, SP, DS,
+             * and two words of its data in its code segment, which is read-only
+             * in protected mode, and restores them afterward.  BASIC-DOS
+             * preserves them, as DOS 3.00 does, so always skip both.
+             */
+            patch(image, 0x4631, "7d21", "eb21");
+            patch(image, 0x4684, "7d21", "eb21");
+
+            /*
+             * The helper's EPB_ENVSEG isn't a selector (see MAKE), but CL
+             * passes each compiler pass its arguments in the environment, so
+             * the pass can't share CL's.  A helper at the end of the code
+             * segment copies the new environment to a block of its own, whose
+             * segment (or 0, without the memory) becomes EPB_ENVSEG, and
+             * another, in place of the DOS version check that no longer
+             * matters, frees the block when the pass ends.
+             */
+            const codeEnd = 0x4bb0;
+            const copyEnv = bytes(`
+                56 57 06                // push si / push di / push es
+                8b760a                  // mov si,[bp+0Ah] (the environment)
+                1e 07                   // push ds / pop es
+                8bfe                    // mov di,si
+                33c0                    // xor ax,ax
+                b9ffff                  // mov cx,-1
+                f2ae                    // repne scasb (each string's end)
+                ae                      // scasb (the last one?)
+                75fb                    // jne $-3
+                2bfe                    // sub di,si
+                8bcf                    // mov cx,di (its length)
+                8d5d0f                  // lea bx,[di+15]
+                d1eb d1eb d1eb d1eb     // shr bx,1 (4 times)
+                b448 cd21               // DOS_MEM_ALLOC
+                7208                    // jc $+10
+                8ec0                    // mov es,ax
+                33ff                    // xor di,di
+                f3a4                    // rep movsb
+                eb02                    // jmp $+4
+                33c0                    // xor ax,ax
+                07 5f 5e                // pop es / pop di / pop si
+                c3                      // ret
+            `);
+            const freeEnv = bytes(`
+                368e064a1e              // mov es,ss:[1E4Ah] (EPB_ENVSEG)
+                8cc0                    // mov ax,es
+                85c0                    // test ax,ax
+                7404                    // jz $+6
+                b449 cd21               // DOS_MEM_FREE
+                c3                      // ret
+            `);
+            patch(image, 0x45fa, "8cd8 8b5e0a b104 d3eb 03c3",
+                nearCall(0x45fa, codeEnd));
+            patch(image, 0x467c, "b430 cd21 3c03",
+                nearCall(0x467c, codeEnd + copyEnv.length));
+
+            /*
+             * Print a banner with "BD" from CS, in a helper that replaces
+             * CL's first fputs call (to stderr, which isn't buffered); the
+             * copyright fputs call is unchanged.
+             */
+            const writer = codeEnd + copyEnv.length + freeEnv.length;
+            const banner = Buffer.from(
+                "Microsoft (R) C Compiler  Version 4.00BD\r\n", "ascii");
+            const writeBanner = bytes(`
+                1e                      // push ds
+                0e 1f                   // push cs / pop ds
+                ba ${hexWord(writer + 18)}      // mov dx,banner
+                b9 ${hexWord(banner.length)}    // mov cx,banner.length
+                bb 0200                 // mov bx,stderr
+                b4 40                   // mov ah,40h
+                cd 21                   // int 21h
+                1f                      // pop ds
+                c3                      // ret
+            `);
+            patch(image, 0x15a2, "b88205 50 b8b21c 50 e8e910 83c404",
+                nearCall(0x15a2, writer));
+
+            /*
+             * The 04CAh frame starts 30h bytes after the 04C7h group base (see
+             * MAKE).
+             */
+            for (const { linear, target } of relocations) {
+                if (target === 0x04ca) {
+                    image.writeUInt16LE(word(image, linear - 2) + 0x30,
+                        linear - 2);
+                }
+            }
+            return {
+                image,
+                relocations,
+                frames: new Map([[0x04bb, 2], [0x04c7, 3], [0x04ca, 3]]),
+                segments: [
+                    { start: 0, end: codeEnd,
+                      extra: Buffer.concat(
+                        [copyEnv, freeEnv, writeBanner, banner]) },
+                    { start: codeEnd, end: 0x4c70, data: true },
+                    { start: 0x4c70, end: image.length, size: 0, data: true }
+                ],
+                autoData: 3,
+                ip: unpacked.ip,
+                cs: 1,
+                sp,
+                ss: 3
+            };
+        }
+    },
+
+    /*
+     * C1, C2, and C3 4.00 (the C compiler's passes)
+     */
+    {
+        name: "C1",
+        hash: "954628c81041f3479c834d1df4e572ac0271a523e6bde59911cf1361e6b70c20",
+        convert: mz => convertPass(mz, 0x239d, 0x23dc, 0x0000, 0x18d6, [
+            0x01adf, 0x01ae2, 0x01ae5, 0x01ae9, 0x01bf1, 0x01bf5, 0x01c4b,
+            0x01c55, 0x01c59, 0x02099, 0x0209e, 0x020a8, 0x020ad, 0x020b0,
+            0x020b3, 0x020b6, 0x020ee, 0x020f2, 0x020f5, 0x020fa, 0x02107,
+            0x0210b, 0x0210f, 0x02112, 0x02117, 0x02353, 0x02357, 0x04147,
+            0x0414c, 0x04156, 0x041a7, 0x041ac, 0x041be, 0x041c3, 0x042e4,
+            0x042e7, 0x042ea, 0x042ef, 0x042f2, 0x042f7, 0x04300, 0x04303,
+            0x04310, 0x04382, 0x0441a, 0x0441d, 0x12bf5, 0x12bfe, 0x12c07,
+            0x12c30, 0x12c39, 0x12c42, 0x14998, 0x1499f, 0x149a6, 0x149aa,
+            0x149b1, 0x149b8, 0x149c1, 0x149c8, 0x149d1, 0x149d8, 0x149e1,
+            0x149e5, 0x14a1e, 0x14a25, 0x14a38, 0x14a3f, 0x14a55, 0x14a5c,
+            0x14a6c, 0x14a73, 0x14a83, 0x14a8a, 0x14a9a, 0x14aa1, 0x14ab1,
+            0x14ab5, 0x14ac4, 0x14ac8, 0x14ad2, 0x14ad6, 0x14ae8, 0x14aec,
+            0x14b37, 0x14b3e, 0x14b42, 0x14b4c, 0x14b53, 0x14b57, 0x14b61,
+            0x14b7a, 0x14b93, 0x14bb0, 0x14bb7, 0x14bbb
+        ], { slash: 0x173c4 })
+    },
+    {
+        name: "C2",
+        hash: "8c3bcd55b4ad97dad66ddb4342a07335b10900d820f0c07450b8d331be5f9ee9",
+        convert: mz => convertPass(mz, 0xea90, 0xeacd, 0x0fde, 0x146a, [
+            0x0567c, 0x05680, 0x056e8, 0x056ec, 0x056f0, 0x0643d, 0x06441,
+            0x07fdc, 0x07fe0, 0x0882a, 0x08848, 0x0884c, 0x08850, 0x0be24,
+            0x0be28, 0x0be2c, 0x0be4a, 0x0be4e, 0x0be52, 0x0c029, 0x0c02d,
+            0x0c031, 0x0c035, 0x0c03c, 0x0c040, 0x0c049, 0x0c04d, 0x0c056,
+            0x0c05a, 0x0c060, 0x0c065, 0x0c07b, 0x0c07f, 0x0c0fb, 0x0c0ff,
+            0x0c102, 0x0c106, 0x0cdab, 0x0cdaf, 0x0e6b9, 0x0e6bd, 0x0e6c5,
+            0x0e6e7, 0x0e6eb, 0x0e6f3, 0x0e881, 0x0e884, 0x0e887, 0x0e88b
+        ], { group: { base: 0x147d, member: 0x16ed } })
+    },
+    {
+        name: "C3",
+        hash: "eb2d5361e9142a72561845898aae7c3afadbfd1a28f34ae590d051feb3afd0e0",
+        convert: mz => convertPass(mz, 0xc9d6, 0xca13, 0x0fa3, 0x1116, [
+            0x00783, 0x00787, 0x0078f, 0x007b1, 0x007b5, 0x007bd, 0x034e9,
+            0x034ec, 0x034f0, 0x07ba0, 0x07ba7, 0x07baa
+        ])
     },
 
     /*
