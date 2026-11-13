@@ -377,8 +377,7 @@ DEFPROC	set_fault
 	jnz	sf0			; yes
 ;
 ; Fill the real-mode hard error stack with SIG_BASICDOS, so that a dump of
-; the vector table shows how much of the stack has ever been used; the fill
-; skips any hard disk parameter tables (see ERR_HDPT).
+; the vector table shows how much of the stack has ever been used.
 ;
 	push	es
 	push	di
@@ -386,11 +385,8 @@ DEFPROC	set_fault
 	sub	di,di
 	mov	es,di
 	mov	di,ERR_STACK_TOP - ERR_STACK_SIZE
-	mov	cx,(ERR_HDPT - (ERR_STACK_TOP - ERR_STACK_SIZE)) / 2
+	mov	cx,ERR_STACK_SIZE / 2
 	mov	ax,SIG_BASICDOS
-	rep	stosw
-	add	di,ERR_HDPT_SIZE
-	mov	cl,(ERR_STACK_TOP - ERR_HDPT - ERR_HDPT_SIZE) / 2
 	rep	stosw
 	xchg	ax,dx			; AX = end of the resident code
 	pop	di
