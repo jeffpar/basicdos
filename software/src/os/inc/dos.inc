@@ -140,6 +140,12 @@ SCSTAT_PROG	equ	SCSTAT_LOAD OR SCSTAT_START OR SCSTAT_KILL
 ERR_STACK_SIZE	equ	512
 ERR_STACK_TOP	equ	400h
 ERR_VECTORS	equ	(ERR_STACK_TOP - ERR_STACK_SIZE) / 4
+;
+; Some systems keep hard disk parameter tables (see INT 41h and INT 46h) at
+; 0:ERR_HDPT, so sysinit doesn't fill that part of the stack.
+;
+ERR_HDPT	equ	300h
+ERR_HDPT_SIZE	equ	32
 ERR_FRAME	equ	8
 ;
 ; With programs at ring 3, sysinit also allocates a ring 0 stack for each

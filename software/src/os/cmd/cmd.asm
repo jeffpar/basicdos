@@ -803,7 +803,7 @@ pd4d:	pop	ax
 	jnc	pd5
 	jmp	pd9			; bail on error
 
-pd5:	jcxz	pd8			; no valid initial token
+pd5:	jcxz	pd5b			; no valid initial token
 	push	ax
 	push	dx			; save the symbol and its offset
 ;
@@ -826,6 +826,7 @@ pd5:	jcxz	pd8			; no valid initial token
 	jne	pd5c
 	mov	[di].TOK_DATA[0].TOKLET_CLS,CLS_STR
 	jmp	short pd5a		; (carry is clear)
+pd5b:	jmp	short pd8		; (pd8 is too far from pd5)
 pd5c:	lea	dx,[KEYWORD_TOKENS]
 	DOSUTIL	TOKID			; CS:DX -> TOKTBL; identify token
 	jc	pd5a

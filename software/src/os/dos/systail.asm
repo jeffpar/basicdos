@@ -375,7 +375,27 @@ DEFPROC	set_fault
 	test	ah,CPUF_PM		; protected mode?
 	mov	ax,offset dos_fault
 	jnz	sf0			; yes
-	jmp	sf9			; no
+;
+; Fill the real-mode hard error stack with SIG_BASICDOS, so that a dump of
+; the vector table shows how much of the stack has ever been used; the fill
+; skips any hard disk parameter tables (see ERR_HDPT).
+;
+	push	es
+	push	di
+	xchg	dx,ax			; save AX
+	sub	di,di
+	mov	es,di
+	mov	di,ERR_STACK_TOP - ERR_STACK_SIZE
+	mov	cx,(ERR_HDPT - (ERR_STACK_TOP - ERR_STACK_SIZE)) / 2
+	mov	ax,SIG_BASICDOS
+	rep	stosw
+	add	di,ERR_HDPT_SIZE
+	mov	cl,(ERR_STACK_TOP - ERR_HDPT - ERR_HDPT_SIZE) / 2
+	rep	stosw
+	xchg	ax,dx			; AX = end of the resident code
+	pop	di
+	pop	es
+	ret
 sf0:	mov	[UTILTBL + DOS_UTL_ALIAS * 2],offset utl_alias
 	mov	[UTILTBL + DOS_UTL_MAPSEG * 2],offset utl_mapseg
 	xchg	cx,ax
@@ -450,7 +470,7 @@ sf8:	pop	di
 	and	al,0FEh			; AX = top of the stack (word-aligned)
 	mov	[err_stack].OFF,ax
 	mov	[err_stack].SEG,ds
-sf9:	ret
+	ret
 ENDPROC	set_fault
 ;
 ; The DOS functions that have versions for ring 3 programs (see r3prog.asm), as
