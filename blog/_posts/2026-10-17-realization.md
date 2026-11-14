@@ -8,7 +8,9 @@ preview: /assets/images/BASIC-DOS-Cover.gif
 
 The last post here was written in early 2021, a month after the first [Preview](/preview/) of BASIC-DOS.  That preview demonstrated the potential of BASIC-DOS, but it also demonstrated the limits of what one person, building an operating system one assembly-language instruction at a time, could realistically hope to finish.
 
-Then AI agents like Claude Code arrived, and I discovered that one person with a virtual sidekick could actually finish this project.  The architecture described in [Inspiration](/blog/2020/05/17/) and [Perspiration](/blog/2020/12/12/) hasn't changed, and neither have the constraints: BASIC-DOS is still built with MASM 4.0, it still runs on a 4.77Mhz 8088, and it still fits in 64K.  But the gaping holes that remained after the preview have now been filled, so this post brings the state of the world up to date.
+Then AI agents like Claude Code arrived, and suddenly it *was* possible for a single person to complete what used to require a small team.  So I decided to revisit my old thought experiment: given enough time, foresight, and programming power, how much better could PC DOS have been in 1981, when the original IBM PC rolled out?
+
+Here's one possible answer to that question.  Introducing BASIC-DOS: Version 2.10.
 
 ### A Unified Command Processor
 
@@ -26,9 +28,9 @@ Preemptive multitasking was the headline feature of the preview, and it still is
 
 ### The File System
 
-The preview's file system was read-only.  Today, every handle-based and FCB-based function that BASIC-DOS needs is implemented: files are created, written, truncated, renamed, deleted, and shared according to rules that PC DOS didn't have until SHARE arrived in version 3.0.  Subdirectories work everywhere, with a current directory per drive *per session*, and REN moves files and whole directories between directories on the same drive, which the PC DOS REN command never allowed.  There's a configurable cache of FAT and directory sectors (BUFFERS=), and instead of the INT 25h and INT 26h absolute disk interfaces, a volume can simply be opened as a file (eg, `C:`), even when it's unformatted.
+The preview's file system was read-only.  Today, every handle-based and FCB-based function that BASIC-DOS needs is implemented: files are created, written, truncated, renamed, deleted, and shared according to rules that PC DOS didn't have until SHARE arrived in version 3.0.  Subdirectories work everywhere, with a current directory per drive *per session*, and REN moves files and whole directories between directories on the same drive, which the PC DOS REN command never allowed.  There's a configurable cache of FAT and directory sectors (BUFFERS=), and instead of the INT 25h and INT 26h absolute disk interfaces, a volume can simply be opened as a file (eg, `A:`), even when it's unformatted.
 
-Hard disks are supported, too.  BASIC-DOS reads and writes the FAT12 and FAT16 volumes of up to two PC XT or PC AT hard disks, and it boots from a hard disk partition as readily as from a diskette.  When a block device fails, the session's critical error handler is called with the same inputs that PC DOS provided, and the default handler asks the familiar question, including the *Fail* response that PC DOS didn't offer until version 3.3.  That handler is also the one place where BASIC-DOS switches stacks, as PC DOS did, because the program that triggered the error may not have much stack to spare.
+Hard disks are supported, too.  BASIC-DOS reads and writes the FAT12 and FAT16 volumes of up to two PC XT or PC AT hard disks, and it boots from a hard disk partition as readily as from a diskette.  Hard error support has also been implemented, so if a block device encounters an error, you have the same Abort/Retry/Fail/Ignore options that PC DOS offers.
 
 ### Device Drivers
 

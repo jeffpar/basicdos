@@ -108,7 +108,7 @@ With *file*, RUN runs that BAS file, as in Microsoft BASIC.  If the file isn't i
 
 ### START
 
-> START [*program* [*arguments*]]
+> START [/B] [*program* [*arguments*]]
 
 `START` alone lists every session that's running a program: its number, how much memory it's using (in K, for all of its programs; eg, a COMMAND.COM and the program it's running), and its current program (or `UNKNOWN`, if that can't be determined), with `*` marking the current session:
 
@@ -118,6 +118,8 @@ With *file*, RUN runs that BAS file, as in Microsoft BASIC.  If the file isn't i
 	  3   675K V86
 
 `START` *program* runs *program* (a COM or EXE file, found the way any external command is, including in the directories of PATH$) with any *arguments* (and their switches) in a new session, on a new full-screen console, which gets the focus (press **Shift-Tab** to switch back).  When the program ends, its session and its console close, and if that console had the focus, it goes back to the console that had it before (or if that console has closed, to the console that one got it from, and so on).  For example, `START COMMAND` starts another command shell, which, unlike the shell that a [SHELL=](../../cfg/#shell) line starts, can [EXIT](#exit).
+
+With `/B` (background), the new console doesn't get the focus, so the program starts while you keep working in the current console (press **Shift-Tab** to switch to it).  `/B` must come before *program*, since any switches after *program* are the program's own; for example, `START /B V86 /M:256 DEBUG` starts [V86](../external/v86/) in the background, which runs DEBUG in a 256K V86 machine.  Any other switch before *program* is a `Syntax error`.
 
 Like a session that CONFIG.SYS starts, the new session doesn't get the current session's handles (eg, its redirection) or environment, but it does start on the current drive and in the current directories.  A new COMMAND.COM (or [V86](../external/v86/)) does get the current [PATH$](../basic/func/#path), which START puts ahead of any *arguments*, as a SHELL= line can (eg, `START COMMAND FIBO.BAS` runs `COMMAND PATH$="A:\;A:\EXT":FIBO.BAS`), so a PATH$ assignment in its arguments (eg, `START COMMAND PATH$="A:\"`) replaces it.  The tail of a command line holds at most 126 characters, and a COMMAND /C argument must come first, so START COMMAND /C isn't supported.  In protected mode, its programs' memory is in an LDT of its own (see [Protected Mode](../../../bdtech/mmu/)).
 

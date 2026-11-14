@@ -573,6 +573,12 @@ he2a:	pushf
 	jmp	short he7		; no
 he3:	cmp	al,CRERR_ABORT
 	jne	he7
+;
+; Without a program (eg, sysinit is opening a console, or loading a SHELL),
+; there's nothing to abort, so the request just fails.
+;
+	cmp	[bx].SCB_PSP,0		; is there a program?
+	je	he7			; no
 	or	[bx].SCB_STATUS,SCSTAT_ABORT
 	mov	[bx].SCB_ABTYPE,EXTYPE_ERROR
 	mov	[bx].SCB_CTRLC_ACT,0

@@ -349,10 +349,13 @@ ENDPROC	ddcpu_freeall
 ;
 ; Changes the length of a block allocated by CPU_ALLOC (rounding it up to a
 ; multiple of 16): a shorter block frees its end, and a longer one takes what
-; it needs from the block after it, which must be free and long enough.  Its
-; first selector and code alias, if any, stay the same, but they and any other
-; selectors change to fit its new length (see blk_fit); a block that needs
-; more selectors must have enough free descriptors after its last one.
+; it needs from the block after it, if that's free and long enough.  If it
+; isn't, then in protected mode, a block with selectors moves to a free block
+; that's long enough (see blk_move), so its address changes, but its selectors
+; don't.  Its first selector and code alias, if any, stay the same, but they
+; and any other selectors change to fit its new length (see blk_fit); a block
+; that needs more selectors must have enough free descriptors after its last
+; one.
 ;
 ; Inputs:
 ;	DX:CX = address of block, SI:DI = new length
@@ -376,14 +379,16 @@ DEFPROC	ddcpu_realloc
 	or	cx,dx			; the same?
 	jz	cr9			; yes (and carry is clear)
 	cmp	ds:[bx].PMB_SIG,PMBSIG_LAST
-	je	cr7
+	je	cr6
 	cmp	ds:[bx+size PMB].PMB_TYPE,PMBTYPE_FREE
-	jne	cr7			; the next block isn't free
+	jne	cr6			; the next block isn't free
 	cmp	ds:[bx+size PMB].PMB_LEN.HIW,dx
 	ja	cr2
-	jb	cr7
+	jb	cr6
 	cmp	ds:[bx+size PMB].PMB_LEN.LOW,ax
 	jae	cr2			; it's long enough
+cr6:	call	blk_move		; move it to a block that's long enough
+	jnc	cr9
 cr7:	mov	cx,ds:[bx].PMB_LEN.LOW
 	mov	dx,ds:[bx].PMB_LEN.HIW
 	cmp	ds:[bx].PMB_SIG,PMBSIG_LAST
@@ -1123,6 +1128,216 @@ mp5:	xchg	si,ax			; SI = offset
 	pop	ax
 	ret
 ENDPROC	mv_ptr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; blk_move
+;
+; Moves the block at BX to the first free block that's SV_LEN long (below 1Mb,
+; if that's where it is, since it may be there for real-mode code), for a
+; block that can't grow where it is (see ddcpu_realloc).  Only a block with
+; selectors can move, in protected mode: every descriptor that maps its memory
+; (see blk_rebase) gets its new address, so the selectors stay the same, and
+; whatever loads them next uses the new memory.  That includes the caller's
+; ES and SS, which we reload, in case the block has a ring 0 caller's stack
+; (everything on the stack now was there when it was copied); the caller's
+; other registers are reloaded when it returns.
+;
+; Inputs:
+;	BX -> PMB, SV_LEN = new length (longer than the block)
+;
+; Outputs:
+;	Carry clear if successful
+;	Carry set if not (the block hasn't changed)
+;
+; Modifies:
+;	AX, CX, DX, SI, DI, BP
+;
+DEFPROC	blk_move
+	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM
+	jz	bm8			; a segment can't move
+	cmp	ds:[bx].PMB_NSEL,0
+	je	bm8			; nor can a block without selectors
+	cmp	ds:[bx].PMB_V86,0
+	je	bm0			; (or a V86 machine's memory)
+bm8:	stc
+bm9:	ret
+bm0:	mov	di,ds:[SYS_VARS].SV_LEN.LOW
+	mov	si,ds:[SYS_VARS].SV_LEN.HIW
+	call	blk_room		; can it have that length's selectors?
+	jc	bm9			; no
+	call	pmb_end
+	add	ax,2 * (size PMB)
+	cmp	ds:[SYS_VARS+SV_LDTLOW],ax
+	jb	bm9			; no room to split a free block twice
+	push	bx
+	push	ds:[bx].PMB_ADDR.HIW
+	push	ds:[bx].PMB_ADDR.LOW
+	mov	al,0
+	cmp	ds:[bx].PMB_ADDR.HIW,10h; is the block below 1Mb?
+	jae	bm1			; no
+	mov	al,MEMF_LOW		; yes, so that's where it stays
+bm1:	call	pmb_fit			; BX -> free PMB, DX:CX = address
+	jc	bm7
+	call	pmb_cut			; BX -> PMB at DX:CX
+	call	pmb_split		; BX -> PMB of length SV_LEN
+	mov	ds:[bx].PMB_TYPE,PMBTYPE_USED
+	pop	cx
+	pop	dx			; DX:CX = the block's address
+	pop	ax			; (its PMB may have moved)
+	push	bx
+	call	pmb_find		; BX -> its PMB
+	pop	di			; DI -> the new block's PMB
+	call	blk_copy
+;
+; The new block gets everything in the old block's PMB except its address
+; and length, and the old block keeps no selectors for pmb_free to free.
+;
+	push	es
+	push	ds
+	pop	es
+	mov	ax,ds:[bx].PMB_OWNER
+	mov	ds:[di].PMB_OWNER,ax
+	push	di
+	lea	si,[bx].PMB_SEL
+	lea	di,[di].PMB_SEL
+	mov	cx,(size PMB - PMB_SEL) SHR 1
+	rep	movsw
+	pop	di
+	pop	es
+	sub	ax,ax
+	mov	ds:[bx].PMB_SEL,ax
+	mov	ds:[bx].PMB_NSEL,ax
+	mov	ds:[bx].PMB_CODE,ax
+	xchg	bx,di			; BX -> new PMB, DI -> old PMB
+	push	di
+	call	blk_fit			; its selectors now map the new block
+	pop	di
+	call	blk_rebase		; and so does every other descriptor
+	push	es
+	pop	es
+	mov	ax,ss
+	mov	ss,ax
+	mov	bx,di
+	jmp	pmb_free		; free the old block (carry is clear)
+bm7:	add	sp,4
+	pop	bx
+	stc
+	ret
+ENDPROC	blk_move
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; blk_copy
+;
+; Copies the block at BX to the block at DI, 1K at a time with interrupts off
+; (about 1100 clocks), so that an interrupt handler can use the scratch
+; selectors too (eg, for CPU_MOVE).
+;
+; Inputs:
+;	BX -> PMB to copy, DI -> PMB of a block that's at least as long
+;
+; Modifies:
+;	AX, CX, DX, SI, BP
+;
+DEFPROC	blk_copy
+	push	es
+	sub	si,si
+	sub	bp,bp			; BP:SI = bytes copied
+bc1:	mov	cx,ds:[bx].PMB_LEN.LOW
+	mov	dx,ds:[bx].PMB_LEN.HIW
+	sub	cx,si
+	sbb	dx,bp			; DX:CX = bytes left
+	jnz	bc2
+	cmp	cx,1024
+	jbe	bc3
+bc2:	mov	cx,1024
+bc3:	jcxz	bc9
+	pushf
+	cli
+	push	bx
+	push	di
+	push	si
+	push	cx
+	mov	ax,ds:[di].PMB_ADDR.LOW
+	mov	dx,ds:[di].PMB_ADDR.HIW
+	add	ax,si
+	adc	dx,bp			; DX:AX = where they go
+	push	bx
+	mov	bx,SEL_TMP
+	call	pm_ptr
+	pop	bx
+	mov	ax,ds:[bx].PMB_ADDR.LOW
+	mov	dx,ds:[bx].PMB_ADDR.HIW
+	add	ax,si
+	adc	dx,bp			; DX:AX = where they are
+	mov	bx,SEL_TMP2
+	call	pm_ptr
+	push	ds
+	push	SEL_TMP
+	pop	es
+	mov	ds,bx
+	sub	si,si
+	sub	di,di
+	shr	cx,1			; (every length is a multiple of 16)
+	rep	movsw
+	pop	ds
+	pop	cx
+	pop	si
+	pop	di
+	pop	bx
+	popf
+	add	si,cx
+	adc	bp,0
+	jmp	bc1
+bc9:	pop	es
+	ret
+ENDPROC	blk_copy
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; blk_rebase
+;
+; Changes the base of every code or data descriptor in the GDT (after the
+; fixed entries) and the LDTs that maps memory in the block at DI, to the same
+; offset in the block at BX (eg, the block's code alias, and any selectors
+; from CPU_ALIAS and CPU_MAP).
+;
+; Inputs:
+;	BX -> new PMB, DI -> old PMB
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	blk_rebase
+	mov	si,SYS_GDT + GDT_FIXED * (size DESC)
+	mov	ax,SYS_GDT + GDT_MAX * (size DESC)
+	call	rb1
+	mov	si,ds:[SYS_VARS+SV_LDTLOW]
+	mov	ax,ds:[SYS_VARS].SV_LDTTOP
+rb1:	cmp	si,ax
+	jae	rb9
+	test	ds:[si].DESC_ACC,ACC_SEG; a code or data descriptor?
+	jz	rb3			; no (or it's free)
+	call	desc_addr		; DX:CX = its base address
+	sub	cx,ds:[di].PMB_ADDR.LOW
+	sbb	dx,ds:[di].PMB_ADDR.HIW	; DX:CX = its offset in the old block
+	jb	rb3			; it's below the block
+	cmp	dx,ds:[di].PMB_LEN.HIW
+	ja	rb3
+	jb	rb2
+	cmp	cx,ds:[di].PMB_LEN.LOW
+	jae	rb3			; it's above the block
+rb2:	add	cx,ds:[bx].PMB_ADDR.LOW
+	adc	dx,ds:[bx].PMB_ADDR.HIW
+	mov	ds:[si].DESC_BASE,cx
+	mov	ds:[si].DESC_BASE16,dl
+	add	dh,ds:[SYS_VARS].SV_LINHI	; (see LIN_HI)
+	mov	byte ptr ds:[si].DESC_EXT+1,dh
+rb3:	add	si,size DESC
+	jmp	rb1
+rb9:	ret
+ENDPROC	blk_rebase
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

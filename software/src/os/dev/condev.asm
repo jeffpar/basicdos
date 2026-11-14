@@ -943,6 +943,36 @@ ENDPROC	ddcon_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; con_atoi
+;
+; Gets the next value of a context descriptor (see ddcon_open).  ATOI16
+; advances SI past whatever follows a value, so if that was the null that
+; ends the descriptor, SI goes back to it first; otherwise, the values that
+; a short descriptor omits (eg, "VKD$:80,25") would come from whatever
+; follows it in memory.
+;
+; Inputs:
+;	BL = 10
+;	DS:SI -> descriptor
+;	ES:DI -> next entry in CON_PARMS
+;
+; Outputs:
+;	AX = value (the entry's default if there's none), SI and DI updated
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	con_atoi
+	cmp	byte ptr [si-1],0	; did the last value end the string?
+	jne	ca1			; no
+	dec	si			; yes, so the rest are defaults
+ca1:	DOSUTIL	ATOI16
+	ret
+ENDPROC	con_atoi
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; ddcon_open
 ;
 ; The format of the optional context descriptor is:
@@ -955,6 +985,11 @@ ENDPROC	ddcon_write
 ; than one video adapter (adapter 0 is the default), and [focus] is 1 to take
 ; the focus (eg, for START), which goes back to the context that had it when
 ; this one closes (see ddcon_close).  The first context always gets the focus.
+; Values can be omitted (eg, "VKD$:,,1"), including all those at the end (eg,
+; "VKD$:80,25"), and their defaults (see CON_PARMS) are 80, 25, 0, 0, and 0.
+;
+; Without a descriptor (ie, "VKD$" or "VKD$:"), no context is created: the
+; open adds a reference to the session's current context instead.
 ;
 ; Each adapter's contexts are placed automatically, starting at the top left
 ; of its first page and filling the page downward, then rightward, and then
@@ -1016,18 +1051,18 @@ dco1:	push	cs
 	pop	es
 	mov	bl,10			; use base 10
 	mov	di,offset CON_PARMS	; ES:DI -> parm defaults/limits
-	DOSUTIL	ATOI16			; updates SI, DI, and AX
+	call	con_atoi		; updates SI, DI, and AX
 	mov	cl,al			; CL = cols
-	DOSUTIL	ATOI16
+	call	con_atoi
 	mov	ch,al			; CH = rows
-	DOSUTIL	ATOI16
+	call	con_atoi
 	mov	bh,al			; BH = border (0 for none)
 	ASSERT	CTSTAT_BORDER,EQ,01h
-	DOSUTIL	ATOI16
+	call	con_atoi
 	shl	al,1
 	or	bh,al			; BH includes adapter bit, too
 	ASSERT	CTSTAT_ADAPTER,EQ,02h
-	DOSUTIL	ATOI16
+	call	con_atoi
 	xchg	di,ax			; DI = 1 to take the focus
 	pop	ds
 	ASSUME	DS:CODE

@@ -553,13 +553,60 @@ tzm:	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETMODE
 	mov	es:[0],ax
 tzm1:	jmp	ok
 tzm8:	jmp	bad
+;
+; A block that can't grow where it is grows by moving (to one that needs a
+; second selector, too): its selector and its code alias stay the same, and so
+; do its contents, which we run through the alias.  Freeing the second of
+; three blocks leaves the first one a free descriptor for that selector, and
+; 16 free bytes before the third block.
+;
+tzn:	mov	bx,1
+	call	alloc
+	mov	dx,es			; DX = the block
+	mov	bx,1
+	call	alloc
+	push	es
+	mov	bx,1
+	call	alloc
+	mov	es,dx
+	mov	si,offset tzn9
+	sub	di,di
+	mov	cx,tzn10-tzn9
+	cld
+	rep	movsb
+	mov	bx,dx
+	mov	ax,DOS_UTL_ALIAS SHL 8
+	int	INT_DOSUTIL		; AX = its code alias
+	pop	es
+	jc	tzn8
+	xchg	si,ax
+	mov	ah,DOS_MEM_FREE		; (after the alias has its descriptor)
+	int	21h
+	mov	es,dx
+	mov	bx,1801h
+	mov	ah,DOS_MEM_REALLOC
+	int	21h
+	jc	tzn8
+	mov	ax,es
+	cmp	ax,dx			; the same selector?
+	jne	tzn8			; no
+	add	ax,8
+	mov	es,ax
+	mov	word ptr es:[8000h],1	; (the end of the new part)
+	push	si
+	push	0
+	db	OP_RETF
+tzn8:	jmp	bad
+tzn9:	mov	ax,DOS_PSP_RETURN SHL 8
+	int	21h
+tzn10:
 
 tests	dw	ta,tb,tc,td,te,tf,tg,th,ti,tj,tk,tl,tm
 	dw	tn,to,tp,tq,tr,ts,tt,tu,tv,tw,tx,ty,tz,tza,tzb,tzc
-	dw	tzd,tze,tzf,tzg,tzh,tzi,tzj,tzk,tzl,tzm,0
+	dw	tzd,tze,tzf,tzg,tzh,tzi,tzj,tzk,tzl,tzm,tzn,0
 results	db	0,0,0,0,F,0,0,F,F,F,F,F,0
 	db	F,F,F,F,F,F,0,0,0,0,0,0,0,0,F,F
-	db	0,F,0,0,F,0,0,0,0,0
+	db	0,F,0,0,F,0,0,0,0,0,0
 
 progname db	"A:\TESTS\MISC\R3TESTS.COM",0
 tail	db	2," A",13

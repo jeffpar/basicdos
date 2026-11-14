@@ -125,6 +125,7 @@ DESC		ends
 ACC_DATA	equ	92h	; present, DPL 0, read/write data
 ACC_CODE	equ	9Ah	; present, DPL 0, execute/read code
 ACC_RW		equ	02h	; writable data (or readable code)
+ACC_SEG		equ	10h	; code or data (not a system descriptor)
 ACC_CONFORM	equ	04h	; conforming code (added to ACC_CODE)
 ACC_PRESENT	equ	80h	; present (in every ACC_* value but ACC_DPL3)
 ACC_DPL3	equ	60h	; DPL 3 (added to another ACC_* value)

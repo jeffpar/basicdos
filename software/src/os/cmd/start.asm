@@ -76,14 +76,15 @@ ENDPROC	addPath
 ;
 ; cmdStartSes
 ;
-; Process "START program [arguments]" (or START alone, which lists the
+; Process "START [/B] program [arguments]" (or START alone, which lists the
 ; sessions; see below), which runs the program (a COM or EXE
 ; file, found the way an external command is; see findProgram) in a new
 ; session, whose console is a new full-screen VKD$ console, which takes the
-; focus.  Like a session from CONFIG.SYS, it has its own LDT (see
-; DOS_UTL_LOAD), but its program can end (eg, COMMAND's EXIT), which closes
-; the session and its console, and the focus goes back to the console that
-; had it.
+; focus, unless /B (background) comes before the program (any switches after
+; the program are its own; see cmdDOS).  Like a session from CONFIG.SYS, it
+; has its own LDT (see DOS_UTL_LOAD), but its program can end (eg, COMMAND's
+; EXIT), which closes the session and its console, and the focus goes back to
+; the console that had it.
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -187,10 +188,13 @@ st2:	pop	dx
 ; Open the new console, give its handle to the new session as STDIN, STDOUT,
 ; and STDERR (along with our AUX and PRN), and then close our handle for it.
 ;
-	push	ds
+	mov	dx,offset CON_NAME
+	TESTSW	<'B'>			; /B?
+	jz	st2a			; no
+	mov	dx,offset CON_BACK	; yes, so it doesn't take focus
+st2a:	push	ds
 	push	cs
-	pop	ds
-	mov	dx,offset CON_NAME	; DS:DX -> CON_NAME
+	pop	ds			; DS:DX -> console name
 	mov	ax,DOS_HDL_OPENRW
 	int	21h			; AX = handle
 	jnc	st3
@@ -241,6 +245,7 @@ st9:	ret
 ENDPROC	cmdStartSes
 
 	DEFSTR	CON_NAME,<"VKD$:80,25,0,0,1",0>	; (1 takes the focus)
+	DEFSTR	CON_BACK,<"VKD$:80,25",0>	; (by default, it doesn't)
 	DEFSTR	V86_COM,<"V86.COM",0>
 
 CODE	ENDS

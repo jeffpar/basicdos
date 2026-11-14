@@ -641,11 +641,7 @@ si9e:
 ; before opening any other consoles (which can't use devices they've reserved).
 ; Since there's no PSP yet, the SCB needs these settings for parsing paths.
 ;
-	mov	ax,word ptr es:[def_drive]
-	mov	word ptr es:[bx].SCB_CURDRV,ax
-	ASSERT	<SCB_CURDRV+1>,EQ,<SCB_SWCHAR>
-	mov	al,es:[def_pathchar]
-	mov	es:[bx].SCB_PATHCHAR,al
+	call	scb_defs
 	call	load_devices
 ;
 ; Next, open AUX and PRN, after the DEVICE= drivers, so that they don't take
@@ -686,7 +682,13 @@ si10a:	shl	[con_bit].OFF,1
 	jb	si11
 	mov	dx,offset CONERR
 	jmp	print_error
+;
+; This SCB needs the same settings as the first (see si9e), since a console
+; setting that isn't a device is parsed as a path; without them, that was a
+; file on drive A, whatever the boot drive.
+;
 si11:	mov	es:[scb_active],bx	; make the next SCB active
+	call	scb_defs
 	mov	ax,DOS_HDL_OPENRW
 	int	21h
 	jnc	si11a
@@ -801,6 +803,27 @@ ENDPROC	sysinit
 	mov	ah,DOS_TTY_PRINT
 	int	21h
 	jmp	fatal_error
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scb_defs
+;
+; Gives an SCB the default drive, switch character, and path character.
+;
+; Inputs:
+;	ES:BX -> SCB
+;
+; Modifies:
+;	AX
+;
+DEFPROC	scb_defs
+	mov	ax,word ptr es:[def_drive]
+	mov	word ptr es:[bx].SCB_CURDRV,ax
+	ASSERT	<SCB_CURDRV+1>,EQ,<SCB_SWCHAR>
+	mov	al,es:[def_pathchar]
+	mov	es:[bx].SCB_PATHCHAR,al
+	ret
+ENDPROC	scb_defs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -186,7 +186,8 @@ ENDPROC	main
 ; common
 ;
 ; Allocates 4K at the top of conventional memory, shrinks it to 2K, makes sure
-; it can't grow to 8K (the next block is reserved), grows it back to 4K, and
+; it can't grow to 16Mb (the next block is reserved, and no free block is that
+; long, so it can't move, either; see R3TESTS), grows it back to 4K, and
 ; copies a string with CPU_MOVE, forward and then onto itself, 1 byte higher
 ; (backward); the block stays allocated (see addr6).
 ;
@@ -205,8 +206,8 @@ DEFPROC	common
 	call	cpu_ok
 	inc	bp
 	mov	[experr],ERR_NOMEMORY
-	mov	di,8192
 	call	resize
+	mov	si,0100h		; SI:DI = 16Mb, plus what it has
 	call	cpu_err
 	inc	bp
 	mov	di,4096

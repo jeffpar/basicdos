@@ -948,7 +948,8 @@ ENDPROC	utl_tokid
 ;
 ; Inputs:
 ;	REG_DL = 1st token to parse
-;	REG_DH = # non-switch tokens to ignore (0 to ignore none)
+;	REG_DH = # non-switch tokens to parse (0 for no limit); eg, 1 ends
+;	the parse at the first one, leaving any switches after it unparsed
 ;	REG_ES:REG_DI -> TOKBUF (filled with token info)
 ;
 ; Outputs:
@@ -992,9 +993,9 @@ pw1:	cmp	bl,[di].TOK_CNT
 	pop	bx
 	je	pw9			; a symbol (eg, a pipe) ends the command
 	lodsb
-	push	di
 	cmp	al,ch			; starts with switch char?
 	jne	pw7			; no
+	push	di
 ;
 ; The loop always examines a character, so a switch char with nothing after it
 ; examines whatever ended the token, which is never alphanumeric.
@@ -1025,15 +1026,15 @@ pw4:	mov	cl,al
 	or	es:[di],ax		; set bit in word at ES:DI
 	cmp	si,[bp].TMP_AX		; end of token?
 	jb	pw2			; no, go back for more option chars
-	jmp	short pw8
+	pop	di
+	jmp	short pw8a		; (switches aren't counted)
 pw7:	test	dl,dl			; already find a non-switch token?
 	js	pw8			; yes
 	mov	dl,bl			; no, so remember this one
 	or	dl,80h			; mark it
-pw8:	pop	di
-	dec	dh			; have we reached the limit?
+pw8:	dec	dh			; have we reached the limit?
 	jz	pw9			; yes
-	inc	bx			; advance token index
+pw8a:	inc	bx			; advance token index
 	jmp	pw1			; keep looping
 pw9:	test	dl,dl			; already find a non-switch token?
 	js	pw10			; yes

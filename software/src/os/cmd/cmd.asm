@@ -1058,8 +1058,8 @@ cd1:	push	dx
 	mov	dx,0FF01h		; DL = 1 (DH = 0FFh for no limit)
 	cmp	al,TOK_START		; START?
 	jne	cd1a			; no
-	mov	dh,1			; yes, so the program's switches are its own
-cd1a:	push	ax			; to limit token parsing if needed
+	mov	dh,1			; yes, so only switches before the
+cd1a:	push	ax			; program are START's (see utl_parsesw)
 	DOSUTIL	PARSESW			; parse switch tokens
 	mov	[bx].CMD_ARG,dl		; update index of 1st non-switch token
 	pop	ax
@@ -1156,6 +1156,8 @@ CMD_SWITCHES	label	byte
 	db	7			; KILL /A
 	dw	NOT (1 SHL ('A'-'A')),0FFFFh
 	db	20			; COPY /B
+	dw	NOT (1 SHL ('B'-'A')),0FFFFh
+	db	TOK_START		; START /B
 	dw	NOT (1 SHL ('B'-'A')),0FFFFh
 	db	21			; DIR /A /S /W
 	dw	NOT (1 SHL ('A'-'A'))

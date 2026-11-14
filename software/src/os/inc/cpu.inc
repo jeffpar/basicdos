@@ -220,6 +220,11 @@ CPUF_HWTYPE	equ	0C0h	; CPU_HWTYPE (in bits 6-7)
 ; MEMF_HIGH, the top of the last one, anywhere in memory (conventional or
 ; extended), unless MEMF_LOW (below 1Mb) or MEMF_AT is set.
 ;
+; CPU_REALLOC grows a block into the free block after it; in protected mode,
+; if that isn't free (or long enough), a block with selectors moves to the
+; first free block that is (below 1Mb, if it was), and every code or data
+; descriptor that maps it gets its new address, so only its address changes.
+;
 ; MEMF_CONFORM (with MEMF_CODE) makes conforming code, which code at any ring
 ; can call, and which runs at the caller's ring (eg, FPU$'s functions, which
 ; the kernel calls at ring 0 and programs at ring 3).

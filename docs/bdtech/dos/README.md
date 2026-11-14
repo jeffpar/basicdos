@@ -106,7 +106,7 @@ An FCB opens a file read-only, so any number of FCBs (and handles opened for rea
 |----|------|--------|---------|
 | 48h | DOS_MEM_ALLOC | AL = block type (MCBTYPE_*, optionally with MCBTYPE_HIGH), BX = paragraphs | AX = segment; on failure, BX = largest available |
 | 49h | DOS_MEM_FREE | ES = segment | ES = 0, and DS = 0 if it was the same segment (the freed segment's selector no longer exists in protected mode); at ring 3, a block that the program doesn't own, or its PSP's, returns ERR_BADADDR (see [Ring 3](../mmu/#ring3)) |
-| 4Ah | DOS_MEM_REALLOC | ES = segment, BX = new size in paragraphs | On failure, BX = largest available; at ring 3, a block that the program doesn't own, or its PSP's, shrunk below the PSP, returns ERR_BADADDR (see [Ring 3](../mmu/#ring3)) |
+| 4Ah | DOS_MEM_REALLOC | ES = segment, BX = new size in paragraphs | On failure, BX = largest available; in protected mode, a block that can't grow where it is moves to free memory that's large enough, keeping its selector (see [CPU$](../mmu/)); at ring 3, a block that the program doesn't own, or its PSP's, shrunk below the PSP, returns ERR_BADADDR (see [Ring 3](../mmu/#ring3)) |
 
 #### Processes {#processes}
 
