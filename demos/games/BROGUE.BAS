@@ -58,7 +58,7 @@
 	FOR Y = 1 TO 22
 	IF M$(Y) <> B$ THEN LOCATE Y + 1, 1 : PRINT M$(Y);
 	NEXT
-	LOCATE 1, 1 : PRINT "Welcome to the dungeon.";
+	LOCATE 1, 1 : PRINT "Welcome tae this wee dungeon demo!";
 	LOCATE 24, 1 : PRINT "Rooms:"; N; " Move: h j k l  New: N  Quit: Q";
 	I = 1 + FNR(N)
 	PX = X1(I) + 1 + FNR(X2(I) - X1(I) - 1)
