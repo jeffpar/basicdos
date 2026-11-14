@@ -138,6 +138,8 @@ Draws an image stored by [GET](#get) (`PUT #n` writes a record of a random acces
 
 Defines a viewport, a rectangle of the screen that all drawing is clipped to, after filling it with the *fill* color and drawing a box around it with the *border* color (if there's room), if those colors are specified.  Points are relative to the top left corner of the viewport, unless SCREEN is specified, in which case they're still relative to the screen.  The corners must be on the screen.  VIEW alone makes the whole screen the viewport again.  The viewport also ends when the program ends or SCREEN changes the mode.
 
+[VIEW PRINT](../screen/#view-print) limits text scrolling to a range of rows instead.
+
 	SCREEN 1
 	VIEW (60,40)-(259,159),1,3
 	CIRCLE (100,60),80,2

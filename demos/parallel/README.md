@@ -7,11 +7,11 @@ machines:
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5160-cga-parallel-640kb.json
     autoMount:
-      A: "BASIC-DOS 80-Column Demo"
+      A: "BASIC-DOS Single"
     autoType: DATE $date\rTIME $time\r
 ---
 
-This IBM PC XT boots the BASIC-DOS 80-Column Demo diskette and runs a single 80x25 console on the Color Display, with its parallel port (LPT1) connected to the **Printer** pane, which shows everything the machine prints.  BASIC-DOS's printer device, PRN, is LPT1.  The PC XT has no clock to keep the date and time, so this page types `DATE` and `TIME` commands with the current date and time at the first prompt.
+This IBM PC XT boots the BASIC-DOS Single diskette and runs a single 80x25 console on the Color Display, with its parallel port (LPT1) connected to the **Printer** pane, which shows everything the machine prints.  BASIC-DOS's printer device, PRN, is LPT1.  The PC XT has no clock to keep the date and time, so this page types `DATE` and `TIME` commands with the current date and time at the first prompt.
 
 Type `LPRINT "Hello from LPT1"`, or enter a few program lines and type `LLIST`, or run `CALENDAR` (one of the PC DOS 1.00 samples) and choose a year to print a two-month-per-page calendar.  Since the Printer pane is plain text, it shows control characters by name (eg, `<ESC>` for the escape sequences that CALENDAR sends to IBM's printer) and the printer's block graphics characters as asterisks.
 
@@ -36,7 +36,7 @@ Press any key at the boot message (or wait 2 seconds) to start the diskette, or 
 
 If there's no printer (eg, on a machine without a parallel port), LPRINT, LLIST, and PRINT # to PRN report "Device timeout", as in Microsoft BASIC.
 
-### **CONFIG.SYS** from the BASIC-DOS 80-Column Demo Diskette
+### **CONFIG.SYS** from the BASIC-DOS Single Diskette
 
 ```
 {{ site.data.pcx86.basicdos-configs["BASICDOS-360K-S80"] }}

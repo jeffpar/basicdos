@@ -24,6 +24,7 @@ The BASIC-DOS Technical Reference describes BASIC-DOS's internal architecture an
 	- [Driver Headers](dev/#driver-headers)
 	- [Request Packets](dev/#request-packets)
 	- [IOCTL Functions](dev/#ioctl-functions)
+	- [Serial Consoles](dev/#serial-consoles)
 	- [Built-in Drivers](dev/#built-in-drivers)
 5. [Floating-Point Interface](fpu/) (FPU$)
 6. [Data Structures](data/)

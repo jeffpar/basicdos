@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/ibm/ibm-5160-dual-640kb.json
     debugger: true
     autoMount:
-      A: "BASIC-DOS Dual Monitor Demo"
+      A: "BASIC-DOS Dual Monitor"
     autoType: DATE $date\rTIME $time\r
 ---
 

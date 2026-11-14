@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/compaq/compaq-deskpro386-vga-1mb.json
     debugger: true
     autoMount:
-      A: "BASIC-DOS Protected Mode (80386)"
+      A: "BASIC-DOS (80386)"
       B: "PC DOS 2.00 (Disk 1)"
 ---
 

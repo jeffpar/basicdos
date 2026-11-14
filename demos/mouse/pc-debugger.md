@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/ibm/ibm-5150-ega-256kb-mouse.json
     debugger: true
     autoMount:
-      A: "BASIC-DOS 80-Column Demo"
+      A: "BASIC-DOS Single"
     autoType: PAINT\r
 ---
 

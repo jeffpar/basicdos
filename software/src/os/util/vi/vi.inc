@@ -18,6 +18,7 @@
 
 MAXCOLS		equ	80	; maximum screen columns
 MAXROWS		equ	25	; maximum screen rows
+ERASE_MIN	equ	8	; fewest spaces worth erasing (see putRow)
 MAXNAME		equ	64	; maximum file name length (including null)
 MAXTEXT		equ	0FF00h	; maximum file size
 GROW		equ	1024	; extra bytes allocated when the text grows
@@ -56,6 +57,7 @@ V_PEND		dw	?	; pending key (0 if none)
 V_PATLEN	dw	?	; length of the search pattern
 V_RLIM		dw	?	; end of V_ROWBUF for text rows
 V_HDL		dw	?	; file handle (for writing)
+V_POS		dw	?	; cursor's column and row (-1 if unknown)
 V_CROW		db	?	; cursor's screen row
 V_COLS		db	?	; screen columns
 V_ROWS		db	?	; screen rows
@@ -79,5 +81,6 @@ V_MSG		db	MAXCOLS+MAXNAME dup (?)
 V_LINE		db	MAXCOLS dup (?)
 V_ROWBUF	db	MAXCOLS dup (?)
 V_OBUF		db	OBUF_LEN dup (?)
+V_SCR		db	MAXROWS*MAXCOLS dup (?)	; each row on the screen
 VIVARS		ends
 

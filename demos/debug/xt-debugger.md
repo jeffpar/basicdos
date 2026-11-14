@@ -16,7 +16,7 @@ machines:
     debugger: true
     connection: com2->vt100.serialPort
     autoMount:
-      A: "BASIC-DOS Serial Debugger Demo"
+      A: "BASIC-DOS Serial Debugger"
       B: "BASIC-DOS Tests"
     autoType: DATE $date\rTIME $time\r
 ---

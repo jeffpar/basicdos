@@ -13,6 +13,23 @@
       }
     },
     {
+      "type": "shell",
+      "label": "gulp watch",
+      "command": "node_modules/.bin/gulp watch",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
+    },
+    {
       "type": "gulp",
       "label": "gulp build",
       "task": "build",

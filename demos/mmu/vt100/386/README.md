@@ -16,11 +16,11 @@ machines:
     debugger: available
     connection: com2->vt100.serialPort
     autoMount:
-      A: "BASIC-DOS Protected Mode (80386) with VT100"
+      A: "BASIC-DOS (80386) VT100"
       B: "BASIC-DOS Tests"
 ---
 
-The machine below is a COMPAQ DeskPro 386 with a 16Mhz 80386, 2Mb of memory (640K of conventional memory and 1Mb of extended memory, plus 384K that ends at 16Mb: the last 128K holds the ROM BIOS's copy of the ROMs, and BASIC-DOS uses the other 256K, at FA0000h), a VGA Color Display, a 1.2Mb and a 1.44Mb diskette drive, a 10Mb hard disk, a serial mouse on COM1, and a DEC VT100 on COM2 for BASIC-DOS's own debugger.  It boots the BASIC-DOS Protected Mode (80386) with VT100 diskette, which runs the same three consoles as the [DeskPro 386 Protected Mode](../../386/) demo, each on its own page of video memory, with the 80386's features, and loads DEBUG.COM as a driver on COM2.  Use **SHIFT-TAB** to switch between them.  Type `PAINT` in any console to draw with the mouse (click the screen to capture the mouse, and press **Esc** twice to exit); while PAINT's graphics mode is on the screen, the other consoles wait.
+The machine below is a COMPAQ DeskPro 386 with a 16Mhz 80386, 2Mb of memory (640K of conventional memory and 1Mb of extended memory, plus 384K that ends at 16Mb: the last 128K holds the ROM BIOS's copy of the ROMs, and BASIC-DOS uses the other 256K, at FA0000h), a VGA Color Display, a 1.2Mb and a 1.44Mb diskette drive, a 10Mb hard disk, a serial mouse on COM1, and a DEC VT100 on COM2 for BASIC-DOS's own debugger.  It boots the BASIC-DOS (80386) VT100 diskette, which runs the same three consoles as the [DeskPro 386 Protected Mode](../../386/) demo, each on its own page of video memory, with the 80386's features, and loads DEBUG.COM as a driver on COM2.  Use **SHIFT-TAB** to switch between them.  Type `PAINT` in any console to draw with the mouse (click the screen to capture the mouse, and press **Esc** twice to exit); while PAINT's graphics mode is on the screen, the other consoles wait.
 
 See [The CPU$ Drivers](/docs/bdtech/mmu/#cpu) and [Debugging](/docs/bdtech/mmu/#pmdebug) for more details.
 
@@ -32,7 +32,7 @@ The boot sector first displays `System starting...`; press any key (or wait 2 se
 
 This demo is also available on an [IBM PC AT](../).
 
-### **CONFIG.SYS** from the BASIC-DOS Protected Mode (80386) with VT100 Diskette
+### **CONFIG.SYS** from the BASIC-DOS (80386) VT100 Diskette
 
 ```
 {% include_relative CONFIG.SYS %}

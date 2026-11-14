@@ -16,7 +16,7 @@ machines:
     debugger: true
     connection: com2->vt100.serialPort
     autoMount:
-      A: "BASIC-DOS Protected Mode with VT100"
+      A: "BASIC-DOS (80286) VT100"
       B: "BASIC-DOS Tests"
 ---
 

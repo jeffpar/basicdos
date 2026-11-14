@@ -8,11 +8,11 @@ machines:
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb-fpu.json
     debugger: available
     autoMount:
-      A: "BASIC-DOS 80-Column Demo"
+      A: "BASIC-DOS Single"
       B: "PC DOS 1.00"
 ---
 
-The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088 with an 8087, 128K of memory, a Color Display, and two diskette drives.  It boots the BASIC-DOS 80-Column Demo diskette and runs a single 80-column console, with the BASIC samples (eg, DONKEY.BAS) in its SAMPLES directory.
+The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088 with an 8087, 128K of memory, a Color Display, and two diskette drives.  It boots the BASIC-DOS Single diskette and runs a single 80-column console, with DONKEY.BAS (from the PC DOS 1.00 diskette) in its DEMOS directory.
 
 {% include machine.html id="ibm5150" %}
 

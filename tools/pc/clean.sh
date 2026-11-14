@@ -10,13 +10,14 @@
 #   PCDOS100, COMPAQ331-WOLF3D
 #                       the disk contents that gulpfile.js extracts (see diskFiles())
 #   hdsrc               the default hard disk folder of tools/tests/testhd.sh
+#   watch.pid           the process ID of "gulp watch", while it's running (see gulpfile.js)
 #
 # along with the folders that objs needs (ie, any empty folders in objs are removed too).  Use -n to list what would be
 # removed without removing anything.  Since pc.js instances and builds use these files, nothing is removed while pc.js
 # or a build or test script is running.
 #
 cd "$(dirname "$0")/disks" || exit 1
-keep=" objs mkmode PCDOS100 COMPAQ331-WOLF3D hdsrc "
+keep=" objs mkmode PCDOS100 COMPAQ331-WOLF3D hdsrc watch.pid "
 if [ "$1" != "-n" ] && pgrep -f 'tools/pc/pc\.js|mkdos\.sh|mk\.sh|quick\.sh|bench\.sh|testhd\.sh|chkdsk\.sh' > /dev/null; then
     echo "error: pc.js or a build or test script is running" >&2
     exit 1

@@ -28,6 +28,17 @@ if ! grep -q "^VERSION_MAJOR	equ	$major	" $inc || ! grep -q "^VERSION_MINOR	equ	
     echo "BASIC-DOS version set to $major.$(printf %02d $minor)"
 fi
 #
+# watching
+#
+# Succeeds if "gulp watch" is running (its process ID is in tools/pc/disks/watch.pid; see gulpfile.js), in which case
+# it updates the disk images when a build's outputs change, so mk.sh and mkdos.sh don't have to.
+#
+watching() {
+    local pid
+    pid=$(cat tools/pc/disks/watch.pid 2>/dev/null)
+    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
+}
+#
 # setMode mode
 #
 # Records the build mode in tools/pc/disks/mkmode (which gulpfile.js also reads), and keeps each mode's build outputs

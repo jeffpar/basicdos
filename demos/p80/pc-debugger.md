@@ -9,7 +9,7 @@ machines:
     debugger: true
     sizeRAM: 256
     autoMount:
-      A: "BASIC-DOS Multi-Page Demo"
+      A: "BASIC-DOS Multi-Page"
       B: "PC DOS 2.00 (Disk 1)"
 ---
 

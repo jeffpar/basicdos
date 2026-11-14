@@ -8,7 +8,8 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 ; The functions behind the statements in genmisc.asm, CSRLIN, PEEK, POS,
-; PROMPT$, RND, SCREEN, SGN, and TAB, and the prompt that PROMPT$ describes.
+; PROMPT$, RND, SCREEN, SGN, TAB, and VIEW PRINT (see gengfx.asm), and the
+; prompt that PROMPT$ describes.
 ; This module is linked after CONST.OBJ, so it's outside COMMAND's core (see
 ; CMD.LRF): genFuncExpr reports "Not enough memory" for these functions if
 ; only the core was loaded, and main uses the default prompt.
@@ -154,6 +155,54 @@ sw1:	test	bl,0Ch			; graphics mode?
 	or	bl,4			; for SCREEN 1 (MODE_TBL maps 80 to 2)
 	jmp	ss4
 ENDPROC	setWidth
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; setRows
+;
+; Used by "VIEW PRINT [top TO bottom]" to set the console's scrolling rows
+; (starting at 1), or to make every row a scrolling row again if they're
+; omitted, and move the cursor to the first one.  Nothing happens if STDOUT
+; isn't a console, and rows that the console can't scroll (eg, any rows on a
+; GENERIC terminal) are an illegal function call.
+;
+; Inputs:
+;	N numeric expressions pushed on stack (see genView)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+DEFPROC	setRows,FAR
+	call	getArgs			; AX = top, DX = bottom
+	push	dx
+	push	ax
+	mov	al,IOCTL_GETDIM
+	call	ioctlCon		; DH = # rows
+	pop	ax
+	pop	cx
+	jc	srw9			; not a console
+	mov	dl,0
+	test	ax,ax			; rows omitted?
+	js	srw1			; yes, so use them all
+	mov	dh,cl			; DH = last row + 1
+	mov	dl,al
+	dec	dl			; DL = first row (zero-based)
+;
+; The console checks the rows, too, but DX must not be zero (eg, VIEW PRINT
+; 1 TO 0), since that would clear the scrolling rows instead (see CLS).
+;
+	cmp	dl,dh
+	jae	srw8
+srw1:	sub	cx,cx
+	mov	al,IOCTL_SCROLL
+	call	ioctlCon
+	jnc	srw9
+srw8:	jmp	strIllegal
+srw9:	ret
+ENDPROC	setRows
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

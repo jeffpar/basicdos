@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/ibm/ibm-5160-cga-640kb.json
     debugger: true
     autoMount:
-      A: "BASIC-DOS 80-Column Split Demo"
+      A: "BASIC-DOS 80-Cols"
       B: "PC DOS 2.00 (Disk 1)"
     autoType: DATE $date\rTIME $time\r
 ---

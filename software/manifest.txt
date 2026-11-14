@@ -8,13 +8,15 @@
 #            CONFIG.SYS (followed by AUTOEXEC.BAT, if its SHELL lines run one)
 #   EXT      all the external BASIC-DOS utilities (including BASIC programs) and
 #            device drivers, and HELP.TXT, which HELP displays (distribution)
-#   DEMOS    demo programs (distribution)
-#   SAMPLES  the PC DOS 1.00 BASIC samples (distribution)
+#   DEMOS    demo programs (distribution), including DONKEY.BAS, the only PC
+#            DOS 1.00 BASIC sample on every disk
 #   TESTS    BENCH.BAS, STRESS.BAT, and REGRESS.BAT (which runs the tests in
 #            TESTS/REGRESS)
 #   TESTS/REGRESS  the regression tests (which tools/tests/quick.sh runs, too)
 #   TESTS/MISC  other test programs (eg, GFXTESTS.BAS, which needs a CGA, and
 #            the BAT and EXE versions of PRIMES)
+#   TESTS/SAMPLES  the rest of the PC DOS 1.00 BASIC samples (hard disk only)
+#            (ie, demos/samples/*.BAS except for any file that DEMOS lists)
 #   TOOLS    tools used for testing (DISKREAD, DISKWRIT, SYMDEB, and MSBASIC)
 #
 # A section named FOLDER/SUBFOLDER (eg, DEMOS/WOLF3D) is a subfolder of FOLDER,
@@ -22,9 +24,9 @@
 # diskimage.js resolves) followed by the file's path within the image.
 #
 # gulpfile.js builds the BASICDOS-360K distribution diskette and every demo
-# diskette with ROOT, EXT, DEMOS, and SAMPLES, the BASICDOS-360K-TESTS diskette
-# with TESTS (and its subfolders) and TOOLS, and the BASICDOS-10MB hard disk with
-# all of them (plus DEMOS/WOLF3D, the WOLF3D.BAT and JIVE files that only it has
+# diskette with ROOT, EXT, and DEMOS, the BASICDOS-360K-TESTS diskette with
+# TESTS (and its REGRESS and MISC subfolders) and TOOLS, and the BASICDOS-10MB
+# hard disk with all of them (plus TESTS/SAMPLES, DEMOS/WOLF3D, the WOLF3D.BAT and JIVE files that only it has
 # in DEMOS, SRC, and the build tools in TOOLS/BIN, with the C compiler's include
 # files and libraries in TOOLS/INCLUDE and TOOLS/LIB, and the C startup,
 # floating-point, sample, and STUB sources in TOOLS/CRT, FP, HELLO, and STUB).  tools/tests/prep.sh copies EXT
@@ -58,6 +60,8 @@ software/src/os/util/bas/VOL.BAS
 software/src/os/cmd/HELP.TXT
 
 [DEMOS]
+demos/games/BROGUE.BAS
+demos/samples/DONKEY.BAS
 software/src/tests/misc/DIR.BAS
 software/src/tests/misc/FIBO.BAT
 software/src/tests/misc/HELLO.BAT
@@ -67,9 +71,6 @@ software/src/tests/primes/PRIMES.BAS
 
 [DEMOS/WOLF3D]
 /harddisks/pcx86/10mb/COMPAQ331-WOLF3D.json/WOLF3D/*
-
-[SAMPLES]
-demos/samples/*.BAS
 
 [TESTS]
 software/src/tests/misc/BENCH.BAS
@@ -110,6 +111,9 @@ software/src/tests/misc/GFXTESTS.BAS
 software/src/tests/misc/MICRO.BAS
 software/src/tests/primes/PRIMES.BAT
 software/src/tests/bin/PRIMES.EXE
+
+[TESTS/SAMPLES]
+demos/samples/*.BAS
 
 [TOOLS]
 software/src/tests/bin/DISKREAD.COM

@@ -251,6 +251,7 @@ ENDPROC	chkOut
 ;
 DEFPROC	clearScreen,FAR
 	sub	cx,cx
+	mov	dx,cx			; (DX is non-zero only to set rows)
 	mov	al,IOCTL_SCROLL
 	call	ioctlCon
 	ret

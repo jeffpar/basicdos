@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/ibm/ibm-5160-cga-serial-640kb.json
     debugger: true
     autoMount:
-      A: "BASIC-DOS HD Serial Port Demo"
+      A: "BASIC-DOS HD Serial Port"
     autoType: DATE $date\rTIME $time\r
 ---
 

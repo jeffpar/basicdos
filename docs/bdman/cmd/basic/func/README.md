@@ -259,7 +259,7 @@ Returns -1 (true) if file *n*, which must be open for INPUT or RANDOM (see [OPEN
 
 > EXISTS(*filespec*)
 
-Returns -1 (true) if a file or directory matching *filespec* exists, or 0 (false) if not; *filespec* may contain wildcards (eg, `EXISTS("C:\SAMPLES\*.BAS")`).  For example, a batch file can create a directory only if it doesn't already exist:
+Returns -1 (true) if a file or directory matching *filespec* exists, or 0 (false) if not; *filespec* may contain wildcards (eg, `EXISTS("C:\DEMOS\*.BAS")`).  For example, a batch file can create a directory only if it doesn't already exist:
 
     IF NOT EXISTS("OBJ") THEN MD OBJ
 
@@ -374,7 +374,7 @@ Returns the next mouse button event (*n* = 0), the position of that event (1 and
 > PATH$
 > PATH$=*string*
 
-Returns (or sets) the directories, separated by semicolons, that are searched for a program (or a file to [LOAD](../../disk/#load)) that isn't in the current directory (eg, `PATH$ = "A:\;A:\EXT;A:\DEMOS;A:\SAMPLES"`); see [Running Programs](../../../intro/#running-programs).  Unlike other variables, PATH$ keeps its value when variables are cleared (eg, by [NEW](../../system/#new) or [CLEAR](../#clear)), and each session has its own.  It's usually set on a [SHELL](../../../cfg/#shell) line in CONFIG.SYS, and it's limited to 120 characters.
+Returns (or sets) the directories, separated by semicolons, that are searched for a program (or a file to [LOAD](../../disk/#load)) that isn't in the current directory (eg, `PATH$ = "A:\;A:\EXT;A:\DEMOS"`); see [Running Programs](../../../intro/#running-programs).  Unlike other variables, PATH$ keeps its value when variables are cleared (eg, by [NEW](../../system/#new) or [CLEAR](../#clear)), and each session has its own.  It's usually set on a [SHELL](../../../cfg/#shell) line in CONFIG.SYS, and it's limited to 120 characters.
 
 #### LPOS {#lpos}
 
@@ -405,7 +405,7 @@ Returns (or sets) the format of the command prompt, which is a [PRINTF](../../de
 
 | Specifier | Displays |
 |---|---|
-| `%s` | The current drive and directory (eg, `A:\SAMPLES`), as [CURDIR$](#curdir) returns them |
+| `%s` | The current drive and directory (eg, `A:\DEMOS`), as [CURDIR$](#curdir) returns them |
 | `%g` | `>` in real mode, `]` in protected mode, or `}` in V86 mode (see [V86](../../external/v86/)) |
 | `%l` | The matching left character: `<`, `[`, or `{` |
 | `%d` | The session number, as [START](../../system/#start) lists it |

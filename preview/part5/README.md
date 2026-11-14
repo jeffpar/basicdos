@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/ibm/ibm-5160-dual-640kb.json
     debugger: /demos/dual/xt/debugger
     autoMount:
-      A: "BASIC-DOS Dual Monitor Demo"
+      A: "BASIC-DOS Dual Monitor"
 ---
 
 ### Part 5: Were Dual Monitors Ever This Cool?

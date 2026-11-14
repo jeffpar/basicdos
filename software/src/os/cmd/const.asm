@@ -279,7 +279,7 @@ KEYWORDS	macro	PASS
 	PASS	PLAY,   70, genPlay
 	PASS	POKE,   68, genPoke
 	PASS	PRESET, 78, genPreset,PUB
-	PASS	PRINT,  51, genPrint
+	PASS	PRINT,  51, genPrint,PUB
 	PASS	PRINTF, 99, genPrintf
 	PASS	PSET,   79, genPset,PUB
 	PASS	PUT,    80, genPut

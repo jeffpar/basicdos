@@ -25,7 +25,7 @@ machines:
     debugger: true
     connection: com1->vt100.serialPort,com2->vt100b.serialPort
     autoMount:
-      A: "BASIC-DOS HD Dual Terminal Demo"
+      A: "BASIC-DOS HD Multi-Terminal"
 ---
 
 {% include vt100-demo.html id="ibm5170" headless=true terminal2="vt100b" %}

@@ -7,7 +7,7 @@ BASIC-DOS doesn't require one either.  {% if include.hw == "at" %}The diskette's
 
 ### BASIC Samples
 
-The {% if hd %}hard disk's{% else %}diskette's{% endif %} **SAMPLES** directory contains text copies of the BASIC samples from the IBM PC DOS 1.00 diskette, but most of them use graphics{% unless hd %} (and some use floating-point){% endunless %}, so try the [Color (with FPU)](../../s80/{{ include.hw }}/) machine demo instead.
+{% if hd %}The hard disk's **TESTS\SAMPLES** directory contains text copies of the BASIC samples from the IBM PC DOS 1.00 diskette (and DONKEY.BAS is in **DEMOS**), but most of them use graphics{% else %}The diskette's **DEMOS** directory contains DONKEY.BAS, a text copy of the BASIC game from the IBM PC DOS 1.00 diskette, but it uses graphics{% endif %}, so try the [Color (with FPU)](../../s80/{{ include.hw }}/) machine demo instead.
 
 ### **CONFIG.SYS** from the BASIC-DOS {% if include.hw == "at" %}HD Dual Terminal{% elsif hd %}HD Terminal Only{% else %}Terminal Only{% endif %} Demo Diskette
 

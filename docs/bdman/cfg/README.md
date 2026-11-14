@@ -80,11 +80,15 @@ A COM console uses a serial port (eg, a terminal connected to COM1) for both inp
 
 - ANSI (the default) for a terminal that supports ANSI (VT100) cursor and erase sequences
 - GENERIC for a terminal that supports only CR, LF, BACKSPACE, and TAB
-- VT100, which is ANSI plus XON, auto-wrap, and the VT100 key translations described below (eg, `CON=COM1:9600,N,8,1,VT100`)
+- VT100, which is ANSI plus XON, auto-wrap, the VT100's own character attributes and line-drawing characters, and the VT100 key translations described below (eg, `CON=COM1:9600,N,8,1,VT100`)
 - XON for XON/XOFF flow control: the terminal sends XOFF (CTRL-S) to stop output and XON (CTRL-Q) to resume it, and neither is ever treated as input (which a VT100 does when it falls behind, such as while smooth scrolling, so the VT100 type includes XON)
 - RTS for RTS/CTS (hardware) flow control: RTS is raised to tell the terminal that BASIC-DOS is ready, and output is held whenever the terminal drops CTS, resuming when CTS is raised again
 
 A VT100 leaves auto-wrap off by default, so for the VT100 type, the driver turns it on when the port is opened, and long lines wrap instead of being truncated at the last column.
+
+A VT100 has no colors and no characters above 127, so for the VT100 type, [COLOR](../cmd/device/screen/#color) selects reverse video, underline, bold, and blink instead, and the PC's line-drawing characters (176-223, eg, `CHR$(196)`) are displayed with the VT100's special graphics characters: single and double lines are both drawn as single lines, and the shaded and solid blocks (176-178 and 219-223) as its checkerboard.  Other characters above 127 are displayed as whatever the terminal makes of them.
+
+Every ANSI or VT100 terminal is assumed to have 24 rows and 80 columns; [LOCATE](../cmd/device/screen/#locate), [CLS](../cmd/device/screen/#cls), and [VIEW PRINT](../cmd/device/screen/#view-print) work there as they do on a video console, but the `SCREEN` function can't read characters back.  See [Serial Consoles](../../bdtech/dev/#serial-consoles) in the Technical Reference for a complete list of what BASIC's screen features do on a terminal, and which VT100 features BASIC-DOS uses.
 
 The VT100 type also swaps the DELETE and BACKSPACE keys, since on a VT100, DELETE (7Fh) is the key that erases the previous character, like the PC's BACKSPACE key, while BACKSPACE (08h) then deletes the character at the cursor, like the PC's DEL key.  And its cursor keys (which send ESC sequences) work like the PC's cursor keys, so an ESC on its own takes effect when the next key is pressed, and pressing ESC twice produces a single ESC.
 
@@ -168,9 +172,9 @@ Sessions are used not only by consoles, but also by [pipes](../intro/#pipes-and-
 
 Specifies the program to run in the next session, along with any startup commands.  Each SHELL line starts a session, with a console of its own (see [CON](#con)); the number of SHELL lines can't exceed [SESSIONS](#sessions).  If there are no SHELL lines, COMMAND.COM is run in the first session.  A session starts on the drive specified by its *program* (eg, `SHELL=C:/COMMAND.COM` starts on drive C:), or else on the boot drive.
 
-BASIC-DOS doesn't automatically run an AUTOEXEC.BAT file, so a session's startup commands must be specified on its SHELL line, separated by colons.  Every BASIC-DOS disk's CONFIG.SYS also sets [PATH$](../cmd/basic/func/#path) on each SHELL line, so that every session can find the programs in the EXT, DEMOS, and SAMPLES directories:
+BASIC-DOS doesn't automatically run an AUTOEXEC.BAT file, so a session's startup commands must be specified on its SHELL line, separated by colons.  Every BASIC-DOS disk's CONFIG.SYS also sets [PATH$](../cmd/basic/func/#path) on each SHELL line, so that every session can find the programs in the EXT and DEMOS directories:
 
-	SHELL=COMMAND.COM PATH$="A:\;A:\EXT;A:\DEMOS;A:\SAMPLES":COLOR 7,1:AUTOEXEC.BAT
+	SHELL=COMMAND.COM PATH$="A:\;A:\EXT;A:\DEMOS":COLOR 7,1:AUTOEXEC.BAT
 
 Everything after the *program* name becomes the program's command tail, which can't exceed 126 characters; a longer SHELL line isn't run (its session reports "SHELL line too long", followed by the start of the line), so put longer startup sequences in a batch file.
 

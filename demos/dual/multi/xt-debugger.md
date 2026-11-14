@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/ibm/ibm-5160-dual-640kb.json
     debugger: true
     autoMount:
-      A: "BASIC-DOS Multi-Console Demo"
+      A: "BASIC-DOS Multi-Console"
     autoType: DATE $date\rTIME $time\r
 ---
 

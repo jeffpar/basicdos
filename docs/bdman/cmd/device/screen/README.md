@@ -16,6 +16,7 @@ Screen commands include:
 - [PRINT](#print)
 - [PRINTF](#printf)
 - [SCREEN](#screen)
+- [VIEW PRINT](#view-print)
 - [WIDTH](#width)
 
 A console may occupy only part of the screen (see [Sessions](../../../intro/#sessions)).  Screen commands operate on the current session's console, and coordinates are relative to the console, not the screen.
@@ -26,7 +27,7 @@ When a BAS program that used a graphics mode ends (or is aborted), the video mod
 
 > CLS
 
-Clears the console using the background color and moves the cursor to the top left corner.
+Clears the console using the background color and moves the cursor to the top left corner.  After [VIEW PRINT](#view-print), only the scrolling rows are cleared, and the cursor moves to the first one.
 
 ### COLOR
 
@@ -43,6 +44,8 @@ The colors are:
 | 2 Green | 6 Brown | 10 Light Green | 14 Yellow |
 | 3 Cyan | 7 White | 11 Light Cyan | 15 Bright White |
 
+A VT100 terminal (see [CON](../../../cfg/#con)) has no colors, so it displays the attributes that a monochrome adapter displays for them instead: `COLOR 0,7` is reverse video, a *foreground* of 1 is underlined, 8-15 are bold, and 16-31 blink (eg, `COLOR 9` is bold and underlined, and `COLOR 7,0` is normal again).  A VT100 without the Advanced Video Option has only one of reverse video and underline (whichever its SET-UP cursor selects), which both settings display, and neither bold nor blink.  Other ANSI terminals are sent the colors, plus bold and blink.
+
 ### ECHO
 
 > ECHO [ON\|OFF]
@@ -56,6 +59,8 @@ Every BAT file run from the prompt (or by a startup command) starts with ECHO OF
 > LOCATE [*row*][,[*col*][,*cursor*]]
 
 Moves the cursor to the specified *row* and *col* (starting at 1,1), and hides (0) or shows (1) the cursor.  The cursor remains hidden until the next input.  Omitted values are unchanged.
+
+On a serial console, a terminal is assumed to have 24 rows and 80 columns, its cursor is always visible, and the current row (see [CSRLIN](../../basic/func/#csrlin)) is the row that BASIC-DOS has calculated from everything written since the console started, so it's correct once the screen has been cleared (or has scrolled) and only until a program sends the terminal an escape sequence of its own.  A GENERIC terminal can't move its cursor, so LOCATE is an "Illegal function call" there.
 
 ### PRINT
 
@@ -107,7 +112,7 @@ The other differences to watch for:
 - **Overflow**: when a number doesn't fit in its field, PRINT USING prints a `%` before it, but PRINTF simply widens the field.
 - **Rounding**: PRINTF rounds a number that's exactly halfway to the nearest even digit (eg, `%.0f` prints 2.5 as 2), whereas PRINT USING rounds it up.
 
-For example, the MORTGAGE.BAS sample (in the SAMPLES directory) printed its amortization table with:
+For example, the MORTGAGE.BAS sample (one of the PC DOS 1.00 BASIC samples, in the hard disk's TESTS\SAMPLES directory) printed its amortization table with:
 
 	2730 PRINT USING "### ";I;
 	2740 PRINT USING "  ######.##";PF-AMORT(I,2);AMORT(I,2);AMORT(I,1)
@@ -140,6 +145,22 @@ A *burst* of 0 disables color in mode 0, and a *burst* of 1 disables color in mo
 While a console is in any mode other than its original mode (eg, a graphics mode, or 40 columns in an 80-column console), it uses the entire screen, so other consoles on the same display are paused: any output they produce waits until that console returns to its original mode (eg, when its BAS program ends, which restores the mode), and then their borders are redrawn and their output continues.  Their earlier screen contents are not restored.
 
 A mode change affects the entire screen, so a SCREEN statement that changes the mode in a console without the focus waits until the console gets the focus (eg, with Shift-Tab).
+
+### VIEW PRINT
+
+> VIEW PRINT [*top* TO *bottom*]
+
+Limits scrolling to rows *top* through *bottom* (starting at 1), and moves the cursor to the first one: when output reaches the end of row *bottom*, only those rows scroll, and CLS clears only those rows, so the rows above and below them can hold headings or a status line.  VIEW PRINT alone makes every row a scrolling row again.
+
+Unlike Microsoft BASIC, the cursor isn't confined to the scrolling rows: LOCATE can still move it to any row (eg, to update a status line), where output doesn't scroll (below the scrolling rows, the cursor simply stops on the console's last row).  The rows remain in effect until the next VIEW PRINT, even after the program ends, or until SCREEN or WIDTH changes the mode.
+
+	CLS
+	PRINT "Squares"
+	VIEW PRINT 3 TO 10
+	FOR I = 1 TO 100: PRINT I, I * I: NEXT
+	VIEW PRINT
+
+Rows outside the console are an "Illegal function call", as is VIEW PRINT on a GENERIC terminal; an ANSI or VT100 terminal needs at least two scrolling rows.  VIEW PRINT isn't available on low memory systems (see [Low Memory](../../../lang/#low-memory)).
 
 ### WIDTH
 

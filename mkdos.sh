@@ -26,7 +26,9 @@
 #
 # After building, if pc.js exits normally (ie, via QUIT, which a successful
 # build runs automatically), update the BASIC-DOS disk images with the new
-# binaries (which requires PCJS; see gulpfile.js): while package.json's
+# binaries (which requires PCJS; see gulpfile.js), unless "gulp watch" is
+# running, which updates them itself a couple of seconds later: while
+# package.json's
 # config.release is "debug", a DEBUG build updates every disk except the
 # release diskette (BASICDOS-360K) and the 64K demo disks (BASICDOS-360K-M64
 # and BASICDOS-360K-TERM, which have room only for FINAL binaries), and a
@@ -76,7 +78,7 @@ if [ -n "$clean" ]; then
 fi
 tools/pc/pc.js --disk=software/disks/MSDOS320-C400.json --dir=$src --normalize --speed=16 --target=30M --fat=16:2048:512
 code=$?
-if [ $code -eq 0 ] && [ -n "$PCJS" ]; then
+if [ $code -eq 0 ] && [ -n "$PCJS" ] && ! watching; then
     if ! npx gulp demos --silent > /dev/null; then
         echo "error: unable to update the demo disks (run \"npx gulp demos\" for details)" >&2
         exit 1

@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb-fpu.json
     debugger: true
     autoMount:
-      A: "BASIC-DOS 80-Column Demo"
+      A: "BASIC-DOS Single"
       B: "PC DOS 1.00"
 ---
 

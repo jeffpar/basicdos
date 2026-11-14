@@ -794,13 +794,17 @@ ENDPROC	markAll
 ;
 ; clearAll
 ;
-; Clears the screen, and marks every row to be redrawn.
+; Clears the screen, and marks every row to be redrawn.  Afterward, only the
+; text rows scroll (see scrollScreen), which also moves the cursor to the
+; first one.
 ;
 ; Modifies:
 ;	AX, BX, CX, DX
 ;
 DEFPROC	clearAll
 	call	clearScreen
+	mov	dh,[bp].V_TROWS
+	call	setRows
 	push	di
 	lea	di,[bp].V_RLEN
 	mov	cx,MAXROWS
@@ -811,7 +815,23 @@ ca1:	mov	byte ptr [di],0
 	jmp	markAll
 ENDPROC	clearAll
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; clearScreen
+;
+; Makes every row a scrolling row again, and clears them all.
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
 DEFPROC	clearScreen
+	mov	dh,[bp].V_ROWS
+	call	setRows
+	mov	dh,0			; DX = 0 (clear the scrolling rows)
+	DEFLBL	setRows,near		; DH = # of scrolling rows
+	mov	dl,0
+	DEFLBL	setRowsDX,near		; DL = first row, DH = last row + 1
+	mov	[bp].V_POS,-1		; (the cursor moves; see setPos)
 	sub	cx,cx
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_SCROLL
 	mov	bx,STDOUT
@@ -947,42 +967,102 @@ ENDPROC	findRow
 ;
 ; scrollScreen
 ;
-; Scrolls the screen up (CX = 1) or down (CX = -1) one row, and updates our
-; record of what's on it; the exposed row and the status row must then be
+; Scrolls the text rows (see clearAll) up (CX = 1) or down (CX = -1) one row,
+; and updates our record of what's on them; the exposed row must then be
 ; redrawn.
+;
+; scrollRows scrolls only the text rows from row AL down, for a line that
+; was deleted (CX = 1) or inserted (CX = -1) there, by making them the only
+; scrolling rows meanwhile; a terminal needs at least two, so with fewer, the
+; rows are simply redrawn.
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	scrollScreen
+	mov	al,0
+	DEFLBL	scrollRows,near
+	cbw
+	push	ax			; save the first row
+	push	cx			; and the direction
+	xchg	dx,ax			; DL = first row
+	test	dl,dl			; every text row?
+	jz	ss0			; yes
+	mov	dh,[bp].V_TROWS
+	mov	al,dh
+	sub	al,dl
+	cmp	al,2			; at least two rows?
+	jl	ss7			; no
+	call	setRowsDX
+	pop	cx
+	push	cx
+	jc	ss7
+ss0:	mov	[bp].V_POS,-1		; (the cursor moves; see setPos)
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_SCROLL
 	mov	bx,STDOUT
-	push	cx
 	int	21h
 	pop	dx			; DX = direction
-	jnc	ss0
-	jmp	markAll			; the scroll failed, so redraw it all
-ss0:	push	es
+	pop	bx			; BX = first row
+	pushf
+	test	bx,bx
+	jz	ss0a
+	push	bx
+	push	dx
+	mov	dh,[bp].V_TROWS
+	call	setRows			; every text row scrolls again
+	pop	dx
+	pop	bx
+ss0a:	popf
+	jc	ss8			; the scroll failed, so redraw it all
+	push	es
 	push	ss
 	pop	es
 	lea	di,[bp].V_RLEN
 	call	shiftRows
 	lea	di,[bp].V_RDIRTY
 	call	shiftRows
+;
+; Move the rows' contents (see putRow), too; CX is the number of rows that
+; shiftRows moved, and the exposed row's length is now zero.
+;
+	mov	al,MAXCOLS
+	mul	cl
+	xchg	cx,ax			; CX = # bytes to move
+	mov	al,MAXCOLS
+	mul	bl
+	lea	di,[bp].V_SCR
+	add	di,ax			; DI -> first row's contents
+	lea	si,[di+MAXCOLS]
+	test	dx,dx			; scrolled down?
+	jns	ss0b			; no
+	add	di,cx
+	add	di,MAXCOLS-1
+	lea	si,[di-MAXCOLS]
+	std
+ss0b:	rep	movsb
+	cld
 	pop	es
-	sub	ax,ax			; AL = 0 (top row)
+	mov	si,bx			; SI = first row
 	test	dx,dx			; scrolled down?
 	js	ss1			; yes
 	mov	al,[bp].V_TROWS
-	dec	ax			; AL = last text row
-ss1:	xchg	si,ax
-	mov	[bp+si].V_RDIRTY,1
-	jmp	markStatus
+	cbw
+	dec	ax
+	xchg	si,ax			; SI = last text row
+ss1:	mov	[bp+si].V_RDIRTY,1
+	ret
+ss7:	pop	cx
+	pop	ax			; AL = first row
+	jmp	ma1			; redraw the rows from there down
+ss8:	jmp	markAll
 
 shiftRows:
-	mov	cl,[bp].V_ROWS
+	add	di,bx
+	mov	cl,[bp].V_TROWS
 	mov	ch,0
-	dec	cx			; CX = # rows to move
+	dec	cx
+	sub	cx,bx			; CX = # rows to move
+	push	cx
 	mov	si,di
 	test	dx,dx			; scrolled down?
 	js	sr1			; yes
@@ -995,6 +1075,7 @@ sr1:	add	di,cx
 	rep	movsb
 	cld
 sr2:	mov	byte ptr [di],0
+	pop	cx
 	ret
 ENDPROC	scrollScreen
 
@@ -1119,8 +1200,12 @@ ENDPROC	drawRow
 ;
 ; putRow
 ;
-; Writes the row in V_ROWBUF, plus enough spaces to erase whatever remains
-; of the row's previous contents (see V_RLEN).
+; Displays the row in V_ROWBUF, by writing only what differs from the row's
+; current contents (see V_SCR and V_RLEN): the text after their common
+; start (and before their common end, if they're the same length), plus
+; enough spaces to erase whatever remains of the current contents; if that
+; would take ERASE_MIN spaces or more, the rest of the row is erased instead
+; (which takes a terminal about that many characters).
 ;
 ; Inputs:
 ;	CL = row
@@ -1133,24 +1218,86 @@ DEFPROC	putRow
 	lea	dx,[bp].V_ROWBUF
 	mov	ax,di
 	sub	ax,dx			; AL = new length
-	mov	si,cx
-	and	si,0FFh			; SI = row
-	xchg	al,[bp+si].V_RLEN	; AL = old length
-	sub	al,[bp+si].V_RLEN	; AL = # spaces needed
-	jbe	pr2
-pr1:	mov	byte ptr [di],CHR_SPACE
-	inc	di
-	dec	al
-	jnz	pr1
-pr2:	mov	ch,cl
-	mov	cl,0
-	mov	ax,di
-	sub	ax,dx			; anything to write?
-	jz	pr9			; no
-	call	setPos
+	mov	di,cx
+	and	di,0FFh			; DI = row
+	push	di
+	mov	bl,al			; BL = new length
+	xchg	al,[bp+di].V_RLEN
+	mov	bh,al			; BH = current length
+	mov	al,MAXCOLS
+	mul	cl
+	lea	di,[bp].V_SCR
+	add	di,ax			; DI -> current contents
+	mov	si,dx			; SI -> new contents
+	push	es
+	push	ss
+	pop	es
+	mov	cl,bl
+	cmp	cl,bh
+	jbe	pr1
+	mov	cl,bh
+pr1:	mov	ch,0			; CX = the shorter length
+	jcxz	pr2
+	repe	cmpsb
+	je	pr2
+	dec	si
+	dec	di			; back up to the first difference
+pr2:	mov	ax,si
+	sub	ax,dx			; AL = first column to write
+	mov	cl,bl
+	sub	cl,al			; CX = # characters from there
+	cmp	bl,bh			; same length?
+	jne	pr3			; no
+	jcxz	pr3
+	push	si
+	push	di
+	add	si,cx
+	add	di,cx
+	dec	si
+	dec	di
+	std
+	repe	cmpsb			; skip their common end
+	cld
+	inc	cx
+	pop	di
+	pop	si
+pr3:	mov	dx,si			; DX -> characters to write
+	push	cx
+	rep	movsb			; update the current contents
+	pop	cx
+	pop	es
+	mov	ah,0			; AH = 0 (nothing to erase)
+	sub	bh,bl			; BH = # spaces needed
+	jbe	pr6
+	cmp	bh,ERASE_MIN
+	jae	pr5
+pr4:	mov	byte ptr [si],CHR_SPACE
+	inc	si
+	inc	cx
+	dec	bh
+	jnz	pr4
+	jmp	short pr6
+pr5:	inc	ah			; AH = 1 (erase after the new contents)
+pr6:	pop	di			; DI = row
+	jcxz	pr7
+	push	ax
+	push	bx
+	push	cx
 	mov	cx,di
-	sub	cx,dx
-	jmp	short writeOut
+	mov	ch,cl
+	mov	cl,al
+	call	setPos
+	pop	cx
+	call	writeOut
+	pop	bx
+	pop	ax
+pr7:	test	ah,ah
+	jz	pr9
+	mov	cx,di
+	mov	ch,cl
+	mov	cl,bl			; CL = new length
+	mov	al,2
+	jmp	short setPosAX
 pr9:	ret
 ENDPROC	putRow
 
@@ -1183,12 +1330,13 @@ ENDPROC	putCell
 ;
 ; Inputs:
 ;	DX -> data to write to STDOUT
-;	CX = length
+;	CX = length (less than 256)
 ;
 ; Modifies:
 ;	AX, BX
 ;
 DEFPROC	writeOut
+	add	byte ptr [bp].V_POS,cl	; the cursor moves, too (see setPos)
 	mov	bx,STDOUT
 	mov	ah,DOS_HDL_WRITE
 	int	21h
@@ -1199,22 +1347,35 @@ ENDPROC	writeOut
 ;
 ; setPos
 ;
+; Moves the cursor, unless it's there already: V_POS is the position we last
+; set, plus whatever putRow has written since (a row's last column leaves it
+; at a column that's never requested, so the cursor is then set again).
+;
 ; Inputs:
 ;	CL = col, CH = row
+;	For setPosAX only: AL = 2, and AH = 1 to erase from the new position
+;	to the end of the row
 ;
 ; Modifies:
 ;	AX
 ;
 DEFPROC	setPos
+	mov	ax,2			; leave the cursor's visibility alone
+	DEFLBL	setPosAX,near
+	cmp	cx,[bp].V_POS		; is the cursor there already?
+	jne	sp1			; no
+	test	ah,ah			; anything to erase?
+	jz	sp9			; no
+sp1:	mov	[bp].V_POS,cx
 	push	bx
 	push	dx
-	mov	dl,2			; leave the cursor's visibility alone
+	xchg	dx,ax
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_SETPOS
 	mov	bx,STDOUT
 	int	21h
 	pop	dx
 	pop	bx
-	ret
+sp9:	ret
 ENDPROC	setPos
 
 

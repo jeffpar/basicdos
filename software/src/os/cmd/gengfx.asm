@@ -19,6 +19,7 @@
 ;	PSET and PRESET			(genPset and genPreset)
 ;	PUT				(genPut)
 ;	VIEW				(genView)
+;	VIEW PRINT			(genView)
 ;	WINDOW				(genWindow)
 ;
 ; Coordinates can be absolute or relative (STEP); see genPoint.
@@ -45,8 +46,10 @@ CODE    SEGMENT
 	EXTNEAR	<gfxDraw,gfxGet,gfxLastPt,gfxLine,gfxPaint,gfxPset,gfxPut>
 	EXTNEAR	<gfxCircle,skipToken,mouseOn,mouseOff,peekNextToken>
 	EXTNEAR	<gfxPt,gfxStep,gfxPtD,gfxStepD,genCallFPUDst,compError>
-	EXTNEAR	<gfxView,gfxViewOff,gfxWindow,gfxWindowOff,gfxRadD>
+	EXTNEAR	<gfxView,gfxViewOff,gfxWindow,gfxWindowOff,gfxRadD,setRows>
 	EXTABS	<TOK_PSET,TOK_PRESET,TOK_ON,TOK_OFF,TOK_STEP,TOK_SCREEN>
+	EXTNEAR	<genPushImm>
+	EXTABS	<TOK_PRINT,TOK_TO>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -421,7 +424,9 @@ ENDPROC	genPutGfx
 ;
 ; genView
 ;
-; Generate code for "VIEW [[SCREEN] (x1,y1)-(x2,y2)[,[fill][,border]]]"
+; Generate code for "VIEW [[SCREEN] (x1,y1)-(x2,y2)[,[fill][,border]]]" or
+; "VIEW PRINT [top TO bottom]", which pushes the rows (if any) and the number
+; of them, like genArgs (see setRows).
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs
@@ -434,7 +439,41 @@ ENDPROC	genPutGfx
 ;	Any
 ;
 DEFPROC	genView
-	mov	cl,VAR_LONG
+	mov	al,CLS_KEYWORD
+	call	peekNextToken
+	jbe	gvp0
+	cmp	al,TOK_PRINT		; VIEW PRINT?
+	jne	gvp0			; no
+	call	skipToken
+	mov	al,CLS_ANY
+	call	peekNextToken
+	mov	cx,0			; CX = # rows (flags unchanged)
+	jbe	gvp2			; no rows
+	call	genExpr			; top
+	jbe	gvp8
+	call	gvp3
+	jc	gvw9
+	cmp	ah,CLS_KEYWORD		; TO?
+	jne	gvp8
+	cmp	al,TOK_TO
+	jne	gvp8
+	add	bx,size TOKLET		; consume TO
+	call	genExpr			; bottom
+	jbe	gvp8
+	call	gvp3
+	jc	gvw9
+	mov	cx,2
+gvp2:	GENPUSH	cx
+	GENCALL	setRows
+	ret
+gvp3:	push	ax
+	mov	al,VAR_LONG
+	call	genCvtType		; rows must be longs
+	pop	ax
+	ret
+gvp8:	stc
+	ret
+gvp0:	mov	cl,VAR_LONG
 	mov	si,offset gfxViewOff
 	call	genVW
 	jc	gvw9

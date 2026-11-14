@@ -3,4 +3,4 @@ REM FPU$ and PIPE$ (at 64K) and drivers for missing hardware skip themselves
 SKIP=VKD$
 BUFFERS=2
 CON=COM1:9600,N,8,1,VT100
-SHELL=COMMAND.COM PATH$="A:\;A:\EXT;A:\DEMOS;A:\SAMPLES"
+SHELL=COMMAND.COM PATH$="A:\;A:\EXT;A:\DEMOS"

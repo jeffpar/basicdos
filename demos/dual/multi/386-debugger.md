@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/compaq/compaq-deskpro386-dual-1mb.json
     debugger: true
     autoMount:
-      A: "BASIC-DOS Multi-Console Demo"
+      A: "BASIC-DOS Multi-Console"
 ---
 
 {% include machine.html id="deskpro386" %}

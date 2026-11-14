@@ -25,10 +25,10 @@ machines:
     debugger: available
     connection: com1->vt100.serialPort,com2->vt100b.serialPort
     autoMount:
-      A: "BASIC-DOS HD Dual Terminal Demo"
+      A: "BASIC-DOS HD Multi-Terminal"
 ---
 
-The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of memory, a 1.2Mb and a 1.44Mb diskette drive, a 10Mb hard disk, two serial ports, and no video adapter: its only displays are two DEC VT100 terminals, one connected to COM1 and the other to COM2, at 9600 baud.  It boots the BASIC-DOS HD Dual Terminal Demo diskette and runs a console on each VT100, both starting on drive C:, the hard disk, with the BASIC-DOS source code, tests, and tools.
+The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of memory, a 1.2Mb and a 1.44Mb diskette drive, a 10Mb hard disk, two serial ports, and no video adapter: its only displays are two DEC VT100 terminals, one connected to COM1 and the other to COM2, at 9600 baud.  It boots the BASIC-DOS HD Multi-Terminal diskette and runs a console on each VT100, both starting on drive C:, the hard disk, with the BASIC-DOS source code, tests, and tools.
 
 {% include vt100-demo.html id="ibm5170" headless=true terminal2="vt100b" %}
 

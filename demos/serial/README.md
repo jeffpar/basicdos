@@ -8,11 +8,11 @@ machines:
     config: /machines/pcx86/ibm/ibm-5160-cga-serial-640kb.json
     debugger: available
     autoMount:
-      A: "BASIC-DOS HD Serial Port Demo"
+      A: "BASIC-DOS HD Serial Port"
     autoType: DATE $date\rTIME $time\r
 ---
 
-This IBM PC XT boots the BASIC-DOS HD Serial Port Demo diskette and runs two independent consoles: an 80x25 console on the Color Display and a serial console on COM1 at 9600 baud, with no parity, eight data bits, and one stop bit.  The serial console uses the GENERIC terminal mode for this text pane.  The PC XT has no clock to keep the date and time, so this page types `DATE` and `TIME` commands with the current date and time at the first prompt.
+This IBM PC XT boots the BASIC-DOS HD Serial Port diskette and runs two independent consoles: an 80x25 console on the Color Display and a serial console on COM1 at 9600 baud, with no parity, eight data bits, and one stop bit.  The serial console uses the GENERIC terminal mode for this text pane.  The PC XT has no clock to keep the date and time, so this page types `DATE` and `TIME` commands with the current date and time at the first prompt.
 
 Click the **Serial Display** pane to the right of the machine and type a command, such as `DIR` or `PRINT "Hello from COM1"`.  Click the Color Display to use the local console, and try commands such as `DIR > COM1` or `DIR > AUX`.  Both consoles share the same hard disk.
 
@@ -35,7 +35,7 @@ Click the **Serial Display** pane to the right of the machine and type a command
 
 Press any key at the boot message (or wait 2 seconds) to start the diskette.  Its CONFIG.SYS creates both consoles and launches `C:COMMAND.COM` for each.  Each session starts on the drive named in its SHELL line, so both sessions start on C:.  The [hard disk](../hd/xt/) supplies programs and files.
 
-### CONFIG.SYS from the BASIC-DOS HD Serial Port Demo diskette
+### CONFIG.SYS from the BASIC-DOS HD Serial Port diskette
 
 ```
 {% include_relative CONFIG.SYS %}

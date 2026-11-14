@@ -16,7 +16,7 @@ machines:
     debugger: true
     connection: com1->vt100.serialPort
     autoMount:
-      A: "BASIC-DOS Terminal Only Demo"
+      A: "BASIC-DOS Terminal"
 ---
 
 {% include vt100-demo.html id="ibm5150" headless=true %}

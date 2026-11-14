@@ -16,10 +16,10 @@ machines:
     debugger: available
     connection: com1->vt100.serialPort
     autoMount:
-      A: "BASIC-DOS Terminal Only Demo"
+      A: "BASIC-DOS Terminal"
 ---
 
-The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 64K of memory, two diskette drives, a serial port, and no video adapter: its only display is a DEC VT100 terminal connected to COM1 at 9600 baud.  It boots the BASIC-DOS Terminal Only Demo diskette and runs a single console on the VT100.
+The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 64K of memory, two diskette drives, a serial port, and no video adapter: its only display is a DEC VT100 terminal connected to COM1 at 9600 baud.  It boots the BASIC-DOS Terminal diskette and runs a single console on the VT100.
 
 {% include vt100-demo.html id="ibm5150" headless=true %}
 

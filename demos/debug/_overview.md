@@ -1,4 +1,4 @@
-The BASIC-DOS Serial Debugger Demo diskette boots with a local console and a debugger on a DEC VT100 connected to COM2 at 9600 baud.  `DEBUG.COM` (in the **EXT** directory) is loaded by `DEVICE=` in CONFIG.SYS, independently of BASDEV.  It opens and exclusively claims COM2; subsequent attempts to open that port fail.
+The BASIC-DOS Serial Debugger diskette boots with a local console and a debugger on a DEC VT100 connected to COM2 at 9600 baud.  `DEBUG.COM` (in the **EXT** directory) is loaded by `DEVICE=` in CONFIG.SYS, independently of BASDEV.  It opens and exclusively claims COM2; subsequent attempts to open that port fail.
 
 Wait for the debugger's startup message on the VT100, then click its screen and press **Ctrl-C** (or BREAK).  The local machine stops and the terminal displays the interrupted registers, the current instruction, and a `-` prompt.  Type `?` for help, `R` to display registers, `U` to disassemble, `T` to single-step, `P` to step over a call, or `G` to resume the local session.  Breakpoints and any other INT 1 or INT 3 also enter the debugger.
 
@@ -23,7 +23,7 @@ Breakpoints use INT 3, so they work only in RAM.  While stopped, interrupts and 
 
 The resident driver uses local string and hex formatting with polling serial I/O.  The kernel's public `SPRINTF` and `ITOA` utilities enable interrupts and enter through the DOS dispatcher, so they are unsafe when the debugger has stopped inside DOS or an IRQ handler.  This deliberately duplicates a small amount of formatting code to keep inspection independent of the suspended kernel.  A selectable kernel formatter would first need a reentrant entry point that keeps interrupts disabled.  Only initialization calls DOS.
 
-### **CONFIG.SYS** from the BASIC-DOS Serial Debugger Demo diskette
+### **CONFIG.SYS** from the BASIC-DOS Serial Debugger diskette
 
 ```
 {% include_relative CONFIG.SYS %}

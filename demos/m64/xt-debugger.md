@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/ibm/ibm-5160-mda-640kb.json
     debugger: true
     autoMount:
-      A: "BASIC-DOS 640K Monochrome Demo"
+      A: "BASIC-DOS 640K Monochrome"
       B: "PC DOS 1.00"
     autoType: DATE $date\rTIME $time\r
 ---

@@ -123,6 +123,8 @@ CTO_POS		dw	?	; 32h: original position (X,Y) of top left
 CT_SCAN		db	?	; 34h: pending scan code (see pull_kbd)
 CT_PAGE		db	?	; 35h: video page (see get_start)
 CTO_PAGE	db	?	; 36h: original video page
+CT_SCRMIN	dw	?	; 37h: CT_CURMIN, with first scrolling row
+CT_SCRMAX	dw	?	; 39h: CT_CURMAX, with last scrolling row
 CONTEXT		ends
 SIG_CT		equ	'C'
 
@@ -208,6 +210,8 @@ dio1:	mov	dx,es:[di].DDP_CONTEXT
 	je	dio1a
 	cmp	bl,IOCTL_SETCOLOR - (IOCTL_CON - 8)
 	je	dio1a
+	cmp	bl,IOCTL_SETPOS - (IOCTL_CON - 8)
+	je	dio1a			; (it can erase; see ddcon_setpos)
 	cmp	bl,IOCTL_SETMODE - (IOCTL_CON - 8)
 	jne	dio3
 dio1a:	mov	ax,ds
@@ -554,29 +558,52 @@ ENDPROC	ddcon_setins
 ;
 ; ddcon_scroll
 ;
+; Scrolls or clears the context's scrolling rows, which are all the rows of
+; its interior, unless CX = 0 and DX is non-zero, which sets them instead:
+; a LINEFEED on the last scrolling row then scrolls only those rows.  The
+; cursor can still be moved to any row (eg, to update a status row); changing
+; the video mode makes every row a scrolling row again (see set_geometry).
+;
 ; Inputs:
 ;	ES:DI -> DDPRW
 ;	CX = +/- lines to scroll, 0 to clear
+;	DX = 0, or if CX = 0, the scrolling rows to set: DL = first row
+;	(zero-based) and DH = last row + 1
 ;	DS = CONSOLE context
 ;
 ; Outputs:
-;	None
+;	Carry set if the rows are outside the context; in all other cases,
+;	the cursor is moved to the first scrolling row
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, ES
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_scroll
-	test	cx,cx			; clearing the whole interior?
+	test	cx,cx			; clearing the scrolling rows?
 	jnz	dcs1			; no
-	call	draw_border		; yes, good idea to redraw border, too
+	test	dx,dx			; setting them?
+	jnz	dcs3			; yes
+	call	draw_border		; good idea to redraw border, too
 	mov	cl,100
 dcs1:	call	scroll
 	cmp	cl,100
 	jne	dcs9
-	mov	dx,ds:[CT_CURMIN]
+dcs2:	mov	dx,ds:[CT_SCRMIN]
 	call	update_cursor
 dcs9:	ret
+dcs3:	cmp	dl,dh			; is there at least one row?
+	jae	dcs7			; no
+	cmp	dh,ds:[CT_CURDIM].HIB	; do they end below the interior?
+	ja	dcs7			; yes
+	mov	al,ds:[CT_CURMIN].HIB
+	add	dl,al			; DL = first row in the context
+	add	dh,al
+	dec	dh			; DH = last row in the context
+	mov	ds:[CT_SCRMIN].HIB,dl
+	mov	ds:[CT_SCRMAX].HIB,dh
+	jmp	dcs2
+dcs7:	jmp	ddcon_none
 ENDPROC	ddcon_scroll
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -661,13 +688,14 @@ ENDPROC	ddcon_setclr
 ;	CL = col, CH = row (zero-based, like IOCTL_GETPOS)
 ;	DL = 0 to hide the cursor, 1 to show it, or any other value to
 ;	leave it alone
+;	DH = 1 to erase from the new position to the end of the row
 ;	DS = CONSOLE context
 ;
 ; Outputs:
 ;	Carry set if the position is outside the context
 ;
 ; Modifies:
-;	AX, BX, CX, DX
+;	AX, BX, CX, DX, DI, ES
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_setpos
@@ -676,9 +704,20 @@ DEFPROC	ddcon_setpos
 	cmp	ch,ds:[CT_CURDIM].HIB
 	jae	dsp8
 	push	dx
+	mov	bx,dx
 	mov	dx,cx
 	add	dx,ds:[CT_CURMIN]	; DX = new cursor position
-	call	update_cursor		; (which also clears carry)
+	dec	bh			; erase to the end of the row?
+	jnz	dsp0			; no
+	push	dx
+	mov	cl,CHR_SPACE
+	mov	ah,ds:[CT_COLOR].LOB	; AH = attributes
+dsp0a:	call	write_curpos		; (as draw_char does)
+	inc	dx
+	cmp	dl,ds:[CT_CURMAX].LOB
+	jle	dsp0a
+	pop	dx
+dsp0:	call	update_cursor		; (which also clears carry)
 	pop	dx
 	cmp	dl,1			; change the cursor's visibility?
 	ja	dsp9			; no
@@ -2375,14 +2414,21 @@ dc1:	mov	ah,ds:[CT_COLOR].LOB	; AH = attributes
 	jle	dc9
 	mov	dl,ds:[CT_CURMIN].LOB
 
+;
+; On the last scrolling row, the scrolling rows scroll; on any other row, the
+; cursor moves down (unless it's on the last row of the context, below the
+; scrolling rows).
+;
 	DEFLBL	draw_linefeed,near
-	inc	dh
+	cmp	dh,ds:[CT_SCRMAX].HIB
+	je	dc2
 	cmp	dh,ds:[CT_CURMAX].HIB
-	jle	dc9
-	dec	dh
-	push	cx
+	jge	dc9
+	inc	dh
+	ret
+dc2:	push	cx
 	mov	cl,1
-	call	scroll			; scroll the context up 1 line
+	call	scroll			; scroll the rows up 1 line
 	pop	cx
 dc9:	ret
 ENDPROC	draw_char
@@ -2680,10 +2726,10 @@ ENDPROC	pull_kbd
 ;
 ; scroll
 ;
-; Set CL to +/- lines to scroll (negative scrolls down).  To clear the entire
-; interior, set CL >= # lines (eg, 100).  To clear the entire context,
-; including any border, set CL to zero (typically only done when destroying
-; a context).
+; Set CL to +/- lines to scroll (negative scrolls down).  To clear all the
+; scrolling rows (the entire interior, unless ddcon_scroll changed them), set
+; CL >= # lines (eg, 100).  To clear the entire context, including any border,
+; set CL to zero (typically only done when destroying a context).
 ;
 ; Inputs:
 ;	CL = # lines
@@ -2711,8 +2757,8 @@ scr0:	jns	scr0a			; scroll down (negative)?
 scr0a:	cmp	al,ds:[CT_CONDIM].HIB
 	jb	scr1
 	mov	al,0			; zero tells BIOS to clear all lines
-scr1:	add	cx,ds:[CT_CURMIN]	; CH = row, CL = col of upper left
-	add	dx,ds:[CT_CURMAX]	; DH = row, DL = col of lower right
+scr1:	add	cx,ds:[CT_SCRMIN]	; CH = row, CL = col of upper left
+	add	dx,ds:[CT_SCRMAX]	; DH = row, DL = col of lower right
 scr2:	mov	bh,ds:[CT_COLOR].LOB	; BH = fill attributes
 	call	chk_graphics		; graphics mode?
 	jnc	scr3			; no
@@ -3709,8 +3755,10 @@ DEFPROC	set_geometry
 	and	al,CTSTAT_BORDER
 	mov	ah,al			; AX = 0101h for border, 0000h for none
 	mov	ds:[CT_CURMIN],ax	; set CT_CURMIN (AL,AH)
+	mov	ds:[CT_SCRMIN],ax	; (every row is a scrolling row)
 	sub	cx,ax
 	mov	ds:[CT_CURMAX],cx	; set CT_CURMAX (CL,CH)
+	mov	ds:[CT_SCRMAX],cx
 	pop	cx
 	sub	cx,ax
 	sub	cx,ax

@@ -8,11 +8,11 @@ machines:
     config: /machines/pcx86/ibm/ibm-5170-cga-640kb.json
     debugger: available
     autoMount:
-      A: "BASIC-DOS Protected Mode"
+      A: "BASIC-DOS (80286)"
       B: "PC DOS 2.00 (Disk 1)"
 ---
 
-The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of conventional memory, no extended memory, a Color Display, a 1.2Mb and a 1.44Mb diskette drive, and a 10Mb hard disk.  It boots the BASIC-DOS Protected Mode diskette, which runs the same three consoles as the [2Mb Protected Mode](../) demo, each on its own page of video memory.  Use **SHIFT-TAB** to switch between them.
+The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of conventional memory, no extended memory, a Color Display, a 1.2Mb and a 1.44Mb diskette drive, and a 10Mb hard disk.  It boots the BASIC-DOS (80286) diskette, which runs the same three consoles as the [2Mb Protected Mode](../) demo, each on its own page of video memory.  Use **SHIFT-TAB** to switch between them.
 
 Protected mode can run in as little as 256K of conventional memory; any additional conventional or extended memory is just a bonus.  See [Supported Machines](/docs/bdtech/mmu/#machines) and [The System Area](/docs/bdtech/mmu/#sysarea) for more details.
 
@@ -24,7 +24,7 @@ The boot sector first displays `System starting...`; press any key (or wait 2 se
 
 This demo is also available on a [COMPAQ DeskPro 386](386/).
 
-### **CONFIG.SYS** from the BASIC-DOS Protected Mode Diskette
+### **CONFIG.SYS** from the BASIC-DOS (80286) Diskette
 
 ```
 {{ site.data.pcx86.basicdos-configs["BASICDOS-360K-P80PM"] }}

@@ -20,6 +20,7 @@ CODE	SEGMENT word public 'CODE'
 	EXTNEAR	<cutText,decB,dispCol,downN,findRow,firstNonBlank,getc>
 	EXTNEAR	<getCount,getKey,gotoLine,incB,insChar,insText,lineEnd>
 	EXTNEAR	<lineStart,lookup,makeRoom,mapKey,markAll,markBelow,markLine>
+	EXTNEAR	<scrollRows>
 	EXTNEAR	<markStatus,motionAt,moveGap,msgEnd,msgName,msgSpNum,msgStr>
 	EXTNEAR	<nextLine,quit,readCmd,refresh,saveFile,setIns,setMsg,setUndo>
 	EXTNEAR	<setYank,upN>
@@ -72,10 +73,17 @@ on3:	call	beginChange
 	call	insChar
 	pop	ax
 	jc	on9
+	mov	ah,[bp].V_CROW		; AH = row of the new line for 'O'
 	cmp	al,'O'
-	jne	on4
-	dec	bx			; 'O' opens the line before the LF
-on4:	call	markBelow
+	je	on4
+	inc	ah			; 'o' opens the line on the next row
+	inc	bx
+on4:	dec	bx			; 'O' opens the line before the LF
+	push	bx
+	mov	al,ah
+	mov	cx,-1
+	call	scrollRows		; make room for the new line
+	pop	bx
 	mov	al,0
 	jmp	short startIns
 on9:	ret
@@ -152,8 +160,10 @@ sn3a:	call	insChar
 	mov	[bp].V_CUR,bx
 sn4:	cmp	al,CHR_LINEFEED		; new line?
 	jne	sn4a			; no
-	call	markBelow
-	jmp	sn2
+	mov	al,[bp].V_CROW
+	inc	ax
+	mov	cx,-1
+	call	scrollRows		; make room for it on the next row
 sn4a:	call	markLine
 	jmp	sn2
 ;
@@ -396,7 +406,9 @@ ENDPROC	cmdOp
 ; markCut
 ;
 ; Marks the rows to redraw after cutting (or putting) text: just the
-; cursor's row, unless the text includes a LF.
+; cursor's row, unless the text includes a LF.  If the cursor's line was
+; deleted (a linewise cut of one line, other than a change, which keeps its
+; LF), the rows below are scrolled up instead (see scrollRows).
 ;
 ; Inputs:
 ;	AX = segment of the text, CX = its length
@@ -406,9 +418,7 @@ ENDPROC	cmdOp
 ;	AX, CX
 ;
 DEFPROC	markCut
-	test	dh,dh
-	jnz	mc8
-	jcxz	mc7
+	jcxz	mc6
 	push	di
 	push	es
 	mov	es,ax
@@ -417,8 +427,28 @@ DEFPROC	markCut
 	repne	scasb
 	pop	es
 	pop	di
+	jne	mc6			; no LF
+	test	dh,dh			; linewise?
+	jz	mc8			; no
+	test	cx,cx			; more than one line?
+	jnz	mc8			; yes
+	cmp	[bp].V_OP,'c'
 	je	mc8
-mc7:	jmp	markLine
+	push	bx
+	push	dx
+	push	si
+	push	di
+	mov	al,[bp].V_CROW
+	inc	cx			; CX = 1
+	call	scrollRows
+	pop	di
+	pop	si
+	pop	dx
+	pop	bx
+	ret
+mc6:	test	dh,dh
+	jnz	mc8
+	jmp	markLine
 mc8:	jmp	markBelow
 ENDPROC	markCut
 
@@ -609,7 +639,11 @@ cj3:	mov	cx,bx
 	call	insChar
 	dec	bx
 cj8:	mov	[bp].V_CUR,bx
-	jmp	markBelow
+	call	markLine
+	mov	al,[bp].V_CROW
+	inc	ax
+	mov	cx,1
+	jmp	scrollRows		; the next line is gone
 cj9:	ret
 ENDPROC	cmdJoin
 

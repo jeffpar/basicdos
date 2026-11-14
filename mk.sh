@@ -2,7 +2,8 @@
 #
 # Builds BASIC-DOS on BASIC-DOS (mkdos.sh builds it on MS-DOS 3.20 instead).
 # As in mkdos.sh, if pc.js exits normally (ie, via QUIT) and PCJS is set,
-# the disk images are then updated with the new binaries: while package.json's
+# the disk images are then updated with the new binaries (by "gulp watch", if
+# it's running, a couple of seconds later): while package.json's
 # config.release is "debug", a DEBUG build updates every disk except the
 # release diskette and the 64K demo disks, and a FINAL build updates only those
 # three; once config.release is "final", a FINAL build updates them all, and a
@@ -59,7 +60,7 @@ fi
 tools/pc/pc.js compaq386 $src "CD OS;$mk;CD ..\TESTS$tests;$make;CD ..\MSB$msb;$make;QUIT" \
     --sys=bd:2 --target=30M --fat=16:2048:512 --ram=640K --speed=16 --serial --normalize
 code=$?
-if [ $code -eq 0 ] && [ -n "$PCJS" ]; then
+if [ $code -eq 0 ] && [ -n "$PCJS" ] && ! watching; then
     if ! npx gulp demos --silent > /dev/null; then
         echo "error: unable to update the demo disks (run \"npx gulp demos\" for details)" >&2
         exit 1

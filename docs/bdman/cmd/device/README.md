@@ -22,6 +22,7 @@ BASIC-DOS device commands include:
   - [LOCATE](screen/#locate)
   - [PRINT](screen/#print)
   - [SCREEN](screen/#screen)
+  - [VIEW PRINT](screen/#view-print)
   - [WIDTH](screen/#width)
 - [Graphics commands](graphics/)
   - [CIRCLE](graphics/#circle)

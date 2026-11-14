@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/ibm/ibm-5170-cga-640kb.json
     debugger: true
     autoMount:
-      A: "BASIC-DOS Protected Mode"
+      A: "BASIC-DOS (80286)"
       B: "PC DOS 2.00 (Disk 1)"
 ---
 

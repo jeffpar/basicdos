@@ -52,6 +52,7 @@ Clears the console using the background color and moves the cursor to the top le
 Sets the foreground (0-15), background (0-7), and border (0-255) colors of the console.
 For blinking colors, use 16-31 for *foreground* and 128-255 for *border*; as in MSBASIC, a *background* of 8-15 is the same as 0-7.
 In SCREEN 1, the values are the background color (0-15) and palette (0 or 1) instead.
+A VT100 terminal has no colors: COLOR 0,7 is reverse video, a *foreground* of 1 is underlined, 8-15 are bold, and 16-31 blink.
 
 [e]COMP *file1* *file2*
 Compares each file matching *file1* (which can contain wildcards, but doesn't match hidden files) with *file2* (or if *file2* is a drive or directory, with the file there that has the same name), and reports the offset (in hex) and bytes of each difference, up to 10 differences.
@@ -170,7 +171,7 @@ Simulates error *n* (1-255).
 Constant equal to the return code from the last program executed, for an internal command, 0 if it succeeded or 1 if it failed, or the value given by END in a BAS program.
 
 [f]EXISTS(*filespec*)
-Returns -1 (true) if a file or directory matching *filespec* exists, or 0 (false) if not; *filespec* may contain wildcards (eg, EXISTS("C:\SAMPLES\*.BAS")).  For example, a batch file can create a directory only if it doesn't exist with IF NOT EXISTS("OBJ") THEN MD OBJ.
+Returns -1 (true) if a file or directory matching *filespec* exists, or 0 (false) if not; *filespec* may contain wildcards (eg, EXISTS("C:\DEMOS\*.BAS")).  For example, a batch file can create a directory only if it doesn't exist with IF NOT EXISTS("OBJ") THEN MD OBJ.
 
 [c]EXIT
 Exits the command shell, returning to the program that ran it.  A shell that CONFIG.SYS starts (SHELL=) ignores EXIT; any other shell with no program to return to closes its session.
@@ -388,7 +389,7 @@ Sets the smallest subscript (0 or 1) of arrays dimensioned afterward.  The defau
 Fills the area around *x*,*y* with the *paint* color, up to the *border* color (which defaults to the *paint* color).  *paint* can also be a tile string of 1 to 64 bytes, one per row (each byte holds 4 pixels in SCREEN 1, or 8 in SCREEN 2); then *background* (default CHR$(0)) is a tile byte that unpainted rows may already match.
 
 [f]PATH$[=*string*]
-Contains a series of directories separated by semicolons (eg, PATH$ = "A:\;A:\EXT;A:\SAMPLES") that are searched when an unqualified program name cannot be found in the current directory.  PATH$ keeps its value when variables are cleared (eg, by NEW or CLEAR).  It can also be set on the SHELL line in CONFIG.SYS.
+Contains a series of directories separated by semicolons (eg, PATH$ = "A:\;A:\EXT;A:\DEMOS") that are searched when an unqualified program name cannot be found in the current directory.  PATH$ keeps its value when variables are cleared (eg, by NEW or CLEAR).  It can also be set on the SHELL line in CONFIG.SYS.
 
 [f+]PEEK(*offset*)
 Returns the byte at *offset* in the segment set by DEF SEG.
@@ -600,8 +601,9 @@ Displays the BASIC-DOS version number.
 [e]VI [~WS] [*file*]
 Edits *file* full-screen, using a subset of the commands of the UNIX *vi* editor (see the BASIC-DOS manual).  Press i to insert text and ESC to stop, then type :wq to save and exit, or :q! to exit without saving.  ~WS adds WordStar support (eg, CTRL-E, CTRL-X, CTRL-S, and CTRL-D move the cursor, and CTRL-V switches insert mode on and off).
 
-[b+]VIEW [[SCREEN] (*x1*,*y1*)-(*x2*,*y2*)[,[*fill*][,*border*]]]
+[b+]VIEW [[SCREEN] (*x1*,*y1*)-(*x2*,*y2*)[,[*fill*][,*border*]]] or VIEW PRINT [*top* TO *bottom*]
 Limits drawing in a graphics mode to a viewport, after filling it with the *fill* color and drawing a *border* around it, if specified.  Points are relative to the viewport, unless SCREEN is specified.  VIEW alone ends the viewport.
+VIEW PRINT limits scrolling (and CLS) to rows *top* through *bottom* (starting at 1) and moves the cursor to *top*; LOCATE can still move it to any row.  VIEW PRINT alone makes every row scroll again.
 
 [e]VOL [*drive*:]
 Displays the volume label of *drive* (or the current drive).

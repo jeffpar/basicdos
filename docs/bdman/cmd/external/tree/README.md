@@ -21,7 +21,6 @@ If there are no subdirectories, TREE displays `No subdirectories exist`.
 	+---EXT
 	+---DEMOS
 	|   \---WOLF3D
-	+---SAMPLES
 	+---SRC
 	|   +---BOOT
 	|   |   \---OBJ

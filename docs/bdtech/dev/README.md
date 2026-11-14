@@ -154,10 +154,10 @@ DOS_HDL_IOCTL (INT 21h, AH = 44h) sends IOCTL requests to drivers: AL is passed 
 | D3h | IOCTL_GETLEN | Gets the displayed length of data (eg, with tabs expanded, and other control characters counted as two, since the DOS line editor displays them as "^" + char) |
 | D4h | IOCTL_MOVCUR | Moves the cursor by DDPRW_LENGTH positions |
 | D5h | IOCTL_SETINS | Sets INSERT mode on (CL = 1) or off (CL = 0) |
-| D6h | IOCTL_SCROLL | Scrolls the interior of the context up (CX > 0) or down (CX < 0) by CX lines, or clears it (CX = 0) |
+| D6h | IOCTL_SCROLL | Scrolls the context's scrolling rows up (CX > 0) or down (CX < 0) by CX lines, or clears them (CX = 0, DX = 0) and moves the cursor to the first one; or sets them (CX = 0, DL = first row, DH = last row + 1, zero-based), which also moves the cursor to the first one.  The scrolling rows are all the rows of the interior until they're set (and again after a mode change): a LINEFEED on the last scrolling row scrolls only those rows, while on any other row, the cursor moves down a row, unless it's on the last row of the interior |
 | D7h | IOCTL_GETCOLOR | Gets the fill (DL) and border (DH) colors |
 | D8h | IOCTL_SETCOLOR | Sets the fill (CL) and border (CH) colors |
-| D9h | IOCTL_SETPOS | Sets the cursor position (CL = column, CH = row) and visibility (DL) |
+| D9h | IOCTL_SETPOS | Sets the cursor position (CL = column, CH = row, anywhere in the interior) and visibility (DL = 0 to hide it, 1 to show it, or any other value to leave it alone), and if DH = 1, erases from the new position to the end of the row |
 | DAh | IOCTL_GETMODE | Gets the video mode (DL) if CL = 0; if CL = 1, the segment of the context's video memory (DX), which a program can use to draw directly (in protected mode, an LDT selector of the context's own, which isn't present while another context's mode change blocks this one; see [Video Memory](../mmu/#video)); or if CL = 2, the number of VKD$ contexts (DL) and whether the caller's context has focus (DH = 1 if so), which COMMAND.COM checks to decide whether to mention SHIFT-TAB |
 | DBh | IOCTL_SETMODE | Sets the video mode (CL) |
 | DCh | IOCTL_GETCHAR | Gets the character (DL) and attributes (DH) at column CL, row CH (zero-based; see the SCREEN function) |
@@ -167,13 +167,17 @@ Changing the video mode (with IOCTL_SETMODE, or at ring 0 or in real mode, with 
 
 The first context opened gets the focus, and a context opened with a *focus* of 1 (see [CON=](../../bdman/cfg/#con); START uses it) takes the focus and remembers the context it took it from.  When a context with focus closes, the focus goes back to that context, if any, or else to the next one; when a context that others took the focus from closes, they remember its context instead.
 
-While a context is in any mode other than its original mode (eg, a graphics mode, or 40-column text in an 80-column context), it occupies the entire screen, so every other context on the same adapter is blocked: its writes, and any IOCTL_SCROLL, IOCTL_SETCOLOR, or IOCTL_SETMODE request, wait (like a context paused with CTRL-S), and its border isn't drawn (eg, on a focus switch).  When that context returns to its original mode (or is closed, in which case its original mode is restored), the borders of the other contexts on the adapter are redrawn, and every blocked request continues.
+While a context is in any mode other than its original mode (eg, a graphics mode, or 40-column text in an 80-column context), it occupies the entire screen, so every other context on the same adapter is blocked: its writes, and any IOCTL_SCROLL, IOCTL_SETCOLOR, IOCTL_SETPOS, or IOCTL_SETMODE request, wait (like a context paused with CTRL-S), and its border isn't drawn (eg, on a focus switch).  When that context returns to its original mode (or is closed, in which case its original mode is restored), the borders of the other contexts on the adapter are redrawn, and every blocked request continues.
 
 The BIOS knows only about the screen, so a mode change or an INT 10h call from a session whose context doesn't have focus waits until it does: IOCTL_SETMODE and every INT 10h function suspend the session, and a focus switch to its context lets it continue (if the wait is interrupted instead, eg, by KILL, IOCTL_SETMODE fails and the INT 10h call returns without calling the BIOS).  The exception is a context that is blocking the others, which owns the screen with or without focus.  BASIC-DOS programs have no need for INT 10h (the IOCTLs above do the same work on any context), and an INT 10h call made while the driver has the BIOS locked (eg, one that the BIOS issues itself in the middle of another) is not suspended.  Since each context has a page of its own, INT 10h function 05h (select display page) is ignored, unless the context is the one using the entire screen.
 
 Contexts that don't fit in an adapter's pages of video memory (one on an MDA, four on a CGA) go on virtual pages, up to 8 pages per adapter in all: each is a 4,000-byte block of system memory (owned by the system, since it outlives the program or console that opened it), shared by the contexts on that page, and freed when the last one closes.  The driver writes every text-mode context's characters directly, and scrolls any page that isn't being displayed itself (a virtual page, which the BIOS can't reach, or another of the adapter's pages; on a CGA, a row at a time during vertical retrace, with interrupts off, to avoid snow without blanking the display as the BIOS does, so a full-page scroll takes several frames on an 8088); only a displayed page, or a context using INT 10h for output, is scrolled by the BIOS.  When a context on a virtual page gets the focus, or sets a video mode (the BIOS can only set the mode of a page on the adapter), its page is exchanged with the page the adapter is displaying: their contents are swapped, and the contexts on each page take the other page's number, so no page needs a buffer just to save it while it's off the screen.  After a mode change, the page of the context with focus is displayed again.
 
-The COM driver also supports IOCTL_GETDIM (it assumes an 80x24 terminal), IOCTL_GETPOS and IOCTL_GETLEN (columns only), IOCTL_MOVCUR, IOCTL_SETINS, IOCTL_GETCOLOR, IOCTL_SETCOLOR, and IOCTL_SETKEYS, so that the same programs work on serial consoles.  For ANSI and VT100 terminals, it also supports IOCTL_SETPOS (by sending ESC [ *row* ; *col* H; the cursor's visibility is ignored) and scrolling with IOCTL_SCROLL (by sending LINEFEEDs at the bottom row, or ESC M at the top row); GENERIC terminals support neither, so IOCTL_SETPOS fails, and IOCTL_SCROLL only clears the screen.
+The COM driver also supports IOCTL_GETDIM (it assumes an 80x24 terminal), IOCTL_GETPOS, IOCTL_GETLEN, IOCTL_MOVCUR, IOCTL_SETINS, IOCTL_GETCOLOR, IOCTL_SETCOLOR, and IOCTL_SETKEYS, so that the same programs work on serial consoles.  It can't read the terminal's cursor, so IOCTL_GETPOS returns the position it has calculated from the context's output: the column isn't reset when a line wraps (the DOS line editor relies on that), and the row advances with each LINEFEED and each wrap, stopping at the last scrolling row.
+
+For ANSI and VT100 terminals, it also supports IOCTL_SETPOS (by sending ESC [ *row* ; *col* H, followed by ESC [ K if DH = 1; the cursor's visibility is ignored) and IOCTL_SCROLL: it scrolls by sending LINEFEEDs at the last scrolling row, or ESC M at the first one; it sets the scrolling rows with ESC [ *first* ; *last* r (at least two rows); and it clears them with ESC [ K on each row, or with a single ESC [ J from the first row when they reach the bottom of the terminal.  GENERIC terminals support none of that, so IOCTL_SETPOS fails, and IOCTL_SCROLL only clears the screen (by starting a new line).
+
+IOCTL_SETCOLOR sends an ANSI terminal ESC [ 0 ; 3*f* ; 4*b* m for the fill attributes' colors (or just ESC [ 0 m for the default attributes, 07h), with ; 1 added for intensity and ; 5 for blink.  A VT100 has no colors, so it's sent the attributes that an MDA displays instead: ; 7 (reverse video) for black on white, ; 4 (underline) for a foreground of 1, and ; 1 and ; 5 as above.  For a VT100, the driver also assigns the special graphics character set to G1 when the port is opened, and translates the PC's line-drawing characters (B0h-DFh) to it as they're written, sending SO before the first one and SI before the next character that differs between the two sets (5Fh and above).
 
 #### Raw Keys {#raw-keys}
 
@@ -215,6 +219,76 @@ All other keys are returned as their ASCII codes, including control characters. 
 | F4h | IOCTL_SETPART | Writes a new MBR, consisting of the driver's MBR code, the 64-byte partition table at DS:SI, and the signature, to a disk that has no partitions (ie, the unit is the whole disk; otherwise, the error is DDERR_BADREQ), and then makes the unit the first FAT12 or FAT16 partition in the table, so that IOCTL_SETPARMS can initialize it |
 
 HDC$'s MBR code is modeled on the pc.js MBR, without its drive tables: it moves itself to 7E00h, finds the active partition (rejecting a table with more than one active entry, or with any other status), loads its boot sector at 7C00h, verifies the signature, and jumps to it with SI pointing to the partition entry.
+
+### Serial Consoles {#serial-consoles}
+
+A console on a COM port (see [CON](../../bdman/cfg/#con)) supports most of the VKD$ console IOCTLs, as described [above](#vkd), so the BASIC statements built on them work on a terminal, too.  The tables below summarize both directions: what each of BASIC's text screen features does on a terminal, and which of a VT100's features BASIC-DOS uses.
+
+The COM driver can't read anything back from a terminal, and it assumes that every terminal has 24 rows and 80 columns.  ANSI (the default) and VT100 are the terminal types described here; a GENERIC terminal is sent only CR, LF, BACKSPACE, TAB, and BELL, so on one, CLS just starts a new line, COLOR does nothing, and LOCATE and VIEW PRINT are an "Illegal function call".
+
+#### BASIC Features on a Terminal {#terminal-basic}
+
+| BASIC feature | On a terminal | Notes |
+|---------------|---------------|-------|
+| CLS | Works | Clears the scrolling rows (the entire screen, unless VIEW PRINT changed them) and moves the cursor to the first one |
+| LOCATE *row*,*col* | Works | Rows 1-24 and columns 1-80; anything else is an "Illegal function call" (eg, row 25) |
+| LOCATE with *row* or *col* omitted | Works | Uses the calculated position (see CSRLIN and POS) |
+| LOCATE ,,*cursor* | Ignored | A VT100 can't hide its cursor |
+| CSRLIN | Calculated | The driver counts LINEFEEDs, line wraps, and its own cursor movements, so the row is correct once the screen has been cleared (or has scrolled), and until a program sends the terminal an escape sequence of its own |
+| POS, TAB, SPC | Calculated | The column is correct up to column 80; it isn't reset when a line wraps (the DOS line editor relies on that), so it's too large on the rest of a wrapped line |
+| COLOR | Differs | An ANSI terminal is sent the foreground and background colors, plus bold (8-15) and blink (16-31).  A VT100 has no colors, so it's sent the attributes that a monochrome adapter displays: reverse video (`COLOR 0,7`), underline (a foreground of 1), bold, and blink.  The border is ignored |
+| VIEW PRINT *top* TO *bottom* | Works | Uses the terminal's scrolling region, which needs at least two rows |
+| SCREEN(*row*,*col*) | Illegal function call | There is no screen memory to read |
+| SCREEN *mode*, WIDTH 40 or 80 | Ignored | |
+| Graphics (CIRCLE, DRAW, GET, LINE, PAINT, POINT, PRESET, PSET, PUT, VIEW, WINDOW) | Illegal function call | |
+| INKEY$, INPUT$, INPUT, LINE INPUT | Work | A VT100's cursor keys and PF1-PF4 are returned as the PC's cursor keys and F1-F4, and its DELETE and BACKSPACE keys are exchanged (see [Raw Keys](#raw-keys)) |
+| F5-F10, Home, End, PgUp, PgDn, Ins | Unavailable on a VT100 | It has no such keys; an ANSI terminal's are translated in raw keys mode, and the DOS line editor has CTRL key equivalents |
+| `PRINT CHR$(7)` | Works | Rings the terminal's bell |
+| `CHR$(176)` through `CHR$(223)` | Translated on a VT100 | The PC's line-drawing characters become the VT100's special graphics characters: double lines become single lines, and the shaded and solid blocks become its checkerboard.  An ANSI terminal is sent the characters unchanged |
+| Other characters above 127 | Not translated | A VT100 has only 7-bit characters |
+| `CHR$(1)` through `CHR$(31)` | Differ | VKD$ draws them as characters; a terminal acts on them as control characters |
+| `CHR$(27)` (escape sequences) | Passed through | A program can send any sequence the terminal supports, but the driver counts those characters as displayed text, so the calculated column and row are wrong afterward (CLS or LOCATE *row*,*col* corrects them) |
+| CTRL-C, CTRL-S, BREAK | Work | BREAK works like Ctrl-Break on a VKD$ console; a VT100 uses XON/XOFF flow control, so CTRL-S and CTRL-Q are never input there |
+
+#### VT100 Features {#terminal-vt100}
+
+| VT100 feature | Sequence | Used for |
+|---------------|----------|----------|
+| Cursor position (CUP) | ESC [ *row* ; *col* H | LOCATE, IOCTL_SETPOS |
+| Erase to end of display (ED) | ESC [ J | CLS, when the scrolling rows reach the bottom row |
+| Erase to end of line (EL) | ESC [ K | CLS for other scrolling rows; IOCTL_SETPOS with DH = 1 (eg, VI) |
+| Scrolling region (DECSTBM) | ESC [ *top* ; *bottom* r | VIEW PRINT, IOCTL_SCROLL (eg, VI) |
+| Reverse index (RI) | ESC M | Scrolling down (IOCTL_SCROLL) |
+| Cursor forward (CUF) | ESC [ C | The DOS line editor (IOCTL_MOVCUR); BACKSPACE moves the cursor back |
+| Character attributes (SGR) | ESC [ 0 ; 7 ; 4 ; 1 ; 5 m | COLOR (reverse video, underline, bold, and blink) |
+| Special graphics character set (SCS, SO, SI) | ESC ) 0, then CTRL-N and CTRL-O | Line-drawing characters |
+| Auto-wrap (DECAWM) | ESC [ ? 7 h | Turned on when the port is opened |
+| Cursor and PF key sequences | ESC [ A-D, ESC O A-D, ESC O P-S | Key translation |
+| XON/XOFF, the NO SCROLL key | CTRL-S, CTRL-Q | Flow control |
+| BREAK key | | Stops the current program |
+| Bell | CTRL-G | `PRINT CHR$(7)` |
+
+A VT100 without the Advanced Video Option (such as the one in the [Terminal Only demos](/demos/term/xt/)) has a single character attribute, reverse video or underline, depending on its SET-UP cursor selection, and neither bold nor blink.
+
+These VT100 features aren't used by the driver, and have no BASIC statement, although a program can send their sequences itself:
+
+| VT100 feature | Sequence | Notes |
+|---------------|----------|-------|
+| Cursor up, down, and back (CUU, CUD, CUB) | ESC [ A, B, D | |
+| Save and restore cursor (DECSC, DECRC) | ESC 7, ESC 8 | |
+| Erase to start of line or display, or all of either | ESC [ 1 K, 2 K, 1 J, 2 J | |
+| Index and next line (IND, NEL) | ESC D, ESC E | |
+| Double-width and double-height lines (DECDWL, DECDHL) | ESC # 6, ESC # 3 and 4 | |
+| 132 columns (DECCOLM) | ESC [ ? 3 h | WIDTH accepts only 40 and 80, and the driver assumes 80 columns; without the Advanced Video Option, 132-column mode has only 14 rows |
+| Reverse screen (DECSCNM) | ESC [ ? 5 h | |
+| Origin mode (DECOM) | ESC [ ? 6 h | Would make the driver's cursor positions relative to the scrolling region |
+| Smooth or jump scroll (DECSCLM) | ESC [ ? 4 h or l | Left to the terminal's SET-UP |
+| Cursor position and status reports (DSR, CPR) | ESC [ 6 n, ESC [ 5 n | The driver never asks for the cursor's position, and the reply would be read as keys |
+| Device attributes (DA) | ESC [ c | Reports whether the Advanced Video Option is installed |
+| Keypad application mode (DECKPAM) | ESC = | Never enabled; the keypad sends digits |
+| Tab stops (HTS, TBC) | ESC H, ESC [ g | The driver assumes a tab stop every 8 columns |
+| Keyboard LEDs (DECLL) | ESC [ 1 q through 4 q | |
+| Reset, screen alignment, VT52 mode, answerback | ESC c, ESC # 8, ESC [ ? 2 l, CTRL-E | |
 
 ### Built-in Drivers
 

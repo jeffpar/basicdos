@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
     sizeRAM: 256
     autoMount:
-      A: "BASIC-DOS 80-Column Demo"
+      A: "BASIC-DOS Single"
       B: "BASIC-DOS Tests"
 ---
 

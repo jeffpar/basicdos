@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/ibm/ibm-5150-dual-128kb.json
     debugger: true
     autoMount:
-      A: "BASIC-DOS Dual Monitor Demo"
+      A: "BASIC-DOS Dual Monitor"
 ---
 
 {% include machine.html id="ibm5150" %}

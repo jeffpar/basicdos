@@ -8,11 +8,11 @@ machines:
     config: /machines/pcx86/ibm/ibm-5170-cga-2mb.json
     debugger: available
     autoMount:
-      A: "BASIC-DOS Protected Mode"
+      A: "BASIC-DOS (80286)"
       B: "PC DOS 2.00 (Disk 1)"
 ---
 
-The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 2Mb of memory (640K of conventional memory and 1408K of extended memory), a Color Display, a 1.2Mb and a 1.44Mb diskette drive, a 10Mb hard disk, and a serial mouse on COM1.  It boots the BASIC-DOS Protected Mode diskette, which runs the same three consoles as the [Multiple Pages](../p80/at/) demo, each on its own page of video memory, but in protected mode.  Use **SHIFT-TAB** to switch between them.  Type `PAINT` in any console to draw with the mouse (click the screen to capture the mouse, and press **Esc** twice to exit); while PAINT's graphics mode is on the screen, the other consoles wait.
+The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 2Mb of memory (640K of conventional memory and 1408K of extended memory), a Color Display, a 1.2Mb and a 1.44Mb diskette drive, a 10Mb hard disk, and a serial mouse on COM1.  It boots the BASIC-DOS (80286) diskette, which runs the same three consoles as the [Multiple Pages](../p80/at/) demo, each on its own page of video memory, but in protected mode.  Use **SHIFT-TAB** to switch between them.  Type `PAINT` in any console to draw with the mouse (click the screen to capture the mouse, and press **Esc** twice to exit); while PAINT's graphics mode is on the screen, the other consoles wait.
 
 See [Protected-Mode Initialization](/docs/bdtech/mmu/#pminit) for more details.
 
@@ -24,7 +24,7 @@ The boot sector first displays `System starting...`; press any key (or wait 2 se
 
 This demo is also available on a [COMPAQ DeskPro 386](386/), where it uses the 80386's features.
 
-### **CONFIG.SYS** from the BASIC-DOS Protected Mode Diskette
+### **CONFIG.SYS** from the BASIC-DOS (80286) Diskette
 
 ```
 {% include_relative CONFIG.SYS %}
