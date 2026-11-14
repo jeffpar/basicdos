@@ -14,7 +14,8 @@
 | [bd/crt](bd/crt/) | TOOLS\\CRT | The startup code for C programs (`bdcrt0.asm`) |
 | [bd/fp](bd/fp/) | TOOLS\\FP | Floating point for C programs (`bdfp.asm`, `bdmath.c`), and a test (`fptest.c`) |
 | [bd/stub](bd/stub/) | TOOLS\\STUB | The NE loader stub (`nestub.asm`, `NESTUB.BIN`) and STUB.EXE's source |
-| [bd/hello](bd/hello/) | TOOLS\\HELLO | A C sample, with a makefile that explains each step |
+| [bd/demos/hello](bd/demos/hello/) | TOOLS\\DEMOS\\HELLO | A C sample, with a makefile that explains each step |
+| [bd/demos/sucks](bd/demos/sucks/) | TOOLS\\DEMOS\\SUCKS1, SUCKS2 | Two C programs from 1993 that play Ataxx (see its [README](bd/demos/sucks/README.md)) |
 
 The hard disk's **TOOLS\\BIN** gets the files in `dos`, overlaid with those in `bd`, and **TOOLS\\LIB** gets `dos/lib`, overlaid with `bd/lib` (see [gulpfile.js](../../../gulpfile.js)); `mk.sh` gets the same result by searching `bd` before `dos`.
 
@@ -53,7 +54,7 @@ where HELLO.DEF contains these lines (the heap and the stack share the sum of th
     STACKSIZE 2048
     HEAPSIZE 8192
 
-HELLO.NE runs in protected mode only.  STUB copies an NE program, replacing its MZ stub with the BASIC-DOS NE loader stub, and the copy runs in real mode, too, like the tools above.  [bd/hello](bd/hello/) has that sample, with a makefile that explains each step (`MAKE MAKEFILE` builds it).
+HELLO.NE runs in protected mode only.  STUB copies an NE program, replacing its MZ stub with the BASIC-DOS NE loader stub, and the copy runs in real mode, too, like the tools above.  [bd/demos/hello](bd/demos/hello/) has that sample, with a makefile that explains each step (`MAKE MAKEFILE` builds it).
 
 STUB is itself a C program built that way (see [bd/stub](bd/stub/)), and it writes the same file as `node tools/misc/mkne.js --stub in.exe out.exe` on the host.  Its copy of the stub's code comes from `nestub.asm`, which is also the source of `NESTUB.BIN`, the copy that mkne.js uses.
 

@@ -11,7 +11,7 @@
 #      memory model, add /AM, /AC, or /AL (LINK4 then uses that model's
 #      libraries).
 #
-#   2. LINK4 links HELLO.OBJ with the libraries in ..\LIB (the trailing "\"
+#   2. LINK4 links HELLO.OBJ with the libraries in ..\..\LIB (the trailing "\"
 #      makes it a folder to search), making an NE program, as HELLO.DEF asks.
 #      That file must have PROTMODE, CODE FIXED, DATA FIXED, STACKSIZE (2048
 #      or more), and HEAPSIZE statements.  HELLO.NE runs in protected mode.
@@ -20,8 +20,8 @@
 #      which makes it run in real mode, too.
 #
 hello.obj: hello.c
-	cl /c /FPa /I..\include hello.c
+	cl /c /FPa /I..\..\include hello.c
 
 hello.exe: hello.obj hello.def
-	link4 hello,hello.ne,nul,..\lib\,hello.def
+	link4 hello,hello.ne,nul,..\..\lib\,hello.def
 	stub hello.ne hello.exe

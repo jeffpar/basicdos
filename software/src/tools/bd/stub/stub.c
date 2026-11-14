@@ -22,7 +22,7 @@
  *
  * The stub's code comes from nestub.asm itself, assembled as a far data
  * segment of this program.  To build it, run "MAKE MAKEFILE" in this folder
- * (see the makefile, and ..\hello for a simpler example).
+ * (see the makefile, and ..\demos\hello for a simpler example).
  */
 
 #include <fcntl.h>

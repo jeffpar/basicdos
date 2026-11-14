@@ -220,13 +220,16 @@ let disks = {
             "TOOLS/INCLUDE/SYS": [ SRC + "/tools/dos/include/SYS/*" ],
             "TOOLS/LIB": [ SRC + "/tools/dos/lib/*", SRC + "/tools/bd/lib/*" ],
             //
-            // The BASIC-DOS C startup code and floating-point library sources (with a test), a C sample, and the
-            // source of STUB.EXE; all but the first have a makefile that builds a program there.
+            // The BASIC-DOS C startup code and floating-point library sources (with a test), the source of STUB.EXE,
+            // and the C demos (HELLO is the sample that explains each step); all but the first have a makefile that
+            // builds a program there.  Each SUCKS folder also gets the README.TXT they share.
             //
             "TOOLS/CRT": [ SRC + "/tools/bd/crt/*" ],
             "TOOLS/FP": [ SRC + "/tools/bd/fp/*" ],
-            "TOOLS/HELLO": [ SRC + "/tools/bd/hello/*" ],
-            "TOOLS/STUB": [ SRC + "/tools/bd/stub/*" ]
+            "TOOLS/STUB": [ SRC + "/tools/bd/stub/*" ],
+            "TOOLS/DEMOS/HELLO": [ SRC + "/tools/bd/demos/hello/*" ],
+            "TOOLS/DEMOS/SUCKS1": [ SRC + "/tools/bd/demos/sucks/sucks1/*", SRC + "/tools/bd/demos/sucks/README.TXT" ],
+            "TOOLS/DEMOS/SUCKS2": [ SRC + "/tools/bd/demos/sucks/sucks2/*", SRC + "/tools/bd/demos/sucks/README.TXT" ]
         }
     }
 };
@@ -302,7 +305,7 @@ function stageDisk(diskName)
                 return name[0] != '.' && name.toUpperCase() != "MKDOS.BAT";
             }, preserveTimestamps: true });
         } else {
-            fs.mkdirSync(dirTarget);
+            fs.mkdirSync(dirTarget, { recursive: true });   // a folder may have no entry for its parent (eg, TOOLS/DEMOS)
             copyFiles(files, dirTarget);
             if (folder == "TESTS/SAMPLES") {
                 /*

@@ -134,4 +134,4 @@ mode, too; their banners end in "BD" (eg, "Version 4.00BD").  The C and
 alternate math libraries in TOOLS\LIB are BASIC-DOS versions as well.  For
 the details, and for how to build C programs, see README.md in the
 software/src/tools folder of the BASIC-DOS repository
-(https://github.com/jeffpar/basicdos), and the sample in TOOLS\HELLO.
+(https://github.com/jeffpar/basicdos), and the sample in TOOLS\DEMOS\HELLO.
