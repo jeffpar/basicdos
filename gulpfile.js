@@ -222,14 +222,14 @@ let disks = {
             //
             // The BASIC-DOS C startup code and floating-point library sources (with a test), the source of STUB.EXE,
             // and the C demos (HELLO is the sample that explains each step); all but the first have a makefile that
-            // builds a program there.  Each SUCKS folder also gets the README.TXT they share.
+            // builds a program there.  SUCKS gets everything in its folder but README.md (README.TXT is the
+            // version for the disk).
             //
             "TOOLS/CRT": [ SRC + "/tools/bd/crt/*" ],
             "TOOLS/FP": [ SRC + "/tools/bd/fp/*" ],
             "TOOLS/STUB": [ SRC + "/tools/bd/stub/*" ],
             "TOOLS/DEMOS/HELLO": [ SRC + "/tools/bd/demos/hello/*" ],
-            "TOOLS/DEMOS/SUCKS1": [ SRC + "/tools/bd/demos/sucks/sucks1/*", SRC + "/tools/bd/demos/sucks/README.TXT" ],
-            "TOOLS/DEMOS/SUCKS2": [ SRC + "/tools/bd/demos/sucks/sucks2/*", SRC + "/tools/bd/demos/sucks/README.TXT" ]
+            "TOOLS/DEMOS/SUCKS": [ SRC + "/tools/bd/demos/sucks/*.c", SRC + "/tools/bd/demos/sucks/*.def", SRC + "/tools/bd/demos/sucks/makefile", SRC + "/tools/bd/demos/sucks/README.TXT" ]
         }
     }
 };

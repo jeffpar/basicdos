@@ -658,23 +658,36 @@ const PROGRAMS = [
         convert({ image }) {
 
             /*
-             * In real mode, LINK4 uses segments above DGROUP as 512-byte cache
-             * pages.  Selector arithmetic cannot address those pages in protected
-             * mode, so make the cache report no memory pages and use its existing
-             * temporary-file path.
+             * LINK4's virtual memory is the same as LINK's (see LINK): 512-byte
+             * pages in memory above DGROUP, addressed as base + page * 20h, and in
+             * VM.TMP after that.  So it gets the same changes: the first 128 pages
+             * go in one 64K block, which the page read and write routines address
+             * as selector:(page * 200h), and if the block isn't available, the
+             * page count is zero, so VM.TMP gets all the pages.
              */
-            patch(image, 0xb715, `
-                8b1e9600 1e 58 050010 a3a021 2bd8 7702 33db b90500 d3eb 891ea221
-                33c0 a3a421 f7d0 a3a621 5d c3
-            `, `
-                33c0                    // xor ax,ax
-                a3a221                  // mov [21A2h],ax (memory-page count)
-                a3a421                  // mov [21A4h],ax (temporary-file handle)
-                48                      // dec ax
-                a3a621                  // mov [21A6h],ax
-                8be5                    // mov sp,bp
-                5d                      // pop bp
-                c3                      // ret
+            patch(image, 0xb715,
+                "8b1e9600 1e 58 050010 a3a021 2bd8 7702 33db b90500 d3eb 891ea221",
+                `
+                bb0010                  // mov bx,1000h
+                b448 cd21               // DOS_MEM_ALLOC
+                a3a021                  // mov [21A0h],ax
+                bb8000                  // mov bx,128
+                7302                    // jnc $+4
+                33db                    // xor bx,bx
+                891ea221                // mov [21A2h],bx
+            `);
+            patch(image, 0xb60e, "b90500 d3e0 0306a021 8cd9 8ec1 8ed8 33f6", `
+                b109                    // mov cl,9
+                d3e0                    // shl ax,cl
+                96                      // xchg si,ax
+                8cd9 8ec1               // mov cx,ds / mov es,cx
+                8e1ea021                // mov ds,[21A0h]
+            `);
+            patch(image, 0xb695, "b90500 d3e0 0306a021 8ec0 33ff", `
+                b109                    // mov cl,9
+                d3e0                    // shl ax,cl
+                97                      // xchg di,ax
+                8e06a021                // mov es,[21A0h]
             `);
 
             /*

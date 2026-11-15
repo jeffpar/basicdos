@@ -11,10 +11,9 @@ From my old website, DoubleBit Software
     based on an old arcade game with the same name, and has also been known as
     Hexxagon.
 
-    Ataxx v1.01 for the Pilot (dated 9/17/97) used to be available here, but
-    PilotGear is now PalmGear, and there's no longer a program by that name in
-    their database.  So I searched the web and found a fairly comprehensive
-    Ataxx web site here.
+    Ataxx v1.01 for the Pilot (dated 9/17/97) used to be available on
+    PilotGear, but PilotGear is now PalmGear, and there's no longer a program
+    by that name in their database.
 
     I first came across this game as a puzzle in the computer game The 7th
     Guest.  Because the pieces made a sucking noise as they moved, I called
@@ -38,5 +37,4 @@ From my old website, DoubleBit Software
     Sucks.
 
     My friend Bob also wrote a version of Sucks (SUCKS2) that used a form of
-    "bit boards".  Here's Bob's source code and MS-DOS binary.  Which is
-    faster?  You be the judge!  ;-)
+    "bit boards".  Which is faster?  You be the judge!  ;-)

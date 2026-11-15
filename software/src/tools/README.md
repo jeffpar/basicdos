@@ -15,7 +15,7 @@
 | [bd/fp](bd/fp/) | TOOLS\\FP | Floating point for C programs (`bdfp.asm`, `bdmath.c`), and a test (`fptest.c`) |
 | [bd/stub](bd/stub/) | TOOLS\\STUB | The NE loader stub (`nestub.asm`, `NESTUB.BIN`) and STUB.EXE's source |
 | [bd/demos/hello](bd/demos/hello/) | TOOLS\\DEMOS\\HELLO | A C sample, with a makefile that explains each step |
-| [bd/demos/sucks](bd/demos/sucks/) | TOOLS\\DEMOS\\SUCKS1, SUCKS2 | Two C programs from 1993 that play Ataxx (see its [README](bd/demos/sucks/README.md)) |
+| [bd/demos/sucks](bd/demos/sucks/) | TOOLS\\DEMOS\\SUCKS | Two C programs from 1993 that play Ataxx (see its [README](bd/demos/sucks/README.md)), with one makefile that builds both |
 
 The hard disk's **TOOLS\\BIN** gets the files in `dos`, overlaid with those in `bd`, and **TOOLS\\LIB** gets `dos/lib`, overlaid with `bd/lib` (see [gulpfile.js](../../../gulpfile.js)); `mk.sh` gets the same result by searching `bd` before `dos`.
 
