@@ -110,11 +110,11 @@ With *file*, RUN runs that BAS file, as in Microsoft BASIC.  If the file isn't i
 
 > START [/B] [*program* [*arguments*]]
 
-`START` alone lists every session that's running a program: its number, how much memory it's using (in K, for all of its programs; eg, a COMMAND.COM and the program it's running), and its current program (or `UNKNOWN`, if that can't be determined), with `*` marking the current session:
+`START` alone lists every session that's running a program: its number, how much memory it's using (in K, for all of its programs; eg, a COMMAND.COM and the program it's running), and its current program (or `UNKNOWN`, if that can't be determined), with `*` marking the current session.  Copies of COMMAND.COM share one copy of its code, which is counted in only one session (the first that shares it):
 
 	C:\>START
 	* 1    59K COMMAND
-	  2    47K COMMAND
+	  2     4K COMMAND
 	  3   675K V86
 
 `START` *program* runs *program* (a COM or EXE file, found the way any external command is, including in the directories of PATH$) with any *arguments* (and their switches) in a new session, on a new full-screen console, which gets the focus (press **Shift-Tab** to switch back).  When the program ends, its session and its console close, and if that console had the focus, it goes back to the console that had it before (or if that console has closed, to the console that one got it from, and so on).  For example, `START COMMAND` starts another command shell, which, unlike the shell that a [SHELL=](../../cfg/#shell) line starts, can [EXIT](#exit).

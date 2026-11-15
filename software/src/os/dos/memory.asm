@@ -322,7 +322,8 @@ ENDPROC	mem_pmb
 ;
 ; Returns the name of a session's program, and how much memory the session
 ; is using: every block owned by its program, and by that program's parent,
-; and so on (eg, a COMMAND and the program it's running).
+; and so on (eg, a COMMAND and the program it's running), along with any code
+; block that one of them is the first to share.
 ;
 ; The session's PSP may be a selector in an LDT that isn't the active one
 ; (and in the caller's LDT, the same selector is the caller's own PSP), so
@@ -397,6 +398,38 @@ ms9:	UNLOCK_SCB_RET
 ms5:	pop	bx			; BX = the PSP's PMB #
 	call	mem_pmb			; get its PMB again
 	jc	ms9			; there isn't one, so we can't go on
+;
+; A code block that the program shares (see r3_share) owns itself, so that
+; some session accounts for it, it counts toward the first program (in PMB
+; order) that shares it.
+;
+	mov	ax,[di].PMB_SHARE	; AX = the code block it shares
+	test	ax,ax
+	jz	ms5c			; none
+	push	bx
+	mov	cx,bx			; CX = the PSP's PMB #
+	sub	bx,bx
+ms5a:	cmp	bx,cx			; any PMBs left before the PSP's?
+	jae	ms5b			; no, so it counts here
+	call	mem_pmb
+	cmp	[di].PMB_SHARE,ax	; does an earlier program share it?
+	je	ms5d			; yes
+	inc	bx
+	jmp	ms5a
+ms5b:	xchg	cx,ax			; CX = code block
+	push	dx
+	mov	bx,-1
+	mov	dx,bx			; DX = -1 (CX is a selector)
+	call	mem_pmb
+	pop	dx
+	jc	ms5d
+	mov	ax,[di].PMB_LEN.LOW
+	add	[bp].REG_DX,ax
+	mov	ax,[di].PMB_LEN.HIW
+	adc	[bp].REG_SI,ax
+ms5d:	pop	bx
+	call	mem_pmb			; get the PSP's PMB once more
+ms5c:
 	cmp	dl,MAX_PARENTS		; the session's program?
 	jne	ms6			; no, one of its parents
 	push	di
