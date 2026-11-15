@@ -1096,7 +1096,11 @@ DEFPROC	con_read,DOS
 	cmp	cx,255			; since read_line expects an INPBUF
 	jbe	crd1
 	mov	cx,255
-crd1:	mov	es:[di].INP_MAX,cl
+;
+; Set INP_CNT to zero as well (CH is zero), since the caller's buffer isn't
+; an INPBUF, so it has no previous line for RECALL to display.
+;
+crd1:	mov	word ptr es:[di].INP_MAX,cx
 	push	dx
 	mov	byte ptr [bp].TMP_AH,0	; TMP_AH = 0 for normal input
 	call	read_line

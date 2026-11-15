@@ -673,9 +673,9 @@ ENDPROC	mcb_getsize
 ; runTransient).
 ;
 ; A ring 3 program's block doesn't match, since its owner ID isn't its selector
-; (see enc_owner), so programs at ring 3 don't share code; they can't, because
-; an LDT selector means something else in another session's LDT, and COMMAND's
-; shared code has variables (eg, CMD_REFS) that every copy must write.
+; (see enc_owner), and an LDT selector means something else in another
+; session's LDT; ring 3 programs share a code block instead, which does match,
+; since it owns itself and has the same two fields (see r3_share).
 ;
 ; mcb_findsize matches PSP_CODESIZE alone, so that the loader can tell whether
 ; any copy could match before it reads a file just to checksum it.
@@ -685,7 +685,8 @@ ENDPROC	mcb_getsize
 ;
 ; Outputs:
 ;	CX = code segment (PSP_START.SEG, which in protected mode is a code
-;	alias of the block) of the matching PSP (zero if none)
+;	alias of the block, or a code block's own selector) of the matching
+;	PSP (zero if none)
 ;
 ; Modifies:
 ;	CX

@@ -19,7 +19,6 @@ CODE    SEGMENT
 	EXTNEAR	<addLabel,printLine,genCallCS,genPushImmLong>
 	EXTWORD	<KEYWORD_TOKENS,KEYOP_TOKENS>
 	EXTBYTE	<OPDEFS,RELOPS>
-	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -304,7 +303,7 @@ gnt2c:	pop	dx			; neither KEYOP nor KEYWORD
 	test	al,al			; has a default been set?
 	jnz	gnt4			; yes
 	mov	al,VAR_LONG		; no, default to VAR_LONG
-	cmp	word ptr cs:[FPU_TABLE].SEG,0
+	cmp	word ptr ss:[PSP_FPUTBL].SEG,0
 	je	gnt4			; if there's no FPU$ driver
 	mov	al,VAR_DOUBLE		; otherwise, VAR_DOUBLE
 gnt4:	mov	ah,al

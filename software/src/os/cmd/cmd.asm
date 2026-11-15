@@ -29,7 +29,6 @@ CODE    SEGMENT
 	EXTWORD	<KEYWORD_TOKENS>
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF>
 	EXTSTR	<VER_FINAL,VER_DEBUG,FPU_NAME>
-	EXTLONG	<FPU_TABLE>
 	EXTABS	<TOK_START>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -45,6 +44,11 @@ DEFPROC	main
 ; load_program), which is how we tell them apart without comparing CS and DS
 ; (which are different selectors in protected mode, even for the owner).
 ;
+; At ring 3, no copy owns the code: it's in a code block that every copy can
+; read but none can write (see r3_share in the kernel), so nothing here that
+; changes can be the same for every copy; CODE_DS stays zero, and there's no
+; transient portion to discard (see transParas).
+;
 	cmp	word ptr ds:[PSP_HEAP],size PSP
 	je	m0z			; we don't own the shared code
 	ASSUME	DS:CODE
@@ -54,21 +58,21 @@ DEFPROC	main
 	int	21h			; (ES = our PSP)
 	call	resSum
 	mov	[TRANS_SUM],ax		; record the checksum of the transient
-	mov	ah,DOS_DSK_GETDRV
-	int	21h
-	add	al,'A'			; and the drive it was loaded from
-	mov	[CMD_PATH],al
-	mov	[MSG_DRIVE],al
 	mov	ax,DOS_MSC_GETPCH
-	int	21h			; DL = path char (fixed at boot)
-	mov	[CMD_PATH+2],dl		; COMMAND.COM is in the root
+	int	21h			; DL = path char, DH = system drive
+	mov	[CMD_PATH],dh		; COMMAND.COM is in its root (see
+	mov	[MSG_DRIVE],dh		; buildEnv, which every copy uses)
+	mov	[CMD_PATH+2],dl
 	ASSUME	DS:DATA
-m0z:	push	ds
-	mov	ds,cs:[CODE_DS]
+m0z:	mov	cx,cs:[CODE_DS]
+	jcxz	m0y			; no copy owns the code (see above)
+	push	ds
+	mov	ds,cx
 	ASSUME	DS:CODE
 	inc	[CMD_REFS]
 	pop	ds
 	ASSUME	DS:DATA
+m0y:
 ;
 ; Get the current session's screen dimensions (AL=cols, AH=rows).
 ;
@@ -107,20 +111,22 @@ m0:	mov	bx,ds:[PSP_HEAP]
 	mov	dx,offset ctrlc		; DS:DX -> CTRLC handler
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	int	21h
-	mov	ds,cs:[CODE_DS]		; (FPU$ writes FPU_TABLE through DS)
 ;
 ; Get the address of the FPU$ driver's function table (FPUTBL), which the
-; code generator uses for all floating-point operations.
-; If there's no FPU$ driver, FPU_TABLE remains zero, which also disables
+; code generator uses for all floating-point operations; each copy keeps its
+; own pointer, in its PSP (PSP_FPUTBL), since shared code can't be written.
+; If there's no FPU$ driver, PSP_FPUTBL remains zero, which also disables
 ; doubles (see getNextToken and genExpr).
 ;
 	push	bx
-	mov	dx,offset FPU_NAME	; DS:DX -> FPU_NAME
+	mov	dx,offset FPU_NAME	; DS:DX -> FPU_NAME (DS = CS)
 	mov	ax,DOS_HDL_OPENRO
 	int	21h
 	jc	m0a
 	xchg	bx,ax			; BX = handle
-	mov	si,offset FPU_TABLE	; DS:SI -> FPU_TABLE
+	push	ss
+	pop	ds
+	mov	si,PSP_FPUTBL		; DS:SI -> PSP_FPUTBL
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETFPU
 	int	21h			; DH = FPU type
 	mov	ah,DOS_HDL_CLOSE
@@ -1906,10 +1912,12 @@ DEFPROC	cmdExit
 	DEFLBL	cmdExitCode,near
 	cmp	ds:[PSP_SHELL],0	; a SHELL?
 	jne	cx9			; yes, so ignore the exit
-	mov	ds,cs:[CODE_DS]
+	mov	cx,cs:[CODE_DS]
+	jcxz	cx8			; no copy owns the code (see main)
+	mov	ds,cx
 	ASSUME	DS:CODE
 	dec	[CMD_REFS]
-	mov	ah,DOS_PSP_RETURN
+cx8:	mov	ah,DOS_PSP_RETURN
 	int	21h			; (never returns)
 	ASSUME	DS:DATA
 cx9:	ret

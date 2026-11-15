@@ -18,7 +18,7 @@
 ; portion to the top of free memory (see resSave), and when the program ends,
 ; if that copy is still intact, it's copied back down; otherwise, the
 ; transient portion is reloaded from COMMAND.COM.  Since it may be reloaded
-; from the file, it must not contain any data that changes; FPU_TABLE, for
+; from the file, it must not contain any data that changes; TRANS_SUM, for
 ; example, is kept here instead.
 ;
 ;
@@ -39,12 +39,10 @@ CODE    SEGMENT
 	DEFLBL	entry,near
 	jmp	main
 ;
-; FPU_TABLE is a far pointer to the FPU$ driver's FPUTBL, which every
-; instance of this process obtains at startup (see main); it's the same for
-; every instance, so it's fine to keep it in our shared code segment.  It
-; remains zero if the FPU$ driver isn't available.
+; Only the copy that owns the shared code writes these (other copies bump
+; CMD_REFS, through CODE_DS); at ring 3, no copy does, since none can write
+; the code (see main), so CODE_DS stays zero.
 ;
-	DEFPTR	FPU_TABLE
 	DEFWORD	CMD_REFS,0		; # of copies using the shared code
 	DEFWORD	CODE_DS,0		; data segment for the shared code
 	DEFWORD	TRANS_SUM,0		; checksum of the transient portion

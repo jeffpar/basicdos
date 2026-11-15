@@ -58,7 +58,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<hdl_read,hdl_write,fcb_sread,fcb_swrite,fcb_rread,fcb_rwrite>
 	EXTNEAR	<fcb_rbread,fcb_rbwrite>
 	EXTNEAR	<r3_chkstk,r3_chkrd,r3_chkcode,r3_gp,r3_cbabort>
-	EXTNEAR	<r3_pfhok,r3_sfhok,r3_pftfix>
+	EXTNEAR	<r3_pfhok,r3_sfhok,r3_pftfix,mcb_setname>
 
 	.286p
 
@@ -153,7 +153,19 @@ DEFPROC	r3_load,DOS
 	xchg	si,ax			; DX:SI -> REG_FRAME
 	test	byte ptr es:[si+REG_CHECK].REG_CS,3	; a ring 3 program?
 	jz	rl9			; no
-	push	dx
+;
+; If the program shares a code block (see r3_share), TMP_ES is that block's
+; selector (in the GDT, unlike the program's own), and the block holds the
+; program's whole image, so that's what sysinit caches (see scb_load); since
+; load_program cleared TMP_CX, we set it again, from the size in the block.
+;
+	mov	cx,[bp].TMP_ES
+	test	cl,R3_SELTI		; a code block?
+	jnz	rl1			; no
+	mov	es,cx
+	mov	cx,es:[PSP_HEAP]
+	mov	[bp].TMP_CX,cx
+rl1:	push	dx
 	call	r3_top			; DX:CX = the session's ring 0 stack
 	mov	es,dx
 	mov	di,cx
@@ -172,6 +184,135 @@ DEFPROC	r3_load,DOS
 rl9:	xchg	ax,si
 	ret
 ENDPROC	r3_load
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; r3_share
+;
+; psp_calcsum calls this, when programs run at ring 3, for a COM program with
+; shared code (see COMHEAP).  Other programs share the code in the first
+; copy's own block, which also holds that copy's data, and which every copy
+; writes; ring 3 programs can't, since each session has its own LDT, and a
+; program's memory is its own.
+;
+; Instead, the first copy's image goes in a code block: a block that owns
+; itself, like a PSP's (so that no program's exit frees it, and mcb_findpsp
+; finds it), with the code size and checksum where a PSP has them, and whose
+; own selector is in the GDT, for the kernel alone.  Every copy, including the
+; first, runs the block's code with a code alias in its own LDT (see
+; MEMF_SHARE), which can read the code but not write it, and keeps only its
+; data.  CPU$ frees the alias with the copy's PSP block, and the code block
+; with the last copy that shares it.
+;
+; A program loaded with DOS_PSP_EXEC1 doesn't share code (eg, a debugger's
+; program, whose code must be writable for breakpoints), and if there's no
+; memory for a code block, the program keeps its code as well.
+;
+; Inputs:
+;	AX = end of code, DX = checksum
+;	CX = code block from mcb_findpsp (zero if none)
+;	SI = nonzero if the image is at DS:100h, ending at DI
+;	DS = ES = new PSP
+;
+; Outputs:
+;	CX = the program's code alias (zero if it doesn't share code)
+;	TMP_ES = code block, if the image was in memory, or else the PSP
+;
+; Modifies:
+;	AX, CX, SI
+;
+DEFPROC	r3_share,DOS
+	ASSUME	DS:NOTHING, ES:NOTHING
+	push	bx
+	push	dx
+	push	di
+	push	es
+	mov	[bp].TMP_ES,ds		; (which load_program may not have set)
+	cmp	[bp].REG_AX,DOS_PSP_EXEC1
+	je	rs7
+	mov	bx,cx			; BX = code block
+	jcxz	rs1			; there isn't one yet
+	test	si,si			; is the image in memory?
+	jz	rs3			; no
+rs2:	mov	[bp].TMP_ES,bx		; yes, and there, too (see r3_load)
+rs3:	mov	di,bx			; DI = code block
+	mov	dx,bx
+	mov	bx,ds			; BX = PSP block
+	push	cx
+	mov	ax,(CPU_ALIAS SHL 8) OR MEMF_CODE OR MEMF_SHARE
+	call	far ptr DDINT_CPU	; AX = the PSP block's code alias
+	pop	cx
+	jc	rs5
+	or	al,3			; RPL 3 (see mem_alias)
+	xchg	cx,ax			; CX = code alias
+	jmp	short rs9
+;
+; There's no alias (eg, the LDT is full), so the program keeps its code, and
+; a code block that we just allocated (CX is zero) has no use.
+;
+rs5:	mov	[bp].TMP_ES,ds
+	test	cx,cx
+	jnz	rs7
+	push	ds
+	pop	es			; (ES can't hold a selector we free)
+	mov	cx,di
+	mov	dx,-1			; DX:CX = code block
+	mov	ah,CPU_FREE
+	call	far ptr DDINT_CPU
+rs7:	sub	cx,cx
+rs9:	pop	es
+	pop	di
+	pop	dx
+	pop	bx
+	ret
+rs1:	test	si,si			; is the image in memory?
+	jz	rs7			; no
+	cmp	[bp].TMP_AX,bx		; all of it (not just its core)?
+	jne	rs7			; no
+;
+; load_program still has all the memory it could get, so the PSP block gives
+; up what follows the image, and the code block is allocated from the top of
+; memory, leaving what the PSP block gives up next in one piece.
+;
+	push	ax
+	push	dx
+	lea	bx,[di+15]
+	shr	bx,4			; BX = paragraphs through the image
+	mov	ah,DOS_MEM_REALLOC
+	int	21h
+	jc	rs0
+	push	di
+	sub	si,si			; SI:DI = length (the image's end)
+	mov	bx,MCBOWNER_SYSTEM
+	mov	ax,(CPU_ALLOC SHL 8) OR MEMF_HIGH
+	call	far ptr DDINT_CPU	; AX = its selector (DPL 0, in the GDT)
+	pop	cx			; CX = end of image
+rs0:	pop	dx			; DX = checksum
+	pop	di			; DI = end of code
+	jc	rs7
+	mov	es,ax
+	mov	es:[PSP_CODESIZE],di
+	mov	es:[PSP_CHECKSUM],dx
+	mov	es:[PSP_START].SEG,ax
+	mov	si,size PSP
+	mov	di,si
+	sub	cx,si
+	mov	es:[PSP_HEAP],cx	; (the image's size, for r3_load)
+	inc	cx
+	shr	cx,1
+	rep	movsw			; copy the image (and CX = 0)
+	xchg	dx,ax			; DX = code block
+	push	ds
+	mov	ds,cs:[dos_data]
+	ASSUME	DS:DOS
+	mov	si,[scb_active]
+	add	si,SCB_FILENAME + 1	; DS:SI -> the program's name
+	call	mcb_setname		; the block owns itself, with that name
+	pop	ds
+	ASSUME	DS:NOTHING
+	mov	bx,dx
+	jmp	rs2
+ENDPROC	r3_share
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

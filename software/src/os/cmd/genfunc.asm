@@ -20,7 +20,6 @@ CODE    SEGMENT
 	EXTNEAR	<genPushLong,genPushZeroLong>
 	EXTNEAR	<getNextSymbol,peekNextSymbol,memError,codeSeg>
 	EXTBYTE	<STR_DATA,VAL_DATA,TIMER_DATA>
-	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -63,7 +62,7 @@ DEFPROC	genFuncExpr
 ; or parameter is a VAR_LONG instead (see gfeLong).
 ;
 	mov	[fLongs],cx
-	cmp	word ptr cs:[FPU_TABLE].SEG,cx
+	cmp	word ptr ss:[PSP_FPUTBL].SEG,cx
 	jne	gfeA			; FPU$ driver present
 	mov	ax,cs
 	cmp	dx,ax			; predefined function?

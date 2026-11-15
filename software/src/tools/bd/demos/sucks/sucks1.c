@@ -452,13 +452,23 @@ PMOVE pm;
     BOARD bTmp;
     MOVE moveTmp;
     int i, iDepth, iGain;
+    char achLine[80];
 
     do {
         printf("Enter move for player %c (x,y x,y): ",
                 achPlayer[iPlayer+1]);
 
+        /*
+         * Read a whole line and then scan it (scanf would leave whatever it
+         * can't use to be read again, and again).  Anything that sscanf
+         * doesn't set keeps its value, so start with invalid coordinates.
+         */
+        pm->xFrom = pm->xTo = pm->yTo = XMAX+1;
         pm->yFrom = 0;
-        scanf("%d,%d %d,%d", &pm->xFrom, &pm->yFrom, &pm->xTo, &pm->yTo);
+        if (!fgets(achLine, sizeof(achLine), stdin))
+            exit(0);
+        sscanf(achLine, "%d,%d %d,%d", &pm->xFrom, &pm->yFrom,
+                                       &pm->xTo, &pm->yTo);
 
         if (pm->xFrom < 0) {
             i = pm->yFrom;

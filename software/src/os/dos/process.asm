@@ -27,7 +27,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<sfh_add_ref,pfh_close,sfh_close,sfb_close,reset_keys>
 	EXTNEAR	<mcb_getsize,mcb_free_all,mcb_findpsp,scb_endio>
 	EXTNEAR	<mem_alias,mem_pmode,load_ne,r3_start,r3_resume>
-	EXTNEAR	<r3_setldt,r3_endvec,get_scb,mcb_findsize>
+	EXTNEAR	<r3_setldt,r3_endvec,r3_share,get_scb,mcb_findsize>
 	EXTNEAR	<dos_check,dos_leave,dos_leave2,dos_ctrlc,dos_error>
 	EXTNEAR	<mcb_setname,scb_getnum,scb_release,scb_close,scb_yield>
 	EXTNEAR	<msc_sigctrlc,msc_retctrlc,scb_abort>
@@ -1713,16 +1713,25 @@ DEFPROC	psp_calcsum
 ; Look for a PSP block with the same code (see mcb_findpsp).
 ;
 crc1a:	call	mcb_findpsp		; CX = matching segment (zero if none)
+;
+; A ring 3 program can't run another program's code, so what matches is a
+; code block, and CX becomes the program's own alias of it (see r3_share).
+;
+	cmp	cs:[prog_user],0	; ring 3 programs?
+	je	crc8			; no
+	call	r3_share
 
 crc8:	xchg	ax,dx			; AX = checksum
 	pop	dx
 	ret
 ;
 ; psp_findsum is the same as psp_calcsum, but with the checksum (DX) of the
-; code (ending at AX) already calculated.
+; code (ending at AX) already calculated, and the code not in memory (for
+; psp_calcsum, SI is still 100h, where the code is; see r3_share).
 ;
 	DEFLBL	psp_findsum,near
 	push	dx
+	sub	si,si			; SI = 0 (the code isn't in memory)
 	jmp	crc1a
 ENDPROC	psp_calcsum
 

@@ -17,7 +17,6 @@
 CODE    SEGMENT
 
 	EXTNEAR	<strIllegal,findVar>
-	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
@@ -150,7 +149,7 @@ gsv2:	test	bx,bx			; any name?
 	test	ah,ah			; set?
 	jnz	gsv4			; yes
 	mov	ah,VAR_LONG		; no, so it's VAR_LONG without an FPU$
-	cmp	word ptr cs:[FPU_TABLE].SEG,0
+	cmp	word ptr ss:[PSP_FPUTBL].SEG,0
 	je	gsv4			; driver, and VAR_DOUBLE otherwise
 	mov	ah,VAR_DOUBLE
 	jmp	short gsv4
@@ -182,7 +181,7 @@ gsv4b:	cmp	ah,VAR_LONG
 	jmp	short gsv8
 gsv5:	cmp	ah,VAR_DOUBLE
 	jne	gsvX
-	lds	di,cs:[FPU_TABLE]	; DS:DI -> FPUTBL
+	lds	di,ss:[PSP_FPUTBL]	; DS:DI -> FPUTBL
 	mov	ax,ds
 	test	ax,ax
 	jz	gsvX

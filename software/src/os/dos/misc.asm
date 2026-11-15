@@ -23,7 +23,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<dos_check,dos_restart,dev_request,write_handle>
 	EXTNEAR	<sfb_get,flush_console,err_jump,get_psp,mem_alias>
 	EXTNEAR	<r3_ctrlc,r3_cbabort,r3_getvec,r3_setvec>
-	EXTBYTE	<err_active,prog_user>
+	EXTBYTE	<err_active,prog_user,def_drive>
 	EXTWORD	<r3_cbsp>
 	EXTLONG	<err_stack>
 	EXTSTR	<STR_CTRLC>
@@ -602,7 +602,9 @@ ENDPROC	msc_getvec
 ;
 ; Inputs:
 ;	If REG_AL = 0, returns the switch character in REG_DL
-;	If REG_AL = 4, returns the path character in REG_DL
+;	If REG_AL = 4, returns the path character in REG_DL, and the system
+;	drive's letter in REG_DH (the last SHELL's drive, or the boot drive;
+;	see def_drive), where COMMAND.COM is (eg, for COMSPEC)
 ;	Otherwise, set REG_AL to 0FFh to indicate unsupported subfunction
 ;	(PC DOS uses 1 to set the switch character, and 2 and 3 for the
 ;	obsolete "AVAILDEV" setting)
@@ -618,7 +620,10 @@ DEFPROC	msc_getswc,DOS
 	ASSERT	STRUCT,[bx],SCB
 	cmp	al,4			; get path char subfunction?
 	jne	gsw0			; no
-	mov	al,0			; yes, so treat it like get switch char
+	mov	al,[def_drive]
+	add	al,'A'
+	mov	[bp].REG_DH,al		; DH = system drive
+	mov	al,0			; and treat it like get switch char
 	ASSERT	<SCB_SWCHAR + 1>,EQ,<SCB_PATHCHAR>
 	inc	bx			; (but for SCB_PATHCHAR)
 gsw0:	test	al,al

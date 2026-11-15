@@ -176,7 +176,7 @@ CODE    SEGMENT
 
 ;
 ; There's no EVAL_DOUBLE table; the evaluators for doubles come from the
-; FPU$ driver's FPUTBL (see FPU_TABLE and genCallFPU).
+; FPU$ driver's FPUTBL (see PSP_FPUTBL and genCallFPU).
 ;
 	DEFLBL	EVAL_STR,word
 	dw	0,0,0,0,evalAddStr,0

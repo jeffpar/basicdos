@@ -137,7 +137,7 @@ An FCB opens a file read-only, so any number of FCBs (and handles opened for rea
 | 33h | DOS_MSC_CTRLC | AL = 0 to get, 1 to set (from DL) | DL = CTRL-C checking state |
 | 35h | DOS_MSC_GETVEC | AL = vector # | ES:BX = address (0:0 for vectors 80h and up; for a ring 3 program, unless it's its own session's handler, the address of a stub that chains to it, or 0:0 for a vector that it can't hook; see [Ring 3](../mmu/#ring3)) |
 | 3700h | DOS_MSC_GETSWC | | DL = switch character |
-| 3704h | DOS_MSC_GETPCH | | DL = path character (BASIC-DOS only; fixed at boot, so programs need to get it only once) |
+| 3704h | DOS_MSC_GETPCH | | DL = path character, DH = system drive letter (BASIC-DOS only; fixed at boot, so programs need to get them only once) |
 
 The path character is set at boot by CONFIG.SYS's PATHCHAR setting (`\` by default, or `/`), which also determines the default switch character: `/`, or `-` with `PATHCHAR=/`.  CONFIG.SYS's SWITCHAR setting (`-` or `/`), or a `-` boot key, can also change the switch character, but never to the path character, so the two are never the same.  Both are fixed at boot; unlike PC DOS, BASIC-DOS doesn't support AX = 3701h (set switch character), so CONFIG.SYS (or the boot key) is the only way to change them.
 | 52h | DOS_MSC_GETVARS | | ES:BX -> [DOSVARS](../data/#dosvars), AX = total memory, in Kb |

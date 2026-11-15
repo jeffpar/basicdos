@@ -15,7 +15,6 @@ CODE    SEGMENT
 
 	EXTNEAR	<ctrlc,restoreMode,firstBlock,nextBlock,codeSeg>
 	EXTWORD	<CODE_DS>
-	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
@@ -231,7 +230,7 @@ ENDPROC	forTest
 DEFPROC	getFPUFunc
 	push	ds
 	push	si
-	lds	si,cs:[FPU_TABLE]
+	lds	si,ss:[PSP_FPUTBL]
 	mov	ax,[si+bx]
 	mov	dx,ds
 ;

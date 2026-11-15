@@ -39,7 +39,6 @@ CODE    SEGMENT
 
 	EXTNEAR	<genExpr,getNextSymbol,genCallFar,genPushImm>
 	EXTNEAR	<genCallCS,strToChar,compError>
-	EXTLONG	<FPU_TABLE>
 	EXTABS	<TOK_ABS>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -284,7 +283,7 @@ gcd1:	call	genSlotAL		; DX = offset of result slot
 	DEFLBL	genCallFPU,near
 	push	si
 	push	ds
-	lds	si,cs:[FPU_TABLE]
+	lds	si,ss:[PSP_FPUTBL]
 	mov	dx,ds			; DX = FPUTBL segment
 	test	dx,dx			; is there an FPUTBL?
 	stc
@@ -375,7 +374,7 @@ ENDPROC	genBlkData
 ;
 DEFPROC	callFPU
 	push	ds
-	lds	bx,cs:[FPU_TABLE]	; DS:BX -> FPUTBL
+	lds	bx,ss:[PSP_FPUTBL]	; DS:BX -> FPUTBL
 	mov	ax,ds
 	add	bx,cx
 	mov	bx,[bx]			; AX:BX -> FPUTBL function

@@ -49,8 +49,11 @@ BOOT	segment word public 'CODE'
 ; which apparently didn't become a standard, because if we rely on those
 ; other assumptions, we can run into boot failures.
 ;
-start:	cld
-	jmp	short start1
+;
+; Modern systems only recognize a boot sector that starts with a JMP (EBh or
+; E9h), so we start with a 3-byte JMP, which also reaches part1 in one jump.
+;
+start:	jmp	part1
 
 	DEFLBL	PART1_COPY	; start of PART1 code/data
 
@@ -63,13 +66,6 @@ mybpb:		BPB	<,512,1,1,2,64,320,MEDIA_160K,1,8,1,0,0,0,8,3,7>
 DEV_FILE	db	"BASDEV  COM"
 DOS_FILE	db	"BASDOS  COM"
 CFG_FILE	db	"CONFIG  SYS",-1
-;
-; This intermediate jump could be eliminated if I used a long jump above,
-; but I wanted to make this boot sector unique in the annals of "future" boot
-; sectors, by using CLD (FCh) as the first opcode.  Will it confuse "future"
-; Intel boot sector detection code?  Maybe.  Do I care?  No.
-;
-start1:	jmp	short part1	; can't quite make it in one jump
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -203,8 +199,9 @@ ENDPROC	printp
 ; ourselves to low memory where we'll be out of the way, should we ever need
 ; to load more than 32K.
 ;
-	DEFLBL	PART1
+	DEFLBL	PART1,near
 
+	cld
 	push	cs
 	pop	es
 	lds	si,dword ptr es:[INT_DPT*4]

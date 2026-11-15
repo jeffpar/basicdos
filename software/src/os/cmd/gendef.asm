@@ -51,7 +51,6 @@ CODE    SEGMENT
 	EXTNEAR	<readData,restoreData,strToLong,strVal,setStr,setVarLong>
 	EXTNEAR	<genPushImmByteAH>
 	EXTABS	<TOK_BASE>
-	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -778,7 +777,7 @@ grd2:	push	ax			; save the var type (AH)
 	mov	cx,offset setStr
 	jmp	short grd6
 
-grd3:	cmp	word ptr cs:[FPU_TABLE].SEG,0
+grd3:	cmp	word ptr ss:[PSP_FPUTBL].SEG,0
 	je	grd4			; no FPU$ driver
 	call	genPushSlot		; (room for the value)
 	call	genPushLong		; (room for the item)

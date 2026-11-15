@@ -86,7 +86,7 @@ DOS_MSC_CTRLC	equ	33h	; get/set CTRLC state
 DOS_MSC_GETVEC	equ	35h	; get vector (AL) addr (ES:BX)
 DOS_DSK_GETINFO	equ	36h	; get disk info; eg, available clusters (BX)
 DOS_MSC_GETSWC	equ   3700h	; get switch char (DL) (undocumented)
-DOS_MSC_GETPCH	equ   3704h	; get path char (DL) (BASIC-DOS only)
+DOS_MSC_GETPCH	equ   3704h	; get path char (DL), system drive (DH)
 DOS_DSK_MKDIR	equ	39h	; create directory (DS:DX)
 DOS_DSK_RMDIR	equ	3Ah	; remove directory (DS:DX)
 DOS_DSK_CHDIR	equ	3Bh	; change current directory (DS:DX)
@@ -395,7 +395,7 @@ PSP_ENVSEG	dw	?	; 2Ch
 PSP_STACK	dd	?	; 2Eh: BASIC-DOS: last program stack ptr
 PSP_HDLFREE	dw	?	; 32h: available handles
 PSP_HDLPTR	dd	?	; 34h: initially 0FFFF:0018h
-PSP_SHAREPSP	dd	?	; 38h
+PSP_FPUTBL	dd	?	; 38h: BASIC-DOS: for the program's FPUTBL ptr
 PSP_DTAPREV	dd	?	; 3Ch: BASIC-DOS: prev DTA (restored on return)
 PSP_START	dd	?	; 40h: BASIC-DOS: initial program address
 PSP_CODESIZE	dw	?	; 44h: BASIC-DOS: code size (see COMHEAP)

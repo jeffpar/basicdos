@@ -79,6 +79,12 @@ CPU_MAXFUNC	equ	13h
 ; once (keeping it in PMB_CODE) and frees with the block, so it must not be
 ; freed with CPU_UNMAP (in real mode, a segment is its own alias).
 ;
+; With MEMF_SHARE as well (protected mode only), the block's code alias maps
+; the memory of another block instead, whose own selector is in DX: code that
+; several programs share (see load_program), which each of them can execute and
+; read but not write.  PMB_SHARE records the block that's shared, and when the
+; last block that shares it is freed, so is it.
+;
 ; CPU_SETBLK sets a block's owner (BX, which must be non-zero), its type (AL =
 ; MCBTYPE_*), and its name (8 characters at ES:SI, or SI = 0 for none), for
 ; DOS (see PMB_MCBTYPE and PMB_NAME); CPU_FREE and CPU_FREEALL clear them.
@@ -236,6 +242,7 @@ MEMF_CONFORM	equ	04h	; CPU_MAP and CPU_ALIAS only: conforming code
 MEMF_RDONLY	equ	08h	; read-only data (or execute-only code)
 MEMF_USER	equ	10h	; DPL 3, for programs (otherwise DPL 0)
 MEMF_LOW	equ	20h	; CPU_ALLOC only: below 1Mb (eg, for real mode)
+MEMF_SHARE	equ	20h	; CPU_ALIAS only: alias block DX's memory
 MEMF_HIGH	equ	40h	; CPU_ALLOC only: from the top
 MEMF_AT		equ	80h	; CPU_ALLOC only: at address DX:CX
 MEMF_REMAP	equ	80h	; CPU_MAP only: change selector ID BX
@@ -276,7 +283,7 @@ PMB_MCBTYPE	db	?	; 10h: MCBTYPE_*, or 0
 		db	?	; 11h: (reserved)
 PMB_CODE	dw	?	; 12h: code alias (see CPU_ALIAS), or 0
 PMB_V86		dw	?	; 14h: V86 machine's page # (see v86.inc), or 0
-		db	2 dup(?); 16h: (reserved)
+PMB_SHARE	dw	?	; 16h: block it shares (see MEMF_SHARE), or 0
 PMB_NAME	db	8 dup(?); 18h: name of process (zero if none)
 PMB		ends
 

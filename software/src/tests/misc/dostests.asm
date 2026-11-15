@@ -121,8 +121,8 @@ m4:	call	result
 	mov	dx,offset pchtest
 	call	print
 	mov	ax,DOS_MSC_GETPCH
-	int	21h		; DL = path char
-	mov	dh,dl		; DH = path char
+	int	21h		; DL = path char (and DH = system drive)
+	mov	bl,dl		; BL = path char
 	mov	dl,':'
 	mov	ax,DOS_MSC_GETPCH + 1
 	int	21h		; attempt to set the path char
@@ -130,7 +130,7 @@ m4:	call	result
 	jne	m5		; no
 	mov	ax,DOS_MSC_GETPCH
 	int	21h
-	cmp	dl,dh		; is the path char unchanged?
+	cmp	dl,bl		; is the path char unchanged?
 	je	m6		; yes (and carry is clear)
 m5:	stc
 m6:	call	result

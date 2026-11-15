@@ -26,7 +26,6 @@ CODE    SEGMENT
 
 	EXTBYTE	<OPDEFS>
 	EXTWORD	<EVAL_LONG,EVAL_STR>
-	EXTLONG	<FPU_TABLE>
 	EXTNEAR	<genCallFPU,genCallFPUDst,genCallFPUDst2>
 	EXTNEAR	<genConstDouble,genFnCall>
 	EXTABS	<TOK_ABS,TOK_TAN,TOK_MOUSE,TOK_SCREEN,TOK_IOCTL,TOK_DOS>
@@ -243,7 +242,11 @@ ge1k:	cmp	al,TOK_MOUSE
 	je	ge1k1
 	cmp	al,TOK_SCREEN
 	jne	ge1l
-ge1k1:	mov	si,[si].CTD_OFF		; DS:SI -> "MOUSE" or "SCREEN"
+;
+; SI -> the keyword's CTD, which is in our code segment, so the name comes
+; from the token instead (DS isn't CS in a copy that shares another's code).
+;
+ge1k1:	mov	si,[bx-size TOKLET].TOKLET_OFF
 	mov	ah,CLS_VAR_LONG
 	jmp	ge1c
 ge1l:	cmp	al,TOK_ABS
@@ -490,7 +493,7 @@ go2:	cmp	dh,VAR_LONG
 ; integers must be promoted ("\" is integer division), unless there's no FPU$
 ; driver, in which case they're integer operations.
 ;
-	cmp	word ptr cs:[FPU_TABLE].SEG,0
+	cmp	word ptr ss:[PSP_FPUTBL].SEG,0
 	je	go8a
 	cmp	cl,OPEVAL_DIV
 	je	go2b

@@ -1159,6 +1159,16 @@ be0:	mov	es,ax
 	mov	si,offset CMD_PATH
 	call	be2			; copy COMMAND's path
 	stosb				; and null-terminate it
+;
+; A copy that shares a code block can't update CMD_PATH (see main), so every
+; copy updates the environment's path instead (which follows "COMSPEC=").
+;
+	push	dx
+	mov	ax,DOS_MSC_GETPCH
+	int	21h			; DL = path char, DH = system drive
+	mov	es:[8],dh
+	mov	es:[10],dl
+	pop	dx
 	pop	si
 	call	be2			; copy "PATH="
 	lea	si,[bp].PATH_BUF+1

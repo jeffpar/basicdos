@@ -275,6 +275,9 @@ ENDPROC	ddcpu_alloc
 ; Outputs:
 ;	Carry clear if successful, set if error (AX = ERR_BADADDR)
 ;
+; Modifies:
+;	AX, BX, CX, DX, DI
+;
 DEFPROC	ddcpu_free
 	call	pmb_used		; BX -> PMB
 	jc	cf9
@@ -282,6 +285,7 @@ DEFPROC	ddcpu_free
 	mov	ds:[bx].PMB_TYPE,PMBTYPE_FREE
 	sub	ax,ax
 	mov	ds:[bx].PMB_OWNER,ax
+	push	ds:[bx].PMB_SHARE	; save the block it shares, if any
 	xchg	ax,ds:[bx].PMB_CODE	; does it have a code alias?
 	test	ax,ax
 	jz	cf0			; no
@@ -304,7 +308,23 @@ cf1:	call	pmb_merge		; merge with the next block if free
 	je	cf8
 	sub	bx,size PMB
 	call	pmb_merge		; and the previous block if free
-cf8:	clc
+;
+; If the block shared another block's memory (see MEMF_SHARE), and no other
+; block shares it now, that block is freed too (a free PMB's PMB_SHARE is
+; always zero, so only blocks in use can match).
+;
+cf8:	pop	cx			; CX = the block it shared
+	jcxz	cf9			; none (and carry is clear)
+	mov	bx,SYS_PMBS
+	mov	ax,ds:[SYS_VARS].SV_NPMBS
+cf8a:	cmp	ds:[bx].PMB_SHARE,cx	; does this block share it, too?
+	je	cf8b			; yes, so it stays
+	add	bx,size PMB
+	dec	ax
+	jnz	cf8a
+	mov	dx,-1			; DX:CX = the block that was shared
+	jmp	ddcpu_free
+cf8b:	clc
 cf9:	ret
 ENDPROC	ddcpu_free
 
@@ -492,6 +512,7 @@ ENDPROC	ddcpu_unmap
 ;
 ; Inputs:
 ;	AL = MEMF_* flags, BX = selector (or segment) to alias
+;	DX = selector of the block to share (with MEMF_SHARE)
 ;
 ; Outputs:
 ;	Carry clear if successful: AX = selector, DX:CX = base address
@@ -499,13 +520,32 @@ ENDPROC	ddcpu_unmap
 ;
 DEFPROC	ddcpu_alias
 	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM
-	jz	cl1
+	jnz	cl3
+	mov	ax,bx
+	mov	dx,bx
+	mov	cl,4
+	shl	bx,cl
+	mov	cl,12
+	shr	dx,cl
+	mov	cx,bx			; DX:CX = segment * 16
+	clc
+	ret
+;
+; With MEMF_SHARE, the block's code alias maps the memory of the block whose
+; own selector is DX, instead of its own.
+;
+cl3:	sub	bp,bp			; BP = 0 (no block to share)
+	test	al,MEMF_SHARE
+	jz	cl2
+	and	dl,NOT 3
+	mov	bp,dx			; BP = selector of the block to share
+	mov	al,MEMF_CODE
 ;
 ; A block's code alias (just MEMF_CODE, for the block's own selector) is
 ; created only once, and kept in its PMB (see pmb_free), with the same DPL
 ; as the block's selector (eg, DPL 3 for a ring 3 program's block).
 ;
-	cmp	al,MEMF_CODE		; just a code alias?
+cl2:	cmp	al,MEMF_CODE		; just a code alias?
 	jne	cl0b			; no
 	push	bx
 	mov	cx,bx
@@ -517,7 +557,7 @@ DEFPROC	ddcpu_alias
 	cmp	ds:[bx].PMB_SEL,ax	; is it the block's own selector?
 	jne	cl0a			; no
 	cmp	ds:[bx].PMB_CODE,0	; does the block have its alias yet?
-	jne	cl0			; yes
+	jne	cl0f			; yes
 	push	bx
 	xchg	bx,ax			; BX = selector to alias
 	call	sel_desc		; SI -> its descriptor
@@ -528,27 +568,37 @@ DEFPROC	ddcpu_alias
 cl0c:	test	bl,SEL_TI		; an LDT block (a ring 3 program)?
 	jz	cl0d			; no
 	or	al,MEMF_LDT		; yes, so its alias is in the same LDT
-cl0d:	call	pm_alias		; AX = new alias
+cl0d:	test	bp,bp			; share another block's memory?
+	jz	cl0e			; no
+	push	ax
+	mov	cx,bp
+	mov	dx,-1			; DX:CX = block with selector BP
+	call	pmb_used		; BX -> its PMB, if any
+	pop	ax
+	jc	cl7			; it isn't a block's
+	cmp	ds:[bx].PMB_SEL,bp	; is it the block's own selector?
+	jne	cl7			; no
+	mov	bx,bp			; yes, so that's what we alias
+cl0e:	call	pm_alias		; AX = new alias
 	pop	bx
 	jc	cl9
 	mov	ds:[bx].PMB_CODE,ax
+	mov	ds:[bx].PMB_SHARE,bp
 cl0:	mov	ax,ds:[bx].PMB_CODE
 	mov	cx,ds:[bx].PMB_ADDR.LOW
 	mov	dx,ds:[bx].PMB_ADDR.HIW	; DX:CX = base address
 	clc
 cl9:	ret
-cl0a:	xchg	bx,ax			; BX = selector to alias again
+cl0f:	test	bp,bp			; (the alias it has can't be changed)
+	jz	cl0
+	push	bx
+cl7:	pop	bx
+cl8:	jmp	cpu_inval
+cl0a:	test	bp,bp			; (only a block can share another's)
+	jnz	cl8
+	xchg	bx,ax			; BX = selector to alias again
 	mov	al,MEMF_CODE
 cl0b:	jmp	pm_alias
-cl1:	mov	ax,bx
-	mov	dx,bx
-	mov	cl,4
-	shl	bx,cl
-	mov	cl,12
-	shr	dx,cl
-	mov	cx,bx			; DX:CX = segment * 16
-	clc
-	ret
 ENDPROC	ddcpu_alias
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1445,7 +1495,8 @@ ENDPROC	blk_room
 ; all of the block and none of what follows it: selectors it no longer needs
 ; are freed, new ones (see blk_room) get its first selector's access rights,
 ; and all of their limits are set, along with its code alias's, which covers
-; the same memory as its first selector.
+; the same memory as its first selector (unless it's an alias of another
+; block's memory; see MEMF_SHARE).
 ;
 ; Inputs:
 ;	BX -> PMB
@@ -1492,6 +1543,8 @@ bf2:	mov	ds:[si].DESC_ACC,al
 	pop	bx
 	push	bx
 	mov	ax,ds:[si].DESC_LIMIT	; AX = its first selector's limit
+	cmp	ds:[bx].PMB_SHARE,0	; is its code alias another block's?
+	jne	bf8			; yes, so that stays as it is
 	mov	bx,ds:[bx].PMB_CODE
 	test	bx,bx			; does it have a code alias?
 	jz	bf8			; no

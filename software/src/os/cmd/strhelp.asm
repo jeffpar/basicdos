@@ -21,7 +21,6 @@ CODE    SEGMENT
 
 	EXTNEAR	<allocStr,compactStrs,isTempStr,releaseStr,newStr>
 	EXTNEAR	<getByteArg,getStrLen,getSubStr,strIllegal>
-	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
@@ -43,12 +42,12 @@ CODE    SEGMENT
 ;	BX, plus whatever the function modifies
 ;
 DEFPROC	callFPUFunc
-	cmp	word ptr cs:[FPU_TABLE+2],0
+	cmp	word ptr ss:[PSP_FPUTBL].SEG,0
 	stc
 	je	cff9			; no FPUTBL
 	push	ds
 	push	si
-	lds	si,cs:[FPU_TABLE]
+	lds	si,ss:[PSP_FPUTBL]
 	push	ds
 	push	word ptr [si+bx]	; push the FPUTBL function address
 	mov	bx,sp
@@ -526,7 +525,7 @@ DEFPROC	strStr,FAR
 	pop	es
 	mov	ax,[pStrNum].LOW
 	mov	bx,[pStrNum].HIW	; BX:AX = long (if no FPU$ driver)
-	cmp	word ptr cs:[FPU_TABLE].SEG,0
+	cmp	word ptr ss:[PSP_FPUTBL].SEG,0
 	je	sst4			; no FPU$ driver
 ;
 ; If the double is an integer that fits in 32 bits (eg, STR$(I)), we format
@@ -678,7 +677,7 @@ sv3a:	inc	si
 	dec	si			; no letter, so it's octal
 sv4:	mov	cx,-1			; CX = length (buffer is null-terminated)
 	DOSUTIL	ATOI32			; DX:AX = value
-	cmp	word ptr cs:[FPU_TABLE].SEG,0
+	cmp	word ptr ss:[PSP_FPUTBL].SEG,0
 	je	sv8			; no FPU$ driver, so it's the result
 	xchg	si,ax			; DX:SI = value
 	push	ss
@@ -691,7 +690,7 @@ sv4:	mov	cx,-1			; CX = length (buffer is null-terminated)
 	add	di,ax
 	mov	byte ptr es:[di],0	; null-terminate the decimal digits
 	lea	si,[valBuf]		; DS:SI -> buffer
-sv5:	cmp	word ptr cs:[FPU_TABLE].SEG,0
+sv5:	cmp	word ptr ss:[PSP_FPUTBL].SEG,0
 	je	sv4			; no FPU$ driver, so convert a long
 	les	di,[pValNum]		; ES:DI -> result
 	mov	bx,FPU_ATOD

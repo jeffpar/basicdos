@@ -29,7 +29,6 @@
 CODE    SEGMENT
 
 	EXTNEAR	<strIllegal,gfxInit,getPixel,clampCoord,getFPUFunc>
-	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
@@ -984,7 +983,7 @@ DEFPROC	getTimer,FAR
 	mul	ch
 	mov	ch,0
 	add	ax,cx			; AX = minutes since midnight
-	cmp	word ptr cs:[FPU_TABLE].SEG,0
+	cmp	word ptr ss:[PSP_FPUTBL].SEG,0
 	jne	gt1			; FPU$ driver present
 	mov	cx,60
 	mul	cx
