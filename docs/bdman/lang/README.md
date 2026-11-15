@@ -192,6 +192,7 @@ On a machine with too little memory for all of COMMAND.COM (eg, 64K), BASIC-DOS 
 - The MOUSE command and function
 - The sound commands: PLAY and SOUND
 - PRINTF, LPRINT, LLIST, the LPOS function, the MID$ statement, and KEY *n*,*string*
+- The DATE and TIME commands
 - Less common statements (DEF SEG, POKE, RANDOMIZE, SCREEN, SWAP, and WIDTH) and functions (CSRLIN, DATE$, FRE, HEX$, INKEY$, LCASE$, OCT$, PEEK, POS, RND, RND%, SCREEN, SGN, TAB, TIME$, and UCASE$)
 - The program editing commands AUTO, DELETE, and EDIT (lines can still be entered and deleted by number)
 - The file statements (OPEN, CLOSE, FIELD, GET, PUT, LSET, RSET, IOCTL, and the # forms of INPUT, LINE INPUT, PRINT, and WRITE) and file functions (CVD, CVI, CVL, EOF, INPUT$, IOCTL$, LOC, LOF, MKD$, MKI$, and MKL$)

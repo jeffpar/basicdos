@@ -16,15 +16,18 @@
 	include	devapi.inc
 	include	uart.inc
 	include	dosapi.inc
+	include	comdev.inc
 
 DEV	group	CODE,CODE2,CODE3,CODE4,INIT,DATA
 
 CODE	segment para public 'CODE'
 
 	public	COM1
-	DEFLEN	COM1_LEN,<COM1>
-	DEFLEN	COM1_INIT,<COM1,COM2,COM3,COM4>
-COM1	DDH	<COM1_LEN,,DDATTR_OPEN+DDATTR_CHAR,COM1_INIT,,20202020314D4F43h>
+;
+; COM1's length (and the offset of ddcom_init) are link-time values, unlike
+; the other ports', because comcon.asm's code follows ours in this segment.
+;
+COM1	DDH	<offset DEV:COM2,,DDATTR_OPEN+DDATTR_CHAR,offset DEV:ddcom_init,,20202020314D4F43h>
 ;
 ; Every COM driver instance must define the next group of variables in
 ; the same location/order as shown below, followed by its request handler
@@ -32,7 +35,7 @@ COM1	DDH	<COM1_LEN,,DDATTR_OPEN+DDATTR_CHAR,COM1_INIT,,20202020314D4F43h>
 ;
 	DEFPTR	ddcom_cmdp	; ddcom_cmd pointer
 	DEFPTR	ddcom_intp	; ddcom_int pointer
-	DEFWORD	ct_seg,0	; active context, if any
+	DEFWORD	ct_seg,0	; context with focus, if any (see switch_to)
 	DEFWORD	card_num,0	; card number
 	DEFWORD	ddcom_isr,<offset ddcom_int1>; interrupt entry
 
@@ -47,17 +50,16 @@ COM1	DDH	<COM1_LEN,,DDATTR_OPEN+DDATTR_CHAR,COM1_INIT,,20202020314D4F43h>
 ;
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcom_req,far
-	mov	cx,[ct_seg]
-	mov	dx,[card_num]
-	call	[ddcom_cmdp]
 	mov	ds,cs:[0].DDH_DATA	; (DOS doesn't need DS preserved)
 	ASSUME	DS:CODE
-	mov	[ct_seg],cx
+	jmp	[ddcom_cmdp]		; DS = this port's data (see ddcom_cmd)
 	ASSUME	DS:NOTHING
-	ret
 ENDPROC	ddcom_req
 
 	DEFPTR	wait_ptr,0FFFFh,0	; chain of waiting packets (none)
+
+	EXTNEAR	<alloc_sys,alloc_plane,free_ctx,get_shadow,paint,con_opt>
+	EXTNEAR	<shadow_put,shadow_erase,shadow_scroll,switch_to,switch_now>
 
 	DEFLBL	CMDTBL,word
 	dw	ddcom_none,   ddcom_none,   ddcom_none,   ddcom_ioctl	; 0-3
@@ -76,10 +78,6 @@ ENDPROC	ddcom_req
 ; which enables RTS/CTS flow control.  The terminal types in OPT_NAMES must
 ; come first, in the order of the TERM_* values, followed by XON and RTS.
 ;
-TERM_ANSI	equ	0	; supports ANSI (VT100) cursor and erase sequences
-TERM_GENERIC	equ	1	; supports only CR, LF, BACKSPACE, and TAB
-TERM_VT100	equ	2	; ANSI, DELETE/BACKSPACE swapped, XON, wrap
-TERM_COUNT	equ	3	; number of terminal types
 
 	DEFLBL	OPT_NAMES,byte
 	db	"ANSI",0,"GENERIC",0,"VT100",0,"XON",0,"RTS",0,0
@@ -100,8 +98,6 @@ TERM_COUNT	equ	3	; number of terminal types
 ; (B0h-DFh): double lines become single lines, and the shaded and solid blocks
 ; all become the checkerboard.
 ;
-VT100_SO	equ	0Eh		; "shift out" (selects G1)
-VT100_SI	equ	0Fh		; "shift in" (selects G0)
 
 	DEFLBL	VT100_GFX,byte
 	db	"aaaxuuukkuxkjjjk"	; B0h-BFh
@@ -111,72 +107,38 @@ VT100_SI	equ	0Fh		; "shift in" (selects G0)
 	db	0,4,2,6,1,5,3,7		; (ie, swap the red and blue bits)
 
 ESC_MS		equ	110	; how long to hold an ESC (raw keys)
-
-TERM_COLS	equ	80	; assumed terminal dimensions (for IOCTL_GETDIM)
-TERM_ROWS	equ	24
-
-RINGBUF		struc
-BUFOFF		dw	?	; 00h: offset within context of buffer
-BUFHEAD		dw	?	; 02h: head of input (next offset to read)
-BUFTAIL		dw	?	; 04h: tail of input (next offset to write)
-BUFEND		dw	?	; 06h: offset within context of buffer end
-RINGBUF		ends
-
 ;
-; A serial context contains two ring buffers (CT_INPUT and CT_OUTPUT).
+; The key that gives the focus to a port's next console (see push_input),
+; unless CONFIG.SYS has a HOTKEY setting (HOT_KEY): CTRL-\ (ASCII FS), since
+; a terminal can't tell SHIFT-TAB (the VKD$ driver's key) from TAB.
 ;
-LINE_MAX	equ	128	; maximum columns saved in CT_LINE
-
-CONTEXT		struc
-CT_CARD		dw	?	; 00h: RS232 "card" number (ie, BIOS index)
-CT_PORT		dw	?	; 02h: base port address
-CT_BAUD		dw	?	; 04h: current baud rate
-CT_DATABITS	db	?	; 06h
-CT_STOPBITS	db	?	; 07h
-CT_PARITY	db	?	; 08h
-CT_REFS		db	?	; 09h
-CT_STATUS	db	?	; 0Ah: context status bits (CTSTAT_*)
-CT_SIG		db	?	; 0Bh
-CT_COL		db	?	; 0Ch: current output column (see update_col)
-CT_TERM		db	?	; 0Dh: terminal type (TERM_*)
-CT_LLEN		db	?	; 0Eh: # of columns in CT_LINE
-CT_ESC		db	?	; 0Fh: escape state (see raw_input)
-CT_COLOR	dw	?	; 10h: fill (LO) and border (HI) attributes
-CT_LINE		db	LINE_MAX dup (?); 12h: copy of the current output line
-CT_INPUT	db	size RINGBUF dup (?)
-CT_OUTPUT	db	size RINGBUF dup (?)
-CT_TIMER	db	size TMR dup (?); timer for a held ESC (raw keys)
-CT_ESCPARM	db	?	; escape sequence parameter (raw keys)
-CT_ROW		db	?	; current output row (see update_col)
-CT_TOP		db	?	; first scrolling row (see set_rows)
-CT_BOT		db	?	; last scrolling row
-CT_GFX		db	?	; VT100 character set (VT100_SO or VT100_SI)
-CONTEXT		ends
-SIG_CT		equ	'O'
-
-CTSTAT_XMTFULL	equ	01h	; transmitter buffer full
-CTSTAT_RCVOVFL	equ	02h	; receiver buffer overflow
-CTSTAT_XON	equ	04h	; XON/XOFF flow control enabled (XON option)
-CTSTAT_RTS	equ	08h	; RTS/CTS flow control enabled (RTS option)
-CTSTAT_CTSOFF	equ	10h	; output held because CTS is low (RTS option)
-CTSTAT_RAWKEYS	equ	20h	; hotkeys are just keys (see IOCTL_SETKEYS)
-CTSTAT_INPUT	equ	40h	; context is waiting for input
-CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
+SWITCH_KEY	equ	1Ch
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Driver command handler
 ;
+; Every port's request handler jumps here with its own data segment in DS
+; (their variables are at the same offsets), which the handlers get in BP,
+; along with the handle's context in CX: its own console's, or else the one
+; with focus (eg, for a handle that was opened before the port had one).
+;
 ; Inputs:
-;	CX = context, if any
-;	DX = card #
+;	DS = the port's data segment
 ;	ES:BX -> DDP
 ;
 ; Outputs:
 ;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcom_cmd,far
+	mov	bp,ds			; BP = the port's data segment
+	mov	dx,[card_num]		; DX = card #
 	mov	di,bx			; ES:DI -> DDP
-	mov	bl,es:[di].DDP_CMD
+	mov	cx,es:[di].DDP_CONTEXT	; CX = the handle's context
+	test	cx,cx			; does it have one?
+	jnz	ddq0			; yes
+	mov	cx,[ct_seg]		; no, so use the one with focus, if any
+ddq0:	mov	bl,es:[di].DDP_CMD
 	cmp	bl,CMDTBL_SIZE
 	jb	ddq1
 	mov	bl,0
@@ -298,7 +260,7 @@ dcw1a:	xchg	dx,ax
 
 dcw2:	push	es
 	mov	es,dx
-dcw3:	test	es:[CT_STATUS],CTSTAT_XMTFULL OR CTSTAT_PAUSED
+dcw3:	test	es:[CT_STATUS],CTSTAT_BUSY
 	jz	dcw4
 ;
 ; For WRITE requests that cannot be satisfied, we add this packet to an
@@ -348,6 +310,11 @@ ENDPROC	ddcom_write
 ; We don't know the terminal's dimensions, so we assume TERM_COLS by TERM_ROWS;
 ; the column isn't reset when a line wraps, but the row is advanced.
 ;
+; An IOCTL's output is often a sequence, which a focus switch must not cut
+; short (or let finish on a screen that's since been repainted), so an IOCTL
+; waits for any repaint to end, CT_BUSY makes switch_to wait for the IOCTL to
+; end, and then we make any switch that waited.
+;
 ; Inputs:
 ;	CX = context, if any
 ;	ES:DI -> DDPRW
@@ -358,10 +325,37 @@ ENDPROC	ddcom_write
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcom_ioctl
 	jcxz	dio8			; no context
-	push	cx
 	mov	ds,cx
 	ASSUME	DS:NOTHING
 	ASSERT	STRUCT,ds:[0],CT
+	mov	es:[di].DDP_CONTEXT,cx	; (for wake_packet)
+dio0h:	test	ds:[CT_STATUS],CTSTAT_PAINT
+	jz	dio0i
+	call	add_packet		; wait for the repaint to end
+	jnc	dio0h
+	jmp	ioctl_fault
+dio0i:	inc	ds:[CT_BUSY]
+	call	ioctl_cmd
+	pushf
+	dec	ds:[CT_BUSY]
+	push	es
+	mov	es,ds:[CT_DRV]
+	mov	cx,es:[ct_seg]		; CX = context with focus
+	mov	es,cx
+	mov	bx,es:[CT_PEND]		; BX = context waiting for it, if any
+	test	bx,bx
+	jz	dio0j
+	push	di
+	call	switch_to
+	pop	di
+dio0j:	pop	es
+	popf
+	ret
+dio8:	jmp	ddcom_none		; unsupported IOCTL
+ENDPROC	ddcom_ioctl
+
+DEFPROC	ioctl_cmd
+	push	cx
 	mov	al,es:[di].DDP_CODE	; AL = IOCTL code
 	mov	cx,es:[di].DDPRW_LENGTH	; CX = IOCTL input value
 	mov	dx,es:[di].DDPRW_LBA	; DX = IOCTL input value
@@ -391,7 +385,7 @@ DEFPROC	ddcom_ioctl
 	jne	dio8a
 	jmp	dio0c			; (see below)
 dio8a:	pop	cx
-dio8:	jmp	ddcom_none		; unsupported IOCTL
+	jmp	ddcom_none		; unsupported IOCTL
 dio0d:	jmp	dio10
 dio0e:	jmp	dio11
 ;
@@ -485,6 +479,8 @@ dio10:	cmp	ds:[CT_TERM],TERM_GENERIC
 	jc	dio9			; wait interrupted (DDP_STATUS set)
 	dec	dh			; erase to the end of the row?
 	jnz	dio10b			; no
+	mov	al,ch			; (set_pos preserved CX)
+	call	erase_shadow		; erase the rest of the shadow's row
 	mov	al,'K'
 	call	csi_out
 	jc	dio9
@@ -504,9 +500,10 @@ dio11a:	jmp	dio4
 ; IOCTL_COMDEBUG: the kernel has verified that the caller's handle has
 ; exclusive access (MODE_DENY_RW), so it's the only reference to this context;
 ; disable the UART's interrupts (for polling) and return the port plus any
-; COMDBG_* bits.  The caller does all its own I/O, so free the context, too;
-; the open handle still reserves the port (see chk_devopen), and with no
-; context, our interrupt handler won't touch the port.
+; COMDBG_* bits.  The caller does all its own I/O, so free the context, too
+; (it's the port's only one, since the port couldn't be opened that way if it
+; were a console); the open handle still reserves the port (see chk_devopen),
+; and with no context, our interrupt handler won't touch the port.
 ;
 ; First, wait for our interrupt handler to transmit anything still buffered
 ; (eg, the VT100_INIT sequence that ddcom_open queued); otherwise, the rest of
@@ -529,17 +526,20 @@ dio0f:	call	peek_buffer		; anything left to transmit?
 	shr	al,1
 	or	dl,al
 	call	end_esc
+	push	dx
 	push	es
-	push	ds
-	pop	es			; ES = context
-	mov	ah,DOS_MEM_FREE
-	int	INT_DOSFUNC
+	call	free_ctx		; (DS = the port's data segment now)
+	ASSUME	DS:CODE
 	pop	es
-	pop	ax			; replace the saved context (CX)
-	sub	ax,ax			; with zero (no context)
-	push	ax
-	jmp	dio7
-ENDPROC	ddcom_ioctl
+	pop	dx
+	mov	[ct_seg],0		; the port has no context now
+	ASSUME	DS:NOTHING
+	mov	es:[di].DDP_CONTEXT,dx	; return result in packet context
+	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	pop	cx
+	pop	ax			; return to ddcom_cmd (not ddcom_ioctl,
+	ret				; since the context is gone)
+ENDPROC	ioctl_cmd
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -675,7 +675,8 @@ sl1:	cmp	ch,ds:[CT_ROW]		; is the cursor on that row already?
 	call	set_pos
 sl1a:	pop	cx
 	jc	sl9
-sl2:	test	cx,cx
+sl2:	test	cx,cx			; (the sign is shadow_scroll's input)
+	call	scroll_shadow
 	js	sl3
 	mov	al,CHR_LINEFEED
 	call	ioctl_out
@@ -846,10 +847,12 @@ DEFPROC	clear_screen
 ; display" from the first row erases them all.
 ;
 clr1:	mov	cl,0
-	mov	ch,ds:[CT_BOT]
-	cmp	ch,TERM_ROWS-1
-	jne	clr2
 	mov	ch,ds:[CT_TOP]
+	mov	al,ds:[CT_BOT]
+	call	erase_shadow		; erase the shadow's rows, too
+	cmp	al,TERM_ROWS-1
+	je	clr2
+	mov	ch,al
 clr2:	call	set_pos
 	jc	clr8
 	mov	al,'J'			; "erase in display" (to its end)
@@ -896,6 +899,22 @@ ENDPROC	clear_screen
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	set_color
 	mov	ds:[CT_COLOR],cx
+;
+; The first color that isn't the default gives a console with a shadow a
+; second one, for attributes (if there's no memory for it, a repaint just
+; won't have any).
+;
+	cmp	cl,07h			; default attributes?
+	je	sgr_out			; yes
+	cmp	ds:[CT_SHADOW],0	; is there a shadow?
+	je	sgr_out			; no
+	cmp	ds:[CT_ATTRS],0		; with attributes already?
+	jne	sgr_out			; yes
+	mov	al,07h
+	call	alloc_plane		; AX = segment
+	jc	sgr_out
+	mov	ds:[CT_ATTRS],ax
+	DEFLBL	sgr_out,near		; (CL = attributes; see paint)
 	cmp	ds:[CT_TERM],TERM_GENERIC
 	je	stc9			; nothing to send (carry clear)
 	mov	si,offset ANSI_RESET
@@ -1114,6 +1133,7 @@ uc2:	cmp	al,CHR_BACKSPACE
 	adc	bl,0			; don't go below zero
 	mov	ah,CHR_SPACE
 	call	put_line		; the previous column is now blank
+	call	put_shadow
 	jmp	short uc8
 uc3:	cmp	al,CHR_CTRLG		; BELL?
 	je	uc9
@@ -1130,7 +1150,15 @@ uc4:	mov	ah,al
 	mov	ah,al
 	add	ah,'@'
 uc5:	call	put_col
-uc8:	mov	es:[CT_COL],bl
+;
+; The column isn't reset when a line wraps, so to keep it from overflowing
+; on a very long line, the 4th row's columns are the 2nd's again (which wrap
+; the same way; see put_col).
+;
+uc8:	cmp	bl,TERM_COLS*3
+	jb	uc8a
+	sub	bl,TERM_COLS*2
+uc8a:	mov	es:[CT_COL],bl
 uc9:	pop	bx
 	ret
 ENDPROC	update_col
@@ -1165,6 +1193,7 @@ DEFPROC	put_col
 	jne	pc2
 pc1:	call	next_row
 pc2:	call	put_line
+	call	put_shadow
 	inc	bl
 	ret
 ENDPROC	put_col
@@ -1174,7 +1203,7 @@ ENDPROC	put_col
 ; next_row
 ;
 ; Advances the row, unless it's the last scrolling row (those rows scroll
-; instead) or the last row of the terminal.
+; instead, and so do the shadow's) or the last row of the terminal.
 ;
 ; Inputs:
 ;	ES = context
@@ -1190,13 +1219,46 @@ DEFPROC	next_row
 	push	ax
 	mov	al,es:[CT_ROW]
 	cmp	al,es:[CT_BOT]
-	je	nr9
+	je	nr8
 	cmp	al,TERM_ROWS-1
 	je	nr9
 	inc	es:[CT_ROW]
 nr9:	pop	ax
 	ret
+nr8:	push	ds
+	push	es
+	pop	ds			; DS = context
+	call	scroll_shadow		; scroll up (the sign is clear)
+	pop	ds
+	jmp	nr9
 ENDPROC	next_row
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; put_shadow, erase_shadow, scroll_shadow
+;
+; Call shadow_put (ES = context), shadow_erase, or shadow_scroll (DS =
+; context) for a context that has a shadow; without one, their code may not
+; even be loaded (see con_opt).  Flags are preserved for shadow_scroll.
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	put_shadow
+	cmp	es:[CT_SHADOW],0
+	je	psh9
+	jmp	shadow_put
+	DEFLBL	erase_shadow,near
+	cmp	ds:[CT_SHADOW],0
+	je	psh9
+	jmp	shadow_erase
+	DEFLBL	scroll_shadow,near
+	pushf
+	cmp	ds:[CT_SHADOW],0
+	je	psh8
+	popf
+	jmp	shadow_scroll
+psh8:	popf
+psh9:	ret
+ENDPROC	put_shadow
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1249,71 +1311,119 @@ ENDPROC	put_line
 ;
 ;	[device]:[baud],[parity],[databits],[stopbits],[inbuflen],[outbuflen]
 ;
-; where [device] is "COMn" (otherwise you wouldn't be here).
+; where [device] is "COMn" (otherwise you wouldn't be here), unless it's "CON",
+; which DOS sends us when a session whose console is this port opens CON with
+; a descriptor (eg, START's "CON:80,25,0,0,1"; see chk_devname).  That makes a
+; new console on the port, with a context and shadow of its own, as long as the
+; console with focus has a shadow too (see SHADOW_MIN); its settings are that
+; console's, and all we use of the descriptor (which is the VKD$ driver's) is
+; its 5th value: 1 if the new console takes the focus.
+;
+; Otherwise, a port that already has a context is simply shared (the context
+; with focus gets another reference).
+;
+; Contexts and shadows are owned by the system, rather than by the program
+; that opens one (eg, START), since they outlive it.
 ;
 ; Inputs:
-;	CX = context, if any
+;	CX = context with focus, if any
 ;	DX = card #
+;	BP = the port's data segment
 ;	ES:DI -> DDP
 ;	[DDP].DDP_PTR -> context descriptor (eg, "COM1:9600,N,8,1")
 ;
 ; Outputs:
-;	CX = context (zero if none)
+;	[DDP].DDP_CONTEXT = context (zero if none)
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcom_open
-;
-; If there's already a context for this device, increment the refs.
-;
-	jcxz	dco1
+	push	di
+	push	es
+	lds	si,es:[di].DDP_PTR
+	ASSUME	DS:NOTHING
+	mov	al,[si+2]
+	and	al,0DFh			; (upper-case)
+	cmp	al,'N'			; "CON" (ie, a new console)?
+	je	dco10			; yes
+	jcxz	dco1			; the port has no context yet
 	mov	ds,cx
-	ASSUME	DS:NOTHING
-	inc	ds:[CT_REFS]
-dco0:	jmp	dco8
-
-dco1:	lds	si,es:[di].DDP_PTR
-	ASSUME	DS:NOTHING
+	inc	ds:[CT_REFS]		; share the context with focus
+dco0:	jmp	dco6
 ;
 ; DDP_PTR points to the device name (eg, "COM1"), so any parms follow the
 ; first colon.
 ;
-dco1c:	lodsb
+dco1:	lodsb
 	cmp	al,cl			; end of the name (CL is zero)?
 	je	dco0			; yes, so there are no parms
 	cmp	al,':'			; colon separator?
-	jne	dco1c			; no, so keep looking
-
-	push	di
-	push	es
-	mov	di,dx			; DI = card #
+	jne	dco1			; no, so keep looking
 	call	get_parms
-	jnc	dco1b
-	jmp	dco7			; invalid parameter (eg, terminal type)
-dco1b:	push	ax			; save output buffer length
-	push	bx			; save parity and terminal type
-	push	cx			; save baud rate
+	jc	dco7d			; invalid parameter (eg, terminal type)
+	sub	di,di			; DI = 0 (no console to copy)
+	push	di			; (and no focus to take)
+	jmp	short dco2
+;
+; A new console needs a console with a shadow to copy (and switch from).
+;
+dco10:	jcxz	dco7a
+	mov	es,cx
+	cmp	es:[CT_SHADOW],0
+	je	dco7a
+	mov	ah,4			; the focus is the 5th value
+dco11:	lodsb
+	test	al,al			; end of the descriptor?
+	jz	dco12			; yes
+	cmp	al,','
+	jne	dco11
+	dec	ah
+	jnz	dco11
+	lodsb				; AL = '1' to take the focus
+dco12:	push	ax
+	mov	ds,cx			; DS = console to copy
+	mov	di,cx
+	mov	cx,ds:[CT_BAUD]
+	mov	dx,word ptr ds:[CT_DATABITS]
+	mov	bh,ds:[CT_PARITY]
+	mov	bl,ds:[CT_STATUS]
+	and	bl,CTSTAT_XON OR CTSTAT_RTS
+	or	bl,ds:[CT_TERM]
+	mov	si,ds:[CT_INPUT].BUFEND
+	sub	si,ds:[CT_INPUT].BUFOFF
+	mov	ax,ds:[CT_OUTPUT].BUFEND
+	sub	ax,ds:[CT_OUTPUT].BUFOFF
+;
+; CX = baud rate, BH = parity, BL = terminal type and options, DL = data
+; bits, DH = stop bits, SI and AX = input and output buffer lengths, and
+; DI = the console to copy, if any (with the focus value on the stack).
+;
+dco2:	push	di
+	push	ax			; save output buffer length
+	push	si
 	add	ax,si			; AX = output + input buffer lengths
-	add	ax,size CONTEXT + 15
-	mov	cl,4
-	shr	ax,cl
-	xchg	bx,ax			; BX = required length, in paras
-	mov	ax,DOS_MEM_ALLOC SHL 8
-	int	INT_DOSFUNC
-	jnc	dco1a
-	jmp	dco7
+	add	ax,size CONTEXT
+	xchg	di,ax			; DI = required length
+	call	alloc_sys		; AX = context
+	pop	si
+	jnc	dco2a
+	add	sp,6
+dco7a:	jmp	dco7
+dco7d:	jmp	dco7b
 
-dco1a:	mov	es,ax
-	xchg	ax,di			; AX = card #
+dco2a:	push	bx			; save parity and terminal type
+	push	cx			; save baud rate
+	mov	es,ax
 	sub	di,di			; ES:DI -> CONTEXT
+	mov	ds,bp
+	ASSUME	DS:CODE
+	mov	ax,[card_num]
 	stosw				; set CT_CARD
 	xchg	bx,ax
 	add	bx,bx			; BX = card # * 2
-	push	ds
 	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
 	mov	ax,[RS232_BASE][bx]
-	pop	ds
 	ASSUME	DS:NOTHING
 	stosw				; set CT_PORT
 	pop	ax			; restore baud rate (originally in CX)
@@ -1358,10 +1468,48 @@ dco1a:	mov	es,ax
 	pop	bx			; restore output buffer length
 	add	ax,bx
 	stosw				; set CT_OUTPUT.BUFEND
+;
+; It has no shadows yet, no parent, no console waiting for its focus, and the
+; focus (CT_BACK and CT_BUSY are zero), and it's the only one in its ring.
+;
+	sub	ax,ax
+	mov	cx,5
+	rep	stosw			; CT_SHADOW through CT_BUSY
+	ASSERT	<CT_NEXT>,EQ,<CT_SHADOW + 10>
+	mov	ax,es
+	stosw				; set CT_NEXT
+	mov	ax,bp
+	stosw				; set CT_DRV
 
 	push	es
 	pop	ds			; DS is now the context
-	mov	ax,ds:[CT_BAUD]
+	pop	cx			; CX = console to copy, if any
+	pop	ax			; AL = '1' to take the focus from it
+	jcxz	dco2c
+;
+; A new console: it must have a shadow, since it's repainted whenever it gets
+; the focus.  It follows the one it copied in the port's ring.
+;
+	xchg	dx,ax			; DL = focus value
+	mov	al,CHR_SPACE
+	call	alloc_plane		; AX = shadow
+	jnc	dco2b
+	call	free_ctx
+	jmp	dco7
+dco2b:	mov	ds:[CT_SHADOW],ax
+	inc	ds:[CT_BACK]
+	mov	es,cx
+	mov	ax,ds
+	xchg	es:[CT_NEXT],ax
+	mov	ds:[CT_NEXT],ax
+	cmp	dl,'1'			; take the focus?
+	jne	dco2e			; no
+	mov	ds:[CT_PARENT],cx	; yes, and remember where it came from
+	mov	bx,ds
+	call	switch_to
+dco2e:	jmp	dco5b
+
+dco2c:	mov	ax,ds:[CT_BAUD]
 	mov	cl,150
 	div	cl
 ;
@@ -1369,11 +1517,11 @@ dco1a:	mov	es,ax
 ; 600, 300, or 150.
 ;
 	mov	ah,0
-dco2:	test	al,al
+dco2d:	test	al,al
 	jz	dco3
 	shr	al,1
 	add	ah,20h
-	jnc	dco2
+	jnc	dco2d
 ;
 ; AH should now contain the correct baud rate selection in bits 7-5.  Next,
 ; add the appropriate parity, stop length, and data length bits.
@@ -1402,16 +1550,26 @@ dco4:	mov	dx,ds:[CT_CARD]
 
 	test	si,si			; verify we have an input buffer
 	jnz	dco5			; we do
-	mov	ah,DOS_MEM_FREE		; no, apparently the caller just
-	int	INT_DOSFUNC		; used us to initialize the COM port
-	sub	cx,cx
+	call	free_ctx		; no, apparently the caller just
+	sub	cx,cx			; used us to initialize the COM port
 	jmp	short dco6
 ;
 ; There are 3 required steps to enabling COM interrupts.
 ;
 ; Step 1: Set the desired bits in the Interrupt Enable Register.
 ;
-dco5:	call	write_ier		; enable THR and RBR interrupts
+;
+; The port's context must be in place before its first interrupt (eg, for the
+; VT100_INIT output below), or our handler would dismiss that interrupt
+; without servicing the UART, which would then never interrupt again.
+;
+dco5:	mov	ax,ds
+	mov	ds,bp
+	ASSUME	DS:CODE
+	mov	[ct_seg],ax		; the first context has the focus
+	mov	ds,ax
+	ASSUME	DS:NOTHING
+	call	write_ier		; enable THR and RBR interrupts
 ;
 ; Step 2: Set the OUT2 bit in the Modem Control Register.
 ;
@@ -1428,76 +1586,114 @@ dco5:	call	write_ier		; enable THR and RBR interrupts
 ; it on, and assign the special graphics set to G1 (see write_context).  The
 ; output buffer is empty, so there's no need to wait for room.
 ;
-	cmp	ds:[CT_TERM],TERM_VT100	; VT100 terminal?
-	jne	dco5b			; no
 	mov	di,offset VT100_INIT
+	cmp	ds:[CT_TERM],TERM_VT100	; VT100 terminal?
+	jne	dco5c			; no
 dco5a:	mov	al,cs:[di]
 	test	al,al			; end of string?
-	jz	dco5b			; yes
+	jz	dco5c			; yes
 	call	push_output
 	inc	di
 	jmp	dco5a
+dco5c:	mov	ax,BIOS
+	mov	es,ax
+	ASSUME	ES:BIOS
+	cmp	es:[MEMORY_SIZE],64	; more than 64K (see con_opt)?
+	ASSUME	ES:NOTHING
+	jbe	dco5d			; no
+	call	get_shadow		; give it a shadow, if it can have one
+dco5d:
 ;
 ; All done.  Be sure to return with the context segment in CX.
 ;
 dco5b:	mov	cx,ds
 dco6:	pop	es
 	pop	di
-	jmp	short dco8
-;
-; At the moment, the only possible error is a failure to allocate memory.
-;
-dco7:	pop	es
-	pop	di
-	sub	cx,cx
-	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_GENFAIL
-	jmp	short dco9
-
-dco8:	mov	es:[di].DDP_CONTEXT,cx
+	mov	es:[di].DDP_CONTEXT,cx
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
-dco9:	ret
+	ret
+;
+; An open's error is a DOS error code (see dev_request): not enough memory
+; (which includes a new console on a port whose console has no shadow), or
+; for an option we don't know, a device that doesn't exist.
+;
+dco7b:	mov	al,ERR_NOFILE
+	jmp	short dco7c
+dco7:	mov	al,ERR_NOMEMORY
+dco7c:	pop	es
+	pop	di
+	mov	ah,DDSTAT_ERROR SHR 8
+	mov	es:[di].DDP_STATUS,ax
+	ret
 ENDPROC	ddcom_open
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; ddcom_close
 ;
+; When a context's last reference is closed, it leaves the port's ring; any
+; console that took the focus from it takes it back from its parent instead
+; (eg, if START made B from A and C from B, and B closes first, then C's
+; focus goes back to A), and if it has the focus, that goes back to its
+; parent, if any (or else the next console).
+;
 ; Inputs:
-;	CX = context, if any
+;	BP = the port's data segment
 ;	ES:DI -> DDP
 ;
 ; Outputs:
-;	CX = context (zero if freed)
+;	DDP updated
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcom_close
 	mov	cx,es:[di].DDP_CONTEXT
 	jcxz	dcc8			; no context
-
+	mov	ds,cx
+	ASSUME	DS:NOTHING
+	ASSERT	STRUCT,ds:[0],CT
+	dec	ds:[CT_REFS]
+	jg	dcc8			; context still in use
+	push	di
 	push	es
-	mov	es,cx
-	ASSERT	STRUCT,es:[0],CT
-	dec	es:[CT_REFS]
-	jg	dcc7			; context still in use
+	call	end_esc			; (the timer mustn't touch it, either)
+	mov	ax,ds:[CT_PARENT]	; AX = this context's parent, if any
+	mov	bx,ds:[CT_NEXT]		; BX = the next context
+	mov	dx,ds			; DX = this context
+	mov	si,bx
+dcc1:	mov	es,si
+	cmp	es:[CT_PARENT],dx	; did it take the focus from this one?
+	jne	dcc2			; no
+	mov	es:[CT_PARENT],ax
+dcc2:	cmp	es:[CT_PEND],dx		; is this one waiting for its focus?
+	jne	dcc3			; no
+	mov	es:[CT_PEND],0
+dcc3:	mov	si,es:[CT_NEXT]
+	cmp	si,dx			; is ES the context before this one?
+	jne	dcc1			; no
+	mov	es:[CT_NEXT],bx		; yes, so remove this one from the ring
+	cmp	bx,dx			; is it the port's last context?
+	jne	dcc4			; no
 ;
-; Before freeing the context, mask the IRQ, and make sure the timer tick
-; handler won't touch it.
+; Mask the IRQ, and with no context, our interrupt handler won't touch the
+; port.
 ;
 	mov	al,1
 	call	write_irq
-	push	ds
-	push	es
-	pop	ds
-	call	end_esc
-	pop	ds
-;
-; We are now free to free the context segment in ES.
-;
-	mov	ah,DOS_MEM_FREE
-	int	INT_DOSFUNC
-	sub	cx,cx
-dcc7:	pop	es
-
+	mov	es,bp
+	ASSUME	ES:CODE
+	mov	es:[ct_seg],0
+	ASSUME	ES:NOTHING
+	jmp	short dcc7
+dcc4:	cmp	ds:[CT_BACK],0		; does it have the focus?
+	jne	dcc7			; no
+	test	ax,ax			; is there a parent?
+	jz	dcc5			; no
+	xchg	bx,ax
+dcc5:	mov	cx,dx			; CX = this context, BX = the next
+	call	switch_now
+dcc7:	call	free_ctx
+	pop	es
+	pop	di
 dcc8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret
 ENDPROC	ddcom_close
@@ -1544,7 +1740,6 @@ DEFPROC	ddcom_inflush
 	cli
 	mov	ax,ds:[CT_INPUT].BUFTAIL
 	mov	ds:[CT_INPUT].BUFHEAD,ax
-	and	ds:[CT_STATUS],NOT CTSTAT_RCVOVFL
 	sti
 	pop	ds
 	ASSUME	DS:CODE
@@ -1577,10 +1772,12 @@ DEFPROC	ddcom_outflush
 	mov	ds,cx
 	ASSUME	DS:NOTHING
 	cli
+	test	ds:[CT_STATUS],CTSTAT_PAINT
+	jnz	cof7			; (a repaint's output must all be sent)
 	mov	ax,ds:[CT_OUTPUT].BUFTAIL
 	mov	ds:[CT_OUTPUT].BUFHEAD,ax
 	and	ds:[CT_STATUS],NOT CTSTAT_XMTFULL
-	test	ds:[CT_STATUS],CTSTAT_XON
+cof7:	test	ds:[CT_STATUS],CTSTAT_XON
 	jnz	cof8			; only XON can end the pause
 	and	ds:[CT_STATUS],NOT CTSTAT_PAUSED
 cof8:	sti
@@ -1630,7 +1827,7 @@ ddi1a:	call	read_iir
 	jnz	ddi4			; no
 	cmp	al,IIR_INT_RBR		; data received?
 	jne	ddi3			; no
-	call	push_input
+	call	push_input		; (DS = context with focus)
 	jmp	ddi1a
 ;
 ; Unlike the CONSOLE and CLOCK$ drivers' hardware interrupt handlers,
@@ -2082,8 +2279,13 @@ ENDPROC	pull_input
 ;
 ; push_input
 ;
-; Add a byte from the receiver to CT_INPUT.  If there's no more room,
-; then set CTSTAT_RCVOVFL.
+; Add a byte from the receiver to CT_INPUT (if there's no more room, it's
+; discarded).
+;
+; If the port has more than one console, the HOTKEY setting (or SWITCH_KEY,
+; without one) isn't input: it gives the focus to the next one (see
+; switch_to), even in raw keys mode, and the rest of this interrupt's input is
+; the new console's.
 ;
 ; This is also where we check for hotkeys, similar to check_hotkey in the
 ; VKD$ driver, since a serial context may be serving as a console (eg, when
@@ -2108,16 +2310,36 @@ ENDPROC	pull_input
 ;	DS = context
 ;
 ; Outputs:
-;	None
+;	DS = context with focus
 ;
 ; Modifies:
-;	AX, BX, DX, SI
+;	AX, BX, CX, DX, SI, DI, ES
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	push_input
 	call	read_rbr		; AL = received byte
 	ASSERT	STRUCT,ds:[0],CT
-	cmp	al,CHR_CTRLC		; CTRLC?
+	mov	bx,BIOS
+	mov	es,bx
+	ASSUME	ES:BIOS
+	mov	ah,es:[HOT_KEY]		; AH = the HOTKEY setting, if any
+	ASSUME	ES:NOTHING
+	test	ah,ah
+	jnz	psi0c
+	mov	ah,SWITCH_KEY		; AH = our own key
+psi0c:	cmp	al,ah			; the key that switches consoles?
+	jne	psi0b			; no
+	mov	bx,ds:[CT_NEXT]
+	mov	cx,ds
+	cmp	bx,cx			; is there another console?
+	je	psi0b			; no, so it's just a key
+	call	switch_to
+	mov	es,ds:[CT_DRV]
+	ASSUME	ES:CODE
+	mov	ds,es:[ct_seg]		; (unless the switch had to wait)
+	ASSUME	ES:NOTHING
+	ret
+psi0b:	cmp	al,CHR_CTRLC		; CTRLC?
 	jne	psi0a			; no
 	test	ds:[CT_STATUS],CTSTAT_RAWKEYS
 	jz	psi6			; yes (unless raw keys)
@@ -2158,7 +2380,7 @@ psi3b:	mov	si,offset CT_INPUT
 	call	push_buffer
 	jc	psi8
 	mov	[bx],al
-	jmp	short psi9
+psi8:	jmp	short psi9
 ;
 ; CTRLC detected: buffer it, and notify DOS.
 ;
@@ -2179,9 +2401,6 @@ psi7:	push	cx
 psi5:	test	ds:[CT_STATUS],CTSTAT_PAUSED
 	jnz	psi9
 	call	resume_output
-	jmp	short psi9
-
-psi8:	or	ds:[CT_STATUS],CTSTAT_RCVOVFL
 psi9:	ret
 ENDPROC	push_input
 
@@ -2481,7 +2700,7 @@ ENDPROC	esc_timeout
 ;
 ; Ends the wait of the first packet for the context that can now be
 ; satisfied: a READ packet whose data has arrived, or a WRITE packet whose
-; context is no longer busy (ie, neither full nor paused).
+; context is no longer busy (ie, not full, paused, or being repainted).
 ;
 ; Inputs:
 ;	DS = context
@@ -2511,7 +2730,7 @@ wk1:	cmp	di,-1			; end of chain?
 
 	ASSERT	STRUCT,ds:[0],CT
 
-	test	ds:[CT_STATUS],CTSTAT_XMTFULL OR CTSTAT_PAUSED
+	test	ds:[CT_STATUS],CTSTAT_BUSY
 	jz	wk3			; transmitter is no longer busy
 	jmp	short wk8		; still busy, check next packet
 wk2:	call	pull_input		; pull more input data
@@ -2552,7 +2771,7 @@ ENDPROC	wake_packet
 ; pull_output
 ;
 ; Remove a byte from CT_OUTPUT and transmit it.  If there are no more bytes,
-; then clear CTSTAT_XMTFULL.
+; then clear CTSTAT_XMTFULL (unless the screen is being repainted; see paint).
 ;
 ; If the context is paused (or held because CTS is low), nothing is
 ; transmitted; resume_output restarts transmission when that ends.
@@ -2574,9 +2793,16 @@ DEFPROC	pull_output
 	jnz	plo9			; paused or held, so transmit nothing
 	mov	si,offset CT_OUTPUT
 	call	pull_buffer
-	jc	plo8
+	jc	plo7
 	call	write_thr
 	jmp	short plo9
+;
+; The buffer is empty; if the screen is being repainted, add the next part
+; (push_output transmits the first byte itself).
+;
+plo7:	test	ds:[CT_STATUS],CTSTAT_PAINT
+	jz	plo8
+	jmp	paint
 ;
 ; TODO: Think about the best time to clear CTSTAT_XMTFULL.  In theory, I can
 ; clear it every time we remove a single byte, instead of waiting for the buffer
@@ -2591,7 +2817,9 @@ ENDPROC	pull_output
 ;
 ; push_output
 ;
-; Add a byte to CT_OUTPUT.
+; Add a byte to CT_OUTPUT, unless the context doesn't have the focus, in which
+; case there's nothing to do: its shadow is all that changes (see update_col),
+; and its screen is repainted from that when it gets the focus.
 ;
 ; Inputs:
 ;	AL = byte
@@ -2605,6 +2833,8 @@ ENDPROC	pull_output
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	push_output
+	cmp	ds:[CT_BACK],0		; does it have the focus?
+	jne	pso9a			; no (and carry is clear)
 	cli
 	mov	si,offset CT_OUTPUT
 	test	ds:[CT_STATUS],CTSTAT_PAUSED OR CTSTAT_CTSOFF
@@ -2625,7 +2855,7 @@ pso7:	call	push_buffer		; is there room in the buffer?
 pso8:	or	ds:[CT_STATUS],CTSTAT_XMTFULL
 	stc
 pso9:	sti
-	ret
+pso9a:	ret
 ENDPROC	push_output
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2979,8 +3209,6 @@ DEFPROC	output_room
 or9:	ret
 ENDPROC	output_room
 
-	DEFLBL	COM1_END
-
 CODE	ends
 
 CODE2	segment para public 'CODE'
@@ -3010,14 +3238,10 @@ COM2	DDH	<COM2_LEN,,DDATTR_CHAR,COM2_INIT,,20202020324D4F43h>
 ;
         ASSUME	CS:CODE2, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcom_req2,far
-	mov	cx,[ct_seg2]
-	mov	dx,[card_num2]
-	call	[ddcom_cmdp2]
 	mov	ds,cs:[0].DDH_DATA	; (DOS doesn't need DS preserved)
 	ASSUME	DS:CODE2
-	mov	[ct_seg2],cx
+	jmp	[ddcom_cmdp2]		; DS = this port's data (see ddcom_cmd)
 	ASSUME	DS:NOTHING
-	ret
 ENDPROC	ddcom_req2
 
 DEFPROC	ddcom_int2,far
@@ -3057,14 +3281,10 @@ COM3	DDH	<COM3_LEN,,DDATTR_CHAR,COM3_INIT,,20202020334D4F43h>
 ;
         ASSUME	CS:CODE3, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcom_req3,far
-	mov	cx,[ct_seg3]
-	mov	dx,[card_num3]
-	call	[ddcom_cmdp3]
 	mov	ds,cs:[0].DDH_DATA	; (DOS doesn't need DS preserved)
 	ASSUME	DS:CODE3
-	mov	[ct_seg3],cx
+	jmp	[ddcom_cmdp3]		; DS = this port's data (see ddcom_cmd)
 	ASSUME	DS:NOTHING
-	ret
 ENDPROC	ddcom_req3
 
 DEFPROC	ddcom_int3,far
@@ -3104,14 +3324,10 @@ COM4	DDH	<COM4_LEN,,DDATTR_CHAR,COM4_INIT,,20202020344D4F43h>
 ;
         ASSUME	CS:CODE4, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcom_req4,far
-	mov	cx,[ct_seg4]
-	mov	dx,[card_num4]
-	call	[ddcom_cmdp4]
 	mov	ds,cs:[0].DDH_DATA	; (DOS doesn't need DS preserved)
 	ASSUME	DS:CODE4
-	mov	[ct_seg4],cx
+	jmp	[ddcom_cmdp4]		; DS = this port's data (see ddcom_cmd)
 	ASSUME	DS:NOTHING
-	ret
 ENDPROC	ddcom_req4
 
 DEFPROC	ddcom_int4,far
@@ -3150,12 +3366,23 @@ DEFPROC	ddcom_init,far
 	and	bx,0003h
 	add	si,bx
 	mov	dx,[si+bx]		; DX = BIOS RS232 port address
+	mov	cx,[MEMORY_SIZE]	; CX = memory size (in K)
 	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:DEV
 	test	dx,dx			; exists?
 	jz	in9			; no
 	mov	[card_num],bx
 	mov	ax,ds:[DDH_NEXT_OFF]	; yes, copy over the driver length
+;
+; With 64K or less, no port can have more than one console (see get_shadow),
+; so COM1, whose code every port uses, ends where the code for that begins.
+;
+	test	bx,bx			; COM1?
+	jnz	in0			; no
+	cmp	cx,64			; more than 64K?
+	ja	in0			; yes
+	mov	ax,offset DEV:con_opt
+in0:
 	cmp	bl,3			; COM4?
 	jne	in1			; no
 	mov	ax,ds:[DDH_REQUEST]	; use the temporary ddcom_req offset

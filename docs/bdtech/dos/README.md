@@ -77,6 +77,8 @@ For IOCTL code 00h (IOCTL_GETDATA), DOS returns DX = 80h for a device, or the fi
 
 #### File Control Blocks {#fcbs}
 
+On a machine with 64K of memory or less, DOS doesn't keep the code for these functions (about 1.1K), and each of them fails as an unsupported function does (carry set, AX = ERR_INVALID).
+
 | AH | Name | Inputs | Outputs |
 |----|------|--------|---------|
 | 0Fh | DOS_FCB_OPEN | DS:DX -> unopened FCB | AL = 0 if found (FCB filled in), FFh if not |

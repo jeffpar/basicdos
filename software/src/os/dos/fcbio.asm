@@ -27,7 +27,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<chk_dirent,del_dirent,add_dirent,get_dirent,get_dtime>
 	EXTNEAR	<get_bpb,get_cdir,free_clns,flush_buffers,scb_release>
 	EXTNEAR	<div_32_16,mul_32_16>
-	EXTNEAR	<get_psp,upper>
+	EXTNEAR	<get_psp,upper,copy_name,parse_name,sfb_create_fcb>
 
 	EXTSTR	<FILENAME_CHARS>
 
@@ -37,11 +37,15 @@ DOS	segment word public 'CODE'
 ;
 FCB_NEWNAME	equ	11h
 RENBUF		equ	size FCB_DRIVE + size FCB_NAME
+
 ;
-; These are the only attributes that a new (or truncated) file can be given.
+; A machine with 64K or less doesn't keep this module (see set_fault), so it
+; follows everything else that real mode needs (see basdos.lrf), nothing that
+; such a machine keeps can call it (name_fcb is called only for an FCB; what
+; it shared with the rest of DOS is now in device.asm and file.asm), and
+; its functions are "unsupported" there.
 ;
-ATTR_RHS	equ	DIRATTR_RDONLY OR DIRATTR_HIDDEN OR DIRATTR_SYSTEM
-ATTR_CREATE	equ	ATTR_RHS OR DIRATTR_ARCHIVE
+	DEFLBL	fcb_code
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -721,182 +725,6 @@ ENDPROC	get_fcb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; copy_name
-;
-; Copy the eleven-byte FCB name and extension, converting to uppercase.
-;
-; The name can also be a null-terminated one (see chk_devname), which may be
-; less than eleven bytes from the end of a protected-mode caller's segment,
-; so the copy ends with a null.
-;
-; Inputs:
-;	DS:SI -> device or filename
-;	ES:DI -> filename buffer
-;
-; Outputs:
-;	filename buffer filled in (through any null)
-;
-; Modifies:
-;	AX, CX, SI, DI
-;
-DEFPROC	copy_name,DOS
-	ASSUMES	<DS,NOTHING>,<ES,DOS>
-	mov	cx,size FCB_NAME
-;
-; TODO: Expand this code to a separate function which, like parse_name, upper-
-; cases and validates all characters against FILENAME_CHARS.
-;
-cn2:	lodsb
-	call	upper
-	stosb
-	test	al,al			; end of a null-terminated name?
-	loopnz	cn2			; no
-	ret
-ENDPROC	copy_name
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; parse_name
-;
-; Parse a filespec into drive, name, and extension fields.
-;
-; NOTE: My observations with PC DOS 2.0 are that "ignore leading separators"
-; really means "ignore leading whitespace" (ie, spaces or tabs).  This has to
-; be one of the more poorly documented APIs in terms of precise behavior.
-;
-; Inputs:
-;	AH = parse flags
-;	  01h: ignore leading separators
-;	  02h: leave drive in buffer unchanged if unspecified
-;	  04h: leave filename in buffer unchanged if unspecified
-;	  08h: leave extension in buffer unchanged if unspecified
-;	  80h: allow wildcards
-;	DS:SI -> string to parse
-;	ES:DI -> buffer for filename
-;
-; Outputs:
-;	Carry clear if drive number valid, set otherwise
-;	DL = drive number (actual drive number if specified, default if not)
-;	DH = wildcards flag (1 if any present, 0 if not)
-;	SI -> next unparsed character
-;
-; Modifies:
-;	AX, BX, CX, DX, SI
-;
-DEFPROC	parse_name,DOS
-	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
-;
-; See if the name begins with a drive letter.  If so, convert it to a drive
-; number and then skip over it; otherwise, use SCB_CURDRV as the drive number.
-;
-	mov	bx,[scb_active]
-	ASSERT	STRUCT,cs:[bx],SCB
-	mov	dl,cs:[bx].SCB_CURDRV	; DL = default drive number
-	mov	dh,0			; DH = wildcards flag
-	mov	cl,8			; CL is current filename limit
-	sub	bx,bx			; BL is current filename position
-
-pf0:	lodsb
-	test	ah,01h			; skip leading whitespace?
-	jz	pf1			; no
-	cmp	al,CHR_SPACE
-	je	pf0
-	cmp	al,CHR_TAB
-	je	pf0			; keep looping until no more whitespace
-
-pf1:	sar	ah,1
-	test	al,al			; end of the name?
-	jz	pf1e			; yes (so what follows isn't a colon)
-	cmp	byte ptr [si],':'	; drive letter?
-	je	pf1a			; yes
-pf1e:	dec	si
-	test	ah,01h			; update drive #?
-	jnz	pf1d			; no
-	mov	al,0			; yes, specify 0 for default drive
-	jmp	short pf1c
-pf1a:	inc	si			; skip colon
-	sub	al,'A'			; AL = drive number
-	cmp	al,20h			; possibly lower case?
-	jb	pf1b			; no
-	sub	al,20h			; yes
-pf1b:	mov	dl,al			; DL = drive number (validate later)
-	inc	ax			; store 1-based drive number
-pf1c:	mov	es:[di+bx],al
-pf1d:	inc	di			; advance DI past FCB_DRIVE
-	sar	ah,1
-;
-; Build filename at ES:DI+BX from the string at DS:SI, making sure that all
-; characters exist within FILENAME_CHARS.
-;
-pf2:	lodsb
-pf2a:	cmp	al,' '			; check character validity
-	jb	pf4			; invalid character
-	cmp	al,'.'
-	je	pf4a
-	call	upper
-	test	ah,80h			; filespec?
-	jz	pf2d			; no
-	cmp	al,'?'			; wildcard?
-	jne	pf2c
-	or	dh,1			; wildcard present
-	jmp	short pf2e
-pf2c:	cmp	al,'*'			; asterisk?
-	je	pf3			; yes, fill with wildcards
-pf2d:	push	cx
-	push	di
-	push	es
-	mov	es,cs:[dos_data]
-	ASSUME	ES:DOS
-	mov	cx,FILENAME_CHARS_LEN
-	mov	di,offset FILENAME_CHARS
-	repne	scasb
-	pop	es
-	ASSUME	ES:NOTHING
-	pop	di
-	pop	cx
-	jne	pf4			; invalid character
-pf2e:	and	ah,0FEh		; this component was specified
-	cmp	bl,cl
-	jae	pf2			; valid character but we're at limit
-	mov	es:[di+bx],al		; store it
-	inc	bx
-	jmp	pf2
-pf3:	and	ah,0FEh
-	or	dh,1			; wildcard present
-pf3a:	cmp	bl,cl
-	jae	pf2
-	mov	byte ptr es:[di+bx],'?'	; store '?' until we reach the limit
-	inc	bx
-	jmp	pf3a
-;
-; Advance to next part of filename (filling with blanks as appropriate)
-;
-pf4:	dec	si
-pf4a:	cmp	bl,cl			; are we done with the current portion?
-	jae	pf5			; yes
-	test	ah,01h			; leave the buffer unchanged?
-	jnz	pf4b			; yes
-	mov	byte ptr es:[di+bx],' '	; store ' ' until we reach the limit
-pf4b:	inc	bx
-	jmp	pf4a
-
-pf5:	cmp	cl,size FCB_NAME	; did we just finish the extension?
-	je	pf9			; yes
-	mov	bl,8			; BL -> extension
-	mov	cl,size FCB_NAME	; CL -> extension limit
-	sar	ah,1			; shift the parse flags
-	jmp	pf2
-;
-; Last but not least, validate the drive number
-;
-pf9:	dec	di			; rewind DI to FCB_DRIVE
-	cmp	dl,cs:[bpb_total]
-	cmc				; carry clear if >= 0 and < bpb_total
-	ret
-ENDPROC	parse_name
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; fcb_ffirst (REG_AH = 11h)
 ;
 ; Starts a (wildcard) search of the current directory of the FCB's drive.
@@ -1184,117 +1012,6 @@ rn8:	add	sp,RENBUF
 	stc
 	ret
 ENDPROC	rename_fcb
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; sfb_create, sfb_create_fcb
-;
-; Creates a new file, or truncates an existing file, and then opens it for
-; reading and writing (even if it was created read-only; see MODE_CREATE).
-; If the name is a device or volume name, the device or volume is simply
-; opened (there's nothing to truncate).
-;
-; Inputs:
-;	CL = attributes (see DIRATTR_*)
-;	DS:SI -> name of device/file (sfb_create)
-;	DS:SI -> normal FCB (sfb_create_fcb with AX = 1000h)
-;
-; Outputs:
-;	On success, BX -> SFB, DX = context (if any), carry clear
-;	On failure, AX = error code, carry set
-;
-; Modifies:
-;	AX, BX, CX, DX, DI
-;
-DEFPROC	sfb_create,DOS
-	sub	ax,ax			; AH = 0 (filename), AL = 0 (attrs)
-	DEFLBL	sfb_create_fcb,near
-	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
-	push	si
-	push	ds
-	push	es
-	mov	es,cs:[dos_data]
-	ASSUME	ES:DOS
-	LOCK_SCB
-	ASSUME	ES:NOTHING
-	push	ax
-	and	cl,ATTR_CREATE
-	mov	bl,cl			; BL = attributes
-	call	chk_devname		; is it a device name?
-	jnc	sc0			; yes
-	cmp	word ptr [si+1],':'	; is it a volume name (see chk_volume)?
-	jne	sc1			; no
-sc0:	jmp	sc6			; yes, so just open it
-sc1:	pop	ax
-	push	ax			; AH = name type, AL = 0 (attributes)
-	call	chk_filename		; does the file already exist?
-	jnc	sc3			; yes
-	cmp	ax,ERR_NOFILE		; no, but was the filename valid?
-	jne	sc7			; no
-;
-; The file doesn't exist, and SCB_FILENAME contains the drive # and name of
-; the new file, so add a DIRENT for it.
-;
-	mov	di,[scb_active]
-	mov	dl,cs:[di].SCB_FILENAME	; DL = drive #
-	mov	ax,ERR_NOPATH
-	cmp	byte ptr cs:[di].SCB_FILENAME+1,' '
-	je	sc7			; the filename is blank
-	mov	al,ERR_ACCDENIED
-	cmp	byte ptr cs:[di].SCB_FILENAME+1,'.'
-	je	sc7			; the filename is "." or ".."
-	call	get_bpb			; DI -> BPB
-	jc	sc8
-	xchg	ax,dx			; AL = drive #
-	call	chk_volopen		; is the volume open?
-	jc	sc8			; yes
-	call	add_dirent		; DS:SI -> new DIRENT
-	jc	sc8
-	ASSUME	DS:BIOS
-	jmp	short sc5
-;
-; The file already exists (DS:SI -> DIRENT, AL = drive #), so truncate it,
-; unless it can't be changed (eg, it's read-only or open).
-;
-sc3:	call	chk_dirent		; can the file be truncated?
-	jc	sc8			; no (AX = error code)
-	mov	cl,al			; CL = drive #
-	mov	[si].DIR_ATTR,bl
-	call	get_dtime		; AX = time, DX = date
-	mov	[si].DIR_TIME,ax
-	mov	[si].DIR_DATE,dx
-	sub	bx,bx
-	mov	[si].DIR_SIZE.LOW,bx
-	mov	[si].DIR_SIZE.HIW,bx
-	xchg	bx,[si].DIR_CLN		; BX = first CLN (and zero DIR_CLN)
-	mov	ds:[BUF_DIRTY],1
-	mov	dl,cl			; DL = drive #
-	call	get_bpb			; DI -> BPB
-	jc	sc8
-	mov	dx,bx			; DX = first CLN
-	call	free_clns		; free the file's clusters
-	jc	sc8
-;
-; Write the new (or updated) DIRENT (and FAT, if modified), and then open it.
-;
-sc5:	mov	al,ds:[BUF_DRIVE]
-	call	flush_buffers
-	jc	sc8
-sc6:	pop	ax
-	pop	es
-	pop	ds
-	pop	si
-	ASSUME	DS:NOTHING, ES:NOTHING
-	mov	bl,MODE_ACC_RW OR MODE_CREATE
-	call	sfb_open_fcb		; open it (BL = mode)
-	jmp	short sc9
-sc7:	stc
-sc8:	pop	dx			; discard the saved AX
-	pop	es
-	pop	ds
-	pop	si
-sc9:	UNLOCK_SCB_RET
-ENDPROC	sfb_create
 
 DOS	ends
 

@@ -19,6 +19,12 @@ DOS	segment word public 'CODE'
 
 	EXTWORD	<dos_data>
 	EXTNEAR	<dev_request,scb_release,resize_file>
+	EXTNEAR	<chk_devname,chk_dirent,chk_filename,sfb_open_fcb>
+;
+; These are the only attributes that a new (or truncated) file can be given.
+;
+ATTR_RHS	equ	DIRATTR_RDONLY OR DIRATTR_HIDDEN OR DIRATTR_SYSTEM
+ATTR_CREATE	equ	ATTR_RHS OR DIRATTR_ARCHIVE
 	EXTNEAR	<get_bpb,get_cln,get_dirent,read_buffer,flush_buffers>
 	EXTNEAR	<alloc_cln,free_clns,chk_volopen,walk_cln,advance_cln>
 	EXTNEAR	<vol_io,drv_flush>
@@ -962,6 +968,117 @@ DEFPROC	get_dtime,DOS
 	pop	di
 	ret
 ENDPROC	get_dtime
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; sfb_create, sfb_create_fcb
+;
+; Creates a new file, or truncates an existing file, and then opens it for
+; reading and writing (even if it was created read-only; see MODE_CREATE).
+; If the name is a device or volume name, the device or volume is simply
+; opened (there's nothing to truncate).
+;
+; Inputs:
+;	CL = attributes (see DIRATTR_*)
+;	DS:SI -> name of device/file (sfb_create)
+;	DS:SI -> normal FCB (sfb_create_fcb with AX = 1000h)
+;
+; Outputs:
+;	On success, BX -> SFB, DX = context (if any), carry clear
+;	On failure, AX = error code, carry set
+;
+; Modifies:
+;	AX, BX, CX, DX, DI
+;
+DEFPROC	sfb_create,DOS
+	sub	ax,ax			; AH = 0 (filename), AL = 0 (attrs)
+	DEFLBL	sfb_create_fcb,near
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	si
+	push	ds
+	push	es
+	mov	es,cs:[dos_data]
+	ASSUME	ES:DOS
+	LOCK_SCB
+	ASSUME	ES:NOTHING
+	push	ax
+	and	cl,ATTR_CREATE
+	mov	bl,cl			; BL = attributes
+	call	chk_devname		; is it a device name?
+	jnc	sc0			; yes
+	cmp	word ptr [si+1],':'	; is it a volume name (see chk_volume)?
+	jne	sc1			; no
+sc0:	jmp	sc6			; yes, so just open it
+sc1:	pop	ax
+	push	ax			; AH = name type, AL = 0 (attributes)
+	call	chk_filename		; does the file already exist?
+	jnc	sc3			; yes
+	cmp	ax,ERR_NOFILE		; no, but was the filename valid?
+	jne	sc7			; no
+;
+; The file doesn't exist, and SCB_FILENAME contains the drive # and name of
+; the new file, so add a DIRENT for it.
+;
+	mov	di,[scb_active]
+	mov	dl,cs:[di].SCB_FILENAME	; DL = drive #
+	mov	ax,ERR_NOPATH
+	cmp	byte ptr cs:[di].SCB_FILENAME+1,' '
+	je	sc7			; the filename is blank
+	mov	al,ERR_ACCDENIED
+	cmp	byte ptr cs:[di].SCB_FILENAME+1,'.'
+	je	sc7			; the filename is "." or ".."
+	call	get_bpb			; DI -> BPB
+	jc	sc8
+	xchg	ax,dx			; AL = drive #
+	call	chk_volopen		; is the volume open?
+	jc	sc8			; yes
+	call	add_dirent		; DS:SI -> new DIRENT
+	jc	sc8
+	ASSUME	DS:BIOS
+	jmp	short sc5
+;
+; The file already exists (DS:SI -> DIRENT, AL = drive #), so truncate it,
+; unless it can't be changed (eg, it's read-only or open).
+;
+sc3:	call	chk_dirent		; can the file be truncated?
+	jc	sc8			; no (AX = error code)
+	mov	cl,al			; CL = drive #
+	mov	[si].DIR_ATTR,bl
+	call	get_dtime		; AX = time, DX = date
+	mov	[si].DIR_TIME,ax
+	mov	[si].DIR_DATE,dx
+	sub	bx,bx
+	mov	[si].DIR_SIZE.LOW,bx
+	mov	[si].DIR_SIZE.HIW,bx
+	xchg	bx,[si].DIR_CLN		; BX = first CLN (and zero DIR_CLN)
+	mov	ds:[BUF_DIRTY],1
+	mov	dl,cl			; DL = drive #
+	call	get_bpb			; DI -> BPB
+	jc	sc8
+	mov	dx,bx			; DX = first CLN
+	call	free_clns		; free the file's clusters
+	jc	sc8
+;
+; Write the new (or updated) DIRENT (and FAT, if modified), and then open it.
+;
+sc5:	mov	al,ds:[BUF_DRIVE]
+	call	flush_buffers
+	jc	sc8
+sc6:	pop	ax
+	pop	es
+	pop	ds
+	pop	si
+	ASSUME	DS:NOTHING, ES:NOTHING
+	mov	bl,MODE_ACC_RW OR MODE_CREATE
+	call	sfb_open_fcb		; open it (BL = mode)
+	jmp	short sc9
+sc7:	stc
+sc8:	pop	dx			; discard the saved AX
+	pop	es
+	pop	ds
+	pop	si
+sc9:	UNLOCK_SCB_RET
+ENDPROC	sfb_create
 
 DOS	ends
 

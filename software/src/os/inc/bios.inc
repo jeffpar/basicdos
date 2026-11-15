@@ -366,7 +366,8 @@ CLOCK_DEVICE	dd	?		; 50Eh: CLOCK$ driver header
 CPU_TYPE	db	?		; 512h: CPUTYPE_* (see cpu.inc)
 CPU_HWTYPE	db	?		; 513h: the processor's own CPUTYPE_*
 CPU_ARENA	dd	?		; 514h: CPU$ arena (see cpu.inc)
-		db	10 dup (?)	; 518h: reserved
+HOT_KEY		db	?		; 518h: HOTKEY= character (0 if none)
+		db	9 dup (?)	; 519h: reserved
 DPT_ACTIVE	DPT	<>		; 522h: active DPT
 BOOT_KEY	dw	?		; 52Dh: set by boot sector
 		db	1 dup (?)	; 52Fh: paragraph padding

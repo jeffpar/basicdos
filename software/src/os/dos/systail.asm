@@ -37,6 +37,9 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<r3_uhprintf,r3_ioctl,r3_open,r3_create,r3_close,r3_seek>
 	EXTNEAR	<r3_time,r3_sfbfree,next_con>
 	EXTNEAR	<r3_sread,r3_swrite,r3_rread,r3_rwrite,r3_rbread,r3_rbwrite>
+	EXTNEAR	<fcb_code,func_none>
+	EXTWORD	<mcb_limit>
+	EXTABS	<FUNCTBL_SIZE,UTILTBL_SIZE>
 
 	ASSUME	CS:DOS, DS:DOS, ES:NOTHING, SS:NOTHING
 
@@ -375,6 +378,26 @@ DEFPROC	set_fault
 	test	ah,CPUF_PM		; protected mode?
 	mov	ax,offset dos_fault
 	jnz	sf0			; yes
+;
+; A machine with 64K or less can't spare the memory for the FCB functions,
+; so the resident code ends at fcb_code instead, and every function at or
+; after that becomes "unsupported".
+;
+	cmp	[mcb_limit],1000h	; more than 64K?
+	ja	sf0b			; yes
+	mov	ax,offset fcb_code
+	push	bx
+	mov	bx,offset FUNCTBL
+	mov	cx,FUNCTBL_SIZE
+	add	cx,UTILTBL_SIZE		; (which follows FUNCTBL)
+sf0a:	cmp	[bx],ax			; is the function staying?
+	jb	sf0c			; yes
+	mov	word ptr [bx],offset func_none
+sf0c:	inc	bx
+	inc	bx
+	loop	sf0a
+	pop	bx
+sf0b:
 ;
 ; Fill the real-mode hard error stack with SIG_BASICDOS, so that a dump of
 ; the vector table shows how much of the stack has ever been used.

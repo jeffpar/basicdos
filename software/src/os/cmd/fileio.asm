@@ -1102,7 +1102,7 @@ ENDPROC	ioctlErr
 ;
 DOS_ERRS	db	ERR_INVALID,5, ERR_NOFILE,53, ERR_NOPATH,75
 		db	ERR_ACCDENIED,70, ERR_BADHANDLE,52, ERR_SHARE,70
-		db	ERR_BADDRIVE,77
+		db	ERR_BADDRIVE,77, ERR_NOMEMORY,7
 IOCTL_ERRS	db	19,70, ERR_NOTREADY,71, 22,5, 26,72, 27,72, 0,57
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

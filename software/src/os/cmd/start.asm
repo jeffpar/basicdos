@@ -79,7 +79,9 @@ ENDPROC	addPath
 ; Process "START [/B] program [arguments]" (or START alone, which lists the
 ; sessions; see below), which runs the program (a COM or EXE
 ; file, found the way an external command is; see findProgram) in a new
-; session, whose console is a new full-screen VKD$ console, which takes the
+; session, whose console is a new one on our own console's device (we open
+; CON with a descriptor; see chk_devname): for VKD$, a full-screen console,
+; and for a COM port, another console on the same terminal.  It takes the
 ; focus, unless /B (background) comes before the program (any switches after
 ; the program are its own; see cmdDOS).  Like a session from CONFIG.SYS, it
 ; has its own LDT (see DOS_UTL_LOAD), but its program can end (eg, COMMAND's
@@ -197,12 +199,9 @@ st2a:	push	ds
 	pop	ds			; DS:DX -> console name
 	mov	ax,DOS_HDL_OPENRW
 	int	21h			; AX = handle
-	jnc	st3
-	mov	si,dx
-	call	openError		; report error (AX) opening CON_NAME
-st3:	pop	ds
+	pop	ds
 	pop	di			; DI -> the end of the name
-	jc	st9
+	jc	st8			; (eg, no memory for another console)
 	push	bx
 	push	di
 	xchg	bx,ax			; BX = handle
@@ -239,13 +238,16 @@ st4:	lea	sp,[bx + size SPB]
 	pop	di			; DI -> the end of the name
 	pop	bx			; BX -> CMDHEAP
 	jnc	st9
-	mov	byte ptr [di],0		; the name alone, for openError
+st8:	mov	byte ptr [di],0		; the name alone, for openError
 	jmp	openError		; report error AX for program SI
 st9:	ret
 ENDPROC	cmdStartSes
 
-	DEFSTR	CON_NAME,<"VKD$:80,25,0,0,1",0>	; (1 takes the focus)
-	DEFSTR	CON_BACK,<"VKD$:80,25",0>	; (by default, it doesn't)
+;
+; For VKD$, an adapter of 2 is the adapter of our own console (see ddcon_open).
+;
+	DEFSTR	CON_NAME,<"CON:80,25,0,2,1",0>	; (1 takes the focus)
+	DEFSTR	CON_BACK,<"CON:80,25,0,2",0>	; (by default, it doesn't)
 	DEFSTR	V86_COM,<"V86.COM",0>
 
 CODE	ENDS

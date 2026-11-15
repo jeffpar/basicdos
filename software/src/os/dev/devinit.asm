@@ -84,6 +84,7 @@ DEFPROC	devinit,far
 	mov	[CLOCK_DEVICE].SEG,ax	; and no CLOCK$ driver yet
 	mov	[FDC_UNITS],al
 	mov	[HDC_UNITS],al		; and no HDC volumes yet
+	mov	[HOT_KEY],al		; and no HOTKEY setting (see sysinit)
 	pop	ds
 	ASSUME	DS:NOTHING
 ;

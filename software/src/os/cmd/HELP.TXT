@@ -88,7 +88,7 @@ Returns the integer stored in the first 4 bytes of *string* by MKL$.
 [b]DATA *item*[,*item*]...
 Defines items for READ to assign to variables, in the order they appear in the program.  An item can be a number or a string; quoted strings can contain commas and colons.
 
-[c]DATE [*date*] [~P]
+[c+]DATE [*date*] [~P]
 Sets the system date (or prompts for a date if ~P) and then displays the date.
 The date must be entered as M-D-Y or M/D/Y, where M is 1-12, D is 1-31, and Y is 0-99 or 1980-2099.
 If D or Y are omitted, current values are assumed.
@@ -530,7 +530,7 @@ Same as SPACE$ (eg, PRINT "A"; SPC(5); "B").
 Returns the square root of *x*, which must not be negative.
 
 [c+]START [~B] [*program* [*arguments*]]
-START alone lists the session number, memory in use (in K), and current program of every active session.  START *program* runs *program* (a COM or EXE file) in a new session, on a new full-screen console, which gets the focus (press Shift-Tab to switch), unless ~B (background) comes before *program*.  When the program ends (eg, EXIT, for a new COMMAND), its session and console close, and the focus goes back to the console that had it.  A new COMMAND (or V86) gets this session's PATH$.
+START alone lists the session number, memory in use (in K), and current program of every active session.  START *program* runs *program* (a COM or EXE file) in a new session, on a new full-screen console (on a serial console, another console on the same terminal), which gets the focus (press Shift-Tab to switch, or CTRL-\ on a terminal), unless ~B (background) comes before *program*.  When the program ends (eg, EXIT, for a new COMMAND), its session and console close, and the focus goes back to the console that had it.  A new COMMAND (or V86) gets this session's PATH$.
 
 [b]STOP [*n*]
 Same as END.
@@ -558,7 +558,7 @@ Returns the tangent of *x*, where *x* is in radians.
 Copies input to output and to *file* (eg, DIR | TEE DIR.TXT | MORE), replacing *file*, or with ~A, appending to it.
 ERRORLEVEL is set to 0, or 2 if *file* couldn't be opened or written.
 
-[c]TIME [*time*] [~D] [~P]
+[c+]TIME [*time*] [~D] [~P]
 Sets the system time (or prompts for a time if ~P) and then displays the time.
 The time must be entered as H:M:S.D, where H is 0-23, M is 0-59, S is 0-59, and D is 0-99.  If M, S, or D are omitted, zeros are assumed.
 ~D displays only the time elapsed since TIME last displayed the time (or since midnight, if TIME hasn't been used).

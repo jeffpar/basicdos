@@ -33,6 +33,7 @@ The recognized keywords are:
 - [CPU](#cpu)
 - [DEVICE](#device)
 - [FILES](#files)
+- [HOTKEY](#hotkey)
 - [MEMSIZE](#memsize)
 - [PATHCHAR](#pathchar)
 - [PRN](#prn)
@@ -69,7 +70,7 @@ For a VKD$ console:
 
 - *cols* and *rows* are the size of the console (16 to 80 columns and 4 to 25 rows)
 - *border* is 1 to draw a border around the console, or 0 for none; a border uses the outermost rows and columns of the console
-- *adapter* is 0 for the primary video adapter, or 1 for a second adapter (eg, a machine with both an MDA and a CGA)
+- *adapter* is 0 for the primary video adapter, 1 for a second adapter (eg, a machine with both an MDA and a CGA), or 2 for the adapter of the console that the session opening it is using (as [START](../cmd/system/#start) does, so that its new console is on the same monitor)
 - *focus* is 1 for the console to take the focus from the console that has it (the first console always gets the focus); when a console that took the focus closes, the focus goes back to the console it took it from (as for [START](../cmd/system/#start))
 
 Consoles are positioned automatically, in the order of their CON lines.  Each adapter's first console starts at the top left corner of the screen, and each one after it starts below the previous one, or if the previous one reached the bottom of the screen, at the top of the screen, to its right.  A console that doesn't fit in the remaining space is made smaller to fit (but not below the minimum size, or the console isn't created).
@@ -94,6 +95,10 @@ The VT100 type also swaps the DELETE and BACKSPACE keys, since on a VT100, DELET
 
 Without XON, CTRL-S pauses output and any other key resumes it, except while a program is waiting for input, when CTRL-S is passed to the program.
 
+An ANSI or VT100 terminal can have more than one console, although it shows only one at a time: [START](../cmd/system/#start), typed on a COM console, puts its new console on the same terminal, and **Ctrl-\\** (or the [HOTKEY](#hotkey) key) switches to the terminal's next console, whose screen is redrawn (which takes up to 2 seconds at 9600 baud).  A console that isn't being shown keeps running, and its output appears when you switch back to it.  With only one console on the terminal, **Ctrl-\\** is an ordinary key.
+
+That requires a copy of each console's screen (about 2K of memory, and another 2K once the console uses [COLOR](../cmd/device/screen/#color)), so it's available only on a machine with more than 64K of memory, if at least 64K is free when the terminal's first console is opened, and its output buffer holds at least 96 characters (the default is 128); otherwise, START on that terminal fails (`Unable to load` *program*).  A screen is redrawn from what was written to it, so if a program sends the terminal its own escape sequences, the result may differ.
+
 On any COM console, a BREAK (eg, from a VT100's BREAK key) works like **Ctrl-Break** and **Ctrl-Alt-Del** on a VKD$ console: it stops the current program, even one that never uses DOS (eg, an endless loop that CTRL-C can't stop).
 
 Two consoles side by side, each 40 columns wide with a border:
@@ -110,6 +115,8 @@ Two full-screen consoles on a CGA, each on its own page:
 	SHELL=COMMAND.COM
 
 The same lines on an MDA put the second console on a virtual page.
+
+A machine with 64K of memory or less has only one VKD$ console (a second CON line's console can't be opened), since the driver doesn't keep its code for switching the focus or for virtual pages there.
 
 ### CPU
 
@@ -135,6 +142,14 @@ BASIC-DOS includes one installable driver, [DEBUG.COM](../cmd/external/debug/) (
 Sets the maximum number of files (and devices) that can be open at once, across all sessions.  The default is 20 (or 8, on a machine with 128K of memory or less), and *n* can range from 8 to 254.
 
 Each session's console counts as an open device, and a program that needs more files than are available may report a missing file instead (eg, MASM's `Include file ... not found`).
+
+### HOTKEY
+
+> HOTKEY=^*char*
+
+Sets the key that switches the focus to the next console, for every console: a caret followed by a character, which together name a control character (eg, `HOTKEY=^T` for **Ctrl-T**, or `HOTKEY=^\` for **Ctrl-\\**).  Any other setting is ignored.  That key then never reaches a program, so choose one that nothing else needs (eg, not `^C`, `^S`, or `^M`, which is ENTER).
+
+Without a HOTKEY line, each kind of console has its own key: **Shift-Tab** on the keyboard (VKD$ consoles), and **Ctrl-\\** on a terminal (COM consoles), since a terminal's TAB key sends the same character with or without SHIFT.  With one, **Shift-Tab** is an ordinary key again.
 
 ### MEMSIZE
 

@@ -166,7 +166,7 @@ DEFPROC	ddpipe_open
 ;
 ; At the moment, the only possible error is a failure to allocate memory.
 ;
-ddo8:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_GENFAIL
+ddo8:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + ERR_NOMEMORY
 	ret
 
 ddo9:	mov	es:[di].DDP_CONTEXT,ds

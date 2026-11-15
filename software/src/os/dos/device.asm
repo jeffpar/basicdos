@@ -19,12 +19,14 @@
 DOS	segment word public 'CODE'
 
 	EXTWORD	<dos_data>
-	EXTNEAR	<copy_name,sfb_from_sfh,sfb_read,sfb_write,strlen>
+	EXTNEAR	<sfb_from_sfh,sfb_read,sfb_write,strlen,upper>
 	EXTNEAR	<scb_release,r3_error>
 	EXTWORD	<scb_active>
 	EXTLONG	<err_stack>
 	EXTBYTE	<err_active,scb_locked,prog_user>
 	EXTLONG	<bpb_table>
+	EXTBYTE	<bpb_total>
+	EXTSTR	<FILENAME_CHARS>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -36,7 +38,10 @@ DOS	segment word public 'CODE'
 ;
 ; CON, AUX, and PRN aren't drivers, but names for the active session's
 ; devices (see "CON=", "AUX=", and "PRN=" in sysinit), so for those names,
-; CX returns the session's SFB for the device.
+; CX returns the session's SFB for the device, unless a descriptor follows
+; the name (eg, START's "CON:80,25,0,0,1"): then it's an ordinary open of
+; that device, whose driver gets the name as is (and decides what "CON" with
+; a descriptor means: for VKD$ and COM, a new console).
 ;
 ; Inputs:
 ;	AH = 10h if DS:SI -> FCB (whose name follows its drive byte)
@@ -44,8 +49,9 @@ DOS	segment word public 'CODE'
 ;
 ; Outputs:
 ;	On success, ES:DI -> device driver header (DDH), and CX -> session SFB
-;	(CX is zero for any other device, and -1 if the session has no such
-;	device, in which case ES:DI is undefined)
+;	(CX is zero for any other device, or if a descriptor follows the
+;	name, and -1 if the session has no such device, in which case ES:DI
+;	is undefined)
 ;	On failure, carry set
 ;
 ; Modifies:
@@ -77,16 +83,15 @@ cd0a:	mov	di,[scb_active]
 	jne	cd0			; no
 	mov	byte ptr [di-1],0	; yes, so end the copy there
 ;
-; Check for CON, AUX, or PRN, which can be followed by a colon but nothing
-; else (eg, "PRN:", but not "CON:80,25").
+; Check for CON, AUX, or PRN, which can be followed by a colon (eg, "PRN:")
+; and a descriptor (eg, "CON:80,25"; see cd7).
 ;
-cd0:	mov	ax,[si+3]		; AL = 4th character, AH = 5th
-	cmp	al,':'			; is the 4th a colon?
-	jne	cd0b			; no
-	xchg	al,ah			; then the 5th must end the name
-cd0b:	test	al,al			; does the name end here?
+cd0:	mov	al,[si+3]		; AL = 4th character
+	cmp	al,':'			; is it a colon?
+	je	cd0b			; yes
+	test	al,al			; does the name end here?
 	jnz	cd0e			; no
-	mov	di,offset DEV_ALIASES	; ES:DI -> DEV_ALIASES
+cd0b:	mov	di,offset DEV_ALIASES	; ES:DI -> DEV_ALIASES
 	mov	ax,[si]			; AX = 1st 2 characters
 	mov	cl,[si+2]		; CL = 3rd character
 	mov	ch,3			; CH = # of names
@@ -142,6 +147,19 @@ cd7:	push	bx
 	jc	cd7a			; the session has no such device
 	mov	cx,bx			; CX -> SFB
 	les	di,[bx].SFB_DEVICE	; ES:DI -> its driver
+;
+; If a descriptor follows the name (ie, its 4th character is a colon and
+; its 5th isn't the end), and the session's device is in fact a device, then
+; the name is the driver's to open.
+;
+	mov	ax,[si+3]		; AL = 4th character, AH = 5th
+	test	al,al
+	jz	cd7a
+	test	ah,ah
+	jz	cd7a
+	cmp	[bx].SFB_DRIVE,0	; a file (eg, redirected output)?
+	jge	cd7a			; yes
+	sub	cx,cx			; CX = 0 (see sfb_open)
 cd7a:	pop	bx
 	clc
 	jmp	short cd9
@@ -154,6 +172,182 @@ cd9:	pop	ds
 ENDPROC	chk_devname
 
 DEV_ALIASES	db	"CON",SCB_SFHOUT,"AUX",SCB_SFHAUX,"PRN",SCB_SFHPRN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; copy_name
+;
+; Copy the eleven-byte FCB name and extension, converting to uppercase.
+;
+; The name can also be a null-terminated one (see chk_devname), which may be
+; less than eleven bytes from the end of a protected-mode caller's segment,
+; so the copy ends with a null.
+;
+; Inputs:
+;	DS:SI -> device or filename
+;	ES:DI -> filename buffer
+;
+; Outputs:
+;	filename buffer filled in (through any null)
+;
+; Modifies:
+;	AX, CX, SI, DI
+;
+DEFPROC	copy_name,DOS
+	ASSUMES	<DS,NOTHING>,<ES,DOS>
+	mov	cx,size FCB_NAME
+;
+; TODO: Expand this code to a separate function which, like parse_name, upper-
+; cases and validates all characters against FILENAME_CHARS.
+;
+cn2:	lodsb
+	call	upper
+	stosb
+	test	al,al			; end of a null-terminated name?
+	loopnz	cn2			; no
+	ret
+ENDPROC	copy_name
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; parse_name
+;
+; Parse a filespec into drive, name, and extension fields.
+;
+; NOTE: My observations with PC DOS 2.0 are that "ignore leading separators"
+; really means "ignore leading whitespace" (ie, spaces or tabs).  This has to
+; be one of the more poorly documented APIs in terms of precise behavior.
+;
+; Inputs:
+;	AH = parse flags
+;	  01h: ignore leading separators
+;	  02h: leave drive in buffer unchanged if unspecified
+;	  04h: leave filename in buffer unchanged if unspecified
+;	  08h: leave extension in buffer unchanged if unspecified
+;	  80h: allow wildcards
+;	DS:SI -> string to parse
+;	ES:DI -> buffer for filename
+;
+; Outputs:
+;	Carry clear if drive number valid, set otherwise
+;	DL = drive number (actual drive number if specified, default if not)
+;	DH = wildcards flag (1 if any present, 0 if not)
+;	SI -> next unparsed character
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+DEFPROC	parse_name,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+;
+; See if the name begins with a drive letter.  If so, convert it to a drive
+; number and then skip over it; otherwise, use SCB_CURDRV as the drive number.
+;
+	mov	bx,[scb_active]
+	ASSERT	STRUCT,cs:[bx],SCB
+	mov	dl,cs:[bx].SCB_CURDRV	; DL = default drive number
+	mov	dh,0			; DH = wildcards flag
+	mov	cl,8			; CL is current filename limit
+	sub	bx,bx			; BL is current filename position
+
+pf0:	lodsb
+	test	ah,01h			; skip leading whitespace?
+	jz	pf1			; no
+	cmp	al,CHR_SPACE
+	je	pf0
+	cmp	al,CHR_TAB
+	je	pf0			; keep looping until no more whitespace
+
+pf1:	sar	ah,1
+	test	al,al			; end of the name?
+	jz	pf1e			; yes (so what follows isn't a colon)
+	cmp	byte ptr [si],':'	; drive letter?
+	je	pf1a			; yes
+pf1e:	dec	si
+	test	ah,01h			; update drive #?
+	jnz	pf1d			; no
+	mov	al,0			; yes, specify 0 for default drive
+	jmp	short pf1c
+pf1a:	inc	si			; skip colon
+	sub	al,'A'			; AL = drive number
+	cmp	al,20h			; possibly lower case?
+	jb	pf1b			; no
+	sub	al,20h			; yes
+pf1b:	mov	dl,al			; DL = drive number (validate later)
+	inc	ax			; store 1-based drive number
+pf1c:	mov	es:[di+bx],al
+pf1d:	inc	di			; advance DI past FCB_DRIVE
+	sar	ah,1
+;
+; Build filename at ES:DI+BX from the string at DS:SI, making sure that all
+; characters exist within FILENAME_CHARS.
+;
+pf2:	lodsb
+pf2a:	cmp	al,' '			; check character validity
+	jb	pf4			; invalid character
+	cmp	al,'.'
+	je	pf4a
+	call	upper
+	test	ah,80h			; filespec?
+	jz	pf2d			; no
+	cmp	al,'?'			; wildcard?
+	jne	pf2c
+	or	dh,1			; wildcard present
+	jmp	short pf2e
+pf2c:	cmp	al,'*'			; asterisk?
+	je	pf3			; yes, fill with wildcards
+pf2d:	push	cx
+	push	di
+	push	es
+	mov	es,cs:[dos_data]
+	ASSUME	ES:DOS
+	mov	cx,FILENAME_CHARS_LEN
+	mov	di,offset FILENAME_CHARS
+	repne	scasb
+	pop	es
+	ASSUME	ES:NOTHING
+	pop	di
+	pop	cx
+	jne	pf4			; invalid character
+pf2e:	and	ah,0FEh		; this component was specified
+	cmp	bl,cl
+	jae	pf2			; valid character but we're at limit
+	mov	es:[di+bx],al		; store it
+	inc	bx
+	jmp	pf2
+pf3:	and	ah,0FEh
+	or	dh,1			; wildcard present
+pf3a:	cmp	bl,cl
+	jae	pf2
+	mov	byte ptr es:[di+bx],'?'	; store '?' until we reach the limit
+	inc	bx
+	jmp	pf3a
+;
+; Advance to next part of filename (filling with blanks as appropriate)
+;
+pf4:	dec	si
+pf4a:	cmp	bl,cl			; are we done with the current portion?
+	jae	pf5			; yes
+	test	ah,01h			; leave the buffer unchanged?
+	jnz	pf4b			; yes
+	mov	byte ptr es:[di+bx],' '	; store ' ' until we reach the limit
+pf4b:	inc	bx
+	jmp	pf4a
+
+pf5:	cmp	cl,size FCB_NAME	; did we just finish the extension?
+	je	pf9			; yes
+	mov	bl,8			; BL -> extension
+	mov	cl,size FCB_NAME	; CL -> extension limit
+	sar	ah,1			; shift the parse flags
+	jmp	pf2
+;
+; Last but not least, validate the drive number
+;
+pf9:	dec	di			; rewind DI to FCB_DRIVE
+	cmp	dl,cs:[bpb_total]
+	cmc				; carry clear if >= 0 and < bpb_total
+	ret
+ENDPROC	parse_name
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -384,12 +578,25 @@ dr6:	mov	bx,[bp].DDPRW_LENGTH	; BX = # bytes remaining
 	clc
 	jmp	short dr9
 ;
+; A failed open's error code is a DOS error code already (eg, ERR_NOMEMORY
+; from a driver with no memory for another context), which the caller gets
+; as is; a driver with no opens (DDERR_UNKCMD) is a device that can't be
+; found.
+;
+dr8:	cmp	[bp].DDP_CMD,DDC_OPEN
+	jne	dr8g
+	mov	ah,0			; AX = DOS error code
+	cmp	al,DDERR_UNKCMD
+	jne	dr8f
+	mov	al,ERR_NOFILE
+	jmp	short dr8f
+;
 ; Convert the driver's error code (DDERR_*) to a DOS error code: like DOS 3.x,
 ; we use the critical error codes (19-31), so that "drive not ready" (21) is
 ; distinguishable from (for example) "file not found".  Any error that isn't
 ; in the table is a general failure (31).
 ;
-dr8:	push	si
+dr8g:	push	si
 	mov	si,offset dev_errs
 dr8a:	cmp	cs:[si],al		; does the driver error match?
 	je	dr8b			; yes

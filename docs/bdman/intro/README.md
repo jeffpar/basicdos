@@ -53,7 +53,7 @@ Other special key sequences that can be typed at any time include:
 - **Ctrl-C** aborts the current operation, the next time the program uses DOS (eg, for input or output)
 - **Ctrl-Break** is currently the same as **Ctrl-Alt-Del**, which stops even a program that doesn't use DOS (eg, an endless loop); on a serial terminal, its **BREAK** key does the same
 - **Ctrl-S** pauses output (press any other key to continue)
-- **Shift-Tab** switches to the next [console](#sessions)
+- **Shift-Tab** switches to the next [console](#sessions) (**Ctrl-\\** on a serial terminal, or the key that a [HOTKEY=](../cfg/#hotkey) line sets)
 - **Ctrl-Alt-Del** terminates the program running in the current session (it does *not* restart the machine; use [KILL /A](../cmd/system/#kill) for that, or KILL with a session number to end another session)
 
 You can also type [HELP KEYS](../cmd/external/help/) to display a brief summary of special keys.
@@ -139,7 +139,7 @@ BASIC-DOS can run several programs at once, each in its own *session*.  A sessio
 
 Every console needs a session, and so does every command after the first in a [pipeline](#pipes-and-redirection), so a system usually has more sessions than consoles; the extra sessions determine how many filters can run at once.
 
-Press **Shift-Tab** to switch the focus to the next console.  When there's more than one console on the video adapters, COMMAND.COM says so when it starts on the console with the focus, after its `BASIC-DOS Command Shell` message: `Press Shift-Tab to switch sessions`.
+Press **Shift-Tab** to switch the focus to the next console (on a serial terminal with more than one console, press **Ctrl-\\**; a [HOTKEY=](../cfg/#hotkey) line in CONFIG.SYS sets one key for both).  When there's more than one console on the video adapters, COMMAND.COM says so when it starts on the console with the focus, after its `BASIC-DOS Command Shell` message: `Press Shift-Tab to switch sessions`.
 
 CONFIG.SYS defines the number and size of the consoles (see [CON=](../cfg/#con)) and the number of sessions (see [SESSIONS=](../cfg/#sessions)).
 

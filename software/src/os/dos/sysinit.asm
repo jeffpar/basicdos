@@ -637,6 +637,27 @@ si9c:	mov	es:[def_swchar],al	; update the default for all SCBs
 si9d:	PRINTF	<"Warning: SWITCHAR conflicts with PATHCHAR",13,10>
 si9e:
 ;
+; HOTKEY=^x (a caret and a character, eg, HOTKEY=^\) makes that control
+; character the key that gives the focus to the next console, for every
+; console driver (see HOT_KEY); otherwise, each uses its own (SHIFT-TAB for
+; VKD$, and CTRL-\ for a COM port).  Any other setting is ignored.
+;
+	mov	si,offset CFG_HOTKEY
+	call	find_cfg		; look for "HOTKEY="
+	jc	si9g
+	cmp	byte ptr [di],'^'
+	jne	si9g
+	mov	al,[di+1]
+	and	al,1Fh			; AL = control character
+	push	ds
+	mov	si,BIOS
+	mov	ds,si
+	ASSUME	DS:BIOS
+	mov	[HOT_KEY],al
+	pop	ds
+	ASSUME	DS:DOS
+si9g:
+;
 ; Now that a console is open (for reporting errors), load any DEVICE= drivers,
 ; before opening any other consoles (which can't use devices they've reserved).
 ; Since there's no PSP yet, the SCB needs these settings for parsing paths.
@@ -924,6 +945,7 @@ CFG_SESSIONS	db	9,"SESSIONS="
 		dw	4,1,MAX_SESSIONS	; TODO: Decide if limit OK
 CFG_PATHCHAR	db	9,"PATHCHAR="
 CFG_SWITCHAR	db	9,"SWITCHAR="
+CFG_HOTKEY	db	7,"HOTKEY="
 
 NUL_DEVICE	db	"NUL",0
 AUX_DEVICE	db	"COM1",0	; default AUX device

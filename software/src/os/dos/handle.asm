@@ -415,7 +415,7 @@ so0a:	call	chk_devopen		; can it be opened in this mode?
 so1:	mov	ax,DDC_OPEN SHL 8	; ES:DI -> driver
 	sub	dx,dx			; no initial context
 	call	dev_request		; issue the DDC_OPEN request
-	jc	so9a			; failed (TODO: map device error?)
+	jc	so9b			; failed (AX = the driver's error code)
 	mov	al,-1			; no drive # for devices
 
 so1a:	push	cx			; save DIRENT # (if any)
