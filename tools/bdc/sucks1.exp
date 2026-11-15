@@ -1,0 +1,145 @@
+
+    8  J . . . . . . . M 
+    7  . . . . . . . . . 
+    6  . . . . . . . . . 
+    5  . . . . . . . . . 
+    4  . . . . . . . . . 
+    3  . . . . . . . . . 
+    2  . . . . . . . . . 
+    1  . . . . . . . . . 
+    0  D . . . . . . . K 
+
+       0 1 2 3 4 5 6 7 8 
+
+Player D has 1  Player K has 1  Player M has 1  Player J has 1  
+
+Enter move for player D (x,y x,y): 
+Computing best move...
+
+Player D oozing from 0,0 to 1,0
+
+    8  J . . . . . . . M 
+    7  . . . . . . . . . 
+    6  . . . . . . . . . 
+    5  . . . . . . . . . 
+    4  . . . . . . . . . 
+    3  . . . . . . . . . 
+    2  . . . . . . . . . 
+    1  . . . . . . . . . 
+    0  D D . . . . . . K 
+
+       0 1 2 3 4 5 6 7 8 
+
+Player D has 2  Player K has 1  Player M has 1  Player J has 1  
+
+Enter move for player K (x,y x,y): 
+Player K oozing from 8,0 to 7,1
+
+    8  J . . . . . . . M 
+    7  . . . . . . . . . 
+    6  . . . . . . . . . 
+    5  . . . . . . . . . 
+    4  . . . . . . . . . 
+    3  . . . . . . . . . 
+    2  . . . . . . . . . 
+    1  . . . . . . . K . 
+    0  D D . . . . . . K 
+
+       0 1 2 3 4 5 6 7 8 
+
+Player D has 2  Player K has 2  Player M has 1  Player J has 1  
+
+Enter move for player M (x,y x,y): 
+Computing best move...
+
+Player M oozing from 8,8 to 7,7
+
+    8  J . . . . . . . M 
+    7  . . . . . . . M . 
+    6  . . . . . . . . . 
+    5  . . . . . . . . . 
+    4  . . . . . . . . . 
+    3  . . . . . . . . . 
+    2  . . . . . . . . . 
+    1  . . . . . . . K . 
+    0  D D . . . . . . K 
+
+       0 1 2 3 4 5 6 7 8 
+
+Player D has 2  Player K has 2  Player M has 2  Player J has 1  
+
+Enter move for player J (x,y x,y): 
+Player J oozing from 0,8 to 1,7
+
+    8  J . . . . . . . M 
+    7  . J . . . . . M . 
+    6  . . . . . . . . . 
+    5  . . . . . . . . . 
+    4  . . . . . . . . . 
+    3  . . . . . . . . . 
+    2  . . . . . . . . . 
+    1  . . . . . . . K . 
+    0  D D . . . . . . K 
+
+       0 1 2 3 4 5 6 7 8 
+
+Player D has 2  Player K has 2  Player M has 2  Player J has 2  
+
+Enter move for player D (x,y x,y): 
+Computing best move...
+
+Player D oozing from 0,0 to 1,1
+
+    8  J . . . . . . . M 
+    7  . J . . . . . M . 
+    6  . . . . . . . . . 
+    5  . . . . . . . . . 
+    4  . . . . . . . . . 
+    3  . . . . . . . . . 
+    2  . . . . . . . . . 
+    1  . D . . . . . K . 
+    0  D D . . . . . . K 
+
+       0 1 2 3 4 5 6 7 8 
+
+Player D has 3  Player K has 2  Player M has 2  Player J has 2  
+
+Enter move for player K (x,y x,y): 
+Player K jumping from 7,1 to 5,3
+
+    8  J . . . . . . . M 
+    7  . J . . . . . M . 
+    6  . . . . . . . . . 
+    5  . . . . . . . . . 
+    4  . . . . . . . . . 
+    3  . . . . . K . . . 
+    2  . . . . . . . . . 
+    1  . D . . . . . . . 
+    0  D D . . . . . . K 
+
+       0 1 2 3 4 5 6 7 8 
+
+Player D has 3  Player K has 2  Player M has 2  Player J has 2  
+
+Enter move for player M (x,y x,y): Invalid coordinates, redo from start
+
+Enter move for player M (x,y x,y): 
+Computing best move...
+
+Player M oozing from 7,7 to 6,6
+
+    8  J . . . . . . . M 
+    7  . J . . . . . M . 
+    6  . . . . . . M . . 
+    5  . . . . . . . . . 
+    4  . . . . . . . . . 
+    3  . . . . . K . . . 
+    2  . . . . . . . . . 
+    1  . D . . . . . . . 
+    0  D D . . . . . . K 
+
+       0 1 2 3 4 5 6 7 8 
+
+Player D has 3  Player K has 2  Player M has 3  Player J has 2  
+
+Enter move for player J (x,y x,y): 

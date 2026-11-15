@@ -14,8 +14,9 @@
 | [bd/crt](bd/crt/) | TOOLS\\CRT | The startup code for C programs (`bdcrt0.asm`) |
 | [bd/fp](bd/fp/) | TOOLS\\FP | Floating point for C programs (`bdfp.asm`, `bdmath.c`), and a test (`fptest.c`) |
 | [bd/stub](bd/stub/) | TOOLS\\STUB | The NE loader stub (`nestub.asm`, `NESTUB.BIN`) and STUB.EXE's source |
+| [bd/bdc](bd/bdc/) | TOOLS\\BDC | The source of BDC.EXE, the BASIC-DOS C compiler (see [BDC](#bdc)) |
 | [bd/demos/hello](bd/demos/hello/) | TOOLS\\DEMOS\\HELLO | A C sample, with a makefile that explains each step |
-| [bd/demos/sucks](bd/demos/sucks/) | TOOLS\\DEMOS\\SUCKS | Two C programs from 1993 that play Ataxx (see its [README](bd/demos/sucks/README.md)), with one makefile that builds both |
+| [bd/demos/sucks](bd/demos/sucks/) | TOOLS\\DEMOS\\SUCKS | Two C programs from 1993 that play Ataxx (see its [README](bd/demos/sucks/README.md)), one makefile builds both with Microsoft C 4.00, and another (`MAKE BDC`) with BDC |
 
 The hard disk's **TOOLS\\BIN** gets the files in `dos`, overlaid with those in `bd`, and **TOOLS\\LIB** gets `dos/lib`, overlaid with `bd/lib` (see [gulpfile.js](../../../gulpfile.js)); `mk.sh` gets the same result by searching `bd` before `dos`.
 
@@ -61,6 +62,24 @@ STUB is itself a C program built that way (see [bd/stub](bd/stub/)), and it writ
 Always compile with `/FPa`, even a program with no floating point: an object file compiled without it asks the linker for the 8087 emulator's library (EM.LIB), which isn't provided.
 
 Limitations: the heap can't grow beyond the DEF file's sizes (the library's code to grow it is still real-mode code), and spawn and exec haven't been adapted (see CL's changes above).
+
+### BDC
+
+BDC.EXE is a small, fast, single-pass C compiler written for BASIC-DOS.  Microsoft C runs four programs for every source file (CL, C1, C2, and C3), which pass intermediate files to each other; BDC is one 53K program that reads a source file and writes its object file.  On an IBM PC XT, it compiles the two programs in [bd/demos/sucks](bd/demos/sucks/) in 29 seconds, and Microsoft C 4.00 takes about three and a half minutes; with linking, the folder's `bdc` makefile takes 49 seconds, and its Microsoft C makefile four minutes.  Its code is larger and slower than Microsoft C's (those programs' object files are about a third larger), since it does very little optimization.
+
+BDC's object files follow Microsoft C 4.00's small model conventions (the same segments, names, calling sequence, and long arithmetic routines), so a program is linked with the same libraries, in the same way, and can mix object files from both compilers:
+
+    BDC /I\TOOLS\INCLUDE HELLO.C
+    LINK4 HELLO,HELLO.NE,NUL,\TOOLS\LIB\,HELLO.DEF
+    STUB HELLO.NE HELLO.EXE
+
+Its switches are `/I`*dir* (a directory to look for include files in), `/D`*name*[`=`*text*] (define a macro), `/FI`*file* (include a file ahead of the source file), and `/Fo`*file* (name the object file, which otherwise has the source file's name and goes in the current directory).
+
+It accepts things that Microsoft C 4.00 doesn't: function definitions that declare their parameters inside the parentheses, and comments that start with two slashes.  It doesn't support floating point, bit fields, structures as arguments or return values, initializers for local arrays and structures, or any memory model but small.
+
+BDC is written in C that both compilers accept (see [bd/bdc](bd/bdc/); `MAKE MAKEFILE` there builds it with Microsoft C, whose smaller and faster code is what BDC.EXE contains).  It also compiles itself, and that copy of it compiles the same object files.
+
+BDC's tests are in [tools/bdc](../../../tools/bdc/), since they don't run on BASIC-DOS: `test.sh` builds BDC on this machine, compiles each test program with it, and runs the programs on MS-DOS in pc.js, comparing their output with that of the same programs compiled by Microsoft C; it also builds BDC there with Microsoft C and with itself, and checks that every copy compiles the same object files.  `mkbdc.sh` rebuilds BDC.EXE the same way.
 
 ### Floating Point
 

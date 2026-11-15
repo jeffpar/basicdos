@@ -135,3 +135,8 @@ alternate math libraries in TOOLS\LIB are BASIC-DOS versions as well.  For
 the details, and for how to build C programs, see README.md in the
 software/src/tools folder of the BASIC-DOS repository
 (https://github.com/jeffpar/basicdos), and the sample in TOOLS\DEMOS\HELLO.
+
+BDC.EXE in TOOLS\BIN isn't one of the original tools: it's a small, fast C
+compiler written for BASIC-DOS, with its source in TOOLS\BDC.  Its object
+files link with the Microsoft C libraries, as "MAKE BDC" in
+TOOLS\DEMOS\SUCKS shows (the makefile there uses Microsoft C).

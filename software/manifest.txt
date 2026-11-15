@@ -29,8 +29,8 @@
 # hard disk with all of them (plus TESTS/SAMPLES, DEMOS/WOLF3D, the WOLF3D.BAT and JIVE files that only it has
 # in DEMOS, SRC, and the build tools in TOOLS/BIN, with the C compiler's include
 # files and libraries in TOOLS/INCLUDE and TOOLS/LIB, and the C startup,
-# floating-point, and STUB sources in TOOLS/CRT, FP, and STUB, and C demos in
-# TOOLS/DEMOS).  tools/tests/prep.sh copies EXT
+# floating-point, STUB, and BDC sources in TOOLS/CRT, FP, STUB, and BDC, and
+# C demos in TOOLS/DEMOS).  tools/tests/prep.sh copies EXT
 # into each test configuration's EXT folder, DEMOS and TESTS into its TESTS
 # folder, TESTS/REGRESS and TESTS/MISC into its TESTS\REGRESS and TESTS\MISC
 # folders, and TOOLS into TOOLS.

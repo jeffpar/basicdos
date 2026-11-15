@@ -1,0 +1,78 @@
+O's = 00000400 00000040
+X's = 00010000 00000001
+..0 1 2 3 4 5 6..
+6 O . . . . . X 6
+5 . . . . . . . 5
+4 . . . . . . . 4
+3 . . . . . . . 3
+2 . . . . . . . 2
+1 . . . . . . . 1
+0 X . . . . . O 0
+..0 1 2 3 4 5 6..
+X has 2, O has 2
+0x00001000 positions0x00002000 positions0x00003000 positions0x00004000 positions0x00005000 positions0x00006000 positions0x00007000 positions0x00008000 positions0x00009000 positions0x0000A000 positions0x0000B000 positions0x0000C000 positions0x0000D000 positions0x0000E000 positions0x0000F000 positions0x00010000 positions0x00011000 positions0x00012000 positions0x00013000 positions0x00014000 positions0x00015000 positions0x00016000 positions0x00017000 positions0x00018000 positions0x00019000 positions0x0001A000 positions0x0001B000 positions0x0001C000 positions0x0001D000 positions0x0001E000 positions0x0001F000 positions0x00020000 positions0x00021000 positions0x00022000 positions0x00023000 positions0x00024000 positions0x00025000 positions0x00026000 positions
+Player O oozes to 5,0
+O's = 00000400 00000040
+X's = 00010000 00000001
+..0 1 2 3 4 5 6..
+6 O . . . . . X 6
+5 . . . . . . . 5
+4 . . . . . . . 4
+3 . . . . . . . 3
+2 . . . . . . . 2
+1 . . . . . . . 1
+0 X . . . . . O 0
+..0 1 2 3 4 5 6..
+X has 2, O has 2
+O's = 00000408 00000040
+X's = 00010000 00000001
+..0 1 2 3 4 5 6..
+6 O . . . . . X 6
+5 . . . . . . . 5
+4 . . . . . . . 4
+3 . . . . . . . 3
+2 . . . . . . . 2
+1 . . . . . . . 1
+0 X . . . . O O 0
+..0 1 2 3 4 5 6..
+X has 2, O has 3
+x,y x,y:Player X oozes to 1,1
+O's = 00000408 00000040
+X's = 00010000 00000101
+..0 1 2 3 4 5 6..
+6 O . . . . . X 6
+5 . . . . . . . 5
+4 . . . . . . . 4
+3 . . . . . . . 3
+2 . . . . . . . 2
+1 . X . . . . . 1
+0 X . . . . O O 0
+..0 1 2 3 4 5 6..
+X has 3, O has 3
+0x00001000 positions0x00002000 positions0x00003000 positions0x00004000 positions0x00005000 positions0x00006000 positions0x00007000 positions0x00008000 positions0x00009000 positions0x0000A000 positions0x0000B000 positions0x0000C000 positions0x0000D000 positions0x0000E000 positions0x0000F000 positions0x00010000 positions0x00011000 positions0x00012000 positions0x00013000 positions0x00014000 positions0x00015000 positions0x00016000 positions0x00017000 positions0x00018000 positions0x00019000 positions0x0001A000 positions0x0001B000 positions0x0001C000 positions0x0001D000 positions0x0001E000 positions0x0001F000 positions0x00020000 positions0x00021000 positions0x00022000 positions0x00023000 positions0x00024000 positions0x00025000 positions0x00026000 positions0x00027000 positions0x00028000 positions0x00029000 positions0x0002A000 positions0x0002B000 positions0x0002C000 positions0x0002D000 positions0x0002E000 positions0x0002F000 positions0x00030000 positions0x00031000 positions0x00032000 positions0x00033000 positions0x00034000 positions0x00035000 positions0x00036000 positions0x00037000 positions0x00038000 positions0x00039000 positions0x0003A000 positions0x0003B000 positions0x0003C000 positions0x0003D000 positions0x0003E000 positions0x0003F000 positions0x00040000 positions0x00041000 positions0x00042000 positions0x00043000 positions0x00044000 positions0x00045000 positions0x00046000 positions0x00047000 positions0x00048000 positions0x00049000 positions0x0004A000 positions0x0004B000 positions0x0004C000 positions0x0004D000 positions0x0004E000 positions0x0004F000 positions0x00050000 positions0x00051000 positions0x00052000 positions0x00053000 positions0x00054000 positions0x00055000 positions0x00056000 positions0x00057000 positions0x00058000 positions0x00059000 positions0x0005A000 positions0x0005B000 positions0x0005C000 positions0x0005D000 positions0x0005E000 positions0x0005F000 positions0x00060000 positions0x00061000 positions0x00062000 positions0x00063000 positions0x00064000 positions0x00065000 positions0x00066000 positions0x00067000 positions0x00068000 positions0x00069000 positions0x0006A000 positions0x0006B000 positions0x0006C000 positions0x0006D000 positions0x0006E000 positions0x0006F000 positions0x00070000 positions0x00071000 positions0x00072000 positions0x00073000 positions0x00074000 positions0x00075000 positions0x00076000 positions0x00077000 positions0x00078000 positions0x00079000 positions0x0007A000 positions0x0007B000 positions0x0007C000 positions0x0007D000 positions0x0007E000 positions0x0007F000 positions0x00080000 positions0x00081000 positions0x00082000 positions0x00083000 positions0x00084000 positions0x00085000 positions0x00086000 positions0x00087000 positions0x00088000 positions0x00089000 positions0x0008A000 positions0x0008B000 positions0x0008C000 positions0x0008D000 positions0x0008E000 positions0x0008F000 positions0x00090000 positions0x00091000 positions0x00092000 positions0x00093000 positions0x00094000 positions0x00095000 positions0x00096000 positions0x00097000 positions0x00098000 positions0x00099000 positions0x0009A000 positions0x0009B000 positions0x0009C000 positions0x0009D000 positions0x0009E000 positions
+Player O oozes to 6,1
+O's = 00000408 00000040
+X's = 00010000 00000101
+..0 1 2 3 4 5 6..
+6 O . . . . . X 6
+5 . . . . . . . 5
+4 . . . . . . . 4
+3 . . . . . . . 3
+2 . . . . . . . 2
+1 . X . . . . . 1
+0 X . . . . O O 0
+..0 1 2 3 4 5 6..
+X has 3, O has 3
+O's = 00000C08 00000040
+X's = 00010000 00000101
+..0 1 2 3 4 5 6..
+6 O . . . . . X 6
+5 . . . . . . . 5
+4 . . . . . . . 4
+3 . . . . . . . 3
+2 . . . . . . . 2
+1 . X . . . . O 1
+0 X . . . . O O 0
+..0 1 2 3 4 5 6..
+X has 3, O has 4
+x,y x,y:
