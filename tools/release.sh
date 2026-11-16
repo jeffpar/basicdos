@@ -50,10 +50,16 @@ watching() {
 # on) is deleted, so MAKE rebuilds everything in it (without touching any sources, which would make the other mode's
 # saved outputs look out of date, too); if the last mode is unknown, its outputs aren't saved.
 #
+# While the folders move, mkmode says SWITCHING, so a disk update (gulp demos) that's already running can tell that
+# the binaries it staged may be from either mode (see readMode() in gulpfile.js); if a switch fails, mkmode still says
+# SWITCHING, so the next switch treats the last mode as unknown.
+#
 setMode() {
     local mode=$1 last dir src=software/src saved=tools/pc/disks/objs
     last=$(cat tools/pc/disks/mkmode 2>/dev/null)
     [ "$last" = "$mode" ] && return
+    mkdir -p tools/pc/disks
+    echo SWITCHING > tools/pc/disks/mkmode || exit 1
     for dir in $(cd $src && find os tests msb -type d \( -iname obj -o -iname bin \) -prune); do
         if [ "$last" = FINAL ] || [ "$last" = DEBUG ]; then
             rm -rf "$saved/$last/$dir"
@@ -66,6 +72,5 @@ setMode() {
         fi
         find "$src/$dir" -maxdepth 1 -iname INCS -delete
     done
-    mkdir -p tools/pc/disks
     echo "$mode" > tools/pc/disks/mkmode
 }

@@ -75,6 +75,38 @@ DEFPROC	allocBlockSize
 	ret
 ENDPROC	allocBlockSize
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; allocCode
+;
+; Allocates a program's first code block (see genInit), sized for the text
+; its code is generated from: twice the size of the text (programs so far
+; have needed up to about 1.9 times), plus MIN_BLKSIZE for the block's header,
+; addLabel's maps, genRegion's table, and CODE_ROOM, but no more than CBLKLEN,
+; so that a short BAT file or a line typed at the prompt doesn't take a whole
+; CBLKLEN block (which it would keep while it runs another file).  If the code
+; outgrows the block, ensureRoom adds another one.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	CX = size of the text, in bytes
+;
+; Outputs:
+;	If successful, carry clear, ES:DI -> first available byte
+;
+; Modifies:
+;	AX, CX, DX, SI, DI, ES
+;
+DEFPROC	allocCode
+	shl	cx,1
+	add	cx,MIN_BLKSIZE
+	cmp	cx,CBLKLEN
+	jbe	ac1
+	mov	cx,CBLKLEN
+ac1:	lea	si,[bx].CBLKDEF
+	mov	dx,MIN_BLKSIZE		; fall into allocBlockMin
+ENDPROC	allocCode
+
 DEFPROC	allocBlockMin
 	push	bx
 	push	cx
@@ -368,36 +400,6 @@ ENDPROC	restoreChains
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; allocCode
-;
-; Inputs:
-;	BX -> CMDHEAP
-;
-; Outputs:
-;	If successful, carry clear, ES:DI -> first available byte
-;
-; Modifies:
-;	AX, SI, DI, ES
-;
-DEFPROC	allocCode
-	lea	si,[bx].CBLKDEF
-	DEFLBL	allocCodeBlock,near
-	call	allocBlock
-	jc	ac9
-;
-; ES:[BLK_SIZE] is the absolute limit for generated code, but we also maintain
-; ES:[CBLK_REFS] as the bottom of the block's LBLREF table, and that's the real
-; limit that the code generator must be mindful of.
-;
-; Initialize the block's LBLREF table; it's empty when CBLK_REFS = BLK_SIZE.
-;
-	mov	ax,es:[BLK_SIZE]
-	mov	es:[CBLK_REFS],ax
-ac9:	ret
-ENDPROC	allocCode
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; ensureRoom
 ;
 ; Makes sure there's room in the code (or function) block for at least the
@@ -490,18 +492,22 @@ ENDPROC	ensureRoom
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; shrinkCode
+; shrinkBlock
+;
+; Shrinks a block to the given end (eg, a function block to its code, or the
+; last text block of a file that LOAD read), which becomes its BLK_FREE and,
+; if DOS can shrink the block, its BLK_SIZE.
 ;
 ; Inputs:
 ;	ES:DI -> next unused byte
 ;
 ; Outputs:
-;	If successful, code block in ES is shrunk
+;	Carry clear
 ;
 ; Modifies:
 ;	AX
 ;
-DEFPROC	shrinkCode
+DEFPROC	shrinkBlock
 	push	bx
 	push	cx
 	mov	es:[BLK_FREE],di
@@ -513,10 +519,11 @@ DEFPROC	shrinkCode
 	int	21h
 	jc	sc9
 	mov	es:[BLK_SIZE],di
-sc9:	pop	cx
+sc9:	clc
+	pop	cx
 	pop	bx
 	ret
-ENDPROC	shrinkCode
+ENDPROC	shrinkBlock
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -574,7 +581,19 @@ ENDPROC	freeAllCode
 DEFPROC	allocFunc
 	mov	si,ds:[PSP_HEAP]
 	lea	si,[si].FBLKDEF
-	jmp	allocCodeBlock
+	call	allocBlock
+	jc	af9
+;
+; ES:[BLK_SIZE] is the absolute limit for generated code, but we also maintain
+; ES:[FBLK_REFS] as the bottom of the block's LBLREF table, and that's the real
+; limit that the code generator must be mindful of (genInit does the same for
+; a program's first code block, and ensureRoom for the rest).
+;
+; Initialize the block's LBLREF table; it's empty when FBLK_REFS = BLK_SIZE.
+;
+	mov	ax,es:[BLK_SIZE]
+	mov	es:[FBLK_REFS],ax
+af9:	ret
 ENDPROC	allocFunc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

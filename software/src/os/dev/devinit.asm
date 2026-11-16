@@ -468,7 +468,14 @@ cu1a:	push	cs
 	not	ax
 	and	di,ax			; DI = DOS_FILE size, in whole clusters
 	add	di,es:[cfg_size]	; plus CFG_FILE data
-	add	di,DV_SLACK		; and room for a free MCB (see i9a)
+;
+; The block also has room for a free MCB (see i9a), and its length is a whole
+; number of sectors, so that it starts at a sector boundary below the top of
+; memory, and no sector that read_file reads into it crosses a 64K boundary,
+; which the ROM can't do (eg, with 80K or 144K of memory).
+;
+	add	di,DV_SLACK + 511
+	and	di,not 511
 	push	bx
 	push	si
 	sub	si,si			; SI:DI = length

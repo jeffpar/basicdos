@@ -43,7 +43,7 @@ CODE    SEGMENT
 	EXTNEAR	<addVar,findVar,genExpr,genCvtType,genCallCS,genPushImm>
 	EXTNEAR	<genPushVarPtr,getNextToken,getNextSymbol,peekNextSymbol>
 	EXTNEAR	<setVar,removeVar,allocTempVars,updateTempVars,freeTempVars>
-	EXTNEAR	<allocFunc,freeFunc,ensureRoom,shrinkCode,getNextLine>
+	EXTNEAR	<allocFunc,freeFunc,ensureRoom,shrinkBlock,getNextLine>
 	EXTNEAR	<genCommands,genPushBPOffset,genPopBPOffset,setVarDouble>
 	EXTNEAR	<genLong,clearVars>
 	EXTNEAR	<dimArray,getElemPtr,getElemVal,eraseArray,setOptBase>
@@ -284,7 +284,7 @@ gd3f:	mov	ax,OP_POP_BP OR (OP_RETF_N SHL 8)
 	sub	cx,8
 	xchg	ax,cx
 	stosw
-	call	shrinkCode
+	call	shrinkBlock
 ;
 ; ES contains the generated code, so we're ready to add the VAR_FUNC now.
 ; But first, call freeTempVars and restore var block to its original state,

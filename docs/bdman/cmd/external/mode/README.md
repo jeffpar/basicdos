@@ -14,7 +14,7 @@ Sets the display, a serial port, or a printer.  Any other argument, or none at a
 
 ### Display
 
-Sets the display to 40 or 80 columns.  BW turns color off, as `SCREEN 0,0` does, and CO turns it on.  `MODE 132` selects 132 columns, which only a console on a VT100 terminal has (with 24 rows if the terminal has the Advanced Video Option, or 14 rows if not).
+Sets the display to 40 or 80 columns.  BW turns color off, as `SCREEN 0,0` does, and CO turns it on.  `MODE 132` selects 132 columns, which only a console on a VT100 terminal has (with 24 rows if the terminal has the Advanced Video Option, or 14 rows if not).  The display is always cleared, with the default colors (white on black), even if its mode doesn't change (eg, `MODE CO80` on a display that's already in 80-column color mode), whereas SCREEN and WIDTH do nothing then.
 
 *rows* is the number of rows, which depends on the display adapter:
 

@@ -199,7 +199,7 @@ gi1:	mov	[bx].GEN_FLAGS,al
 	mov	[bx].CBLKDEF.BDEF_NEXT,cx; the code is running again
 	mov	es,cx
 	mov	di,size CBLK		; ES:DI -> the code (carry and ZF clear)
-	ret
+gi9:	ret
 ;
 ; Like MSBASIC (see CLEARC), a program starts with the default types for all
 ; variables (ie, any DEFINT, DEFDBL, or DEFSTR from before is forgotten).
@@ -223,16 +223,33 @@ gi3:	rep	stosb			; (and CX is zero again)
 gi4:	mov	[bx].LINE_PTR.OFF,si
 	mov	[bx].LINE_PTR.SEG,dx
 	mov	[bx].LINE_LEN,cx	; CX = previous length (0)
-	call	allocCode
+;
+; allocCode sizes the code block for the text: a single line, or the size of
+; a program's text block (a program with more than one gets CBLKLEN bytes).
+;
+	mov	cl,[si].INP_CNT		; CX = length of a single line
+	mov	ax,ds
+	cmp	ax,dx			; is it a single line?
+	je	gi4a			; yes
+	mov	es,dx
+	mov	cx,es:[BLK_FREE]	; CX = size of the text block
+	cmp	es:[BLK_NEXT],0		; is it the only one?
+	je	gi4a			; yes
+	mov	ch,CBLKLEN SHR 8	; no, so CX >= CBLKLEN
+gi4a:	call	allocCode
 	jc	gi8
 	ASSUME	ES:NOTHING		; ES:DI -> code block
 ;
 ; addLabel's maps (and if genRegion is loaded, its table of regions) go at the
 ; end of the first code block, beyond the LBLREF table (and BLK_SIZE), where
-; allocBlock zeroed them.
+; allocBlock zeroed them.  A single line is generated in order (see genMore),
+; so it doesn't need the table.
 ;
 	mov	ax,es:[BLK_SIZE]
 	sub	ax,LBL_MAPLEN * 2
+	mov	dx,ds
+	cmp	dx,[bx].LINE_PTR.SEG	; generating a single line?
+	je	gi5			; yes
 	mov	dx,offset genRegion
 	cmp	dx,ds:[PSP_CODESIZE]	; is genRegion loaded (see genUpper)?
 	jae	gi5			; no
@@ -246,7 +263,7 @@ gi5:	mov	es:[BLK_SIZE],ax
 	mov	es:[BLK_FREE],di
 	pop	di
 	test	di,di			; (carry and ZF clear)
-gi9:	ret
+	ret
 gi8:	jmp	memError
 ENDPROC	genInit
 

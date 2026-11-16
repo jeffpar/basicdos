@@ -354,7 +354,7 @@ Returns a 2-byte string containing the integer *n* (see CVI), for a random acces
 Returns a 4-byte string containing the integer *n* (see CVL), for a random access file.
 
 [e]MODE 40|80|132|BW40|BW80|CO40|CO80[,*rows*] or MODE COM*n*:*baud*[,*parity*[,*data*[,*stop*]]] or MODE LPT*n*:[*cols*][,*lines*]
-Sets the display's columns (BW or CO also turns color off or on; 132 needs a VT100 terminal) and *rows* (25, 43 on an EGA or VGA, or 50 on a VGA), a serial port's settings (eg, COM1:9600,N,8,1), or a printer's columns (80 or 132) and lines per inch (6 or 8).
+Sets the display's columns (BW or CO also turns color off or on; 132 needs a VT100 terminal) and *rows* (25, 43 on an EGA or VGA, or 50 on a VGA), clearing it with the default colors, a serial port's settings (eg, COM1:9600,N,8,1), or a printer's columns (80 or 132) and lines per inch (6 or 8).
 
 [e]MORE [*file*]
 Displays input (or *file*) one screen at a time (eg, TYPE README.TXT | MORE), displaying "-- More --" and waiting for a key after each screen.  Press CTRL-C to stop.

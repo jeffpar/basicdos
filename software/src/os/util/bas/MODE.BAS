@@ -32,6 +32,9 @@
 	IF LEFT$(M$, 2) = "BW" THEN SCREEN 0, 0
 	IF LEFT$(M$, 2) = "CO" THEN SCREEN 0, 1
 	IF L$ = "" THEN WIDTH VAL(W$) ELSE WIDTH VAL(W$), VAL(L$)
+	' Like PC DOS, clear the screen with the default colors (white on black,
+	' and a white border), even if the mode didn't change
+	COLOR 7, 0, 7 : CLS
 	END
 20	' Serial port: the parity, data bits, and stop bits default to N, 8, and 1,
 	' and a two-digit baud rate is an abbreviation (eg, 96 for 9600)

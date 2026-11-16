@@ -1508,11 +1508,12 @@ ENDPROC	ddcom_open
 ;
 ; ddcom_close
 ;
-; When a context's last reference is closed, it leaves the port's ring; any
-; console that took the focus from it takes it back from its parent instead
-; (eg, if START made B from A and C from B, and B closes first, then C's
-; focus goes back to A), and if it has the focus, that goes back to its
-; parent, if any (or else the next console).
+; When a context's last reference is closed, its buffered output is sent
+; (see wait_output), and it leaves the port's ring; any console that took the
+; focus from it takes it back from its parent instead (eg, if START made B
+; from A and C from B, and B closes first, then C's focus goes back to A), and
+; if it has the focus, that goes back to its parent, if any (or else the next
+; console).
 ;
 ; Inputs:
 ;	BP = the port's data segment
@@ -1530,6 +1531,7 @@ DEFPROC	ddcom_close
 	ASSERT	STRUCT,ds:[0],CT
 	dec	ds:[CT_REFS]
 	jg	dcc8			; context still in use
+	call	wait_output		; send any output that's still buffered
 	push	di
 	push	es
 	call	end_esc			; (the timer mustn't touch it, either)
@@ -2570,6 +2572,36 @@ DEFPROC	resume_output
 rso9:	sti
 	ret
 ENDPROC	resume_output
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; wait_output
+;
+; Called when a context's last reference is closed, so that output still in
+; its buffer is sent before the buffer is freed (eg, a program's last PRINT #
+; to a COM device before CLOSE).  It waits the way ddcom_write waits for room:
+; pull_output clears CTSTAT_XMTFULL when the buffer is empty, and wake_packet
+; then ends the wait (which CTRL-C can also end, discarding the rest).
+;
+; Inputs:
+;	DS = context
+;	ES:DI -> DDP
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	wait_output
+	mov	si,offset CT_OUTPUT
+	cli
+	call	peek_buffer		; any output left?
+	jz	rso9			; no
+	or	ds:[CT_STATUS],CTSTAT_XMTFULL
+	jmp	add_packet		; wait (add_packet ends with STI)
+ENDPROC	wait_output
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -24,7 +24,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<allocText,freeCache,memError,writeStrCRLF>
+	EXTNEAR	<allocText,shrinkBlock,freeCache,memError,writeStrCRLF>
 	EXTNEAR	<getToken,getFileName,chkExt,addString,openOutput,findProgram>
 	EXTNEAR	<writeOutput,writeError,openError,noFile,listVars>
 	EXTNEAR	<freeAllText,openInput,readInput,closeInput>
@@ -163,7 +163,13 @@ lf4:	mov	si,[pLineBuf]		; DS:SI has been adjusted
 	jcxz	lf4y			; if file is exhausted, we're done
 	jmp	lf3
 lf4x:	jmp	lf10
-lf4y:	jmp	lf12
+;
+; Unless allocText failed, the file has been read, so we shrink its last text
+; block (ES:DI) to fit.  An edit that needs more room splits it (see insLine).
+;
+lf4y:	jc	lf4z
+	call	shrinkBlock
+lf4z:	jmp	lf12
 ;
 ; We found the end of another line starting at DS:SI and ending at DX.
 ;

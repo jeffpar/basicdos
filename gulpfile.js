@@ -102,7 +102,15 @@ const SRC = "./software/src";
 const VERSION = JSON.parse(fs.readFileSync("./package.json", "utf8")).version.replace(/^(\d+)\.(\d+).*$/,
     (match, major, minor) => major + "." + minor.padStart(2, "0"));
 const MKMODE = "./tools/pc/disks/mkmode";
-const FINAL = fs.existsSync(MKMODE) && fs.readFileSync(MKMODE, "utf8").trim() == "FINAL";
+/*
+ * readMode() returns the build mode that MKMODE records ("" if none).  tools/release.sh's setMode changes it to
+ * SWITCHING before it swaps the build outputs, so buildDisk() rereads it after building each disk, and leaves the
+ * disk unchanged if the mode isn't still MODE: the disk's binaries may be from either mode.
+ */
+const readMode = () => fs.existsSync(MKMODE)? fs.readFileSync(MKMODE, "utf8").trim() : "";
+const MODE = readMode();
+const SWITCHING = MODE == "SWITCHING";
+const FINAL = MODE == "FINAL";
 const RELEASE = JSON.parse(fs.readFileSync("./package.json", "utf8")).config?.release == "final";
 /*
  * diskimage.js prints its banner, options, and output file for every diskette it builds, so it runs with --quiet
@@ -358,27 +366,42 @@ function buildDisk(diskName, diskImage)
     return function(done) {
         let entries = stageDisk(diskName);
         let label = disks[diskName].label || diskName.replace(/^BASICDOS-(360K-)?/, "BD-");
+        /*
+         * The disk is built as diskNew, which replaces diskImage only if the build mode didn't change while its
+         * binaries were read (see readMode()).
+         */
+        let diskNew = "./tools/pc/disks/" + diskName + "-new.json";
         let cmd;
         if (disks[diskName].hd) {
             cmd = "node ./tools/pc/pc.js ibm5160 ./tools/pc/disks/" + diskName + " --sys=bd:2 --target=10M --normalize --bare --label=" + label +
-                  " --order=" + entries.map(entry => path.basename(entry)).join(",") + " --save=" + diskImage;
+                  " --order=" + entries.map(entry => path.basename(entry)).join(",") + " --save=" + diskNew;
         } else {
             cmd = "node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" --files " + entries.join(",") +
                   (disks[diskName].data? "" : " --boot " + SRC + "/os/boot/obj/BOOT1.COM --attr=" + SYSATTRS) +
-                  " --output " + diskImage +
+                  " --output " + diskNew +
                   " --label=" + label + " --normalize --writable --target=360 --overwrite" + DIQUIET;
-            if (disks[diskName].img) {
-                cmd += " && node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" --disk=" + diskImage +
-                       " --output=" + diskImage.replace(/\.json$/, ".img") + " --writable --overwrite" + DIQUIET;
-            }
         }
         /*
          * The staging directory is needed only to build the disk, so it's removed once the build succeeds (if the
          * build fails, it's left for inspection).
          */
         run(cmd)(function(err) {
-            if (!err) fs.rmSync("./tools/pc/disks/" + diskName, { recursive: true, force: true });
-            done(err);
+            if (!err && readMode() != MODE) {
+                fs.rmSync(diskNew, { force: true });
+                err = new Error("build mode changed while building " + diskName + ", so it wasn't updated");
+            }
+            if (err) {
+                done(err);
+                return;
+            }
+            fs.renameSync(diskNew, diskImage);
+            fs.rmSync("./tools/pc/disks/" + diskName, { recursive: true, force: true });
+            if (!disks[diskName].img) {
+                done();
+                return;
+            }
+            run("node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" --disk=" + diskImage +
+                " --output=" + diskImage.replace(/\.json$/, ".img") + " --writable --overwrite" + DIQUIET)(done);
         });
     };
 }
@@ -468,6 +491,7 @@ if (changed && (process.env["BD_CHANGED"] == "*" || WATCHALL.some(file => change
 
 let demoTasks = ["diskettes"];
 for (let diskName in disks) {
+    if (SWITCHING) break;               // the binaries may be from either mode (see readMode())
     if (disks[diskName].final? !FINAL : FINAL && !RELEASE) continue;
     if (changed && !isAffected(diskName, changed)) continue;
     let buildTask = "BUILD-" + diskName;
