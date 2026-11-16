@@ -4,4 +4,6 @@
 
 2. CLOCK1: From https://github.com/robhagemans/hoard-of-gwbasic/blob/master/PeatSoft/clock/Clock1.asc
 
-3. TETRIS: From https://bisqwit.iki.fi/jutut/kuvat/programming_examples/gwbasictetris.bas
+3. SIEVE: From https://archive.org/details/byte-magazine-1981-09/page/n181
+
+4. TETRIS: From https://bisqwit.iki.fi/jutut/kuvat/programming_examples/gwbasictetris.bas
