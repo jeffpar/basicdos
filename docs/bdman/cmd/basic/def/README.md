@@ -46,6 +46,8 @@ The [DEF SEG](../#def-seg) statement is unrelated; it sets the segment used by P
 
 BASIC-DOS does *not* require function names to begin with the letters **FN**, it allows single-line functions to be defined immediately (in "Direct Mode"), and it allows multi-line functions.
 
+A DEF takes effect when it's compiled, not when it runs, for the lines compiled after it (see [BASIC Compilation](../../external/command/#basic-compilation)), so redefining a function doesn't change the lines compiled before the new DEF; they still use the earlier definition.
+
 Note that `DEF FN X=...` (with a space after FN) is not the same as `DEF FNX=...`: BASIC-DOS treats it as the start of a function block, which then swallows the rest of the program.
 
 {% include footer.html prev="BASIC Commands:../" next="GOTO:../goto/" %}

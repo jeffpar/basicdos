@@ -1509,26 +1509,16 @@ DEFPROC	removeVar
 	push	cx
 	mov	es,dx
 	mov	di,si			; ES:DI -> var data
-	mov	dh,ah			; DH = var type
 	call	getVarLen		; AX = length of var data at ES:DI
 	inc	cx			; CX = total length of name
 	sub	di,cx			; ES:DI -> name name
 	add	cx,ax			; CX = total length of name + data
-
-	cmp	dh,VAR_FUNC
-	jne	rv1
-	push	cx
-	push	es
-	push	di
-	add	di,cx
-	mov	es,es:[di-2]
-	call	freeFunc		; ES = function segment
-	ASSERT	NC
-	pop	di
-	pop	es
-	pop	cx
-
-rv1:	mov	al,VAR_DEAD
+;
+; A function's code block is NOT freed, because code generated earlier (eg,
+; a line generated out of order; see genRegion) may still call it directly;
+; freeAllVars frees it with the other function blocks.
+;
+	mov	al,VAR_DEAD
 	rep	stosb
 	pop	cx
 	pop	es

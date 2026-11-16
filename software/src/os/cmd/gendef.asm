@@ -67,10 +67,10 @@ CODE    SEGMENT
 ; Note that we do NOT require the function name to begin with "FN" like
 ; MSBASIC does.
 ;
-; TODO: We must allow DEF to redefine a function that already exists, hence
-; the call to removeVar.  However, all removeVar does is mark the existing var
-; data as DEAD, and addVar doesn't currently reuse DEAD space, so memory usage
-; could grow without limit until we've implemented some cleanup code.
+; DEF can redefine a function that already exists, hence the call to removeVar,
+; which marks the existing var data as DEAD but keeps the function's code,
+; since code generated earlier may still call it.  addVar doesn't reuse DEAD
+; space, so each redefinition uses more memory, until the vars are freed.
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs

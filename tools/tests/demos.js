@@ -29,7 +29,7 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const HELLO = /L O V E/, FIBO = /832040/, PRIMES = /TOTAL PRIMES < 1000: +168/;
-const PIPES = /DIRECTORY OF A:/, PROMPT = /[A-C]:\\[^ ]*[>\]}]/;
+const PIPES = /DIRECTORY OF A:/, DIR = /Directory of A:/, PROMPT = /[A-C]:\\[^ ]*[>\]}]/;
 
 /**
  * What each demo should do, by path (less any pc/, xt/, at/, or 386/); each value is a
@@ -47,7 +47,7 @@ const DEMOS = {
     'm64':          () => ({}),
     'term':         (hw) => ({ screen: [], keys: false, com: hw == 'at' ? [1, 2] : [1] }),
     's80':          () => ({ screen: [HELLO] }),
-    'd40':          () => ({ screen: [HELLO, PIPES] }),
+    'd40':          () => ({ screen: [HELLO, DIR] }),
     'd80':          () => ({ screen: [/>[^>]*>/] }),
     'p80':          (hw) => ({ screen: [HELLO, FIBO, PRIMES], cycle: hw == 'pc' }),
     'dual':         (hw) => ({ screen: [PRIMES, hw == 'pc' ? PIPES : /Maintenance Utility/] }),
