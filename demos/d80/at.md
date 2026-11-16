@@ -16,6 +16,6 @@ The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of memory
 
 {% include machine.html id="ibm5170" %}
 
-This demo is also available on an [IBM PC](../pc/), an [IBM PC XT](../xt/), and a [COMPAQ DeskPro 386](../386/).
+Additional demo configurations: [IBM PC](../pc/), [IBM PC XT](../xt/), and [COMPAQ DeskPro 386](../386/).
 
 {% include_relative _overview.md hw="at" %}

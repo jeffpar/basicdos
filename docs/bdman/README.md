@@ -10,7 +10,7 @@ permalink: /docs/bdman/
 	- [Starting BASIC-DOS](intro/#starting-basic-dos)
 	- [Typing Commands](intro/#typing-commands)
 	- [Running Programs](intro/#running-programs)
-	- [Pipes and Redirection](intro/#pipes-and-redirection)
+	- [Redirection and Pipes](intro/#redirection-and-pipes)
 	- [Sessions](intro/#sessions)
 	- [Getting Help](intro/#getting-help)
 2. [BASIC-DOS Commands](cmd/)

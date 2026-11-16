@@ -62,7 +62,7 @@ BLK_NEXT	dw	?		; 00h: next block seg, if any
 BLK_SIZE	dw	?		; 02h: size of block, in bytes
 BLK_FREE	dw	?		; 04h: offset of next free byte
 BLK_SIG		db	?		; 06h
-BLK_PAD		db	?		; 07h
+BLK_PAD		db	?		; 07h: nonzero in a VBLK with a func
 BLKHDR		ends
 
 ;
@@ -204,8 +204,8 @@ OPEVAL_IMP	equ	22
 ; ensureRoom).
 ;
 ; LBL_NUM values of CTL_FOR and CTL_WHILE (which are not valid line numbers)
-; mark open FOR and WHILE statements (see genFor and genWhile), and CTL_DONE
-; marks closed ones.
+; mark open FOR and WHILE statements (see genFor and genWhile).  Resolved
+; references and closed loops are removed (see removeRef).
 ;
 LBLREF		struc
 LBL_NUM		dw	?		; label number
@@ -214,7 +214,6 @@ LBLREF		ends
 LBL_RESOLVE	equ	8000h
 CTL_FOR		equ	0FFFFh
 CTL_WHILE	equ	0FFFEh
-CTL_DONE	equ	0FFFDh
 
 ;
 ; Code generation flags

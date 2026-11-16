@@ -15,6 +15,9 @@ github:
   owner_url: https://github.com/jeffpar
   repository_url: https://github.com/jeffpar/basicdos
 
+plugins:
+  - jekyll-feed
+
 exclude:
   - CNAME
   - Gemfile

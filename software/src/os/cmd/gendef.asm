@@ -376,8 +376,7 @@ DEFPROC	genArrayRef
 	jbe	gar1			; no
 	cmp	al,'('
 	jne	gar1			; no
-	pop	ax
-	push	ax
+	mov	ah,VAR_FUNC		; (see findVar)
 	call	findVar			; is the variable a function?
 	jc	gar2			; it doesn't exist, so it's not
 	cmp	ah,VAR_FUNC

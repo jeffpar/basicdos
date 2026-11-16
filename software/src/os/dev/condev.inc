@@ -58,6 +58,9 @@ CT_PAGE		db	?	; 35h: video page (see get_start)
 CTO_PAGE	db	?	; 36h: original video page
 CT_SCRMIN	dw	?	; 37h: CT_CURMIN, with first scrolling row
 CT_SCRMAX	dw	?	; 39h: CT_CURMAX, with last scrolling row
+CT_VMODE	db	?	; 3Bh: virtual mode + 1, if any (see chk_vmode)
+CT_ROWS		db	?	; 3Ch: rows for next mode set, if not 25
+CT_BIOS		dw	?	; 3Dh: BIOS data selector (see kbd_update)
 CONTEXT		ends
 SIG_CT		equ	'C'
 

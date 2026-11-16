@@ -79,10 +79,11 @@ scr2:	mov	bh,ds:[CT_COLOR].LOB	; BH = fill attributes
 	jnc	scr3			; no
 	mov	bh,0			; yes, BH = fill pixels (background)
 ;
-; The BIOS scrolls a context only if it draws the context (CTSTAT_INT10) or
-; the context's page is displayed (the mouse driver hides its pointer around
-; a BIOS scroll); otherwise, we scroll the page ourselves, with no BIOS data
-; to update (and a virtual page is one the BIOS can't reach anyway).
+; The BIOS scrolls a context only if it has the entire screen (see mode_ctx
+; and update_mode) or the context's page is displayed
+; (the mouse driver hides its pointer around a BIOS scroll); otherwise, we
+; scroll the page ourselves, with no BIOS data to update (and a virtual page
+; is one the BIOS can't reach anyway).
 ;
 ; A focus switch at interrupt time can change which page is displayed, and
 ; move the context to or from a virtual page (see swap_page), so interrupts
@@ -91,17 +92,19 @@ scr2:	mov	bh,ds:[CT_COLOR].LOB	; BH = fill attributes
 ;
 scr3:	mov	ah,bl
 	cli
-	test	ds:[CT_STATUS],CTSTAT_INT10
-	jnz	scr4
 	push	bx
+	mov	bx,ds
+	cmp	bx,[mode_ctx]		; does it have the entire screen?
+	je	scr4			; yes
 	call	get_place		; BX = con_place index
 	mov	bl,shown_page[bx]
 	cmp	bl,ds:[CT_PAGE]		; is the context's page displayed?
-	pop	bx
 	je	scr4			; yes
+	pop	bx
 	call	scroll_buf
 	jmp	short scr9
-scr4:	call	video_ctx
+scr4:	pop	bx
+	call	video_ctx
 scr9:	pop	dx
 	pop	cx
 	pop	bx
@@ -267,49 +270,6 @@ DEFPROC	show_cursor
 	call	draw_cursor
 	jmp	set_curtype
 ENDPROC	show_cursor
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; show_page
-;
-; Displays the context's page, if it has focus and isn't blocked by another
-; context (see chk_blocked); a virtual page is exchanged with the page that
-; the adapter is displaying first (see swap_page).
-;
-; Inputs:
-;	DS = CONSOLE context
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX, BX, DX
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	show_page
-	mov	ax,ds
-	cmp	ax,[ct_focus]		; does the context have focus?
-	jne	sp9			; no
-	call	chk_blocked		; is another context blocking it?
-	jc	sp9			; yes
-	call	swap_page
-	call	chk_vpage		; still on a virtual page?
-	jc	sp9			; yes (see swap_page)
-	call	get_place		; BX = con_place index
-	mov	al,ds:[CT_PAGE]
-	push	es
-	mov	es,cs:[0].DDH_DATA
-	ASSUME	ES:CODE
-	mov	shown_page[bx],al	; record the page being displayed
-	pop	es
-	ASSUME	ES:NOTHING
-	call	get_start		; AX = offset of the context's page
-	shr	ax,1
-	xchg	bx,ax			; BX = start address (in cells)
-	mov	ah,CRTC_STARTHI
-	call	write_crtc16
-sp9:	ret
-ENDPROC	show_page
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -716,13 +676,18 @@ ENDPROC	update_biosdata
 ; This is update_context for video mode changes, whether they come from
 ; IOCTL_SETMODE or from anyone else calling INT 10h directly.
 ;
-; The VKD$ driver writes directly to the screen only in the text mode that a
-; context was created in, and a mode change affects the entire screen anyway,
-; so in any other mode, the context becomes a full-screen context with no
-; border that uses INT 10h passthrough (CTSTAT_INT10).  This also allows text
-; output (and CLS) to work in graphics modes, where text is always drawn in
-; color 3.  When the mode is set back to the original mode, the context's
-; original geometry (including any border) is restored.
+; A mode change affects the entire screen, so in any mode other than the one
+; it was created in, the context becomes a full-screen context with no border.
+; In a text mode (0-3), the VKD$ driver still writes directly to the screen
+; (see get_curpos, which uses the mode's columns); in any other mode, it uses
+; INT 10h passthrough (CTSTAT_INT10), which allows text output to work in
+; graphics modes, where text is always drawn in color 3.  When the mode is set
+; back to the original mode, the context's original geometry (including any
+; border) is restored.
+;
+; A text mode that set_pmode sets in place enters at um0c instead, since the
+; BIOS has nothing to tell us: the context stays on its own page (AH), and
+; it blocks no other context (SI is non-zero).
 ;
 ; Inputs:
 ;	DS = CONSOLE context
@@ -743,15 +708,55 @@ DEFPROC	update_mode
 	push	di
 	push	es
 	mov	bl,ds:[CT_MODE]		; BL = previous mode
-	call	update_context		; update CT_MODE, CT_COLS, etc
-	mov	cl,ds:[CT_COLS].LOB
-	mov	ch,25			; CX = full screen
-	sub	dx,dx			; DX = top left
-	mov	bh,CTSTAT_INT10		; BH = no border, INT 10h passthrough
+;
+; If ddcon_setmode asked for more than 25 rows (CT_ROWS, which applies only
+; to this mode set), the BIOS gives us those rows when we load its 8x8 font
+; (while the BIOS data still describes this context).  An EGA's BIOS assumes
+; 14-line characters when it converts cursor types, which would hide the
+; cursor in 8-line characters, so its cursor emulation is turned off as long
+; as the rows are displayed (bit 0 of EGA_MISC_INFO), and a VGA goes back to
+; 400 scan lines at its next mode set, whoever sets it.
+;
+	mov	ch,25
+	test	[adapters],ADAPTER_EGA
+	jz	um0
+	push	ax
+	push	bx
+	mov	ax,BIOS
+	mov	es,ax
+	ASSUME	ES:BIOS
+	and	[EGA_MISC_INFO],NOT 1
+	mov	bl,0
+	xchg	bl,ds:[CT_ROWS]
+	test	bl,bl			; more rows?
+	jz	um0a			; no
+	mov	ch,bl
+	or	[EGA_MISC_INFO],1
+	ASSUME	ES:NOTHING
+	mov	ax,VIDEO_FONT8X8
+	mov	bl,0			; (font block 0)
+	pushf
+	call	[video_int]
+	mov	ax,(VIDEO_ALTSEL SHL 8) OR 2
+	mov	bl,VALT_SCANLINES
+	pushf
+	call	[video_int]
+um0a:	pop	bx
+	pop	ax
+um0:	call	update_context		; update CT_MODE, CT_COLS, etc
+	sub	si,si			; SI = 0 (the BIOS set the mode)
 	mov	ah,0			; AH = page 0
+um0c:	mov	cl,ds:[CT_COLS].LOB	; CX = full screen
+	sub	dx,dx			; DX = top left
 	mov	al,ds:[CT_MODE]
+	cmp	al,MODE_CO80+1		; carry set if it's a text mode (0-3)
+	cmc
+	sbb	bh,bh
+	and	bh,CTSTAT_INT10		; BH = no border, passthrough if not
 	cmp	al,ds:[CTO_MODE]	; back to the original mode?
 	jne	um1			; no
+	cmp	ch,25			; (which always has 25 rows)
+	jne	um1
 	mov	cx,ds:[CTO_DIM]		; yes, so restore the original geometry
 	mov	dx,ds:[CTO_POS]
 	mov	bh,ds:[CTO_STATUS]
@@ -778,7 +783,11 @@ um1:	mov	ds:[CT_PAGE],ah
 ;
 	mov	al,ds:[CT_MODE]
 	cmp	al,ds:[CTO_MODE]	; back to the original mode?
-	je	um6			; yes
+	jne	um5			; no
+	cmp	ds:[CT_CONDIM].HIB,25	; (and not with more than 25 rows?)
+	jb	um6			; yes
+um5:	test	si,si			; was the mode set in place?
+	jnz	um6			; yes, so there's nothing to block
 	push	es
 	mov	es,cs:[0].DDH_DATA
 	ASSUME	ES:CODE
@@ -958,56 +967,6 @@ DEFPROC	get_frame
 	mov	ah,0B8h
 gf9:	ret
 ENDPROC	get_frame
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; swap_page
-;
-; A context beyond its adapter's pages is on a virtual page instead: a buffer
-; in system memory, shared by every context on that page (see get_vbuf).  To
-; display it, its page is exchanged with the page that the adapter is
-; displaying (shown_page): both their contents and the page numbers of the
-; contexts on them, so the contexts that were displayed now use the buffer,
-; and the adapter's own pages never need buffers just to save them.  If no
-; context moves to the buffer (eg, they've all been closed), it's freed.
-;
-; Nothing is exchanged while the context is blocked (see chk_blocked), which
-; also keeps any context that uses INT 10h (CTSTAT_INT10, in a mode other than
-; its original mode) on the screen, since the BIOS can't write to a buffer.
-; The caller has locked the BIOS (see bios_lock), so no switch or other swap
-; can interrupt this one.
-;
-; Inputs:
-;	DS = CONSOLE context
-;
-; Modifies:
-;	None
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	swap_page
-	call	chk_vpage		; is the context on a virtual page?
-	jnc	swp10			; no
-	push	ax
-	push	bx
-	push	cx
-	push	dx
-	push	si
-	push	di
-	push	bp
-	push	ds
-	push	es
-	call	swap_now
-	pop	es
-	pop	ds
-	pop	bp
-	pop	di
-	pop	si
-	pop	dx
-	pop	cx
-	pop	bx
-	pop	ax
-swp10:	ret
-ENDPROC	swap_page
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1264,9 +1223,9 @@ wcp3:	cli
 	ret
 ;
 ; The context is using INT 10h passthrough (it's in a mode other than its
-; original mode; see update_mode), so position the BIOS cursor and write the
-; character and attributes using INT 10h instead of writing to the screen
-; directly.
+; original mode that isn't a text mode; see update_mode), so position the BIOS
+; cursor and write the character and attributes using INT 10h instead of
+; writing to the screen directly.
 ;
 wcp8:	push	ax
 	push	bx
@@ -1343,14 +1302,477 @@ ENDPROC	write_crtc8
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; ddcon_setkeys (IOCTL_SETKEYS)
+;
+; In raw keys mode, CTRLC, CTRLS, and CTRLP are just keys, rather than hotkeys
+; (see check_hotkey); non-ASCII keys (eg, cursor keys) are always returned as
+; a zero followed by the key's scan code (see pull_kbd).
+;
+; A program that runs code with BIOS data of its own (eg, V86.COM's V86
+; machine) also sets CL bit 1, with a selector for that code's low memory
+; (ie, with its BIOS data at 400h) in DX: until an IOCTL_SETKEYS without bit
+; 1, we keep the keyboard data there current (see kbd_update), as the ROM
+; does for the BIOS's.  DOS sends one if the program ends without doing so
+; (see PSP_RAWKEYS).
+;
+; Only raw keys mode is needed for the only console (see con_opt), so the
+; rest is in set_bios.
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;	CL bit 0 = 1 for raw keys, 0 for normal keys
+;	CL bit 1 = 1 for BIOS data to update (DX = selector), 0 for none
+;	DS = CONSOLE context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_setkeys
+	mov	ds:[CT_SCAN],0
+	and	ds:[CT_STATUS],NOT CTSTAT_RAWKEYS
+	test	cl,1			; raw keys requested?
+	jz	dsk1			; no
+	or	ds:[CT_STATUS],CTSTAT_RAWKEYS
+dsk1:	test	cl,2			; BIOS data to update?
+	jnz	dsk2			; yes
+	cmp	ds:[CT_BIOS],0		; no, so were we updating any?
+	je	dsk7			; no (and carry is clear)
+dsk2:	call	chk_opt			; one console only?
+	jc	dsk6			; yes, so there's no set_bios
+	jmp	set_bios
+dsk6:	clc
+dsk7:	ret
+ENDPROC	ddcon_setkeys
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; kbd_update
+;
+; If the context's program has BIOS data of its own (see ddcon_setkeys),
+; copies the BIOS's keyboard data (the shift states and the buffer) to it;
+; a context without focus has no keys, so its buffer is empty.  It's called
+; whenever that data may have changed: after a keyboard interrupt, a read, a
+; flush, and a change of focus.
+;
+; The only console never has any (see ddcon_setkeys), so only this test is
+; resident, and the rest is in kbd_now.
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Modifies:
+;	None (the flags are preserved, too)
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	kbd_update
+	pushf
+	cmp	ds:[CT_BIOS],0		; any BIOS data to update?
+	jne	ku1			; yes
+	popf
+	ret
+ku1:	jmp	kbd_now
+ENDPROC	kbd_update
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_opt
+;
+; Outputs:
+;	Carry set if there's only one console, which means that nothing after
+;	con_opt can be called
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	chk_opt
+	cmp	[one_con],1		; (carry set if it's zero)
+	cmc
+co9:	ret
+ENDPROC	chk_opt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; show_page
+;
+; Displays the context's page, if it has focus and isn't blocked by another
+; context (see chk_blocked); a virtual page is exchanged with the page that
+; the adapter is displaying first (see swap_page), and the adapter's mode
+; is changed if the context has a text mode of its own (see set_pmode).
+;
+; The only console's page is always displayed, so there's nothing to do for
+; it, and the rest of this is after con_opt.
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	show_page
+	call	chk_opt			; one console only?
+	jc	co9			; yes
+ENDPROC	show_page			; fall into show_now (after con_opt)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; Everything from here to ddcon_init is for more than one console: switching
-; the focus, and the virtual pages that consoles beyond an adapter's own pages
-; use.  A machine with 64K or less has room for neither, so ddcon_init ends
-; the resident code here instead, sets one_con, and ddcon_open then refuses
-; a second console; nothing before this calls any of it for the only console,
-; which always has the focus and a page of its own.
+; the focus, the virtual pages that consoles beyond an adapter's own pages
+; use, and the text modes that pages can have.  A machine with 64K or less
+; has room for none of it, so ddcon_init ends the resident code here instead,
+; sets one_con, and ddcon_open then refuses a second console; nothing before
+; this calls any of it for the only console (see chk_opt), which always has
+; the focus and a page of its own.
 ;
 	DEFLBL	con_opt,near
+
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	show_now
+	mov	ax,ds
+	cmp	ax,[ct_focus]		; does the context have focus?
+	jne	sp9			; no
+	call	chk_blocked		; is another context blocking it?
+	jc	sp9			; yes
+	call	swap_page
+	call	chk_vpage		; still on a virtual page?
+	jc	sp9			; yes (see swap_page)
+	call	get_place		; BX = con_place index
+	push	es
+	mov	es,cs:[0].DDH_DATA
+	ASSUME	ES:CODE
+	mov	al,ds:[CT_PAGE]
+	mov	shown_page[bx],al	; record the page being displayed
+;
+; The adapter's text mode follows the page (see set_pmode), unless the BIOS
+; set the mode for this context (see mode_ctx), which may be a graphics mode,
+; or have more rows.  When that context returns to its original mode, the
+; BIOS sets the adapter's mode again, to a mode that set_hwmode may set once
+; more, since we don't record it.  An MDA has only one mode, which is always
+; the mode being displayed.
+;
+	mov	al,ds:[CT_MODE]
+	mov	dx,ds
+	cmp	dx,[mode_ctx]		; set by the BIOS?
+	je	sp2			; yes
+	cmp	al,shown_page[bx+1]	; is it the mode being displayed?
+	je	sp2			; yes
+	mov	shown_page[bx+1],al	; no, but it is now
+	call	set_hwmode
+sp2:	pop	es
+	ASSUME	ES:NOTHING
+	call	get_start		; AX = offset of the context's page
+	shr	ax,1
+	xchg	bx,ax			; BX = start address (in cells)
+	mov	ah,CRTC_STARTHI
+	call	write_crtc16
+sp9:	ret
+ENDPROC	show_now
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; set_hwmode
+;
+; Sets an adapter's text mode without clearing its memory.  The BIOS of an
+; EGA or VGA does that if bit 7 of the mode is set.  A CGA's BIOS always
+; clears all 16K, so we program a CGA ourselves: the 6845's horizontal
+; timing registers (0-3, the only ones that differ between text modes) and
+; the mode register, along with the BIOS's copy of the latter (which the
+; BIOS writes to the mode register again after it scrolls, for example).
+;
+; Inputs:
+;	AL = text mode (0-3)
+;	DS = CONSOLE context
+;
+; Modifies:
+;	AX, BX, DX
+;
+	DEFLBL	CGA_MODES,byte
+	db	2Ch,28h,2Dh,29h		; mode register values for modes 0-3
+	db	38h,28h,2Dh,0Ah		; 6845 registers 0-3 for 40 columns
+	db	71h,50h,5Ah,0Ah		; and for 80 columns
+
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	set_hwmode
+	test	[adapters],ADAPTER_EGA
+	jz	shm1			; it's a CGA
+	push	ax
+	call	update_biosdata		; (the BIOS needs its EQUIP_FLAG)
+	pop	ax
+	push	bp
+	or	al,80h			; bit 7 = no clear
+	mov	ah,VIDEO_SETMODE
+	pushf
+	call	[video_int]
+	pop	bp
+	ret
+shm1:	push	si
+	push	es
+	mov	bx,offset CGA_MODES
+	xlat	CGA_MODES
+	lea	si,[bx+4]		; SI -> values for 40 columns
+	test	al,01h			; 80 columns?
+	jz	shm2			; no
+	add	si,4
+shm2:	mov	bh,al			; BH = mode register value
+	mov	dx,ds:[CT_PORT]
+	add	dl,4			; DX = mode register port
+	and	al,NOT 08h
+	out	dx,al			; turn the display off meanwhile
+	mov	ah,0			; AH = 6845 register #
+	cld
+shm3:	lods	byte ptr cs:[si]
+	call	write_crtc8		; (DX = 6845 data port)
+	inc	ah
+	cmp	ah,4
+	jb	shm3
+	add	dl,3			; DX = mode register port again
+	mov	al,bh
+	out	dx,al			; new mode, with the display on
+	mov	bx,BIOS
+	mov	es,bx
+	ASSUME	ES:BIOS
+	mov	[CRT_MODE_SET],al
+	pop	es
+	ASSUME	ES:NOTHING
+	pop	si
+	ret
+ENDPROC	set_hwmode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; set_pmode
+;
+; A context with a page of its own (ie, one created with all 80 columns and
+; 25 rows) changes from one 25-row text mode (0-3) to another in place: it
+; stays on its page, which we clear ourselves, and the mode becomes the
+; page's mode, which the adapter is given whenever the page is displayed
+; (see show_page and set_hwmode).  The BIOS never sets the mode, so the
+; adapter's other pages aren't cleared, and no other context is blocked.
+;
+; Any other mode change still belongs to the BIOS, and takes the entire
+; screen (see update_mode): a change to or from a graphics mode or more
+; rows (ie, by a context that has the entire screen now; see mode_ctx), a
+; change by a context that shares its page, and any change on an MDA.
+;
+; Inputs:
+;	DS = CONSOLE context
+;	[BP+4] = mode requested (ie, the AL that ddcon_int10 was given)
+;
+; Outputs:
+;	Carry clear if the mode was set in place; otherwise, carry set
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	set_pmode
+	mov	al,[bp+4]		; AL = mode requested
+	cmp	al,MODE_CO80+1		; a text mode (0-3)?
+	jae	spm8			; no
+	cmp	ds:[CT_ROWS],0		; with the usual 25 rows?
+	jne	spm8			; no
+	cmp	ds:[CTO_DIM],(25 SHL 8) OR 80
+	jne	spm8			; the context shares its page
+	cmp	ds:[CT_PORT].LOB,0B4h	; monochrome adapter?
+	je	spm8			; yes
+	push	si
+	mov	si,ds			; SI != 0 (see update_mode)
+	cmp	si,[mode_ctx]		; does it have the entire screen?
+	je	spm7			; yes
+	push	bx
+	push	cx
+	push	dx
+	call	spm1			; update the context
+	mov	cl,100
+	call	scroll			; clear it (inside any border)
+	mov	ax,ds
+	cmp	ax,[ct_focus]
+	jne	spm6
+	call	show_cursor
+spm6:	pop	dx
+	pop	cx
+	pop	bx
+	pop	si
+	clc
+	ret
+spm7:	pop	si
+spm8:	stc
+	ret
+;
+; update_mode does the rest, so we enter it (at um0c) with the registers that
+; it saves on the stack, and it returns to our caller above.
+;
+spm1:	push	bx
+	push	cx
+	push	dx
+	push	si
+	push	di
+	push	es
+	mov	bl,al
+	xchg	bl,ds:[CT_MODE]		; BL = previous mode
+	mov	cx,(25 SHL 8) OR 40	; CH = rows
+	cmp	al,2			; a 40-column mode (0 or 1)?
+	jb	spm2			; yes
+	mov	cl,80
+spm2:	mov	ds:[CT_COLS].LOB,cl
+	mov	ah,ds:[CTO_PAGE]	; AH = the context's own page
+	jmp	um0c
+ENDPROC	set_pmode
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; swap_page
+;
+; A context beyond its adapter's pages is on a virtual page instead: a buffer
+; in system memory, shared by every context on that page (see get_vbuf).  To
+; display it, its page is exchanged with the page that the adapter is
+; displaying (shown_page): both their contents and the page numbers of the
+; contexts on them, so the contexts that were displayed now use the buffer,
+; and the adapter's own pages never need buffers just to save them.  If no
+; context moves to the buffer (eg, they've all been closed), it's freed.
+;
+; Nothing is exchanged while the context is blocked (see chk_blocked), which
+; also keeps any context in a mode other than its original mode on the screen
+; (eg, one that uses INT 10h, since the BIOS can't write to a buffer).
+; The caller has locked the BIOS (see bios_lock), so no switch or other swap
+; can interrupt this one.
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	swap_page
+	call	chk_vpage		; is the context on a virtual page?
+	jnc	swp10			; no
+	push	ax
+	push	bx
+	push	cx
+	push	dx
+	push	si
+	push	di
+	push	bp
+	push	ds
+	push	es
+	call	swap_now
+	pop	es
+	pop	ds
+	pop	bp
+	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	pop	bx
+	pop	ax
+swp10:	ret
+ENDPROC	swap_page
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; set_bios
+;
+; The rest of ddcon_setkeys, for a request with CL bit 1 set, or one that
+; ends the updates.
+;
+; Inputs:
+;	CL bit 1 = 1 for BIOS data to update (DX = selector), 0 for none
+;	DS = CONSOLE context
+;
+; Outputs:
+;	Carry clear
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	set_bios
+	mov	bx,ds:[CT_BIOS]
+	test	cl,2			; BIOS data to update?
+	jnz	sbi2			; yes
+	test	bx,bx			; no, so were we updating any?
+	jz	sbi9			; no
+	mov	ds:[CT_BIOS],0
+	sub	cx,cx			; (one selector)
+	mov	ah,CPU_UNMAP
+	call	far ptr DDINT_CPU
+	jmp	short sbi9
+sbi2:	test	bx,bx			; are we updating it already?
+	jnz	sbi9			; yes
+	push	si
+	push	di
+	mov	bx,dx
+	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_SEL
+	call	far ptr DDINT_CPU	; DX:CX = the address of its memory
+	jc	sbi8			; (there are no selectors in real mode)
+	add	cx,BIOS_DATA
+	adc	dx,0
+	sub	si,si
+	mov	di,100h			; SI:DI = length
+	mov	ax,CPU_MAP SHL 8	; (a GDT data selector)
+	call	far ptr DDINT_CPU	; AX = selector for its BIOS data
+	jc	sbi8
+	mov	ds:[CT_BIOS],ax
+	call	kbd_update
+sbi8:	pop	di
+	pop	si
+sbi9:	clc
+	ret
+ENDPROC	set_bios
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; kbd_now
+;
+; The rest of kbd_update, which jumps here with the flags on the stack.
+;
+; Inputs:
+;	DS = CONSOLE context (with BIOS data to update)
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	kbd_now
+	push	ax
+	push	cx
+	push	si
+	push	di
+	push	ds
+	push	es
+	mov	ax,ds
+	mov	es,ds:[CT_BIOS]
+	mov	si,BIOS
+	mov	ds,si
+	mov	si,offset KB_FLAG
+	mov	di,si
+	mov	cx,offset KB_BUFFER + size KB_BUFFER - offset KB_FLAG
+	cli
+	cld
+	rep	movsb
+	cmp	ax,[ct_focus]		; does the context have focus?
+	je	ku8			; yes
+	mov	ax,es:[di - size KB_BUFFER - 4]
+	mov	es:[di - size KB_BUFFER - 2],ax	; BUFFER_TAIL = BUFFER_HEAD
+ku8:	pop	es
+	pop	ds
+	pop	di
+	pop	si
+	pop	cx
+	pop	ax
+ku9:	popf
+	ret
+ENDPROC	kbd_now
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1385,7 +1807,7 @@ DEFPROC	switch_focus
 	inc	[req_switch]
 	pop	ds
 	ASSUME	DS:NOTHING
-	jmp	short sf9
+	ret
 
 	DEFLBL	switch_now,near
 	sub	bx,bx			; BX = 0 (the next context)
@@ -1419,9 +1841,11 @@ sf2:	mov	es,cs:[0].DDH_DATA
 	xchg	cx,[ct_focus]
 	ASSUME	ES:NOTHING
 	mov	ds,cx
+	call	kbd_update		; (it has no keys now)
 	call	draw_border		; redraw the border and hide
 	call	hide_cursor		; the cursor of the outgoing context
 	mov	ds,[ct_focus]
+	call	kbd_update		; (and it has the BIOS's)
 	call	show_page		; display the page, redraw the border,
 	call	draw_border		; and show the cursor of the incoming
 	call	show_cursor		; context
@@ -1492,7 +1916,7 @@ DEFPROC	scroll_buf
 	test	al,al			; clearing the window?
 	jnz	sb2			; no
 sb1:	mov	al,dh			; AL = # lines to clear
-sb2:	mov	bl,[max_cols]
+sb2:	mov	bl,ds:[CT_COLS].LOB	; (the columns of its mode)
 	mov	bh,0
 	add	bx,bx
 	mov	bp,bx			; BP = bytes per row
@@ -1755,9 +2179,11 @@ DEFPROC	ddcon_init,far
 	ASSUME	DS:BIOS
 
 	mov	ax,[EQUIP_FLAG]		; AX = EQUIP_FLAG
+	mov	dl,[CRT_MODE]
 	cmp	[MEMORY_SIZE],64	; more than 64K of memory?
 	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
+	mov	shown_page[1],dl	; the mode displayed (see show_page)
 	mov	es:[bx].DDPI_END.OFF,offset ddcon_init
 	ja	ddn0			; yes
 	mov	es:[bx].DDPI_END.OFF,offset con_opt
@@ -1775,6 +2201,7 @@ ddn0:
 	je	ddn1
 	mov	dx,0B800h
 	add	si,4			; SI -> # pages of the alternate adapter
+	mov	shown_page[5],MODE_MONO	; (and that's its only mode)
 ddn1:	mov	[frame_seg],dx
 	mov	byte ptr [si],1		; an MDA has only one page
 ;

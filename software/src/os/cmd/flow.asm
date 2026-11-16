@@ -13,7 +13,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<ctrlc,restoreMode,firstBlock,nextBlock,codeSeg>
+	EXTNEAR	<ctrlc,restoreMode,firstBlock,nextBlock,codeSeg,printCRLF>
 	EXTWORD	<CODE_DS>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -355,27 +355,53 @@ DEFPROC	rtError
 
 re1:	call	restoreMode		; (so that the message is visible)
 	mov	dl,byte ptr ss:[bx].ERR_NUM
-	IFDEF	DEBUG
-	mov	dh,0			; DX = error number (for EPRINTF)
-	ENDIF
-	call	findMsg			; CS:SI -> message
-	jc	re5			; unknown error
-	EPRINTF	<"%ls">,<13,10>,dx,si,cs
-	jmp	ctrlc
+	mov	cx,ss:[bx].ERR_LINE
+	call	printErr
 ;
 ; An error without a message of its own (eg, "ERROR 200") is displayed with
 ; its error number, in every build.
 ;
-re5:	PRINTF	<"%ls (%bu)",13,10>,si,cs,dx
+	IFNDEF	DEBUG
+	jnc	re5
+	ENDIF
+	PRINTF	<" (%bu)">,dx
+re5:	call	printCRLF
 	jmp	ctrlc
 ENDPROC	rtError
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; printErr
+;
+; Prints the message for an error number, followed by " in line n" if the
+; line # is known (eg, "Illegal function call in line 910"), for runtime
+; errors (see rtError) and compile-time errors (see compError).
+;
+; Inputs:
+;	DL = error number
+;	CX = line # (zero if none)
+;
+; Outputs:
+;	Carry set if the error has no message of its own ("Unknown error")
+;
+; Modifies:
+;	AX, SI
+;
+DEFPROC	printErr
+	call	findMsg			; CS:SI -> message
+	pushf
+	PRINTF	<"%ls">,si,cs
+	jcxz	pe9			; no line # (eg, at the prompt)
+	PRINTF	<" in line %u">,cx
+pe9:	popf
+	ret
+ENDPROC	printErr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; findMsg
 ;
-; Finds the message for an error number, for runtime errors (see rtError)
-; and compile-time errors (see compError).
+; Finds the message for an error number (see printErr).
 ;
 ; Inputs:
 ;	DL = error number
@@ -652,7 +678,7 @@ fe6:	cmp	si,es:[BLK_SIZE]	; end of this LBLREF table?
 	mov	ax,es:[si].LBL_IP
 	test	ax,LBL_RESOLVE		; reference?
 	jnz	fe6a			; yes
-	cmp	es:[si].LBL_NUM,CTL_DONE; FOR, WHILE, or resolved?
+	cmp	es:[si].LBL_NUM,CTL_WHILE; FOR or WHILE?
 	jae	fe6a			; yes
 	mov	bx,es
 	cmp	bx,dx			; the block with the error?

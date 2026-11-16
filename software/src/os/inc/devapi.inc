@@ -75,10 +75,11 @@ IOCTL_MOVCUR	equ	0D4h	; CON: move cursor by DDPRW_LENGTH positions
 IOCTL_SETINS	equ	0D5h	; CON: set INSERT mode ON (CL=1) or OFF (CL=0)
 IOCTL_SCROLL	equ	0D6h	; CON: scroll (or clear) interior of context
 IOCTL_GETCOLOR	equ	0D7h	; CON: get fill (DL) and border (DH) colors
-IOCTL_SETCOLOR	equ	0D8h	; CON: set fill (CL) and border (CH) colors
-IOCTL_SETPOS	equ	0D9h	; CON: set cursor pos (CL,CH), visibility (DL)
+IOCTL_SETCOLOR	equ	0D8h	; CON: set fill, border (CL,CH) bits in DL,DH
+IOCTL_SETPOS	equ	0D9h	; CON: set pos (CL,CH; -1 keeps), cursor (DL)
 IOCTL_GETMODE	equ	0DAh	; CON: mode (DL), memory (CL=1), count (CL=2)
-IOCTL_SETMODE	equ	0DBh	; CON: set video mode (CL)
+IOCTL_SETMODE	equ	0DBh	; CON: set video mode (CL), rows (CH; 0 = 25)
+MODE_WIDE	equ	23h	; CON: a terminal's 132-column "video mode"
 IOCTL_GETCHAR	equ	0DCh	; CON: get char/attr (DL/DH) at col,row (CL,CH)
 IOCTL_SETKEYS	equ	0DDh	; CON: set raw keys ON (CL=1) or OFF (CL=0)
 

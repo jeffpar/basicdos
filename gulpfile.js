@@ -105,6 +105,12 @@ const MKMODE = "./tools/pc/disks/mkmode";
 const FINAL = fs.existsSync(MKMODE) && fs.readFileSync(MKMODE, "utf8").trim() == "FINAL";
 const RELEASE = JSON.parse(fs.readFileSync("./package.json", "utf8")).config?.release == "final";
 /*
+ * diskimage.js prints its banner, options, and output file for every diskette it builds, so it runs with --quiet
+ * (which still reports errors) unless gulp is run with --verbose (eg, "npx gulp watch --verbose").
+ */
+const VERBOSE = process.argv.includes("--verbose");
+const DIQUIET = VERBOSE? "" : " --quiet";
+/*
  * On every bootable disk, BASDEV.COM and BASDOS.COM are read-only hidden system files, and COMMAND.COM is a
  * read-only system file (which DIR lists, since in BASIC-DOS, only the hidden attribute keeps a file out of DIR);
  * diskimage.js sets them with --attr, and pc.js (for hard disks) uses the "attrs" in tools/pc/pc.json5.
@@ -154,6 +160,8 @@ let disks = {
         config: "./download/CONFIG.SYS",
         label: "BASIC-DOS",
         title: "BASIC-DOS " + VERSION + " (Release)",
+        // FIBO.BAT and PIPES.BAT are for the demo pages' consoles (see their CONFIG.SYS files), so they're left out here.
+        folders: { EXT: manifest.EXT, DEMOS: manifest.DEMOS.filter(file => !/\/(FIBO|PIPES)\.BAT$/i.test(file)) },
         img: true,
         final: true
     },
@@ -358,10 +366,10 @@ function buildDisk(diskName, diskImage)
             cmd = "node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" --files " + entries.join(",") +
                   (disks[diskName].data? "" : " --boot " + SRC + "/os/boot/obj/BOOT1.COM --attr=" + SYSATTRS) +
                   " --output " + diskImage +
-                  " --label=" + label + " --normalize --writable --target=360 --overwrite";
+                  " --label=" + label + " --normalize --writable --target=360 --overwrite" + DIQUIET;
             if (disks[diskName].img) {
                 cmd += " && node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" --disk=" + diskImage +
-                       " --output=" + diskImage.replace(/\.json$/, ".img") + " --writable --overwrite";
+                       " --output=" + diskImage.replace(/\.json$/, ".img") + " --writable --overwrite" + DIQUIET;
             }
         }
         /*
@@ -513,7 +521,7 @@ gulp.task("watch", function() {
         files.clear();
         if (!list.length) return done();
         let env = Object.assign({}, process.env, { BD_CHANGED: list.length > 2000? "*" : list.join("\n") });
-        spawn("npx gulp demos --silent", { shell: true, stdio: "inherit", env }).on("close", (code) => {
+        spawn("npx gulp demos --silent" + (VERBOSE? " --verbose" : ""), { shell: true, stdio: "inherit", env }).on("close", (code) => {
             if (code) console.log("error: unable to update the disks (run \"npx gulp demos\" for details)");
             done();
         });

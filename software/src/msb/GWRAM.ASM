@@ -458,6 +458,8 @@ ENDM
 ; RAM USED FOR EVENT TRAPPING
 ;
 	R	TRPTBL,3*NUMTRP	;trap table - see GWSTS
+	R	TIMINT,4	;ON TIMER interval, in ticks
+	R	TIMBEG,4	;tick count when interval began
 	R	ONGSBF,1	;see NEWSTT
 	R	SOFTKY,1	;used by key trapping in GWSTS
 	R	F_SUPR,1	; Flag - non-zero =  super shift expansion

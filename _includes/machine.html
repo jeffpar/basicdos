@@ -14,10 +14,16 @@ friendly titles, are added to every FDC's "listDisks" options from basicdos-disk
 {%- endcomment -%}
 {%- assign fdc_diskettes = "/machines/pcx86/diskettes.json,/disks/pcsigdisks/pcx86/diskettes.json" -%}
 {%- assign machine_debugger = nil -%}
+{%- assign machine_page_name = nil -%}
 {%- assign machine_does_not_exist = true -%}
+{%- comment -%}
+A page's machine "name" (eg, "DEC VT100 Debugger Terminal") is the heading above the machine, in place of the name
+in its configuration file.
+{%- endcomment -%}
 {%- for candidate in page.machines -%}
   {%- if candidate.id == machine_id -%}
     {%- assign machine = candidate -%}
+    {%- if candidate.name -%}{%- assign machine_page_name = candidate.name -%}{%- endif -%}
     {%- if candidate.type -%}{%- assign machine_type = candidate.type -%}{%- endif -%}
     {%- if candidate.config -%}{%- assign machine_config = candidate.config -%}{%- endif -%}
     {%- if candidate.layout -%}{%- assign machine_layout = candidate.layout | replace: "/_includes/", "" | replace: ".html", "" -%}{%- endif -%}
@@ -77,8 +83,9 @@ Debugger and its Panel); any other "debugger" value (eg, "available") is a link 
     {%- assign machine_data = site.data.machines[machine_type] -%}
   {%- endunless -%}
   {%- if machine_name == "PCjs Machine" -%}
-    {%- if machine.name -%}
-      {%- assign machine_name = machine.name -%}
+    {%- assign machine_title = machine_page_name | default: machine.name -%}
+    {%- if machine_title -%}
+      {%- assign machine_name = machine_title -%}
       {%- if machine_debugging -%}{%- capture machine_name -%}{{ machine_name }}, Debugger{%- endcapture -%}{%- endif -%}
     {%- elsif machine_type -%}
       {%- capture machine_name -%}{{ machine_type | upcase | replace:"X86","x86" }} Machine{%- endcapture -%}

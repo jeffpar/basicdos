@@ -51,7 +51,7 @@ The [CMD](os/cmd/) directory contains the code for the BASIC-DOS Command Shell (
 
 The [UTIL](os/util/) directory contains the external utilities: [MISC](os/util/misc/) contains the single-file utilities (the filters `FIND.COM`, `MORE.COM`, `SED.COM`, `SORT.COM`, `TEE.COM`, `TR.COM`, `UNIQ.COM`, and `WC.COM`, along with `SLEEP.COM`), and each larger utility has its own directory, such as [VI](os/util/vi/) (the `VI.COM` text editor) and [V86](os/util/v86/) (`V86.COM`, which runs real-mode programs in a V86 machine).
 
-The [MSB](msb/) directory contains a buildable copy of Microsoft BASIC ("GW-BASIC"), using the open-source files from [GitHub](https://github.com/microsoft/GW-BASIC) and a reverse-engineered OEM source file courtesy of the [OS/2 Museum](msb/OEM.ASM).
+The [MSB](msb/) directory contains a buildable copy of Microsoft BASIC ("GW-BASIC"), using the open-source files from [GitHub](https://github.com/microsoft/GW-BASIC) and a reverse-engineered OEM source file courtesy of the [OS/2 Museum](msb/OEM.ASM).  The open-source files lack TIMER, so this copy adds it, as in BASICA and later GW-BASIC versions: the TIMER function (seconds since midnight, to hundredths), TIMER ON, OFF, and STOP, and ON TIMER(*n*) GOSUB (*n* = 1 to 86400 seconds).
 
 NOTE: The Microsoft BASIC source files in the [MSB](msb/) directory are copyright (c) Microsoft Corporation; see the [MIT License](msb/LICENSE).  The Microsoft BASIC files are included for reference and testing purposes only and are *not* part of the final BASIC-DOS distribution.
 

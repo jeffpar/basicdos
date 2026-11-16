@@ -65,3 +65,11 @@ GENPUSHB macro	val
 	 ENDIF
 	ENDIF
 	endm
+;
+; genInit reserves two maps of LBL_MAPLEN bytes at the end of a program's
+; first code block for addLabel (see lblBit), and then, if genRegion is
+; loaded, REG_TBLSIZE bytes for its table of regions (see genrgn.asm): a word
+; (the number of open regions), followed by 12 REGIONs (18 bytes each).
+;
+LBL_MAPLEN	equ	32
+REG_TBLSIZE	equ	2 + 12 * 18

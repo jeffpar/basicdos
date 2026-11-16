@@ -23,6 +23,11 @@ CODE    SEGMENT
 	EXTNEAR	<strStr,strString,strTime,strUCase,strVal,strCurDir,strPath>
 	EXTNEAR	<getExists,strDir,getDos,gfxPoint,gfxPmap,getLpos,strInput>
 	EXTNEAR	<getTimer,strPrompt>
+;
+; PREDEF_VARS is preceded by the offsets of its first names of 4, 5, 6, and 7
+; or more characters, where findVar starts searching for a name that long.
+;
+	dw	pv4,pv5,pv6,pv7
 
 	DEFLBL	PREDEF_VARS,byte
 ;
@@ -34,7 +39,9 @@ CODE    SEGMENT
 ;
 ; The table must stay in order of name length (shortest first), since findVar
 ; stops searching it at the first longer name (so a name shorter than any here,
-; which most variable names are, never searches it at all).
+; which most variable names are, never searches it at all), and the pv4, pv5,
+; pv6, and pv7 labels must stay on the first names of those lengths (pv7 on the
+; first name longer than 6).
 ;
 	db	VAR_FUNC + 3,"ARG"
 	db	VAR_STR,1
@@ -156,7 +163,7 @@ CODE    SEGMENT
 	db	VAR_DOUBLE,1
 	db	VAR_STR,PARM_REQUIRED
 	dw	offset strVal,0
-	db	VAR_FUNC + 4,"CDBL"
+pv4	db	VAR_FUNC + 4,"CDBL"
 	db	VAR_DOUBLE,1
 	db	VAR_DOUBLE,PARM_REQUIRED
 	dw	offset cvtDbl,0
@@ -198,7 +205,7 @@ CODE    SEGMENT
 	db	VAR_LONG + 4,"TRUE"
 	DEFLBL	TRUE_DATA,byte		; (see genLet)
 	dd	-1
-	db	VAR_LONG + 5,"FALSE"
+pv5	db	VAR_LONG + 5,"FALSE"
 	DEFLBL	FALSE_DATA,byte		; (see genLet)
 	dd	0
 	db	VAR_FUNC + 5,"INKEY"
@@ -251,7 +258,7 @@ CODE    SEGMENT
 	db	VAR_STR,1
 	db	VAR_STR,PARM_REQUIRED
 	dw	offset strUCase,0
-	db	VAR_FUNC + 6,"CSRLIN"
+pv6	db	VAR_FUNC + 6,"CSRLIN"
 	db	VAR_LONG,0
 	dw	offset getCsrlin,0
 	db	VAR_FUNC + 6,"CURDIR"
@@ -277,7 +284,7 @@ CODE    SEGMENT
 	db	VAR_LONG,PARM_REQUIRED
 	db	VAR_CHAR,PARM_REQUIRED
 	dw	offset strString,0
-	db	VAR_FUNC + 10,"ERRORLEVEL"
+pv7	db	VAR_FUNC + 10,"ERRORLEVEL"
 	db	VAR_LONG,0		; returns VAR_LONG with 0 parameters
 	dw	offset getErrorLevel,0	; 0 implies our own CODE segment
 	db	0			; terminator

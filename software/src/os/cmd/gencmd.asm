@@ -44,6 +44,9 @@
 ;					genPushImmLong, etc)
 ;	gentok.asm			line and token helpers (getNextToken,
 ;					peekNextToken, validateOp, etc)
+;	genrgn.asm			regions (generating a forward jump's
+;					line first; see genMore), outside the
+;					core
 ;
 	DOSFUNC equ 1
 	GFXDEFS equ 1
@@ -55,11 +58,12 @@ CODE    SEGMENT
 
 	EXTNEAR	<allocCode,ensureRoom,keepCode,genRedir,genRedirEnd>
 	EXTNEAR	<addVar,chkColon,setVarLong,setVarDouble>
-	EXTNEAR	<setStr,compactStrs,genArrayRef,checkCtl>
-	EXTNEAR	<memError,strPath,setPath,callDOS,rtError,findMsg>
+	EXTNEAR	<setStr,compactStrs,genArrayRef,checkCtl,genRegion>
+	EXTNEAR	<memError,strPath,setPath,callDOS,rtError,printErr>
 	EXTNEAR	<genExpr,genCvtType,genCallCS,genPushImmLong>
 	EXTNEAR	<getNextLine,getNextSymbol,getNextToken,peekNextToken>
 	EXTNEAR	<getLineNum,genMidSet,codeSeg,strPrompt,genSetPrompt>
+	EXTNEAR	<printCRLF>
 	EXTBYTE	<MID_DATA,TRUE_DATA,FALSE_DATA>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -222,6 +226,19 @@ gi4:	mov	[bx].LINE_PTR.OFF,si
 	call	allocCode
 	jc	gi8
 	ASSUME	ES:NOTHING		; ES:DI -> code block
+;
+; addLabel's maps (and if genRegion is loaded, its table of regions) go at the
+; end of the first code block, beyond the LBLREF table (and BLK_SIZE), where
+; allocBlock zeroed them.
+;
+	mov	ax,es:[BLK_SIZE]
+	sub	ax,LBL_MAPLEN * 2
+	mov	dx,offset genRegion
+	cmp	dx,ds:[PSP_CODESIZE]	; is genRegion loaded (see genUpper)?
+	jae	gi5			; no
+	sub	ax,REG_TBLSIZE
+gi5:	mov	es:[BLK_SIZE],ax
+	mov	es:[CBLK_REFS],ax
 	push	di
 	mov	ax,OP_MOV_BP_SP		; make it easy for endProgram
 	stosw				; to reset the stack and return
@@ -264,11 +281,8 @@ DEFPROC	compError
 	xchg	ss:[si].ERR_CODE,al
 	test	al,al			; was an error already reported?
 	jnz	ce9			; yes
-	call	findMsg			; CS:SI -> message
-	PRINTF	<"%ls">,si,cs
-	jcxz	ce8			; no line # (eg, at the prompt)
-	PRINTF	<" in line %u">,cx
-ce8:	PRINTF	<13,10>
+	call	printErr
+	call	printCRLF
 ce9:	stc
 	ret
 ENDPROC	compError
@@ -285,11 +299,14 @@ ENDPROC	compError
 ; the placeholder has been overwritten (or patched), cap the code again, and
 ; return to the placeholder.
 ;
-; Since the lines are still generated in order, the generator's state (eg,
-; DEFVARS, and any FOR or WHILE in progress) is the same as if genCode had
-; generated them all first; however, an error (eg, a syntax error) isn't found
-; until the program reaches it, and then we end the program, returning to
-; genCode with carry set.
+; That's all we do if genRegion (in genrgn.asm, outside the core) isn't
+; loaded, or if we're generating a single line (eg, at the prompt).  Otherwise,
+; genRegion takes over, generating a forward jump's line (and the lines after
+; it) first, as a new region of the program, rather than every line before it.
+;
+; Either way, an error (eg, a syntax error) isn't found until the program
+; reaches it, and then we end the program, returning to genCode with carry
+; set.
 ;
 ; Since we generate the code on the program's stack, which may be deep in
 ; GOSUBs by now (GOSUB leaves only GOSUB_MIN bytes; see doGosub), we first
@@ -315,7 +332,12 @@ DEFPROC	genMore,FAR
 	jae	gm0			; yes
 	mov	al,7			; "Out of memory"
 	jmp	rtError
-gm0:	push	bp
+gm0:	mov	dx,offset genRegion
+	cmp	dx,ss:[PSP_CODESIZE]	; is genRegion loaded (see genUpper)?
+	jae	genMoreSeq		; no, so generate the lines in order
+	jmp	dx			; yes (see genrgn.asm)
+	DEFLBL	genMoreSeq,near
+	push	bp
 	mov	bp,sp
 	sub	word ptr [bp+2],5	; return to the placeholder
 	push	ss
@@ -386,6 +408,7 @@ gm6:	push	ss
 ; To end the program, we reset SP the same way that END does (see genEnd),
 ; discard genCode's return address, and finish up in genCode.
 ;
+	DEFLBL	genMoreErr,near		; (DS = heap; see genRegion)
 gm8:	mov	bx,ds:[PSP_HEAP]
 	mov	sp,[bx].ERR_SP
 	pop	ax

@@ -85,11 +85,11 @@ A COM console uses a serial port (eg, a terminal connected to COM1) for both inp
 - XON for XON/XOFF flow control: the terminal sends XOFF (CTRL-S) to stop output and XON (CTRL-Q) to resume it, and neither is ever treated as input (which a VT100 does when it falls behind, such as while smooth scrolling, so the VT100 type includes XON)
 - RTS for RTS/CTS (hardware) flow control: RTS is raised to tell the terminal that BASIC-DOS is ready, and output is held whenever the terminal drops CTS, resuming when CTS is raised again
 
-A VT100 leaves auto-wrap off by default, so for the VT100 type, the driver turns it on when the port is opened, and long lines wrap instead of being truncated at the last column.
+A terminal is often still displaying text from before the system was started, so for the VT100 type, the driver clears the screen when the port is opened (as [CLS](../cmd/device/screen/#cls) would), and returns the terminal to 80 columns, with no character attributes and every row scrolling.  A VT100 also leaves auto-wrap off by default, so the driver turns it on then, and long lines wrap instead of being truncated at the last column.
 
 A VT100 has no colors and no characters above 127, so for the VT100 type, [COLOR](../cmd/device/screen/#color) selects reverse video, underline, bold, and blink instead, and the PC's line-drawing characters (176-223, eg, `CHR$(196)`) are displayed with the VT100's special graphics characters: single and double lines are both drawn as single lines, and the shaded and solid blocks (176-178 and 219-223) as its checkerboard.  Other characters above 127 are displayed as whatever the terminal makes of them.
 
-Every ANSI or VT100 terminal is assumed to have 24 rows and 80 columns; [LOCATE](../cmd/device/screen/#locate), [CLS](../cmd/device/screen/#cls), and [VIEW PRINT](../cmd/device/screen/#view-print) work there as they do on a video console, but the `SCREEN` function can't read characters back.  See [Serial Consoles](../../bdtech/dev/#serial-consoles) in the Technical Reference for a complete list of what BASIC's screen features do on a terminal, and which VT100 features BASIC-DOS uses.
+Every ANSI or VT100 terminal is assumed to have 24 rows and 80 columns (or for a VT100, 40 columns after [WIDTH 40](../cmd/device/screen/#width), which uses its double-width characters, or 132 columns after WIDTH 132, with 14 rows if the terminal reports that it has no Advanced Video Option); [LOCATE](../cmd/device/screen/#locate), [CLS](../cmd/device/screen/#cls), and [VIEW PRINT](../cmd/device/screen/#view-print) work there as they do on a video console, but the `SCREEN` function can't read characters back.  See [Serial Consoles](../../bdtech/dev/#serial-consoles) in the Technical Reference for a complete list of what BASIC's screen features do on a terminal, and which VT100 features BASIC-DOS uses.
 
 The VT100 type also swaps the DELETE and BACKSPACE keys, since on a VT100, DELETE (7Fh) is the key that erases the previous character, like the PC's BACKSPACE key, while BACKSPACE (08h) then deletes the character at the cursor, like the PC's DEL key.  And its cursor keys (which send ESC sequences) work like the PC's cursor keys, so an ESC on its own takes effect when the next key is pressed, and pressing ESC twice produces a single ESC.
 
@@ -179,7 +179,7 @@ A program's interrupt handlers (eg, an INT 21h hook that passes the calls it doe
 
 Sets the maximum number of sessions that can be active at once; *n* can range from 1 to 32.  The default is the number of consoles (the number of [SHELL](#shell) lines, or 1 if there aren't any), plus 4 so that pipelines can have up to 4 filters at once, unless the PIPE$ driver isn't loaded (see [SKIP](#skip)), in which case it's just the number of consoles.
 
-Sessions are used not only by consoles, but also by [pipes](../intro/#pipes-and-redirection): every command after the first in a pipeline runs in its own session.  So if you set SESSIONS yourself, it should exceed the number of consoles by at least the number of filters you want to run at once.
+Sessions are used not only by consoles, but also by [pipes](../intro/#redirection-and-pipes): every command after the first in a pipeline runs in its own session.  So if you set SESSIONS yourself, it should exceed the number of consoles by at least the number of filters you want to run at once.
 
 ### SHELL
 

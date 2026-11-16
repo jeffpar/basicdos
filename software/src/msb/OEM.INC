@@ -28,6 +28,7 @@
 	NMCOMT=2		;number of COMmunications ports
 	NMPENT=1		;number of light pens
 	NMSTRT=4		;number of joysticks
+	NMTIMT=1		;number of TIMER traps
 	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR)
 	IBMLIK=1		;IBM compatibility package
 	IBMTOK=1		;IBM token compatibility
@@ -35,7 +36,7 @@
 ;** (END OF VERSION SPECIFIC VALUES) *****************************************
 ;Pascal program HFILE searches for the previous line - DO NOT MODIFY
 ;
-	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT
+	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT+NMTIMT
 	GW=1			;GW BASIC
 	ESCCTL=0		;Escape Sequence processing in SCROUT
 	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY)
@@ -357,6 +358,12 @@ ENDM
 ;
         PAGE
 
+;
+; DBGBRK generates an INT 3 in DEBUG builds, like the DBGBRK macro in
+; BASIC-DOS's MACROS.INC.
+;
 DBGBRK	MACRO
-	DB	0CDh,06h,0CCh
+	IFDEF DEBUG
+	INT	3
+	ENDIF
 	ENDM

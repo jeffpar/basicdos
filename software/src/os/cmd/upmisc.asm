@@ -23,7 +23,7 @@
 CODE	SEGMENT
 
 	EXTNEAR	<getArgs,getMode,ioctlCon,mouseCall,strIllegal,allocStr>
-	EXTNEAR	<rtError,strKeep,setKeep>
+	EXTNEAR	<rtError,strKeep,setKeep,hideCursor>
 	EXTWORD	<CODE_DS>
 
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -37,7 +37,8 @@ CODE	SEGMENT
 ; Mode is 0 for text, 1 for 320x200 graphics, or 2 for 640x200 graphics, and
 ; burst enables color in mode 0 if it's non-zero, and disables it in mode 1.
 ; SCREEN 0 keeps the current width (40 columns after SCREEN 1, 80 after
-; SCREEN 2), and omitted values keep their current settings.  Nothing happens
+; SCREEN 2, or a terminal's 132; see setWidth), and omitted values keep their
+; current settings.  Nothing happens
 ; if STDOUT doesn't support video modes, or if the video mode is unchanged.
 ;
 ; Every combination of these settings is an index into MODE_TBL:
@@ -63,6 +64,7 @@ DEFPROC	setScreen,FAR
 	pop	ax
 	pop	dx
 	jc	ss9			; not supported
+	mov	ch,0			; CH = 0 (no rows requested)
 	test	ax,ax			; mode omitted?
 	js	ss2			; yes
 	cmp	al,2
@@ -74,7 +76,11 @@ DEFPROC	setScreen,FAR
 	cmp	al,4			; SCREEN 1?
 	jne	ss2			; no
 	and	bl,NOT 1		; yes, so it's 40 columns
-ss2:	test	dx,dx			; burst omitted?
+ss2:	cmp	bh,MODE_WIDE		; 132 columns?
+	jne	ss2a			; no
+	test	bl,0Ch			; yes, and SCREEN 0 keeps them
+	jz	ss9
+ss2a:	test	dx,dx			; burst omitted?
 	js	ss4			; yes
 	cmp	dx,1			; carry set if burst is zero
 	sbb	al,al			; AL = -1 if burst is zero
@@ -88,10 +94,22 @@ ss3:	and	al,2			; AL = 2 if color is disabled
 ss4:	mov	cl,bh			; CL = current video mode
 	mov	bh,0
 	mov	al,cs:MODE_TBL[bx]	; AL = new video mode
-	cmp	al,cl			; any change?
-	je	ss9			; no
-	xchg	cx,ax			; CL = new video mode
-	mov	bx,ss:[PSP_HEAP]
+ss4b:	cmp	al,cl			; any change?
+	mov	cl,al			; CL = new video mode
+	jne	ss4a			; yes
+;
+; The mode is the same, so unless rows were requested (see setWidth) and the
+; console has some other number of rows, there's nothing to do.
+;
+	test	ch,ch
+	jz	ss9
+	mov	al,IOCTL_GETDIM
+	call	ioctlCon		; DH = # rows
+	cmp	dh,ch
+	jne	ss4a
+ss9:	ret
+ss8:	jmp	strIllegal
+ss4a:	mov	bx,ss:[PSP_HEAP]
 	mov	word ptr ss:[bx].GFX_DATA.GFX_FLAGS,0	; (and GFX_MODE)
 ;
 ; If a program whose mode was saved selects a graphics mode (4-6), mark the
@@ -111,12 +129,16 @@ ss5:	push	cx
 	mov	al,IOCTL_SETMODE
 	call	ioctlCon
 	pushf
+	call	hideCursor		; (a new mode displays the cursor again)
 	mov	ax,1
 	call	mouseCall		; and show it again (in the new mode)
 	popf
 	jc	ss8			; the adapter doesn't support the mode
-ss9:	ret
-ss8:	jmp	strIllegal
+	mov	al,IOCTL_GETDIM
+	call	ioctlCon		; DL = # columns now (eg, for DIR /W)
+	mov	bx,ss:[PSP_HEAP]
+	mov	ss:[bx].CON_COLS,dl
+ss9a:	ret
 ENDPROC	setScreen
 
 MODE_TBL	db	1,3,0,2,4,6,5,6,6,6,6,6
@@ -126,10 +148,16 @@ MODE_TBL	db	1,3,0,2,4,6,5,6,6,6,6,6
 ; setWidth
 ;
 ; Used by "WIDTH 40" and "WIDTH 80".  Like MSBASIC, WIDTH in a graphics mode
-; selects SCREEN 1 (40) or SCREEN 2 (80); see setScreen for details.
+; selects SCREEN 1 (40) or SCREEN 2 (80); see setScreen for details.  WIDTH 132
+; requests MODE_WIDE, which only a VT100 terminal has.
+;
+; As in later versions of MSBASIC, a second value is the number of rows (25,
+; or with the right adapter, 43 or 50; see IOCTL_SETMODE), which the console
+; checks.  They're set even if the columns aren't changing, and they last
+; until the next mode change (any change without rows selects 25 again).
 ;
 ; Inputs:
-;	N numeric expressions pushed on stack (only the 1st is processed)
+;	N numeric expressions pushed on stack (only the first 2 are processed)
 ;
 ; Outputs:
 ;	None
@@ -138,22 +166,34 @@ MODE_TBL	db	1,3,0,2,4,6,5,6,6,6,6,6
 ;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	setWidth,FAR
-	call	getArgs			; AX = width
+	call	getArgs			; AX = width, DX = rows (-1 if omitted)
+	inc	dx
+	jz	sw0			; DX = 0 if the rows were omitted
+	dec	dx
+sw0:	push	dx
 	push	ax
 	call	getMode			; BL = index, BH = video mode
 	pop	ax
-	jc	ss9			; not supported
+	pop	cx
+	mov	ch,cl			; CH = rows (0 if none requested)
+	jc	ss9a			; not supported
 	and	bl,NOT 1		; presume 40 columns
 	cmp	ax,40
 	je	sw1
-	cmp	ax,80
-	jne	ss8
 	inc	bx			; 80 columns
+	cmp	ax,80
+	je	sw1
+	cmp	ax,132			; a terminal's columns?
+	mov	cl,bh			; CL = current video mode
+	mov	al,MODE_WIDE
+	je	sw3
+	jmp	strIllegal
+sw3:	jmp	ss4b
 sw1:	test	bl,0Ch			; graphics mode?
-	jz	ss4			; no
+	jz	sw2			; no
 	and	bl,3			; yes, keep the color and width bits
 	or	bl,4			; for SCREEN 1 (MODE_TBL maps 80 to 2)
-	jmp	ss4
+sw2:	jmp	ss4
 ENDPROC	setWidth
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

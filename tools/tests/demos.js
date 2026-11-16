@@ -152,6 +152,10 @@ function getDemos()
             demos.push({ path: m[1], key: parts[1], hw: parts[2] || '' });
         }
     }
+    //
+    // The VT100 Terminal demo's pages without the AVO aren't in the table (each page links to its own).
+    //
+    for (const hw of ['xt', 'at', '386']) demos.push({ path: `vt100/${hw}/noavo/`, key: 'vt100', hw });
     return demos;
 }
 

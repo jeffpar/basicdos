@@ -978,6 +978,7 @@ DSEG	ENDS
 	KEYOFF=PENOFF+NMPENT	;offset for KEY event id's
 	COMOFF=KEYOFF+NMKEYT	;offset for COM event id's
 	STROFF=COMOFF+NMCOMT	;offset for STRIG event id's
+	TIMOFF=STROFF+NMSTRT	;offset for TIMER event id
 
 	PUBLIC	CHKINT
 	EXTRN	POLKEY:NEAR,POLLEV:NEAR
@@ -997,7 +998,10 @@ CHKINT:
 DSEG	SEGMENT PUBLIC 'DATASG'
 	EXTRN	MSDCCF:WORD	;MSDOS Ctl-C flag
 DSEG	ENDS
-	TEST	BYTE PTR MSDCCF,LOW 255D	;Test for MSDOS-received Ctl-C
+	TEST	BYTE PTR TRPTBL+(3*TIMOFF),LOW OFFSET T_ON
+	JZ	CHKIN0		;brif TIMER trapping is off
+	CALL	POLTIM		;trap TIMER intervals
+CHKIN0:	TEST	BYTE PTR MSDCCF,LOW 255D	;Test for MSDOS-received Ctl-C
 	JNZ	CHKIN1
 	CALL	POLLEV		;Test for occurance of trapable events
 	JZ	CHKINX		;Exit - no trapable event
@@ -1116,7 +1120,8 @@ EVADR:	XOR	AH,AH		;[AX] = event id
 	RET
 
 DSEG	SEGMENT PUBLIC 'DATASG'
-	EXTRN	$KEY2B:WORD,$PEN2B:WORD,$STR2B:WORD,$COM2B:WORD
+	EXTRN	$KEY2B:WORD,$PEN2B:WORD,$STR2B:WORD,$COM2B:WORD,$TIM2B:WORD
+	EXTRN	TIMINT:WORD
 DSEG	ENDS
 	EXTRN	DERDNA:NEAR
 
@@ -1132,6 +1137,7 @@ DSEG	ENDS
 ;               PEN
 ;               STRIG(x) x = 0 for Trigger A, or 2 for Trigger B.
 ;               KEY(x)   x = 1..NMKEYT-1
+;               TIMER(n) n = 1..86400 seconds
 ;
 ;       If one of the Event verbs does not follow the ON
 ;       keyword, then go back to Level 1 "ONGOTO" to
@@ -1160,6 +1166,8 @@ NTONPN:
 	CMP	AX,OFFSET $STR2B
 	MOV	CX,OFFSET (400O*STROFF)+NMSTRT
 	JZ	ONFUN
+	CMP	AX,OFFSET $TIM2B
+	JZ	ONTIM		;Brif ON TIMER...
 	STC			;set carry - indicates not event
 	POP	BX		;Restore Entry Text pointer
 	JMP	SHORT ONGOTX
@@ -1187,6 +1195,50 @@ ONSTM:
 	OR	AL,AL		;clear carry - indicates it was event
 ONGOTX:	MOV	AL,BYTE PTR 0[BX]	;Restore Token
 	RET
+
+;ON TIMER(n) converts n seconds to ticks (n * 1573040/86400) for TIMINT
+; and restarts the interval.
+;
+	EXTRN	FRMEVL:NEAR,FRCSNG:NEAR
+ONTIM:	CALL	CHRGTR		;skip TIMER
+	CALL	SYNCHR
+	DB	OFFSET "("
+	CALL	FRMEVL		;[FAC]=n
+	CALL	SYNCHR
+	DB	OFFSET ")"
+	PUSH	BX		;save text pointer
+	CALL	FRCSNG
+	CMP	BYTE PTR FAC,LOW 129D	;n less than 1?
+	JB	FCERR2		;brif so
+	MOV	BX,8511H
+	MOV	DX,0A6E0H	;[BX:DX]=18.20648 (ticks per second)
+	CALL	$FMULS		;[FAC]=ticks
+	MOV	CL,LOW 152D	;exponent of a 24-bit integer
+	SUB	CL,BYTE PTR FAC	;[CL]=fraction bits in the mantissa
+	JBE	FCERR2		;brif 2^24 ticks or more
+	MOV	DX,WORD PTR $FACLO
+	MOV	AL,BYTE PTR $FACM1	;[AL]=sign and high mantissa bits
+	OR	AL,AL		;n negative?
+	JS	FCERR2		;brif so
+	OR	AL,LOW 128D	;restore the implied mantissa bit
+ONTIM1:	SHR	AL,1
+	RCR	DX,1
+	DEC	CL
+	JNZ	ONTIM1
+	ADC	DX,0
+	ADC	AL,0		;[AL:DX]=ticks, rounded
+	CMP	AL,LOW 18H	;more than a day of ticks (1800B0H)?
+	JB	ONTIM2		;brif not
+	JA	FCERR2		;brif so
+	CMP	DX,0B0H
+	JA	FCERR2		;brif so
+ONTIM2:	CBW
+	MOV	TIMINT,DX
+	MOV	TIMINT+2,AX
+	CALL	TIMRST		;restart the interval
+	POP	BX		;restore text pointer
+	MOV	CX,OFFSET 400O*TIMOFF
+	JMP	SHORT ONSTM
 
 GETSUB:	PUSH	CX
 	CALL	CHRGTR		;skip current token
@@ -1656,6 +1708,75 @@ NTONOF:
 
 SNERR2:	JMP	SNERR
 FCERR3:	JMP	FCERR
+
+	PUBLIC	TIMER
+DSEG	SEGMENT PUBLIC 'DATASG'
+	EXTRN	TIMINT:WORD,TIMBEG:WORD
+DSEG	ENDS
+
+;TIMER ON, TIMER OFF, and TIMER STOP enable, disable, and suspend
+; ON TIMER trapping.  TIMER ON restarts the interval if trapping was off.
+;
+TIMER:
+	JZ	SNERR2		;Syntax error if end-of-statement
+	PUSH	AX		;save $ON/$OFF/$STOP
+	CALL	EOSCH1		;Syntax Error if not End-Of-Statement
+	POP	AX		;[AL]=$ON, $OFF, or $STOP
+	CMP	AL,LOW OFFSET $ON
+	JNE	TIMER1		;brif not TIMER ON
+	TEST	BYTE PTR TRPTBL+(3*TIMOFF),LOW OFFSET T_ON
+	JNZ	TIMER1		;brif trapping is on (or stopped)
+	CALL	TIMRST		;restart the interval
+TIMER1:	MOV	DX,OFFSET TRPTBL+(3*TIMOFF)	;[DX]=adr of event flag
+	JMP	SET1EV		;Set Event Flag
+
+;POLTIM is called by CHKINT when TIMER trapping is on (or stopped).
+; If the ON TIMER interval has passed, it restarts the interval and
+; signals a TIMER event.
+; Exit - AX is used.  All other registers are preserved.
+;
+POLTIM:	PUSH	DX
+	CALL	GETTIC		;[DX:AX]=tick count
+	SUB	AX,TIMBEG
+	SBB	DX,TIMBEG+2	;[DX:AX]=ticks since the interval began
+	JNB	POLTM1		;brif no midnight in between
+	ADD	AX,0B0H
+	ADC	DX,18H		;add a day of ticks (1800B0H)
+POLTM1:	SUB	AX,TIMINT
+	SBB	DX,TIMINT+2
+	JB	POLTMX		;brif interval not over
+	CALL	TIMRST		;restart the interval
+	MOV	AL,LOW OFFSET TIMOFF
+	CALL	EVTRP		;Signal the occurance of a TIMER EVENT
+POLTMX:	POP	DX
+	RET
+
+;TIMRST restarts the ON TIMER interval.
+; Exit - All registers preserved.
+;
+TIMRST:	PUSH	AX
+	PUSH	DX
+	CALL	GETTIC
+	MOV	TIMBEG,AX
+	MOV	TIMBEG+2,DX
+	POP	DX
+	POP	AX
+	RET
+
+;GETTIC returns the BIOS tick count (ticks since midnight) in [DX:AX].
+; It reads the count directly, because INT 1AH would clear the BIOS
+; midnight flag, which MS-DOS needs to advance the date.
+; Exit - All other registers preserved.
+;
+GETTIC:	PUSH	DS
+	XOR	AX,AX
+	MOV	DS,AX
+	CLI
+	MOV	AX,DS:[46CH]
+	MOV	DX,DS:[46EH]
+	STI
+	POP	DS
+	RET
 
 ;PEN Function:
 ; Syntax: x=PEN(n)
@@ -2149,6 +2270,41 @@ TIMEF:
 	JMP	PUTNEW		;Put result and ret (Txt ptr on stack).
 
 	EXTRN	FMULT:NEAR,CONIA:NEAR,FRCSNG:NEAR,FADD:NEAR,PUSHF:NEAR
+	EXTRN	$FDIVS:NEAR,$FLT:NEAR,$NORMS:NEAR
+
+;X=TIMER returns the number of seconds since midnight, to .01 second
+;
+	PUBLIC	TIMERF
+TIMERF:
+	CALL	CHRGTR		;skip TIMER
+	PUSH	BX		;Save Text pointer
+	CALL	GETTIM		;CH=hour, CL=min, DH=sec, DL=.01sec
+	MOV	AL,LOW 100D
+	MUL	DH
+	MOV	DH,LOW 0
+	ADD	DX,AX		;[DX]=hundredths since the minute
+	MOV	AL,LOW 60D
+	MUL	CH
+	MOV	CH,LOW 0
+	ADD	AX,CX		;[AX]=minutes since midnight
+	MOV	BX,DX
+	MOV	CX,6000D
+	MUL	CX
+	ADD	AX,BX
+	ADC	DL,LOW 0
+	MOV	BL,DL
+	XCHG	DX,AX		;[BL:DX]=hundredths since midnight
+				;([AH]=0: no overflow byte)
+	MOV	WORD PTR FAC,152D	;exponent of a 24-bit integer, sign +
+	CALL	$NORMS		;[FAC]=hundredths since midnight
+	CALL	PUSHF
+	MOV	DX,100D
+	CALL	$FLT		;[FAC]=100
+	POP	BX
+	POP	DX
+	CALL	$FDIVS		;[FAC]=seconds since midnight
+	POP	BX		;Restore Text pointer
+	RET
 
 
 ;PRSTIM parses a string containing "HH[:MM[:SS[.TT]]]
@@ -2316,8 +2472,6 @@ DSEG	SEGMENT PUBLIC 'DATASG'
 DSEG	ENDS
 	EXTRN	ERROR:NEAR
 
-PUBLIC	TIMER
-TIMER:
 PUBLIC	ERDEV
 ERDEV:
 PUBLIC	IOCTL

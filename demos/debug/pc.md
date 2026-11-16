@@ -7,6 +7,7 @@ machines:
     type: vt100
     name: DEC VT100 Debugger Terminal
     config: /machines/dec/vt100/vt100.json
+    avo: true
     layout: /_includes/machines/vt100/vt100-display.html
     compiled: true
     connection: serialPort->ibm5150.com2
@@ -24,6 +25,6 @@ The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 256K of memory,
 
 {% include vt100-demo.html id="ibm5150" %}
 
-This demo is also available on an [IBM PC XT](../xt/), an [IBM PC AT](../at/), and a [COMPAQ DeskPro 386](../386/).
+Additional demo configurations: [IBM PC XT](../xt/), [IBM PC AT](../at/), and [COMPAQ DeskPro 386](../386/).
 
 {% include_relative _overview.md hw="pc" %}

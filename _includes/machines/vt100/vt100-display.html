@@ -1,10 +1,10 @@
 {%- comment -%}
 Element IDs end in VT100 plus whatever follows "vt100" in the machine ID, so a second terminal "vt100b" uses the
-VT100b bindings in vt100b.json; a page's machine "title" (eg, "VT100 Terminal (COM2)") replaces the heading.
+VT100b bindings in vt100b.json; the heading is the page's machine "name" (eg, "DEC VT100 Terminal (COM2)").
 {%- endcomment -%}
 {%- assign sfx = include.id | remove_first: "vt100" -%}
 <div class="machine">
-  <h3>{{ machine.title | default: "VT100 Terminal" }}</h3>
+  <h3>{{ machine.name | default: "DEC VT100 Terminal" }}</h3>
   <div id="{{ include.id }}" class="pcjs-chassis">
     <div class="pcjs-vt100-header">
       <div class="pcjs-title">VT100 Display</div>

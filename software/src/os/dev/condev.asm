@@ -28,6 +28,8 @@ CODE	segment para public 'CODE'
 	EXTNEAR	<chk_blocked,chk_context,chk_graphics,chk_vpage,get_frame>
 	EXTNEAR	<get_sesctx,scroll,set_curtype,set_geometry,set_slot>
 	EXTNEAR	<slot_addr,swap_page,switch_focus,switch_to,unlock_bios>
+	EXTNEAR	<chk_opt,set_pmode>
+	EXTNEAR	<ddcon_setkeys,kbd_update>
 	EXTNEAR	<update_biosdata,update_context,update_curtype,update_mode>
 	EXTNEAR	<video_ctx,wait_focus,write_char,write_context,write_crtc16>
 	EXTNEAR	<write_curpos,get_vbuf>
@@ -82,10 +84,12 @@ VKD	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 ;
 	DEFWORD	con_place,<0,0400h,0,0400h>
 ;
-; The page that each adapter is displaying (see show_page), indexed like
-; con_place (so only bytes 0 and 4 are used).
+; The page that each adapter is displaying, followed by its text mode (see
+; show_page), indexed like con_place (so only bytes 0, 1, 4, and 5 are
+; used).  ddcon_init sets the primary adapter's mode, and an alternate MDA's;
+; an alternate CGA starts in MODE_CO80 (see ddcon_open).
 ;
-	DEFBYTE	shown_page,0,5
+	DEFBYTE	shown_page,<0,0,0,0,0,MODE_CO80>
 
 	DEFPTR	kbd_int,0	; original keyboard hardware interrupt handler
 	DEFPTR	video_int,0	; original video services interrupt handler
@@ -168,6 +172,12 @@ dio1c:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
 ;
 dio1b:	cmp	bl,IOCTL_SETMODE - (IOCTL_CON - 8)
 	jne	dio3
+	mov	cx,es:[di].DDPRW_LENGTH	; CL = mode, CH = rows
+	call	chk_vmode		; does the screen's mode change?
+	jnc	dio3			; no, so there's no need for focus
+	inc	cl			; (nor does a request of -1 need it,
+	jz	dio3			; which never changes the mode)
+	mov	ax,ds			; AX = context again
 	cli
 	call	wait_focus
 	sti
@@ -315,35 +325,6 @@ dgr5:	add	dx,ds:[CT_CONPOS]	; DL = screen col, DH = screen row
 dgr8:	stc
 	ret
 ENDPROC	ddcon_getchar
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; ddcon_setkeys (IOCTL_SETKEYS)
-;
-; In raw keys mode, CTRLC, CTRLS, and CTRLP are just keys, rather than hotkeys
-; (see check_hotkey); non-ASCII keys (eg, cursor keys) are always returned as
-; a zero followed by the key's scan code (see pull_kbd).
-;
-; Inputs:
-;	ES:DI -> DDPRW
-;	CL = 1 for raw keys, 0 for normal keys
-;	DS = CONSOLE context
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	ddcon_setkeys
-	mov	ds:[CT_SCAN],0
-	and	ds:[CT_STATUS],NOT CTSTAT_RAWKEYS
-	test	cl,cl			; raw keys requested?
-	jz	dsk9			; no (carry clear)
-	or	ds:[CT_STATUS],CTSTAT_RAWKEYS
-dsk9:	ret
-ENDPROC	ddcon_setkeys
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -580,6 +561,8 @@ ENDPROC	ddcon_getclr
 ;	ES:DI -> DDPRW
 ;	CL = fill attributes
 ;	CH = border attributes
+;	DL, DH = the bits of CL, CH to set (the other bits keep their current
+;	values, so a caller needn't get them first; see IOCTL_GETCOLOR)
 ;	DS = CONSOLE context
 ;
 ; In graphics modes, the low nibble of CL is the background color and the
@@ -595,6 +578,11 @@ ENDPROC	ddcon_getclr
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_setclr
+	mov	bx,dx			; BX = bits to set
+	call	ddcon_getclr		; DX = current attributes
+	xor	cx,dx
+	and	cx,bx
+	xor	cx,dx			; CX = attributes with those bits set
 	call	chk_graphics		; graphics mode?
 	jc	sc5			; yes
 	mov	ax,cx
@@ -624,21 +612,30 @@ ENDPROC	ddcon_setclr
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
-;	CL = col, CH = row (zero-based, like IOCTL_GETPOS)
+;	CL = col, CH = row (zero-based, like IOCTL_GETPOS), or -1 to keep
+;	the current col or row
 ;	DL = 0 to hide the cursor, 1 to show it, or any other value to
 ;	leave it alone
 ;	DH = 1 to erase from the new position to the end of the row
 ;	DS = CONSOLE context
 ;
 ; Outputs:
-;	Carry set if the position is outside the context
+;	Carry set if the position is outside the context (DDERR_SEEK)
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, DI, ES
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_setpos
-	cmp	cl,ds:[CT_CURDIM].LOB
+	mov	ax,ds:[CT_CURPOS]
+	sub	ax,ds:[CT_CURMIN]	; AL = current col, AH = current row
+	cmp	cl,-1			; keep the current col?
+	jne	dsp0b			; no
+	mov	cl,al
+dsp0b:	cmp	ch,-1			; keep the current row?
+	jne	dsp0c			; no
+	mov	ch,ah
+dsp0c:	cmp	cl,ds:[CT_CURDIM].LOB
 	jae	dsp8
 	cmp	ch,ds:[CT_CURDIM].HIB
 	jae	dsp8
@@ -672,7 +669,8 @@ dsp0:	call	update_cursor		; (which also clears carry)
 	or	ah,20h			; yes
 dsp1:	mov	ds:[CT_CURTYPE],ax
 	jmp	focus_curtype		; update the cursor if we have focus
-dsp8:	jmp	ddcon_none
+dsp8:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_SEEK
+	stc
 dsp9:	ret
 ENDPROC	ddcon_setpos
 
@@ -704,8 +702,11 @@ ENDPROC	ddcon_setpos
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_getmode
+	mov	dl,ds:[CT_VMODE]
+	dec	dl			; is there a virtual mode?
+	jns	dgm0a			; yes, so that's the context's mode
 	mov	dl,ds:[CT_MODE]
-	dec	cl			; video memory instead?
+dgm0a:	dec	cl			; video memory instead?
 	jz	dgm0			; yes
 	dec	cl			; the number of contexts?
 	jnz	dgm9			; no
@@ -757,23 +758,54 @@ ENDPROC	ddcon_getmode
 ;
 ; Sets a new video mode (0-6 on a CGA, or 7 on an MDA, where modes 2 and 3
 ; are treated as 7 as well) for the context's adapter.  The new mode affects
-; the entire screen, so the context becomes a full-screen context that uses
-; INT 10h passthrough (see update_mode).
+; the entire screen, so the context becomes a full-screen context (see
+; update_mode), unless the mode is virtual (see chk_vmode): then the screen's
+; mode stays the same, and the context is simply cleared, without its border
+; (or with it again, when the original mode is requested).
+;
+; A text mode (0-3) can also have 43 rows on an EGA or VGA, or 50 rows on a
+; VGA, using the adapter's 8x8 font, which update_mode loads as soon as the
+; mode is set (see CT_ROWS).  A VGA displays 350 scan lines for 43 rows and
+; 400 for 50, which it must be told before the mode is set; only its BIOS has
+; that function, so that's also how we know that it's a VGA.
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
 ;	CL = video mode
+;	CH = rows (0 or 25 for the mode's usual 25 rows, or 43 or 50)
 ;	DS = CONSOLE context
 ;
 ; Outputs:
-;	Carry set if the mode isn't supported by the adapter
+;	Carry set if the mode or rows aren't supported by the adapter
 ;
 ; Modifies:
 ;	AX, BX, CX, DX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_setmode
-	cmp	ds:[CT_PORT].LOB,0B4h	; monochrome adapter?
+	call	chk_vmode		; does the screen's mode change?
+	jc	dsm0			; yes
+	mov	bh,0			; BH = no border
+	mov	al,cl
+	inc	ax			; AL = virtual mode + 1
+	cmp	cl,ds:[CT_MODE]		; is the original mode requested?
+	jne	dsm0a			; no
+	mov	bh,ds:[CTO_STATUS]	; yes, so the border (if any) returns
+	mov	al,0
+dsm0a:	mov	ds:[CT_VMODE],al
+	mov	cx,ds:[CTO_DIM]
+	mov	dx,ds:[CTO_POS]
+	mov	al,ds:[CT_STATUS]
+	and	al,NOT CTSTAT_BORDER
+	or	al,bh
+	mov	ds:[CT_STATUS],al
+	call	set_geometry
+	mov	cl,0
+	call	scroll			; clear the entire context
+	call	draw_border
+	mov	dx,ds:[CT_CURMIN]
+	jmp	update_cursor		; home the cursor (and clear carry)
+dsm0:	cmp	ds:[CT_PORT].LOB,0B4h	; monochrome adapter?
 	jne	dsm1			; no
 	cmp	cl,MODE_MONO
 	je	dsm2
@@ -789,13 +821,102 @@ dsm1:	cmp	cl,6			; CGA modes 0-6 only
 ; context (see video_ctx): it locks the BIOS and the session, displays a
 ; virtual page, and updates the context for the new mode (see update_mode).
 ;
-dsm2:	mov	al,cl
+dsm2:	test	ch,ch			; rows omitted?
+	jz	dsm5			; yes
+	cmp	ch,25			; the usual rows?
+	je	dsm5			; yes
+	cmp	cl,MODE_CO80		; more rows need a text mode (0-3)
+	ja	dsm8
+	test	[adapters],ADAPTER_EGA	; on an EGA or VGA
+	jz	dsm8
+	mov	ax,(VIDEO_ALTSEL SHL 8) OR 2
+	cmp	ch,50			; 50 rows (400 scan lines)?
+	je	dsm3			; yes
+	cmp	ch,43			; 43 rows (350 scan lines)?
+	jne	dsm8			; no, and those are the only choices
+	dec	ax
+dsm3:	mov	bl,VALT_SCANLINES
+	push	cx
+	call	video_ctx		; AL = 12h if it's a VGA
+	pop	cx
+	sub	al,VIDEO_ALTSEL		; AL = 0 if so
+	cmp	ch,50			; 43 rows work on either adapter,
+	jne	dsm4
+	test	al,al			; but 50 rows need the VGA
+	jnz	dsm8
+dsm4:	mov	ds:[CT_ROWS],ch		; (see update_mode)
+dsm5:	mov	ds:[CT_VMODE],0		; (a virtual mode ends here, too)
+	mov	al,cl
 	mov	ah,VIDEO_SETMODE
 	call	video_ctx
 	clc
 	ret
 dsm8:	jmp	ddcon_none
 ENDPROC	ddcon_setmode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_vmode
+;
+; A context that shares the screen (eg, one of two 40-column contexts on an
+; 80-column screen) can't change the screen's mode without taking the entire
+; screen (see update_mode).  But if it's as wide as the text mode requested
+; (eg, a program in a 40-column context asks for 40 columns), there's no need
+; to: the mode becomes the context's virtual mode (CT_VMODE, which is what
+; IOCTL_GETMODE then reports), and the context gives up its border, so the
+; program gets all the context's columns and rows.  Requesting the original
+; mode ends the virtual mode, and so does a mode of -1, which is a request to
+; do only that (it fails if there's no virtual mode; see COMMAND's CLS).
+;
+; More than 25 rows are never virtual (see ddcon_setmode): they always change
+; the screen's mode, and so does any request from a context that has them.
+;
+; Inputs:
+;	CL = video mode requested
+;	CH = rows requested
+;	DS = CONSOLE context
+;
+; Outputs:
+;	Carry clear if the mode is (or ends) a virtual mode (and if CL was
+;	-1, it's now the original mode), set if the screen's mode must change
+;
+; Modifies:
+;	AX, CL
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	chk_vmode
+	cmp	ch,25			; more than 25 rows requested?
+	ja	cvm8			; yes
+	cmp	ds:[CT_CONDIM].HIB,25	; or displayed now?
+	jae	cvm8			; yes
+	mov	al,ds:[CT_MODE]
+	cmp	al,ds:[CTO_MODE]	; is the context in its original mode?
+	jne	cvm8			; no
+	cmp	cl,-1			; only ending the virtual mode?
+	jne	cvm0			; no
+	cmp	ds:[CT_VMODE],1		; yes; carry set if there isn't one
+	jc	cvm9
+	mov	cl,al			; (and carry is clear)
+	ret
+cvm0:	cmp	cl,al			; is that the mode requested?
+	jne	cvm1			; no
+	cmp	ds:[CT_VMODE],1		; yes; carry set if there's no virtual
+	ret				; mode to end
+cvm1:	cmp	cl,MODE_CO80+1		; a text mode (0-3)?
+	jae	cvm8			; no
+	mov	ah,40
+	cmp	cl,2			; a 40-column mode (0 or 1)?
+	jb	cvm2			; yes
+	mov	ah,80
+cvm2:	cmp	ah,ds:[CTO_DIM].LOB	; as wide as the context?
+	jne	cvm8			; no
+	cmp	ah,ds:[CT_COLS].LOB	; and as wide as the screen?
+	je	cvm8			; yes, so there's nothing virtual
+	clc
+	ret
+cvm8:	stc
+cvm9:	ret
+ENDPROC	chk_vmode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -820,6 +941,10 @@ DEFPROC	ddcon_read
 	jne	dcr0
 
 	call	pull_kbd
+	push	ds
+	mov	ds,dx
+	call	kbd_update		; (which preserves the flags)
+	pop	ds
 	jnc	dcr8
 ;
 ; For READ requests that cannot be satisfied, we add this packet to an
@@ -1167,6 +1292,7 @@ dco1b:	mov	con_place[si],ax
 dco2:	mov	ds:[CT_NEXT],0
 	mov	ds:[CT_PARENT],di
 	mov	ds:[CT_SCAN],0
+	mov	ds:[CT_BIOS],0
 	mov	ds:[CT_SLOT],0		; no video memory selector yet
 	mov	ds:[CT_PAGE],bl
 	mov	ds:[CTO_PAGE],bl
@@ -1201,6 +1327,7 @@ dco2b:	mov	es:[di],ds
 	mov	al,bh
 	and	al,CTSTAT_BORDER
 	mov	ds:[CTO_STATUS],al
+	mov	word ptr ds:[CT_VMODE],0	; (and the CT_ROWS after it)
 	call	set_geometry
 	mov	ds:[CT_COLOR],0707h	; default fill and border attributes
 ;
@@ -1632,6 +1759,8 @@ DEFPROC	ddcon_inflush
 	mov	ax,[BUFFER_TAIL]
 	mov	[BUFFER_HEAD],ax	; the buffer is now empty
 	sti
+	mov	ds,es:[di].DDP_CONTEXT
+	call	kbd_update
 	pop	ds
 	ASSUME	DS:CODE
 dif9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
@@ -1809,6 +1938,7 @@ i09i:	lea	bx,[di].DDP_PTR		; update prev addr ptr in CX:BX
 	jmp	i09f
 
 i09w:	ASSERT	STRUCT,ds:[0],CT
+	call	kbd_update		; (the keys may have changed)
 	test	ds:[CT_STATUS],CTSTAT_ABORT
 	jz	i09x
 	and	ds:[CT_STATUS],NOT CTSTAT_ABORT
@@ -1917,7 +2047,11 @@ i10y:	pop	ds
 	mov	bp,sp
 	cmp	byte ptr [bp+5],VIDEO_SETMODE	; setting a video mode?
 	jne	i10z			; no
-	call	swap_page		; yes (see swap_page)
+	call	chk_opt			; one console only?
+	jc	i10z			; yes (see con_opt)
+	call	set_pmode		; can the mode be set in place?
+	jnc	i10p			; yes, and it has been
+	call	swap_page		; no (see swap_page)
 i10z:	call	update_biosdata		; returns current EQUIP_FLAG
 	pop	ds
 
@@ -1965,6 +2099,12 @@ i10x:	pop	ax			; clean up the stack
 	pop	ax
 	pop	bp
 	iret
+;
+; set_pmode set the mode without the BIOS, so there's no more to do.
+;
+i10p:	pop	ds
+	push	ax			; (i10x removes two words)
+	jmp	i10x
 ENDPROC	ddcon_int10
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2465,6 +2605,7 @@ ENDPROC	draw_vertpair
 ;
 ; Inputs:
 ;	DX = CURPOS (DL,DH)
+;	DS = CONSOLE context
 ;
 ; Outputs:
 ;	BX -> screen buffer offset
@@ -2476,7 +2617,7 @@ ENDPROC	draw_vertpair
 DEFPROC	get_curpos
 	push	ax
 	mov	al,dh
-	mul	[max_cols]
+	mul	ds:[CT_COLS].LOB	; (the columns of the context's mode)
 	add	ax,ax			; AX = offset to row
 	sub	bx,bx
 	mov	bl,dl

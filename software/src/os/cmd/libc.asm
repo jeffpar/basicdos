@@ -240,6 +240,13 @@ ENDPROC	chkOut
 ;
 ; Used by "CLS".
 ;
+; A program that asks for a console's own width (eg, WIDTH 40 in a 40-column
+; console) gets the console without its border (the VKD$ driver's "virtual
+; mode"), until it asks for the original width again.  If it never does (eg,
+; it was aborted), a CLS outside a BAS program restores the console as well,
+; with a mode of -1, which clears the console itself (and fails if there's
+; nothing to restore).
+;
 ; Inputs:
 ;	None
 ;
@@ -250,11 +257,18 @@ ENDPROC	chkOut
 ;	AX, BX, CX, DX
 ;
 DEFPROC	clearScreen,FAR
-	sub	cx,cx
+	mov	bx,ss:[PSP_HEAP]
+	cmp	byte ptr ss:[bx].GFX_DATA.GFX_SAVED,0
+	jne	cs1			; a BAS program is running
+	mov	cx,00FFh		; CL = -1 (and CH = 0: no rows)
+	mov	al,IOCTL_SETMODE
+	call	ioctlCon
+	jnc	cs9			; restored (and cleared)
+cs1:	sub	cx,cx
 	mov	dx,cx			; (DX is non-zero only to set rows)
 	mov	al,IOCTL_SCROLL
 	call	ioctlCon
-	ret
+cs9:	ret
 ENDPROC	clearScreen
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -434,7 +448,8 @@ DEFPROC	restoreMode
 	cmp	byte ptr ss:[bx].GFX_DATA.MOUSE_STATE,0
 	je	rsm1
 	call	mouseReset
-rsm1:	mov	cl,0
+rsm1:	call	showCursor		; (hidden while the program ran)
+	mov	cl,0
 	xchg	cl,byte ptr ss:[bx].GFX_DATA.GFX_SAVED
 	mov	ch,cl			; CH bit 7 set if graphics were used
 	and	cl,7Fh
@@ -454,11 +469,13 @@ rsm1:	mov	cl,0
 	sub	al,4
 	cmp	al,3			; is it a graphics mode (4-6)?
 	jae	rsm9			; no, so leave it (like MSBASIC)
-rsm2:	mov	al,IOCTL_SETMODE
+rsm2:	mov	ch,0			; (no rows requested)
+	mov	al,IOCTL_SETMODE
 	call	ioctlCon		; yes, so restore it
 	mov	bx,ss:[PSP_HEAP]
 	mov	word ptr ss:[bx].GFX_DATA.GFX_FLAGS,0	; (and GFX_MODE)
 	mov	cx,ss:[bx].GFX_DATA.GFX_COLORS
+	mov	dx,-1			; (set every bit)
 	mov	al,IOCTL_SETCOLOR
 	call	ioctlCon		; and the colors, too
 rsm9:	pop	dx
@@ -467,6 +484,49 @@ rsm9:	pop	dx
 	pop	ax
 	ret
 ENDPROC	restoreMode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; showCursor, hideCursor
+;
+; As in MSBASIC, the cursor is hidden while a BAS program runs, except during
+; keyboard input (see inputLine) and while an external program that it starts
+; is running (see cmdFile).  A BAS program is running if saveMode saved its
+; video mode, so nothing happens otherwise (or on a console that has no video
+; modes, such as a terminal).
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None (other than flags)
+;
+DEFPROC	showCursor
+	push	dx
+	mov	dl,1			; DL = 1 to show the cursor
+	jmp	short hcu1
+	DEFLBL	hideCursor,near
+	push	dx
+	mov	dl,0			; DL = 0 to hide the cursor
+hcu1:	push	bx
+	mov	bx,ss:[PSP_HEAP]
+	cmp	byte ptr ss:[bx].GFX_DATA.GFX_SAVED,0
+	je	hcu9			; no BAS program is running
+	push	ax
+	push	cx
+	mov	dh,0			; (nothing to erase)
+	mov	cx,-1			; keep the cursor's position
+	mov	al,IOCTL_SETPOS
+	call	ioctlCon
+	pop	cx
+	pop	ax
+hcu9:	pop	bx
+	pop	dx
+	ret
+ENDPROC	showCursor
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -750,35 +810,32 @@ ENDPROC	writeStrCRLF
 ;
 DEFPROC	setColor,FAR
 	call	getArgs			; AX = fgnd, DX = bgnd, CX = border
-	push	ax
-	push	dx
-	push	cx
-	mov	al,IOCTL_GETCOLOR
-	call	ioctlCon		; DX = current colors
-	jnc	sc1
-	mov	dx,0707h		; use defaults if unsupported
-sc1:	pop	ax			; AX = border
-	test	ax,ax			; omitted?
+;
+; IOCTL_SETCOLOR sets only the bits we ask it to (BL = fill bits, BH = border
+; bits), so the colors that were omitted keep their current values.
+;
+	sub	bx,bx
+	test	cx,cx			; border omitted?
+	js	sc1			; yes
+	dec	bh			; no, so set all its bits
+sc1:	mov	ch,cl			; CH = border
+	mov	cl,4
+	test	dx,dx			; bgnd omitted?
 	js	sc2			; yes
-	mov	dh,al
-sc2:	pop	ax			; AX = bgnd
-	test	ax,ax
-	js	sc3
-	and	al,07h			; as in MSBASIC, a bgnd of 8-15 is 0-7
-	mov	cl,4			; (only fgnd can set the blink bit)
-	shl	al,cl
-	and	dl,8Fh
-	or	dl,al
-sc3:	pop	ax			; AX = fgnd
-	test	ax,ax
-	js	sc5
-	and	dl,70h			; clear the old fgnd and blink bit
+	and	dl,07h			; as in MSBASIC, a bgnd of 8-15 is 0-7
+	shl	dl,cl			; (only fgnd can set the blink bit)
+	mov	bl,70h
+sc2:	and	dl,70h
+	mov	cl,dl			; CL = bgnd (if any)
+	test	ax,ax			; fgnd omitted?
+	js	sc5			; yes
+	or	bl,8Fh			; no, so set the fgnd and blink bits
 	test	al,10h			; blinking foreground?
 	jz	sc4			; no
-	or	dl,80h			; yes
+	or	cl,80h			; yes
 sc4:	and	al,0Fh
-	or	dl,al
-sc5:	mov	cx,dx			; CX = new colors
+	or	cl,al
+sc5:	mov	dx,bx			; CX = new colors, DX = bits to set
 	mov	al,IOCTL_SETCOLOR
 	call	ioctlCon
 	ret
@@ -804,31 +861,25 @@ ENDPROC	setColor
 ;
 DEFPROC	setPos,FAR
 	call	getArgs			; AX = row, DX = col, CX = cursor
-	push	cx
-	push	ax
-	push	dx
-	mov	al,IOCTL_GETPOS
-	call	ioctlCon		; DL = col, DH = row (zero-based)
-	pop	ax			; AX = col
-	pop	cx			; CX = row
-	pop	bx			; BX = cursor
-	jc	sp9			; not supported
-	test	ax,ax			; col omitted?
+;
+; IOCTL_SETPOS keeps the current row or col if we pass -1 for it, which is
+; what an omitted argument already is.
+;
+	test	ax,ax			; row omitted?
 	js	sp1			; yes
 	dec	ax			; make it zero-based
+	js	sp8			; row 0 is illegal
+sp1:	test	dx,dx			; col omitted?
+	js	sp2			; yes
+	dec	dx
 	js	sp8			; col 0 is illegal
-	mov	dl,al
-sp1:	xchg	ax,cx			; AX = row
-	test	ax,ax
-	js	sp2
-	dec	ax
-	js	sp8
-	mov	dh,al
-sp2:	mov	cx,dx			; CX = new position
-	mov	dx,bx			; DL = cursor
+sp2:	mov	dh,al			; DL = col, DH = row
+	xchg	cx,dx			; CX = new position, DL = cursor
 	mov	al,IOCTL_SETPOS
 	call	ioctlCon
-	jc	sp8			; position is outside the console
+	jnc	sp9
+	cmp	al,25			; (seek error: outside the console)
+	je	sp8			; anything else means unsupported
 sp9:	ret
 sp8:	jmp	strIllegal
 ENDPROC	setPos

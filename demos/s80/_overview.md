@@ -2,7 +2,7 @@ The BASIC-DOS Single diskette's **CONFIG.SYS** doesn't define any consoles, so B
 
 ### BASIC Samples
 
-The diskette's **DEMOS** directory contains a text copy of DONKEY.BAS, one of the BASIC samples from the IBM PC DOS 1.00 diskette, and CONFIG.SYS sets PATH$ so that it can be run from any directory.  To try it, type `DONKEY`, press the space bar to switch lanes, and press ESC to exit.  When DONKEY ends, BASIC-DOS restores the original display mode.  See the DONKEY.BAS checklist in the [Project Status](/#donkeybas) for what was needed to run it.
+The diskette's **DEMOS** directory contains a text copy of DONKEY.BAS, one of the BASIC samples from the IBM PC DOS 1.00 diskette, and CONFIG.SYS sets PATH$ so that it can be run from any directory.  To try it, type `DONKEY`, press the space bar to switch lanes, and press ESC to exit.  When DONKEY ends, BASIC-DOS restores the original display mode.  See the DONKEY.BAS checklist in the [Project Status](/#basic-samples) for what was needed to run it.
 
 The machines also have the PC DOS 1.00 diskette in drive B:, whose original copies of DONKEY.BAS and the other samples are in the *tokenized* format that IBM BASIC saves; BASIC-DOS can load and run those, too (eg, `B:DONKEY` or `B:CIRCLE`), although not all of them run yet.  Text copies of all the samples are in the **TESTS\SAMPLES** directory of the [10Mb hard disk](../../hd/xt/).
 

@@ -18,8 +18,10 @@ TERM_COUNT	equ	3	; number of terminal types
 VT100_SO	equ	0Eh		; "shift out" (selects G1)
 VT100_SI	equ	0Fh		; "shift in" (selects G0)
 
-TERM_COLS	equ	80	; assumed terminal dimensions (for IOCTL_GETDIM)
+TERM_COLS	equ	80	; assumed terminal dimensions (see CT_COLS)
 TERM_ROWS	equ	24
+WIDE_COLS	equ	132	; a VT100's columns in MODE_WIDE (see set_mode)
+WIDE_ROWS	equ	14	; its rows there without the AVO (see rb6)
 
 RINGBUF		struc
 BUFOFF		dw	?	; 00h: offset within context of buffer
@@ -66,6 +68,10 @@ CT_ROW		db	?	; current output row (see update_col)
 CT_TOP		db	?	; first scrolling row (see set_rows)
 CT_BOT		db	?	; last scrolling row
 CT_GFX		db	?	; VT100 character set (VT100_SO or VT100_SI)
+CT_COLS		db	?	; current columns (TERM_COLS, half, or wide)
+CT_ROWS		db	?	; current rows (TERM_ROWS, or CT_WROWS)
+CT_WROWS	db	?	; rows in MODE_WIDE (TERM_ROWS or WIDE_ROWS)
+CT_WIDE		db	TERM_ROWS+1 dup (?) ; zero if a row needs VT100_WIDE
 CONTEXT		ends
 SIG_CT		equ	'O'
 

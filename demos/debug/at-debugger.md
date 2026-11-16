@@ -7,6 +7,7 @@ machines:
     type: vt100
     name: DEC VT100 Debugger Terminal
     config: /machines/dec/vt100/vt100.json
+    avo: true
     layout: /_includes/machines/vt100/vt100-display.html
     compiled: true
     connection: serialPort->ibm5170.com2

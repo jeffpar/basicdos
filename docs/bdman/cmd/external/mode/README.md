@@ -6,7 +6,7 @@ permalink: /docs/bdman/cmd/external/mode/
 
 {% include header.html %}
 
-> MODE 40\|80\|BW40\|BW80\|CO40\|CO80  
+> MODE 40\|80\|132\|BW40\|BW80\|CO40\|CO80[,*rows*]  
 > MODE COM*n*:*baud*[,*parity*[,*data*[,*stop*]]]  
 > MODE LPT*n*:[*cols*][,*lines*]
 
@@ -14,7 +14,19 @@ Sets the display, a serial port, or a printer.  Any other argument, or none at a
 
 ### Display
 
-Sets the display to 40 or 80 columns.  BW turns color off, as `SCREEN 0,0` does, and CO turns it on.
+Sets the display to 40 or 80 columns.  BW turns color off, as `SCREEN 0,0` does, and CO turns it on.  `MODE 132` selects 132 columns, which only a console on a VT100 terminal has (with 24 rows if the terminal has the Advanced Video Option, or 14 rows if not).
+
+*rows* is the number of rows, which depends on the display adapter:
+
+| Adapter | Columns | Rows |
+|---|---|---|
+| MDA | 80 | 25 |
+| CGA | 40 or 80 | 25 |
+| EGA | 40 or 80 | 25 or 43 |
+| VGA | 40 or 80 | 25, 43, or 50 |
+| VT100 terminal | 40, 80, or 132 | 24 (14 with 132 columns and no Advanced Video Option) |
+
+For example, `MODE CO80,43` selects 80 columns and 43 rows, and `MODE 80,25` returns to 25 rows.  Without *rows*, the rows change only if the columns or color do (to 25).  Any other number of rows displays `Syntax error`, and a combination that the adapter doesn't support (eg, `MODE 80,50` on an EGA, or `MODE 40` on an MDA) displays `Illegal function call`.  See [WIDTH](../../device/screen/#width), which MODE uses, for details.
 
 ### Serial Ports
 

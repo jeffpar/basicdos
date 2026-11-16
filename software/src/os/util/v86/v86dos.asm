@@ -151,6 +151,7 @@ ENDPROC	pft_load
 	db	DOS_HDL_CLOSE, DOS_HDL_IOCTL, DOS_MEM_ALLOC, DOS_MEM_FREE
 	db	DOS_MEM_REALLOC, DOS_PSP_EXEC SHR 8, DOS_PSP_RETURN
 	db	DOS_PSP_RETCODE, DOS_PSP_SET, DOS_PSP_GET, DOS_MSC_GETVARS, 62h
+	db	DOS_PSP_COPY
 I21_FUNCS_LEN	equ	$ - I21_FUNCS
 	DEFLBL	I21_PROCS,word
 	dw	i21term, i21sd, i21sv, i21gd
@@ -158,6 +159,7 @@ I21_FUNCS_LEN	equ	$ - I21_FUNCS
 	dw	i21close, i21ioctl, i21alloc, i21free
 	dw	i21realloc, i21exec, i21exit
 	dw	i21retcode, i21setpsp, i21getpsp, i21vars, i21getpsp
+	dw	i21copy
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -187,6 +189,18 @@ DEFPROC	i21sv				; set vector AL to DS:DX
 	mov	cx,[dta].SEG
 i21esbx:mov	word ptr [VARS+VR_EBX],ax
 	mov	word ptr [VARS+VR_ES],cx
+	jmp	i21ok
+	DEFLBL	i21copy,near		; copy the PSP to segment DX
+	mov	ax,[cur_psp]
+	sub	si,si
+	mov	di,offset VARS + V_BUF
+	mov	cx,size PSP
+	call	v86_get
+	mov	ax,word ptr [VARS+VR_EDX]
+	mov	si,offset VARS + V_BUF
+	sub	di,di
+	mov	cx,size PSP
+	call	v86_put
 	jmp	i21ok
 	DEFLBL	i21setpsp,near		; set PSP to BX
 	mov	ax,word ptr [VARS+VR_EBX]
@@ -219,6 +233,136 @@ DEFPROC	vec_ptr
 	sub	ax,ax
 	jmp	seg_ptr
 ENDPROC	vec_ptr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dd_cpu (DDINT_CPU)
+;
+; A program's far call to CPU$ (see cpu.inc): we do what a debugger needs, as
+; the 8086 driver does (CPU_GETINFO, with no free memory, since the machine's
+; is DOS's; CPU_MAP and CPU_UNMAP; CPU_SEGINFO; and CPU_RWMEM), and anything
+; else is invalid (eg, CPU_QUERY, since the machine's blocks aren't CPU$'s).
+;
+; Inputs:
+;	The machine's registers (AH = function)
+;
+; Outputs:
+;	The machine's AX, CX, DX, and carry updated
+;
+DEFPROC	dd_cpu
+	and	byte ptr [VARS+VR_EFL],NOT FL_CARRY
+	mov	ax,word ptr [VARS+VR_EAX]
+	mov	bx,word ptr [VARS+VR_EBX]
+	mov	cx,word ptr [VARS+VR_ECX]
+	mov	dx,word ptr [VARS+VR_EDX]
+	cmp	ah,CPU_UNMAP
+	je	dc9			; (there's nothing to unmap)
+	cmp	ah,CPU_GETINFO
+	jne	dc1
+	mov	ax,(CPUF_HWTYPE SHL 8) OR CPUTYPE_8086
+	sub	cx,cx
+	sub	dx,dx			; (no free memory)
+	jmp	short dc8
+dc1:	cmp	ah,CPU_MAP
+	jne	dc2
+	shr	cx,4
+	shl	dx,12
+	or	cx,dx
+	xchg	ax,cx			; AX = the address's segment
+	mov	cx,1
+	jmp	short dc8
+dc2:	cmp	ah,CPU_SEGINFO
+	jne	dc4
+	test	al,ADDR_SEL		; a selector?
+	jnz	dc7			; yes (there are none)
+	and	al,ADDR_RIGHTS
+	cmp	al,1			; carry set if not ADDR_RIGHTS
+	sbb	ax,ax			; AX = FFFFh (limit) or 0 (no rights)
+	mov	dx,bx
+	sub	cx,cx			; DX:CX = BX:0000
+	test	byte ptr [VARS+VR_EAX],ADDR_PHYS
+	jnz	dc8
+	mov	cx,bx
+	shl	cx,4
+	shr	dx,12			; DX:CX = the segment's address
+	jmp	short dc8
+dc4:	cmp	ah,CPU_RWMEM
+	je	dc10
+dc7:	mov	ax,ERR_INVALID
+	or	byte ptr [VARS+VR_EFL],FL_CARRY
+dc8:	mov	word ptr [VARS+VR_EAX],ax
+	DEFLBL	dc9,near
+	mov	word ptr [VARS+VR_ECX],cx
+	mov	word ptr [VARS+VR_EDX],dx
+dc9a:	jmp	run
+;
+; CPU_RWMEM copies CX bytes from BX:SI to ES:DI, or with ADDR_WRITE, from
+; ES:DI to BX:SI.
+;
+dc10:	test	al,ADDR_SEL		; a selector?
+	jnz	dc7			; yes (there are none)
+	test	al,ADDR_PHYS		; a physical address?
+	jz	dc11			; no
+	cmp	bx,10h			; below 1Mb?
+	jae	dc7			; no
+	shl	bx,12			; BX = the segment of BX:0000
+dc11:	jcxz	dc9a
+	mov	si,word ptr [VARS+VR_ESI]
+	mov	di,cx
+	dec	di
+	js	dc7			; seg_ptr reaches only 32K
+	add	di,si			; would the bytes wrap?
+	jc	dc7			; yes
+	push	ax
+	xchg	ax,bx
+	mov	di,si
+	call	seg_ptr			; ES:DI -> memory
+	mov	si,di
+	pop	ax
+	mov	di,word ptr [VARS+VR_EDI]
+	mov	bx,word ptr [VARS+VR_ESSEL]
+	push	ds
+	push	es
+	pop	ds			; DS:SI -> memory
+	mov	es,bx			; ES:DI -> buffer
+	test	al,ADDR_WRITE		; writing it?
+	jz	dc12			; no
+	push	es
+	push	ds
+	pop	es
+	pop	ds
+	xchg	si,di			; DS:SI -> buffer, ES:DI -> memory
+dc12:	cld
+	rep	movsb
+	pop	ds
+	jmp	dc9a
+ENDPROC	dd_cpu
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dd_vec (DDINT_GETVEC and DDINT_SETVEC)
+;
+; A program's far call to get vector AL in DX:CX, or to set it to DX:CX (and
+; get the previous one), as the 8086 CPU$ driver does (see run1d).
+;
+; Inputs:
+;	AX = offset DDINT_GETVEC or offset DDINT_SETVEC
+;
+DEFPROC	dd_vec
+	push	ax
+	mov	al,byte ptr [VARS+VR_EAX]
+	call	vec_ptr			; ES:DI -> vector
+	pop	ax
+	mov	cx,es:[di].OFF
+	mov	dx,es:[di].SEG
+	cmp	ax,offset DDINT_GETVEC
+	je	dc9
+	mov	cx,word ptr [VARS+VR_ECX]
+	mov	dx,word ptr [VARS+VR_EDX]
+	xchg	cx,es:[di].OFF
+	xchg	dx,es:[di].SEG
+	jmp	short dc9
+ENDPROC	dd_vec
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

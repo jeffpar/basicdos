@@ -25,7 +25,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<rtError,allocStr,releaseStr>
+	EXTNEAR	<rtError,allocStr,releaseStr,hideCursor>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
@@ -74,6 +74,7 @@ il2:	push	ss
 	mov	word ptr [bx].LINEBUF,254; (INP_MAX = 254, INP_CNT = 0)
 	mov	ah,DOS_TTY_INPUT
 	int	21h
+	call	hideCursor		; (the input displayed it again)
 	PRINTF	<13,10>
 	mov	ax,[wInFlags]
 	shr	al,1

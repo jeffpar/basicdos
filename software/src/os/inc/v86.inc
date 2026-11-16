@@ -30,8 +30,12 @@
 ;	there; the IF bit in VR_EFL is the machine's own (CLI, STI, PUSHF,
 ;	POPF, and IRET use it, but it never stops interrupts).
 ;
-; The machine's code can do anything an 8086 program can, except I/O and
-; HLT: CLI, STI, PUSHF, POPF, and IRET work as they do in real mode, and an
+; The machine's code can do anything an 8086 program can, except HLT, and
+; I/O, which exits (V86X_IO), so that the host can do something like it (the
+; machine never uses a port itself): VR_EIP is past the IN or OUT, the low
+; word of VR_ERR is the port, and the high word is the opcode (bit 0 is set
+; for a word, bit 1 for OUT).  String I/O (and I/O of a dword) is a fault.
+; CLI, STI, PUSHF, POPF, and IRET work as they do in real mode, and an
 ; INT, or one of the exceptions that real mode delivers through the vectors
 ; (00h, 01h, 05h, 06h, and 07h), goes to the machine's own vector (at linear
 ; address 0), unless its handler's first byte is a HLT, in which case the
@@ -43,7 +47,9 @@
 ;
 ; Hardware interrupts go to the system's handlers, as they always do, so the
 ; machine gets none of its own; it exits after each timer tick (V86X_TICK),
-; so that the host can check for CTRL-C (and DOS can switch sessions).
+; so that DOS can switch sessions, and the host can give the machine a tick
+; of its own (eg, by pushing an interrupt frame on its stack, and running it
+; at its INT 08h or 1Ch handler).
 ;
 V86REGS		struc
 VR_EDI		dd	?	; 00h: (in PUSHAD order)
@@ -76,3 +82,4 @@ V86REGS		ends
 V86X_TICK	equ	0	; a timer tick (VR_VEC = 08h)
 V86X_INT	equ	1	; an INT to a default vector (VR_VEC = vector)
 V86X_FAULT	equ	2	; an exception (VR_VEC = vector, VR_ERR = code)
+V86X_IO		equ	3	; an IN or OUT (VR_ERR = port and opcode)

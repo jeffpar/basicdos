@@ -28,11 +28,11 @@
 ; NEXT and WEND statements are paired up as the code is generated: FOR and
 ; WHILE push a CTL_FOR or CTL_WHILE entry onto the code block's LBLREF table
 ; (see pushCtl), whose LBL_IP is the offset of the loop's body, and NEXT and
-; WEND mark the innermost one CTL_DONE (see findCtl), or if it's the other kind
-; of loop, report "NEXT without FOR" or "WEND without WHILE".  The body follows
-; the 5-byte JMP that skips the loop (which NEXT or WEND patches), the address
-; of the FORSLOT (for FOR) or the top of the loop (for WHILE), and the line #
-; of the FOR or WHILE (for errors; see checkCtl).
+; WEND remove the innermost one (see findCtl and removeRef), or if it's the
+; other kind of loop, report "NEXT without FOR" or "WEND without WHILE".  The
+; body follows the 5-byte JMP that skips the loop (which NEXT or WEND patches),
+; the address of the FORSLOT (for FOR) or the top of the loop (for WHILE), and
+; the line # and position of the FOR or WHILE (see pushCtl).
 ;
 ; Code for a program may span several code blocks (see ensureRoom), so every
 ; JMP that may go to another code block (eg, GOTO, IF, and the JMPs for loops)
@@ -65,12 +65,11 @@ FS_SIZE		equ	22		; size of FORSLOT (see flow.asm)
 OP_JZ_3		equ	00374h		; JZ  $+5 (eg, around a near JMP)
 OP_JZ_5		equ	00574h		; JZ  $+7 (eg, around a far JMP)
 OP_JNZ_5	equ	00575h		; JNZ $+7 (eg, around a far JMP)
-OP_JNZ_11	equ	00B75h		; JNZ $+13 (around JMP, dword, line #)
+OP_JNZ_13	equ	00D75h		; JNZ $+15 (around JMP, dword, 2 words)
 OP_OR_DX_DX	equ	0D20Bh		; OR  DX,DX
 OP_CMP_AX	equ	03Dh		; CMP AX,imm16
 
 LBL_MAX		equ	LBL_DATA	; highest label defined so far
-LBL_NEXT	equ	LBL_DATA+2	; lowest label a reference awaits
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -405,7 +404,7 @@ ENDPROC	genEnd
 ;	jnz	body
 ;	jmp	next			; patched by genNext (5 bytes)
 ;	dd	FORSLOT			; (for genNext)
-;	dw	line #			; (for checkCtl)
+;	dw	line #, position	; (see pushCtl)
 ;    body:
 ;
 ; Inputs:
@@ -506,7 +505,7 @@ gfo4:	pop	cx
 	GENCALL	forInit
 	mov	ax,OP_OR_AX_DX
 	stosw
-	mov	ax,OP_JNZ_11
+	mov	ax,OP_JNZ_13
 	stosw
 	call	genJmp5			; JMP to NEXT (placeholder)
 	pop	ax
@@ -569,8 +568,8 @@ gnx1a:	push	dx			; [sp+6] = block containing the FOR
 	push	ds
 	mov	ds,dx
 	mov	si,[si].LBL_IP		; SI = offset of body
-	mov	ax,[si-4]		; AX = FORSLOT segment
-	mov	cx,[si-6]		; CX = FORSLOT offset
+	mov	ax,[si-6]		; AX = FORSLOT segment
+	mov	cx,[si-8]		; CX = FORSLOT offset
 	pop	ds
 	push	ax			; [sp+2] = FORSLOT segment
 	push	cx			; [sp] = FORSLOT offset
@@ -614,15 +613,15 @@ gnx3:	mov	si,sp
 	je	gnx4			; yes
 	mov	ax,OP_JZ_5		; no, so JZ around a far JMP
 gnx4:	stosw
-	push	ds
-	mov	ds,dx
-	mov	[si].LBL_NUM,CTL_DONE
-	mov	ax,[si].LBL_IP		; DX:AX -> body
-	pop	ds
+	push	es
+	mov	es,dx
+	mov	ax,es:[si].LBL_IP	; DX:AX -> body
+	call	removeRef		; the FOR is done
+	pop	es
 	push	ax
 	call	emitJmp			; jump back to the body
 	pop	si
-	sub	si,11			; DX:SI -> the FOR's JMP
+	sub	si,13			; DX:SI -> the FOR's JMP
 	call	patchHere		; patch it to jump here
 	call	getNextSymbol		; another variable (eg, "NEXT I,J")?
 	jc	gnx9
@@ -656,7 +655,7 @@ ENDPROC	genNext
 ;	jnz	body
 ;	jmp	wend			; patched by genWend (5 bytes)
 ;	dd	top			; (for genWend)
-;	dw	line #			; (for checkCtl)
+;	dw	line #, position	; (see pushCtl)
 ;    body:
 ;
 ; Inputs:
@@ -680,7 +679,7 @@ DEFPROC	genWhile
 	stosw
 	mov	ax,OP_OR_AX_DX
 	stosw
-	mov	ax,OP_JNZ_11
+	mov	ax,OP_JNZ_13
 	stosw
 	call	genJmp5			; JMP to WEND (placeholder)
 	pop	ax
@@ -716,12 +715,16 @@ DEFPROC	genWend
 	je	gwe1			; yes
 	mov	al,30			; "WEND without WHILE"
 	jmp	compError
-gwe1:	push	ds
+gwe1:	push	es
+	mov	es,dx
+	mov	ax,es:[si].LBL_IP	; AX = offset of body
+	call	removeRef		; the WHILE is done
+	pop	es
+	xchg	si,ax			; SI = offset of body
+	push	ds
 	mov	ds,dx
-	mov	[si].LBL_NUM,CTL_DONE
-	mov	si,[si].LBL_IP		; SI = offset of body
-	mov	ax,[si-6]
-	mov	cx,[si-4]		; CX:AX -> top
+	mov	ax,[si-8]
+	mov	cx,[si-6]		; CX:AX -> top
 	pop	ds
 	push	dx
 	push	si
@@ -729,7 +732,7 @@ gwe1:	push	ds
 	call	emitJmp			; jump back to the top
 	pop	si
 	pop	dx
-	sub	si,11			; DX:SI -> the WHILE's JMP
+	sub	si,13			; DX:SI -> the WHILE's JMP
 	call	patchHere		; patch it to jump here
 	clc
 	ret
@@ -894,21 +897,20 @@ ENDPROC	nextBlock
 ;
 ; Adds a label definition or reference (if LBL_RESOLVE is set) to the current
 ; code block's LBLREF table.  For a definition, we first scan all the LBLREF
-; tables to ensure the definition is unique, and to resolve any references
-; (by replacing their placeholders with JMPs; see genGoto).
+; tables to resolve any references (by replacing their placeholders with JMPs,
+; and then removing them; see genGoto and removeRef).  A duplicate definition
+; (from a line # that appears twice) is added, too, but findLabel finds the
+; oldest, so the first one generated wins.
 ;
 ; Since every numbered line is a definition, scanning for every one would take
-; time proportional to the square of the number of lines, so we keep track of
-; the highest label defined so far (LBL_MAX) and the lowest label that a
-; reference may still be waiting for (LBL_NEXT).  A definition beyond the
-; highest can't be a duplicate, and one below the lowest reference can't
-; resolve anything, so we scan only if neither is true.  genCode resets only
-; LBL_MAX, since an old LBL_NEXT is lowered by every new reference below it,
-; and is at worst too low, which only causes an unnecessary scan.
-;
-; The scan of the code blocks updates LBL_NEXT; the scan of a function block
-; (during a DEF block, which has its own labels) does not, since it can't see
-; the references in the code blocks.
+; time proportional to the square of the number of lines, so we keep a map of
+; the label #s that references are waiting for (see lblBit), and a definition
+; whose bit is clear can't resolve anything, so it needs no scan.  The scan of
+; the code blocks rebuilds the map from the references that are left; the scan
+; of a function block (during a DEF block, which has its own labels, and which
+; is always scanned) doesn't, since it can't see the code blocks' references.
+; We also keep a map of the label #s defined, and the highest label defined so
+; far (LBL_MAX), for findLabel.
 ;
 ; Inputs:
 ;	AX = label #
@@ -916,7 +918,7 @@ ENDPROC	nextBlock
 ;	ES -> current code block
 ;
 ; Outputs:
-;	Carry clear if successful, set if error (eg, duplicate label)
+;	Carry clear
 ;
 ; Modifies:
 ;	AX, CX, DX
@@ -926,30 +928,45 @@ DEFPROC	addLabel
 	push	si
 	mov	dx,ax			; DX = label #
 	mov	cx,es			; CX = current code block
-	mov	si,ss:[PSP_HEAP]
+	call	lblBit			; ES:BX -> its bit, AL = mask
 	test	di,LBL_RESOLVE		; is this a reference?
 	jz	al0			; no
-	cmp	dx,ss:[si+LBL_NEXT]	; the lowest one waiting?
-	jae	al8			; no
-	mov	ss:[si+LBL_NEXT],dx	; yes
-al8:	mov	si,es:[CBLK_REFS]
+	or	es:[bx],al		; yes, so it's waiting for the label
+al8:	mov	es,cx
+	mov	si,es:[CBLK_REFS]
 	sub	si,size LBLREF
 	mov	es:[CBLK_REFS],si
 	mov	es:[si].LBL_NUM,dx
 	mov	es:[si].LBL_IP,di
 	clc
-al7:	mov	es,cx
 	pop	si
 	pop	bx
 	ret
 
-al0:	cmp	dx,ss:[si+LBL_MAX]	; beyond the highest label so far?
+al0:	or	es:[bx+LBL_MAPLEN],al	; the label is defined
+	mov	si,ss:[PSP_HEAP]
+	cmp	dx,ss:[si+LBL_MAX]	; beyond the highest label so far?
 	jbe	al0a			; no
 	mov	ss:[si+LBL_MAX],dx	; yes, so it's the new highest
-	cmp	dx,ss:[si+LBL_NEXT]	; and could it resolve a reference?
-	jb	al8			; no
-al0a:	mov	bx,-1			; BX = lowest reference left (none yet)
-	call	firstBlock		; AX = first block
+al0a:	test	es:[bx],al		; could a reference be waiting for it?
+	mov	es,cx
+	jnz	al0b			; yes
+	cmp	es:[BLK_SIG],SIG_CBLK	; in a code block?
+	je	al8			; yes, so there's nothing to resolve
+al0b:	cmp	es:[BLK_SIG],SIG_CBLK	; are we scanning the code blocks?
+	mov	bx,0			; (BX = 0 if not rebuilding the map)
+	jne	al0c			; no
+	push	cx
+	push	di
+	call	lblBit			; BX = non-zero (rebuilding the map)
+	mov	di,es:[BLK_SIZE]	; ES:DI -> map of references
+	mov	cx,LBL_MAPLEN / 2
+	sub	ax,ax
+	rep	stosw			; (the scan will rebuild it)
+	pop	di
+	pop	cx
+	mov	es,cx
+al0c:	call	firstBlock		; AX = first block
 al1:	mov	es,ax
 	mov	si,es:[CBLK_REFS]
 al2:	cmp	si,es:[BLK_SIZE]	; end of this LBLREF table?
@@ -959,15 +976,20 @@ al2:	cmp	si,es:[BLK_SIZE]	; end of this LBLREF table?
 	je	al3			; yes
 	test	ax,LBL_RESOLVE		; another reference?
 	jz	al4			; no
-	mov	ax,es:[si].LBL_NUM
-	cmp	ax,bx			; the lowest so far?
-	jae	al4			; no
-	xchg	bx,ax			; yes
+	test	bx,bx			; rebuilding the map?
+	jz	al4			; no
+	push	es
+	push	dx
+	push	bx
+	mov	dx,es:[si].LBL_NUM
+	call	lblBit
+	or	es:[bx],al		; it's still waiting for its label
+	pop	bx
+	pop	dx
+	pop	es
 	jmp	short al4
 al3:	test	ax,LBL_RESOLVE		; is this a reference?
-	stc
-	jz	al7			; no, it's a duplicate definition
-	mov	es:[si].LBL_NUM,CTL_DONE; mark the reference resolved
+	jz	al4			; no, an earlier definition
 	push	si
 	push	dx
 	and	ax,NOT LBL_RESOLVE
@@ -977,22 +999,104 @@ al3:	test	ax,LBL_RESOLVE		; is this a reference?
 	call	patchJmp
 	pop	dx
 	pop	si
+	call	removeRef		; the reference is resolved
 al4:	add	si,size LBLREF
 	jmp	al2
 al5:	call	nextBlock
 	test	ax,ax
 	jnz	al1
-	mov	es,cx			; ES = current code block again
-	cmp	es:[BLK_SIG],SIG_CBLK	; did we scan the code blocks?
-	jne	al6			; no
-	mov	si,ss:[PSP_HEAP]
-	mov	ss:[si+LBL_NEXT],bx	; yes, so update the lowest reference
-al6:	jmp	al8
+	jmp	al8
 ENDPROC	addLabel
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; lblBit
+;
+; Finds a label #'s bit in addLabel's maps (see genInit), which have a bit for
+; each value of a label #'s low byte, so a clear bit means that no label # in
+; the map has that low byte.
+;
+; Inputs:
+;	DX = label #
+;
+; Outputs:
+;	ES:BX -> its byte in the map of references (the map of definitions
+;	follows it), AL = its bit
+;
+; Modifies:
+;	AX, BX, ES
+;
+DEFPROC	lblBit
+	push	cx
+	mov	cl,dl
+	and	cl,7
+	mov	al,1
+	shl	al,cl			; AL = bit
+	mov	bl,dl
+	mov	cl,3
+	shr	bl,cl
+	mov	bh,0			; BX = byte
+	mov	cx,ss:[PSP_HEAP]
+	xchg	cx,bx
+	mov	es,ss:[bx].CBLKDEF.BDEF_NEXT
+	xchg	cx,bx
+	add	bx,es:[BLK_SIZE]	; ES:BX -> byte in the first code block
+	pop	cx
+	ret
+ENDPROC	lblBit
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; removeRef
+;
+; Removes a resolved reference, or a FOR or WHILE whose NEXT or WEND has been
+; generated, from its block's LBLREF table, by moving the newer entries (those
+; below it) up over it, so that the scans (eg, addLabel's and findCtl's) see
+; only labels and the references and loops still in progress.  An entry above
+; it (eg, the next one addLabel's scan examines) doesn't move.
+;
+; Inputs:
+;	ES:SI -> LBLREF
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+DEFPROC	removeRef
+	push	cx
+	push	si
+	push	di
+	push	ds
+	push	es
+	pop	ds			; DS:SI -> LBLREF
+	mov	cx,si
+	sub	cx,es:[CBLK_REFS]	; (FBLK_REFS is the same)
+	shr	cx,1			; CX = # words of newer entries
+	lea	di,[si+size LBLREF-2]	; ES:DI -> last word of the LBLREF
+	dec	si
+	dec	si			; DS:SI -> last word of the newer ones
+	std
+	rep	movsw
+	cld
+	add	es:[CBLK_REFS],size LBLREF
+	pop	ds
+	pop	di
+	pop	si
+	pop	cx
+	ret
+ENDPROC	removeRef
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; findLabel
+;
+; A label beyond the highest one defined so far (LBL_MAX; see addLabel), or
+; whose bit in the map of definitions is clear, can't be defined yet, so a
+; forward reference (the usual case) rarely needs a scan.  The code blocks are
+; scanned in order, each from its oldest entry, so if a line # appears twice,
+; the first definition generated is the one we find.
 ;
 ; Inputs:
 ;	AX = label #
@@ -1007,26 +1111,36 @@ ENDPROC	addLabel
 ;
 DEFPROC	findLabel
 	push	si
+	mov	si,ss:[PSP_HEAP]
+	cmp	ax,ss:[si+LBL_MAX]	; beyond the highest label so far?
+	ja	fl5			; yes, so it's a forward reference
 	push	es
+	push	bx
 	mov	dx,ax			; DX = label #
+	call	lblBit			; ES:BX -> its bit, AL = mask
+	test	es:[bx+LBL_MAPLEN],al	; could the label be defined?
+	pop	bx
+	pop	es
+	jz	fl5a			; no
+	push	es
 	call	firstBlock		; AX = first block
 fl1:	mov	es,ax
-	mov	si,es:[CBLK_REFS]
-fl2:	cmp	si,es:[BLK_SIZE]	; end of this LBLREF table?
-	jae	fl4			; yes
+	mov	si,es:[BLK_SIZE]	; (the oldest entries come last)
+fl2:	sub	si,size LBLREF
+	cmp	si,es:[CBLK_REFS]	; start of this LBLREF table?
+	jb	fl4			; yes
 	cmp	es:[si].LBL_NUM,dx	; label # match?
-	jne	fl3			; no
+	jne	fl2			; no
 	mov	ax,es:[si].LBL_IP
 	test	ax,LBL_RESOLVE		; is this a reference?
-	jz	fl8			; no, it's the definition
-fl3:	add	si,size LBLREF
+	jz	fl8			; no, it's the (oldest) definition
 	jmp	fl2
 fl4:	call	nextBlock
 	test	ax,ax
 	jnz	fl1
 	pop	es
-	pop	si
-	xchg	ax,dx			; AX = label #
+fl5a:	xchg	ax,dx			; AX = label #
+fl5:	pop	si
 	push	di
 	or	di,LBL_RESOLVE
 	call	addLabel		; add a reference
@@ -1044,9 +1158,10 @@ ENDPROC	findLabel
 ;
 ; pushCtl
 ;
-; Stores the line # of the FOR or WHILE (for checkCtl), and then pushes a
-; CTL_FOR or CTL_WHILE entry for the loop's body (which follows the line #)
-; onto the code block's LBLREF table.
+; Stores the line # of the FOR or WHILE (for checkCtl) and its line's position
+; (LINE_NUM, for findCtl and genRegion), and then pushes a CTL_FOR or CTL_WHILE
+; entry for the loop's body (which follows them) onto the code block's LBLREF
+; table.
 ;
 ; Inputs:
 ;	AX = CTL_FOR or CTL_WHILE
@@ -1059,10 +1174,13 @@ ENDPROC	findLabel
 ;	AX, CX, DX, SI, DI
 ;
 DEFPROC	pushCtl
-	call	getLineNum		; CX = line #
+	xchg	dx,ax			; DX = CTL_FOR or CTL_WHILE
+	call	getLineNum		; CX = line #, SI -> heap
 	xchg	ax,cx
 	stosw				; store the line #
-	xchg	ax,cx
+	mov	ax,ss:[si].LINE_NUM
+	stosw				; and the line's position
+	xchg	ax,dx			; AX = CTL_FOR or CTL_WHILE
 	mov	dx,di			; DX = offset of the loop's body
 	push	di
 	mov	di,es:[CBLK_REFS]	; (FBLK_REFS is the same)
@@ -1080,10 +1198,14 @@ ENDPROC	pushCtl
 ;
 ; findCtl
 ;
-; Finds the innermost (ie, most recent) open FOR or WHILE.
+; Finds the innermost open FOR or WHILE: the one on the nearest line at or
+; before the current line (and if a line has several, the last one), rather
+; than the last one generated, since lines may be generated out of order (see
+; genRegion).  findCtlAt finds the one nearest the line at position CX.
 ;
 ; Inputs:
 ;	ES -> code block
+;	CX = position (findCtlAt only; 0FFFFh for any line)
 ;
 ; Outputs:
 ;	If carry clear, DX:SI -> LBLREF, AX = CTL_FOR or CTL_WHILE;
@@ -1093,19 +1215,35 @@ ENDPROC	pushCtl
 ;	AX, CX, DX, SI
 ;
 DEFPROC	findCtl
+	mov	si,ss:[PSP_HEAP]
+	mov	cx,ss:[si].LINE_NUM	; CX = the current line's position
+	DEFLBL	findCtlAt,near
 	push	es
+	push	bx
+	push	di
 	sub	dx,dx			; DX = 0 (none found yet)
+	sub	di,di			; DI = position + 1 of the best so far
 	call	firstBlock		; AX = first block
 fc1:	mov	es,ax
-	mov	si,es:[CBLK_REFS]	; (the newest entries come first)
-fc2:	cmp	si,es:[BLK_SIZE]	; end of this LBLREF table?
-	jae	fc4			; yes
+	mov	si,es:[BLK_SIZE]	; (the oldest entries come last)
+fc2:	sub	si,size LBLREF
+	cmp	si,es:[CBLK_REFS]	; start of this LBLREF table?
+	jb	fc4			; yes
 	cmp	es:[si].LBL_NUM,CTL_WHILE; CTL_WHILE or CTL_FOR?
-	jae	fc3			; yes
-	add	si,size LBLREF
+	jb	fc2			; no
+	push	si
+	mov	si,es:[si].LBL_IP
+	mov	ax,es:[si-2]		; AX = its position (see pushCtl)
+	pop	si
+	cmp	ax,cx			; at or before the line?
+	ja	fc2			; no
+	inc	ax
+	cmp	ax,di			; and at or after the best so far?
+	jb	fc2			; no
+	xchg	di,ax			; yes
+	mov	dx,es
+	mov	bx,si			; DX:BX -> best one so far
 	jmp	fc2
-fc3:	mov	dx,es			; DX:CX -> newest one so far
-	mov	cx,si
 fc4:	call	nextBlock
 	test	ax,ax
 	jnz	fc1
@@ -1113,10 +1251,12 @@ fc4:	call	nextBlock
 	stc
 	jz	fc9			; no
 	mov	es,dx
-	mov	si,cx			; DX:SI -> LBLREF
+	mov	si,bx			; DX:SI -> LBLREF
 	mov	ax,es:[si].LBL_NUM
 	clc
-fc9:	pop	es
+fc9:	pop	di
+	pop	bx
+	pop	es
 	ret
 ENDPROC	findCtl
 
@@ -1141,11 +1281,12 @@ ENDPROC	findCtl
 ;
 DEFPROC	checkCtl
 	push	es
-	call	findCtl			; DX:SI -> innermost FOR or WHILE
+	mov	cx,0FFFFh		; (any line)
+	call	findCtlAt		; DX:SI -> innermost FOR or WHILE
 	jc	cct1			; there isn't one
 	mov	es,dx
 	mov	si,es:[si].LBL_IP	; SI = offset of the loop's body
-	mov	cx,es:[si-2]		; CX = line # of the FOR or WHILE
+	mov	cx,es:[si-4]		; CX = line # of the FOR or WHILE
 	inc	ax			; CTL_FOR (0FFFFh)?
 	mov	al,26			; "FOR without NEXT"
 	je	cct0			; yes
@@ -1185,20 +1326,20 @@ crf1:	test	ax,ax			; any more blocks?
 crf2:	cmp	si,es:[BLK_SIZE]	; end of this LBLREF table?
 	jae	crf4			; yes
 	mov	ax,es:[si].LBL_NUM
-	cmp	ax,CTL_DONE		; a resolved reference, FOR, or WHILE?
-	jae	crf3			; yes
 	test	es:[si].LBL_IP,LBL_RESOLVE
 	jnz	crf8			; an unresolved reference
-crf3:	add	si,size LBLREF
+	add	si,size LBLREF
 	jmp	crf2
 crf4:	mov	ax,es:[BLK_NEXT]
 	jmp	crf1
+	DEFLBL	undefLine,near		; (AX = label #; see genRegion)
 crf8:	PRINTF	<"Undefined line number %u",13,10>,ax
 	mov	si,ss:[PSP_HEAP]
 	mov	ss:[si].ERR_CODE,8	; (so genCode reports nothing more)
 	stc
 crf9:	ret
 ENDPROC	checkRefs
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

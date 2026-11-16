@@ -16,6 +16,6 @@ The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 128K of memory,
 
 {% include machine.html id="ibm5150" %}
 
-This demo is also available on an [IBM PC XT](../xt/), an [IBM PC AT](../at/), and a [COMPAQ DeskPro 386](../386/).
+Additional demo configurations: [IBM PC XT](../xt/), [IBM PC AT](../at/), and [COMPAQ DeskPro 386](../386/).
 
 {% include_relative _overview.md hw="pc" %}

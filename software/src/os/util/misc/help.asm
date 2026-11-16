@@ -701,8 +701,10 @@ ENDPROC	printChars
 ;	AX, DX, SI
 ;
 DEFPROC	printSpace
-ps1:	cmp	dl,1			; if current line is almost full
-	jle	skipSpace		; print CRLF and then skip all space
+ps1:	cmp	dl,dh			; more than a line can have (ie, the
+	ja	skipSpace		; last word didn't fit on this one)?
+	cmp	dl,1			; if current line is almost full
+	jbe	skipSpace		; print CRLF and then skip all space
 	lodsb
 	cmp	al,CHR_TAB
 	je	ps2

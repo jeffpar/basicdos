@@ -16,7 +16,7 @@
 	include	devapi.inc
 	include	dosapi.inc
 
-MAXCOLS		equ	80	; maximum screen columns
+MAXCOLS		equ	132	; maximum screen columns (eg, a wide VT100)
 MAXROWS		equ	25	; maximum screen rows
 ERASE_MIN	equ	8	; fewest spaces worth erasing (see putRow)
 MAXNAME		equ	64	; maximum file name length (including null)

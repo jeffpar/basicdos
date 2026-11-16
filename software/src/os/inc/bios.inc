@@ -52,8 +52,10 @@ VIDEO_SCROLLDN	equ	07h	; scroll down (same inputs as VIDEO_SCROLL)
 VIDEO_WRITECA	equ	09h	; AL=char, BL=attr, BH=display page, CX=count
 VIDEO_SETPAL	equ	0Bh	; BH=0: BL=background, BH=1: BL=palette
 VIDEO_TTYOUT	equ	0Eh	; AL=char, BH=display page
+VIDEO_FONT8X8	equ	1112h	; BL=0: load 8x8 font, set rows (EGA and VGA)
 VIDEO_ALTSEL	equ	12h	; BL=function (EGA and VGA only; see VALT_*)
 VALT_EGAINFO	equ	10h	; returns BH=0 if color, BL=memory, CX=switches
+VALT_SCANLINES	equ	30h	; AL=1 for 350 lines, 2 for 400; AL=12h if VGA
 
 MODE_CO80	equ	03h
 MODE_MONO	equ	07h

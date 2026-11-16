@@ -5,17 +5,17 @@ permalink: /demos/term/at/debugger/
 machines:
   - id: vt100
     type: vt100
-    name: DEC VT100 (COM1)
-    title: VT100 Terminal (COM1)
+    name: DEC VT100 Terminal (COM1)
     config: /machines/dec/vt100/vt100.json
+    avo: true
     layout: /_includes/machines/vt100/vt100-display.html
     compiled: true
     connection: serialPort->ibm5170.com1
   - id: vt100b
     type: vt100
-    name: DEC VT100 (COM2)
-    title: VT100 Terminal (COM2)
+    name: DEC VT100 Terminal (COM2)
     config: /machines/dec/vt100/vt100b.json
+    avo: true
     layout: /_includes/machines/vt100/vt100-display.html
     compiled: true
     connection: serialPort->ibm5170.com2

@@ -23,6 +23,7 @@ CODE    SEGMENT
 	EXTNEAR	<enterLine,editPrompt,genUpper,runFile,showPrompt>
 	EXTNEAR	<saveChains,restoreChains,compactStrs>
 	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resSum,resParas>
+	EXTNEAR	<showCursor,hideCursor>
 	EXTNEAR	<initEnv,buildEnv,freeEnv>
 	EXTBYTE	<CMD_PATH,MSG_DRIVE>
 	EXTWORD	<CMD_REFS,CODE_DS,TRANS_SUM>
@@ -1480,7 +1481,8 @@ cf4h:	rep	movsw
 ; If no BAT or BAS file is running, we first free the var blocks (if they're
 ; not being used), so that more (and less fragmented) memory is available.
 ;
-cf5:	cmp	[bp].CBLKDEF.BDEF_NEXT,0; is a program running?
+cf5:	call	showCursor		; (if a BAS program hid it)
+	cmp	[bp].CBLKDEF.BDEF_NEXT,0; is a program running?
 	jne	cf5x			; yes
 	push	cx
 	push	si
@@ -1603,7 +1605,10 @@ cf8:	mov	dx,word ptr [bp].SFH_STDIN
 	call	openError		; report error (AX) opening file (SI)
 	jmp	short cf9a		; (carry is set)
 cf9:	clc
-cf9a:	pop	bp
+cf9a:	pushf
+	call	hideCursor		; (if a BAS program is still running)
+	popf
+	pop	bp
 	ret
 ENDPROC	cmdFile
 
@@ -2062,6 +2067,7 @@ ru1:	mov	dx,offset runFile
 	xchg	dx,ax
 	pop	ax
 	push	dx
+	call	hideCursor		; (as MSBASIC does while a program runs)
 	sub	si,si
 	call	genCode			; (see genInit)
 	pop	dx

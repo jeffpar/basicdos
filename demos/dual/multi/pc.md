@@ -18,6 +18,6 @@ The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 256K of memory,
 
 Use **SHIFT-TAB** to move keyboard focus from one console to the next.
 
-This demo is also available on an [IBM PC XT](../xt/), an [IBM PC AT](../at/), and a [COMPAQ DeskPro 386](../386/).
+Additional demo configurations: [IBM PC XT](../xt/), [IBM PC AT](../at/), and [COMPAQ DeskPro 386](../386/).
 
 {% include_relative _overview.md hw="pc" %}

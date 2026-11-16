@@ -209,7 +209,8 @@ dci3a:	push	dx			; save DX
 ; there are 1193180/65536 ticks/sec, so 1193180/65536 * seconds = ticks.
 ; Seconds has an upper limit of 86400 for the day, so ticks has an upper
 ; limit of 1573040.  Using the ratio 1573040/86400 = ticks/seconds, solve
-; for ticks: 1573040 * seconds / 86400, or 19663 * seconds / 1080.
+; for ticks: 1573040 * seconds / 86400, or 19663 * seconds / 1080; with
+; hundredths, ticks = 19663 * hundredths / 108000.
 ;
 	shr	dx,1			; DX:BX / 2 yields a max 43200
 	rcr	bx,1			; BX = seconds / 2
@@ -226,50 +227,40 @@ dci3a:	push	dx			; save DX
 	sub	dx,dx			; DX:AX is new dividend
 	div	bx			; AX is high quotient
 	xchg	ax,cx			; move to CX, restore low dividend
-	div	bx			; AX is low quotient
+	div	bx			; CX:AX = # ticks, DX = remainder
 
 	IFDEF MAXDEBUG
 	DPRINTF	<"initial number of ticks: %lu\r\n">,ax,cx
 	DPRINTF	<"with remainder of %d after division by %u\r\n">,dx,bx
 	ENDIF
 ;
-; CX:AX = quotient (# ticks).  DX/540 is a fractional tick, which we convert
-; to hundredths and add to the hundredths adjustment below.
+; The remainder (DX/540 ticks) and the hundredths (plus 100 for an odd second)
+; add (DX * 200 + hundredths * 19663) / 108000 ticks, which is less than 38.
 ;
-	push	ax
-	xchg	ax,dx
-	mov	dl,100
-	div	dl
-	xchg	bx,ax			; BL = additional hundredths
-	mov	dx,cx
-	pop	cx			; DX:CX = tick count
-
-	IFDEF MAXDEBUG
-	DPRINTF	<"hundredths for fractional tick: %bu\r\n">,bx
-	ENDIF
-
+	xchg	bx,dx			; BX = remainder
 	popf				; did seconds / 2 produce a remainder?
+	pop	dx			; DL = hundredths (from original DX)
+	mov	dh,0
 	jnc	dci3b			; no
-	add	bl,100			; yes, add another 100 hundredths
-
-	IFDEF MAXDEBUG
-	DPRINTF	<"hundredths for additional second: %u\r\n">,bx
-	ENDIF
-
-dci3b:	pop	ax			; AL = hundredths (from original DX)
-	add	al,bl			; add any hundredths from above
-
-	IFDEF MAXDEBUG
-	DPRINTF	<"total hundredths: %bu\r\n">,ax
-	ENDIF
-
-	mov	ah,18
-	mul	ah			; AX = hundredths * 18
-	mov	bl,100
-	div	bl			; AL = (hundredths * 18) / 100
-	cbw				; AX = # ticks for hundredths
+	add	dl,100			; yes, add another 100 hundredths
+dci3b:	push	cx
+	push	ax			; save # ticks
+	mov	ax,19663
+	mul	dx			; DX:AX = hundredths * 19663
+	xchg	ax,bx			; AX = remainder
+	mov	cx,dx			; CX:BX = hundredths * 19663
+	mov	dx,200
+	mul	dx			; DX:AX = remainder * 200
+	add	ax,bx
+	adc	dx,cx
+	shr	dx,1
+	rcr	ax,1
+	mov	bx,54000
+	div	bx			; AX = ticks to add
+	pop	cx
 	add	cx,ax
-	adc	dx,0			; DX:CX += ticks for hundredths
+	pop	dx
+	adc	dx,0			; DX:CX = tick count
 
 	IFDEF	MAXDEBUG
 	DPRINTF	<"new tick count: %lu\r\n">,cx,dx
@@ -312,11 +303,13 @@ dci5:	cmp	al,IOCTL_GETTIME
 ;	 H  H  H  H  H  M  M  M  M  M  M  S  S  S  S  S
 ;	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
 ;
-; where H = hours (1-12), M = minutes (0-59), and S = seconds / 2 (0-29)
+; where H = hours (0-23), M = minutes (0-59), and S = seconds / 2 (0-29),
+; along with hundredths (< 200, since the packed time has only even seconds).
 ;
-; However, we must first convert # ticks to hours/minutes/seconds.  There
-; are approximately 32771 ticks per half-hour, 1092 ticks per minute, and 18
-; ticks per sec.
+; However, we must first convert # ticks to # seconds.  There are 1573040
+; ticks per day, so # seconds = ticks * 86400 / 1573040, or ticks * 1080 /
+; 19663.  The tick count is less than 1573040 (0018:00B0), so ticks * 1080
+; fits in 32 bits, and the remainder of the division gives the hundredths.
 ;
 	cli
 	mov	ax,[ticksToday].LOW
@@ -326,92 +319,55 @@ dci5:	cmp	al,IOCTL_GETTIME
 	IFDEF	MAXDEBUG
 	DPRINTF	<"current tick count: %lu\r\n">,ax,dx
 	ENDIF
-;
-; TODO: the true divisor is 32771.66748046875, so the remainder may be too
-; large; this appears to be good enough for now, but deal with it eventually.
-;
-	mov	bx,32772
-	div	bx			; AX = # half-hours
-	shr	ax,1			; AX = # hours
-	xchg	cx,ax			; CL = # hours
-	xchg	ax,dx			; AX = # half-hour ticks remaining
-	mov	dx,0			; DX:AX
-	jnc	dci5a
-	add	ax,32772		; DX:AX = # ticks remaining
-	adc	dx,0
 
-dci5a:	mov	bx,1092
-	div	bx			; AX = # minutes
+	mov	cx,1080
+	xchg	bx,ax			; BX = low ticks
+	xchg	ax,dx			; AX = high ticks (< 18h)
+	mul	cx			; AX = high ticks * 1080
+	xchg	ax,bx			; BX = high product, AX = low ticks
+	mul	cx
+	add	dx,bx			; DX:AX = ticks * 1080
 ;
-; The true divisor is 1092.388916015625, so the remainder may be too large;
-; multiply AX (# of minutes) by 3889 and divide by 10000 to yield the number
-; of ticks to reduce the remainder (DX) by.
+; Divide DX:AX by 19663 in stages, since the quotient can exceed 16 bits.
 ;
+	mov	bx,19663
+	xchg	cx,ax			; save low dividend
+	xchg	ax,dx			; divide high dividend (< 8000h)
+	cwd				; DX:AX is new dividend
+	div	bx			; AX is high quotient
+	xchg	ax,cx			; move to CX, restore low dividend
+	div	bx			; CX:AX = # seconds, DX = remainder
+	push	cx
 	push	ax
-	push	dx
-	mov	bx,3889
-	mul	bx
-	mov	bx,10000
-	div	bx
+	xchg	ax,dx
+	mov	cx,100
+	mul	cx
+	div	bx			; AX = hundredths (< 100)
+	pop	bx
 	pop	dx
-	sub	dx,ax
-	jae	dci5b
-	sub	dx,dx
-dci5b:	pop	ax
-
-	mov	ch,al			; CH = # minutes
-	xchg	ax,dx			; AX = # ticks remaining
-	mov	bx,10
-	mul	bx			; DX:AX = # ticks * 10
-	mov	bx,182
-	div	bx			; AX = # seconds
-	push	dx			; DX = # ticks * 10 remaining (< 182)
-;
-; Sanitize the time values now, ensuring we never return values out of bounds.
-;
-	cmp	al,60			; AL = # seconds
-	jb	dci6
-	mov	al,0
-	inc	ch
-dci6:	cmp	ch,60			; CH = # minutes
-	jb	dci6b
-	mov	ch,0
-	inc	cx
-dci6b:	cmp	cl,24			; CL = # hours
-	jb	dci7
-	mov	cl,0
+	xchg	ax,bx			; DX:AX = # seconds, BX = hundredths
+	mov	cx,3600
+	div	cx			; AX = # hours, DX = # seconds left
+	xchg	ax,dx			; DX = # hours
+	mov	cl,60
+	div	cl			; AL = # minutes, AH = # seconds
 ;
 ; Create the "packed" time format now.
 ;
-dci7:	mov	dl,cl			; start with hours (5 bits)
 	mov	cl,6			; make room for minutes (6 bits)
 	shl	dx,cl
-	or	dl,ch			; add the minutes
+	or	dl,al			; add the minutes
 	dec	cx			; make room for seconds / 2 (5 bits)
 	shl	dx,cl
-	pop	cx			; CX = # ticks remaining (from above)
-	shr	al,1			; AL = seconds / 2
-	jnc	dci7a
-	add	cx,182
-dci7a:	or	dl,al
-	xchg	ax,cx			; AX = # ticks remaining (< 364)
-;
-; At this point, the packed result is ready, but we'd also like to convert
-; the remaining ticks in AX to hundredths (< 200).  AX/364 = N/200.  We return
-; up to 200 hundredths to compensate for the "packed" time containing only
-; the nearest EVEN second.
-;
-	push	dx
-	mov	cx,200
-	mul	cx			; DX:AX = AX * 200
-	mov	cx,364
-	div	cx			; AX = (AX * 200) / 364
-	pop	dx
+	shr	ah,1			; AH = seconds / 2
+	jnc	dci7
+	add	bl,100			; return an odd second as hundredths
+dci7:	or	dl,ah
 ;
 ; dev_request returns AX = the # bytes "transferred" (the original length less
 ; the remaining length), so that's how we return the hundredths.
 ;
-	sub	es:[di].DDPRW_LENGTH,ax
+	sub	es:[di].DDPRW_LENGTH,bx
 
 dci8:	mov	es:[di].DDP_CONTEXT,dx	; return value goes in context field
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE

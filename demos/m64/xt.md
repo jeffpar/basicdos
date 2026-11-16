@@ -21,6 +21,6 @@ Unlike the 64K version of this demo, there's room for all of COMMAND.COM and the
 
 Any changes you make to the hard disk are lost when you leave the page, unless you first click **Save HD** to download the hard disk as an IMG file.
 
-This demo is also available on an [IBM PC](../pc/) with 64K and no hard disk.
+Additional demo configurations: [IBM PC](../pc/) with 64K and no hard disk.
 
 {% include_relative _overview.md hw="xt" %}

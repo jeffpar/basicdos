@@ -15,7 +15,7 @@
     {
       "type": "shell",
       "label": "gulp watch",
-      "command": "node_modules/.bin/gulp watch",
+      "command": "node_modules/.bin/gulp watch -L",
       "problemMatcher": [],
       "presentation": {
         "echo": true,

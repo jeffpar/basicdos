@@ -7,7 +7,6 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	BIOSKEY equ 1
 	CLKTIMER equ 1
 	DOSFUNC equ 1
 	include	macros.inc
@@ -60,6 +59,8 @@ ENDPROC	ddcom_req
 
 	EXTNEAR	<alloc_sys,alloc_plane,free_ctx,get_shadow,paint,con_opt>
 	EXTNEAR	<shadow_put,shadow_erase,shadow_scroll,switch_to,switch_now>
+	EXTNEAR	<get_len,set_color,set_mode,move_cur,scroll_lines>
+	EXTNEAR	<raw_input,push_key>
 
 	DEFLBL	CMDTBL,word
 	dw	ddcom_none,   ddcom_none,   ddcom_none,   ddcom_ioctl	; 0-3
@@ -86,13 +87,14 @@ ENDPROC	ddcom_req
 	db	CHR_RETURN,CHR_LINEFEED,0
 	DEFLBL	ANSI_CSI,byte
 	db	CHR_ESCAPE,"[",0	; "control sequence introducer"
-	DEFLBL	ANSI_RINDEX,byte
-	db	CHR_ESCAPE,"M",0	; reverse index (scrolls down at the top)
-	DEFLBL	ANSI_RESET,byte
-	db	CHR_ESCAPE,"[0",0	; start of "select graphic rendition"
 	DEFLBL	VT100_INIT,byte
+	db	VT100_SI,CHR_ESCAPE,"[m"; G0, and no attributes
+	db	CHR_ESCAPE,"[?3l"	; 80 columns (which clears the screen)
 	db	CHR_ESCAPE,"[?7h"	; enable auto-wrap (off by default)
-	db	CHR_ESCAPE,")0",0	; G1 = special graphics (see VT100_GFX)
+	db	CHR_ESCAPE,")0"		; G1 = special graphics (see VT100_GFX)
+	db	CHR_ESCAPE,"[c",0	; report device attributes (see rb6)
+	DEFLBL	VT100_WIDE,byte
+	db	CHR_ESCAPE,"#6",0	; make the cursor's row double-width
 ;
 ; The VT100 special graphics characters for the PC's line-drawing characters
 ; (B0h-DFh): double lines become single lines, and the shaded and solid blocks
@@ -103,10 +105,7 @@ ENDPROC	ddcom_req
 	db	"aaaxuuukkuxkjjjk"	; B0h-BFh
 	db	"mvwtqnttmlvwtqnv"	; C0h-CFh
 	db	"vwwmmllnnjlaaaaa"	; D0h-DFh
-	DEFLBL	ANSI_COLORS,byte	; PC color # to ANSI color #
-	db	0,4,2,6,1,5,3,7		; (ie, swap the red and blue bits)
 
-ESC_MS		equ	110	; how long to hold an ESC (raw keys)
 ;
 ; The key that gives the focus to a port's next console (see push_input),
 ; unless CONFIG.SYS has a HOTKEY setting (HOT_KEY): CTRL-\ (ASCII FS), since
@@ -280,10 +279,22 @@ dcw8:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
 	ret
 
 dcw4:	mov	al,[si]
-	call	write_context
+;
+; Output on the row past the last one (see IOCTL_SETPOS) is ignored, except
+; for RETURN, and LINEFEED, which also puts the cursor on the last row again.
+;
+	mov	ah,es:[CT_ROWS]
+	cmp	es:[CT_ROW],ah
+	jb	dcw5
+	cmp	al,CHR_RETURN
+	je	dcw5
+	cmp	al,CHR_LINEFEED
+	jne	dcw6
+	dec	es:[CT_ROW]
+dcw5:	call	write_context
 	jc	dcw3a
 	call	update_col		; update CT_COL for the char in AL
-	inc	si
+dcw6:	inc	si
 	loop	dcw4
 	pop	es
 ;
@@ -307,7 +318,8 @@ ENDPROC	ddcom_write
 ; them by tracking the terminal's current column (CT_COL) as data is written,
 ; so that the editor sees consistent cursor positions and display lengths.
 ;
-; We don't know the terminal's dimensions, so we assume TERM_COLS by TERM_ROWS;
+; We don't know the terminal's dimensions, so we assume TERM_COLS by TERM_ROWS
+; (or for a VT100, whatever IOCTL_SETMODE last set; see CT_COLS and CT_ROWS);
 ; the column isn't reset when a line wraps, but the row is advanced.
 ;
 ; An IOCTL's output is often a sequence, which a focus switch must not cut
@@ -381,6 +393,10 @@ DEFPROC	ioctl_cmd
 	je	dio0d
 	cmp	al,IOCTL_SETKEYS
 	je	dio0e
+	cmp	al,IOCTL_GETMODE
+	je	dio0k
+	cmp	al,IOCTL_SETMODE
+	je	dio0l
 	cmp	al,IOCTL_COMDEBUG
 	jne	dio8a
 	jmp	dio0c			; (see below)
@@ -388,10 +404,13 @@ dio8a:	pop	cx
 	jmp	ddcom_none		; unsupported IOCTL
 dio0d:	jmp	dio10
 dio0e:	jmp	dio11
+dio0k:	jmp	dio13
+dio0l:	jmp	dio12
 ;
 ; IOCTL_GETDIM: return the (assumed) terminal dimensions.
 ;
-dio0:	mov	dx,(TERM_ROWS SHL 8) OR TERM_COLS
+dio0:	mov	dx,word ptr ds:[CT_COLS]
+	ASSERT	<CT_ROWS>,EQ,<CT_COLS + 1>
 	jmp	short dio7
 ;
 ; IOCTL_INSTATUS: return the number of bytes waiting in CT_INPUT (zero if
@@ -410,9 +429,14 @@ dio0g:	mov	si,offset CT_INPUT
 dio0a:	mov	dx,ds:[CT_COLOR]
 	jmp	short dio7
 ;
-; IOCTL_SETCOLOR: set the fill (CL) and border (CH) attributes.
+; IOCTL_SETCOLOR: set the fill (CL) and border (CH) attributes; only the
+; bits in DL and DH are set (the other bits keep their current values).
 ;
-dio0b:	call	set_color
+dio0b:	mov	ax,ds:[CT_COLOR]
+	xor	cx,ax
+	and	cx,dx
+	xor	cx,ax			; CX = attributes with those bits set
+	call	set_color
 	jc	dio9			; wait interrupted (DDP_STATUS set)
 	jmp	short dio4
 ;
@@ -465,18 +489,38 @@ dio9:	pop	cx			; CX = context
 ; IOCTL_SETPOS: ANSI terminals get the "cursor position" sequence (the cursor
 ; visibility in DL is ignored), followed by "erase in line" if DH = 1, which
 ; erases from the cursor to the end of the row; GENERIC terminals don't
-; support it.
+; support it.  A col (CL) or row (CH) of -1 keeps the current col or row.
+; A position that can't be set is a DDERR_SEEK error.
+;
+; The row past the last one is allowed too, so that a program written for
+; 25 rows (eg, LOCATE 25,1) still runs: the cursor waits on the last row, and
+; whatever is written before the next move is ignored (see ddcom_write).
 ;
 dio10:	cmp	ds:[CT_TERM],TERM_GENERIC
 	je	dio10a
-	cmp	cl,TERM_COLS		; is the position outside the terminal?
+	cmp	cl,-1			; keep the current col?
+	jne	dio10d			; no
+	mov	cl,ds:[CT_COL]
+dio10d:	cmp	ch,-1			; keep the current row?
+	jne	dio10e			; no
+	mov	ch,ds:[CT_ROW]
+dio10e:	cmp	cl,ds:[CT_COLS]		; is the col past the last one?
 	jae	dio10a			; yes
-	cmp	ch,TERM_ROWS
-	jae	dio10a
+	cmp	ch,ds:[CT_ROWS]		; (or below the row past the last one)
+	ja	dio10a
+	push	cx
 	push	dx
-	call	set_pos
-	pop	dx
+	jb	dio10c
+	dec	ch			; the cursor waits on the last row
+dio10c:	call	set_pos
+	jc	dio10f
+	call	wide_row		; (so the cursor is where it should be)
+dio10f:	pop	dx
+	pop	cx
 	jc	dio9			; wait interrupted (DDP_STATUS set)
+	mov	ds:[CT_ROW],ch
+	cmp	ch,ds:[CT_ROWS]		; is there a row to erase?
+	je	dio10b			; no
 	dec	dh			; erase to the end of the row?
 	jnz	dio10b			; no
 	mov	al,ch			; (set_pos preserved CX)
@@ -485,17 +529,54 @@ dio10:	cmp	ds:[CT_TERM],TERM_GENERIC
 	call	csi_out
 	jc	dio9
 dio10b:	jmp	dio4
-dio10a:	jmp	dio8a
+dio10a:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_SEEK
+	stc
+	jmp	dio9
 ;
 ; IOCTL_SETKEYS: in raw keys mode, CTRLC and CTRLS are just keys, rather than
 ; hotkeys, and an ANSI terminal's keys are translated, too (see push_input).
 ;
 dio11:	and	ds:[CT_STATUS],NOT CTSTAT_RAWKEYS
 	call	end_esc			; discard any partial escape sequence
-	test	cl,cl			; raw keys requested?
+	test	cl,1			; raw keys requested (bit 0)?
 	jz	dio11a			; no
 	or	ds:[CT_STATUS],CTSTAT_RAWKEYS
 dio11a:	jmp	dio4
+;
+; IOCTL_GETMODE: a VT100 is in "video mode" 3 (80 columns), 1 (40 columns),
+; or MODE_WIDE (132 columns; see set_mode).  That's all we report (CL = 0),
+; and only for a VT100.
+;
+dio13:	cmp	ds:[CT_TERM],TERM_VT100
+	jne	dio13a
+	test	cl,cl			; is it the mode they want?
+	jnz	dio13a			; no
+	mov	dx,MODE_WIDE
+	mov	al,ds:[CT_COLS]
+	cmp	al,WIDE_COLS
+	je	dio13b
+	cmp	al,TERM_COLS
+	cmc				; carry set if 80 columns
+	mov	dl,0
+	adc	dl,dl
+	stc
+	adc	dl,dl			; DL = 3 if 80 columns, 1 if 40
+dio13b:	jmp	dio7
+dio13a:	jmp	dio8a
+;
+; IOCTL_SETMODE: see set_mode, which a machine with 64K or less doesn't keep
+; (see con_opt), so it has no modes to set.
+;
+dio12:	mov	ax,BIOS
+	push	es
+	mov	es,ax
+	ASSUME	ES:BIOS
+	cmp	es:[MEMORY_SIZE],64
+	ASSUME	ES:NOTHING
+	pop	es
+	jbe	dio13a
+	call	set_mode
+	jmp	dio6b
 ;
 ; IOCTL_COMDEBUG: the kernel has verified that the caller's handle has
 ; exclusive access (MODE_DENY_RW), so it's the only reference to this context;
@@ -543,155 +624,6 @@ ENDPROC	ioctl_cmd
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; get_len
-;
-; Inputs:
-;	CL = number of bytes
-;	DL = starting column
-;	ES:DI -> DDPRW (DDPRW_ADDR -> bytes)
-;
-; Outputs:
-;	DH = total display length, DL = length delta (of the final character)
-;
-; Modifies:
-;	AX, BX, CX, DX, SI
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	get_len
-	mov	bl,dl			; BL = current column
-	sub	dx,dx			; DL = current len, DH = previous len
-	mov	ch,0
-	jcxz	gl9
-	push	ds
-	lds	si,es:[di].DDPRW_ADDR
-gl1:	lodsb
-	mov	dh,dl			; current len -> previous len
-	mov	ah,1			; AH = # display columns
-	cmp	al,CHR_TAB
-	jne	gl2
-	mov	ah,bl			; TAB advances to the next multiple of 8
-	and	ah,07h
-	neg	ah
-	add	ah,8
-	jmp	short gl3
-gl2:	cmp	al,CHR_SPACE		; CONTROL character?
-	jae	gl3			; no
-	inc	ah			; yes, add 1 for the presumed "^"
-gl3:	add	bl,ah			; advance the column
-	add	dl,ah			; advance the length
-	loop	gl1
-	pop	ds
-	sub	dl,dh			; DL = length delta for final character
-	add	dh,dl			; DH = total length
-gl9:	ret
-ENDPROC	get_len
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; move_cur
-;
-; Moving left is done with BACKSPACEs.  There's no ASCII equivalent for moving
-; right, so ANSI terminals get the "cursor forward" sequence, and GENERIC
-; terminals get the characters from CT_LINE (ie, what should already be there).
-;
-; Inputs:
-;	CX = +/- columns to move
-;	DS = context
-;	ES:DI -> DDPRW
-;
-; Outputs:
-;	Carry clear if successful, set if interrupted (DDP_STATUS updated)
-;
-; Modifies:
-;	AX, BX, CX, DX, SI
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	move_cur
-	test	cx,cx
-	jz	mc9
-	jg	mc3
-	neg	cx			; CX = # columns to move left
-mc1:	cmp	ds:[CT_COL],0		; already at the left edge?
-	je	mc9			; yes
-	mov	al,CHR_BACKSPACE
-	call	ioctl_out
-	jc	mc8
-	dec	ds:[CT_COL]
-	loop	mc1
-	jmp	short mc9
-
-mc3:	cmp	ds:[CT_TERM],TERM_GENERIC
-	je	mc5
-	mov	al,'C'			; "cursor forward"
-	call	csi_out
-	jc	mc9a
-	jmp	short mc7
-
-mc5:	mov	bl,ds:[CT_COL]
-	mov	bh,0
-	mov	al,CHR_SPACE		; beyond the end of the line, use SPACE
-	cmp	bl,ds:[CT_LLEN]
-	jae	mc6
-	mov	al,ds:[CT_LINE][bx]
-mc6:	call	ioctl_out
-	jc	mc8
-mc7:	inc	ds:[CT_COL]
-	loop	mc3
-
-mc9:	clc
-mc9a:	ret
-mc8:	jmp	ioctl_fault
-ENDPROC	move_cur
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; scroll_lines
-;
-; Scrolls an ANSI terminal's scrolling rows up (by sending LINEFEEDs at the
-; last one) or down (by sending "reverse index" sequences at the first one).
-; The cursor is left on that row.
-;
-; Inputs:
-;	CX = +/- lines to scroll (non-zero)
-;	DS = context
-;	ES:DI -> DDPRW
-;
-; Outputs:
-;	Carry clear if successful, set if interrupted (DDP_STATUS updated)
-;
-; Modifies:
-;	AX, BX, CX, DX, SI
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	scroll_lines
-	push	cx
-	test	cx,cx			; scrolling up?
-	mov	cl,0
-	mov	ch,ds:[CT_BOT]		; yes, from the last row
-	jns	sl1
-	mov	ch,ds:[CT_TOP]		; no, from the first row
-sl1:	cmp	ch,ds:[CT_ROW]		; is the cursor on that row already?
-	je	sl1a			; yes (the column doesn't matter)
-	call	set_pos
-sl1a:	pop	cx
-	jc	sl9
-sl2:	test	cx,cx			; (the sign is shadow_scroll's input)
-	call	scroll_shadow
-	js	sl3
-	mov	al,CHR_LINEFEED
-	call	ioctl_out
-	dec	cx
-	jmp	short sl4
-sl3:	mov	si,offset ANSI_RINDEX
-	call	ioctl_str
-	inc	cx
-sl4:	jc	ioctl_fault
-	jnz	sl2
-sl9:	ret
-ENDPROC	scroll_lines
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; set_rows
 ;
 ; Sets an ANSI terminal's scrolling rows (with the "set top and bottom
@@ -715,7 +647,7 @@ DEFPROC	set_rows
 	je	srw8
 	mov	cx,dx
 	xchg	cl,ch			; CH = first row, CL = last row + 1
-	cmp	cl,TERM_ROWS		; do the rows end below the terminal?
+	cmp	cl,ds:[CT_ROWS]		; do the rows end below the terminal?
 	ja	srw8			; yes
 	sub	cl,1			; CL = last row
 	jc	srw8			; (there wasn't one)
@@ -784,12 +716,43 @@ ENDPROC	set_pos
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; wide_row
+;
+; Makes the cursor's row double-width, if it needs to be (see wide_reset), on
+; behalf of an IOCTL request (or a repaint).
+;
+; Inputs:
+;	CH = cursor's row
+;	DS = context
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;	Carry clear if successful, set if interrupted (DDP_STATUS updated)
+;
+; Modifies:
+;	AX, BX, DX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	wide_row
+	mov	bl,ch
+	mov	bh,0
+	cmp	ds:[CT_WIDE][bx],bh	; does the row need it?
+	jne	wr9			; no (and carry is clear)
+	inc	ds:[CT_WIDE][bx]
+	mov	si,offset VT100_WIDE
+	call	ioctl_str
+	jc	ioctl_fault
+wr9:	ret
+ENDPROC	wide_row
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; ioctl_num
 ;
 ; Outputs a zero-based row or column as an ANSI (one-based) parameter.
 ;
 ; Inputs:
-;	AL = row or column (0-98)
+;	AL = row or column (0-254)
 ;	DS = context
 ;	ES:DI -> DDPRW
 ;
@@ -802,14 +765,13 @@ ENDPROC	set_pos
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ioctl_num
 	inc	ax
-	aam				; AH = tens digit, AL = ones digit
+ion1:	aam				; AH = AL / 10, AL = the last digit
 	push	ax
-	test	ah,ah			; is there a tens digit?
-	jz	ion1			; no
 	mov	al,ah
-	add	al,'0'
-	call	ioctl_out
-ion1:	pop	ax
+	test	al,al			; any digits before it?
+	jz	ion2			; no (and carry is clear)
+	call	ion1			; yes, so they go first
+ion2:	pop	ax
 	jc	ion9
 	add	al,'0'
 	call	ioctl_out
@@ -846,17 +808,18 @@ DEFPROC	clear_screen
 ; first one; if they reach the bottom of the terminal, then one "erase in
 ; display" from the first row erases them all.
 ;
-clr1:	mov	cl,0
+clr1:	call	wide_reset		; ("erase in display" does that, too)
+	mov	cl,0
 	mov	ch,ds:[CT_TOP]
 	mov	al,ds:[CT_BOT]
 	call	erase_shadow		; erase the shadow's rows, too
-	cmp	al,TERM_ROWS-1
+	call	bot_last
 	je	clr2
 	mov	ch,al
 clr2:	call	set_pos
 	jc	clr8
 	mov	al,'J'			; "erase in display" (to its end)
-	cmp	ds:[CT_BOT],TERM_ROWS-1
+	call	bot_last
 	je	clr3
 	mov	al,'K'			; "erase in line" (to its end)
 clr3:	call	csi_out
@@ -867,168 +830,12 @@ clr3:	call	csi_out
 clr9:	mov	ds:[CT_LLEN],0
 	clc
 clr8:	ret
+	DEFLBL	bot_last,near		; (zero set if CT_BOT is the last row)
+	mov	ah,ds:[CT_ROWS]
+	dec	ah
+	cmp	ah,ds:[CT_BOT]
+	ret
 ENDPROC	clear_screen
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; set_color
-;
-; Records the new attributes, and for ANSI terminals, sends the corresponding
-; "select graphic rendition" sequence for the fill attributes (ie, foreground
-; color in bits 0-2, intensity in bit 3, background color in bits 4-6, and
-; blink in bit 7).  The default attributes (07h) simply reset the terminal to
-; its own defaults.  The border attributes are ignored.
-;
-; A VT100 has no colors, so it gets the attributes that an MDA displays for
-; them instead: black on white is reverse video, and a "blue" foreground is
-; underlined.  Without its Advanced Video Option, a VT100 has only one of
-; those (whichever its SET-UP cursor selects), and neither bold nor blink.
-;
-; Inputs:
-;	CL = fill attributes
-;	CH = border attributes
-;	DS = context
-;	ES:DI -> DDPRW
-;
-; Outputs:
-;	Carry clear if successful, set if interrupted (DDP_STATUS updated)
-;
-; Modifies:
-;	AX, BX, DX, SI
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	set_color
-	mov	ds:[CT_COLOR],cx
-;
-; The first color that isn't the default gives a console with a shadow a
-; second one, for attributes (if there's no memory for it, a repaint just
-; won't have any).
-;
-	cmp	cl,07h			; default attributes?
-	je	sgr_out			; yes
-	cmp	ds:[CT_SHADOW],0	; is there a shadow?
-	je	sgr_out			; no
-	cmp	ds:[CT_ATTRS],0		; with attributes already?
-	jne	sgr_out			; yes
-	mov	al,07h
-	call	alloc_plane		; AX = segment
-	jc	sgr_out
-	mov	ds:[CT_ATTRS],ax
-	DEFLBL	sgr_out,near		; (CL = attributes; see paint)
-	cmp	ds:[CT_TERM],TERM_GENERIC
-	je	stc9			; nothing to send (carry clear)
-	mov	si,offset ANSI_RESET
-	call	ioctl_str		; ESC [ 0
-	jc	stc8
-	cmp	ds:[CT_TERM],TERM_VT100
-	je	stc2
-	cmp	cl,07h			; default attributes?
-	je	stc7			; yes, so the reset is all we need
-	mov	ah,'3'			; foreground color
-	mov	al,cl
-	call	ansi_color
-	jc	stc8
-	mov	ah,'4'			; background color
-	mov	al,cl
-	shr	al,1
-	shr	al,1
-	shr	al,1
-	shr	al,1
-	call	ansi_color
-	jmp	short stc4
-
-stc2:	mov	ah,cl
-	and	ah,77h			; AH = colors
-	cmp	ah,70h			; black on white?
-	jne	stc3			; no
-	mov	al,'7'			; reverse video
-	call	sgr_parm
-	jc	stc8
-stc3:	and	ah,07h
-	dec	ah			; "blue" foreground?
-	jnz	stc5			; no
-	mov	al,'4'			; underline
-	call	sgr_parm
-stc4:	jc	stc8
-stc5:	test	cl,08h			; intensity bit set?
-	jz	stc6			; no
-	mov	al,'1'			; bold (aka bright)
-	call	sgr_parm
-	jc	stc8
-stc6:	test	cl,cl			; blink bit set?
-	jns	stc7			; no
-	mov	al,'5'			; blink
-	call	sgr_parm
-	jc	stc8
-stc7:	mov	al,'m'
-	call	ioctl_out
-	jc	stc8
-stc9:	ret
-stc8:	jmp	ioctl_fault
-ENDPROC	set_color
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; ansi_color
-;
-; Sends ";" followed by the prefix and the ANSI color # for a PC color #.
-;
-; Inputs:
-;	AH = prefix ('3' for foreground, '4' for background)
-;	AL = PC color # (in bits 0-2)
-;	DS = context
-;	ES:DI -> DDPRW
-;
-; Outputs:
-;	Carry clear if successful, set if the wait was interrupted
-;
-; Modifies:
-;	AX, BX, DX, SI
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	ansi_color
-	and	al,07h
-	mov	bl,al
-	mov	bh,0
-	mov	bl,cs:ANSI_COLORS[bx]	; BL = ANSI color #
-	push	bx
-	mov	al,ah
-	call	sgr_parm		; ";" and prefix
-	pop	bx
-	jc	ac9
-	mov	al,bl
-	add	al,'0'
-	call	ioctl_out		; color #
-ac9:	ret
-ENDPROC	ansi_color
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; sgr_parm
-;
-; Sends ";" followed by the character in AL.
-;
-; Inputs:
-;	AL = character
-;	DS = context
-;	ES:DI -> DDPRW
-;
-; Outputs:
-;	Carry clear if successful, set if the wait was interrupted
-;
-; Modifies:
-;	BX, DX, SI
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	sgr_parm
-	push	ax
-	mov	al,';'
-	call	ioctl_out
-	pop	ax
-	jc	sg9
-	call	ioctl_out
-sg9:	ret
-ENDPROC	sgr_parm
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1140,7 +947,7 @@ uc3:	cmp	al,CHR_CTRLG		; BELL?
 	cmp	al,CHR_TAB
 	jne	uc4
 	or	bl,07h			; advance to the next multiple of 8
-	inc	bl
+	inc	bx
 	jmp	short uc8
 uc4:	mov	ah,al
 	cmp	al,CHR_SPACE		; CONTROL character?
@@ -1150,15 +957,8 @@ uc4:	mov	ah,al
 	mov	ah,al
 	add	ah,'@'
 uc5:	call	put_col
-;
-; The column isn't reset when a line wraps, so to keep it from overflowing
-; on a very long line, the 4th row's columns are the 2nd's again (which wrap
-; the same way; see put_col).
-;
-uc8:	cmp	bl,TERM_COLS*3
-	jb	uc8a
-	sub	bl,TERM_COLS*2
-uc8a:	mov	es:[CT_COL],bl
+uc8:	call	fit_col
+	mov	es:[CT_COL],bl
 uc9:	pop	bx
 	ret
 ENDPROC	update_col
@@ -1169,7 +969,7 @@ ENDPROC	update_col
 ;
 ; Stores a character in CT_LINE (see put_line) and advances the column.  The
 ; column isn't reset when a line wraps, so the row is advanced whenever the
-; column is a multiple of TERM_COLS.
+; column is a multiple of CT_COLS.
 ;
 ; Inputs:
 ;	AH = character
@@ -1177,24 +977,42 @@ ENDPROC	update_col
 ;	ES = context
 ;
 ; Outputs:
-;	BL = next column
+;	BX = next column
 ;
 ; Modifies:
-;	BL
+;	BX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	put_col
-	cmp	bl,TERM_COLS
-	jb	pc2
-	je	pc1
-	cmp	bl,TERM_COLS*2
-	je	pc1
-	cmp	bl,TERM_COLS*3
-	jne	pc2
-pc1:	call	next_row
+	push	ax
+	mov	al,bl
+pc1:	sub	al,es:[CT_COLS]
+	ja	pc1
+	pop	ax
+	jne	pc2			; it's not a multiple (or it's zero)
+	call	next_row
 pc2:	call	put_line
 	call	put_shadow
-	inc	bl
+	inc	bx
+;
+; The column isn't reset when a line wraps, so to keep it within a byte on
+; a very long line, the 4th row's columns are the 3rd's again (which wrap the
+; same way), or in MODE_WIDE, where only one row's columns fit, column 256 is
+; the column that many (WIDE_COLS) before it.
+;
+	DEFLBL	fit_col,near		; BX = column (0-256)
+	push	ax
+	mov	ah,es:[CT_COLS]
+	add	ah,ah
+	jc	pc3
+	add	ah,es:[CT_COLS]		; AH = the 4th row's first column
+	cmp	bl,ah
+	jmp	short pc4
+pc3:	cmp	bh,1			; carry set unless it's column 256
+pc4:	jb	pc5
+	sub	bl,es:[CT_COLS]
+	mov	bh,0
+pc5:	pop	ax
 	ret
 ENDPROC	put_col
 
@@ -1220,7 +1038,8 @@ DEFPROC	next_row
 	mov	al,es:[CT_ROW]
 	cmp	al,es:[CT_BOT]
 	je	nr8
-	cmp	al,TERM_ROWS-1
+	inc	ax
+	cmp	al,es:[CT_ROWS]
 	je	nr9
 	inc	es:[CT_ROW]
 nr9:	pop	ax
@@ -1252,6 +1071,7 @@ DEFPROC	put_shadow
 	jmp	shadow_erase
 	DEFLBL	scroll_shadow,near
 	pushf
+	call	wide_reset		; (the rows are moving, so start over)
 	cmp	ds:[CT_SHADOW],0
 	je	psh8
 	popf
@@ -1259,6 +1079,54 @@ DEFPROC	put_shadow
 psh8:	popf
 psh9:	ret
 ENDPROC	put_shadow
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; wide_reset
+;
+; A VT100 has no 40-column mode, only double-width rows (see VT100_WIDE), and
+; a row that scrolls into view or is part of an "erase in display" is always
+; single-width.  So in 40-column mode, CT_WIDE has a byte for every row (and
+; the row past the last one; see IOCTL_SETPOS) that's zero until the row has
+; been made double-width, which happens just before the first write to the
+; row (see write_context) or when the cursor is moved to it (see wide_row).
+;
+; This zeros them all, for any change that makes rows single-width or moves
+; them (the terminal ignores a VT100_WIDE that wasn't needed).  In 80-column
+; mode, they're all set to 1 instead, so there's nothing to do for any row.
+;
+; Inputs:
+;	DS = context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None (flags are preserved, too)
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	wide_reset
+	pushf
+	push	ax
+	push	cx
+	push	di
+	push	es
+	push	ds
+	pop	es
+	mov	di,offset CT_WIDE
+	mov	cx,TERM_ROWS+1
+	cmp	ds:[CT_COLS],TERM_COLS	; carry set if 40 columns
+	sbb	al,al
+	inc	ax			; AL = 0 if 40 columns, 1 if 80
+	cld
+	rep	stosb
+	pop	es
+	pop	di
+	pop	cx
+	pop	ax
+	popf
+	ret
+ENDPROC	wide_reset
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1483,6 +1351,9 @@ dco2a:	push	bx			; save parity and terminal type
 
 	push	es
 	pop	ds			; DS is now the context
+	mov	word ptr ds:[CT_COLS],(TERM_ROWS SHL 8) OR TERM_COLS
+	mov	ds:[CT_WROWS],TERM_ROWS	; (until the terminal says otherwise)
+	call	wide_reset
 	pop	cx			; CX = console to copy, if any
 	pop	ax			; AL = '1' to take the focus from it
 	jcxz	dco2c
@@ -1499,6 +1370,8 @@ dco2a:	push	bx			; save parity and terminal type
 dco2b:	mov	ds:[CT_SHADOW],ax
 	inc	ds:[CT_BACK]
 	mov	es,cx
+	mov	al,es:[CT_WROWS]	; (it's the same terminal)
+	mov	ds:[CT_WROWS],al
 	mov	ax,ds
 	xchg	es:[CT_NEXT],ax
 	mov	ds:[CT_NEXT],ax
@@ -1581,10 +1454,14 @@ dco5:	mov	ax,ds
 	mov	al,0
 	call	write_irq
 ;
-; A VT100's auto-wrap is off by default, so long lines would be truncated at
-; the last column (and MORE would display fewer lines than will fit), so turn
-; it on, and assign the special graphics set to G1 (see write_context).  The
-; output buffer is empty, so there's no need to wait for room.
+; A VT100 may still be displaying whatever it was sent before we were booted
+; (and in some other state), so start it as CLS would leave it: its "column
+; mode" sequence for 80 columns also clears the screen, homes the cursor, and
+; makes every row a scrolling row.  Its auto-wrap is off by default, so long
+; lines would be truncated at the last column (and MORE would display fewer
+; lines than will fit), so turn it on, and assign the special graphics set to
+; G1 (see write_context).  The output buffer is empty, so there's no need to
+; wait for room.
 ;
 	mov	di,offset VT100_INIT
 	cmp	ds:[CT_TERM],TERM_VT100	; VT100 terminal?
@@ -2406,198 +2283,6 @@ ENDPROC	push_input
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; raw_input
-;
-; Translates a byte from an ANSI or VT100 terminal into what the VKD$ driver
-; returns (see pull_kbd): non-ASCII keys are a zero followed by the PC scan
-; code, which the DOS line editor maps to its editing keys (see read_line).
-; The cursor keys send ESC [ A-D (or ESC O A-D), Home and End send ESC [ H
-; and F (or ESC [ 1 ~ and 4 ~), Insert, Delete, PgUp, and PgDn send ESC [ 2-3 ~
-; and 5-6 ~, and F1-F10 send ESC O P-S and ESC [ 15 ~ through 21 ~; other
-; sequences are discarded.
-;
-; An ESC is held until the next byte arrives, or until ESC_MS pass without
-; one, in which case it's just an ESC (see esc_timeout).  For VT100 terminals,
-; DELETE (7Fh) erases the previous character, so it becomes BACKSPACE, and
-; BACKSPACE becomes the Delete key.
-;
-; Inputs:
-;	AL = byte
-;	DS = context
-;
-; Outputs:
-;	If carry clear, AL = byte to buffer; carry set if nothing to buffer
-;
-; Modifies:
-;	AX, BX, SI
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	raw_input
-	pushf
-	cli
-	call	raw_byte
-	jc	rw8
-	popf
-	clc
-	ret
-rw8:	popf
-	stc
-	ret
-ENDPROC	raw_input
-
-DEFPROC	raw_byte
-	cmp	ds:[CT_TERM],TERM_GENERIC
-	je	rb0			; (carry clear)
-	mov	ah,ds:[CT_ESC]		; AH = escape state
-	test	ah,ah			; in a sequence?
-	jnz	rb3			; yes
-	cmp	al,CHR_ESCAPE		; ESC?
-	jne	rb1			; no
-	inc	ds:[CT_ESC]		; yes, hold it (state 1)
-	mov	ax,ESC_MS
-	call	esc_timer
-	stc
-	ret
-rb0:	clc
-	ret
-
-rb1:	cmp	ds:[CT_TERM],TERM_VT100	; VT100 terminal?
-	jne	rb0			; no
-	cmp	al,CHR_DEL		; DELETE?
-	jne	rb2			; no
-	mov	al,CHR_BACKSPACE	; yes, it erases the previous character
-	ret				; (carry clear)
-rb2:	cmp	al,CHR_BACKSPACE	; BACKSPACE?
-	clc
-	jne	rb9			; no
-	mov	al,SCAN_DEL		; yes, it's the Delete key
-	jmp	short rb7
-;
-; State 1 (ESC received): '[' begins a control sequence (state 2) and 'O'
-; begins a single-shift sequence (state 3); otherwise, buffer the ESC and
-; then process the byte normally.
-;
-rb3:	dec	ah			; state 1?
-	jnz	rb5			; no
-	call	end_esc
-	mov	ah,2
-	cmp	al,'['
-	je	rb4
-	inc	ah
-	cmp	al,'O'
-	je	rb4
-	push	ax
-	mov	al,CHR_ESCAPE
-	call	push_key
-	pop	ax
-	jmp	raw_byte
-rb4:	mov	ds:[CT_ESC],ah
-	mov	ds:[CT_ESCPARM],0
-	stc
-	ret
-;
-; States 2 and 3: digits are a parameter (anything after a ';', such as a
-; modifier, is ignored), and the first byte from 40h on ends the sequence.
-;
-rb5:	cmp	al,'@'			; final byte?
-	jae	rb6			; yes
-	mov	ah,ds:[CT_ESCPARM]
-	sub	al,'0'
-	cmp	al,9			; digit?
-	ja	rb5a			; no
-	test	ah,ah			; after a ';'?
-	js	rb8			; yes
-	mov	bh,al
-	mov	al,ah
-	mov	bl,10
-	mul	bl
-	add	al,bh			; AL = (parameter * 10) + digit
-	jmp	short rb5b
-rb5a:	cmp	al,';'-'0'		; ';'?
-	jne	rb8			; no, ignore it
-	or	ah,80h
-	xchg	al,ah
-rb5b:	mov	ds:[CT_ESCPARM],al
-rb8:	stc
-	ret
-
-rb6:	mov	ds:[CT_ESC],0		; the sequence is over
-	mov	si,offset ANSI_FINALS
-	cmp	al,'~'			; numbered key?
-	jne	rb6a			; no
-	mov	al,ds:[CT_ESCPARM]
-	and	al,7Fh			; AL = number
-	mov	si,offset ANSI_NUMS
-rb6a:	call	map_key			; AL = scan code
-	jc	rb9a			; discard unknown sequences
-;
-; Buffer a zero, and return the scan code in AL to be buffered next.
-;
-rb7:	push	ax
-	mov	al,0
-	call	push_key
-	pop	ax
-rb9:	clc
-rb9a:	ret
-ENDPROC	raw_byte
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; push_key
-;
-; Inputs:
-;	AL = byte to add to the context's input buffer
-;	DS = context
-;
-; Modifies:
-;	BX, SI
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	push_key
-	mov	si,offset CT_INPUT
-	call	push_buffer
-	jc	pk9
-	mov	[bx],al
-pk9:	ret
-ENDPROC	push_key
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; map_key
-;
-; Inputs:
-;	AL = byte
-;	CS:SI -> table of (byte, scan code) pairs, ending with zero
-;
-; Outputs:
-;	If carry clear, AL = scan code
-;
-; Modifies:
-;	AL, SI
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	map_key
-mk1:	cmp	byte ptr cs:[si],0	; end of the table?
-	stc
-	je	mk9			; yes
-	cmp	al,cs:[si]
-	lea	si,[si+2]
-	jne	mk1
-	mov	al,cs:[si-1]		; (carry clear)
-mk9:	ret
-ENDPROC	map_key
-
-	DEFLBL	ANSI_FINALS,byte
-	db	'A',SCAN_UP,'B',SCAN_DOWN,'C',SCAN_RIGHT,'D',SCAN_LEFT
-	db	'H',SCAN_HOME,'F',SCAN_END,'P',SCAN_F1,'Q',SCAN_F2
-	db	'R',SCAN_F3,'S',SCAN_F4,0
-	DEFLBL	ANSI_NUMS,byte
-	db	1,SCAN_HOME,2,SCAN_INS,3,SCAN_DEL,4,SCAN_END
-	db	5,SCAN_PGUP,6,SCAN_PGDN,15,SCAN_F5,17,SCAN_F6
-	db	18,SCAN_F7,19,SCAN_F8,20,SCAN_F9,21,SCAN_F10,0
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; end_esc
 ;
 ; Ends any escape sequence (and cancels the timer for a held ESC).
@@ -3114,6 +2799,11 @@ DEFPROC	write_context
 	push	ds
 	push	es
 	pop	ds			; DS is now the context
+	mov	bl,ds:[CT_ROW]
+	mov	bh,0
+	cmp	ds:[CT_WIDE][bx],bh	; does the row need VT100_WIDE first?
+	je	wct8			; yes
+	DEFLBL	write_cell,near		; (paint_cell's entry; see wide_row)
 	cmp	al,CHR_BACKSPACE	; BACKSPACE?
 	je	wct2			; yes
 	cmp	ds:[CT_TERM],TERM_VT100	; VT100 terminal?
@@ -3183,6 +2873,25 @@ wct6:	call	push_output
 	jmp	wct1
 wct7:	pop	ax
 	jmp	wct2a
+;
+; Make the row double-width (see wide_reset).  If there isn't room for what
+; follows, the retry will find that this much is done.
+;
+wct8:	push	ax
+	call	output_room
+	cmp	ax,3
+	pop	ax
+	jb	wct2a
+	inc	ds:[CT_WIDE][bx]
+	push	ax
+	mov	al,CHR_ESCAPE
+	call	push_output
+	mov	al,'#'
+	call	push_output
+	mov	al,'6'
+	call	push_output
+	pop	ax
+	jmp	write_cell
 ENDPROC	write_context
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -5,8 +5,9 @@ permalink: /demos/term/pc/
 machines:
   - id: vt100
     type: vt100
-    name: DEC VT100
+    name: DEC VT100 Terminal
     config: /machines/dec/vt100/vt100.json
+    avo: true
     layout: /_includes/machines/vt100/vt100-display.html
     compiled: true
     connection: serialPort->ibm5150.com1
@@ -27,6 +28,8 @@ Wait a few seconds for the BASIC-DOS banner to appear on the VT100, then type a 
 
 With only 64K of memory, there isn't room for all of COMMAND.COM, so BASIC-DOS loads only its *core*: the graphics statements (CIRCLE, DRAW, GET, LINE, PAINT, PRESET, PSET, and PUT), the sound statements (PLAY and SOUND), the file statements (eg, OPEN and CLOSE), less common statements and functions (eg, INKEY$, PEEK, RND, SCREEN, and TAB), and LOAD's support for tokenized BAS files are left out, and using one of them reports `Not enough memory`.  There is no floating-point either: numbers are 32-bit integers, and numeric functions like SQR are unavailable.
 
-This demo is also available on an [IBM PC XT](../xt/) with 640K and a 10Mb hard disk, and on an [IBM PC AT](../at/) with a second VT100 on COM2.
+The VT100 has DEC's Advanced Video Option (AVO), which gives it bold, blinking, and underlined characters, but at 64K, WIDTH is one of the statements left out, so the VT100 stays at 80 columns.  The [VT100 Terminal](../../vt100/xt/noavo/) demo also has a VT100 without the AVO.
+
+Additional demo configurations: [IBM PC XT](../xt/) with 640K and a 10Mb hard disk, and [IBM PC AT](../at/) with a second VT100 on COM2.
 
 {% include_relative _overview.md hw="pc" %}

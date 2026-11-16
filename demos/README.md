@@ -9,23 +9,25 @@ Each BASIC-DOS demo runs on up to four generations of PC hardware: the original 
 | Demo | IBM PC | IBM PC XT | IBM PC AT | COMPAQ DeskPro 386 |
 |------|--------|-----------|-----------|--------------------|
 | 1. Monochrome | [64K, MDA](m64/pc/) | [640K, MDA](m64/xt/) | | |
-| 2. VT100 Terminal | [64K, VT100](term/pc/) | [640K, VT100](term/xt/) | [640K, 2 VT100s](term/at/) | |
+| 2. VT100 Console | [64K, VT100](term/pc/) | [640K, VT100](term/xt/) | [640K, VT100x2](term/at/) | |
 | 3. Color Graphics | [128K, CGA, 8087](s80/pc/) | [640K, CGA, 8087](s80/xt/) | [640K, CGA, 80287](s80/at/) | [1Mb, VGA, 80387](s80/386/) |
 | 4. Dual 40-Column | [128K, CGA](d40/pc/) | [640K, CGA](d40/xt/) | [640K, CGA](d40/at/) | [1Mb, VGA](d40/386/) |
 | 5. Dual 80-Column | [128K, CGA](d80/pc/) | [640K, CGA](d80/xt/) | [640K, CGA](d80/at/) | [1Mb, VGA](d80/386/) |
 | 6. Multiple Pages | [256K, MDA](p80/pc/) | [640K, CGA](p80/xt/) | [640K, CGA](p80/at/) | [1Mb, VGA](p80/386/) |
 | 7. Dual Monitors | [128K, MDA, CGA](dual/pc/) | [640K, MDA, CGA](dual/xt/) | [640K, MDA, CGA](dual/at/) | [1Mb, MDA, CGA](dual/386/) |
 | 8. Serial Mouse | [256K, EGA, Mouse](mouse/pc/) | [640K, EGA, Mouse](mouse/xt/) | [640K, EGA, Mouse](mouse/at/) | [1Mb, VGA, Mouse](mouse/386/) |
-| 9. Serial Debugger | [256K, EGA, VT100](debug/pc/) | [640K, EGA, VT100](debug/xt/) | [640K, EGA, VT100](debug/at/) | [1Mb, VGA, VT100](debug/386/) |
+| 9. VT100 Debugger | [256K, EGA, VT100](debug/pc/) | [640K, EGA, VT100](debug/xt/) | [640K, EGA, VT100](debug/at/) | [1Mb, VGA, VT100](debug/386/) |
 | 10. Serial Port | | [640K, CGA, Screen](serial/) | | |
 | 11. Parallel Port | | [640K, CGA, Printer](parallel/) | | |
 | 12. 10Mb Drive | | [640K, EGA](hd/xt/) | [640K, EGA](hd/at/) | [1Mb, VGA](hd/386/) |
-| 13. 10Mb (VT100) | | [640K, EGA, VT100](vt100/xt/) | [640K, EGA, VT100](vt100/at/) | [1Mb, VGA, VT100](vt100/386/) |
-| 14. Wolfenstein 3D | | | [640K, VGA, Sound Blaster](wolf3d/at/) | [1Mb, VGA, Sound Blaster](wolf3d/386/) |
+| 13. 10Mb (VT100 Console) | | [640K, EGA, VT100](vt100/xt/) | [640K, EGA, VT100](vt100/at/) | [1Mb, VGA, VT100](vt100/386/) |
+| 14. Wolfenstein 3D | | | [640K, VGA, Sound](wolf3d/at/) | [1Mb, VGA, Sound](wolf3d/386/) |
 | 15. Protected Mode (640K) | | | [640K, CGA](mmu/640k/) | [1Mb, VGA](mmu/640k/386/) |
 | 16. Protected Mode (2Mb) | | | [2Mb, CGA](mmu/) | [2Mb, VGA](mmu/386/) |
-| 17. Protected Mode (VT100) | | | [2Mb, CGA, VT100](mmu/vt100/) | [2Mb, VGA, VT100](mmu/vt100/386/) |
+| 17. Protected Mode (Debugger) | | | [2Mb, CGA, VT100](mmu/vt100/) | [2Mb, VGA, VT100](mmu/vt100/386/) |
 
 The boot sector first displays `System starting...`; press any key (or wait 2 seconds) to continue.  The PC XT, PC AT, and DeskPro 386 machines also have the 10Mb BASIC-DOS hard disk (drive C:), so when they boot a diskette, you can press **Esc** to boot from the hard disk instead.  On a PC AT or DeskPro 386, press **P** to run the demo in protected mode, or **R** for real mode (only the Protected Mode demos use protected mode by default, and on the DeskPro 386, they use the 80386's features too).
+
+A *VT100 Console* is a BASIC-DOS session on a DEC VT100 terminal, which you can type commands at, while a *VT100 Debugger* is DEBUG.COM, BASIC-DOS's own debugger, running on a VT100 connected to COM2 (most demos also have a page with the PCjs debugger, which is part of the emulator).
 
 In the demos with multiple consoles, use **SHIFT-TAB** to toggle keyboard focus between consoles.

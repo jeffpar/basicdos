@@ -137,7 +137,7 @@ The input of a command can also come from a file instead of the keyboard (eg, `S
 
 BASIC-DOS can run several programs at once, each in its own *session*.  A session can have a *console*, which can occupy the entire screen or just part of it (eg, the left and right halves of the screen, as in the [BASIC-DOS Demos](/demos/)); the console with a double-line border is the one that has *focus*, which means that it receives keyboard input.
 
-Every console needs a session, and so does every command after the first in a [pipeline](#pipes-and-redirection), so a system usually has more sessions than consoles; the extra sessions determine how many filters can run at once.
+Every console needs a session, and so does every command after the first in a [pipeline](#redirection-and-pipes), so a system usually has more sessions than consoles; the extra sessions determine how many filters can run at once.
 
 Press **Shift-Tab** to switch the focus to the next console (on a serial terminal with more than one console, press **Ctrl-\\**; a [HOTKEY=](../cfg/#hotkey) line in CONFIG.SYS sets one key for both).  When there's more than one console on the video adapters, COMMAND.COM says so when it starts on the console with the focus, after its `BASIC-DOS Command Shell` message: `Press Shift-Tab to switch sessions`.
 

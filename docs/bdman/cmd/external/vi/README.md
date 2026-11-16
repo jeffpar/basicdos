@@ -12,7 +12,7 @@ A full-screen text editor with a subset of the commands of the UNIX *vi* editor.
 
 `/WS` adds [WordStar keys](#wordstar-keys); any other switch displays `Syntax error`.  Without a *file*, VI starts with an empty file, which needs a name when you write it (eg, `:w NEW.TXT`).
 
-VI uses up to 80 columns and 25 rows of the screen, and it needs at least 4 rows, and a console (`Console required`).
+VI uses up to 132 columns and 25 rows of the screen (eg, a VT100 terminal after `WIDTH 132`), and it needs at least 4 rows, and a console (`Console required`).
 
 ### Command Mode
 

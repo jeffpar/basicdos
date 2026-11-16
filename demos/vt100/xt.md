@@ -5,8 +5,9 @@ permalink: /demos/vt100/xt/
 machines:
   - id: vt100
     type: vt100
-    name: DEC VT100
+    name: DEC VT100 Terminal
     config: /machines/dec/vt100/vt100.json
+    avo: true
     layout: /_includes/machines/vt100/vt100-display.html
     compiled: true
     connection: serialPort->ibm5160.com1
@@ -26,6 +27,8 @@ The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memo
 
 Press any key on the Enhanced Color Display at the boot message (or wait 2 seconds) to start the diskette.  Then click the VT100 screen and type a command, such as `DIR` or `PRINT "Hello from the VT100"`; click the Enhanced Color Display to use the local console.  Changes to the hard disk are lost when you leave the page.
 
-This demo is also available on an [IBM PC AT](../at/) and a [COMPAQ DeskPro 386](../386/).
+The VT100 has DEC's Advanced Video Option (AVO), which gives it bold, blinking, and underlined characters, and 24 rows in 132-column mode (try `WIDTH 132`).  A [VT100 without the AVO](noavo/) is also available.
+
+Additional demo configurations: [IBM PC AT](../at/) and [COMPAQ DeskPro 386](../386/).
 
 {% include_relative _overview.md hw="xt" %}

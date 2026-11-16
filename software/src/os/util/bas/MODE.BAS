@@ -1,6 +1,7 @@
 	' MODE.BAS: sets the display, a serial port, or a printer
 	'
-	'   MODE 40|80|BW40|BW80|CO40|CO80          display columns (and color)
+	'   MODE 40|80|132|BW40|BW80|CO40|CO80[,rows]  display columns (and color),
+	'                                           and rows (25, 43, or 50)
 	'   MODE COMn:baud[,parity[,data[,stop]]]   serial port (eg, COM1:9600,N,8,1)
 	'   MODE LPTn:[cols][,lines]                printer columns (80 or 132) and
 	'                                           lines per inch (6 or 8)
@@ -9,16 +10,28 @@
 	' buffer length of 0, which initializes the port and releases it again (a
 	' port that's already open, eg, the console, isn't changed).
 	'
+	' The console knows which rows the display adapter supports (43 needs
+	' an EGA or VGA, and 50 needs a VGA), and anything else that it can't
+	' display (eg, 40 columns on an MDA, or 132 on anything but a VT100
+	' terminal) is an error, too.
+	'
 	DEFINT A-Z
 	M$ = UCASE$(ARG$(1))
 	IF LEFT$(M$, 3) = "COM" THEN GOTO 20
 	IF LEFT$(M$, 3) = "LPT" THEN GOTO 30
+	R$ = M$ + ","
+	GOSUB 50 : M$ = I$
+	GOSUB 50 : L$ = I$
+	IF R$ <> "" THEN GOTO 40
 	W$ = RIGHT$(M$, 2)
-	IF W$ <> "40" AND W$ <> "80" THEN GOTO 40
+	IF M$ = "132" THEN W$ = M$ : M$ = "80"
+	IF W$ <> "40" AND W$ <> "80" AND W$ <> "132" THEN GOTO 40
 	IF LEN(M$) <> 2 AND LEFT$(M$, 2) <> "BW" AND LEFT$(M$, 2) <> "CO" THEN GOTO 40
+	IF L$ <> "" AND L$ <> "25" AND L$ <> "43" AND L$ <> "50" THEN GOTO 40
+	ON ERROR GOTO 60
 	IF LEFT$(M$, 2) = "BW" THEN SCREEN 0, 0
 	IF LEFT$(M$, 2) = "CO" THEN SCREEN 0, 1
-	IF W$ = "40" THEN WIDTH 40 ELSE WIDTH 80
+	IF L$ = "" THEN WIDTH VAL(W$) ELSE WIDTH VAL(W$), VAL(L$)
 	END
 20	' Serial port: the parity, data bits, and stop bits default to N, 8, and 1,
 	' and a two-digit baud rate is an abbreviation (eg, 96 for 9600)
@@ -50,3 +63,4 @@
 	IF I = 0 THEN I$ = "" : RETURN
 	I$ = LEFT$(R$, I - 1) : R$ = MID$(R$, I + 1)
 	RETURN
+60	PRINT "Illegal function call" : END 1

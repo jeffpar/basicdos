@@ -18,7 +18,8 @@
 ; involve the machine itself (eg, its vectors, its PSPs, its memory, and
 ; running programs) here, and the rest by passing them on to BASIC-DOS (with
 ; selectors for the machine's DS and ES).  See v86host.inc for the machine's
-; memory, and V86DOS.ASM, V86PROC.ASM, and V86UTIL.ASM for the rest.
+; memory, and V86BIOS.ASM, V86DOS.ASM, V86HW.ASM, V86PROC.ASM, and
+; V86UTIL.ASM for the rest.
 ;
 	include	v86host.inc
 
@@ -26,7 +27,8 @@ CODE    SEGMENT word public 'CODE'
 
 	EXTBYTE	<VARS>
 	EXTNEAR	<int21,int2b,load_prog,start_prog,mem_init,mem_alloc>
-	EXTNEAR	<term_prog,pft_save>
+	EXTNEAR	<term_prog,pft_save,dd_cpu,dd_vec,int10,int16,int17,set_keys>
+	EXTNEAR	<tick,do_io>
 ;
 ; Only the CPU check (and its message) must run on an 8086; everything after
 ; it runs on an 80386.
@@ -202,6 +204,10 @@ m4:	push	ax			; save the program's handle
 	mov	[machine],ax
 	call	init_mem		; AX = the program's environment
 	jc	m4d
+	push	ax
+	mov	cl,2
+	call	set_keys		; the console updates its BIOS data
+	pop	ax
 	xchg	dx,ax			; DX = the environment
 ;
 ; Its command tail is our arguments.
@@ -259,37 +265,54 @@ m5:	push	ds
 	DOSUTIL	MAPSEG,3		; AL = V86X_*
 	jnc	run1
 	jmp	m8
-run1:
-	cmp	al,V86X_INT
-	jb	run			; a timer tick
-	mov	ax,word ptr [VARS+VR_VEC]
+run1:	cmp	al,V86X_IO
+	jne	run1h
+	jmp	do_io			; an IN or OUT
+run1h:	cmp	al,V86X_INT
+	jae	run1i
+	jmp	tick			; a timer tick
+run1i:	mov	ax,word ptr [VARS+VR_VEC]
 	je	do_int			; an INT
 	cmp	al,INT_GP		; a general protection fault?
-	jne	fault			; no
+	jne	run1f			; no
 ;
 ; A HLT at STUB_SEG:vector is a jump (or call) to a default handler, by a
 ; handler that came before it (eg, a program's hook), which left an interrupt
 ; frame on the stack, so return to that first (as the default handler would).
 ;
-	cmp	word ptr [VARS+VR_CS],STUB_SEG
-	jne	fault
 	mov	ax,word ptr [VARS+VR_EIP]
+	mov	cx,word ptr [VARS+VR_CS]
+	cmp	cx,DDINT		; one of DDINT's entry points?
+	je	run1d			; yes
+	cmp	cx,STUB_SEG
+	jne	run1f
 	cmp	ax,STUB_CTRLC		; a CTRLC handler's return?
 	jb	run2			; no, one of the HLTs
 	je	run1a			; yes
-	jmp	fault			; no, not one of ours
+run1f:	jmp	fault			; no, not one of ours
 run1a:	jmp	ctrlc_ret
-run2:
+;
+; DDINT's entry points (see bios.inc) are HLTs, too (see init_mem): a far
+; call to one of the three that a program can use (eg, DEBUG's calls to CPU$)
+; left only a return address on the stack.
+;
+run1d:	call	pop_ret
+	cmp	ax,offset DDINT_CPU
+	jne	run1e
+	jmp	dd_cpu
+run1e:	cmp	ax,offset DDINT_GETVEC
+	je	run1g
+	cmp	ax,offset DDINT_SETVEC
+	jne	run1f
+run1g:	jmp	dd_vec
+run2:	call	pop_ret
 	push	ax
-	call	pop_word
-	mov	word ptr [VARS+VR_EIP],ax
-	call	pop_word
-	mov	word ptr [VARS+VR_CS],ax
 	call	pop_word
 	mov	word ptr [VARS+VR_EFL],ax
 	pop	ax			; AL = vector
 ;
-; An INT to a default vector: the DOS ones are ours, and a few others (that
+; An INT to a default vector: the DOS ones are ours, as are the BIOS's video,
+; keyboard, and printer functions (see V86BIOS.ASM), and a few others (that
 ; only check whether something is installed) do nothing; any other ends the
 ; program, as a fault does.
 ;
@@ -306,18 +329,45 @@ di2:	cmp	al,INT_DOSTERM
 di3:	cmp	al,INT_DOSCTRLC
 	jne	di4
 	jmp	ctrlc_end
-di4:
+di4:	cmp	al,INT_VIDEO
+	jne	di5
+	jmp	int10
+di5:	cmp	al,INT_KBD
+	jne	di6
+	jmp	int16
+di6:	cmp	al,INT_LPT
+	jne	di7
+	jmp	int17
+di7:
 	mov	di,offset NOP_INTS
 	mov	cx,NOP_INTS_LEN
 	push	ds
 	pop	es
 	repne	scasb			; does nothing?
-	je	run			; right
+	je	di9			; right
+;
+; An INT 06h instruction does nothing, either (in real mode, its default
+; handler just returns), but an invalid opcode, which exits the same way
+; (with VR_EIP at the opcode, not after an INT), ends the program.
+;
+	cmp	al,INT_UD
+	jne	fault
+	push	ax
+	mov	ax,word ptr [VARS+VR_CS]
+	mov	di,word ptr [VARS+VR_EIP]
+	dec	di
+	dec	di
+	call	get_word		; AX = the two bytes before VR_EIP
+	cmp	ax,(INT_UD SHL 8) OR OP_INT
+	pop	ax
+	jne	fault
+di9:	jmp	run
 ;
 ; Report a fault (or an interrupt that we can't do) and end the program; if
 ; it's the first, we end, too.
 ;
-fault:	mov	cx,word ptr [VARS+VR_CS]
+	DEFLBL	fault,near
+	mov	cx,word ptr [VARS+VR_CS]
 	mov	dx,word ptr [VARS+VR_EIP]
 	PRINTF	<"CPU fault %02x at %04x:%04x",13,10>,ax,cx,dx
 	mov	ax,(EXTYPE_FAULT SHL 8) OR 1
@@ -329,6 +379,10 @@ m8:	mov	dx,offset VARS + V_PATH
 	PRINTF	<"Unable to run %s",13,10>,dx
 m8a:	mov	al,1
 	DEFLBL	do_exit,near
+	push	ax
+	mov	cl,0
+	call	set_keys		; (the machine's BIOS data is going)
+	pop	ax
 ;
 ; If we're ending with an error (or the program did) and we're the first
 ; program of our session (eg, START V86), its console closes as we end, so
@@ -466,9 +520,32 @@ im1:	xchg	ax,cx
 	mov	ax,[mach_paras]
 	shr	ax,6			; AX = the machine's memory, in K
 	mov	es:[bx + offset MEMORY_SIZE - offset CPU_TYPE],ax
-	mov	cx,100h + 16
+;
+; The memory at 500h is zeros (as it is when DOS starts a program), other
+; than DDINT's entry points, which are HLTs, too (see run1d).
+;
+	mov	al,0
+	mov	cx,offset DDINT_CPU
+	rep	stosb
 	mov	al,OP_HLT
+	mov	cl,DDINT_LEN
+	rep	stosb
+	mov	al,0
+	mov	cx,(STUB_SEG SHL 4) - 550h	; (DDINT ends at 550h)
+	rep	stosb
+	mov	al,OP_HLT
+	mov	cx,100h + 16
 	rep	stosb			; the HLTs (and STUB_CTRLC)
+;
+; The default INT 08h handler (at STUB_TICK) does what the ROM's would, other
+; than the tick count (see tick): an INT 1Ch, whose default handler is the
+; IRET after it.
+;
+	mov	bx,(STUB_SEG SHL 4) + STUB_TICK
+	mov	word ptr es:[bx],(INT_TICK SHL 8) OR OP_INT
+	mov	word ptr es:[bx+2],(OP_IRET SHL 8) OR OP_IRET
+	mov	word ptr es:[INT_HW_TMR * 4],STUB_TICK
+	mov	word ptr es:[INT_TICK * 4],STUB_TICK + 3
 	call	mem_init
 	mov	bx,ENV_PARAS
 	mov	al,MCBTYPE_EBLK
@@ -754,6 +831,19 @@ DEFPROC	pop_word
 	ret
 ENDPROC	pop_word
 
+;
+; pop_ret pops a far return address into the machine's CS:IP.
+;
+DEFPROC	pop_ret
+	push	ax
+	call	pop_word
+	mov	word ptr [VARS+VR_EIP],ax
+	call	pop_word
+	mov	word ptr [VARS+VR_CS],ax
+	pop	ax
+	ret
+ENDPROC	pop_ret
+
 DEFPROC	stk_ptr
 	push	ax
 	mov	ax,word ptr [VARS+VR_SS]
@@ -766,9 +856,12 @@ ENDPROC	stk_ptr
 	DEFSTR	COMMAND_COM,<"COMMAND.COM",0>
 	DEFSTR	PATH_STR,<"PATH$=",22h>
 ;
-; The vectors whose INTs (to a default vector) do nothing.
+; The vectors whose INTs (to a default vector) do nothing (eg, a breakpoint
+; with no debugger).
 ;
-	DEFSTR	NOP_INTS,<INT_DOSIDLE,INT_DOSNET,INT_DOSMULTI,INT_MOUSE>
+	DEFLBL	NOP_INTS,byte
+	db	INT_BP,INT_DOSIDLE,INT_DOSNET,INT_DOSMULTI,INT_MOUSE
+NOP_INTS_LEN	equ	$ - NOP_INTS
 
 	DEFWORD	our_ds,0		; our DS (for v86_ctrlc)
 	DEFWORD	machine,0		; the machine's first selector

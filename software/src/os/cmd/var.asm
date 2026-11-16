@@ -1063,8 +1063,14 @@ av3a:
 	IFDEF	MAXDEBUG
 	DPRINTF	<"adding variable %.*ls\r\n">,cx,si,ds
 	ENDIF
-
-	or	al,cl
+;
+; Mark a block that holds a function, so that searches for functions can skip
+; the other blocks (see findVar).
+;
+	cmp	al,VAR_FUNC		; a function?
+	jne	av3b			; no
+	mov	es:[BLK_PAD],al		; yes (any nonzero value will do)
+av3b:	or	al,cl
 	stosb
 av4:	lodsb				; rep movsb would be nice here
 	cmp	al,'a'			; but we upper-case the var name now
@@ -1099,7 +1105,8 @@ ENDPROC	addVar
 ; As in MSBASIC, a variable's type is part of its identity, so "A" (eg,
 ; VAR_DOUBLE after DEFDBL) and "A%" (VAR_LONG) are different variables.
 ; However, a VAR_FUNC or predefined var matches any type, and a VAR_PARM
-; matches if its parameter type matches.
+; matches if its parameter type matches.  So a search for VAR_FUNC finds only
+; functions (and predefined vars).
 ;
 ; Inputs:
 ;	AH = var type (VAR_*)
@@ -1118,10 +1125,25 @@ DEFPROC	findVar
 	push	bx
 	mov	bl,ah			; BL = requested var type
 	mov	bh,0			; BH = 0 while checking PREDEF_VARS
-
+;
+; An array's name ends with its type suffix (see findArray), which no
+; predefined name has, so arrays skip PREDEF_VARS; other names skip its
+; shorter names (see the offsets that precede it).
+;
+	cmp	bl,VAR_ARRAY		; an array?
+	je	fv0			; yes
 	push	cs
 	pop	es
 	mov	di,offset PREDEF_VARS
+	mov	ax,cx
+	sub	ax,4			; AX = length - 4
+	jb	fv1			; shorter, so search them all
+	cmp	al,3			; 7 or more characters?
+	jb	fv1i			; no
+	mov	al,3			; yes
+fv1i:	add	ax,ax
+	xchg	di,ax			; AX = PREDEF_VARS, DI = offset index
+	mov	di,word ptr es:PREDEF_VARS[di-8]; DI -> first name that long
 
 fv1:	mov	al,es:[di]
 	inc	di
@@ -1130,13 +1152,22 @@ fv1:	mov	al,es:[di]
 	ja	fv2			; no, existing variable
 	test	bh,bh			; end of PREDEF_VARS?
 	jz	fv0			; yes
-	mov	ax,es:[BLK_NEXT]	; is there another var block?
+fv1n:	mov	ax,es:[BLK_NEXT]	; is there another var block?
 fv1a:	test	ax,ax
 	stc
 	jz	fv9			; no
 	mov	es,ax
 	ASSERT	STRUCT,es:[0],VBLK
-	mov	di,size VBLK		; ES:DI -> first var in next block
+;
+; A search for a function (eg, genArrayRef's) skips any block that has never
+; held one (BLK_PAD is still zero; see addVar), since only a function can
+; match it there (BH is one here).
+;
+	cmp	bl,VAR_FUNC		; searching for a function?
+	jne	fv1b			; no
+	cmp	es:[BLK_PAD],bh		; and has this block ever held one?
+	jb	fv1n			; no
+fv1b:	mov	di,size VBLK		; ES:DI -> first var in next block
 	jmp	fv1
 
 fv8:	mov	si,dx

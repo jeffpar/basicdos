@@ -27,7 +27,7 @@ When a BAS program that used a graphics mode ends (or is aborted), the video mod
 
 > CLS
 
-Clears the console using the background color and moves the cursor to the top left corner.  After [VIEW PRINT](#view-print), only the scrolling rows are cleared, and the cursor moves to the first one.
+Clears the console using the background color and moves the cursor to the top left corner.  After [VIEW PRINT](#view-print), only the scrolling rows are cleared, and the cursor moves to the first one.  Outside a BAS program (eg, at the prompt), CLS also restores a console's border, if a program removed it with [WIDTH](#width) and never set the width back (eg, it was stopped with CTRL-C).
 
 ### COLOR
 
@@ -58,9 +58,13 @@ Every BAT file run from the prompt (or by a startup command) starts with ECHO OF
 
 > LOCATE [*row*][,[*col*][,*cursor*]]
 
-Moves the cursor to the specified *row* and *col* (starting at 1,1), and hides (0) or shows (1) the cursor.  The cursor remains hidden until the next input.  Omitted values are unchanged.
+Moves the cursor to the specified *row* and *col* (starting at 1,1), and hides (0) or shows (1) the cursor.  Omitted values are unchanged.
+
+As in MSBASIC, the cursor is hidden while a BAS program runs: it's shown during keyboard input (eg, INPUT) and while an external program that the BAS program starts is running, and then hidden again, until the program ends.  A cursor shown with LOCATE ,,1 stays visible until the next input ends.  Statements typed at the prompt and BAT files leave the cursor alone, where a cursor hidden with LOCATE ,,0 remains hidden until the next input.
 
 On a serial console, a terminal is assumed to have 24 rows and 80 columns, its cursor is always visible, and the current row (see [CSRLIN](../../basic/func/#csrlin)) is the row that BASIC-DOS has calculated from everything written since the console started, so it's correct once the screen has been cleared (or has scrolled) and only until a program sends the terminal an escape sequence of its own.  A GENERIC terminal can't move its cursor, so LOCATE is an "Illegal function call" there.
+
+So that programs written for a 25-row screen still run on a 24-row terminal, LOCATE also accepts row 25 there: the cursor waits on row 24, and whatever is printed is ignored until the next LOCATE (or until a line ends, which continues on row 24).
 
 ### PRINT
 
@@ -144,6 +148,8 @@ A *burst* of 0 disables color in mode 0, and a *burst* of 1 disables color in mo
 
 While a console is in any mode other than its original mode (eg, a graphics mode, or 40 columns in an 80-column console), it uses the entire screen, so other consoles on the same display are paused: any output they produce waits until that console returns to its original mode (eg, when its BAS program ends, which restores the mode), and then their borders are redrawn and their output continues.  Their earlier screen contents are not restored.
 
+A change from one text mode to another (40 or 80 columns, with or without color) in a full-screen console is the exception, on any display but a Monochrome Display: only that console changes.  The other consoles keep running and keep their screen contents, and the display changes width whenever the focus moves to a console with a different width.  A console that shares the screen with others, a graphics mode, and more than 25 rows (see [WIDTH](#width)) still use the entire screen, as described above.
+
 A mode change affects the entire screen, so a SCREEN statement that changes the mode in a console without the focus waits until the console gets the focus (eg, with Shift-Tab).
 
 ### VIEW PRINT
@@ -164,10 +170,16 @@ Rows outside the console are an "Illegal function call", as is VIEW PRINT on a G
 
 ### WIDTH
 
-> WIDTH 40\|80  
+> WIDTH 40\|80\|132[,*rows*]  
 > WIDTH *device*,*width*
 
-Sets the number of columns in text mode (which clears the screen).  In SCREEN 1, WIDTH 80 selects SCREEN 2, and in SCREEN 2, WIDTH 40 selects SCREEN 1.
+Sets the number of columns in text mode (which clears the screen).  In a full-screen console, only that console changes (see [SCREEN](#screen)): other consoles are neither cleared nor paused, and the display changes width with the focus.  In a console that shares the screen with others, asking for the console's own width (eg, WIDTH 40 in a 40-column console) leaves the other consoles alone: the console is cleared and its border is removed, so the program has all the console's columns and rows, until the width is set back (eg, WIDTH 80), which clears the console and restores its border.  In SCREEN 1, WIDTH 80 selects SCREEN 2, and in SCREEN 2, WIDTH 40 selects SCREEN 1.
+
+*rows* sets the number of text rows as well: 25 on any display adapter, 43 on an EGA or VGA, or 50 on a VGA (eg, `WIDTH 80,43`).  More than 25 rows are displayed with the adapter's 8x8 font, in text mode only, and like any other mode change, they give the console the entire screen, without a border, until it returns to its original mode and 25 rows.  The rows are set (and the screen is cleared) even if the columns aren't changing, unless the console already has that many rows.  Without *rows*, WIDTH leaves the rows alone if the columns aren't changing; otherwise, as with SCREEN, the new mode has 25 rows.  Rows that the adapter doesn't support are an `Illegal function call`.  If a program that used a graphics mode ends with more than 25 rows, the mode it started with is restored with 25 rows.
+
+WIDTH also works on a serial console whose terminal type is VT100 (see [CON](../../../cfg/#con)): a VT100 has no 40-column mode, so WIDTH 40 displays each row in double-width characters instead, starting when the row is first written to or the cursor is moved to it.  Other terminal types ignore WIDTH.
+
+WIDTH 132 selects a VT100's 132-column mode, which no display adapter has (on a video console, it's an `Illegal function call`).  A VT100 with the Advanced Video Option still has 24 rows then; without it, a VT100 has only enough memory for 14 rows of 132 columns, so the console has 14 rows until WIDTH 80 or WIDTH 40 restores all 24.  BASIC-DOS asks the terminal which it is when the port is opened (and assumes 24 rows if a terminal doesn't answer).  Programs that ask for the console's size (eg, [VI](../../external/vi/), [MORE](../../external/more/), [HELP](../../external/help/), and `DIR /W`) use whatever the console has, and [SCREEN](#screen) 0 keeps the 132 columns.
 
 With a *device* name (a string), `WIDTH "SCRN:",`*width* is the same as WIDTH *width*.  For any other device (eg, `WIDTH "COM1:",255`), Microsoft BASIC sets the line width of the device's output (where 255 means lines are never broken), but BASIC-DOS never breaks a device's output into lines, so the *width* (1-255) is only checked, for compatibility.  WIDTH *device* isn't available on low memory systems (see [Low Memory](../../../lang/#low-memory)).
 

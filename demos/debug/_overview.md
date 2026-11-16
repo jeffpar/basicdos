@@ -23,12 +23,12 @@ Breakpoints use INT 3, so they work only in RAM.  While stopped, interrupts and 
 
 The resident driver uses local string and hex formatting with polling serial I/O.  The kernel's public `SPRINTF` and `ITOA` utilities enable interrupts and enter through the DOS dispatcher, so they are unsafe when the debugger has stopped inside DOS or an IRQ handler.  This deliberately duplicates a small amount of formatting code to keep inspection independent of the suspended kernel.  A selectable kernel formatter would first need a reentrant entry point that keeps interrupts disabled.  Only initialization calls DOS.
 
+The BASIC-DOS Tests diskette in drive B: has DBGTESTS.  Run `B:\TESTS\MISC\DBGTESTS` on the local console to check that COM2 is reserved and registers and flags survive INT 3; resume with `G` at each of its two stops.  The local console should report `DBGTESTS passed`.
+
+A successful build (`./mkdos.sh` or `./mk.sh`, with or without `debug`) updates this disk automatically (if PCJS is set; see gulpfile.js).  DEBUG kernel builds provide runtime assertions; the driver also works with release builds.  If the full DEBUG build reaches MASM's symbol-space limit in the command shell, the kernel and driver can still be built separately and used with the release shell.
+
 ### **CONFIG.SYS** from the BASIC-DOS Serial Debugger diskette
 
 ```
 {% include_relative CONFIG.SYS %}
 ```
-
-The BASIC-DOS Tests diskette in drive B: has DBGTESTS.  Run `B:\TESTS\MISC\DBGTESTS` on the local console to check that COM2 is reserved and registers and flags survive INT 3; resume with `G` at each of its two stops.  The local console should report `DBGTESTS passed`.
-
-A successful build (`./mkdos.sh` or `./mk.sh`, with or without `debug`) updates this disk automatically (if PCJS is set; see gulpfile.js).  DEBUG kernel builds provide runtime assertions; the driver also works with release builds.  If the full DEBUG build reaches MASM's symbol-space limit in the command shell, the kernel and driver can still be built separately and used with the release shell.

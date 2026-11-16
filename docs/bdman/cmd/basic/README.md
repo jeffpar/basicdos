@@ -84,6 +84,8 @@ Defines the first letter(s) of variables that will default to integer (32-bit) v
 
 BAT files start with an implied `DEFINT A-Z`, since batch files rarely need fractions; a BAT file can still use suffixes (eg, `X#`) or `DEFDBL` for floating-point variables.  Note that assigning a fraction to an integer variable rounds it (eg, `A = 7/2` sets `A` to 4).
 
+DEFDBL, DEFINT, and DEFSTR take effect when they're compiled, for the lines compiled after them, and since a program's lines are compiled in the order it runs them (see [BASIC Compilation](../external/command/#basic-compilation)), that's usually the lines that run after them, as in Microsoft BASIC.  Use them at the start of a program, before its other statements.
+
 ### DEFSTR
 
 > DEFSTR [*letter(s)*]
@@ -142,7 +144,7 @@ Divides each record of random access file *n* (the # is optional) into fields (u
 
 Executes the statements up to the matching NEXT repeatedly, adding *step* (default 1) to the *variable* each time, until it passes the *limit*.  If the *start* is already past the *limit*, the statements are skipped.
 
-NEXT without a *variable* ends the innermost FOR loop; otherwise, it ends the FOR loop for each *variable* listed.  FOR loops with integer variables (eg, after `DEFINT A-Z`) are much faster than those with floating-point variables.
+NEXT without a *variable* ends the innermost FOR loop (the open FOR nearest before it in the program); otherwise, it ends the FOR loop for each *variable* listed.  FOR loops with integer variables (eg, after `DEFINT A-Z`) are much faster than those with floating-point variables.
 
 	FOR I = 10 TO 1 STEP -3:PRINT I;:NEXT
 	 10  7  4  1

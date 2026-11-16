@@ -35,10 +35,10 @@ Click the **Serial Display** pane to the right of the machine and type a command
 
 Press any key at the boot message (or wait 2 seconds) to start the diskette.  Its CONFIG.SYS creates both consoles and launches `C:COMMAND.COM` for each.  Each session starts on the drive named in its SHELL line, so both sessions start on C:.  The [hard disk](../hd/xt/) supplies programs and files.
 
+Changes to the hard disk are lost when you leave the page.  Use **Save HD** to download a copy as an IMG file.
+
 ### CONFIG.SYS from the BASIC-DOS HD Serial Port diskette
 
 ```
 {% include_relative CONFIG.SYS %}
 ```
-
-Changes to the hard disk are lost when you leave the page.  Use **Save HD** to download a copy as an IMG file.

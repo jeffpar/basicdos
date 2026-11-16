@@ -331,7 +331,9 @@ ENDPROC	v86_irq
 ;
 ; A general protection fault in the machine: CLI, STI, PUSHF, POPF, INT,
 ; INT3, INTO, and IRET (with an operand-size prefix, too) do what they would
-; in real mode, using the machine's IF; anything else (eg, I/O or HLT) exits.
+; in real mode, using the machine's IF; an IN or OUT of a byte or a word exits
+; (V86X_IO), so that the host can do it; anything else (eg, HLT) exits as a
+; fault.
 ;
 ; Inputs:
 ;	DS = SEL_SYS, ES = context
@@ -372,7 +374,7 @@ vg1:	cmp	al,OP_CLI
 	mov	ah,al			; AH = vector
 	jmp	short vg7
 vg1a:	cmp	al,OP_INTO
-	jne	vg8
+	jne	vg10
 	test	byte ptr es:[V86_CTX].VR_EFL+1,FL_OVFL SHR 8
 	jz	vg9			; no overflow, so there's no INT 04h
 	mov	ah,INT_OF
@@ -403,6 +405,30 @@ vg9:	mov	word ptr es:[V86_CTX].VR_EIP,si
 	mov	word ptr es:[V86_CTX].VR_EIP+2,0
 	jmp	v86_resume
 vg8:	mov	al,V86X_FAULT
+	jmp	v86_exit
+;
+; IN and OUT are E4h-E7h (with the port in the next byte) and ECh-EFh (with
+; the port in DX); bit 0 is set for a word, and bit 1 for OUT.
+;
+vg10:	mov	ah,al
+	and	ah,0F4h
+	cmp	ah,0E4h			; IN or OUT?
+	jne	vg8			; no
+	test	dl,dl			; of a dword?
+	jnz	vg8			; yes
+	mov	bl,al
+	mov	bh,0			; BX = opcode
+	mov	cx,word ptr es:[V86_CTX].VR_EDX
+	test	al,08h			; is the port in DX?
+	jnz	vg11			; yes
+	db	65h			; (GS:)
+	lodsb
+	mov	ah,0
+	xchg	cx,ax			; CX = port
+vg11:	mov	es:[V86_CTX].VR_ERR.LOW,cx
+	mov	es:[V86_CTX].VR_ERR.HIW,bx
+	mov	word ptr es:[V86_CTX].VR_EIP,si
+	mov	al,V86X_IO
 	jmp	v86_exit
 ENDPROC	v86_gp
 

@@ -5,8 +5,9 @@ permalink: /demos/term/xt/
 machines:
   - id: vt100
     type: vt100
-    name: DEC VT100
+    name: DEC VT100 Terminal
     config: /machines/dec/vt100/vt100.json
+    avo: true
     layout: /_includes/machines/vt100/vt100-display.html
     compiled: true
     connection: serialPort->ibm5160.com1
@@ -27,6 +28,8 @@ Wait a few seconds for the BASIC-DOS banner to appear on the VT100 (with no disp
 
 Any changes you make to the hard disk are lost when you leave the page, unless you first click **Save HD** to download the hard disk as an IMG file.
 
-This demo is also available on an [IBM PC](../pc/) with 64K and no hard disk, and on an [IBM PC AT](../at/) with a second VT100 on COM2.
+The VT100 has DEC's Advanced Video Option (AVO), which gives it bold, blinking, and underlined characters, and 24 rows in 132-column mode (try `WIDTH 132`).  The [VT100 Terminal](../../vt100/xt/noavo/) demo also has a VT100 without the AVO.
+
+Additional demo configurations: [IBM PC](../pc/) with 64K and no hard disk, and [IBM PC AT](../at/) with a second VT100 on COM2.
 
 {% include_relative _overview.md hw="xt" %}
