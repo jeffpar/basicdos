@@ -46,7 +46,7 @@ Resets all numeric variables to zero and all string variables to empty strings, 
 Closes the specified files (or all files if none are specified).  Files that a program leaves open are closed when it ends.
 
 [b]CLS
-Clears the console using the background color and moves the cursor to the top left corner.
+Clears the console using the background color and moves the cursor to the top left corner.  At the prompt, CLS also restores a console's border, if a program or MODE removed it (eg, MODE 40 in a 40-column console).
 
 [b]COLOR [*foreground*][,[*background*][,*border*]]
 Sets the foreground (0-15), background (0-7), and border (0-255) colors of the console.
@@ -354,7 +354,7 @@ Returns a 2-byte string containing the integer *n* (see CVI), for a random acces
 Returns a 4-byte string containing the integer *n* (see CVL), for a random access file.
 
 [e]MODE 40|80|132|BW40|BW80|CO40|CO80[,*rows*] or MODE COM*n*:*baud*[,*parity*[,*data*[,*stop*]]] or MODE LPT*n*:[*cols*][,*lines*]
-Sets the display's columns (BW or CO also turns color off or on; 132 needs a VT100 terminal) and *rows* (25, 43 on an EGA or VGA, or 50 on a VGA), clearing it with the default colors, a serial port's settings (eg, COM1:9600,N,8,1), or a printer's columns (80 or 132) and lines per inch (6 or 8).
+Sets the display's columns (BW or CO also turns color off or on; 132 needs a VT100 terminal) and *rows* (25, 43 on an EGA or VGA, or 50 on a VGA), clearing it with the default colors, a serial port's settings (eg, COM1:9600,N,8,1), or a printer's columns (80 or 132) and lines per inch (6 or 8).  In a 40-column console that shares the screen, MODE 40 removes the console's border instead, until CLS at the prompt restores it.
 
 [e]MORE [*file*]
 Displays input (or *file*) one screen at a time (eg, TYPE README.TXT | MORE), displaying "-- More --" and waiting for a key after each screen.  Press CTRL-C to stop.
@@ -619,7 +619,7 @@ Ends a WHILE loop.
 Executes the lines up to the matching WEND repeatedly, as long as the *expression* is TRUE (non-zero).
 
 [b+]WIDTH 40|80|132[,*rows*] or WIDTH *device*,*width*
-Sets the number of columns in text mode (which clears the screen), and the number of *rows*: 25, 43 (on an EGA or VGA), or 50 (on a VGA); they last until the next mode change.  In a console as wide as the width requested (eg, WIDTH 40 in a 40-column console), the console is cleared and loses its border instead, until WIDTH 80 (or CLS outside a BAS program) restores it.  On a VT100 terminal, WIDTH 40 uses double-width characters, and WIDTH 132 selects its 132 columns (with 14 rows instead of 24, unless it has the Advanced Video Option).
+Sets the number of columns in text mode (which clears the screen), and the number of *rows*: 25, 43 (on an EGA or VGA), or 50 (on a VGA); they last until the next mode change.  In a console as wide as the width requested (eg, WIDTH 40 in a 40-column console), the console is cleared and loses its border instead, until CLS at the prompt restores it.  On a VT100 terminal, WIDTH 40 uses double-width characters, and WIDTH 132 selects its 132 columns (with 14 rows instead of 24, unless it has the Advanced Video Option).
 In SCREEN 1, WIDTH 80 selects SCREEN 2, and in SCREEN 2, WIDTH 40 selects SCREEN 1.
 WIDTH "SCRN:",*width* is the same as WIDTH *width*; any other *device* is accepted for compatibility with MSBASIC, but its output is never broken into lines (not available on low memory systems).
 

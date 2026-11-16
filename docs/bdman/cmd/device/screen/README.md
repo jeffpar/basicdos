@@ -27,7 +27,7 @@ When a BAS program that used a graphics mode ends (or is aborted), the video mod
 
 > CLS
 
-Clears the console using the background color and moves the cursor to the top left corner.  After [VIEW PRINT](#view-print), only the scrolling rows are cleared, and the cursor moves to the first one.  Outside a BAS program (eg, at the prompt), CLS also restores a console's border, if a program removed it with [WIDTH](#width) and never set the width back (eg, it was stopped with CTRL-C).
+Clears the console using the background color and moves the cursor to the top left corner.  After [VIEW PRINT](#view-print), only the scrolling rows are cleared, and the cursor moves to the first one.  Outside a BAS program (eg, at the prompt), CLS also restores a console's border, if [WIDTH](#width) or [MODE](../../external/mode/) removed it (eg, `MODE 40` in a 40-column console).
 
 ### COLOR
 
@@ -173,7 +173,7 @@ Rows outside the console are an "Illegal function call", as is VIEW PRINT on a G
 > WIDTH 40\|80\|132[,*rows*]  
 > WIDTH *device*,*width*
 
-Sets the number of columns in text mode (which clears the screen).  In a full-screen console, only that console changes (see [SCREEN](#screen)): other consoles are neither cleared nor paused, and the display changes width with the focus.  In a console that shares the screen with others, asking for the console's own width (eg, WIDTH 40 in a 40-column console) leaves the other consoles alone: the console is cleared and its border is removed, so the program has all the console's columns and rows, until the width is set back (eg, WIDTH 80), which clears the console and restores its border.  In SCREEN 1, WIDTH 80 selects SCREEN 2, and in SCREEN 2, WIDTH 40 selects SCREEN 1.
+Sets the number of columns in text mode (which clears the screen).  In a full-screen console, only that console changes (see [SCREEN](#screen)): other consoles are neither cleared nor paused, and the display changes width with the focus.  In a console that shares the screen with others, asking for the console's own width (eg, WIDTH 40 in a 40-column console) leaves the other consoles alone: the console is cleared and its border is removed, so the program has all the console's columns and rows, until [CLS](#cls) at the prompt restores the border (a program can restore it with WIDTH 80, which also clears the console).  In SCREEN 1, WIDTH 80 selects SCREEN 2, and in SCREEN 2, WIDTH 40 selects SCREEN 1.
 
 *rows* sets the number of text rows as well: 25 on any display adapter, 43 on an EGA or VGA, or 50 on a VGA (eg, `WIDTH 80,43`).  More than 25 rows are displayed with the adapter's 8x8 font, in text mode only, and like any other mode change, they give the console the entire screen, without a border, until it returns to its original mode and 25 rows.  The rows are set (and the screen is cleared) even if the columns aren't changing, unless the console already has that many rows.  Without *rows*, WIDTH leaves the rows alone if the columns aren't changing; otherwise, as with SCREEN, the new mode has 25 rows.  Rows that the adapter doesn't support are an `Illegal function call`.  If a program that used a graphics mode ends with more than 25 rows, the mode it started with is restored with 25 rows.
 
