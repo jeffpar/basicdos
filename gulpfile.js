@@ -86,12 +86,12 @@ function checkOutput(task, outputFile)
  * A ZIP file in a list of files (eg, PUBLIC.zip) is extracted into the folder itself, preserving the original
  * timestamps of its files.
  *
- * Which disks a build updates depends on the mode of its binaries (the mode of the last mkdos.sh or mk.sh build, which
- * tools/pc/disks/mkmode records) and package.json's config.release: a disk marked "final" (the release diskette and
- * the 64K demos, which don't have room for DEBUG binaries) is updated only with FINAL binaries, and every other disk is
- * updated with any binaries, except FINAL binaries while config.release is "debug".  So while config.release is "debug", a DEBUG build updates all but the "final" disks, and
- * a FINAL build updates only the "final" disks; once it's "final", a FINAL build updates them all, and a DEBUG build
- * updates all but the "final" disks.
+ * A disk's binaries are FINAL if it's marked "final" (the release diskette and the 64K demos, which don't have room for
+ * DEBUG binaries), and otherwise DEBUG while package.json's config.release is "debug", or the current build mode (the
+ * mode of the last mkdos.sh or mk.sh build, which tools/pc/disks/mkmode records) once it's "final".  A diskette whose
+ * mode isn't the current one gets that mode's saved binaries (see SAVED), so any change to a diskette's files (eg, its
+ * CONFIG.SYS) updates it in either mode; the hard disk, whose system files pc.js adds from software/src itself (and
+ * whose SRC has the current mode's OBJ folders), is updated only by a build of its mode.
  */
 const SRC = "./software/src";
 /*
@@ -100,7 +100,19 @@ const SRC = "./software/src";
  */
 const VERSION = JSON.parse(fs.readFileSync("./package.json", "utf8")).version.replace(/^(\d+)\.(\d+).*$/,
     (match, major, minor) => major + "." + minor.padStart(2, "0"));
+/*
+ * The distribution files (the root files, and the files that the manifest lists in EXT and DEMOS) are dated
+ * September 9, 1986, at a time that matches the version (eg, 2:10 AM for 2.10), on every disk; the PC DOS 1.00
+ * samples keep their own timestamps (see stageDisk()).
+ */
+const DIST_TIME = "1986-09-09T" + VERSION.replace(/^(\d+)\.(\d+)$/, (match, major, minor) => major.padStart(2, "0") + ":" + minor);
+const DIST_DATE = new Date(DIST_TIME);         // (a date-time string without a time zone is local time)
 const MKMODE = "./tools/pc/disks/mkmode";
+/*
+ * Each build mode's outputs are saved here while the other mode is current, in the same folders that they have in
+ * software/src (see setMode in tools/release.sh).
+ */
+const SAVED = "./tools/pc/disks/objs";
 /*
  * readMode() returns the build mode that MKMODE records ("" if none).  tools/release.sh's setMode changes it to
  * SWITCHING before it swaps the build outputs, so buildDisk() rereads it after building each disk, and leaves the
@@ -140,7 +152,13 @@ for (let line of fs.readFileSync("./software/manifest.txt", "utf8").split(/\r?\n
 const toolFiles = (dir) => globSync(SRC + "/tools/" + dir + "/*").sort().filter((file) =>
     !fs.statSync(file).isDirectory());
 
-const diskFolders = { EXT: manifest.EXT, DEMOS: manifest.DEMOS };
+//
+// The distribution diskette and the 64K demo diskettes (whose machines can't run the tests) have only EXT and DEMOS;
+// every other demo diskette also has the early BASIC-DOS tests (PIPES.BAT and RANDOM.BAT) in TESTS\MISC, where its
+// CONFIG.SYS can run them, but not the rest of TESTS\MISC, which is on the TESTS diskette.
+//
+const distFolders = { EXT: manifest.EXT, DEMOS: manifest.DEMOS };
+const diskFolders = { ...distFolders, "TESTS/MISC": manifest["TESTS/MISC"].filter(file => /\/(PIPES|RANDOM)\.BAT$/i.test(file)) };
 /**
  * diskFiles(diskName, fileSpecs)
  *
@@ -167,8 +185,7 @@ let disks = {
         config: "./download/CONFIG.SYS",
         label: "BASIC-DOS",
         title: "BASIC-DOS " + VERSION + " (Release)",
-        // FIBO.BAT and PIPES.BAT are for the demo pages' consoles (see their CONFIG.SYS files), so they're left out here.
-        folders: { EXT: manifest.EXT, DEMOS: manifest.DEMOS.filter(file => !/\/(FIBO|PIPES)\.BAT$/i.test(file)) },
+        folders: distFolders,
         img: true,
         final: true
     },
@@ -182,13 +199,12 @@ let disks = {
     "BASICDOS-360K-SERIAL": { config: "./demos/serial/CONFIG.SYS", title: "BASIC-DOS HD Serial Port" },
     "BASICDOS-360K-VT100": { config: "./demos/vt100/CONFIG.SYS", title: "BASIC-DOS HD VT100" },
     "BASICDOS-360K-DEBUG": { config: "./demos/debug/CONFIG.SYS", title: "BASIC-DOS Serial Debugger" },
-    "BASICDOS-360K-M64": { config: "./demos/m64/CONFIG.SYS", title: "BASIC-DOS Monochrome", final: true },
-    "BASICDOS-360K-M640": { config: "./demos/m64/m640/CONFIG.SYS", title: "BASIC-DOS 640K Monochrome" },
-    "BASICDOS-360K-TERM": { config: "./demos/term/CONFIG.SYS", title: "BASIC-DOS Terminal", final: true },
+    "BASICDOS-360K-M64": { config: "./demos/m64/CONFIG.SYS", title: "BASIC-DOS Monochrome", final: true, folders: distFolders },
+    "BASICDOS-360K-REAL": { config: "./demos/wolf3d/CONFIG.SYS", title: "BASIC-DOS HD Real Mode" },
+    "BASICDOS-360K-TERM": { config: "./demos/term/CONFIG.SYS", title: "BASIC-DOS Terminal", final: true, folders: distFolders },
     "BASICDOS-360K-TERMHD": { config: "./demos/term/hd/CONFIG.SYS", title: "BASIC-DOS HD Terminal" },
     "BASICDOS-360K-TERM2": { config: "./demos/term/dual/CONFIG.SYS", title: "BASIC-DOS HD Multi-Terminal" },
     "BASICDOS-360K-MMU": { config: "./demos/mmu/vt100/CONFIG.SYS", title: "BASIC-DOS Extended Memory VT100" },
-    "BASICDOS-360K-WOLF3D": { config: "./demos/wolf3d/CONFIG.SYS", title: "BASIC-DOS Wolfenstein 3D" },
     "BASICDOS-360K-TESTS": {
         title: "BASIC-DOS Tests",
         data: true,
@@ -248,6 +264,22 @@ let disks = {
 };
 
 /**
+ * binPath(disk, fileSpec)
+ *
+ * Returns the path of a build output (a file spec for an OBJ or BIN folder in software/src) for the disk's build mode
+ * (see disk.mode), which is the saved copy (see SAVED) if that mode isn't the current one; any other spec is unchanged.
+ *
+ * @param {Object} disk
+ * @param {string} fileSpec
+ * @returns {string}
+ */
+function binPath(disk, fileSpec)
+{
+    let match = path.normalize(fileSpec).match(/^software\/src\/(.*\/(obj|bin)\/[^\/]+)$/i);
+    return match && disk.mode && disk.mode != MODE? path.join(SAVED, disk.mode, match[1]) : fileSpec;
+}
+
+/**
  * stageDisk(diskName)
  *
  * Copies the files for a BASIC-DOS disk (see "disks" above) to a staging directory (tools/pc/disks/diskName),
@@ -263,11 +295,13 @@ function stageDisk(diskName)
     fs.rmSync(dirStage, { recursive: true, force: true });
     fs.mkdirSync(dirStage, { recursive: true });
     let entries = [];
-    let copyFiles = function(fileSpecs, dirTarget, name) {
+    let distSpecs = new Set(manifest.ROOT.concat(manifest.EXT, manifest.DEMOS));
+    let copyFiles = function(fileSpecs, dirTarget, name, dist = false) {
         for (let fileSpec of fileSpecs) {
-            let disk = fileSpec.match(/^(.*\.json)\/(.*)$/);
-            if (disk) fileSpec = diskFiles(disk[1], [disk[2]])[0];
-            let files = fileSpec.indexOf('*') >= 0? globSync(fileSpec).sort() : [fileSpec];
+            let image = fileSpec.match(/^(.*\.json)\/(.*)$/);
+            if (image) fileSpec = diskFiles(image[1], [image[2]])[0];
+            let source = binPath(disk, fileSpec);
+            let files = source.indexOf('*') >= 0? globSync(source).sort() : [source];
             for (let file of files) {
                 /*
                  * A wildcard doesn't include folders (eg, the C compiler's lib and include folders in
@@ -279,6 +313,7 @@ function stageDisk(diskName)
                     execSync("unzip -q -o \"" + file + "\" -d \"" + dirTarget + "\"");
                 } else {
                     fs.cpSync(file, target, { preserveTimestamps: true });
+                    if (dist || distSpecs.has(fileSpec)) fs.utimesSync(target, DIST_DATE, DIST_DATE);
                 }
                 if (dirTarget == dirStage) entries.push(target);
             }
@@ -289,10 +324,10 @@ function stageDisk(diskName)
             if (!disk.hd) copyFiles([file], dirStage);
             continue;
         }
-        copyFiles([disk.config], dirStage, "CONFIG.SYS");
+        copyFiles([disk.config], dirStage, "CONFIG.SYS", true);
         let launchesAutoexec = fs.readFileSync(disk.config, "utf8").split(/\r?\n/).some(line =>
             /^SHELL=/i.test(line) && /\bAUTOEXEC(?:\.BAT)?\b/i.test(line));
-        if (disk.autoexec && launchesAutoexec) copyFiles([disk.autoexec], dirStage, "AUTOEXEC.BAT");
+        if (disk.autoexec && launchesAutoexec) copyFiles([disk.autoexec], dirStage, "AUTOEXEC.BAT", true);
     }
     /*
      * MK.BAT (in SRC) builds DEBUG binaries unless there's an MKFINAL file in its parent directory (as MKDOS.BAT does
@@ -300,6 +335,7 @@ function stageDisk(diskName)
      */
     if (disk.hd && FINAL) {
         fs.writeFileSync(path.join(dirStage, "MKFINAL"), "");
+        fs.utimesSync(path.join(dirStage, "MKFINAL"), DIST_DATE, DIST_DATE);
         entries.push(path.join(dirStage, "MKFINAL"));
     }
     let folders = disk.folders || diskFolders;
@@ -342,7 +378,18 @@ function stageDisk(diskName)
                 }
             }
         }
-        if (folder.indexOf('/') < 0) entries.push(dirTarget);      // a subfolder is part of its folder's entry
+        //
+        // A subfolder is part of its folder's entry, which a disk may not list on its own (eg, a demo diskette's TESTS).
+        //
+        let dirTop = path.join(dirStage, folder.split('/')[0]);
+        if (!entries.includes(dirTop)) entries.push(dirTop);
+    }
+    /*
+     * The distribution folders get the distribution date, too, once nothing else will be copied into them.
+     */
+    for (let folder of ["EXT", "DEMOS"]) {
+        let dirTarget = path.join(dirStage, folder);
+        if (fs.existsSync(dirTarget)) fs.utimesSync(dirTarget, DIST_DATE, DIST_DATE);
     }
     return entries;
 }
@@ -369,11 +416,14 @@ function buildDisk(diskName, diskImage)
         let diskNew = "./tools/pc/disks/" + diskName + "-new.json";
         let cmd;
         if (disks[diskName].hd) {
-            cmd = "node ./tools/pc/pc.js ibm5160 ./tools/pc/disks/" + diskName + " --sys=bd:2 --target=10M --normalize --bare --label=" + label +
+            //
+            // pc.js adds the system files (and CONFIG.SYS) itself, so it dates them (see DIST_TIME).
+            //
+            cmd = "node ./tools/pc/pc.js ibm5160 ./tools/pc/disks/" + diskName + " --sys=bd:2 --sysdate=" + DIST_TIME + " --target=10M --normalize --bare --label=" + label +
                   " --order=" + entries.map(entry => path.basename(entry)).join(",") + " --save=" + diskNew;
         } else {
             cmd = "node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" --files " + entries.join(",") +
-                  (disks[diskName].data? "" : " --boot " + SRC + "/os/boot/obj/BOOT1.COM --attr=" + SYSATTRS) +
+                  (disks[diskName].data? "" : " --boot " + binPath(disks[diskName], SRC + "/os/boot/obj/BOOT1.COM") + " --attr=" + SYSATTRS) +
                   " --output " + diskNew +
                   " --label=" + label + " --normalize --writable --target=360 --overwrite" + DIQUIET;
         }
@@ -488,7 +538,9 @@ if (changed && (process.env["BD_CHANGED"] == "*" || WATCHALL.some(file => change
 let demoTasks = ["diskettes"];
 for (let diskName in disks) {
     if (SWITCHING) break;               // the binaries may be from either mode (see readMode())
-    if (disks[diskName].final? !FINAL : FINAL && !RELEASE) continue;
+    let disk = disks[diskName];
+    disk.mode = disk.final? "FINAL" : (RELEASE || !FINAL? MODE : "DEBUG");
+    if (disk.mode != MODE && (disk.hd || !fs.existsSync(path.join(SAVED, disk.mode)))) continue;
     if (changed && !isAffected(diskName, changed)) continue;
     let buildTask = "BUILD-" + diskName;
     let diskImage = "./software/disks/" + diskName + ".json";

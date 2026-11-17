@@ -50,14 +50,14 @@ const DEMOS = {
     'term':         (hw) => ({ screen: [], keys: false, com: hw == 'at' ? [1, 2] : [1] }),
     's80':          () => ({ screen: [HELLO] }),
     'd40':          () => ({ screen: [HELLO, DIR] }),
-    'd80':          () => ({ screen: [/>[^>]*>/] }),
+    'd80':          () => ({ screen: [HELLO, />[^>]*>/] }),
     'p80':          (hw) => ({ screen: [HELLO, FIBO, PRIMES], cycle: hw == 'pc' }),
-    'dual':         (hw) => ({ screen: [PRIMES, hw == 'pc' ? PIPES : /Maintenance Utility/] }),
+    'dual':         () => ({ screen: [PRIMES, PIPES] }),
     'dual/multi':   () => ({ screen: [HELLO, FIBO, PRIMES, PIPES] }),
     'mouse':        () => ({ screen: [], keys: false, graphics: true }),
-    'debug':        () => ({ debug: 2 }),
+    'debug':        () => ({ screen: [HELLO], debug: 2 }),
     'serial':       () => ({ screen: [HELLO], com: [1] }),
-    'parallel':     () => ({}),
+    'parallel':     () => ({ screen: [HELLO] }),
     'hd':           () => ({ screen: [HELLO] }),
     'vt100':        () => ({ screen: [HELLO], com: [1] }),
     'wolf3d':       () => ({ screen: [], keys: false, graphics: true, pm: false }),
@@ -286,7 +286,20 @@ async function runDemo(demo)
             const bits = demo.hw == '386'? 0x80000001 : 1;
             checks.push({ name: pm? 'protected mode' : 'real mode', test: (s) => ((s.cr0 & bits) >>> 0 == bits) == pm });
         }
-        const tick = spec.cycle && (async (i) => { if (i % 10 == 9) await page.evaluate('__dx.shiftTab()'); });
+        //
+        // A PC or XT's first SHELL prompts for the date and time; a page types them on the keyboard, but on a
+        // serial console (eg, the Terminal demo), we press Enter instead.
+        //
+        const tick = async (i, s) => {
+            //
+            // Switching consoles (eg, on the IBM PC's Multiple Pages demo, whose MDA shows one at a time) must wait
+            // for a prompt, so that the page's DATE and TIME keys go to the first console, which asked for them.
+            //
+            if (spec.cycle && i % 10 == 9 && PROMPT.test(s.screen)) await page.evaluate('__dx.shiftTab()');
+            for (const n of spec.com || []) {
+                if (/Enter new (date|time): $/.test(s.com[n] || '')) await page.evaluate(`__dx.send(${n}, "\\r")`);
+            }
+        };
         const missing = await waitFor(checks, opts.timeout, tick);
         if (!state) {
             failures.push('the machine never loaded');

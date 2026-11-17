@@ -10,10 +10,10 @@ machines:
     autoMount:
       A: "BASIC-DOS Single"
       B: "PC DOS 1.00"
-    autoType: DATE $date\rTIME $time\r
+    autoType: $date\r$time\r
 ---
 
-The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088 with an 8087, 640K of memory, a Color Display, two diskette drives, and a 10Mb hard disk.  It boots the BASIC-DOS Single diskette and runs a single 80-column console, with DONKEY.BAS (from the PC DOS 1.00 diskette) in its DEMOS directory.  The boot sector first displays `System starting...`; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  The PC XT has no clock to keep the date and time, so this page types `DATE` and `TIME` commands with the current date and time at the first prompt.
+The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088 with an 8087, 640K of memory, a Color Display, two diskette drives, and a 10Mb hard disk.  It boots the BASIC-DOS Single diskette and runs a single 80-column console, with DONKEY.BAS (from the PC DOS 1.00 diskette) in its DEMOS directory.  The boot sector first displays `System starting...`; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  The PC XT has no clock to keep the date and time, so BASIC-DOS prompts for them at startup, and this page types the current date and time.
 
 {% include machine.html id="ibm5160" %}
 

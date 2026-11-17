@@ -21,11 +21,12 @@ CODE    SEGMENT
 ;
 ; cmdMem
 ;
-; Prints the number of buffers, files, and sessions (see DOS_MSC_GETVARS),
-; and memory usage: the total memory (all of it, including any extended
-; memory; see DOS_MSC_GETVARS), the available memory (which includes COMMAND's
-; transient portion, if it can be discarded; see transParas), and if it can,
-; the memory available for BASIC programs, followed by a line for anything
+; Prints memory usage: the total memory (all of it, including any extended
+; memory; see DOS_MSC_GETVARS) and the available memory (which includes
+; COMMAND's transient portion, if it can be discarded; see transParas).  With
+; /A, it first prints the number of buffers, files, and sessions (also from
+; DOS_MSC_GETVARS), and if the transient can be discarded, it also prints the
+; memory available for BASIC programs.  Then it prints a line for anything
 ; that's unavailable: floating-point, if the FPU$ driver isn't loaded (see
 ; PSP_FPUTBL), and the functions outside COMMAND's core, if only the core was
 ; loaded (see CORE_END and genUpper).
@@ -41,10 +42,15 @@ CODE    SEGMENT
 ;
 DEFPROC	cmdMem
 	mov	ah,DOS_MSC_GETVARS
-	int	21h			; AX = total memory (in Kb)
-	mov	dx,1024			; CX, SI, DI = # buffers, files, sessions
+	int	21h			; AX = total Kb, CX = # buffers,
+	xchg	bx,ax			; SI = # files, DI = # sessions
+	TESTSW	<'A'>			; /A?
+	jz	mem0			; no
+	PRINTF	<"%8d buffers",13,10,"%8d files",13,10,"%8d sessions",13,10>,cx,si,di
+mem0:	xchg	ax,bx
+	mov	dx,1024
 	mul	dx			; DX:AX = total memory (in bytes)
-	PRINTF	<"%8d buffers",13,10,"%8d files",13,10,"%8d sessions",13,10,"%8ld bytes total",13,10>,cx,si,di,ax,dx
+	PRINTF	<"%8ld bytes total",13,10>,ax,dx
 	sub	cx,cx			; CX = memory block #
 	sub	di,di			; DI = free bytes (low word)
 	push	cx			; and the high word is on the stack
@@ -66,6 +72,8 @@ mem2:	pop	si			; SI:DI = free bytes
 	PRINTF	<"%8ld bytes available",13,10>,ax,dx
 	test	bx,bx			; can the transient be discarded?
 	jz	mem9			; no, so EXEC and BASIC have the same
+	TESTSW	<'A'>			; /A?
+	jz	mem9			; no
 	PRINTF	<"%8ld bytes for BASIC",13,10>,di,si
 mem9:	cmp	word ptr ss:[PSP_FPUTBL].SEG,0; is the FPU$ driver loaded?
 	jne	mem10			; yes

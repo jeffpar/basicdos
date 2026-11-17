@@ -10,6 +10,7 @@ machines:
     sizeRAM: 256
     autoMount:
       A: "BASIC-DOS Multi-Console"
+    autoType: $date\r$time\r
 ---
 
 The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 256K of memory, two monitors (a Monochrome Display and a Color Display), and two diskette drives.  It boots the BASIC-DOS Multi-Console diskette and runs FOUR consoles, two on each monitor.

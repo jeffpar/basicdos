@@ -8,12 +8,12 @@ machines:
     config: /machines/pcx86/ibm/ibm-5160-mda-640kb.json
     debugger: available
     autoMount:
-      A: "BASIC-DOS 640K Monochrome"
+      A: "BASIC-DOS HD Real Mode"
       B: "PC DOS 1.00"
-    autoType: DATE $date\rTIME $time\r
+    autoType: $date\r$time\r
 ---
 
-The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memory, a Monochrome Display, two diskette drives, and a 10Mb hard disk.  It boots the BASIC-DOS 640K Monochrome diskette and runs a single 80-column console, which starts on drive C:, the hard disk, with the BASIC-DOS source code, tests, and tools.  The boot sector first displays `System starting...`; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  The PC XT has no clock to keep the date and time, so this page types `DATE` and `TIME` commands with the current date and time at the first prompt.
+The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memory, a Monochrome Display, two diskette drives, and a 10Mb hard disk.  It boots the BASIC-DOS HD Real Mode diskette and runs a single 80-column console, which starts on drive C:, the hard disk, with the BASIC-DOS source code, tests, and tools.  The boot sector first displays `System starting...`; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  The PC XT has no clock to keep the date and time, so BASIC-DOS prompts for them at startup, and this page types the current date and time.
 
 {% include machine.html id="ibm5160" %}
 

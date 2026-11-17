@@ -96,7 +96,7 @@ If the program isn't in the current directory, and its name doesn't include a dr
 
 - The root directory contains BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, and AUTOEXEC.BAT (if any); BASDEV.COM and BASDOS.COM are read-only hidden system files (so only `DIR /A` lists them), and COMMAND.COM is a read-only system file (see [ATTRIB](../cmd/external/attrib/))
 - **EXT** contains the external BASIC-DOS utilities (eg, [FIND, MORE, and SORT](../cmd/external/#filters), [DEBUG.COM](../cmd/external/debug/), and [HELP](../cmd/external/help/); see [Files Provided with BASIC-DOS](../cmd/external/#files-provided-with-basic-dos) for the complete list)
-- **DEMOS** contains demo programs (eg, HELLO.BAT, FIBO.BAT, PRIMES.BAS, and DIR.BAS, a DIR written in BASIC, using [DIR$](../cmd/basic/func/#dir)), along with DONKEY.BAS, from the PC DOS 1.00 diskette
+- **DEMOS** contains demo programs (eg, HELLO.BAT, a colorful greeting, PRIMES.BAS, and DIR.BAS, a DIR written in BASIC, using [DIR$](../cmd/basic/func/#dir)), along with DONKEY.BAS, from the PC DOS 1.00 diskette
 
 and its CONFIG.SYS sets PATH$ to the root, EXT, and DEMOS (eg, `A:\;A:\EXT;A:\DEMOS`), so you can type `PRIMES` or `DIR | SORT` from any directory.
 
@@ -108,7 +108,7 @@ Use `LIST VARS` to inspect the current session's variable values and array dimen
 
 When a BAS program that you ran from the prompt ends, it remains loaded, along with its variables, so you can [LIST](../cmd/system/#list) it, examine its variables (eg, `PRINT A`), or [RUN](../cmd/system/#run) it again.  RUN reuses the program's compiled code (if the whole program was compiled), unless the program or its variables have changed since it was compiled.
 
-If a name matches a BASIC keyword that can't be used by itself (eg, `CIRCLE`), BASIC-DOS runs the program with that name instead (eg, CIRCLE.BAS).
+If a name matches a BASIC keyword that can't be used by itself (eg, `CIRCLE`, or `RANDOM`, which belongs to OPEN), BASIC-DOS runs the program with that name instead (eg, CIRCLE.BAS or RANDOM.BAT).
 
 To stop a program, press **Ctrl-C**.  If the program doesn't respond (eg, it's in a loop that doesn't do any input or output), press **Ctrl-Break** or **Ctrl-Alt-Del**.
 

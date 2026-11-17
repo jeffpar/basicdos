@@ -17,7 +17,7 @@ machines:
     connection: com1->vt100.serialPort
     autoMount:
       A: "BASIC-DOS HD VT100"
-    autoType: DATE $date\rTIME $time\r
+    autoType: $date\r$time\r
 ---
 
 This is the [VT100 Terminal demo](../) on an IBM PC XT, with a DEC VT100 that doesn't have the Advanced Video Option (AVO).

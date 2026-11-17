@@ -192,7 +192,7 @@ Free memory is also useful for data that can be recreated if it's overwritten.  
 
 ### Date and Time
 
-**DOS_UTL_GETDATE (22h)**: Same outputs as DOS_MSC_GETDATE (CX = year, DH = month, DL = day, AL = day of week), plus AX = packed date: bits 15-9 = year - 1980, bits 8-5 = month, bits 4-0 = day.  Carry is unchanged.
+**DOS_UTL_GETDATE (22h)**: AL = 0.  Same outputs as DOS_MSC_GETDATE (CX = year, DH = month, DL = day, AL = day of week), plus AX = packed date: bits 15-9 = year - 1980, bits 8-5 = month, bits 4-0 = day.  Carry is unchanged.  With AL = 1, it returns AX = 1 if the date came from a real-time clock, or 0 if not (eg, on a PC or PC XT; see IOCTL_CLOCK), which COMMAND.COM uses to decide whether to prompt for the date and time at startup.
 
 **DOS_UTL_GETTIME (23h)**: AL = 0.  Same outputs as DOS_MSC_GETTIME (CH = hours, CL = minutes, DH = seconds, DL = hundredths), plus AX = packed time: bits 15-11 = hours, bits 10-5 = minutes, bits 4-0 = seconds / 2.  Carry is unchanged.  With AL = 1, it returns the ROM BIOS tick count (about 18.2 ticks per second, since midnight) in DX:AX instead, which a program at ring 3 can't read from the BIOS data area itself (COMMAND.COM uses it for RANDOMIZE TIMER, SOUND, and PLAY).
 

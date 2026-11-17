@@ -19,6 +19,7 @@ machines:
     autoMount:
       A: "BASIC-DOS Serial Debugger"
       B: "BASIC-DOS Tests"
+    autoType: $date\r$time\r
 ---
 
 The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 256K of memory, an Enhanced Color Display, and two diskette drives.  It boots the BASIC-DOS Serial Debugger diskette with a local console and a debugger on a DEC VT100 connected to COM2 at 9600 baud.  Wait for the debugger's startup message on the VT100, then click its screen and press **Ctrl-C** to stop the machine; type `?` for help, or `G` to resume.

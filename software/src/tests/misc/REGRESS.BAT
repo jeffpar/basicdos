@@ -1,3 +1,4 @@
+@ECHO OFF
 REM REGRESS.BAT: runs the regression tests in \TESTS\REGRESS (run it
 REM from \TESTS).  Each test prints "failed" (or "passed") messages, and
 REM the tests that return an exit code are checked here.  The programs in

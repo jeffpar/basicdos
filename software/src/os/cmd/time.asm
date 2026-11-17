@@ -51,6 +51,8 @@ dt1:	mov	ah,DOS_MSC_SETDATE
 	int	21h			; set the date
 	test	al,al			; success?
 	jnz	dt2			; no
+	cmp	[di].TOK_CNT,al		; did we prompt (see dt2)?
+	jne	dt8			; yes, so don't display it again
 	stc				; (and ZF is set)
 	call	promptDate		; display the new date
 	jmp	short dt8
@@ -135,6 +137,8 @@ tm3:	mov	ax,offset promptTime
 	int	21h			; set the time
 	test	al,al			; success?
 	jnz	tm4			; no
+	cmp	[di].TOK_CNT,al		; did we prompt (see tm4)?
+	jne	tm7			; yes, so don't display it again
 	stc				; (and ZF is set)
 	call	promptTime		; display the new time
 	jmp	short tm7
@@ -164,6 +168,77 @@ tm8:	mov	cx,0			; instead of retaining current values
 	mov	dx,cx			; set all defaults to zero
 tm9:	ret
 ENDPROC	cmdTime
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; bootTime
+;
+; COMMAND calls this at startup, before any startup command.
+; It removes a leading /Q from the startup command, and unless there was one,
+; the first SHELL (the one sysinit loaded into session 0) prompts for the date
+; and time, as PC DOS does, on a machine without a real-time clock (eg, a PC
+; or XT; see DOS_UTL_GETDATE).
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	DS = ES = SS
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+DEFPROC	bootTime
+	mov	si,PSP_CMDTAIL
+	lodsb
+	cbw
+	xchg	cx,ax			; CX = length of tail
+	jcxz	bt3
+bt1:	lodsb
+	cmp	al,CHR_SPACE		; skip leading whitespace
+	ja	bt2
+	loop	bt1
+	jmp	short bt3
+bt2:	cmp	al,'/'			; "/Q" (as initEnv accepts "/C")?
+	je	bt2a
+	cmp	al,[bx].SWITCH_CHAR	; or the switch char?
+	jne	bt3
+bt2a:	mov	al,[si]
+	or	al,20h
+	cmp	al,'q'
+	jne	bt3
+	cmp	byte ptr [si+1],CHR_SPACE
+	ja	bt3
+	mov	word ptr [si-1],(CHR_SPACE SHL 8) OR CHR_SPACE
+	ret				; blank the switch (and don't prompt)
+bt3:	cmp	ds:[PSP_SHELL],0	; a SHELL that sysinit loaded?
+	je	bt9			; no
+	DOSUTIL	GETCSN			; CL = session #
+	test	cl,cl			; the first session's?
+	jnz	bt9			; no
+	DOSUTIL	GETDATE,1		; AX = 1 if from a real-time clock
+	test	ax,ax			; is there one?
+	jnz	bt9			; yes
+;
+; Run DATE and TIME as if with /P (see TESTSW) and no other tokens (see
+; getToken), so that each prompts, and prompts again after an invalid entry.
+;
+	mov	word ptr ds:[PSP_DIGITS + 2],1 SHL ('P' - 'A')
+	mov	[bx].CMD_ARG,1
+	push	bx
+	lea	di,[bx].TOKENBUF
+	mov	[di].TOK_CNT,1
+	call	cmdDate
+	pop	bx
+	push	bx
+	lea	di,[bx].TOKENBUF
+	mov	[di].TOK_CNT,1		; (cmdDate may have zeroed it)
+	call	cmdTime
+	pop	bx
+	mov	word ptr ds:[PSP_DIGITS + 2],0
+bt9:	ret
+ENDPROC	bootTime
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

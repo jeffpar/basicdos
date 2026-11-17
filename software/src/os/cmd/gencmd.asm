@@ -65,6 +65,7 @@ CODE    SEGMENT
 	EXTNEAR	<getLineNum,genMidSet,codeSeg,strPrompt,genSetPrompt>
 	EXTNEAR	<printCRLF>
 	EXTBYTE	<MID_DATA,TRUE_DATA,FALSE_DATA>
+	EXTABS	<TOK_REM,TOK_ELSE>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -462,9 +463,20 @@ DEFPROC	genCommands
 	jnc	gcInit
 	ret
 ;
-; A keyword with no generator (eg, ELSE) ends the commands, and we leave it
-; for the caller (eg, genIf), returning AX = CLS_KEYWORD and the keyword ID.
+; Of the keywords with no generator, REM and ELSE end the commands, and we
+; leave ELSE for the caller (genIf), returning AX = CLS_KEYWORD and its ID.
+; Any other (eg, RANDOM, from OPEN, or a function like ABS) is the name of a
+; program to run if it's alone, as below, and a syntax error if not.
 ;
+gcs7:	cmp	al,TOK_REM		; REM?
+	je	gcs8			; yes
+	cmp	al,TOK_ELSE		; ELSE?
+	je	gcs8			; yes
+	mov	al,CLS_ANY
+	call	peekNextToken		; any tokens after the keyword?
+	stc				; (STC leaves ZF alone)
+	jnz	gcr9			; yes, so it's a syntax error
+	jmp	gcs1d			; no, so treat the keyword as a command
 gcs8:	sub	bx,size TOKLET		; (this clears carry, too)
 gcr9:	ret
 
@@ -476,7 +488,7 @@ gcInit:	mov	dx,bx			; DX -> TOKLETs (for implicit LET)
 	mov	cx,cs:[si].CTD_FUNC	;
 	cmp	al,KEYWORD_BASIC	; BASIC keyword?
 	jb	gcs2			; no
-	jcxz	gcs8			; no command address
+	jcxz	gcs7			; no command address
 ;
 ; If the keyword is alone (eg, "CIRCLE") and its generator fails, then it's
 ; presumably the name of a program to run (eg, CIRCLE.BAS), so we discard any

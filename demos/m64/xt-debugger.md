@@ -8,9 +8,9 @@ machines:
     config: /machines/pcx86/ibm/ibm-5160-mda-640kb.json
     debugger: true
     autoMount:
-      A: "BASIC-DOS 640K Monochrome"
+      A: "BASIC-DOS HD Real Mode"
       B: "PC DOS 1.00"
-    autoType: DATE $date\rTIME $time\r
+    autoType: $date\r$time\r
 ---
 
 {% include machine.html id="ibm5160" %}

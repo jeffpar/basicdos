@@ -1,3 +1,4 @@
+	@ECHO OFF
 	REM Usage: MK [FINAL or DEBUG] [CLEAN] (DEBUG is the default, unless
 	REM there's an MKFINAL file in the parent directory, as there is for
 	REM MKDOS.BAT; CLEAN deletes everything in each OBJ folder for a clean

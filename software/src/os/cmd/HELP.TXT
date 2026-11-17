@@ -54,6 +54,9 @@ For blinking colors, use 16-31 for *foreground* and 128-255 for *border*; as in 
 In SCREEN 1, the values are the background color (0-15) and palette (0 or 1) instead.
 A VT100 terminal has no colors: COLOR 0,7 is reverse video, a *foreground* of 1 is underlined, 8-15 are bold, and 16-31 blink.
 
+[e]COMMAND [~C] [~Q] [*command*[:*command*]...]
+Starts another copy of the Command Shell, which runs any *commands* first; ~C runs them and then exits.  On a machine with no real-time clock (eg, an IBM PC or PC XT), the first SHELL prompts for the date and time before its commands, unless ~Q comes first.
+
 [e]COMP *file1* *file2*
 Compares each file matching *file1* (which can contain wildcards, but doesn't match hidden files) with *file2* (or if *file2* is a drive or directory, with the file there that has the same name), and reports the offset (in hex) and bytes of each difference, up to 10 differences.
 ERRORLEVEL is set to 0 if every file compares ok, and otherwise to 1.
@@ -88,8 +91,8 @@ Returns the integer stored in the first 4 bytes of *string* by MKL$.
 [b]DATA *item*[,*item*]...
 Defines items for READ to assign to variables, in the order they appear in the program.  An item can be a number or a string; quoted strings can contain commas and colons.
 
-[c+]DATE [*date*] [~P]
-Sets the system date (or prompts for a date if ~P) and then displays the date.
+[c]DATE [*date*] [~P]
+Sets the system date and then displays it (or displays the current date if no *date*); ~P displays the current date and prompts for a new one.
 The date must be entered as M-D-Y or M/D/Y, where M is 1-12, D is 1-31, and Y is 0-99 or 1980-2099.
 If D or Y are omitted, current values are assumed.
 
@@ -144,7 +147,7 @@ Returns register AX (*n* = 0), BX (1), CX (2), or DX (3), as DOS returned it to 
 Draws lines from the last point, using these commands: U, D, L, R, E, F, G, and H [*n*] (move up, down, left, right, or diagonally), M *x*,*y* (move to *x*,*y*, or relative to the last point if *x* begins with + or -), B (prefix: move without drawing), N (prefix: draw without moving), C *n* (color), S *n* (scale, in quarters), A *n* (angle 0-3, in 90-degree turns), TA *n* (angle in degrees, -360 to 360), P *paint*,*border* (paint the area around the last point), and X*variable*; (draw the commands in a string variable).  Any number can be given as =*variable*; (eg, "M=X;,=Y;").
 
 [b]ECHO [ON|OFF]
-Controls the echo of lines in a BAT file.  Every BAT file starts with ECHO OFF; after ECHO ON, echoed lines are displayed with a @ in front, and lines that begin with @ are not echoed.
+Controls the echo of lines in a BAT file.  Every BAT file starts with ECHO ON, as in PC DOS (so most begin with @ECHO OFF); echoed lines are displayed with a @ in front, and lines that begin with @ (after any spaces or tabs) are not echoed.
 
 [b+]EDIT *line*
 Displays the specified program line for editing.  Press ENTER to store the edited line.
@@ -334,8 +337,8 @@ Constant equal to the largest positive integer.
 [c]MD [*drive*:]*path*
 Creates a new directory.
 
-[c]MEM
-Displays the number of buffers, files, and sessions, the total memory, available memory, and any unavailable features (eg, floating-point). See HELP CORE for more details.
+[c]MEM [~A]
+Displays the total and available memory, and any unavailable features (eg, floating-point). ~A adds the number of buffers, files, and sessions, and the memory for BASIC. See HELP CORE for more details.
 
 [b+]MERGE *file*
 Adds the numbered lines of the specified BAS file (searching PATH$ if necessary) to the loaded program, replacing any lines with the same numbers.  MERGE can't be used inside a BAS or BAT file; use CHAIN MERGE instead.
@@ -558,8 +561,8 @@ Returns the tangent of *x*, where *x* is in radians.
 Copies input to output and to *file* (eg, DIR | TEE DIR.TXT | MORE), replacing *file*, or with ~A, appending to it.
 ERRORLEVEL is set to 0, or 2 if *file* couldn't be opened or written.
 
-[c+]TIME [*time*] [~D] [~P]
-Sets the system time (or prompts for a time if ~P) and then displays the time.
+[c]TIME [*time*] [~D] [~P]
+Sets the system time and then displays it (or displays the current time if no *time*); ~P displays the current time and prompts for a new one.
 The time must be entered as H:M:S.D, where H is 0-23, M is 0-59, S is 0-59, and D is 0-99.  If M, S, or D are omitted, zeros are assumed.
 ~D displays only the time elapsed since TIME last displayed the time (or since midnight, if TIME hasn't been used).
 

@@ -7,15 +7,15 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Usage: V86 V86TEST
+; Usage: V86 V86TESTS
 ;
 ; A real-mode program that checks, from inside a V86 machine (see V86.COM),
 ; that the machine works as real mode would: CLI, STI, PUSHF, and POPF (with
 ; the machine's own IF), INTs to its vectors (reflected, with IF clear in the
 ; handler) and their IRETs, INT3, a divide error, the upper half of a 32-bit
 ; register across a DOS call, PUSHF with the direction flag set, and a hook of
-; INT 21h that passes calls on to the default handler.  It prints "V86TEST
-; passed", or "V86TEST failed (n)" for test n (and exits with 1).
+; INT 21h that passes calls on to the default handler.  It prints "V86TESTS
+; passed", or "V86TESTS failed (n)" for test n (and exits with 1).
 ;
 	DOSPSP equ 1
 	DOSFUNC equ 1
@@ -34,8 +34,13 @@ DEFPROC	main
 	mov	dx,offset STARTING
 	call	print
 ;
-; 1: In V86 mode, the MSW says protected mode.
+; 1: In V86 mode, the MSW says protected mode.  An 8086 or 80186 has no SMSW
+; (to an 8086, 0Fh is POP CS), and it decrements SP before PUSH SP stores it.
 ;
+	push	sp
+	pop	ax
+	cmp	ax,sp			; an 80286 or later?
+	jne	fail			; no
 	db	0Fh,01h,0E0h		; SMSW AX
 	test	al,1			; PE?
 	jz	fail
@@ -217,9 +222,9 @@ ENDPROC	hook21
 	DEFBYTE	count,0
 	DEFBYTE	ints,0
 	DEFLONG	prev21,0
-	DEFSTR	STARTING,<"V86TEST starting",13,10,"$">
-	DEFSTR	PASSED,<"V86TEST passed",13,10,"$">
-	DEFSTR	FAILED,<"V86TEST failed (">
+	DEFSTR	STARTING,<"V86TESTS starting",13,10,"$">
+	DEFSTR	PASSED,<"V86TESTS passed",13,10,"$">
+	DEFSTR	FAILED,<"V86TESTS failed (">
 	DEFSTR	FAILNUM,<"0)",13,10,"$">
 
 	COMHEAP	0		; COMHEAP (heap size) must be the last item

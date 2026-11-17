@@ -10,6 +10,7 @@ machines:
     autoMount:
       A: "BASIC-DOS Single"
       B: "PC DOS 1.00"
+    autoType: $date\r$time\r
 ---
 
 The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088 with an 8087, 128K of memory, a Color Display, and two diskette drives.  It boots the BASIC-DOS Single diskette and runs a single 80-column console, with DONKEY.BAS (from the PC DOS 1.00 diskette) in its DEMOS directory.

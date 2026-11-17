@@ -9,6 +9,7 @@ machines:
     debugger: true
     autoMount:
       A: "BASIC-DOS Dual Monitor"
+    autoType: $date\r$time\r
 ---
 
 {% include machine.html id="ibm5150" %}

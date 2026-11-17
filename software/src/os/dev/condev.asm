@@ -1645,17 +1645,19 @@ ENDPROC	free_vbuf
 ;	Carry clear if successful, AX = segment (or selector)
 ;
 ; Modifies:
-;	AX, SI
+;	AX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	alloc_sys
 	push	bx
 	push	cx
 	push	dx
+	push	si			; (ddcon_open's con_place index)
 	sub	si,si			; SI:DI = length
 	mov	bx,MCBOWNER_SYSTEM
 	mov	ax,CPU_ALLOC SHL 8	; AL = 0 (a GDT data selector)
 	call	far ptr DDINT_CPU
+	pop	si
 	pop	dx
 	pop	cx
 	pop	bx

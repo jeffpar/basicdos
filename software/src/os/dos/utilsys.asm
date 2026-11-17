@@ -484,10 +484,11 @@ ENDPROC	utl_restart
 ; utl_getdate (AH = 22h)
 ;
 ; Identical to msc_getdate, but also returns the "packed" date in AX
-; and does not modify carry.
+; and does not modify carry; or with REG_AL = 1, returns whether the date
+; came from a real-time clock instead (see IOCTL_CLOCK).
 ;
 ; Inputs:
-;	None
+;	REG_AL = 0 for the date, or 1 for its source
 ;
 ; Outputs:
 ; 	REG_AX = date in "packed" format:
@@ -502,10 +503,20 @@ ENDPROC	utl_restart
 ;	REG_DL = day (1-31)
 ;	REG_AL = day of week (0-6 for Sun-Sat)
 ;
+;	or with REG_AL = 1, REG_AX = 1 if the date came from a real-time clock,
+;	or 0 if not (eg, on a PC or XT)
+;
 DEFPROC	utl_getdate,DOS
 	sti
-	call	msc_getdate
-	mov	[bp].REG_AX,ax
+	cmp	byte ptr [bp].REG_AL,1	; the date's source instead?
+	jne	gdt1			; no
+	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_CLOCK
+	les	di,[clk_ptr]
+	call	dev_request		; DX = 1 if from a real-time clock
+	xchg	ax,dx
+	jmp	short gdt2
+gdt1:	call	msc_getdate
+gdt2:	mov	[bp].REG_AX,ax
 	clc
 	ret
 ENDPROC	utl_getdate

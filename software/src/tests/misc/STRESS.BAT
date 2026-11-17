@@ -1,3 +1,4 @@
+@ECHO OFF
 REM BASIC-DOS multitasking stress test (see demos/hd): creates folders
 REM nested 4 deep, each with 4 small files of increasingly long names plus
 REM 128 empty files (enough to grow each folder beyond its first cluster),

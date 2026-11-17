@@ -9,10 +9,10 @@ machines:
     debugger: available
     autoMount:
       A: "BASIC-DOS Dual Monitor"
-    autoType: DATE $date\rTIME $time\r
+    autoType: $date\r$time\r
 ---
 
-The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memory, two monitors (a Monochrome Display and a Color Display), two diskette drives, and a 10Mb hard disk.  It boots the BASIC-DOS Dual Monitor diskette and runs one console on each monitor: PRIMES.BAS on the Monochrome Display, while the Color Display switches to the hard disk's **SRC** directory and runs **MK** to build BASIC-DOS itself, with MAKE, MASM, and LINK.  The boot sector first displays `System starting...` on the Monochrome Display; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  The PC XT has no clock to keep the date and time, so this page types `DATE` and `TIME` commands with the current date and time at the first prompt.
+The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memory, two monitors (a Monochrome Display and a Color Display), two diskette drives, and a 10Mb hard disk.  It boots the BASIC-DOS Dual Monitor diskette and runs one console on each monitor: PRIMES.BAS on the Monochrome Display and PIPES.BAT on the Color Display, which pipes the output of DIR through the TR filter (converting it to upper-case) over and over.  The boot sector first displays `System starting...` on the Monochrome Display; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  The PC XT has no clock to keep the date and time, so BASIC-DOS prompts for them at startup, and this page types the current date and time.
 
 {% include machine.html id="ibm5160" %}
 

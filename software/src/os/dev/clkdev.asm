@@ -37,6 +37,7 @@ CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CLOCK+DDATTR_CHAR+DDATTR_IOCTL,offset
 	DEFBYTE	dateDay,10		; 1-31 (default for PC and XT)
 	DEFBYTE	dateMonth,12		; 1-12
 	DEFWORD	dateYear,2020		; 1980-
+	DEFBYTE	dateRTC,0		; 1 if date from a real-time clock
 	DEFLONG	ticksToday,0		; ticks since midnight (from BIOS)
 	DEFWORD	sndTicks,0		; ticks until the speaker is turned off
 
@@ -272,7 +273,17 @@ dci3b:	push	cx
 	sti
 	jmp	dci8
 
-dci4:	cmp	al,IOCTL_GETDATE
+dci4:	cmp	al,IOCTL_CLOCK
+	jne	dci4a
+;
+; For CLOCK requests, return DX = 1 if the date came from a real-time clock
+; (see ddclk_init), or 0 if it's still our default date (eg, on a PC or XT).
+;
+	mov	dl,[dateRTC]
+	mov	dh,0
+	jmp	short dci4z
+
+dci4a:	cmp	al,IOCTL_GETDATE
 	jne	dci5
 ;
 ; For GETDATE requests, return the date in "packed" format:
@@ -292,7 +303,7 @@ dci4:	cmp	al,IOCTL_GETDATE
 	shl	dx,cl			; make room for day (5 bits)
 	or	dl,[dateDay]
 	sti
-	jmp	dci8
+dci4z:	jmp	dci8
 dci4x:	jmp	dci9
 
 dci5:	cmp	al,IOCTL_GETTIME
@@ -783,6 +794,7 @@ DEFPROC	ddclk_init,far
 	mov	al,dl
 	call	bcd_bin
 	mov	[dateDay],al
+	inc	[dateRTC]		; (see IOCTL_CLOCK)
 ci1:
 ;
 ; Install an INT 08h hardware interrupt handler, which we will use to service

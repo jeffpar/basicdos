@@ -1,4 +1,4 @@
-The BASIC-DOS Dual Monitor diskette's **CONFIG.SYS** runs one full-screen console on each monitor: PRIMES.BAS on the Monochrome Display, and on the Color Display, a build of BASIC-DOS itself (with MAKE, MASM, and LINK) from the hard disk's SRC directory.  If there's no hard disk (eg, on an IBM PC), the Color Display console runs PIPES.BAT instead, which pipes the output of DIR through the TR filter (converting it to upper-case) over and over.
+The BASIC-DOS Dual Monitor diskette's **CONFIG.SYS** runs one full-screen console on each monitor: PRIMES.BAS on the Monochrome Display, and on the Color Display, PIPES.BAT, which pipes the output of DIR through the TR filter (converting it to upper-case) over and over.
 
 At first glance, it might appear there are two machines running, but it really is just a single machine running two BASIC-DOS consoles.  Use **SHIFT-TAB** to toggle keyboard focus between them.  Since these consoles don't use borders, the presence of a blinking cursor indicates which console has focus.
 

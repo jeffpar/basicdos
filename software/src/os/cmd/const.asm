@@ -287,7 +287,7 @@ KEYWORDS	macro	PASS
 	PASS	RANDOMIZE,96,genRandomize
 	PASS	RD,     18, cmdRmdir
 	PASS	READ,   84, genRead
-	PASS	REM,    52
+	PASS	REM,    52,,PUB
 	PASS	REN,    26, cmdRen
 	PASS	RESTORE,85, genRestore
 	PASS	RESUME, 73, genResume

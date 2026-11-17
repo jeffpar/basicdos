@@ -11,11 +11,10 @@
   "/software/disks/BASICDOS-360K-VT100.json": "BASIC-DOS HD VT100",
   "/software/disks/BASICDOS-360K-DEBUG.json": "BASIC-DOS Serial Debugger",
   "/software/disks/BASICDOS-360K-M64.json": "BASIC-DOS Monochrome",
-  "/software/disks/BASICDOS-360K-M640.json": "BASIC-DOS 640K Monochrome",
+  "/software/disks/BASICDOS-360K-REAL.json": "BASIC-DOS HD Real Mode",
   "/software/disks/BASICDOS-360K-TERM.json": "BASIC-DOS Terminal",
   "/software/disks/BASICDOS-360K-TERMHD.json": "BASIC-DOS HD Terminal",
   "/software/disks/BASICDOS-360K-TERM2.json": "BASIC-DOS HD Multi-Terminal",
   "/software/disks/BASICDOS-360K-MMU.json": "BASIC-DOS Extended Memory VT100",
-  "/software/disks/BASICDOS-360K-WOLF3D.json": "BASIC-DOS Wolfenstein 3D",
   "/software/disks/BASICDOS-360K-TESTS.json": "BASIC-DOS Tests"
 }

@@ -9,10 +9,10 @@ machines:
     debugger: available
     autoType: WOLF3D\r
     autoMount:
-      A: "BASIC-DOS Wolfenstein 3D"
+      A: "BASIC-DOS HD Real Mode"
 ---
 
-The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of memory, a VGA Color Display, a Sound Blaster, a 1.2Mb and a 1.44Mb diskette drive, and a 10Mb hard disk.  It boots the BASIC-DOS Wolfenstein 3D diskette, which runs BASIC-DOS in real mode with its shell on the hard disk (drive C:), and then types `WOLF3D` at the prompt, which runs the shareware version (1.4) of [Wolfenstein 3D](https://www.pcjs.org/software/pcx86/game/id/wolf3d/) from the hard disk's DEMOS\WOLF3D directory.
+The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of memory, a VGA Color Display, a Sound Blaster, a 1.2Mb and a 1.44Mb diskette drive, and a 10Mb hard disk.  It boots the BASIC-DOS HD Real Mode diskette, which runs BASIC-DOS in real mode with its shell on the hard disk (drive C:), and then types `WOLF3D` at the prompt, which runs the shareware version (1.4) of [Wolfenstein 3D](https://www.pcjs.org/software/pcx86/game/id/wolf3d/) from the hard disk's DEMOS\WOLF3D directory.
 
 {% include machine.html id="ibm5170" %}
 

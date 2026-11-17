@@ -35,17 +35,20 @@ manifest() {
 }
 files_ext=($(manifest EXT))
 files_tests=($(manifest DEMOS) $(manifest TESTS))
+files_regress=($(manifest TESTS/REGRESS))
+files_misc=($(manifest TESTS/MISC))
 #
 # A diskette configuration (whose PATH$ is on A:) leaves out the EXT utilities that work on entire volumes (CHKDSK,
-# DISKCOPY, FORMAT, LABEL, and SYS) and the DEMOS files (eg, DIR.BAS and PAINT.BAS), which no test uses, to keep enough
-# free space on a 360K test floppy for MOVES and FCBTESTS; use the hd configuration to test them.
+# DISKCOPY, FORMAT, LABEL, and SYS), the DEMOS files (eg, DIR.BAS and PAINT.BAS), and the TESTS files that only run by
+# hand (BENCH.BAS, STRESS.BAT, GFXTESTS.BAS, and MICRO.BAS; bench.sh copies its own BENCH.BAS), which no diskette test
+# uses, to keep enough free space on a 360K test floppy for MOVES, FCBTESTS, and HARDERR; use the hd configuration for
+# them.
 #
 if grep -q 'PATH\$="A:' "$dir/CONFIG.SYS"; then
     files_ext=($(printf '%s\n' "${files_ext[@]}" | grep -v -E '/(CHKDSK|DISKCOPY|FORMAT|LABEL|SYS)\.BAS$'))
-    files_tests=($(manifest TESTS))
+    files_tests=($(manifest TESTS | grep -v -E '/(BENCH\.BAS|STRESS\.BAT)$'))
+    files_misc=($(printf '%s\n' "${files_misc[@]}" | grep -v -E '/(GFXTESTS|MICRO)\.BAS$'))
 fi
-files_regress=($(manifest TESTS/REGRESS))
-files_misc=($(manifest TESTS/MISC))
 #
 # MSBASIC.EXE isn't needed in a test configuration (bench.sh copies its own), and leaving it out keeps enough free
 # space on a 360K test floppy for FCBTESTS, which writes a 16643-byte file.  No test uses SYMDEB.EXE either, so a

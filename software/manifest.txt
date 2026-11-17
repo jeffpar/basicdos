@@ -24,8 +24,9 @@
 # diskimage.js resolves) followed by the file's path within the image.
 #
 # gulpfile.js builds the BASICDOS-360K distribution diskette and every demo
-# diskette with ROOT, EXT, and DEMOS (except that the distribution diskette's
-# DEMOS has no FIBO.BAT or PIPES.BAT, which the demo pages run), the BASICDOS-360K-TESTS diskette with
+# diskette with ROOT, EXT, and DEMOS (and every demo diskette but the 64K
+# ones also has the TESTS/MISC files that its CONFIG.SYS can run: PIPES.BAT
+# and RANDOM.BAT), the BASICDOS-360K-TESTS diskette with
 # TESTS (and its REGRESS and MISC subfolders) and TOOLS, and the BASICDOS-10MB
 # hard disk with all of them (plus TESTS/SAMPLES, DEMOS/WOLF3D, the WOLF3D.BAT and JIVE files that only it has
 # in DEMOS, SRC, and the build tools in TOOLS/BIN, with the C compiler's include
@@ -65,9 +66,6 @@ software/src/os/cmd/HELP.TXT
 software/src/demos/*
 demos/samples/DONKEY.BAS
 software/src/tests/misc/DIR.BAS
-software/src/tests/misc/FIBO.BAT
-software/src/tests/misc/HELLO.BAT
-software/src/tests/misc/PIPES.BAT
 demos/mouse/PAINT.BAS
 software/src/tests/primes/PRIMES.BAS
 
@@ -107,10 +105,12 @@ software/src/tests/bin/CPUTESTS.COM
 software/src/tests/bin/DBGTESTS.COM
 software/src/tests/bin/FAULT.COM
 software/src/tests/bin/R3TESTS.COM
-software/src/tests/bin/V86TEST.COM
+software/src/tests/bin/V86TESTS.COM
 software/src/tests/bin/MEMTESTS.COM
 software/src/tests/misc/GFXTESTS.BAS
 software/src/tests/misc/MICRO.BAS
+software/src/tests/misc/PIPES.BAT
+software/src/tests/misc/RANDOM.BAT
 software/src/tests/primes/PRIMES.BAT
 software/src/tests/bin/PRIMES.EXE
 

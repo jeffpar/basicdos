@@ -9,7 +9,7 @@ machines:
     debugger: true
     autoType: WOLF3D\r
     autoMount:
-      A: "BASIC-DOS Wolfenstein 3D"
+      A: "BASIC-DOS HD Real Mode"
 ---
 
 {% include machine.html id="deskpro386" %}

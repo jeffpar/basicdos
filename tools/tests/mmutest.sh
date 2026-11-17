@@ -2,8 +2,8 @@
 #
 # Usage: tools/tests/mmutest.sh [8088] [real] [pm] [r3] [386] [r386] [multi] [pool] [tools]
 #
-# Runs quick.sh's floppy tests (FPUTESTS through PRINTF), followed by CPUTESTS, R3TESTS, and V86TEST (in V86.COM's V86
-# machine, which only the "386" and "r386" machines have), on these test machines:
+# Runs quick.sh's floppy tests (FPUTESTS through PRINTF), followed by CPUTESTS, R3TESTS, and V86TESTS (in V86.COM's
+# V86 machine, which only the "386" and "r386" machines have), on these test machines:
 #
 #   8088    an IBM PC XT (ibm5160), where CPU$ keeps only what an 8088 needs
 #   real    a 2Mb IBM PC AT (ibm5170) with a "CPU=8088" line, where CPU$ acts as it does on an 8088, so BASIC-DOS runs in
@@ -34,7 +34,7 @@ tools/tests/prep.sh $fpe || exit 1
 ok='IF ERRORLEVEL = 0 THEN PRINT "EXITOK" ELSE PRINT "EXITBAD"'
 abort='IF ERRORLEVEL = 255 THEN PRINT "ABORTOK" ELSE PRINT "ABORTBAD"'
 m='\TESTS\REGRESS\'
-cmds="VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}BUFTESTS;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;\\TESTS\\MISC\\CPUTESTS;$ok;\\TESTS\\MISC\\R3TESTS;$ok;V86 \\TESTS\\MISC\\V86TEST;SLEEP 1;QUIT"
+cmds="VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}BUFTESTS;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;\\TESTS\\MISC\\CPUTESTS;$ok;\\TESTS\\MISC\\R3TESTS;$ok;V86 \\TESTS\\MISC\\V86TESTS;SLEEP 1;QUIT"
 log=$(mktemp)
 failed=
 for name in ${@:-8088 real pm r3 386 r386 multi pool tools}; do
@@ -109,7 +109,7 @@ EOF
                 rm -rf $tmp
                 cp -R $fpe $tmp || exit 1
                 case $name in
-                    *386) args="compaq386 $tmp --ram=2M"; cpu="CPU type 3 (hardware 3)"; v86="V86TEST passed" ;;
+                    *386) args="compaq386 $tmp --ram=2M"; cpu="CPU type 3 (hardware 3)"; v86="V86TESTS passed" ;;
                     *)    args="ibm5170 $tmp --ram=2M"; cpu="CPU type 2 (hardware 2)" ;;
                 esac
                 if [ $name = pm ] || [ $name = 386 ]; then

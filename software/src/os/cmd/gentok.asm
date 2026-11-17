@@ -72,17 +72,27 @@ gnl3:	lodsb				; AL = length byte
 	jcxz	gnl1
 ;
 ; As a preliminary matter, if we're processing a BAT file, then generate
-; code to print the line, unless it starts with a '@', in which case, skip
-; over the '@'.
+; code to print the line, unless it starts with a '@' (after any whitespace,
+; since our BAT files indent every line), in which case, skip over the '@'.
 ;
 gnl4:
 	IFDEF	MAXDEBUG
 	DPRINTF	<"%.*ls\r\n">,cx,si,ds
 	ENDIF
-	cmp	byte ptr [si],'@'
-	jne	gnl5
-	inc	si
-	dec	cx
+	push	si
+	push	cx
+gnl4a:	lodsb
+	cmp	al,'@'			; a '@' (after any whitespace)?
+	je	gnl4b			; yes
+	cmp	al,CHR_SPACE		; whitespace?
+	ja	gnl4c			; no
+	loop	gnl4a
+gnl4c:	pop	cx			; no '@', so the line is unchanged
+	pop	si
+	jmp	short gnl5
+gnl4b:	pop	ax			; discard the original CX and SI
+	pop	ax
+	dec	cx			; CX = length after the '@'
 	jz	gnl1
 	jmp	short gnl6
 gnl4x:	jmp	short gnl9

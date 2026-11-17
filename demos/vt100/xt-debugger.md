@@ -18,7 +18,7 @@ machines:
     connection: com1->vt100.serialPort
     autoMount:
       A: "BASIC-DOS HD VT100"
-    autoType: DATE $date\rTIME $time\r
+    autoType: $date\r$time\r
 ---
 
 {% include vt100-demo.html id="ibm5160" %}

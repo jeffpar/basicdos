@@ -9,7 +9,7 @@ machines:
     debugger: true
     autoMount:
       A: "BASIC-DOS Single"
-    autoType: DATE $date\rTIME $time\rPAINT\r
+    autoType: $date\r$time\rPAINT\r
 ---
 
 {% include machine.html id="ibm5160" %}

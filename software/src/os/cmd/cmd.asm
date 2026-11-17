@@ -21,7 +21,7 @@ CODE    SEGMENT
 	EXTNEAR	<freeAllText,genCode,keepCode,freeAllVars,cmdLoad,chkProgram>
 	EXTNEAR	<freeIdleVars,resetVars,findVar,cmdPipe,runLine,syntaxError>
 	EXTNEAR	<enterLine,editPrompt,genUpper,runFile,showPrompt>
-	EXTNEAR	<saveChains,restoreChains,compactStrs>
+	EXTNEAR	<saveChains,restoreChains,compactStrs,bootTime>
 	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resSum,resParas>
 	EXTNEAR	<showCursor,hideCursor>
 	EXTNEAR	<initEnv,buildEnv,freeEnv>
@@ -155,6 +155,7 @@ m0a:	pop	bx
 	PRINTF	<"Press Shift-Tab to switch sessions",13,10>
 m0h:	PRINTF	<13,10>
 m0b:
+	call	bootTime		; remove any /Q, and prompt if needed
 ;
 ; NOTE: The original plan was to use Microsoft's MBF (Microsoft Binary Format)
 ; floating-point code from GW-BASIC, but BASIC-DOS will instead implement its
@@ -192,18 +193,18 @@ m0d:	mov	al,cl
 	stosb				; set INP_CNT
 	inc	cx			; include the CHR_RETURN
 	rep	movsb			; copy INP_DATA
-	or	[bx].CMD_FLAGS,CMD_NOECHO
+	and	[bx].CMD_FLAGS,NOT CMD_NOECHO
 	test	al,al			; any startup command?
 	jnz	m2			; yes
 
 ;
-; Unlike PC DOS, every BAT file (like every BAS file) starts with ECHO OFF,
-; including one run by a startup command, so an ECHO ON in one BAT file
-; doesn't affect the next one.
+; As in PC DOS, every BAT file starts with ECHO ON (so most begin with
+; @ECHO OFF), including one run by a startup command, so an ECHO OFF in one
+; BAT file doesn't affect the next one (but does affect any BAT file it runs).
 ;
 m1:	test	[bx].CMD_FLAGS,CMD_SINGLE
 	jnz	m9			; COMMAND /C is done
-	or	[bx].CMD_FLAGS,CMD_NOECHO
+	and	[bx].CMD_FLAGS,NOT CMD_NOECHO
 ;
 ; If there's a program line to edit (see cmdAuto and cmdEdit), editPrompt
 ; displays it for editing instead of prompting for a command.  editPrompt is
@@ -904,7 +905,14 @@ pd5x:	mov	dx,word ptr [bp].SFH_STDIN
 	jmp	pd6a			; (carry is set)
 
 
-pd9:	jnc	pd9e
+;
+; Take the deferred command, if any, leaving none, since CMD_DEFER is shared
+; with any parseDOS that runs this one (eg, for the BAT file whose line this
+; is), which would otherwise run the command again after the BAT file ends.
+;
+pd9:	mov	ax,0			; (MOV and XCHG leave carry alone)
+	xchg	ax,[bp].CMD_DEFER[0]	; AX = deferred command, if any
+	jnc	pd9e
 ;
 ; A command failed, so end any commands of the pipeline already running in
 ; other sessions (eg, SORT in "DIR | SORT | NOFILE"); the deferred command,
@@ -916,8 +924,7 @@ pd9:	jnc	pd9e
 	stc
 pd9g:	jmp	pd9c
 
-pd9e:	mov	ax,[bp].CMD_DEFER[0]
-	test	ax,ax			; is there a deferred command?
+pd9e:	test	ax,ax			; is there a deferred command?
 	jz	pd9g			; no (and carry is clear)
 ;
 ; The deferred command may run commands of its own (eg, the BASIC statements
@@ -1161,6 +1168,8 @@ CMD_SWITCHES	label	byte
 	db	4			; TIME /D /P
 	dw	NOT ((1 SHL ('D'-'A')) OR (1 SHL ('P'-'A'))),0FFFFh
 	db	7			; KILL /A
+	dw	NOT (1 SHL ('A'-'A')),0FFFFh
+	db	5			; MEM /A
 	dw	NOT (1 SHL ('A'-'A')),0FFFFh
 	db	20			; COPY /B
 	dw	NOT (1 SHL ('B'-'A')),0FFFFh

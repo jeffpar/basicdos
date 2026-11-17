@@ -59,7 +59,7 @@ IOCTL_OUTSTATUS	equ	007h	; check output status (AL)
 ; BASIC-DOS specific IOCTL sub-functions start here (IOCTL_COMDEBUG is in
 ; dev.inc, since only drivers and the kernel use it).
 ;
-IOCTL_CLOCK	equ	0C0h
+IOCTL_CLOCK	equ	0C0h	; CLOCK$: DX = 1 if date from a real-time clock
 IOCTL_WAIT	equ	0C1h	; CLOCK$: wait # ms in packet's LENGTH:OFFSET
 IOCTL_SETDATE	equ	0C2h	; CLOCK$: set yr,mon,day from CL,DH,DL
 IOCTL_SETTIME	equ	0C3h	; CLOCK$: set hr,min,sec,1/100 from CH,CL,DH,DL

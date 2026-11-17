@@ -50,9 +50,9 @@ A VT100 terminal (see [CON](../../../cfg/#con)) has no colors, so it displays th
 
 > ECHO [ON\|OFF]
 
-Controls the echo of lines in a BAT file.  After ECHO ON, a BAT file echoes each line before running it, until ECHO OFF is used; a line beginning with `@` is never echoed (eg, `@ECHO ON`).  Echoed lines are displayed with a `@` in front (eg, `@REM Starting`), where PC DOS would display a prompt, but without the blank line that PC DOS displays before each prompt.  ECHO without ON or OFF displays the current setting.
+Controls the echo of lines in a BAT file.  While ECHO is ON, a BAT file echoes each line before running it, until ECHO OFF is used; a line beginning with `@`, after any spaces or tabs, is never echoed (eg, `@ECHO ON`).  Echoed lines are displayed with a `@` in front (eg, `@REM Starting`), where PC DOS would display a prompt, but without the blank line that PC DOS displays before each prompt.  ECHO without ON or OFF displays the current setting.
 
-Every BAT file run from the prompt (or by a startup command) starts with ECHO OFF, unlike PC DOS, so BAT files behave like BAS files unless ECHO ON is used; the setting remains in effect when one BAT file runs another.  BAS files never echo their lines.  A `@` at the start of a command typed at the prompt is ignored, as in later versions of PC DOS.
+Every BAT file run from the prompt (or by a startup command) starts with ECHO ON, as in PC DOS, so most BAT files begin with `@ECHO OFF`; the setting remains in effect when one BAT file runs another.  BAS files never echo their lines.  A `@` at the start of a command typed at the prompt is ignored, as in later versions of PC DOS.
 
 ### LOCATE
 

@@ -39,7 +39,7 @@ To run a program, type its name (see [Running Programs](../intro/#running-progra
 
 When a BAS program that you ran from the prompt ends, it remains loaded, along with its functions and variables, so you can [LIST](../cmd/system/#list) it, examine its variables at the prompt (eg, `PRINT N`), or [RUN](../cmd/system/#run) it again.  [NEW](../cmd/system/#new) erases the program and its variables.
 
-BAT files differ from BAS files in two ways: BAT files can [ECHO](../cmd/device/screen/#echo) their lines as they run (after ECHO ON), and BAT files don't remain loaded after they end.  See [Batch Files](#batch-files) for how BASIC-DOS batch files differ from PC DOS batch files.
+BAT files differ from BAS files in two ways: BAT files [ECHO](../cmd/device/screen/#echo) their lines as they run (until ECHO OFF), and BAT files don't remain loaded after they end.  See [Batch Files](#batch-files) for how BASIC-DOS batch files differ from PC DOS batch files.
 
 ### Batch Files
 
@@ -58,7 +58,7 @@ A BAT file is a BASIC-DOS program too, so it can contain any BASIC-DOS command o
 | `SHIFT` | `ARG$(N)`, with a variable *N* |
 | `PAUSE` | `PRINT "Press any key" : K$ = INPUT$(1)` (see [INPUT$](../cmd/basic/func/#input)) |
 
-ECHO and the `@` prefix work as they do in PC DOS, except that every BAT file starts with ECHO OFF, and echoed lines are displayed with a `@` in front instead of a prompt (see [ECHO](../cmd/device/screen/#echo)).  Output redirection works for BASIC statements, too, using `:>` (or `:>>`) at the end of a line (eg, `PRINT "done" :>> LOG.TXT`); see [Redirection and Pipes](../intro/#redirection-and-pipes).  REM (or an apostrophe) starts a remark.
+ECHO and the `@` prefix work as they do in PC DOS (every BAT file starts with ECHO ON, so most begin with `@ECHO OFF`), except that echoed lines are displayed with a `@` in front instead of a prompt (see [ECHO](../cmd/device/screen/#echo)).  Output redirection works for BASIC statements, too, using `:>` (or `:>>`) at the end of a line (eg, `PRINT "done" :>> LOG.TXT`); see [Redirection and Pipes](../intro/#redirection-and-pipes).  REM (or an apostrophe) starts a remark.
 
 For example, this batch file runs a program up to three times, stopping if the program reports an error:
 
@@ -192,7 +192,6 @@ On a machine with too little memory for all of COMMAND.COM (eg, 64K), BASIC-DOS 
 - The MOUSE command and function
 - The sound commands: PLAY and SOUND
 - PRINTF, LPRINT, LLIST, the LPOS function, the MID$ statement, and KEY *n*,*string*
-- The DATE and TIME commands
 - Less common statements (DEF SEG, POKE, RANDOMIZE, SCREEN, SWAP, and WIDTH) and functions (CSRLIN, DATE$, FRE, HEX$, INKEY$, LCASE$, OCT$, PEEK, POS, RND, RND%, SCREEN, SGN, TAB, TIME$, and UCASE$)
 - The program editing commands AUTO, DELETE, and EDIT (lines can still be entered and deleted by number)
 - The file statements (OPEN, CLOSE, FIELD, GET, PUT, LSET, RSET, IOCTL, and the # forms of INPUT, LINE INPUT, PRINT, and WRITE) and file functions (CVD, CVI, CVL, EOF, INPUT$, IOCTL$, LOC, LOF, MKD$, MKI$, and MKL$)

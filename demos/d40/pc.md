@@ -10,6 +10,7 @@ machines:
     autoMount:
       A: "BASIC-DOS 40-Cols"
       B: "PC DOS 2.00 (Disk 1)"
+    autoType: $date\r$time\r
 ---
 
 The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 128K of memory, a Color Display, and two diskette drives.  It boots the BASIC-DOS 40-Cols diskette and runs two 40-column consoles side by side; use **SHIFT-TAB** to toggle focus.

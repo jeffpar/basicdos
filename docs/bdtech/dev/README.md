@@ -138,6 +138,7 @@ DOS_HDL_IOCTL (INT 21h, AH = 44h) sends IOCTL requests to drivers: AL is passed 
 
 | AL | Name | Description |
 |----|------|-------------|
+| C0h | IOCTL_CLOCK | Returns DX = 1 if the date came from a real-time clock, or 0 if not (eg, on a PC or PC XT) |
 | C1h | IOCTL_WAIT | Waits the number of milliseconds in DDPRW_LENGTH:DDPRW_OFFSET |
 | C2h | IOCTL_SETDATE | Sets the date (CL = year - 1980 (0-127), DH = month, DL = day) |
 | C3h | IOCTL_SETTIME | Sets the time (CH = hours, CL = minutes, DH = seconds, DL = hundredths) |
