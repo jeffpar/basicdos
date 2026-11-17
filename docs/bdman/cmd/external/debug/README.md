@@ -65,7 +65,7 @@ A command line can have up to 79 characters.  BACKSPACE (or DEL) erases a charac
 
 All numbers in commands are hexadecimal, and any number may also be a 16-bit register name, such as DS or DX.  An *address* is [*segment*:]*offset* (eg, `DS:DX`), and a *range* is *address* [*end* \| L *count*].  Bytes that can't be read (eg, past the end of a segment) are displayed as `??`.
 
-On an 80286 or later, when protected mode is requested (see [CPU](../../../cfg/#cpu)), the debugger works in either of the processor's modes: an *address* may start with `&` for a real-mode segment (eg, `&40:0`) or `#` for a protected-mode selector (eg, `#20:0`), and otherwise has the processor's current mode, and every address it displays starts with `&` or `#`.  On any processor, an *address* may also be any 32-bit physical address, preceded by `%` (eg, `%100000`, or on an 8088, any address below 1Mb), which D, E, LN, and U accept (but BP and G don't, since a breakpoint needs a segment).
+On an 80286 or later, unless real mode is requested (see [CPU](../../../cfg/#cpu)), the debugger works in either of the processor's modes: an *address* may start with `&` for a real-mode segment (eg, `&40:0`) or `#` for a protected-mode selector (eg, `#20:0`), and otherwise has the processor's current mode, and every address it displays starts with `&` or `#`.  On any processor, an *address* may also be any 32-bit physical address, preceded by `%` (eg, `%100000`, or on an 8088, any address below 1Mb), which D, E, LN, and U accept (but BP and G don't, since a breakpoint needs a segment).
 
 ### Commands
 
@@ -249,7 +249,7 @@ Available only in program mode.  Ends the loaded program, if any, and exits.
 > R *reg* [*value*]  
 > R F
 
-R displays the registers, and the instruction at CS:IP, followed, if it has a memory operand, by the operand's effective address, using any segment override (eg, `; EA = 0AC6:0120`).  On an 80286 or later, when protected mode is requested (see [CPU](../../../cfg/#cpu)), it also displays the MSW, GDTR, and IDTR.  In protected mode, it uses the PCjs Debugger's format: each segment register's base and limit, as `[base,limit]`, A20, the LDTR, GDTR, IDTR, TR, MSW, and the flags as 0 or 1, eg, `Z1`:
+R displays the registers, and the instruction at CS:IP, followed, if it has a memory operand, by the operand's effective address, using any segment override (eg, `; EA = 0AC6:0120`).  On an 80286 or later, unless real mode is requested (see [CPU](../../../cfg/#cpu)), it also displays the MSW, GDTR, and IDTR.  In protected mode, it uses the PCjs Debugger's format: each segment register's base and limit, as `[base,limit]`, A20, the LDTR, GDTR, IDTR, TR, MSW, and the flags as 0 or 1, eg, `Z1`:
 
 	-R
 	AX=1000 BX=00A6 CX=4FB0 DX=0128 SP=57FB BP=580D SI=2463 DI=580D

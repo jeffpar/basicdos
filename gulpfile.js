@@ -87,10 +87,9 @@ function checkOutput(task, outputFile)
  * timestamps of its files.
  *
  * Which disks a build updates depends on the mode of its binaries (the mode of the last mkdos.sh or mk.sh build, which
- * tools/pc/disks/mkmode records) and package.json's config.release: a disk marked "final" (the release diskette, the
- * 64K demos, which don't have room for DEBUG binaries, and the Protected Mode demo, whose CPU$ work is built FINAL) is
- * updated only with FINAL binaries, and every other disk is updated with any binaries, except FINAL binaries while
- * config.release is "debug".  So while config.release is "debug", a DEBUG build updates all but the "final" disks, and
+ * tools/pc/disks/mkmode records) and package.json's config.release: a disk marked "final" (the release diskette and
+ * the 64K demos, which don't have room for DEBUG binaries) is updated only with FINAL binaries, and every other disk is
+ * updated with any binaries, except FINAL binaries while config.release is "debug".  So while config.release is "debug", a DEBUG build updates all but the "final" disks, and
  * a FINAL build updates only the "final" disks; once it's "final", a FINAL build updates them all, and a DEBUG build
  * updates all but the "final" disks.
  */
@@ -177,8 +176,7 @@ let disks = {
     "BASICDOS-360K-D40": { config: "./demos/d40/CONFIG.SYS", title: "BASIC-DOS 40-Cols" },
     "BASICDOS-360K-D80": { config: "./demos/d80/CONFIG.SYS", title: "BASIC-DOS 80-Cols" },
     "BASICDOS-360K-P80": { config: "./demos/p80/CONFIG.SYS", title: "BASIC-DOS Multi-Page" },
-    "BASICDOS-360K-P80PM": { config: "./demos/mmu/CONFIG.SYS", title: "BASIC-DOS (80286)" },
-    "BASICDOS-360K-PM386": { config: "./demos/mmu/386/CONFIG.SYS", title: "BASIC-DOS (80386)" },
+    "BASICDOS-360K-P80PM": { config: "./demos/mmu/CONFIG.SYS", title: "BASIC-DOS Extended Memory" },
     "BASICDOS-360K-DUAL": { config: "./demos/dual/CONFIG.SYS", title: "BASIC-DOS Dual Monitor" },
     "BASICDOS-360K-MULTI": { config: "./demos/dual/multi/CONFIG.SYS", title: "BASIC-DOS Multi-Console" },
     "BASICDOS-360K-SERIAL": { config: "./demos/serial/CONFIG.SYS", title: "BASIC-DOS HD Serial Port" },
@@ -189,10 +187,8 @@ let disks = {
     "BASICDOS-360K-TERM": { config: "./demos/term/CONFIG.SYS", title: "BASIC-DOS Terminal", final: true },
     "BASICDOS-360K-TERMHD": { config: "./demos/term/hd/CONFIG.SYS", title: "BASIC-DOS HD Terminal" },
     "BASICDOS-360K-TERM2": { config: "./demos/term/dual/CONFIG.SYS", title: "BASIC-DOS HD Multi-Terminal" },
-    "BASICDOS-360K-MMU": { config: "./demos/mmu/vt100/CONFIG.SYS", title: "BASIC-DOS (80286) VT100" },
-    "BASICDOS-360K-MMU386": {
-        config: "./demos/mmu/vt100/386/CONFIG.SYS", title: "BASIC-DOS (80386) VT100"
-    },
+    "BASICDOS-360K-MMU": { config: "./demos/mmu/vt100/CONFIG.SYS", title: "BASIC-DOS Extended Memory VT100" },
+    "BASICDOS-360K-WOLF3D": { config: "./demos/wolf3d/CONFIG.SYS", title: "BASIC-DOS Wolfenstein 3D" },
     "BASICDOS-360K-TESTS": {
         title: "BASIC-DOS Tests",
         data: true,

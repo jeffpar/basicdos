@@ -11,10 +11,10 @@
 ; always assembled as a DEBUG binary (even in FINAL builds), so its ASSERT
 ; always executes an INT 3: DEBUG.COM (as a driver, or with ASSERT as its
 ; program) stops there, displaying "Assertion failure", and G resumes it;
-; otherwise, a DEBUG BASIC-DOS prints "Assertion failure @ssss:oooo" and
-; halts, and a FINAL BASIC-DOS ignores it.  If it resumes, it exits with code
-; 0.  Its DPRINTF message goes to the DEBUG.COM driver's port (DEBUG$), if
-; installed.
+; otherwise, a DEBUG BASIC-DOS prints "Assertion failure at ssss:oooo" and
+; ends the program (exit code 255), and a FINAL BASIC-DOS ignores it.  If it
+; resumes, it exits with code 0.  Its DPRINTF message goes to the DEBUG.COM
+; driver's port (DEBUG$), if installed.
 ;
 	IFNDEF	DEBUG
 DEBUG	equ	1

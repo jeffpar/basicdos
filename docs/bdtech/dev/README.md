@@ -72,7 +72,7 @@ DOS calls the REQUEST entry point with a far call, with ES:BX -> request packet.
 
 PC DOS defined only the first 5 bytes of the header; BASIC-DOS uses the rest to pass context information.  For example, DDC_OPEN returns a new context in DDP_CONTEXT, which DOS stores in the open file's SFB and passes back with every later request for that handle.
 
-INIT requests use a DDPI packet, and for built-in drivers, DDP_PTR points to the CONFIG.SYS text (null-terminated, and empty if there's no CONFIG.SYS), so a driver can look for its own settings (eg, CPU$'s `CPU=80286`; see [Protected Mode](../mmu/)):
+INIT requests use a DDPI packet, and for built-in drivers, DDP_PTR points to the CONFIG.SYS text (null-terminated, and empty if there's no CONFIG.SYS), so a driver can look for its own settings (eg, CPU$'s `CPU=8088`; see [Protected Mode](../mmu/)):
 
 | Offset | Field | Description |
 |--------|-------|-------------|
@@ -317,7 +317,7 @@ These VT100 features aren't used by the driver, and have no BASIC statement, alt
 | VKD$ | Character | Video and keyboard driver: a separate context for each console (see [CON=](../../bdman/cfg/#con)); interrupt-driven input, direct video output, and INT 29h fast output |
 | LPT1-LPT3 | Character | Parallel ports (one for each port the BIOS found): writes print with INT 17h, a failed write's error is also reported by the next IOCTL_OUTSTATUS (see LPRINT), and IOCTL_GETPOS returns the column (see LPOS) |
 | COM1-COM4 | Character | Serial ports, with interrupt-driven, asynchronous I/O |
-| CPU$ | Character | Two drivers, loaded first, of which one stays to manage all memory through DDINT_CPU (see [Protected Mode](../mmu/)): the 80386 driver stores the processor type in CPU_HWTYPE (0:513h) and CPU_TYPE (0:512h), which is 0 unless protected mode is requested (by `CPU=80286`, `CPU=80386`, or **P** at the boot message), and when it is, on an 80286 or later with at least 256K of conventional memory, manages memory with a PMB table (and protected-mode descriptors); otherwise, it unloads, and the 8086 driver manages memory with an MCB chain.  The one that stays stores its arena's address in CPU_ARENA (0:514h), for debuggers, and provides DDINT_GETVEC and DDINT_SETVEC.  Neither can be skipped |
+| CPU$ | Character | Two drivers, loaded first, of which one stays to manage all memory through DDINT_CPU (see [Protected Mode](../mmu/)): the 80386 driver stores the processor type in CPU_HWTYPE (0:513h) and CPU_TYPE (0:512h), which is 0 if real mode is requested (by `CPU=8088`, or **R** at the boot message), and otherwise, on an 80286 or later with at least 256K of conventional memory, manages memory with a PMB table (and protected-mode descriptors); otherwise, it unloads, and the 8086 driver manages memory with an MCB chain.  The one that stays stores its arena's address in CPU_ARENA (0:514h), for debuggers, and provides DDINT_GETVEC and DDINT_SETVEC.  Neither can be skipped |
 | NUL | Character | Null device |
 | CLOCK$ | Character | Timer interrupt, date and time, delays, and sound |
 | PIPE$ | Character | Pipes between sessions (used by the command shell's `|` operator), with a 128-byte buffer; as on UNIX, a read waits only until some data is available, and then returns what's there (up to the requested length), while a write waits until all its data fits; it unloads itself with 64K of memory or less |

@@ -75,8 +75,10 @@ ENDPROC	dos_sstep
 ;
 ; If a breakpoint interrupt occurs, and no debugger is currently running,
 ; we catch it here and ignore it.  In DEBUG builds, an INT 3 preceded by a NOP
-; is an assertion failure (see ASSERT), so we report it and halt, so that the
-; first failure is the one reported.
+; is an assertion failure (see ASSERT), so we report it and end the current
+; program, as dos_dverr does, unless the session is locked (eg, by sysinit)
+; or a driver is handling a hardware interrupt, which can't be abandoned, so
+; we halt instead.
 ;
 DEFPROC	dos_brkpt,DOSFAR
 	IFDEF	DEBUG
@@ -90,11 +92,15 @@ DEFPROC	dos_brkpt,DOSFAR
 	cmp	byte ptr [si-1],OP_NOP	; an ASSERT?
 	jne	bk9			; no
 	PRINTF	<"Assertion failure at %04x:%04x",13,10>,ds,si
+	cmp	word ptr cs:[scb_locked],-1	; unlocked and no interrupt?
+	jne	bk8			; no
+	mov	ah,EXTYPE_FAULT
+	jmp	dos_abort
 ;
 ; Lock the session, so that no other session runs, but leave interrupts on,
 ; so that a COM console can finish (as sysinit's fatal_error does).
 ;
-	mov	ds,cs:[dos_data]
+bk8:	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	LOCK_SCB
 	sti

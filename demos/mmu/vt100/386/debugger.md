@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS Protected Mode (VT100) on a COMPAQ DeskPro 386 with Debugger
+title: BASIC-DOS with Extended Memory (VT100 Debugger) on a COMPAQ DeskPro 386 and PCjs Debugger
 permalink: /demos/mmu/vt100/386/debugger/
 machines:
   - id: vt100
@@ -17,7 +17,7 @@ machines:
     debugger: true
     connection: com2->vt100.serialPort
     autoMount:
-      A: "BASIC-DOS (80386) VT100"
+      A: "BASIC-DOS Extended Memory VT100"
       B: "BASIC-DOS Tests"
 ---
 

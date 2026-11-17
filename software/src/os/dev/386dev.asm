@@ -9,12 +9,12 @@
 ;
 ; This is the first built-in driver, and the first of two CPU$ drivers (see
 ; cpu.inc); it stores the processor type in CPU_HWTYPE and CPU_TYPE, and on
-; an 80286 or later, if protected mode is requested (by a "CPU=80286" or
-; "CPU=80386" line in CONFIG.SYS, or a P at the boot message, unless an R then
-; overrides it), with at least 256K of conventional memory (after any
-; "MEMSIZE=" line), it enables A20, builds its PMB table, GDT, IDT, LDT, and
-; TSS in the system area (the last whole 64K of conventional memory), checks
-; that it can switch to protected mode and back, and stays, managing all of
+; an 80286 or later, unless real mode is requested (by an R at the boot
+; message, or a "CPU=8088" line in CONFIG.SYS without a P at the boot message),
+; with at least 256K of conventional memory (after any "MEMSIZE=" line), it
+; enables A20, builds its PMB table, GDT, IDT, LDT, and TSS in the system
+; area (the last whole 64K of conventional memory), checks that it can switch
+; to protected mode and back, and stays, managing all of
 ; memory with its PMB table (see PMB in cpu.inc) through DDINT_CPU.  On an
 ; 80386 or later, it uses the 80386's features (an 80386 TSS and selectors
 ; beyond 64K), unless there's a "CPU=80286" line, and then it acts as it does

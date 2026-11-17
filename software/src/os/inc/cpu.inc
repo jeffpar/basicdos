@@ -21,10 +21,10 @@
 
 ;
 ; CPU types (CPU_TYPE and CPU_HWTYPE): CPU_TYPE is the type that BASIC-DOS
-; uses, which is CPUTYPE_8086 unless protected mode is requested, and then
-; the type whose features the 80386 driver uses (CPUTYPE_80286 on an 80386
-; with a "CPU=80286" line), and CPU_HWTYPE is always the processor's own (eg,
-; for a disassembler).
+; uses, which is CPUTYPE_8086 on an 8088 or 8086, or if real mode is requested
+; (eg, by a "CPU=8088" line), and otherwise the type whose features the 80386
+; driver uses (CPUTYPE_80286 on an 80386 with a "CPU=80286" line), and
+; CPU_HWTYPE is always the processor's own (eg, for a disassembler).
 ;
 CPUTYPE_8086	equ	0	; 8086 or 8088 (or NEC V20 or V30)
 CPUTYPE_80186	equ	1	; 80186 or 80188

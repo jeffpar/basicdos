@@ -7,7 +7,7 @@ permalink: /docs/bdtech/ext/
 
 {% include header.html %}
 
-A traditional DOS extender gives one program access to protected mode and extended memory, on top of a real-mode DOS that stays in charge of files and devices.  BASIC-DOS takes the opposite approach: when protected mode is requested (see [CPU](../../bdman/cfg/#cpu)), the operating system itself runs in protected mode, and programs run at ring 3 under it, using the same DOS functions they use in real mode.
+A traditional DOS extender gives one program access to protected mode and extended memory, on top of a real-mode DOS that stays in charge of files and devices.  BASIC-DOS takes the opposite approach: in protected mode (the default on an 80286 or later; see [CPU](../../bdman/cfg/#cpu)), the operating system itself runs in protected mode, and programs run at ring 3 under it, using the same DOS functions they use in real mode.
 
 This page describes what that gains and what it gives up.  The closest comparisons are 16-bit extenders (eg, Rational Systems' DOS/16M and Phar Lap's 286\|DOS-Extender), since BASIC-DOS has only 16-bit segments, whereas 32-bit extenders (eg, DOS/4G) offer something that it doesn't.
 

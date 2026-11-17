@@ -8,6 +8,8 @@ machines:
     config: /machines/pcx86/compaq/compaq-deskpro386-vga-1mb.json
     debugger: true
     autoType: WOLF3D\r
+    autoMount:
+      A: "BASIC-DOS Wolfenstein 3D"
 ---
 
 {% include machine.html id="deskpro386" %}

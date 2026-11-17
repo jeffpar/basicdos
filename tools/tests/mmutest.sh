@@ -6,26 +6,26 @@
 # machine, which only the "386" and "r386" machines have), on these test machines:
 #
 #   8088    an IBM PC XT (ibm5160), where CPU$ keeps only what an 8088 needs
-#   real    a 2Mb IBM PC AT (ibm5170), where CPU$ acts as it does on an 8088 by default, so BASIC-DOS runs in real mode
-#   pm      a 2Mb IBM PC AT with a "CPU=80286" line, where CPU$ manages extended memory and BASIC-DOS runs in protected
-#           mode, with a "RING=0" line, so that programs run at ring 0 and every test runs (including CPUTESTS and
-#           HARDERR's INT 13h hook tests)
+#   real    a 2Mb IBM PC AT (ibm5170) with a "CPU=8088" line, where CPU$ acts as it does on an 8088, so BASIC-DOS runs in
+#           real mode
+#   pm      a 2Mb IBM PC AT, where CPU$ manages extended memory and BASIC-DOS runs in protected mode, by default, with
+#           a "RING=0" line, so that programs run at ring 0 and every test runs (including CPUTESTS and HARDERR's INT 13h
+#           hook tests)
 #   r3      the same machine without the "RING=0" line, so that programs (and COMMAND.COM) run at ring 3, as they do
 #           by default in protected mode, where CPUTESTS and HARDERR's hook tests print that they were skipped instead
-#   386     a 2Mb COMPAQ DeskPro 386 (compaq386) with "CPU=80386" and "RING=0" lines, where CPU$ uses the 80386's
-#           features (CPUTESTS also tests its selectors beyond 64K)
+#   386     a 2Mb COMPAQ DeskPro 386 (compaq386) with a "RING=0" line, where CPU$ uses the 80386's features, by default
+#           (CPUTESTS also tests its selectors beyond 64K)
 #   r386    the same machine without the "RING=0" line
 #   multi   the "r3" machine with a second console (on its video adapter), since sysinit then loads the first SHELL from
 #           another session's LDT; it runs only R3TESTS, since some tests (eg, HARDERR) won't run beside another session
-#   pool    the "r3" machine with 9 sessions, where MEMTESTS fills the system area's pool of PMBs and LDT descriptors
+#   pool    the "r3" machine with 9 sessions and a "CPU=80286" line, where MEMTESTS fills the system area's pool of PMBs and LDT descriptors
 #           from 7 sessions at once, and checks that their LDTs can move, and that the system recovers
 #   tools   the "r3" machine with a hard disk, where MAKE rebuilds PRIMES.EXE and SLEEP.COM with the protected-mode build
 #           tools in software/src/tools/bd (see tools/misc/mkne.js), which must match the binaries of the last build, and
 #           runs EXEMOD and MAPSYM, which must succeed
 #
-# By default, it runs all nine.  The "pm", "r3", "multi", "pool", and "tools" machines boot a copy of a configuration with a
-# "CPU=80286" line (and the "386" and "r386" machines, a "CPU=80386" line), in tools/pc/disks/tmp-mmupm, which is deleted
-# afterward.  The exit code is non-zero if any test failed.
+# By default, it runs all nine.  Every machine except "8088" boots a modified copy of the configuration, in
+# tools/pc/disks/tmp-mmupm, which is deleted afterward.  The exit code is non-zero if any test failed.
 #
 cd "$(dirname "$0")/../.." || exit 1
 fpe=software/src/configs/console/serial/fpe
@@ -42,11 +42,14 @@ for name in ${@:-8088 real pm r3 386 r386 multi pool tools}; do
     v86="V86 mode not available"
     case $name in
         8088)   args="ibm5160 $fpe"; cpu="CPU type 0 (hardware 0)" ;;
-        real)   args="ibm5170 $fpe --ram=2M"; cpu="CPU type 0 (hardware 2)" ;;
+        real)   rm -rf $tmp
+                cp -R $fpe $tmp || exit 1
+                echo CPU=8088 >> $tmp/CONFIG.SYS
+                args="ibm5170 $tmp --ram=2M"; cpu="CPU type 0 (hardware 2)" ;;
         multi)  rm -rf $tmp
                 cp -R $fpe $tmp || exit 1
                 grep -v "^SKIP=" $fpe/CONFIG.SYS > $tmp/CONFIG.SYS
-                printf 'CPU=80286\nSHELL=COMMAND.COM\n' >> $tmp/CONFIG.SYS
+                echo SHELL=COMMAND.COM >> $tmp/CONFIG.SYS
                 tools/pc/pc.js ibm5170 $tmp --ram=2M "VER;MEM;\TESTS\MISC\R3TESTS;$ok;SLEEP 1;QUIT" --sys=bd:2 --floppy --serial --normalize --nosync | tee "$log"
                 if ! grep -q "R3TESTS passed" "$log" || ! grep -q "EXITOK" "$log"; then
                     failed="$failed $name"
@@ -65,7 +68,7 @@ for name in ${@:-8088 real pm r3 386 r386 multi pool tools}; do
         tools)  rm -rf $tmp
                 src=software/src
                 mkdir -p $tmp/MT/PRIMES $tmp/MT/OBJ $tmp/MT/BIN $tmp/OS/INC $tmp/TOOLS || exit 1
-                printf 'CPU=80286\nSKIP=VKD$\nCON=COM1:9600,N,8,1\nSHELL=COMMAND.COM PATH$="C:\\;C:\\EXT;C:\\TOOLS"\n' > $tmp/CONFIG.SYS
+                printf 'SKIP=VKD$\nCON=COM1:9600,N,8,1\nSHELL=COMMAND.COM PATH$="C:\\;C:\\EXT;C:\\TOOLS"\n' > $tmp/CONFIG.SYS
                 tools/tests/prep.sh $tmp || exit 1
                 cp $src/tools/dos/*.EXE $tmp/TOOLS/ && cp $src/tools/bd/*.EXE $tmp/TOOLS/ || exit 1
                 cp $src/os/inc/*.inc $tmp/OS/INC/ && cp $src/tests/primes/primes.asm $src/tests/primes/PRIMES.DEF $tmp/MT/PRIMES/ &&
@@ -106,10 +109,8 @@ EOF
                 rm -rf $tmp
                 cp -R $fpe $tmp || exit 1
                 case $name in
-                    *386) echo CPU=80386 >> $tmp/CONFIG.SYS
-                          args="compaq386 $tmp --ram=2M"; cpu="CPU type 3 (hardware 3)"; v86="V86TEST passed" ;;
-                    *)    echo CPU=80286 >> $tmp/CONFIG.SYS
-                          args="ibm5170 $tmp --ram=2M"; cpu="CPU type 2 (hardware 2)" ;;
+                    *386) args="compaq386 $tmp --ram=2M"; cpu="CPU type 3 (hardware 3)"; v86="V86TEST passed" ;;
+                    *)    args="ibm5170 $tmp --ram=2M"; cpu="CPU type 2 (hardware 2)" ;;
                 esac
                 if [ $name = pm ] || [ $name = 386 ]; then
                     echo RING=0 >> $tmp/CONFIG.SYS

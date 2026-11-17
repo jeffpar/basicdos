@@ -11,7 +11,7 @@
 ;
 ; Causes the processor exception with the given (decimal) vector, to see how
 ; BASIC-DOS responds and recovers, especially in protected mode (eg, FAULT 13
-; on the Protected Mode demo):
+; on the Extended Memory demo):
 ;
 ;	-1	a null pointer to a filename, which the kernel faults reading
 ;		in protected mode (which ends the program at ring 3, and is

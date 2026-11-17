@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS Protected Mode (VT100) with Debugger
+title: BASIC-DOS with Extended Memory (VT100 Debugger) and PCjs Debugger
 permalink: /demos/mmu/vt100/debugger/
 machines:
   - id: vt100
@@ -17,7 +17,7 @@ machines:
     debugger: true
     connection: com2->vt100.serialPort
     autoMount:
-      A: "BASIC-DOS (80286) VT100"
+      A: "BASIC-DOS Extended Memory VT100"
       B: "BASIC-DOS Tests"
 ---
 

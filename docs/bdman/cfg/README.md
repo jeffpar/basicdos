@@ -120,12 +120,13 @@ A machine with 64K of memory or less has only one VKD$ console (a second CON lin
 
 ### CPU
 
+> CPU=8088
 > CPU=80286
 > CPU=80386
 
-Requests protected mode on an 80286 or later processor.  On an 80386 or later, `CPU=80386` uses the 80386's features (see [Protected Mode](../../bdtech/mmu/#cpu)), and `CPU=80286` only the 80286's; on an 80286, either line requests the 80286's.  Pressing `P` at the boot message also requests it (on an 80386, as `CPU=80386` does), and pressing `R` there overrides these lines.  Protected mode needs at least 256K of conventional memory (after any [MEMSIZE](#memsize) line), and any extended memory is a bonus; with less, or on an 8088 or 8086, BASIC-DOS runs in real mode.
+On an 80286 or later processor, BASIC-DOS runs in protected mode by default, and on an 80386 or later, it uses the 80386's features (see [Protected Mode](../../bdtech/mmu/#cpu)), unless there's a `CPU=80286` line, which limits it to the 80286's; `CPU=80386` is the same as no line.  Protected mode needs at least 256K of conventional memory (after any [MEMSIZE](#memsize) line), and any extended memory is a bonus; with less, or on an 8088 or 8086, BASIC-DOS runs in real mode.
 
-Without a request, BASIC-DOS runs in real mode, its most compatible mode, and treats an 80286 or later processor as an 8088: the processor type is recorded as 8086/8088 (the actual type is still recorded too, so that DEBUG disassembles instructions as the processor runs them), extended memory isn't used, and the A20 address line stays disabled, so addresses wrap at 1Mb as they do on an 8088.  A `CPU=8088` line is allowed, but isn't needed.
+`CPU=8088` runs BASIC-DOS in real mode, its most compatible mode (eg, MZ EXE files don't run in protected mode), and treats an 80286 or later processor as an 8088: the processor type is recorded as 8086/8088 (the actual type is still recorded too, so that DEBUG disassembles instructions as the processor runs them), extended memory isn't used, and the A20 address line stays disabled, so addresses wrap at 1Mb as they do on an 8088.  Pressing `R` at the boot message also selects real mode, and pressing `P` there overrides a `CPU=8088` line.
 
 ### DEVICE
 

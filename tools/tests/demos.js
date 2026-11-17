@@ -41,7 +41,9 @@ const PIPES = /DIRECTORY OF A:/, DIR = /Directory of A:/, PROMPT = /[A-C]:\\[^ ]
  *      keys        false if the keyboard's console isn't at a prompt (or there's no keyboard console)
  *      cycle       true to press SHIFT-TAB while waiting (for consoles that share one video page)
  *      graphics    true if the demo goes from a prompt to a graphics mode
- *      pm          true if the demo runs in protected mode (and with paging, on the 386)
+ *      pm          true if the demo runs in protected mode (and with paging, on the 386), or false if it
+ *                  runs in real mode (default: true on an AT or 386, which run protected mode unless a
+ *                  demo's CONFIG.SYS has CPU=8088, and unchecked elsewhere)
  */
 const DEMOS = {
     'm64':          () => ({}),
@@ -58,8 +60,7 @@ const DEMOS = {
     'parallel':     () => ({}),
     'hd':           () => ({ screen: [HELLO] }),
     'vt100':        () => ({ screen: [HELLO], com: [1] }),
-    'wolf3d':       () => ({ screen: [], keys: false, graphics: true }),
-    'mmu/640k':     () => ({ screen: [HELLO, FIBO, PRIMES], pm: true }),
+    'wolf3d':       () => ({ screen: [], keys: false, graphics: true, pm: false }),
     'mmu':          () => ({ screen: [HELLO, FIBO, PRIMES], pm: true }),
     'mmu/vt100':    () => ({ screen: [HELLO, FIBO, PRIMES], pm: true, debug: 2 })
 };
@@ -280,9 +281,10 @@ async function runDemo(demo)
         if (spec.graphics) {
             checks.push({ name: 'graphics mode', test: (s) => s.graphics });
         }
-        if (spec.pm) {
+        const pm = spec.pm ?? ((demo.hw == 'at' || demo.hw == '386') || undefined);
+        if (pm !== undefined) {
             const bits = demo.hw == '386'? 0x80000001 : 1;
-            checks.push({ name: 'protected mode', test: (s) => (s.cr0 & bits) >>> 0 == bits });
+            checks.push({ name: pm? 'protected mode' : 'real mode', test: (s) => ((s.cr0 & bits) >>> 0 == bits) == pm });
         }
         const tick = spec.cycle && (async (i) => { if (i % 10 == 9) await page.evaluate('__dx.shiftTab()'); });
         const missing = await waitFor(checks, opts.timeout, tick);

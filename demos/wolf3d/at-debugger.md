@@ -8,6 +8,8 @@ machines:
     config: /machines/pcx86/ibm/ibm-5170-vga-640kb.json
     debugger: true
     autoType: WOLF3D\r
+    autoMount:
+      A: "BASIC-DOS Wolfenstein 3D"
 ---
 
 {% include machine.html id="ibm5170" %}

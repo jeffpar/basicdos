@@ -131,24 +131,23 @@ di1:	pushf
 	sbb	al,0			; AL = CPUTYPE_80286 or CPUTYPE_80386
 di2:	mov	[CPU_HWTYPE],al
 ;
-; We act as if this is an 8088 unless protected mode is requested, by a CONFIG
-; line or a P at the boot message, and an R then overrides a line.
+; We use protected mode unless there's a "CPU=8088" (or "CPU=8086") line or
+; an R at the boot message (a P overrides the line), and if we don't, we act
+; as if this is an 8088.
 ;
 	mov	ah,byte ptr [BOOT_KEY]
 	or	ah,20h			; AH = boot key, in lower-case
-	mov	bh,bl
-	and	bh,0FEh
-	cmp	bh,'2'			; a "CPU=802xx" or "CPU=803xx" line?
-	je	di2c			; yes
 	cmp	ah,'p'			; was the boot key P?
-	jne	di2b			; no
-di2c:	cmp	ah,'r'			; was the boot key R?
+	je	di2c			; yes
+	cmp	ah,'r'			; was the boot key R?
+	je	di2b			; yes
+	cmp	bl,'8'			; a "CPU=8088" or "CPU=8086" line?
 	je	di2b			; yes
 ;
 ; Protected mode also needs at least 256K of conventional memory (after any
 ; "MEMSIZE=" line), so with less, we act as if this is an 8088, too.
 ;
-	cmp	[MEMORY_SIZE],256	; enough conventional memory?
+di2c:	cmp	[MEMORY_SIZE],256	; enough conventional memory?
 	jae	di2a			; yes
 di2b:	mov	al,CPUTYPE_8086		; no, so act as if this is an 8088
 di2a:

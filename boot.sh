@@ -10,8 +10,8 @@
 #
 # The machine is a 2Mb IBM PC AT (ibm5170 with --ram=2M, which pc.js splits into 640K of conventional memory and 1408K
 # of extended memory, unless another --ram is given), whose real-time clock sets the date and time.  No
-# configuration's CONFIG.SYS has a "CPU=80286" line, so CPU$ acts as it does on an 8088 and BASIC-DOS runs in real
-# mode, the default (tools/tests/mmutest.sh's pm and r3 machines and tools/tests/pmboot.sh boot with that line).
+# configuration's CONFIG.SYS has a "CPU=8088" line, so BASIC-DOS runs in protected mode, the default on an 80286 or
+# later (press R at the boot message for real mode, or see tools/tests/mmutest.sh's real machine).
 #
 #   fpe     floppy, console on COM1, no FPU (the default)
 #   fpu     floppy, console on COM1, with an 80287
