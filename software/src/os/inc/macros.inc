@@ -10,13 +10,13 @@
 	PAGE	,132
 
 REG16	struc
-LOB	db	?
-HIB	db	?
+LB	db	?
+HB	db	?
 REG16	ends
 
 REG32	struc
-LOW	dw	?
-HIW	dw	?
+LW	dw	?
+HW	dw	?
 REG32	ends
 
 REG64	struc
@@ -27,8 +27,8 @@ W4	dw	?
 REG64	ends
 
 FARPTR	struc
-OFF	dw	?
-SEG	dw	?
+_OFF	dw	?
+_SEG	dw	?
 FARPTR	ends
 
 DEFABS	macro	name,value
@@ -152,7 +152,7 @@ EXTSTR	macro	names
 	endm
 
 ;
-; Tables are like pointers, where .OFF is the offset but .SEG is the limit.
+; Tables are like pointers, where ._OFF is the offset but ._SEG is the limit.
 ; We don't need to record the segment, because offset is always DS-relative.
 ;
 DEFTBL	macro	names
@@ -605,8 +605,8 @@ DPRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 ;
 PUSHARG	macro	a,w
 	IF w EQ 2
-	push	a.HIW
-	push	a.LOW
+	push	a.HW
+	push	a.LW
 	ELSE
 	push	a
 	ENDIF

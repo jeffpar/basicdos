@@ -141,11 +141,11 @@ dci1:	cmp	al,IOCTL_WAIT
 ;
 	cli
 	mov	ax,di
-	xchg	[wait_ptr].OFF,ax
-	mov	es:[di].DDP_PTR.OFF,ax
+	xchg	[wait_ptr]._OFF,ax
+	mov	es:[di].DDP_PTR._OFF,ax
 	mov	ax,es
-	xchg	[wait_ptr].SEG,ax
-	mov	es:[di].DDP_PTR.SEG,ax
+	xchg	[wait_ptr]._SEG,ax
+	mov	es:[di].DDP_PTR._SEG,ax
 	sti
 ;
 ; The WAIT condition is satisfied when the packet's LENGTH:OFFSET pair (which
@@ -268,8 +268,8 @@ dci3b:	push	cx
 	ENDIF
 
 	cli
-	mov	[ticksToday].LOW,cx
-	mov	[ticksToday].HIW,dx
+	mov	[ticksToday].LW,cx
+	mov	[ticksToday].HW,dx
 	sti
 	jmp	dci8
 
@@ -323,8 +323,8 @@ dci5:	cmp	al,IOCTL_GETTIME
 ; fits in 32 bits, and the remainder of the division gives the hundredths.
 ;
 	cli
-	mov	ax,[ticksToday].LOW
-	mov	dx,[ticksToday].HIW
+	mov	ax,[ticksToday].LW
+	mov	dx,[ticksToday].HW
 	sti
 
 	IFDEF	MAXDEBUG
@@ -424,20 +424,20 @@ DEFPROC	remove_packet
 	mov	cx,es			; CX:DI -> packet to remove
 	pushf
 	cli
-rp1:	mov	ax,[bx].OFF
+rp1:	mov	ax,[bx]._OFF
 	cmp	ax,-1			; end of chain?
 	je	rp8			; yes, packet not found
 	cmp	ax,di
 	jne	rp2
-	cmp	[bx].SEG,cx
+	cmp	[bx]._SEG,cx
 	je	rp3
 rp2:	lds	bx,dword ptr [bx]	; DS:BX -> next packet
 	lea	bx,[bx].DDP_PTR		; DS:BX -> its link
 	jmp	rp1
-rp3:	mov	ax,es:[di].DDP_PTR.OFF	; unlink the packet
-	mov	[bx].OFF,ax
-	mov	ax,es:[di].DDP_PTR.SEG
-	mov	[bx].SEG,ax
+rp3:	mov	ax,es:[di].DDP_PTR._OFF	; unlink the packet
+	mov	[bx]._OFF,ax
+	mov	ax,es:[di].DDP_PTR._SEG
+	mov	[bx]._SEG,ax
 	popf
 	clc
 	jmp	short rp9
@@ -536,11 +536,11 @@ dt1:	sub	dx,dx
 	pop	cx
 	mov	es:[di].TMR_TICKS,ax
 	mov	ax,di
-	xchg	[tmr_list].OFF,ax
-	mov	es:[di].TMR_NEXT.OFF,ax
+	xchg	[tmr_list]._OFF,ax
+	mov	es:[di].TMR_NEXT._OFF,ax
 	mov	ax,es
-	xchg	[tmr_list].SEG,ax
-	mov	es:[di].TMR_NEXT.SEG,ax
+	xchg	[tmr_list]._SEG,ax
+	mov	es:[di].TMR_NEXT._SEG,ax
 dt9:	popf
 	pop	ds
 	ASSUME	DS:NOTHING
@@ -567,20 +567,20 @@ DEFPROC	tmr_remove
 	push	ds
 	mov	ds,cs:[0].DDH_DATA
 	mov	bx,offset tmr_list	; DS:BX -> first link
-tr1:	mov	ax,[bx].OFF
+tr1:	mov	ax,[bx]._OFF
 	cmp	ax,-1			; end of chain?
 	je	tr9			; yes
 	cmp	ax,di
 	jne	tr2
 	mov	ax,es
-	cmp	[bx].SEG,ax
+	cmp	[bx]._SEG,ax
 	je	tr3
 tr2:	lds	bx,dword ptr [bx]	; DS:BX -> next timer (and its link)
 	jmp	tr1
-tr3:	mov	ax,es:[di].TMR_NEXT.OFF	; unlink the timer
-	mov	[bx].OFF,ax
-	mov	ax,es:[di].TMR_NEXT.SEG
-	mov	[bx].SEG,ax
+tr3:	mov	ax,es:[di].TMR_NEXT._OFF; unlink the timer
+	mov	[bx]._OFF,ax
+	mov	ax,es:[di].TMR_NEXT._SEG
+	mov	[bx]._SEG,ax
 tr9:	pop	ds
 	pop	bx
 	ret
@@ -606,10 +606,10 @@ rt1:	les	di,[bx]			; ES:DI -> timer, if any
 	je	rt9			; yes
 	dec	es:[di].TMR_TICKS	; has it expired?
 	jnz	rt2			; no
-	mov	ax,es:[di].TMR_NEXT.OFF	; yes, unlink it
-	mov	[bx].OFF,ax
-	mov	ax,es:[di].TMR_NEXT.SEG
-	mov	[bx].SEG,ax
+	mov	ax,es:[di].TMR_NEXT._OFF; yes, unlink it
+	mov	[bx]._OFF,ax
+	mov	ax,es:[di].TMR_NEXT._SEG
+	mov	[bx]._SEG,ax
 	push	bx
 	push	cx
 	push	si
@@ -655,19 +655,19 @@ DEFPROC	ddclk_interrupt,far
 	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 
-	add	[ticksToday].LOW,1
-	adc	[ticksToday].HIW,0
+	add	[ticksToday].LW,1
+	adc	[ticksToday].HW,0
 ;
 ; The maximum ticks per day (1573040) is 0018:00B0.
 ;
-	cmp	[ticksToday].HIW,18h
+	cmp	[ticksToday].HW,18h
 	jb	ddi0a			; no overflow yet
 	ASSERT	Z
 	ja	ddi0			; large overflow (how'd that happen?)
-	cmp	[ticksToday].LOW,00B0h
+	cmp	[ticksToday].LW,00B0h
 	jb	ddi0a
-ddi0:	mov	[ticksToday].LOW,0
-	mov	[ticksToday].HIW,0
+ddi0:	mov	[ticksToday].LW,0
+	mov	[ticksToday].HW,0
 ;
 ; We use a DOS utility function to increment the date, since DOS already
 ; contains the required calendar data to properly increment a date (ie, it
@@ -724,10 +724,10 @@ ddi2:	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 ; WAIT condition has been satisfied, remove packet from wait_ptr list.
 ;
 ddi3:	cli
-	mov	ax,es:[di].DDP_PTR.OFF
-	mov	[bx].OFF,ax
-	mov	ax,es:[di].DDP_PTR.SEG
-	mov	[bx].SEG,ax
+	mov	ax,es:[di].DDP_PTR._OFF
+	mov	[bx]._OFF,ax
+	mov	ax,es:[di].DDP_PTR._SEG
+	mov	[bx]._SEG,ax
 	sti
 	jmp	short ddi7
 
@@ -762,7 +762,7 @@ ENDPROC	ddclk_interrupt
 DEFPROC	ddclk_init,far
 	ASSERT	STRUCT,es:[bx],DDP
 
-	mov	es:[bx].DDPI_END.OFF,offset ddclk_init
+	mov	es:[bx].DDPI_END._OFF,offset ddclk_init
 	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddclk_req
@@ -773,8 +773,8 @@ DEFPROC	ddclk_init,far
 ;
 	mov	ah,TIME_GETTICKS
 	int	INT_TIME		; CX:DX is current tick count
-	mov	[ticksToday].LOW,dx
-	mov	[ticksToday].HIW,cx
+	mov	[ticksToday].LW,dx
+	mov	[ticksToday].HW,cx
 	mov	ah,TIME_GETDATE
 	sub	cx,cx
 	int	INT_TIME		; CX = century/year, DX = month/day
@@ -806,8 +806,8 @@ ci1:
 	mov	dx,cs
 	cli
 	call	far ptr DDINT_SETVEC	; DX:CX = previous vector
-	mov	[tmr_int].OFF,cx
-	mov	[tmr_int].SEG,dx
+	mov	[tmr_int]._OFF,cx
+	mov	[tmr_int]._SEG,dx
 	sti
 
 	ret

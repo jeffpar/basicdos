@@ -42,14 +42,14 @@ DEFPROC	main
 	mov	[session],cl
 	mov	ax,(DOS_MSC_GETVEC SHL 8) OR 21h
 	int	21h
-	mov	[old_dos].OFF,bx
-	mov	[old_dos].SEG,es
+	mov	[old_dos]._OFF,bx
+	mov	[old_dos]._SEG,es
 	push	ds
 	pop	es
-	mov	[exec_parms].EPB_CMDTAIL.OFF,offset cmd_tail
-	mov	[exec_parms].EPB_CMDTAIL.SEG,ds
-	mov	[exec_parms].EPB_FCB1.SEG,ds
-	mov	[exec_parms].EPB_FCB2.SEG,ds
+	mov	[exec_parms].EPB_CMDTAIL._OFF,offset cmd_tail
+	mov	[exec_parms].EPB_CMDTAIL._SEG,ds
+	mov	[exec_parms].EPB_FCB1._SEG,ds
+	mov	[exec_parms].EPB_FCB2._SEG,ds
 	mov	dx,offset dos_hook
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 21h
 	int	21h
@@ -77,7 +77,7 @@ m3:
 	mov	[vi_fault],al
 	mov	[keyptr],offset keys
 	mov	[key_overrun],0
-	mov	[exec_parms].EPB_CMDTAIL.OFF,offset vi_tail
+	mov	[exec_parms].EPB_CMDTAIL._OFF,offset vi_tail
 	push	si
 	mov	dx,offset vi_program
 	call	run

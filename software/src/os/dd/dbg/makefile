@@ -7,7 +7,10 @@
 #
 # This file is part of PCjs, a computer emulation software project at pcjs.org
 #
-ASM=MASM
+# MASM5 is MASM 5.10B; use ASM=MASM on MAKE's command line to assemble with
+# MASM 4.00 instead.
+#
+ASM=MASM5
 LINK=LINK
 EXE2BIN=EXE2BIN
 AFLAGS=/MX /R /D$(REL) /I..\..\INC

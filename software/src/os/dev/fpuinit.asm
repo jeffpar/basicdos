@@ -69,7 +69,7 @@ DEFPROC	ddfpu_init,far
 	ASSUME	DS:BIOS
 	cmp	[MEMORY_SIZE],64	; more than 64K of memory?
 	ja	ddi0			; yes
-	mov	es:[bx].DDPI_END.OFF,0	; no, so keep nothing
+	mov	es:[bx].DDPI_END._OFF,0	; no, so keep nothing
 	ret
 ddi0:	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:DEV
@@ -111,7 +111,7 @@ ddi1:	pop	ax
 	rep	movsw			; move SWCODE down to HWCODE
 	pop	es
 	xchg	ax,di			; AX = end of moved SWCODE
-ddi9:	mov	es:[bx].DDPI_END.OFF,ax
+ddi9:	mov	es:[bx].DDPI_END._OFF,ax
 ;
 ; The FPUTBL's offsets are relative to hwTable's paragraph, so its functions
 ; need a code segment of their own, which CPU_MAP returns for the paragraph's
@@ -151,7 +151,7 @@ ddi9a:	mov	ah,CPU_SEGINFO
 	call	far ptr DDINT_CPU	; AX = FPUTBL's segment (or selector)
 ddi9x:	pop	bx
 	jnc	ddi9b
-	mov	es:[bx].DDPI_END.OFF,0	; keep nothing
+	mov	es:[bx].DDPI_END._OFF,0	; keep nothing
 ddi9b:	mov	[fpuSeg],ax		; FPUTBL is at fpuSeg:0
 ;
 ; Fill in the far pointers that follow the retained FPUTBL, so that its
@@ -164,12 +164,12 @@ ddi9b:	mov	[fpuSeg],ax		; FPUTBL is at fpuSeg:0
 	mov	word ptr [si+4],offset DEV:comDtoA
 	mov	[si+6],bp
 	mov	ax,[fpuSeg]
-	mov	[fpuToDec].SEG,ax
-	mov	[fpuFromDec].SEG,ax
+	mov	[fpuToDec]._SEG,ax
+	mov	[fpuFromDec]._SEG,ax
 	mov	ax,word ptr [hwTable+FPU_TODEC]
-	mov	[fpuToDec].OFF,ax
+	mov	[fpuToDec]._OFF,ax
 	mov	ax,word ptr [hwTable+FPU_FROMDEC]
-	mov	[fpuFromDec].OFF,ax
+	mov	[fpuFromDec]._OFF,ax
 	ret
 ENDPROC	ddfpu_init
 

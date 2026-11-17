@@ -77,7 +77,7 @@ main:	push	ax
 	push	es
 	push	cs
 	pop	ds			; DS:0 = the start of the file
-	mov	si,ds:[EXE_NEHDR].OFF	; DS:SI -> NE header
+	mov	si,ds:[EXE_NEHDR]._OFF	; DS:SI -> NE header
 	mov	di,si
 	add	di,[si].NE_SEGTAB	; DS:DI -> segment table
 	mov	ax,[si].NE_SHIFT
@@ -133,13 +133,13 @@ p3:	add	ax,15
 ;
 ; An initial SP of 0 means the top of the segment, which we know only here.
 ;
-	cmp	bp,[si].NE_STACKPTR.SEG	; the stack's segment?
+	cmp	bp,[si].NE_STACKPTR._SEG; the stack's segment?
 	jne	p4			; no
-	cmp	[si].NE_STACKPTR.OFF,0
+	cmp	[si].NE_STACKPTR._OFF,0
 	jne	p4
 	mov	bx,ax
 	shl	bx,cl
-	mov	[si].NE_STACKPTR.OFF,bx
+	mov	[si].NE_STACKPTR._OFF,bx
 p4:	mov	[di].NES_SIZE,dx
 	add	dx,ax
 	add	di,size NESEG
@@ -209,7 +209,7 @@ r8:	add	di,size NESEG
 ; paragraph after the one we're on, and DI is just past its table entry.
 ;
 	pop	dx
-	mov	si,ds:[EXE_NEHDR].OFF
+	mov	si,ds:[EXE_NEHDR]._OFF
 	mov	cx,[si].NE_NSEGS
 m3:	sub	di,size NESEG
 	push	cx
@@ -262,20 +262,20 @@ m5:	rep	stosw
 ;
 ; Step 4: start the program.
 ;
-	mov	si,ds:[EXE_NEHDR].OFF
+	mov	si,ds:[EXE_NEHDR]._OFF
 	pop	es			; ES = PSP
 	pop	bx			; BX = initial AX
-	mov	ax,[si].NE_STACKPTR.SEG
+	mov	ax,[si].NE_STACKPTR._SEG
 	call	seg_para
-	mov	dx,[si].NE_STACKPTR.OFF
+	mov	dx,[si].NE_STACKPTR._OFF
 	cli
 	mov	ss,ax
 	mov	sp,dx
 	sti
-	mov	ax,[si].NE_START.SEG
+	mov	ax,[si].NE_START._SEG
 	call	seg_para
 	push	ax
-	push	[si].NE_START.OFF
+	push	[si].NE_START._OFF
 	push	es
 	pop	ds			; DS = PSP
 	xchg	ax,bx			; AX = initial AX

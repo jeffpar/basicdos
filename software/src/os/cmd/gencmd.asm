@@ -96,10 +96,10 @@ DEFPROC	genCode
 	call	genInit			; ES:DI -> code to run
 	jbe	gc9			; (carry set only if there was an error)
 	ASSUME	ES:NOTHING
-	mov	[pCode].OFF,di
+	mov	[pCode]._OFF,di
 	mov	dx,es
 	call	codeSeg
-	mov	[pCode].SEG,dx
+	mov	[pCode]._SEG,dx
 ;
 ; The memory model for the generated code is simple: CS is the current
 ; code block, SS is the heap, DS is the first var block (if any; see addVar),
@@ -113,11 +113,11 @@ DEFPROC	genCode
 	mov	si,ds:[PSP_HEAP]
 	push	[si].ERR_SP
 	push	[si].ERR_NUM
-	push	[si].ERR_ADDR.OFF
-	push	[si].ERR_ADDR.SEG
+	push	[si].ERR_ADDR._OFF
+	push	[si].ERR_ADDR._SEG
 	sub	ax,ax
 	mov	[si].ERR_NUM,ax
-	mov	[si].ERR_ADDR.SEG,ax
+	mov	[si].ERR_ADDR._SEG,ax
 	push	bp
 	push	ds
 	mov	ax,sp
@@ -133,8 +133,8 @@ gc5:	pop	ds			; (genMore arrives here with carry set)
 	pop	es			; block, which freeing the code frees
 	pop	bp
 	mov	si,ds:[PSP_HEAP]
-	pop	[si].ERR_ADDR.SEG
-	pop	[si].ERR_ADDR.OFF
+	pop	[si].ERR_ADDR._SEG
+	pop	[si].ERR_ADDR._OFF
 	pop	[si].ERR_NUM
 	pop	[si].ERR_SP
 	pushf
@@ -196,7 +196,7 @@ gi1:	mov	[bx].GEN_FLAGS,al
 	xchg	cx,[bx].CODE_CACHE
 	jcxz	gi2			; the program's code wasn't kept
 	or	[bx].GEN_FLAGS,GEN_DONE	; it was, and it's complete
-	mov	[bx].LINE_PTR.SEG,dx	; (see keepCode)
+	mov	[bx].LINE_PTR._SEG,dx	; (see keepCode)
 	mov	[bx].CBLKDEF.BDEF_NEXT,cx; the code is running again
 	mov	es,cx
 	mov	di,size CBLK		; ES:DI -> the code (carry and ZF clear)
@@ -221,8 +221,8 @@ gi2:	push	ds
 	mov	al,VAR_LONG		; implied DEFINT A-Z
 gi3:	rep	stosb			; (and CX is zero again)
 	mov	si,size TBLK
-gi4:	mov	[bx].LINE_PTR.OFF,si
-	mov	[bx].LINE_PTR.SEG,dx
+gi4:	mov	[bx].LINE_PTR._OFF,si
+	mov	[bx].LINE_PTR._SEG,dx
 	mov	[bx].LINE_LEN,cx	; CX = previous length (0)
 ;
 ; allocCode sizes the code block for the text: a single line, or the size of
@@ -249,7 +249,7 @@ gi4a:	call	allocCode
 	mov	ax,es:[BLK_SIZE]
 	sub	ax,LBL_MAPLEN * 2
 	mov	dx,ds
-	cmp	dx,[bx].LINE_PTR.SEG	; generating a single line?
+	cmp	dx,[bx].LINE_PTR._SEG	; generating a single line?
 	je	gi5			; yes
 	mov	dx,offset genRegion
 	cmp	dx,ds:[PSP_CODESIZE]	; is genRegion loaded (see genUpper)?
@@ -695,10 +695,10 @@ gd2:	mov	[si].TOKLET_END,bx	; mark the tokens fully processed
 gd3:	sub	cx,ax			; CX = length of command
 	push	ax
 	GENPUSH	cx			; push length of command line
-	mov	cx,[si].LINE_PTR.OFF
+	mov	cx,[si].LINE_PTR._OFF
 	pop	ax
 	add	cx,ax
-	mov	dx,[si].LINE_PTR.SEG	; DX:CX -> command line
+	mov	dx,[si].LINE_PTR._SEG	; DX:CX -> command line
 	GENPUSH	dx,cx			; push pointer to command line
 	GENCALL	callDOS
 	ret

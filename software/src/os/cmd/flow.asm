@@ -68,13 +68,13 @@ DEFPROC	forInit,FAR
 	les	di,[pForSlot]
 	cmp	es:[di].FS_TYPE,VAR_DOUBLE
 	je	fi1
-	mov	ax,[forLimit].LOW
+	mov	ax,[forLimit].LW
 	mov	word ptr es:[di].FS_LIMIT,ax
-	mov	ax,[forLimit].HIW
+	mov	ax,[forLimit].HW
 	mov	word ptr es:[di].FS_LIMIT+2,ax
-	mov	ax,[forStep].LOW
+	mov	ax,[forStep].LW
 	mov	word ptr es:[di].FS_STEP,ax
-	mov	ax,[forStep].HIW
+	mov	ax,[forStep].HW
 	mov	word ptr es:[di].FS_STEP+2,ax
 	jmp	short fi2
 fi1:	add	di,FS_LIMIT
@@ -116,9 +116,9 @@ DEFPROC	forNext,FAR
 	cmp	es:[di].FS_TYPE,VAR_DOUBLE
 	je	fn1
 	mov	ax,word ptr es:[di].FS_STEP
-	add	[si].LOW,ax
+	add	[si].LW,ax
 	mov	ax,word ptr es:[di].FS_STEP+2
-	adc	[si].HIW,ax
+	adc	[si].HW,ax
 	jmp	short fn2
 fn1:	mov	bx,FPU_ADD
 	call	getFPUFunc		; DX:AX -> FPU_ADD
@@ -165,8 +165,8 @@ DEFPROC	forTest
 	lds	si,es:[di].FS_VAR	; DS:SI -> loop variable
 	cmp	es:[di].FS_TYPE,VAR_DOUBLE
 	je	ft5
-	mov	ax,[si].LOW
-	mov	dx,[si].HIW		; DX:AX = loop variable
+	mov	ax,[si].LW
+	mov	dx,[si].HW		; DX:AX = loop variable
 	mov	bl,0			; BL = 0 if equal
 	cmp	dx,word ptr es:[di].FS_LIMIT+2
 	jne	ft1
@@ -345,7 +345,7 @@ DEFPROC	rtError
 	xchg	ss:[bx].ERR_NUM,ax	; set the error # and active flag
 	test	ah,ah			; were we already handling an error?
 	jnz	re1			; yes
-	cmp	ss:[bx].ERR_ADDR.SEG,0	; is there a handler?
+	cmp	ss:[bx].ERR_ADDR._SEG,0	; is there a handler?
 	je	re1			; no
 	call	findStmtSP		; SI = SP of the statement
 	mov	sp,si
@@ -486,8 +486,8 @@ DEFPROC	onError,FAR
 	pop	ax
 	pop	dx			; DX:AX -> JMP
 	mov	bx,ss:[PSP_HEAP]
-	mov	ss:[bx].ERR_ADDR.OFF,ax
-	mov	ss:[bx].ERR_ADDR.SEG,dx
+	mov	ss:[bx].ERR_ADDR._OFF,ax
+	mov	ss:[bx].ERR_ADDR._SEG,dx
 	add	ax,5
 	push	dx
 	push	ax
@@ -511,7 +511,7 @@ ENDPROC	onError
 ;
 DEFPROC	offError,FAR
 	mov	bx,ss:[PSP_HEAP]
-	mov	ss:[bx].ERR_ADDR.SEG,0
+	mov	ss:[bx].ERR_ADDR._SEG,0
 	ret
 ENDPROC	offError
 
@@ -536,9 +536,9 @@ ENDPROC	offError
 DEFPROC	resumeErr,FAR
 	mov	bx,ss:[PSP_HEAP]
 	mov	al,20			; "RESUME without error"
-	cmp	byte ptr ss:[bx].ERR_NUM.HIB,0
+	cmp	byte ptr ss:[bx].ERR_NUM.HB,0
 	je	rse8			; no error is being handled (see rse8)
-	mov	byte ptr ss:[bx].ERR_NUM.HIB,0
+	mov	byte ptr ss:[bx].ERR_NUM.HB,0
 	call	findStmtSP		; SI = SP of the statement
 	pop	cx
 	pop	dx			; DX:CX = return address
@@ -619,8 +619,8 @@ DEFPROC	getErr,FAR
 	mov	bx,ss:[PSP_HEAP]
 	mov	al,byte ptr ss:[bx].ERR_NUM
 	mov	ah,0
-	mov	[retErr].LOW,ax
-	mov	[retErr].HIW,0
+	mov	[retErr].LW,ax
+	mov	[retErr].HW,0
 	LEAVE
 	RETURN
 ENDPROC	getErr
@@ -756,8 +756,8 @@ DEFPROC	getErl,FAR
 	ENTER
 	mov	bx,ss:[PSP_HEAP]
 	mov	ax,ss:[bx].ERR_LINE
-	mov	[retErl].LOW,ax
-	mov	[retErl].HIW,0
+	mov	[retErl].LW,ax
+	mov	[retErl].HW,0
 	LEAVE
 	RETURN
 ENDPROC	getErl

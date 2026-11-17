@@ -213,9 +213,9 @@ st2a:	push	ds
 	sub	ax,ax
 	stosw				; SPB_ENVSEG <- 0
 	mov	ax,si
-	stosw				; SPB_CMDLINE.OFF
+	stosw				; SPB_CMDLINE._OFF
 	mov	ax,ds
-	stosw				; SPB_CMDLINE.SEG
+	stosw				; SPB_CMDLINE._SEG
 	pop	ax
 	stosb				; SPB_SFHIN
 	stosb				; SPB_SFHOUT

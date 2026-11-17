@@ -238,10 +238,10 @@ si2d:	cli
 ; by now, and BOOT_KEY to key_boot.  We then clear BOOT_KEY, since a timeout at
 ; the next boot message won't change it, and a warm boot may not clear it.
 ;
-si3:	mov	ax,[DD_LIST].OFF	; copy the device driver list head
-	mov	[dev_head].OFF,ax
-	mov	ax,[DD_LIST].SEG
-	mov	[dev_head].SEG,ax
+si3:	mov	ax,[DD_LIST]._OFF	; copy the device driver list head
+	mov	[dev_head]._OFF,ax
+	mov	ax,[DD_LIST]._SEG
+	mov	[dev_head]._SEG,ax
 	mov	ax,[BOOT_KEY]		; copy the boot key
 	cmp	al,CHR_RETURN		; unless it's just a RETURN
 	je	si3a
@@ -284,7 +284,7 @@ si5a:	mov	[cfg_counts+4],ax	; AX = new value (for msc_getvars)
 ;
 	mov	ax,SFH_NONE SHL 8	; AL = 0, AH = SFH_NONE
 	cwd				; DL = SFH_NONE, DH = SFH_NONE
-	mov	bx,[scb_table].OFF
+	mov	bx,[scb_table]._OFF
 	mov	[scb_active],bx		; make the first SCB active
 
 si5b	label	near
@@ -295,7 +295,7 @@ si5b	label	near
 	DBGINIT	STRUCT,[bx],SCB
 	inc	ax
 	add	bx,size SCB
-	cmp	bx,[scb_table].SEG
+	cmp	bx,[scb_table]._SEG
 	jb	si5b
 ;
 ; The next resident table (bpb_table) contains all the system BPBs.
@@ -356,8 +356,8 @@ si5c:	mov	[FDC_UNITS],al		; (updated to include reserved drives)
 	mov	[DIR_BUFHDR].BUF_SIZE,512
 
 	mov	bp,[HDC_SEG]		; BP = HDC driver segment
-	push	[FDC_DEVICE].SEG	; save FDC pointer on stack
-	push	[FDC_DEVICE].OFF
+	push	[FDC_DEVICE]._SEG	; save FDC pointer on stack
+	push	[FDC_DEVICE]._OFF
 	mov	al,[si].BPB_DRIVE	; use the BPB's own BPB_DRIVE #
 	test	al,al			; to determine the system BPB to update
 	jns	si5d
@@ -374,16 +374,16 @@ si5c:	mov	[FDC_UNITS],al		; (updated to include reserved drives)
 	jmp	short si6b
 si5d:	mov	ah,size BPBEX
 	mul	ah
-	mov	di,es:[bpb_table].OFF
+	mov	di,es:[bpb_table]._OFF
 	add	di,ax
-	cmp	di,es:[bpb_table].SEG
+	cmp	di,es:[bpb_table]._SEG
 	ASSERT	B
 	jnb	si6b
 	mov	cx,(size BPB) SHR 1
 	push	di
 	rep	movsw
 	pop	di
-	mov	es:[di].BPB_LARGESECS.LOW,0 ; discard boot loader's scratch cluster count
+	mov	es:[di].BPB_LARGESECS.LW,0; discard boot loader's scratch cluster count
 	push	es
 	pop	ds
 	ASSUME	DS:DOS
@@ -432,7 +432,7 @@ si6b:	push	es
 	mov	bl,ch			; BL = # diskette drives
 	mov	ch,0			; CH = drive #
 
-	mov	di,[bpb_table].OFF	; DI -> first BPB
+	mov	di,[bpb_table]._OFF	; DI -> first BPB
 si6c:	DBGINIT	STRUCT,[di],BPB
 	mov	[di].BPB_FREECLNS,-1
 	mov	[di].BPB_FIXED,0
@@ -441,8 +441,8 @@ si6c:	DBGINIT	STRUCT,[di],BPB
 	mov	[di].BPB_FIXED,1
 	sub	ax,ax			; no, so the device is the HDC driver
 	mov	dx,bp			; DX:AX -> HDC driver
-si6e:	mov	[di].BPB_DEVICE.OFF,ax
-	mov	[di].BPB_DEVICE.SEG,dx
+si6e:	mov	[di].BPB_DEVICE._OFF,ax
+	mov	[di].BPB_DEVICE._SEG,dx
 	cmp	[di].BPB_SECBYTES,0	; is this BPB initialized?
 	jne	si6d			; yes
 	mov	[di].BPB_DRIVE,ch	; no, fill in the drive #
@@ -696,10 +696,10 @@ si9f:	mov	si,offset CFG_AUX
 si10:	call	next_con		; another SHELL line?
 	jnc	si10a			; yes
 	jmp	si12			; no more
-si10a:	shl	[con_bit].OFF,1
-	rcl	[con_bit].SEG,1
+si10a:	shl	[con_bit]._OFF,1
+	rcl	[con_bit]._SEG,1
 	add	bx,size SCB
-	cmp	bx,es:[scb_table].SEG
+	cmp	bx,es:[scb_table]._SEG
 	jb	si11
 	mov	dx,offset CONERR
 	jmp	print_error
@@ -716,10 +716,10 @@ si11:	mov	es:[scb_active],bx	; make the next SCB active
 	sub	bx,size SCB		; reuse this SCB
 	mov	es:[scb_active],bx
 	call	open_warning
-	mov	ax,[con_bit].OFF
-	or	[con_fails].OFF,ax
-	mov	ax,[con_bit].SEG
-	or	[con_fails].SEG,ax
+	mov	ax,[con_bit]._OFF
+	or	[con_fails]._OFF,ax
+	mov	ax,[con_bit]._SEG
+	or	[con_fails]._SEG,ax
 	jmp	si10
 si11a:	mov	es:[bx].SCB_SFHIN,al
 	mov	es:[bx].SCB_SFHOUT,al
@@ -775,8 +775,8 @@ si14:	mov	dx,offset SYS_MSG
 ;
 	mov	ax,(DOS_MSC_GETVEC SHL 8) OR 21h
 	int	21h
-	mov	[pCacheInt21].OFF,bx
-	mov	[pCacheInt21].SEG,es
+	mov	[pCacheInt21]._OFF,bx
+	mov	[pCacheInt21]._SEG,es
 	mov	dx,offset cache_int21
 	push	cs
 	pop	ds			; DS:DX -> cache_int21

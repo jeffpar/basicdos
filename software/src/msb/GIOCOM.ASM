@@ -129,7 +129,7 @@ POLCOM:	PUSH	DI
 	MOV	DI,OFFSET CM1DCB	;DI points to device control block 1
 	MOV	DX,OFFSET NMCOMT	;[DH]=COM unit#, [DL]=number of COM units
 POLCML:	CALL	POLCM1		;test unit 1 for trap
-	ADD	DI,OFFSET CDCBSZ	;DI points to next device control block
+	ADD	DI,CDCBSZ		;DI points to next device control block
 	INC	DH		;Bump unit id
 	DEC	DL		;Decrement unit counter
 	JNZ	POLCML		;branch if any more to test

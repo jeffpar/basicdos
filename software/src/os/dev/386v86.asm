@@ -184,7 +184,7 @@ DEFPROC	v86_resume
 	db	66h,58h			; POP EAX
 	db	0Fh,22h,0D8h		; MOV CR3,EAX
 	db	66h
-	lidt	qword ptr ds:[SYS_VARS].SV_V86IDTR
+	DTREG	lidt,<ds:[SYS_VARS].SV_V86IDTR>
 	mov	ss,bx
 	mov	sp,V86_CTX
 vr_ret:	db	66h,61h			; POPAD
@@ -256,7 +256,7 @@ vc1:	mov	ah,0
 	mov	bx,SEL_SYS
 	mov	ds,bx
 	db	66h
-	lidt	qword ptr ds:[SYS_VARS].SV_PIDTR
+	DTREG	lidt,<ds:[SYS_VARS].SV_PIDTR>
 	mov	cx,ss:[V86_CTX].VC_SP0
 	mov	ds:[TSS_ESP0],cx
 	mov	cx,ss:[V86_CTX].VC_SS0
@@ -425,8 +425,8 @@ vg10:	mov	ah,al
 	lodsb
 	mov	ah,0
 	xchg	cx,ax			; CX = port
-vg11:	mov	es:[V86_CTX].VR_ERR.LOW,cx
-	mov	es:[V86_CTX].VR_ERR.HIW,bx
+vg11:	mov	es:[V86_CTX].VR_ERR.LW,cx
+	mov	es:[V86_CTX].VR_ERR.HW,bx
 	mov	word ptr es:[V86_CTX].VR_EIP,si
 	mov	al,V86X_IO
 	jmp	v86_exit
@@ -537,8 +537,8 @@ vx1:	push	ax
 	mov	cx,(size V86REGS) / 2
 	rep	movsw
 	pop	ds
-	push	ds:[SYS_VARS].SV_PDIR.HIW
-	push	ds:[SYS_VARS].SV_PDIR.LOW
+	push	ds:[SYS_VARS].SV_PDIR.HW
+	push	ds:[SYS_VARS].SV_PDIR.LW
 	db	66h,58h			; POP EAX
 	db	0Fh,22h,0D8h		; MOV CR3,EAX
 	mov	es,[bp+6]		; (the caller's ES)
@@ -976,8 +976,8 @@ DEFPROC	v86_init
 	mov	es:[0],ax
 	mov	es:[2],dx		; PDE 0 -> the page table
 	push	ds
-	mov	ax,ds:[SYS_VARS].SV_PDIR.LOW
-	mov	dx,ds:[SYS_VARS].SV_PDIR.HIW
+	mov	ax,ds:[SYS_VARS].SV_PDIR.LW
+	mov	dx,ds:[SYS_VARS].SV_PDIR.HW
 	mov	cl,ds:[SYS_VARS].SV_NPT
 	mov	ch,0
 	shl	cx,1			; CX = words of the system's PDEs
@@ -1131,14 +1131,14 @@ DEFPROC	alloc_page
 	push	di
 	add	di,PG_SIZE - 16
 	adc	si,0
-	mov	ds:[SYS_VARS].SV_LEN.LOW,di
-	mov	ds:[SYS_VARS].SV_LEN.HIW,si
+	mov	ds:[SYS_VARS].SV_LEN.LW,di
+	mov	ds:[SYS_VARS].SV_LEN.HW,si
 	call	pmb_fit			; BX -> free PMB, DX:CX = address
 	pop	di
 	pop	si
 	jc	ap8
-	mov	ds:[SYS_VARS].SV_LEN.LOW,di
-	mov	ds:[SYS_VARS].SV_LEN.HIW,si
+	mov	ds:[SYS_VARS].SV_LEN.LW,di
+	mov	ds:[SYS_VARS].SV_LEN.HW,si
 	add	cx,PG_SIZE - 1
 	adc	dx,0
 	and	cx,NOT (PG_SIZE - 1)	; DX:CX = the page

@@ -115,8 +115,7 @@ m   macro
     purge m
     n
 endm
-?&s macro
-&endm
+?&s = 0
 endm
 
 ;

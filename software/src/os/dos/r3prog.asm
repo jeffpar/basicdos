@@ -293,7 +293,7 @@ rs0:	pop	dx			; DX = checksum
 	mov	es,ax
 	mov	es:[PSP_CODESIZE],di
 	mov	es:[PSP_CHECKSUM],dx
-	mov	es:[PSP_START].SEG,ax
+	mov	es:[PSP_START]._SEG,ax
 	mov	si,size PSP
 	mov	di,si
 	sub	cx,si
@@ -544,8 +544,8 @@ rw2a:	mov	cx,[di].FCB_RECSIZE
 rw3:	pop	ds
 	ASSUME	DS:DOS
 	mov	di,[scb_active]
-	mov	dx,[di].SCB_DTA.SEG
-	mov	di,[di].SCB_DTA.OFF	; DX:DI -> DTA, CX = # of bytes
+	mov	dx,[di].SCB_DTA._SEG
+	mov	di,[di].SCB_DTA._OFF	; DX:DI -> DTA, CX = # of bytes
 	mov	ax,di
 	add	ax,cx			; does it wrap around the segment?
 	jnc	rw4			; no
@@ -749,11 +749,11 @@ xe0:	call	get_psp
 	ASSUME	DS:NOTHING
 	mov	si,[bp].REG_BX		; DS:SI -> EPB
 	mov	ah,3			; (for each pointer's selector)
-	or	byte ptr [si].EPB_CMDTAIL.SEG,ah
-	or	byte ptr [si].EPB_FCB1.SEG,ah
-	or	byte ptr [si].EPB_FCB2.SEG,ah
-	or	byte ptr [si].EPB_INIT_SP.SEG,ah
-	or	byte ptr [si].EPB_INIT_IP.SEG,ah
+	or	byte ptr [si].EPB_CMDTAIL._SEG,ah
+	or	byte ptr [si].EPB_FCB1._SEG,ah
+	or	byte ptr [si].EPB_FCB2._SEG,ah
+	or	byte ptr [si].EPB_INIT_SP._SEG,ah
+	or	byte ptr [si].EPB_INIT_IP._SEG,ah
 	cmp	al,DOS_PSP_EXEC2 AND 0FFh
 	jne	xe6			; not an EXEC2
 	push	ds
@@ -770,12 +770,12 @@ xe0:	call	get_psp
 	je	xe9			; yes
 	mov	es,cx
 	mov	es:[PSP_PARENT],ax	; psp_exec uses this
-	mov	ax,[si].EPB_INIT_IP.SEG
-	mov	cx,[si].EPB_INIT_IP.OFF
+	mov	ax,[si].EPB_INIT_IP._SEG
+	mov	cx,[si].EPB_INIT_IP._OFF
 	call	r3_chkcode		; can we start the program there?
 	jc	xe8			; no
-	mov	dx,[si].EPB_INIT_SP.SEG
-	mov	di,[si].EPB_INIT_SP.OFF
+	mov	dx,[si].EPB_INIT_SP._SEG
+	mov	di,[si].EPB_INIT_SP._OFF
 	sub	di,size REG_FRAME - 2 + REG_CHECK
 	mov	cx,size REG_FRAME + REG_CHECK
 	call	r3_chkstk		; does its REG_FRAME fit on that stack?
@@ -824,7 +824,7 @@ ru0:	mov	al,[di]
 	mov	byte ptr [di],SFH_NONE
 ru0a:	inc	di
 	loop	ru0
-	or	byte ptr [si].SPB_CMDLINE.SEG,3
+	or	byte ptr [si].SPB_CMDLINE._SEG,3
 	lds	si,[si].SPB_CMDLINE	; DS:SI -> the command line
 	mov	cx,CMDLINE_MAX
 ru1:	lodsb				; (up to CMDLINE_MAX bytes)
@@ -962,22 +962,22 @@ ct3:	mov	dl,[bx].SCB_NUM
 	call	r3_pftfix		; (the kernel will close its handles)
 	mov	ds:[PSP_SCB],dl
 	mov	ds:[PSP_PARENT],si
-	or	byte ptr ds:[PSP_DTAPREV].SEG,3
+	or	byte ptr ds:[PSP_DTAPREV]._SEG,3
 	test	si,si			; does it have a parent?
 	jz	ct9			; no
 	mov	bl,dl			; (r3_chkcode modifies DX)
-	mov	ax,ds:[PSP_EXIT].SEG
-	mov	cx,ds:[PSP_EXIT].OFF
+	mov	ax,ds:[PSP_EXIT]._SEG
+	mov	cx,ds:[PSP_EXIT]._OFF
 	call	r3_chkcode		; can we return there?
 	jnc	ct5			; yes
 	mov	ax,es:[di + REG_CHECK].REG_CS
-	mov	ds:[PSP_EXIT].SEG,ax
+	mov	ds:[PSP_EXIT]._SEG,ax
 	mov	ax,es:[di + REG_CHECK].REG_IP
-	mov	ds:[PSP_EXIT].OFF,ax
+	mov	ds:[PSP_EXIT]._OFF,ax
 ct5:	mov	ds,si			; DS = its parent's PSP
 	mov	ds:[PSP_SCB],bl
-	mov	ds:[PSP_STACK].OFF,di
-	mov	ds:[PSP_STACK].SEG,es
+	mov	ds:[PSP_STACK]._OFF,di
+	mov	ds:[PSP_STACK]._SEG,es
 ct9:	pop	es
 	pop	ds
 	ASSUME	DS:DOS

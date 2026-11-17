@@ -211,12 +211,12 @@ emcreat	db	"Unable to create second boot file",13,10,'$'
 
 updated	db	"Boot sector on drive A: updated",13,10,'$'
 resized	db	"Boot sector updated",13,10,'$'
-nothing	db	"$" ; Boot sector unchanged",13,10,'$'
+unchanged	db	"$" ; Boot sector unchanged",13,10,'$'
 
 skipdsk	db	0			; non-zero to skip boot disk update
 
 	even
-message	dw	offset nothing
+message	dw	offset unchanged
 ;
 ; Unlike PC DOS, BASIC-DOS doesn't give a COM program all of its 64K segment,
 ; so we must ask for enough heap (see COMHEAP) for the buffer (a boot sector,

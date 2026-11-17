@@ -153,8 +153,8 @@ DEFPROC	rm_setvec,far
 	call	ivt_ptr			; DS:BX -> vector
 	pushf
 	cli
-	xchg	cx,[bx].OFF
-	xchg	dx,[bx].SEG
+	xchg	cx,[bx]._OFF
+	xchg	dx,[bx]._SEG
 	popf
 	jmp	short rg9
 ENDPROC	rm_setvec
@@ -163,8 +163,8 @@ DEFPROC	rm_getvec,far
 	push	ds
 	push	bx
 	call	ivt_ptr			; DS:BX -> vector
-	mov	cx,[bx].OFF
-	mov	dx,[bx].SEG
+	mov	cx,[bx]._OFF
+	mov	dx,[bx]._SEG
 rg9:	pop	bx
 	pop	ds
 	ret
@@ -565,8 +565,8 @@ ENDPROC	ddcpu_rwmem
 ;	Carry clear: DX:CX = previous handler
 ;
 DEFPROC	ddcpu_setfault
-	xchg	cx,[fault_ptr].OFF
-	xchg	dx,[fault_ptr].SEG
+	xchg	cx,[fault_ptr]._OFF
+	xchg	dx,[fault_ptr]._SEG
 	clc
 	ret
 ENDPROC	ddcpu_setfault
@@ -709,23 +709,23 @@ DEFPROC	ddcpu_move
 	pop	ds
 	ASSUME	DS:CODE, ES:NOTHING
 	sub	bp,bp			; BP = 0 to copy forward
-	mov	ax,[mv_pkt].MV_SRC.LOW
-	mov	dx,[mv_pkt].MV_SRC.HIW
-	cmp	dx,[mv_pkt].MV_DST.HIW
+	mov	ax,[mv_pkt].MV_SRC.LW
+	mov	dx,[mv_pkt].MV_SRC.HW
+	cmp	dx,[mv_pkt].MV_DST.HW
 	ja	dv1
 	jb	dv0
-	cmp	ax,[mv_pkt].MV_DST.LOW
+	cmp	ax,[mv_pkt].MV_DST.LW
 	jae	dv1
 dv0:	inc	bp			; BP = 1 to copy backward
 dv1:	mov	cx,8000h		; CX = up to 32K
-	cmp	[mv_pkt].MV_LEN.HIW,0
+	cmp	[mv_pkt].MV_LEN.HW,0
 	jne	dv2
-	cmp	cx,[mv_pkt].MV_LEN.LOW
+	cmp	cx,[mv_pkt].MV_LEN.LW
 	jbe	dv2
-	mov	cx,[mv_pkt].MV_LEN.LOW
+	mov	cx,[mv_pkt].MV_LEN.LW
 	jcxz	dv9			; nothing left (and carry is clear)
-dv2:	sub	[mv_pkt].MV_LEN.LOW,cx
-	sbb	[mv_pkt].MV_LEN.HIW,0
+dv2:	sub	[mv_pkt].MV_LEN.LW,cx
+	sbb	[mv_pkt].MV_LEN.HW,0
 	mov	si,offset mv_pkt + MV_SRC
 	call	mv_ptr			; BX:SI -> source
 	push	bx
@@ -771,15 +771,15 @@ ENDPROC	ddcpu_move
 ;	AX, BX, DX, SI
 ;
 DEFPROC	mv_ptr
-	mov	ax,[si].LOW
-	mov	dx,[si].HIW		; DX:AX = address
+	mov	ax,[si].LW
+	mov	dx,[si].HW		; DX:AX = address
 	test	bp,bp
 	jnz	mp1
-	add	[si].LOW,cx
-	adc	[si].HIW,0
+	add	[si].LW,cx
+	adc	[si].HW,0
 	jmp	short mp2
-mp1:	add	ax,[mv_pkt].MV_LEN.LOW
-	adc	dx,[mv_pkt].MV_LEN.HIW
+mp1:	add	ax,[mv_pkt].MV_LEN.LW
+	adc	dx,[mv_pkt].MV_LEN.HW
 mp2:	mov	bx,ax
 	and	ax,0Fh			; AX = offset
 	push	cx
@@ -1090,7 +1090,7 @@ DEFPROC	ddcpu_init,far
 	mov	dx,ax
 	inc	dx
 	shl	dx,cl
-	mov	es:[bx].DDPI_END.OFF,dx	; (we end after it)
+	mov	es:[bx].DDPI_END._OFF,dx; (we end after it)
 	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddcpu_req
@@ -1110,8 +1110,8 @@ DEFPROC	ddcpu_init,far
 	sub	bx,bx			; BX = owner (none)
 	mov	al,MCBSIG_LAST
 	call	mcb_set
-	mov	[CPU_ARENA].OFF,bx
-	mov	[CPU_ARENA].SEG,es	; CPU_ARENA -> the first MCB
+	mov	[CPU_ARENA]._OFF,bx
+	mov	[CPU_ARENA]._SEG,es	; CPU_ARENA -> the first MCB
 	push	ds
 	pop	es
 	ASSUME	ES:BIOS

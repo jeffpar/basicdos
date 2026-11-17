@@ -89,9 +89,9 @@ DEFPROC	ddfpu_req,far
 	cmp	es:[bx].DDP_CODE,IOCTL_GETFPU
 	jne	ddq7
 	lds	si,es:[bx].DDPRW_ADDR	; DS:SI -> caller's far pointer
-	mov	[si].OFF,0
+	mov	[si]._OFF,0
 	mov	ax,cs:[fpuSeg]
-	mov	[si].SEG,ax
+	mov	[si]._SEG,ax
 	mov	ax,cs:[fpuInfo]
 	mov	es:[bx].DDP_CONTEXT,ax	; DDP_CONTEXT is returned in DX
 	jmp	short ddq8
@@ -1667,8 +1667,8 @@ SWENTER	macro	size
 	ELSE
 	sub	sp,size
 	ENDIF
-	mov	[bp+SX_DST].OFF,di
-	mov	[bp+SX_DST].SEG,es
+	mov	[bp+SX_DST]._OFF,di
+	mov	[bp+SX_DST]._SEG,es
 	mov	word ptr [bp+SX_FL],0
 	endm
 
@@ -2194,8 +2194,8 @@ DEFPROC	swToDec,FAR
 	push	si
 	push	di
 	push	es
-	mov	[bp+SX_DST].OFF,di
-	mov	[bp+SX_DST].SEG,es
+	mov	[bp+SX_DST]._OFF,di
+	mov	[bp+SX_DST]._SEG,es
 	mov	ch,0
 	mov	[bp+SX_N],cx
 	push	ds

@@ -82,8 +82,8 @@ DEFPROC	parent
 	call	pmb_count
 	mov	[pmbs],ax
 	mov	[spbx].SPB_ENVSEG,0
-	mov	[spbx].SPB_CMDLINE.OFF,offset cmdline
-	mov	[spbx].SPB_CMDLINE.SEG,ds
+	mov	[spbx].SPB_CMDLINE._OFF,offset cmdline
+	mov	[spbx].SPB_CMDLINE._SEG,ds
 	mov	al,SFH_NONE
 	mov	[spbx].SPB_SFHIN,al
 	mov	[spbx].SPB_SFHOUT,al
@@ -291,9 +291,9 @@ c3:	PRINTF	<"MEMTESTS LDT full at %d blocks",13,10>,si
 c4:	push	si
 	push	ds
 	pop	es
-	mov	[epbx].EPB_CMDTAIL.OFF,offset tail
-	mov	[epbx].EPB_CMDTAIL.SEG,ds
-	mov	[epbx].EPB_FCB1.OFF,-1
+	mov	[epbx].EPB_CMDTAIL._OFF,offset tail
+	mov	[epbx].EPB_CMDTAIL._SEG,ds
+	mov	[epbx].EPB_FCB1._OFF,-1
 	mov	dx,offset progname
 	mov	bx,offset epbx
 	mov	ax,DOS_PSP_EXEC

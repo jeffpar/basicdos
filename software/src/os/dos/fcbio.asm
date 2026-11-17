@@ -123,11 +123,11 @@ fo0:	mov	byte ptr [bp].REG_AL,0FFh
 	cmp	[bx].SFB_REFS,0		; did the new device ref overflow?
 	je	fo1e			; yes, undo it
 	mov	es,cs:[dos_data]
-	mov	di,[sfb_table].OFF
+	mov	di,[sfb_table]._OFF
 fo1:	cmp	[di].SFB_REFS,0		; find a free SFB for the association
 	je	fo1a
 	add	di,size SFB
-	cmp	di,[sfb_table].SEG	; reached the end of the SFB table?
+	cmp	di,[sfb_table]._SEG	; reached the end of the SFB table?
 	jb	fo1
 fo1e:	mov	si,-1			; release only the new reference
 	call	sfb_close
@@ -135,7 +135,7 @@ fo1e:	mov	si,-1			; release only the new reference
 	pop	es
 fo1f:	jmp	short fo9		; REG_AL is still FFh
 fo1a:	mov	ax,bx
-	sub	ax,[sfb_table].OFF
+	sub	ax,[sfb_table]._OFF
 	mov	cl,size SFB
 	div	cl			; AL = underlying SFH
 	mov	bx,di
@@ -149,8 +149,8 @@ fo1a:	mov	ax,bx
 fo2:	mov	si,bx
 	call	get_psp
 	mov	[si].SFB_OWNER,ax	; this process owns the association
-	mov	[si].SFB_FCB.OFF,di
-	mov	[si].SFB_FCB.SEG,es	; set SFB_FCB
+	mov	[si].SFB_FCB._OFF,di
+	mov	[si].SFB_FCB._SEG,es	; set SFB_FCB
 	or	[si].SFB_FLAGS,SFBF_FCB	; and mark the SFB as an FCB's
 	mov	al,[si].SFB_DRIVE
 	inc	ax
@@ -270,7 +270,7 @@ fio3:	mul	es:[di].FCB_RECSIZE	; DX:AX = # bytes
 	jnz	fio7
 	mov	si,[scb_active]
 	xchg	cx,ax			; CX = # bytes
-	mov	ax,[si].SCB_DTA.OFF
+	mov	ax,[si].SCB_DTA._OFF
 	add	ax,cx
 	jnc	fio4
 	test	ax,ax			; (ending at the very end is fine)
@@ -371,8 +371,8 @@ DEFPROC	fcb_size,DOS
 	pop	di
 	pop	es			; ES:DI -> FCB
 	jc	fsz9			; no such file
-	mov	ax,[si].DIR_SIZE.LOW
-	mov	dx,[si].DIR_SIZE.HIW	; DX:AX = file size
+	mov	ax,[si].DIR_SIZE.LW
+	mov	dx,[si].DIR_SIZE.HW	; DX:AX = file size
 	mov	cx,es:[di].FCB_RECSIZE
 	jcxz	fsz9			; no record size
 	call	div_32_16		; DX:AX = # records, BX = remainder
@@ -432,16 +432,16 @@ ENDPROC	fcb_ptr
 ;	AX, DX
 ;
 DEFPROC	get_relrec
-	mov	ax,es:[di].FCBF_RELREC.LOW
-	mov	dx,es:[di].FCBF_RELREC.HIW
+	mov	ax,es:[di].FCBF_RELREC.LW
+	mov	dx,es:[di].FCBF_RELREC.HW
 	DEFLBL	set_relrec,near
-	mov	es:[di].FCBF_RELREC.LOW,ax
+	mov	es:[di].FCBF_RELREC.LW,ax
 	cmp	es:[di].FCB_RECSIZE,64
 	jb	srr1
 	mov	dh,0
-	mov	byte ptr es:[di].FCBF_RELREC.HIW,dl
+	mov	byte ptr es:[di].FCBF_RELREC.HW,dl
 	ret
-srr1:	mov	es:[di].FCBF_RELREC.HIW,dx
+srr1:	mov	es:[di].FCBF_RELREC.HW,dx
 	ret
 ENDPROC	get_relrec
 
@@ -555,7 +555,7 @@ DEFPROC	read_fcb
 	push	ax
 	mov	cx,si			; CX = # bytes to zero-fill
 	mov	si,[scb_active]
-	mov	di,[si].SCB_DTA.OFF
+	mov	di,[si].SCB_DTA._OFF
 	add	di,ax			; ES:DI -> end of the data read
 	sub	al,al
 	rep	stosb
@@ -637,10 +637,10 @@ wfc2:	push	bx
 	jmp	short wfc9
 wfc8:	sub	ax,ax
 	mov	dl,FCBERR_EOF
-wfc9:	mov	si,[bx].SFB_SIZE.LOW
-	mov	es:[di].FCBF_FILESIZE.LOW,si
-	mov	si,[bx].SFB_SIZE.HIW
-	mov	es:[di].FCBF_FILESIZE.HIW,si
+wfc9:	mov	si,[bx].SFB_SIZE.LW
+	mov	es:[di].FCBF_FILESIZE.LW,si
+	mov	si,[bx].SFB_SIZE.HW
+	mov	es:[di].FCBF_FILESIZE.HW,si
 	ret
 ENDPROC	write_fcb
 

@@ -56,9 +56,9 @@ m0:	PRINTF	<"R3TESTS skipped (needs ring 3)",13,10>
 m1:	mov	es,ds:[PSP_ENVSEG]
 	mov	al,es:[8]
 	mov	[progname],al
-	mov	[epbx].EPB_CMDTAIL.OFF,offset tail
-	mov	[epbx].EPB_CMDTAIL.SEG,ds
-	mov	[epbx].EPB_FCB1.OFF,-1
+	mov	[epbx].EPB_CMDTAIL._OFF,offset tail
+	mov	[epbx].EPB_CMDTAIL._SEG,ds
+	mov	[epbx].EPB_FCB1._OFF,-1
 	push	ds
 	pop	es
 	mov	al,ds:[PSP_CMDTAIL+2]	; AL = letter, if any
@@ -345,30 +345,30 @@ tv:	mov	dx,offset hook
 ; (every test after these depends on the kernel ignoring it).
 ;
 tw:	mov	word ptr ds:[PSP_PARENT],1234h
-	mov	word ptr ds:[PSP_STACK].OFF,2
-	mov	word ptr ds:[PSP_STACK].SEG,1234h
-	mov	word ptr ds:[PSP_EXIT].OFF,5678h
-	mov	word ptr ds:[PSP_EXIT].SEG,1234h
+	mov	word ptr ds:[PSP_STACK]._OFF,2
+	mov	word ptr ds:[PSP_STACK]._SEG,1234h
+	mov	word ptr ds:[PSP_EXIT]._OFF,5678h
+	mov	word ptr ds:[PSP_EXIT]._SEG,1234h
 	mov	byte ptr ds:[PSP_SCB],5
-	mov	ax,ds:[PSP_ERROR].SEG	; AX = the kernel's selector
-	mov	ds:[PSP_CTRLC].SEG,ax
-	mov	word ptr ds:[PSP_CTRLC].OFF,0FFF0h
-	mov	ds:[PSP_DTAPREV].SEG,ax
+	mov	ax,ds:[PSP_ERROR]._SEG	; AX = the kernel's selector
+	mov	ds:[PSP_CTRLC]._SEG,ax
+	mov	word ptr ds:[PSP_CTRLC]._OFF,0FFF0h
+	mov	ds:[PSP_DTAPREV]._SEG,ax
 	jmp	ok
 tx:	mov	es,ds:[PSP_PARENT]
-	mov	word ptr es:[PSP_STACK].OFF,2
-	mov	word ptr es:[PSP_STACK].SEG,1234h
+	mov	word ptr es:[PSP_STACK]._OFF,2
+	mov	word ptr es:[PSP_STACK]._SEG,1234h
 	mov	byte ptr es:[PSP_SCB],5
 	jmp	ok
 ;
 ; A selector in a register (DOS_PSP_CREATE), or in an EPB, that we can't use.
 ;
-ty:	mov	dx,ds:[PSP_ERROR].SEG	; DX = the kernel's selector
+ty:	mov	dx,ds:[PSP_ERROR]._SEG	; DX = the kernel's selector
 	mov	ah,DOS_PSP_CREATE
 	int	21h
 	jmp	failif
-tz:	mov	ax,ds:[PSP_ERROR].SEG	; AX = the kernel's selector
-	mov	[epbx].EPB_CMDTAIL.SEG,ax
+tz:	mov	ax,ds:[PSP_ERROR]._SEG	; AX = the kernel's selector
+	mov	[epbx].EPB_CMDTAIL._SEG,ax
 	mov	dx,offset progname
 	mov	bx,offset epbx
 	mov	ax,DOS_PSP_EXEC
@@ -422,7 +422,7 @@ tzf:	DOSUTIL	LOCK
 ;
 ; DOS_UTL_ALIAS works only for a block of our own.
 ;
-tzg:	mov	bx,ds:[PSP_ERROR].SEG	; BX = the kernel's selector
+tzg:	mov	bx,ds:[PSP_ERROR]._SEG	; BX = the kernel's selector
 	mov	ax,DOS_UTL_ALIAS SHL 8
 	int	INT_DOSUTIL
 	jmp	failif

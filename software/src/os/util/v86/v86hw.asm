@@ -68,8 +68,8 @@ DEFPROC	tick
 	sub	ax,ax
 	mov	di,INT_HW_TMR * 4
 	call	seg_ptr			; ES:DI -> its INT 08h vector
-	mov	cx,es:[di].OFF
-	mov	dx,es:[di].SEG
+	mov	cx,es:[di]._OFF
+	mov	dx,es:[di]._SEG
 	mov	ax,word ptr [VARS+VR_EFL]
 	call	push_word
 	mov	ax,word ptr [VARS+VR_CS]

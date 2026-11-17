@@ -102,12 +102,12 @@ DEFPROC	ddfdc_mediachk
 	int	INT_TIME	; CX:DX is current tick count
 	push	cx
 	push	dx
-	mov	ax,[si].BPB_TIMESTAMP.OFF
-	mov	bx,[si].BPB_TIMESTAMP.SEG
+	mov	ax,[si].BPB_TIMESTAMP._OFF
+	mov	bx,[si].BPB_TIMESTAMP._SEG
 	or	ax,bx
 	mov	ax,MC_UNKNOWN	; default to UNKNOWN
 	jz	mc1		; existing timestamp is zero, treat as UNKNOWN
-	sub	dx,[si].BPB_TIMESTAMP.OFF
+	sub	dx,[si].BPB_TIMESTAMP._OFF
 	sbb	cx,bx
 	jb	mc1		; underflow, use default
 	test	cx,cx		; large difference?
@@ -118,8 +118,8 @@ DEFPROC	ddfdc_mediachk
 mc1:	cmp	[si].BPB_SECBYTES,0	; has the BPB been built?
 	jne	mc2			; yes
 	mov	ax,MC_CHANGED		; no, so it must be (re)built
-mc2:	pop	[si].BPB_TIMESTAMP.OFF
-	pop	[si].BPB_TIMESTAMP.SEG
+mc2:	pop	[si].BPB_TIMESTAMP._OFF
+	pop	[si].BPB_TIMESTAMP._SEG
 	mov	es:[di].DDP_CONTEXT,ax
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret
@@ -217,13 +217,13 @@ DEFPROC	init_bpb
 	mov	ah,TIME_GETTICKS
 	int	INT_TIME	; CX:DX is current tick count
 	xchg	ax,dx
-	stosw			; update BPB_TIMESTAMP.OFF
+	stosw			; update BPB_TIMESTAMP._OFF
 	xchg	ax,cx
-	stosw			; update BPB_TIMESTAMP.SEG
+	stosw			; update BPB_TIMESTAMP._SEG
 	sub	ax,ax
-	stosw			; update BPB_DEVICE.OFF
+	stosw			; update BPB_DEVICE._OFF
 	mov	ax,cs
-	stosw			; update BPB_DEVICE.SEG
+	stosw			; update BPB_DEVICE._SEG
 	pop	di
 	mov	es:[di].BPB_DRIVE,bl
 
@@ -378,7 +378,7 @@ dcw2b:	pop	es
 	pop	cx		; CX = byte transfer count
 	jc	dcw4a
 	inc	es:[di].DDPRW_LBA
-	add	es:[di].DDPRW_ADDR.OFF,cx
+	add	es:[di].DDPRW_ADDR._OFF,cx
 	sub	es:[di].DDPRW_LENGTH,cx
 	ASSERT	NC
 	mov	cx,es:[di].DDPRW_LENGTH
@@ -417,7 +417,7 @@ dcw4a:	jc	dcw8
 	cbw
 	add	es:[di].DDPRW_LBA,ax
 	mul	[si].BPB_SECBYTES
-	add	es:[di].DDPRW_ADDR.OFF,ax
+	add	es:[di].DDPRW_ADDR._OFF,ax
 	sub	es:[di].DDPRW_LENGTH,ax
 ;
 ; And finally, the tail end of the request, if there are CX bytes remaining;
@@ -450,7 +450,7 @@ dcw7a:	pop	es
 	call	write_buffer	; write ddbuf to LBA (DX)
 	pop	cx		; CX = byte transfer count
 	jc	dcw8
-	add	es:[di].DDPRW_ADDR.OFF,cx
+	add	es:[di].DDPRW_ADDR._OFF,cx
 	sub	es:[di].DDPRW_LENGTH,cx
 	ASSERT	Z
 
@@ -488,7 +488,7 @@ DEFPROC	ddfdc_read
 	ASSERT	Z,<cmp es:[di].DDPRW_OFFSET,0>
 	lds	si,es:[di].DDPRW_BPB
 	ASSUME	DS:NOTHING	; DS:SI -> BPB
-	mov	bl,byte ptr es:[di].DDPRW_LENGTH.HIB
+	mov	bl,byte ptr es:[di].DDPRW_LENGTH.HB
 	shr	bl,1		; BL = # sectors
 	mov	bh,FDC_READ
 	mov	dx,es:[di].DDPRW_LBA
@@ -678,8 +678,8 @@ ft3:	mov	al,ch
 	jc	ft8
 	mov	ah,TIME_GETTICKS
 	int	INT_TIME		; CX:DX is current tick count
-	mov	[si].BPB_TIMESTAMP.OFF,dx
-	mov	[si].BPB_TIMESTAMP.SEG,cx
+	mov	[si].BPB_TIMESTAMP._OFF,dx
+	mov	[si].BPB_TIMESTAMP._SEG,cx
 	clc
 	ret
 ;
@@ -855,8 +855,8 @@ rw1:	push	dx			; save LBA
 	sub	dx,dx
 	test	cs:[rw_drive],80h	; hard disk?
 	jz	rw1a			; no (diskettes have no hidden sectors)
-	add	ax,[si].BPB_HIDDENSECS.LOW
-	adc	dx,[si].BPB_HIDDENSECS.HIW; DX:AX = absolute LBA
+	add	ax,[si].BPB_HIDDENSECS.LW
+	adc	dx,[si].BPB_HIDDENSECS.HW; DX:AX = absolute LBA
 rw1a:	div	[si].BPB_CYLSECS	; AX = cylinder, DX = cylinder sector
 	mov	cx,ax			; CX = cylinder
 	xchg	ax,dx
@@ -941,7 +941,7 @@ rw4:	push	ax			; save BIOS cmd and # sectors
 	je	rw4a			; yes
 	rep	movsw			; no, so copy the sectors to our buffer
 rw4a:	pop	cx			; CX = cylinder and sector ID again
-	mov	bx,cs:[ddbuf_ptr].OFF	; ES:BX -> our own buffer
+	mov	bx,cs:[ddbuf_ptr]._OFF	; ES:BX -> our own buffer
 	call	bios_rw			; AX and carry are from the ROM
 	pop	es
 	pop	ds
@@ -1298,7 +1298,7 @@ ddin0:	push	ax
 	mov	si,1			; SI = # sectors in ddbuf
 	test	ah,CPUF_PM		; protected mode?
 	jz	ddin4			; no
-	mov	[ddbuf_ptr].OFF,offset ddfdc_init
+	mov	[ddbuf_ptr]._OFF,offset ddfdc_init
 	push	bx
 	push	es
 	mov	dx,1			; DL = BIOS drive #
@@ -1324,10 +1324,10 @@ ddin4:	pop	ax
 	mov	cx,si
 	xchg	ch,cl
 	shl	cx,1			; CX = length of ddbuf
-	add	cx,[ddbuf_ptr].OFF
-	mov	es:[bx].DDPI_END.OFF,cx
+	add	cx,[ddbuf_ptr]._OFF
+	mov	es:[bx].DDPI_END._OFF,cx
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddfdc_req
-	mov	[ddbuf_ptr].SEG,ds	; (our data segment)
+	mov	[ddbuf_ptr]._SEG,ds	; (our data segment)
 ;
 ; Determine how many floppy disk drives are in the system.
 ;

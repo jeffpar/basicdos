@@ -493,7 +493,7 @@ go2:	cmp	dh,VAR_LONG
 ; integers must be promoted ("\" is integer division), unless there's no FPU$
 ; driver, in which case they're integer operations.
 ;
-	cmp	word ptr ss:[PSP_FPUTBL].SEG,0
+	cmp	word ptr ss:[PSP_FPUTBL]._SEG,0
 	je	go8a
 	cmp	cl,OPEVAL_DIV
 	je	go2b

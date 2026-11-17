@@ -339,8 +339,8 @@ fi9a:	pop	cx
 	mov	dx,es			; DX:AX = string value
 	inc	di
 	rep	movsb			; copy the item to it
-fi10:	mov	[retFI].OFF,ax
-	mov	[retFI].SEG,dx
+fi10:	mov	[retFI]._OFF,ax
+	mov	[retFI]._SEG,dx
 	pop	ds
 	LEAVE
 	RETURN
@@ -372,8 +372,8 @@ DEFPROC	writeValue,FAR
 	ARGVAR	wvLast,word
 	ENTER
 	push	ds
-	mov	ax,[wvValue].OFF
-	mov	dx,[wvValue].SEG
+	mov	ax,[wvValue]._OFF
+	mov	dx,[wvValue]._SEG
 	mov	cx,[wvType]		; CL = type
 	cmp	cl,VAR_LONG
 	jne	wv1

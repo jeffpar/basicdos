@@ -351,9 +351,9 @@ gr5:	sub	bx,si			; BX = length of filename
 	mov	bx,ds:[PSP_HEAP]
 	lea	cx,[bx].LINEBUF
 	sub	si,cx			; SI = offset of filename in the line
-	mov	cx,[bx].LINE_PTR.OFF
+	mov	cx,[bx].LINE_PTR._OFF
 	add	cx,si
-	mov	dx,[bx].LINE_PTR.SEG
+	mov	dx,[bx].LINE_PTR._SEG
 	GENPUSH	dx,cx			; push pointer to filename
 	GENCALL	redirOut
 	pop	cx

@@ -463,10 +463,10 @@ di21:	push	ax
 	ASSUME	DS:CODE
 	mov	ax,offset dbg_fatal
 	xchg	ax,[bp+2]
-	mov	[fault_ret].OFF,ax
+	mov	[fault_ret]._OFF,ax
 	mov	ax,cs
 	xchg	ax,[bp+4]
-	mov	[fault_ret].SEG,ax	; (see cmd_gt)
+	mov	[fault_ret]._SEG,ax	; (see cmd_gt)
 	mov	ax,[bp+6]		; AX = vector
 	call	chk_trap		; is it trapped?
 	mov	al,-1			; (a trapped fault)
@@ -526,8 +526,8 @@ de1:	push	bx
 	pop	ds
 	ASSUME	DS:CODE
 	mov	[why],dl
-	mov	[frame_ptr].OFF,ax
-	mov	[frame_ptr].SEG,ss
+	mov	[frame_ptr]._OFF,ax
+	mov	[frame_ptr]._SEG,ss
 	push	es
 	pop	ss
 	DEFLBL	mon_sp,near		; (com_main changes this stack)
@@ -558,8 +558,8 @@ de2:	mov	al,byte ptr regs[R_AX+1]; AX = function's number (eg, 1302h)
 de2a:	in	al,dx
 	test	al,LSR_THRE
 	jz	de2a
-	mov	ss,[frame_ptr].SEG
-	mov	sp,[frame_ptr].OFF
+	mov	ss,[frame_ptr]._SEG
+	mov	sp,[frame_ptr]._OFF
 	sub	sp,REGS_LEN-2		; SS:SP -> the saved SS
 	cmp	[why],INT_FDC		; (POPs don't change this comparison)
 	pop	ax
@@ -1125,13 +1125,13 @@ cmd_gt:	call	end_command
 	jmp	mon_sp			; yes, so we stay halted
 gt0:	call	arm			; (one at CS:IP isn't needed)
 	mov	di,regs[R_IP]
-	mov	cx,[old_fault].OFF
-	mov	dx,[old_fault].SEG	; DX:CX = previous handler
+	mov	cx,[old_fault]._OFF
+	mov	dx,[old_fault]._SEG	; DX:CX = previous handler
 	mov	si,offset dbg_fatal	; SI = its return address
 	cmp	[why],-1		; a trapped fault?
 	je	gt0a			; yes
-	mov	cx,[fault_ret].OFF
-	mov	dx,[fault_ret].SEG	; DX:CX = CPU$
+	mov	cx,[fault_ret]._OFF
+	mov	dx,[fault_ret]._SEG	; DX:CX = CPU$
 	sub	si,si			; (which needs no return address)
 gt0a:	call	sim_int			; ES:BX -> the frame it pushed
 	sub	bx,4
@@ -1462,11 +1462,11 @@ ma1:	mov	ah,CPU_QUERY
 	call	ma_low
 ma2:	call	ma_sys			; a block of the system's?
 	jnc	ma6			; yes (and it's displayed)
-	mov	ax,es:[di].PMB_ADDR.LOW
-	mov	dl,byte ptr es:[di].PMB_ADDR.HIW
+	mov	ax,es:[di].PMB_ADDR.LW
+	mov	dl,byte ptr es:[di].PMB_ADDR.HW
 	call	hex_addr6
-	mov	ax,es:[di].PMB_LEN.LOW
-	mov	dl,byte ptr es:[di].PMB_LEN.HIW
+	mov	ax,es:[di].PMB_LEN.LW
+	mov	dl,byte ptr es:[di].PMB_LEN.HW
 	call	hex_addr6
 	mov	ax,es:[di].PMB_OWNER
 	lea	si,[di].PMB_NAME
@@ -1509,7 +1509,7 @@ ENDPROC	dump_blocks
 ;	AX, CX, DX, SI
 ;
 DEFPROC	ma_low
-	mov	cx,es:[di].PMB_ADDR.LOW
+	mov	cx,es:[di].PMB_ADDR.LW
 	jcxz	ml9			; the first block starts at zero
 	sub	cx,size MCB
 	sub	ax,ax
@@ -1520,10 +1520,10 @@ ml9:	ret
 ENDPROC	ma_low
 
 DEFPROC	ma_sys
-	mov	ax,es:[di].PMB_ADDR.LOW
-	mov	dx,es:[di].PMB_ADDR.HIW	; DX:AX = address
-	mov	cx,es:[di].PMB_LEN.LOW
-	mov	si,es:[di].PMB_LEN.HIW
+	mov	ax,es:[di].PMB_ADDR.LW
+	mov	dx,es:[di].PMB_ADDR.HW	; DX:AX = address
+	mov	cx,es:[di].PMB_LEN.LW
+	mov	si,es:[di].PMB_LEN.HW
 	add	cx,ax
 	adc	si,dx			; SI:CX = end
 	cmp	es:[di].PMB_TYPE,PMBTYPE_USED
@@ -1564,10 +1564,10 @@ DEFPROC	ma_drvs
 	ENTER
 	push	bx
 	push	di
-	mov	[mrCur].LOW,ax
-	mov	[mrCur].HIW,dx
-	mov	[mrEnd].LOW,cx
-	mov	[mrEnd].HIW,si
+	mov	[mrCur].LW,ax
+	mov	[mrCur].HW,dx
+	mov	[mrEnd].LW,cx
+	mov	[mrEnd].HW,si
 	mov	al,[cpu_mode]
 	and	al,ADDR_SEL
 	mov	[mem_mode],al		; links are selectors in protected mode
@@ -1578,8 +1578,8 @@ md1:	call	fetch_word
 	call	fetch_word		; AX = its segment (or selector)
 	cmp	cx,-1			; end of the chain?
 	jne	md2			; no
-md8:	mov	cx,[mrEnd].LOW
-	mov	dx,[mrEnd].HIW
+md8:	mov	cx,[mrEnd].LW
+	mov	dx,[mrEnd].HW
 	call	md_sys			; display any memory that's left
 	pop	di
 	pop	bx
@@ -1591,14 +1591,14 @@ md2:	mov	[mem_seg],ax
 	call	md_addr			; DX:CX = its address
 	jc	md8
 	mov	ax,cx
-	sub	ax,[mrCur].LOW
+	sub	ax,[mrCur].LW
 	mov	ax,dx
-	sbb	ax,[mrCur].HIW
+	sbb	ax,[mrCur].HW
 	jb	md1			; it's before the rest of the memory
 	mov	ax,cx
-	sub	ax,[mrEnd].LOW
+	sub	ax,[mrEnd].LW
 	mov	ax,dx
-	sbb	ax,[mrEnd].HIW
+	sbb	ax,[mrEnd].HW
 	jnb	md1			; it's after the memory
 	call	md_sys			; display any memory before it
 	push	di
@@ -1613,18 +1613,18 @@ md2:	mov	[mem_seg],ax
 	call	md_addr			; DX:CX = next driver's address
 	pop	[mem_seg]
 	jc	md5
-	mov	ax,[mrEnd].LOW
+	mov	ax,[mrEnd].LW
 	sub	ax,cx
-	mov	ax,[mrEnd].HIW
+	mov	ax,[mrEnd].HW
 	sbb	ax,dx
 	jb	md5			; it's after the memory
-	mov	ax,[mrCur].LOW
+	mov	ax,[mrCur].LW
 	sub	ax,cx
-	mov	ax,[mrCur].HIW
+	mov	ax,[mrCur].HW
 	sbb	ax,dx
 	jb	md6			; it's after this driver
-md5:	mov	cx,[mrEnd].LOW
-	mov	dx,[mrEnd].HIW
+md5:	mov	cx,[mrEnd].LW
+	mov	dx,[mrEnd].HW
 md6:	pop	di
 	call	md_span			; AX = owner
 	call	hex_word
@@ -1663,12 +1663,12 @@ DEFPROC	md_addr
 ENDPROC	md_addr
 
 DEFPROC	md_sys
-	cmp	cx,[mrCur].LOW
+	cmp	cx,[mrCur].LW
 	jne	ds1
-	cmp	dx,[mrCur].HIW
+	cmp	dx,[mrCur].HW
 	je	ds9
-ds1:	mov	[mrNext].LOW,cx
-	mov	[mrNext].HIW,dx
+ds1:	mov	[mrNext].LW,cx
+	mov	[mrNext].HW,dx
 	push	di
 	mov	bx,[dos_seg]
 	sub	di,di
@@ -1678,16 +1678,16 @@ ds1:	mov	[mrNext].LOW,cx
 	mov	bl,MCBOWNER_SYSTEM	; BL = SYS
 	jc	ds2
 	mov	ax,cx
-	sub	ax,[mrCur].LOW
+	sub	ax,[mrCur].LW
 	mov	ax,dx
-	sbb	ax,[mrCur].HIW
+	sbb	ax,[mrCur].HW
 	jb	ds2			; DOS is before this memory
-	sub	cx,[mrNext].LOW
-	sbb	dx,[mrNext].HIW
+	sub	cx,[mrNext].LW
+	sbb	dx,[mrNext].HW
 	jnb	ds2			; or after it
 	mov	bl,MA_DOS
-ds2:	mov	cx,[mrNext].LOW
-	mov	dx,[mrNext].HIW
+ds2:	mov	cx,[mrNext].LW
+	mov	dx,[mrNext].HW
 	call	md_span
 	mov	dl,bl
 	jmp	ma_type
@@ -1695,21 +1695,21 @@ ds9:	ret
 ENDPROC	md_sys
 
 DEFPROC	md_span
-	mov	ax,[mrCur].LOW
+	mov	ax,[mrCur].LW
 	push	dx
 	mov	si,dx
-	mov	dx,[mrCur].HIW		; DX:AX = address, SI:CX = end
+	mov	dx,[mrCur].HW		; DX:AX = address, SI:CX = end
 	call	ln_span
 	call	hex_addr6		; the address
 	pop	dx
 	mov	ax,cx
-	sub	ax,[mrCur].LOW
+	sub	ax,[mrCur].LW
 	push	dx
-	sbb	dx,[mrCur].HIW
+	sbb	dx,[mrCur].HW
 	call	hex_addr6		; and the length
 	pop	dx
-	mov	[mrCur].LOW,cx
-	mov	[mrCur].HIW,dx
+	mov	[mrCur].LW,cx
+	mov	[mrCur].HW,dx
 	mov	ax,MCBOWNER_SYSTEM
 	ret
 ENDPROC	md_span
@@ -1803,8 +1803,8 @@ DEFPROC	put_name
 	push	[mem_seg]
 	mov	al,[mem_mode]
 	push	ax
-	mov	[ln_addr].LOW,cx
-	mov	[ln_addr].HIW,dx
+	mov	[ln_addr].LW,cx
+	mov	[ln_addr].HW,dx
 	mov	[ln_find],1
 	inc	[mute]
 	call	ma_walk
@@ -1836,14 +1836,14 @@ DEFPROC	ln_span
 	cmp	[ln_find],1		; looking?
 	jne	lsp9			; no
 	push	bx
-	mov	bx,[ln_addr].LOW
+	mov	bx,[ln_addr].LW
 	sub	bx,ax
-	mov	bx,[ln_addr].HIW
+	mov	bx,[ln_addr].HW
 	sbb	bx,dx			; is the address below the start?
 	jb	lsp8			; yes
-	mov	bx,[ln_addr].LOW
+	mov	bx,[ln_addr].LW
 	sub	bx,cx
-	mov	bx,[ln_addr].HIW
+	mov	bx,[ln_addr].HW
 	sbb	bx,si			; is it below the end?
 	jnb	lsp8			; no
 	inc	[ln_find]		; yes, so name this memory
@@ -3320,8 +3320,8 @@ ENDPROC	dump_tbl
 ;	AX
 ;
 DEFPROC	dt_set
-	mov	[dtBase].LOW,cx
-	mov	[dtBase].HIW,dx
+	mov	[dtBase].LW,cx
+	mov	[dtBase].HW,dx
 	inc	ax
 	and	al,NOT 7
 	mov	[dtLen],ax
@@ -3339,8 +3339,8 @@ DEFPROC	dt_line
 	push	di
 	push	ax
 	xchg	si,ax
-	mov	bx,[dtBase].HIW
-	add	si,[dtBase].LOW
+	mov	bx,[dtBase].HW
+	add	si,[dtBase].LW
 	adc	bx,0			; BX:SI = the entry's address
 	push	ss
 	pop	es

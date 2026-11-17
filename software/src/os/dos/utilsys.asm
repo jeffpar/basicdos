@@ -302,7 +302,7 @@ DEFPROC	utl_hotkey,DOS
 ; (ie, to exactly one SCB), and if so, which SCB that should be.
 ;
 	sub	dx,dx			; DX = matching SCB count
-	mov	bx,[scb_table].OFF
+	mov	bx,[scb_table]._OFF
 hk1:	test	[bx].SCB_STATUS,SCSTAT_START
 	jz	hk8			; unstarted sessions are ignored
 	cmp	[bx].SCB_CONTEXT,cx
@@ -324,7 +324,7 @@ hk4:	cmp	al,CHR_CTRLD
 	jne	hk8
 	call	scb_abort
 hk8:	add	bx,size SCB		; advance to the next SCB
-	cmp	bx,[scb_table].SEG
+	cmp	bx,[scb_table]._SEG
 	jb	hk1
 	cmp	dx,1			; set carry if DX is zero (no SCBs)
 hk9:	ret

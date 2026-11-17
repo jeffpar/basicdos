@@ -69,12 +69,12 @@ DEFPROC	scroll
 scr0:	jns	scr0a			; scroll down (negative)?
 	neg	al			; yes
 	mov	bl,VIDEO_SCROLLDN
-scr0a:	cmp	al,ds:[CT_CONDIM].HIB
+scr0a:	cmp	al,ds:[CT_CONDIM].HB
 	jb	scr1
 	mov	al,0			; zero tells BIOS to clear all lines
 scr1:	add	cx,ds:[CT_SCRMIN]	; CH = row, CL = col of upper left
 	add	dx,ds:[CT_SCRMAX]	; DH = row, DL = col of lower right
-scr2:	mov	bh,ds:[CT_COLOR].LOB	; BH = fill attributes
+scr2:	mov	bh,ds:[CT_COLOR].LB	; BH = fill attributes
 	call	chk_graphics		; graphics mode?
 	jnc	scr3			; no
 	mov	bh,0			; yes, BH = fill pixels (background)
@@ -197,7 +197,7 @@ DEFPROC	chk_snow
 	call	chk_vpage
 	cmc
 	jnc	cn9			; it's on a virtual page
-	cmp	ds:[CT_PORT].LOB,0B5h	; carry set if it's an MDA (0B4h)
+	cmp	ds:[CT_PORT].LB,0B5h	; carry set if it's an MDA (0B4h)
 	cmc
 	jnc	cn9
 	ASSERT	ADAPTER_EGA,GT,<ADAPTER_MDA OR ADAPTER_CGA>
@@ -433,10 +433,10 @@ rg4:	les	di,dword ptr [bx]	; ES:DI -> next packet
 	je	rg9			; yes
 	cmp	es:[di].DDP_CMD,DDC_READ; READ packet?
 	je	rg5			; yes, leave it alone
-	mov	ax,es:[di].DDP_PTR.OFF	; no, so unlink it
-	mov	[bx].OFF,ax
-	mov	ax,es:[di].DDP_PTR.SEG
-	mov	[bx].SEG,ax
+	mov	ax,es:[di].DDP_PTR._OFF	; no, so unlink it
+	mov	[bx]._OFF,ax
+	mov	ax,es:[di].DDP_PTR._SEG
+	mov	[bx]._SEG,ax
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	mov	ah,DOS_UTL_ENDWAIT
 	call	far ptr DDINT_UTIL	; end the wait on DX:DI (see int_util)
@@ -746,7 +746,7 @@ um0a:	pop	bx
 um0:	call	update_context		; update CT_MODE, CT_COLS, etc
 	sub	si,si			; SI = 0 (the BIOS set the mode)
 	mov	ah,0			; AH = page 0
-um0c:	mov	cl,ds:[CT_COLS].LOB	; CX = full screen
+um0c:	mov	cl,ds:[CT_COLS].LB	; CX = full screen
 	sub	dx,dx			; DX = top left
 	mov	al,ds:[CT_MODE]
 	cmp	al,MODE_CO80+1		; carry set if it's a text mode (0-3)
@@ -784,7 +784,7 @@ um1:	mov	ds:[CT_PAGE],ah
 	mov	al,ds:[CT_MODE]
 	cmp	al,ds:[CTO_MODE]	; back to the original mode?
 	jne	um5			; no
-	cmp	ds:[CT_CONDIM].HIB,25	; (and not with more than 25 rows?)
+	cmp	ds:[CT_CONDIM].HB,25	; (and not with more than 25 rows?)
 	jb	um6			; yes
 um5:	test	si,si			; was the mode set in place?
 	jnz	um6			; yes, so there's nothing to block
@@ -879,7 +879,7 @@ DEFPROC	set_geometry
 	add	dx,dx
 	add	ax,dx
 	add	ax,cx
-	mov	ds:[CT_SCREEN].OFF,ax
+	mov	ds:[CT_SCREEN]._OFF,ax
 	ret
 ENDPROC	set_geometry
 
@@ -962,7 +962,7 @@ ENDPROC	chk_vpage
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	get_frame
 	mov	ax,0B000h
-	cmp	ds:[CT_PORT].LOB,0B4h	; monochrome adapter?
+	cmp	ds:[CT_PORT].LB,0B4h	; monochrome adapter?
 	je	gf9			; yes
 	mov	ah,0B8h
 gf9:	ret
@@ -1031,7 +1031,7 @@ ENDPROC	update_context
 ; update_curtype
 ;
 ; Due to a bug in the original IBM PC (5150) BIOS, the initial cursor top and
-; bottom scan lines are stored in the high and low *nibbles* of CURSOR_MODE.LOB
+; bottom scan lines are stored in the high and low *nibbles* of CURSOR_MODE.LB
 ; instead of the high and low *bytes* of CURSOR_MODE.  Here's the buggy code:
 ;
 ;	F177:	C70660006700	MOV	CURSOR_MODE,67H
@@ -1057,7 +1057,7 @@ DEFPROC	update_curtype
 	cmp	ax,0067h		; buggy cursor scanline values?
 	jne	uct1			; no
 	mov	ax,0607h		; yes, fix them
-uct1:	cmp	[ADDR_6845].LOB,0B4h	; MDA?
+uct1:	cmp	[ADDR_6845].LB,0B4h	; MDA?
 	jne	uct2			; no
 	cmp	ax,0607h		; bogus values for MDA?
 	jne	uct2			; no
@@ -1124,7 +1124,7 @@ DEFPROC	write_context
 
 	cmp	al,CHR_RETURN		; RETURN?
 	jne	wc1			; no
-	mov	dl,ds:[CT_CURMIN].LOB	; yes
+	mov	dl,ds:[CT_CURMIN].LB	; yes
 	jmp	short wc8
 
 wc1:	cmp	al,CHR_LINEFEED		; LINEFEED?
@@ -1145,13 +1145,13 @@ wc1:	cmp	al,CHR_LINEFEED		; LINEFEED?
 	jmp	short wc9
 
 wc4:	mov	bl,dl			; emulate a (horizontal) TAB
-	sub	bl,ds:[CT_CURMIN].LOB
+	sub	bl,ds:[CT_CURMIN].LB
 	and	bl,07h
 	neg	bl
 	add	bl,8
 	mov	cl,CHR_SPACE
 wc5:	call	draw_char
-	cmp	dl,ds:[CT_CURMIN].LOB	; did the column wrap back around?
+	cmp	dl,ds:[CT_CURMIN].LB	; did the column wrap back around?
 	jle	wc8			; yes, stop
 	dec	bl
 	jnz	wc5
@@ -1581,7 +1581,7 @@ DEFPROC	set_pmode
 	jne	spm8			; no
 	cmp	ds:[CTO_DIM],(25 SHL 8) OR 80
 	jne	spm8			; the context shares its page
-	cmp	ds:[CT_PORT].LOB,0B4h	; monochrome adapter?
+	cmp	ds:[CT_PORT].LB,0B4h	; monochrome adapter?
 	je	spm8			; yes
 	push	si
 	mov	si,ds			; SI != 0 (see update_mode)
@@ -1622,7 +1622,7 @@ spm1:	push	bx
 	cmp	al,2			; a 40-column mode (0 or 1)?
 	jb	spm2			; yes
 	mov	cl,80
-spm2:	mov	ds:[CT_COLS].LOB,cl
+spm2:	mov	ds:[CT_COLS].LB,cl
 	mov	ah,ds:[CTO_PAGE]	; AH = the context's own page
 	jmp	um0c
 ENDPROC	set_pmode
@@ -1916,7 +1916,7 @@ DEFPROC	scroll_buf
 	test	al,al			; clearing the window?
 	jnz	sb2			; no
 sb1:	mov	al,dh			; AL = # lines to clear
-sb2:	mov	bl,ds:[CT_COLS].LOB	; (the columns of its mode)
+sb2:	mov	bl,ds:[CT_COLS].LB	; (the columns of its mode)
 	mov	bh,0
 	add	bx,bx
 	mov	bp,bx			; BP = bytes per row
@@ -1936,7 +1936,7 @@ sb3:	push	dx
 	mov	di,bx			; DI -> first row
 	call	chk_snow		; is the page in CGA memory?
 	sbb	bh,bh			; BH = -1 if so (see scroll_wait)
-	mov	es,ds:[CT_SCREEN].SEG
+	mov	es,ds:[CT_SCREEN]._SEG
 	push	es
 	pop	ds			; DS = ES = buffer
 	cbw
@@ -2050,7 +2050,7 @@ swp2a:	cmp	al,cl
 	mov	byte ptr con_place[bx+2],ch
 	ASSUME	ES:NOTHING
 swp2b:	call	get_frame		; AX = adapter's video memory
-	mov	si,ds:[CT_SCREEN].SEG	; SI = buffer
+	mov	si,ds:[CT_SCREEN]._SEG	; SI = buffer
 	mov	es,ax
 	mov	bp,ax			; BP = adapter's video memory, too
 	mov	al,16
@@ -2079,15 +2079,15 @@ swp4:	test	bx,bx
 	jne	swp6			; no
 	cmp	es:[CTO_PAGE],ch	; on the virtual page?
 	jne	swp5			; no
-	mov	es:[CT_SCREEN].SEG,ax	; yes, so it's displayed now
-	add	es:[CT_SCREEN].OFF,di
+	mov	es:[CT_SCREEN]._SEG,ax	; yes, so it's displayed now
+	add	es:[CT_SCREEN]._OFF,di
 	mov	es:[CT_PAGE],cl
 	mov	es:[CTO_PAGE],cl
 	jmp	short swp6
 swp5:	cmp	es:[CTO_PAGE],cl	; on the displayed page?
 	jne	swp6			; no
-	mov	es:[CT_SCREEN].SEG,si	; yes, so it's in the buffer now
-	sub	es:[CT_SCREEN].OFF,di
+	mov	es:[CT_SCREEN]._SEG,si	; yes, so it's in the buffer now
+	sub	es:[CT_SCREEN]._OFF,di
 	mov	es:[CT_PAGE],ch
 	mov	es:[CTO_PAGE],ch
 	inc	bp
@@ -2115,7 +2115,7 @@ ENDPROC	swap_now
 ;	BL = virtual page, BH = CTSTAT bits
 ;
 ; Outputs:
-;	Carry clear if successful (the context's CT_SCREEN.SEG is the buffer);
+;	Carry clear if successful (the context's CT_SCREEN._SEG is the buffer);
 ;	otherwise, carry set, and the context has been freed
 ;
 ; Modifies:
@@ -2135,7 +2135,7 @@ DEFPROC	get_vbuf
 	mov	ah,bl			; AH = page, AL = adapter bit
 	call	find_page		; ES = a context on the page, if any
 	jc	gvb1			; none
-	mov	ax,es:[CT_SCREEN].SEG	; AX = its buffer
+	mov	ax,es:[CT_SCREEN]._SEG	; AX = its buffer
 	jmp	short gvb2
 gvb1:	mov	di,PAGE_LEN
 	call	alloc_sys		; AX = segment (or selector)
@@ -2149,7 +2149,7 @@ gvb1:	mov	di,PAGE_LEN
 	rep	stosw			; clear the buffer
 	mov	ax,es
 gvb2:	pop	es			; ES = context
-	mov	es:[CT_SCREEN].SEG,ax	; (and carry is clear)
+	mov	es:[CT_SCREEN]._SEG,ax	; (and carry is clear)
 	jmp	short gvb9
 gvb8:	call	free_seg		; free the context
 	stc
@@ -2184,9 +2184,9 @@ DEFPROC	ddcon_init,far
 	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	shown_page[1],dl	; the mode displayed (see show_page)
-	mov	es:[bx].DDPI_END.OFF,offset ddcon_init
+	mov	es:[bx].DDPI_END._OFF,offset ddcon_init
 	ja	ddn0			; yes
-	mov	es:[bx].DDPI_END.OFF,offset con_opt
+	mov	es:[bx].DDPI_END._OFF,offset con_opt
 	inc	[one_con]		; one console only (see con_opt)
 ddn0:
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddcon_req
@@ -2253,8 +2253,8 @@ ddn4:	pop	bx
 	mov	dx,cs
 	cli
 	call	far ptr DDINT_SETVEC	; DX:CX = previous vector
-	mov	[kbd_int].OFF,cx
-	mov	[kbd_int].SEG,dx
+	mov	[kbd_int]._OFF,cx
+	mov	[kbd_int]._SEG,dx
 	sti
 ;
 ; Install an INT 10h services handler to reflect context data into BIOS data.
@@ -2263,8 +2263,8 @@ ddn4:	pop	bx
 	mov	cx,offset ddcon_int10
 	mov	dx,cs
 	call	far ptr DDINT_SETVEC	; DX:CX = previous vector
-	mov	[video_int].OFF,cx
-	mov	[video_int].SEG,dx
+	mov	[video_int]._OFF,cx
+	mov	[video_int]._SEG,dx
 ;
 ; Install an INT 29h ("FAST PUTCHAR") handler; I think traditionally DOS
 ; installed its own handler, but that's really our responsibility, especially

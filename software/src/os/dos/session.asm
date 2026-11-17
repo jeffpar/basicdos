@@ -155,8 +155,8 @@ sl4:	dec	cx
 	push	cx
 	call	r3_load
 	pop	cx
-sl5:	mov	[bx].SCB_STACK.OFF,ax	; DX:AX == initial stack
-	mov	[bx].SCB_STACK.SEG,dx
+sl5:	mov	[bx].SCB_STACK._OFF,ax	; DX:AX == initial stack
+	mov	[bx].SCB_STACK._SEG,dx
 	or	[bx].SCB_STATUS,SCSTAT_LOAD
 	mov	[bx].SCB_ENVSEG,cx
 ;
@@ -241,8 +241,8 @@ DEFPROC	scb_lock,DOS
 	lea	si,[bx].SCB_EXIT	; SI -> SCB vectors
 	mov	al,INT_DOSEXIT
 sk1:	call	far ptr DDINT_GETVEC	; DX:CX = vector
-	mov	[si].OFF,cx
-	mov	[si].SEG,dx
+	mov	[si]._OFF,cx
+	mov	[si]._SEG,dx
 	add	si,4
 	inc	ax
 	cmp	al,INT_DOSERROR		; copied all 3 vectors?
@@ -580,10 +580,10 @@ DEFPROC	scb_query,DOS
 	ASSUMES	<DS,DOS>,<ES,DOS>
 	mov	al,size SCB
 	mul	cl
-	add	ax,[scb_table].OFF
+	add	ax,[scb_table]._OFF
 	xchg	bx,ax			; BX -> SCB
 	mov	ax,ERR_BADSESSION
-	cmp	bx,[scb_table].SEG	; is the SCB # valid?
+	cmp	bx,[scb_table]._SEG	; is the SCB # valid?
 	cmc
 	jc	sq9			; no (carry set, AX = error)
 	sub	ax,ax
@@ -636,17 +636,17 @@ DEFPROC	scb_yield,DOS
 ;
 sy1:	sti
 	add	bx,size SCB
-	cmp	bx,[scb_table].SEG
+	cmp	bx,[scb_table]._SEG
 	jb	sy2
-	mov	bx,[scb_table].OFF
+	mov	bx,[scb_table]._OFF
 sy2:	ASSERT	STRUCT,[bx],SCB
 	cmp	bx,ax			; have we returned to active SCB?
 	je	scb_test		; yes (go check for ABORT)
 	cli
 	test	[bx].SCB_STATUS,SCSTAT_START
 	jz	sy1			; ignore this SCB, hasn't started
-	mov	dx,[bx].SCB_WAITID.OFF
-	or	dx,[bx].SCB_WAITID.SEG
+	mov	dx,[bx].SCB_WAITID._OFF
+	or	dx,[bx].SCB_WAITID._SEG
 	jnz	sy1			; ignore this SCB, it's still waiting
 	inc	[scb_locked]
 	jz	scb_switch		; we were not already locked, so switch
@@ -723,12 +723,12 @@ sw2:	mov	ax,bx
 	xchg	bx,[scb_active]		; BX -> previous SCB
 	ASSERT	STRUCT,[bx],SCB
 	add	sp,2			; toss 1 near-call return address
-	mov	[bx].SCB_STACK.SEG,ss
-	mov	[bx].SCB_STACK.OFF,sp
+	mov	[bx].SCB_STACK._SEG,ss
+	mov	[bx].SCB_STACK._OFF,sp
 	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
 	ASSERT	STRUCT,[bx],SCB
-	mov	ss,[bx].SCB_STACK.SEG
-	mov	sp,[bx].SCB_STACK.OFF
+	mov	ss,[bx].SCB_STACK._SEG
+	mov	sp,[bx].SCB_STACK._OFF
 	ASSERT	NC
 	jmp	dos_leave		; we let dos_leave turn interrupts on
 ENDPROC	scb_switch
@@ -770,18 +770,18 @@ DEFPROC	scb_wait,DOS
 	cli
 	mov	bx,[scb_active]
 	ASSERT	STRUCT,[bx],SCB
-	ASSERT	Z,<cmp [bx].SCB_WAITID.SEG,0>
+	ASSERT	Z,<cmp [bx].SCB_WAITID._SEG,0>
 	test	[bx].SCB_STATUS,SCSTAT_ABORT
 	jnz	swt8			; fail the wait if ABORT is set
 	cmp	[bx].SCB_CTRLC_ACT,0	; or if CTRLC is pending
 	jne	swt8
-	mov	[bx].SCB_WAITID.OFF,di
-	mov	[bx].SCB_WAITID.SEG,dx
+	mov	[bx].SCB_WAITID._OFF,di
+	mov	[bx].SCB_WAITID._SEG,dx
 swt1:	sti
 	DOSUTIL	YIELD			; let other sessions run
 	cli
-	mov	ax,[bx].SCB_WAITID.OFF
-	or	ax,[bx].SCB_WAITID.SEG	; has the wait ended yet?
+	mov	ax,[bx].SCB_WAITID._OFF
+	or	ax,[bx].SCB_WAITID._SEG	; has the wait ended yet?
 	jnz	swt1			; no
 	test	[bx].SCB_STATUS,SCSTAT_ABORT
 	jnz	swt8			; the wait was interrupted by ABORT
@@ -806,17 +806,17 @@ ENDPROC	scb_wait
 ;
 DEFPROC	scb_endwait,DOS
 	cli
-	mov	bx,[scb_table].OFF
+	mov	bx,[scb_table]._OFF
 se1:	ASSERT	STRUCT,[bx],SCB
-	cmp	[bx].SCB_WAITID.OFF,di
+	cmp	[bx].SCB_WAITID._OFF,di
 	jne	se2
-	cmp	[bx].SCB_WAITID.SEG,dx
+	cmp	[bx].SCB_WAITID._SEG,dx
 	jne	se2
-	mov	[bx].SCB_WAITID.OFF,0
-	mov	[bx].SCB_WAITID.SEG,0
+	mov	[bx].SCB_WAITID._OFF,0
+	mov	[bx].SCB_WAITID._SEG,0
 	jmp	short se9
 se2:	add	bx,size SCB
-	cmp	bx,[scb_table].SEG
+	cmp	bx,[scb_table]._SEG
 	cmc
 	jnc	se1
 se9:	sti
@@ -875,8 +875,8 @@ DEFPROC	scb_intwait,DOS
 ; (0:OFF) can never match an ENDWAIT for this or any other session's wait.
 ; Zeroing OFF first would leave SEG:0, which is the form of a pipe's wait ID.
 ;
-	mov	[bx].SCB_WAITID.SEG,0
-	mov	[bx].SCB_WAITID.OFF,0
+	mov	[bx].SCB_WAITID._SEG,0
+	mov	[bx].SCB_WAITID._OFF,0
 	ret
 ENDPROC	scb_intwait
 
@@ -901,8 +901,8 @@ DEFPROC	get_scb,DOS
 	je	get_free_scb
 	mov	al,size SCB
 	mul	cl
-	add	ax,[scb_table].OFF
-	cmp	ax,[scb_table].SEG
+	add	ax,[scb_table]._OFF
+	cmp	ax,[scb_table]._SEG
 	jae	gs8
 	xchg	bx,ax
 	test	[bx].SCB_STATUS,SCSTAT_INIT
@@ -929,11 +929,11 @@ ENDPROC	get_scb
 ;	BX
 ;
 DEFPROC	get_free_scb,DOS
-	mov	bx,[scb_table].OFF
+	mov	bx,[scb_table]._OFF
 fs1:	test	[bx].SCB_STATUS,SCSTAT_LOAD
 	jz	fs9
 	add	bx,size SCB
-	cmp	bx,[scb_table].SEG
+	cmp	bx,[scb_table]._SEG
 	jb	fs1
 	mov	ax,ERR_NOSESSION
 	stc

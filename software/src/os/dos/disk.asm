@@ -105,9 +105,9 @@ ENDPROC	dsk_setdrv
 ;
 DEFPROC	dsk_setdta,DOS
 	mov	bx,[scb_active]
-	mov	[bx].SCB_DTA.OFF,dx
+	mov	[bx].SCB_DTA._OFF,dx
 	mov	ax,[bp].REG_DS
-	mov	[bx].SCB_DTA.SEG,ax
+	mov	[bx].SCB_DTA._SEG,ax
 	ret
 ENDPROC	dsk_setdta
 
@@ -143,9 +143,9 @@ ENDPROC	dsk_getdrv
 ;
 DEFPROC	dsk_getdta,DOS
 	mov	bx,[scb_active]
-	mov	ax,[bx].SCB_DTA.OFF
+	mov	ax,[bx].SCB_DTA._OFF
 	mov	[bp].REG_BX,ax
-	mov	ax,[bx].SCB_DTA.SEG
+	mov	ax,[bx].SCB_DTA._SEG
 	mov	[bp].REG_ES,ax
 	ret
 ENDPROC	dsk_getdta
@@ -329,10 +329,10 @@ gb0:	mov	al,dl			; AL = drive #
 	mov	cl,al			; save it in CL
 	mov	ah,size BPBEX
 	mul	ah			; AX = BPB offset
-	mov	di,[bpb_table].OFF
+	mov	di,[bpb_table]._OFF
 	add	di,ax
 	mov	ax,ERR_BADDRIVE
-	cmp	di,[bpb_table].SEG
+	cmp	di,[bpb_table]._SEG
 	cmc
 	jc	gb9			; we don't have a BPB for the drive
 	push	di			; DI -> BPB
@@ -678,7 +678,7 @@ DEFPROC	get_cdir,DOS
 	add	al,dl
 	adc	ah,0			; AX = drive's entry #
 	add	ax,ax
-	add	ax,cs:[cdir_table].OFF
+	add	ax,cs:[cdir_table]._OFF
 	xchg	bx,ax
 	pop	dx
 	ret

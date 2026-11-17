@@ -302,8 +302,8 @@ dl6b:	PRINTF	<" %2M-%02D-%02X %2G:%02N%A",13,10>,dx,dx,dx,cx,cx,cx
 ;
 ; Update our totals
 ;
-dl6c:	mov	ax,ds:[PSP_DTA].FFB_SIZE.LOW
-	mov	dx,ds:[PSP_DTA].FFB_SIZE.HIW
+dl6c:	mov	ax,ds:[PSP_DTA].FFB_SIZE.LW
+	mov	dx,ds:[PSP_DTA].FFB_SIZE.HW
 	mov	cx,[dirClus]
 	dec	cx
 	add	ax,cx			; add cluster size - 1 to file size

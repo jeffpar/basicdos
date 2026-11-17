@@ -48,8 +48,8 @@ DOS	segment word public 'CODE'
 DEFPROC	set_bpbtime
 	mov	ah,TIME_GETTICKS
 	int	INT_TIME		; CX:DX is current tick count
-	mov	[di].BPB_TIMESTAMP.OFF,dx
-	mov	[di].BPB_TIMESTAMP.SEG,cx
+	mov	[di].BPB_TIMESTAMP._OFF,dx
+	mov	[di].BPB_TIMESTAMP._SEG,cx
 	ret
 ENDPROC	set_bpbtime
 
@@ -75,7 +75,7 @@ DEFPROC	init_table
 	mul	dx			; AX = length of table in bytes
 	xchg	cx,ax			; CX = length
 	mov	di,ss:[tbl_next]	; ES:DI -> table
-	mov	es:[bx].OFF,di		; save DS-relative offset
+	mov	es:[bx]._OFF,di		; save DS-relative offset
 	mov	ax,di
 	add	ax,cx			; does the table fit in the segment?
 	jc	it8			; no
@@ -85,7 +85,7 @@ DEFPROC	init_table
 	mov	ss:[tbl_next],ax
 	mov	al,0
 	rep	stosb			; zero the table
-	mov	es:[bx].SEG,di		; save DS-relative limit
+	mov	es:[bx]._SEG,di		; save DS-relative limit
 	pop	es
 	pop	ax
 	ret

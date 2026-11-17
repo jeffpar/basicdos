@@ -272,9 +272,9 @@ q7:	mov	ax,[pmb_buf].PMB_OWNER
 	jnz	q7a			; yes
 	mov	al,MCBOWNER_SYSTEM	; no (eg, a reserved block)
 q7a:	mov	[bp].REG_AX,ax
-	mov	cx,[pmb_buf].PMB_LEN.LOW
+	mov	cx,[pmb_buf].PMB_LEN.LW
 	mov	[bp].REG_DX,cx
-	mov	cx,[pmb_buf].PMB_LEN.HIW
+	mov	cx,[pmb_buf].PMB_LEN.HW
 	mov	[bp].REG_SI,cx		; REG_SI:REG_DX = size
 	mov	bx,[pmb_buf].PMB_SEL
 	mov	[bp].REG_BX,bx
@@ -384,9 +384,9 @@ ms3:	call	mem_pmb			; get PMB # BX
 	jc	ms5			; no more
 	cmp	[di].PMB_OWNER,si	; one of the program's blocks?
 	jne	ms4			; no
-	mov	ax,[di].PMB_LEN.LOW
+	mov	ax,[di].PMB_LEN.LW
 	add	[bp].REG_DX,ax
-	mov	ax,[di].PMB_LEN.HIW
+	mov	ax,[di].PMB_LEN.HW
 	adc	[bp].REG_SI,ax
 	cmp	[di].PMB_SEL,cx		; the PSP's block?
 	jne	ms4			; no
@@ -423,9 +423,9 @@ ms5b:	xchg	cx,ax			; CX = code block
 	call	mem_pmb
 	pop	dx
 	jc	ms5d
-	mov	ax,[di].PMB_LEN.LOW
+	mov	ax,[di].PMB_LEN.LW
 	add	[bp].REG_DX,ax
-	mov	ax,[di].PMB_LEN.HIW
+	mov	ax,[di].PMB_LEN.HW
 	adc	[bp].REG_SI,ax
 ms5d:	pop	bx
 	call	mem_pmb			; get the PSP's PMB once more
@@ -444,8 +444,8 @@ ms5c:
 ; Read the PSP's PSP_PARENT (into the PMB buffer, which we're done with) at
 ; the block's physical address.
 ;
-ms6:	mov	si,[di].PMB_ADDR.LOW
-	mov	bx,[di].PMB_ADDR.HIW
+ms6:	mov	si,[di].PMB_ADDR.LW
+	mov	bx,[di].PMB_ADDR.HW
 	add	si,PSP_PARENT
 	adc	bx,0			; BX:SI = address of PSP_PARENT
 	mov	cx,2
@@ -680,8 +680,8 @@ DEFPROC	mcb_getsize,DOS
 	mov	dx,bx
 	call	mem_pmb
 	jc	gs9
-	mov	ax,es:[di].PMB_LEN.LOW
-	mov	dx,es:[di].PMB_LEN.HIW
+	mov	ax,es:[di].PMB_LEN.LW
+	mov	dx,es:[di].PMB_LEN.HW
 	mov	cl,4
 gs1:	shr	dx,1
 	rcr	ax,1
@@ -717,7 +717,7 @@ ENDPROC	mcb_getsize
 ;	AX = code size, DX = checksum (mcb_findpsp only)
 ;
 ; Outputs:
-;	CX = code segment (PSP_START.SEG, which in protected mode is a code
+;	CX = code segment (PSP_START._SEG, which in protected mode is a code
 ;	alias of the block, or a code block's own selector) of the matching
 ;	PSP (zero if none)
 ;
@@ -744,9 +744,9 @@ fp1:	call	mem_pmb
 	jcxz	fp3			; (no segment)
 	cmp	es:[di].PMB_OWNER,cx	; does the block own itself?
 	jne	fp3			; no
-	cmp	es:[di].PMB_LEN.HIW,0
+	cmp	es:[di].PMB_LEN.HW,0
 	jne	fp2
-	cmp	es:[di].PMB_LEN.LOW,ax	; does it still contain the code?
+	cmp	es:[di].PMB_LEN.LW,ax	; does it still contain the code?
 	jb	fp3			; no
 fp2:	push	ds
 	mov	ds,cx
@@ -756,7 +756,7 @@ fp2:	push	ds
 	je	fp2b
 	test	si,si			; does the checksum matter?
 	jnz	fp2a			; yes
-fp2b:	mov	cx,ds:[PSP_START].SEG	; CX = its code (and ZF is still set)
+fp2b:	mov	cx,ds:[PSP_START]._SEG	; CX = its code (and ZF is still set)
 fp2a:	pop	ds
 	je	fp9			; a match
 fp3:	inc	bx

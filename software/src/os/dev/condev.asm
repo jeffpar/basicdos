@@ -357,8 +357,8 @@ DEFPROC	ddcon_getlen
 	mov	bx,dx			; BX = starting cursor position
 	add	bx,ds:[CT_CURMIN]	; zero-based, so adjust to our mins
 	sub	dx,dx			; DL = current len, DH = previous len
-	mov	ah,ds:[CT_CURMAX].LOB	; AH = column max
-	mov	bh,ds:[CT_CURMIN].LOB	; BH = column min
+	mov	ah,ds:[CT_CURMAX].LB	; AH = column max
+	mov	bh,ds:[CT_CURMIN].LB	; BH = column min
 	lds	si,es:[di].DDPRW_ADDR
 	mov	ch,0			; CL = length (255 character maximum)
 	jcxz	dgl9			; nothing to do
@@ -428,7 +428,7 @@ ENDPROC	ddcon_movcur
 ; ddcon_setins
 ;
 ; NOTE: There is no "insert mode" flag; the mode is considered OFF (0)
-; if bits 0-4 of CT_CURTYPE.HIB are set, and ON (1) if bits 0-4 are clear.
+; if bits 0-4 of CT_CURTYPE.HB are set, and ON (1) if bits 0-4 are clear.
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
@@ -446,7 +446,7 @@ DEFPROC	ddcon_setins
 	mov	ax,ds:[CT_DEFTYPE]
 	ror	cl,1			; move CL bit 0 to bit 7 (and carry)
 	jnc	dsi1			; "insert mode" requested?
-	and	ah,0E0h			; yes, clear bits 0-4 of CT_CURTYPE.HIB
+	and	ah,0E0h			; yes, clear bits 0-4 of CT_CURTYPE.HB
 dsi1:	xchg	ds:[CT_CURTYPE],ax	; AX = previous CT_CURTYPE
 	sub	dx,dx
 	test	ah,1Fh			; were bits 0-4 clear?
@@ -514,14 +514,14 @@ dcs2:	mov	dx,ds:[CT_SCRMIN]
 dcs9:	ret
 dcs3:	cmp	dl,dh			; is there at least one row?
 	jae	dcs7			; no
-	cmp	dh,ds:[CT_CURDIM].HIB	; do they end below the interior?
+	cmp	dh,ds:[CT_CURDIM].HB	; do they end below the interior?
 	ja	dcs7			; yes
-	mov	al,ds:[CT_CURMIN].HIB
+	mov	al,ds:[CT_CURMIN].HB
 	add	dl,al			; DL = first row in the context
 	add	dh,al
 	dec	dh			; DH = last row in the context
-	mov	ds:[CT_SCRMIN].HIB,dl
-	mov	ds:[CT_SCRMAX].HIB,dh
+	mov	ds:[CT_SCRMIN].HB,dl
+	mov	ds:[CT_SCRMAX].HB,dh
 	jmp	dcs2
 dcs7:	jmp	ddcon_none
 ENDPROC	ddcon_scroll
@@ -567,7 +567,7 @@ ENDPROC	ddcon_getclr
 ;
 ; In graphics modes, the low nibble of CL is the background color and the
 ; high nibble is the palette (only bit 0 matters), and CH is ignored; text
-; is always drawn in color 3, so we save these values in CT_COLOR.HIB, which
+; is always drawn in color 3, so we save these values in CT_COLOR.HB, which
 ; is otherwise unused, since graphics mode contexts have no border.
 ;
 ; Outputs:
@@ -592,7 +592,7 @@ DEFPROC	ddcon_setclr
 	call	draw_border
 sc9:	ret
 
-sc5:	mov	ds:[CT_COLOR].HIB,cl
+sc5:	mov	ds:[CT_COLOR].HB,cl
 	mov	bl,cl
 	and	bl,0Fh			; BL = background color
 	mov	bh,0			; BH = 0 (set background)
@@ -635,9 +635,9 @@ DEFPROC	ddcon_setpos
 dsp0b:	cmp	ch,-1			; keep the current row?
 	jne	dsp0c			; no
 	mov	ch,ah
-dsp0c:	cmp	cl,ds:[CT_CURDIM].LOB
+dsp0c:	cmp	cl,ds:[CT_CURDIM].LB
 	jae	dsp8
-	cmp	ch,ds:[CT_CURDIM].HIB
+	cmp	ch,ds:[CT_CURDIM].HB
 	jae	dsp8
 	push	dx
 	mov	bx,dx
@@ -647,10 +647,10 @@ dsp0c:	cmp	cl,ds:[CT_CURDIM].LOB
 	jnz	dsp0			; no
 	push	dx
 	mov	cl,CHR_SPACE
-	mov	ah,ds:[CT_COLOR].LOB	; AH = attributes
+	mov	ah,ds:[CT_COLOR].LB	; AH = attributes
 dsp0a:	call	write_curpos		; (as draw_char does)
 	inc	dx
-	cmp	dl,ds:[CT_CURMAX].LOB
+	cmp	dl,ds:[CT_CURMAX].LB
 	jle	dsp0a
 	pop	dx
 dsp0:	call	update_cursor		; (which also clears carry)
@@ -805,7 +805,7 @@ dsm0a:	mov	ds:[CT_VMODE],al
 	call	draw_border
 	mov	dx,ds:[CT_CURMIN]
 	jmp	update_cursor		; home the cursor (and clear carry)
-dsm0:	cmp	ds:[CT_PORT].LOB,0B4h	; monochrome adapter?
+dsm0:	cmp	ds:[CT_PORT].LB,0B4h	; monochrome adapter?
 	jne	dsm1			; no
 	cmp	cl,MODE_MONO
 	je	dsm2
@@ -887,7 +887,7 @@ ENDPROC	ddcon_setmode
 DEFPROC	chk_vmode
 	cmp	ch,25			; more than 25 rows requested?
 	ja	cvm8			; yes
-	cmp	ds:[CT_CONDIM].HIB,25	; or displayed now?
+	cmp	ds:[CT_CONDIM].HB,25	; or displayed now?
 	jae	cvm8			; yes
 	mov	al,ds:[CT_MODE]
 	cmp	al,ds:[CTO_MODE]	; is the context in its original mode?
@@ -908,9 +908,9 @@ cvm1:	cmp	cl,MODE_CO80+1		; a text mode (0-3)?
 	cmp	cl,2			; a 40-column mode (0 or 1)?
 	jb	cvm2			; yes
 	mov	ah,80
-cvm2:	cmp	ah,ds:[CTO_DIM].LOB	; as wide as the context?
+cvm2:	cmp	ah,ds:[CTO_DIM].LB	; as wide as the context?
 	jne	cvm8			; no
-	cmp	ah,ds:[CT_COLS].LOB	; and as wide as the screen?
+	cmp	ah,ds:[CT_COLS].LB	; and as wide as the screen?
 	je	cvm8			; yes, so there's nothing virtual
 	clc
 	ret
@@ -1025,7 +1025,7 @@ dcw3:	test	es:[CT_STATUS],CTSTAT_PAUSED
 ;
 dcw3a:	pop	es			; ES:DI -> packet again
 	mov	es:[di].DDPRW_LENGTH,cx
-	mov	es:[di].DDPRW_ADDR.OFF,si
+	mov	es:[di].DDPRW_ADDR._OFF,si
 	call	add_packet
 	jnc	dcw2			; if return is OK, try writing again
 	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
@@ -1370,7 +1370,7 @@ dco2b:	mov	es:[di],ds
 dco3:	mov	bl,[CRT_MODE]
 	mov	cx,[EQUIP_FLAG]		; snapshot the equipment flags
 	mov	dx,3B4h
-	mov	al,[frame_seg].HIB	; AL = B0h (MDA) or B8h (CGA)
+	mov	al,[frame_seg].HB	; AL = B0h (MDA) or B8h (CGA)
 	shr	al,1
 	shr	al,1			; bit 1 is set if the primary is a CGA
 	xor	al,bh
@@ -1409,7 +1409,7 @@ dco4a:	mov	ds:[CT_COLS],ax
 	call	chk_vpage		; is it on a virtual page?
 	jc	dco4b			; yes (see get_vbuf)
 	call	get_frame
-	mov	ds:[CT_SCREEN].SEG,ax
+	mov	ds:[CT_SCREEN]._SEG,ax
 dco4b:
 ;
 ; If we're creating a session on a secondary adapter, then like the mode
@@ -1625,7 +1625,7 @@ DEFPROC	free_vbuf
 	push	ds
 	pop	es			; (ES = context again)
 	jnc	fvb9			; yes
-	mov	cx,ds:[CT_SCREEN].SEG
+	mov	cx,ds:[CT_SCREEN]._SEG
 	call	free_buf		; no, so free the buffer
 fvb9:	pop	ds
 	ret
@@ -1925,11 +1925,11 @@ i09h:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 ; In any case, proceed with packet removal now.
 ;
 	cli
-	mov	ax,es:[di].DDP_PTR.OFF
-	mov	dx,es:[di].DDP_PTR.SEG
+	mov	ax,es:[di].DDP_PTR._OFF
+	mov	dx,es:[di].DDP_PTR._SEG
 	mov	es,cx
-	mov	es:[bx].OFF,ax
-	mov	es:[bx].SEG,dx
+	mov	es:[bx]._OFF,ax
+	mov	es:[bx]._SEG,dx
 	or	ds:[CT_STATUS],CTSTAT_ABORT
 	jmp	short i09w
 
@@ -2158,11 +2158,11 @@ DEFPROC	add_packet
 	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	ax,di
-	xchg	[wait_ptr].OFF,ax
-	mov	es:[di].DDP_PTR.OFF,ax
+	xchg	[wait_ptr]._OFF,ax
+	mov	es:[di].DDP_PTR._OFF,ax
 	mov	ax,es
-	xchg	[wait_ptr].SEG,ax
-	mov	es:[di].DDP_PTR.SEG,ax
+	xchg	[wait_ptr]._SEG,ax
+	mov	es:[di].DDP_PTR._SEG,ax
 	pop	ds
 	ASSUME	DS:NOTHING
 ;
@@ -2212,20 +2212,20 @@ DEFPROC	remove_packet
 	mov	cx,es			; CX:DI -> packet to remove
 	pushf
 	cli
-rp1:	mov	ax,[bx].OFF
+rp1:	mov	ax,[bx]._OFF
 	cmp	ax,-1			; end of chain?
 	je	rp8			; yes, packet not found
 	cmp	ax,di
 	jne	rp2
-	cmp	[bx].SEG,cx
+	cmp	[bx]._SEG,cx
 	je	rp3
 rp2:	lds	bx,dword ptr [bx]	; DS:BX -> next packet
 	lea	bx,[bx].DDP_PTR		; DS:BX -> its link
 	jmp	rp1
-rp3:	mov	ax,es:[di].DDP_PTR.OFF	; unlink the packet
-	mov	[bx].OFF,ax
-	mov	ax,es:[di].DDP_PTR.SEG
-	mov	[bx].SEG,ax
+rp3:	mov	ax,es:[di].DDP_PTR._OFF	; unlink the packet
+	mov	[bx]._OFF,ax
+	mov	ax,es:[di].DDP_PTR._SEG
+	mov	[bx]._SEG,ax
 	popf
 	clc
 	jmp	short rp9
@@ -2466,15 +2466,15 @@ DEFPROC	draw_char
 	mov	cl,CHR_SPACE		; make this "destructive"
 	dec	ch			; no advance for backspace
 	dec	dl
-	cmp	dl,ds:[CT_CURMIN].LOB
+	cmp	dl,ds:[CT_CURMIN].LB
 	jge	dc1
-	mov	dl,ds:[CT_CURMAX].LOB
+	mov	dl,ds:[CT_CURMAX].LB
 	dec	dh
-	cmp	dh,ds:[CT_CURMIN].HIB
+	cmp	dh,ds:[CT_CURMIN].HB
 	jge	dc1
 	mov	dx,ds:[CT_CURMIN]
 
-dc1:	mov	ah,ds:[CT_COLOR].LOB	; AH = attributes
+dc1:	mov	ah,ds:[CT_COLOR].LB	; AH = attributes
 	call	write_curpos		; write CL at (DL,DH)
 ;
 ; Advance DL, advance DH as needed, and scroll the context as needed.
@@ -2482,9 +2482,9 @@ dc1:	mov	ah,ds:[CT_COLOR].LOB	; AH = attributes
 	add	dl,ch			; advance DL
 	pop	cx
 
-	cmp	dl,ds:[CT_CURMAX].LOB
+	cmp	dl,ds:[CT_CURMAX].LB
 	jle	dc9
-	mov	dl,ds:[CT_CURMIN].LOB
+	mov	dl,ds:[CT_CURMIN].LB
 
 ;
 ; On the last scrolling row, the scrolling rows scroll; on any other row, the
@@ -2492,9 +2492,9 @@ dc1:	mov	ah,ds:[CT_COLOR].LOB	; AH = attributes
 ; scrolling rows).
 ;
 	DEFLBL	draw_linefeed,near
-	cmp	dh,ds:[CT_SCRMAX].HIB
+	cmp	dh,ds:[CT_SCRMAX].HB
 	je	dc2
-	cmp	dh,ds:[CT_CURMAX].HIB
+	cmp	dh,ds:[CT_CURMAX].HB
 	jge	dc9
 	inc	dh
 	ret
@@ -2531,7 +2531,7 @@ DEFPROC	draw_cursor
 	test	ds:[CT_STATUS],CTSTAT_INT10
 	jnz	dcs8
 	call	get_curpos		; BX = screen offset for CURPOS
-	add	bx,ds:[CT_SCREEN].OFF	; add the context's buffer offset
+	add	bx,ds:[CT_SCREEN]._OFF	; add the context's buffer offset
 
 	DEFLBL	set_cursor,near
 	shr	bx,1			; screen offset to cell offset
@@ -2565,7 +2565,7 @@ ENDPROC	draw_cursor
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	draw_horzpair
-	mov	ah,ds:[CT_COLOR].HIB
+	mov	ah,ds:[CT_COLOR].HB
 	xchg	cl,ch
 	call	write_curpos
 	xchg	cl,ch
@@ -2591,7 +2591,7 @@ ENDPROC	draw_horzpair
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	draw_vertpair
-	mov	ah,ds:[CT_COLOR].HIB
+	mov	ah,ds:[CT_COLOR].HB
 	xchg	cl,ch
 	call	write_curpos
 	xchg	dl,bl
@@ -2619,7 +2619,7 @@ ENDPROC	draw_vertpair
 DEFPROC	get_curpos
 	push	ax
 	mov	al,dh
-	mul	ds:[CT_COLS].LOB	; (the columns of the context's mode)
+	mul	ds:[CT_COLS].LB		; (the columns of the context's mode)
 	add	ax,ax			; AX = offset to row
 	sub	bx,bx
 	mov	bl,dl
@@ -2673,32 +2673,32 @@ ENDPROC	hide_cursor
 DEFPROC	move_cursor
 	mov	dx,ds:[CT_CURPOS]	; DX = current cursor position
 	xchg	ax,cx
-	idiv	ds:[CT_CURDIM].LOB	; AL = # lines, AH = # columns (signed)
+	idiv	ds:[CT_CURDIM].LB	; AL = # lines, AH = # columns (signed)
 
 mc1:	add	dh,al
-	cmp	dh,ds:[CT_CURMIN].HIB
+	cmp	dh,ds:[CT_CURMIN].HB
 	jge	mc1a
-	mov	dh,ds:[CT_CURMIN].HIB
-mc1a:	cmp	dh,ds:[CT_CURMAX].HIB
+	mov	dh,ds:[CT_CURMIN].HB
+mc1a:	cmp	dh,ds:[CT_CURMAX].HB
 	jle	mc2
-	mov	dh,ds:[CT_CURMAX].HIB
+	mov	dh,ds:[CT_CURMAX].HB
 
 mc2:	add	dl,ah
-	cmp	dl,ds:[CT_CURMIN].LOB
+	cmp	dl,ds:[CT_CURMIN].LB
 	jge	mc2a
-	add	dl,ds:[CT_CURMAX].LOB
+	add	dl,ds:[CT_CURMAX].LB
 	inc	dl
-	sub	dl,ds:[CT_CURMIN].LOB
-	cmp	dh,ds:[CT_CURMIN].HIB
+	sub	dl,ds:[CT_CURMIN].LB
+	cmp	dh,ds:[CT_CURMIN].HB
 	jle	mc2a
 	dec	dh
 
-mc2a:	cmp	dl,ds:[CT_CURMAX].LOB
+mc2a:	cmp	dl,ds:[CT_CURMAX].LB
 	jle	mc8
-	sub	dl,ds:[CT_CURMAX].LOB
+	sub	dl,ds:[CT_CURMAX].LB
 	dec	dl
-	add	dl,ds:[CT_CURMIN].LOB
-	cmp	dh,ds:[CT_CURMAX].HIB
+	add	dl,ds:[CT_CURMIN].LB
+	cmp	dh,ds:[CT_CURMAX].HB
 	jge	mc8
 	inc	dh
 
@@ -2784,7 +2784,7 @@ pl7:	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
 	DPRINTF	<"null character, scan code %#04x\r\n">,ax
 	ENDIF
 pl8:	inc	bx
-	mov	es:[di].DDPRW_ADDR.OFF,bx
+	mov	es:[di].DDPRW_ADDR._OFF,bx
 	dec	es:[di].DDPRW_LENGTH	; have we satisfied the request yet?
 	jnz	pl1			; no
 	clc

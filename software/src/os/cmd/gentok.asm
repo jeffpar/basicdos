@@ -111,8 +111,8 @@ gnl5:	test	ss:[bx].GEN_FLAGS,GEN_ECHO
 ;
 ; Ready to process the line of code at DS:SI with length CX.
 ;
-gnl6:	mov	ss:[bx].LINE_PTR.OFF,si
-	mov	ss:[bx].LINE_PTR.SEG,ds
+gnl6:	mov	ss:[bx].LINE_PTR._OFF,si
+	mov	ss:[bx].LINE_PTR._SEG,ds
 	mov	ss:[bx].LINE_LEN,cx
 
 	push	es
@@ -138,7 +138,7 @@ gnl6:	mov	ss:[bx].LINE_PTR.OFF,si
 	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
 	DOSUTIL	TOKEN2
 	mov	bx,di
-	add	bx,offset TOK_DATA	; DS:BX -> TOKLET array
+	add	bx,TOK_DATA		; DS:BX -> TOKLET array
 	pop	di
 	pop	es			; restore code gen pointer
 	jc	gnl9
@@ -313,7 +313,7 @@ gnt2c:	pop	dx			; neither KEYOP nor KEYWORD
 	test	al,al			; has a default been set?
 	jnz	gnt4			; yes
 	mov	al,VAR_LONG		; no, default to VAR_LONG
-	cmp	word ptr ss:[PSP_FPUTBL].SEG,0
+	cmp	word ptr ss:[PSP_FPUTBL]._SEG,0
 	je	gnt4			; if there's no FPU$ driver
 	mov	al,VAR_DOUBLE		; otherwise, VAR_DOUBLE
 gnt4:	mov	ah,al

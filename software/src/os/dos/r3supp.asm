@@ -166,8 +166,8 @@ DEFPROC	r3_stage,DOS
 	mov	cx,size SPB
 	rep	movsb			; copy the SPB
 	lds	si,ds:[si - size SPB].SPB_CMDLINE
-	mov	es:[SPB_CMDLINE].OFF,di
-	mov	es:[SPB_CMDLINE].SEG,es
+	mov	es:[SPB_CMDLINE]._OFF,di
+	mov	es:[SPB_CMDLINE]._SEG,es
 rst1:	lodsb
 	stosb
 	test	al,al
@@ -415,7 +415,7 @@ ENDPROC	r3_call5
 ;
 	ASSUME	CS:DOS, DS:DOS, ES:NOTHING, SS:NOTHING
 DEFPROC	r3_error,DOS
-	test	byte ptr [bx].SCB_ERROR.SEG,3	; a ring 3 handler?
+	test	byte ptr [bx].SCB_ERROR._SEG,3	; a ring 3 handler?
 	jnz	re3			; yes
 	pushf
 	push	cs
@@ -426,17 +426,17 @@ re3:	mov	[r3_cbsp],sp		; SP -> our return address
 	mov	[r3_cblock],cl		; (see r3_cbabort)
 	push	ax
 	push	di			; save the handler's AX and DI
-	mov	di,[err_stack].OFF
+	mov	di,[err_stack]._OFF
 	mov	cx,[di-4]
 	mov	dx,[di-2]		; DX:CX = dev_error's caller's stack
 	mov	ah,CPU_SETSTACK
 	call	far ptr DDINT_CPU	; DX:CX = the program's ring 0 stack
-	mov	[r3_cbsp0].OFF,cx
-	mov	[r3_cbsp0].SEG,dx
+	mov	[r3_cbsp0]._OFF,cx
+	mov	[r3_cbsp0]._SEG,dx
 	mov	es,dx
 	xchg	di,cx			; ES:DI = the program's ring 0 stack
-	mov	ax,[bx].SCB_ERROR.SEG
-	mov	cx,[bx].SCB_ERROR.OFF
+	mov	ax,[bx].SCB_ERROR._SEG
+	mov	cx,[bx].SCB_ERROR._OFF
 	call	r3_chkcode		; can we enter the handler?
 	jc	re8			; no
 	mov	dx,es:[di-2]
@@ -451,8 +451,8 @@ re3:	mov	[r3_cbsp],sp		; SP -> our return address
 	pushf
 	pop	dx
 	push	dx			; and FLAGS
-	push	[bx].SCB_ERROR.SEG
-	push	[bx].SCB_ERROR.OFF	; and address
+	push	[bx].SCB_ERROR._SEG
+	push	[bx].SCB_ERROR._OFF	; and address
 	mov	ax,offset r3_stub
 	stosw
 	mov	ax,[r3_code]
@@ -590,11 +590,11 @@ DEFPROC	r3_cbret,DOS
 	jne	rc7			; no
 	cmp	cs:[si].RV_OWNER,0	; is it in use?
 	je	rc7			; no
-	mov	ax,cs:[si].RV_ORIG.SEG
+	mov	ax,cs:[si].RV_ORIG._SEG
 	test	ax,ax			; is there a handler to enter?
 	jz	rc7			; no
 	mov	[bp+18],ax
-	mov	ax,cs:[si].RV_ORIG.OFF
+	mov	ax,cs:[si].RV_ORIG._OFF
 	mov	[bp+16],ax		; [BP+16] -> the handler
 	call	r3_popret		; pop the interrupt's IP, CS, and FLAGS
 	jc	rc7
@@ -611,8 +611,8 @@ rc0:	cmp	cs:[r3_cbsp],0		; is the ERROR handler running?
 	ASSUME	DS:DOS
 	DEFLBL	r3_cbabort,near
 	push	ax
-	mov	cx,[r3_cbsp0].OFF
-	mov	dx,[r3_cbsp0].SEG
+	mov	cx,[r3_cbsp0]._OFF
+	mov	dx,[r3_cbsp0]._SEG
 	mov	ah,CPU_SETSTACK
 	call	far ptr DDINT_CPU	; restore the program's ring 0 stack
 	pop	ax
@@ -847,8 +847,8 @@ DEFPROC	r3_reflect,DOS
 	push	cx
 	push	dx
 	push	di
-	mov	ax,[si].RV_USER.SEG
-	mov	cx,[si].RV_USER.OFF
+	mov	ax,[si].RV_USER._SEG
+	mov	cx,[si].RV_USER._OFF
 	call	r3_chkcode		; can we enter the handler?
 	jc	rr7			; no
 	mov	dx,[bp+12]
@@ -868,9 +868,9 @@ DEFPROC	r3_reflect,DOS
 	mov	es:[di+4],ax		; FLAGS
 	and	ah,NOT (FL_TRAP SHR 8)	; (interrupts stay on, at ring 3)
 	mov	[bp+8],ax
-	mov	ax,[si].RV_USER.OFF
+	mov	ax,[si].RV_USER._OFF
 	mov	[bp+4],ax
-	mov	ax,[si].RV_USER.SEG
+	mov	ax,[si].RV_USER._SEG
 	mov	[bp+6],ax		; IRET to the handler
 	pop	es
 	pop	di
@@ -886,10 +886,10 @@ DEFPROC	r3_reflect,DOS
 rr7:	pop	di
 	pop	dx
 	pop	cx
-rr8:	mov	ax,cs:[si].RV_ORIG.SEG
+rr8:	mov	ax,cs:[si].RV_ORIG._SEG
 	test	ax,ax			; is there a previous handler?
 	jz	rr9			; no
-	mov	si,cs:[si].RV_ORIG.OFF
+	mov	si,cs:[si].RV_ORIG._OFF
 	xchg	si,[bp]			; [BP] -> the previous handler
 	mov	[bp+2],ax
 	mov	bp,si
@@ -953,8 +953,8 @@ DEFPROC	r3_getvec,DOS
 	jc	rg1			; no
 	cmp	ah,[si].RV_SESS		; this session's handler?
 	jne	rg1			; no, so chain past it, as ring 0 does
-	mov	cx,[si].RV_USER.OFF
-	mov	dx,[si].RV_USER.SEG
+	mov	cx,[si].RV_USER._OFF
+	mov	dx,[si].RV_USER._SEG
 	jmp	short rg9
 rg1:	cmp	[r3_vsel],0		; can we give it a stub?
 	je	rg8			; no
@@ -1014,8 +1014,8 @@ sv1:	push	bx
 	jne	sv7			; no
 	cmp	[si].RV_VEC,al		; for this vector?
 	jne	sv7			; no
-	mov	cx,[si].RV_ORIG.OFF
-	mov	dx,[si].RV_ORIG.SEG
+	mov	cx,[si].RV_ORIG._OFF
+	mov	dx,[si].RV_ORIG._SEG
 	call	far ptr DDINT_SETVEC	; restore the handler it chains to
 	call	r3_freevec		; and free the RVEC
 	jmp	short sv6a
@@ -1031,7 +1031,7 @@ sv3:	cmp	[si].RV_OWNER,bx	; one of this program's
 	jne	sv4
 	cmp	[si].RV_VEC,al		; for this vector
 	jne	sv4
-	cmp	[si].RV_USER.SEG,0	; that has no handler yet?
+	cmp	[si].RV_USER._SEG,0	; that has no handler yet?
 	je	sv5			; yes, so use it
 sv4:	add	si,size RVEC
 	loop	sv3
@@ -1047,8 +1047,8 @@ sv4:	add	si,size RVEC
 	mov	ax,ERR_NOMEMORY		; (none free)
 	jmp	sv9
 sv5:	pop	cx
-sv6:	mov	[si].RV_USER.OFF,cx
-	mov	[si].RV_USER.SEG,dx
+sv6:	mov	[si].RV_USER._OFF,cx
+	mov	[si].RV_USER._SEG,dx
 	mov	cx,si
 	mov	dx,cs			; DX:CX -> its RV_CALL
 	call	far ptr DDINT_SETVEC
@@ -1139,20 +1139,20 @@ DEFPROC	r3_freevec,DOS
 	jne	fv1
 	cmp	cx,si
 	jne	fv1			; no
-	mov	cx,[si].RV_ORIG.OFF
-	mov	dx,[si].RV_ORIG.SEG
+	mov	cx,[si].RV_ORIG._OFF
+	mov	dx,[si].RV_ORIG._SEG
 	call	far ptr DDINT_SETVEC	; yes, so restore its previous handler
 fv1:	mov	bx,offset r3_vecs
 	mov	cx,R3_RVECS
-fv2:	cmp	[bx].RV_ORIG.OFF,si	; does another RVEC chain to this one?
+fv2:	cmp	[bx].RV_ORIG._OFF,si	; does another RVEC chain to this one?
 	jne	fv3
 	mov	ax,cs
-	cmp	[bx].RV_ORIG.SEG,ax
+	cmp	[bx].RV_ORIG._SEG,ax
 	jne	fv3			; no
-	mov	ax,[si].RV_ORIG.OFF
-	mov	[bx].RV_ORIG.OFF,ax
-	mov	ax,[si].RV_ORIG.SEG
-	mov	[bx].RV_ORIG.SEG,ax	; yes, so it chains past it now
+	mov	ax,[si].RV_ORIG._OFF
+	mov	[bx].RV_ORIG._OFF,ax
+	mov	ax,[si].RV_ORIG._SEG
+	mov	[bx].RV_ORIG._SEG,ax	; yes, so it chains past it now
 fv3:	add	bx,size RVEC
 	loop	fv2
 	mov	[si].RV_OWNER,0		; free
@@ -1228,9 +1228,9 @@ nv1:	cmp	[si].RV_OWNER,0		; free?
 	ret
 nv2:	pop	cx
 	mov	[si].RV_VEC,al
-	mov	[si].RV_ORIG.OFF,cx
-	mov	[si].RV_ORIG.SEG,dx
-	mov	[si].RV_USER.SEG,0	; (no handler yet)
+	mov	[si].RV_ORIG._OFF,cx
+	mov	[si].RV_ORIG._SEG,dx
+	mov	[si].RV_USER._SEG,0	; (no handler yet)
 	push	ax
 	push	bx
 	call	r3_who			; BX = PSP, AH = session #

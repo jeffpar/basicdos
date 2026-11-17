@@ -284,7 +284,7 @@ pl3:	sti
 	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
 	mov	[bx],al
 	inc	bx
-	mov	es:[di].DDPRW_ADDR.OFF,bx
+	mov	es:[di].DDPRW_ADDR._OFF,bx
 	pop	ds
 	dec	es:[di].DDPRW_LENGTH	; have we satisfied the request yet?
 	jnz	pull_data		; no
@@ -342,7 +342,7 @@ ps2:	mov	ds:[CT_TAIL],dx
 	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
 	mov	al,[bx]
 	inc	bx
-	mov	es:[di].DDPRW_ADDR.OFF,bx
+	mov	es:[di].DDPRW_ADDR._OFF,bx
 	pop	bx
 	pop	ds
 	mov	ds:[CT_DATA][bx],al	; AL = data byte
@@ -424,10 +424,10 @@ DEFPROC	ddpipe_init,far
 	ASSUME	DS:BIOS
 	cmp	[MEMORY_SIZE],64	; more than 64K of memory?
 	ja	dpi1			; yes
-	mov	es:[bx].DDPI_END.OFF,0	; no, so keep nothing
+	mov	es:[bx].DDPI_END._OFF,0	; no, so keep nothing
 	ret
 	ASSUME	DS:NOTHING
-dpi1:	mov	es:[bx].DDPI_END.OFF,offset ddpipe_init
+dpi1:	mov	es:[bx].DDPI_END._OFF,offset ddpipe_init
 	mov	ds,cs:[0].DDH_DATA
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddpipe_req
 	ret

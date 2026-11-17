@@ -149,7 +149,7 @@ gsv2:	test	bx,bx			; any name?
 	test	ah,ah			; set?
 	jnz	gsv4			; yes
 	mov	ah,VAR_LONG		; no, so it's VAR_LONG without an FPU$
-	cmp	word ptr ss:[PSP_FPUTBL].SEG,0
+	cmp	word ptr ss:[PSP_FPUTBL]._SEG,0
 	je	gsv4			; driver, and VAR_DOUBLE otherwise
 	mov	ah,VAR_DOUBLE
 	jmp	short gsv4

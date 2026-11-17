@@ -75,7 +75,7 @@ mem2:	pop	si			; SI:DI = free bytes
 	TESTSW	<'A'>			; /A?
 	jz	mem9			; no
 	PRINTF	<"%8ld bytes for BASIC",13,10>,di,si
-mem9:	cmp	word ptr ss:[PSP_FPUTBL].SEG,0; is the FPU$ driver loaded?
+mem9:	cmp	word ptr ss:[PSP_FPUTBL]._SEG,0; is the FPU$ driver loaded?
 	jne	mem10			; yes
 	PRINTF	<"Floating-point disabled",13,10>
 mem10:	mov	ax,ss:[PSP_CODESIZE]	; was only COMMAND's core loaded?

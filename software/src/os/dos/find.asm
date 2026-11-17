@@ -77,9 +77,9 @@ DEFPROC	dsk_ffirst,DOS
 	stosw				; FFB_TIME
 	mov	ax,[si].DIR_DATE
 	stosw				; FFB_DATE
-	mov	ax,[si].DIR_SIZE.OFF
+	mov	ax,[si].DIR_SIZE._OFF
 	stosw				; FFB_SIZE
-	mov	ax,[si].DIR_SIZE.SEG
+	mov	ax,[si].DIR_SIZE._SEG
 	stosw
 	call	fmt_name		; FFB_NAME
 	sub	ax,ax

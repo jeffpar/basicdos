@@ -98,8 +98,8 @@ DEFPROC	mapPoint
 	pop	es
 	pop	di
 	pop	bx
-	mov	cx,ss:[si].LOW
-	mov	dx,ss:[si-4].LOW
+	mov	cx,ss:[si].LW
+	mov	dx,ss:[si-4].LW
 	ret
 ENDPROC	mapPoint
 
@@ -136,10 +136,10 @@ mp1:	test	al,1			; doubles?
 	jz	mp2			; no
 	push	ax
 	push	si
-	push	word ptr ss:[si].HIW
-	push	word ptr ss:[si].LOW	; push x (a pointer to a double)
-	push	word ptr ss:[si-4].HIW
-	push	word ptr ss:[si-4].LOW	; push y
+	push	word ptr ss:[si].HW
+	push	word ptr ss:[si].LW	; push x (a pointer to a double)
+	push	word ptr ss:[si-4].HW
+	push	word ptr ss:[si-4].LW	; push y
 	mov	bx,FPU_CVT2DL
 	call	fpuOp			; and convert them to longs
 	pop	ax
@@ -147,10 +147,10 @@ mp1:	test	al,1			; doubles?
 	pop	cx
 	pop	di			; DI:CX = x
 	pop	si
-	mov	ss:[si-4].LOW,ax
-	mov	ss:[si-4].HIW,dx
-	mov	ss:[si].LOW,cx
-	mov	ss:[si].HIW,di
+	mov	ss:[si-4].LW,ax
+	mov	ss:[si-4].HW,dx
+	mov	ss:[si].LW,cx
+	mov	ss:[si].HW,di
 	pop	ax
 	mov	bx,ss:[PSP_HEAP]
 mp2:	call	mpCoord			; convert x
@@ -174,8 +174,8 @@ mw1:	push	ax
 	pop	di
 	pop	cx			; CL = flags
 	mov	bx,ss:[PSP_HEAP]
-	mov	ss:[si].LOW,ax
-	mov	word ptr ss:[si].HIW,GFX_MARK
+	mov	ss:[si].LW,ax
+	mov	word ptr ss:[si].HW,GFX_MARK
 	test	cl,4			; is it the last point?
 	jz	mw2			; no
 	mov	ss:[bx+di].GFX_DATA.GFX_LPX,ax
@@ -209,8 +209,8 @@ ENDPROC	mapPt
 ;
 DEFPROC	mpCoord
 	mov	cx,ax			; CL = flags
-	mov	ax,ss:[si].LOW
-	mov	dx,ss:[si].HIW		; DX:AX = coordinate
+	mov	ax,ss:[si].LW
+	mov	dx,ss:[si].HW		; DX:AX = coordinate
 	mov	di,ss:[bx].GFX_DATA.GFX_LPX
 	test	cl,2			; STEP?
 	jnz	mc1			; yes, so add the last coordinate
@@ -224,8 +224,8 @@ mc1:	add	ax,di
 	jns	mc2
 	dec	dx			; (sign-extended)
 mc2:	call	clampCoord		; AX = clamped coordinate
-	mov	ss:[si].LOW,ax
-	mov	word ptr ss:[si].HIW,GFX_MARK
+	mov	ss:[si].LW,ax
+	mov	word ptr ss:[si].HW,GFX_MARK
 	test	cl,4			; is it the last point?
 	jz	mc9			; no
 	mov	ss:[bx].GFX_DATA.GFX_LPX,ax
@@ -327,8 +327,8 @@ ENDPROC	mwCoord
 ;
 DEFPROC	mwLoad
 	pop	cx			; CX = return address
-	push	word ptr ss:[si].HIW
-	push	word ptr ss:[si].LOW	; push the coordinate
+	push	word ptr ss:[si].HW
+	push	word ptr ss:[si].LW	; push the coordinate
 	push	cx
 	test	al,1			; a double?
 	jnz	ml9			; yes
@@ -572,13 +572,13 @@ DEFPROC	gfxRadD,FAR
 	add	si,4			; SS:SI -> radius
 	push	bp
 	push	si
-	push	word ptr ss:[si].HIW
-	push	word ptr ss:[si].LOW	; push the radius
+	push	word ptr ss:[si].HW
+	push	word ptr ss:[si].LW	; push the radius
 	call	rdScale			; AX = radius (in pixels)
 	pop	si
 	pop	bp
-	mov	ss:[si].LOW,ax
-	mov	word ptr ss:[si].HIW,GFX_MARK
+	mov	ss:[si].LW,ax
+	mov	word ptr ss:[si].HW,GFX_MARK
 	ret
 ENDPROC	gfxRadD
 
@@ -599,8 +599,8 @@ ENDPROC	gfxRadD
 ;	AX, DX
 ;
 DEFPROC	getRadius
-	mov	ax,ss:[si].LOW
-	mov	dx,ss:[si].HIW
+	mov	ax,ss:[si].LW
+	mov	dx,ss:[si].HW
 	cmp	dx,GFX_MARK		; converted already?
 	je	gr9			; yes
 	push	bx
@@ -784,8 +784,8 @@ DEFPROC	gfxPmap,FAR
 	ARGVAR	pmN,dword
 	ENTER
 	call	gfxInit
-	mov	ax,[pmN].LOW
-	cmp	[pmN].HIW,0
+	mov	ax,[pmN].LW
+	cmp	[pmN].HW,0
 	jne	pm8
 	cmp	ax,3			; is n valid (0-3)?
 	ja	pm8			; no
@@ -820,8 +820,8 @@ DEFPROC	gfxPmap,FAR
 	pop	ax
 	pop	bp
 	jmp	short pm9
-pm4:	push	word ptr ss:[si].HIW
-	push	word ptr ss:[si].LOW	; push v
+pm4:	push	word ptr ss:[si].HW
+	push	word ptr ss:[si].LW	; push v
 	mov	bx,FPU_CVT1DL
 	call	fpuOp			; and convert it to a long
 	pop	ax
@@ -906,12 +906,12 @@ DEFPROC	gfxPoint,FAR
 	ENTER
 	call	gfxInit
 	lea	si,[poX]
-	cmp	[poY].LOW,-128		; POINT(n)?
+	cmp	[poY].LW,-128		; POINT(n)?
 	jne	po2			; no
-	cmp	[poY].HIW,-1
+	cmp	[poY].HW,-1
 	jne	po2			; no
-	mov	ax,[poX].LOW
-	cmp	[poX].HIW,0
+	mov	ax,[poX].LW
+	cmp	[poX].HW,0
 	jne	po8
 	cmp	ax,3			; is n valid (0-3)?
 	ja	po8			; no
@@ -947,8 +947,8 @@ po2:	mov	al,0			; (POINT doesn't change the last point)
 	jnc	po3
 	mov	ax,-1
 po3:	cwd
-po4:	mov	[retPoint].LOW,ax
-	mov	[retPoint].HIW,dx
+po4:	mov	[retPoint].LW,ax
+	mov	[retPoint].HW,dx
 	LEAVE
 	RETURN
 po8:	jmp	strIllegal
@@ -983,15 +983,15 @@ DEFPROC	getTimer,FAR
 	mul	ch
 	mov	ch,0
 	add	ax,cx			; AX = minutes since midnight
-	cmp	word ptr ss:[PSP_FPUTBL].SEG,0
+	cmp	word ptr ss:[PSP_FPUTBL]._SEG,0
 	jne	gt1			; FPU$ driver present
 	mov	cx,60
 	mul	cx
 	add	al,bh
 	adc	ah,0
 	adc	dx,0			; DX:AX = seconds since midnight
-	mov	[pTimer].LOW,ax
-	mov	[pTimer].HIW,dx
+	mov	[pTimer].LW,ax
+	mov	[pTimer].HW,dx
 	jmp	short gt9
 gt1:	mov	cx,6000
 	mul	cx			; DX:AX = minutes in hundredths

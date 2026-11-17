@@ -738,8 +738,8 @@ DEFPROC	strCurDir,FAR
 	pop	ds
 	inc	si			; SS:SI -> characters, CX = length
 	call	newStr
-	mov	[retDir].OFF,ax
-	mov	[retDir].SEG,dx
+	mov	[retDir]._OFF,ax
+	mov	[retDir]._SEG,dx
 	LEAVE
 	RETURN
 ENDPROC	strCurDir
@@ -828,8 +828,8 @@ DEFPROC	getExists,FAR
 	call	findSpec
 	cmc
 	sbb	ax,ax			; AX = -1 if found, 0 if not
-	mov	[retExists].LOW,ax
-	mov	[retExists].HIW,ax
+	mov	[retExists].LW,ax
+	mov	[retExists].HW,ax
 	mov	dx,PSP_DTA
 	mov	ah,DOS_DSK_SETDTA
 	int	21h			; restore the DTA
@@ -871,7 +871,7 @@ DEFPROC	strDir,FAR
 	ENTER
 	push	ds
 	les	di,[pFindSpec]
-	mov	cx,[findAttr].LOW	; CX = attributes
+	mov	cx,[findAttr].LW	; CX = attributes
 	test	di,di			; filespec omitted (or empty)?
 	jz	sd1			; yes
 	call	findSpec
@@ -892,8 +892,8 @@ sd2a:	mov	si,PSP_DTA + FFB_NAME
 	xchg	cx,ax
 	mov	si,PSP_DTA + FFB_ATTR	; SS:SI -> result
 sd3:	call	newStr
-	mov	[retFind].OFF,ax
-	mov	[retFind].SEG,dx
+	mov	[retFind]._OFF,ax
+	mov	[retFind]._SEG,dx
 	pop	ds
 	LEAVE
 	RETURN
@@ -977,8 +977,8 @@ DEFPROC	strPath,FAR
 	mov	ch,0
 	inc	si			; SS:SI -> characters, CX = length
 	call	newStr
-	mov	[retPath].OFF,ax
-	mov	[retPath].SEG,dx
+	mov	[retPath]._OFF,ax
+	mov	[retPath]._SEG,dx
 	LEAVE
 	RETURN
 ENDPROC	strPath
@@ -1691,8 +1691,8 @@ ENDPROC	pipeStages
 DEFPROC	endPipes
 	mov	cx,32			; CL = SCB # (counting down from 32)
 ep1:	dec	cx
-	shl	[bx].PIPE_SCB.LOW,1
-	rcl	[bx].PIPE_SCB.HIW,1
+	shl	[bx].PIPE_SCB.LW,1
+	rcl	[bx].PIPE_SCB.HW,1
 	jnc	ep3
 	push	ax
 	test	al,al
@@ -1728,8 +1728,8 @@ DEFPROC	addPipe
 ap1:	shl	ax,1
 	rcl	dx,1
 	loop	ap1
-ap2:	or	[bp].PIPE_SCB.LOW,ax
-	or	[bp].PIPE_SCB.HIW,dx
+ap2:	or	[bp].PIPE_SCB.LW,ax
+	or	[bp].PIPE_SCB.HW,dx
 	pop	cx
 	ret
 ENDPROC	addPipe

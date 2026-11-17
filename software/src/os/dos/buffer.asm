@@ -236,7 +236,7 @@ DEFPROC	write_buffer,DOS
 	mov	al,[si].BUF_DRIVE
 	mov	ah,size BPBEX
 	mul	ah			; AX = BPB offset
-	mov	di,cs:[bpb_table].OFF
+	mov	di,cs:[bpb_table]._OFF
 	add	di,ax			; DI -> BPB
 	ASSERT	STRUCT,cs:[di],BPB
 	mov	bx,[si].BUF_LBA		; BX = LBA

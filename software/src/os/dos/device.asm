@@ -504,8 +504,8 @@ DEFPROC	dev_request,DOS
 	cmp	ah,DDC_OPEN
 	jne	dr2
 	mov	[bp].DDP_LEN,size DDP
-	mov	[bp].DDP_PTR.OFF,si	; use DDP_PTR to pass driver-specific
-	mov	[bp].DDP_PTR.SEG,ds	; parameter block, if any
+	mov	[bp].DDP_PTR._OFF,si	; use DDP_PTR to pass driver-specific
+	mov	[bp].DDP_PTR._SEG,ds	; parameter block, if any
 	jmp	short dr5
 ;
 ; For now, we're going to treat all other commands, even MEDIACHK (1)
@@ -513,8 +513,8 @@ DEFPROC	dev_request,DOS
 ; and IOCTLOUT (12).
 ;
 dr2:	mov	[bp].DDP_LEN,size DDPRW
-	mov	[bp].DDPRW_ADDR.OFF,si
-	mov	[bp].DDPRW_ADDR.SEG,ds
+	mov	[bp].DDPRW_ADDR._OFF,si
+	mov	[bp].DDPRW_ADDR._SEG,ds
 	mov	[bp].DDPRW_LBA,bx
 	mov	[bp].DDPRW_OFFSET,dx
 	mov	[bp].DDPRW_LENGTH,cx
@@ -533,10 +533,10 @@ dr2:	mov	[bp].DDP_LEN,size DDPRW
 	mov	[bp].DDP_CODE,dh
 dr4:	mov	ah,size BPBEX		; AL still contains the unit #
 	mul	ah
-	add	ax,[bpb_table].OFF	; AX = BPB address
-	mov	[bp].DDPRW_BPB.OFF,ax	; save it in the request packet
+	add	ax,[bpb_table]._OFF	; AX = BPB address
+	mov	[bp].DDPRW_BPB._OFF,ax	; save it in the request packet
 	mov	ax,cs:[dos_data]
-	mov	[bp].DDPRW_BPB.SEG,ax
+	mov	[bp].DDPRW_BPB._SEG,ax
 
 dr5:	push	es			; create far pointer to DDH_REQUEST
 	push	es:[di].DDH_REQUEST	; at [bp-4]
@@ -721,7 +721,7 @@ he0:	mov	si,di			; SI = DDH offset (for BP:SI)
 ; the driver couldn't build), and only they have a meaningful disk area.
 ;
 he1:	or	cl,CRERR_IGNOREOK OR CRERR_AREA
-	mov	bx,[bp].DDPRW_BPB.OFF	; BX -> BPB (in the DOS segment)
+	mov	bx,[bp].DDPRW_BPB._OFF	; BX -> BPB (in the DOS segment)
 	mov	dx,[bp].DDPRW_LBA	; DX = LBA of the failing sector
 	cmp	dx,[bx].BPB_LBADATA	; data area?
 	jae	he2			; yes
@@ -741,8 +741,8 @@ he2:	mov	ah,cl			; AH = flags
 	mov	dx,ss
 	mov	cx,sp
 	cli
-	mov	ss,[err_stack].SEG
-	mov	sp,[err_stack].OFF
+	mov	ss,[err_stack]._SEG
+	mov	sp,[err_stack]._OFF
 	sti
 	mov	bx,[scb_active]
 	push	dx

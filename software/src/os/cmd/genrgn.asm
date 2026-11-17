@@ -81,7 +81,7 @@ REG_GAP		equ	2		; lines to skip without a new region
 DEFPROC	genRegion,FAR
 	mov	bx,ss:[PSP_HEAP]
 	mov	ax,ss
-	cmp	ss:[bx].LINE_PTR.SEG,ax	; generating a single line?
+	cmp	ss:[bx].LINE_PTR._SEG,ax; generating a single line?
 	jne	gr0			; no
 	jmp	genMoreSeq		; yes, so there's only one cap
 gr0:	push	bp
@@ -115,9 +115,9 @@ gr1:	mov	dx,[bp-2]
 	inc	si
 	inc	si			; ES:SI -> first region
 	mov	bx,REG_MAX
-gr1a:	cmp	es:[si].REG_CAP.OFF,cx
+gr1a:	cmp	es:[si].REG_CAP._OFF,cx
 	jne	gr1b
-	cmp	es:[si].REG_CAP.SEG,dx	; is it this region's cap?
+	cmp	es:[si].REG_CAP._SEG,dx	; is it this region's cap?
 	je	gr5x			; yes
 gr1b:	add	si,size REGION
 	dec	bx
@@ -164,7 +164,7 @@ gr3:	mov	ax,es:[si].LBL_NUM	; AX = label #
 	inc	si
 	inc	si			; ES:SI -> first region
 	mov	bx,REG_MAX
-gr3a:	cmp	es:[si].REG_CAP.SEG,0	; is the region open?
+gr3a:	cmp	es:[si].REG_CAP._SEG,0	; is the region open?
 	je	gr3b			; no
 	cmp	dx,es:[si].REG_NUM	; is the line after its last line?
 	jbe	gr3b			; no
@@ -191,7 +191,7 @@ gr3c:	mov	ax,dx
 	lea	di,[si+2]		; ES:DI -> first region
 	pop	si
 	mov	cx,REG_MAX
-gr3d:	cmp	es:[di].REG_CAP.SEG,0	; is this region free?
+gr3d:	cmp	es:[di].REG_CAP._SEG,0	; is this region free?
 	je	gr3e			; yes
 	add	di,size REGION
 	loop	gr3d
@@ -222,8 +222,8 @@ gr3g:	push	si
 	pop	si
 	push	ss
 	pop	ds
-	mov	es:[di].REG_PTR.OFF,ax
-	mov	es:[di].REG_PTR.SEG,bx
+	mov	es:[di].REG_PTR._OFF,ax
+	mov	es:[di].REG_PTR._SEG,bx
 	mov	es:[di].REG_LEN,0	; (so getNextLine starts at that line)
 	mov	ax,cx
 	dec	ax
@@ -231,13 +231,13 @@ gr3g:	push	si
 	mov	ax,es:[si].REG_STOP
 	mov	es:[di].REG_STOP,ax	; the new region ends where the old
 	mov	es:[si].REG_STOP,cx	; one did, and the old one ends here
-	mov	ax,es:[si].REG_NEXT.OFF
-	mov	es:[di].REG_NEXT.OFF,ax
-	mov	ax,es:[si].REG_NEXT.SEG
-	mov	es:[di].REG_NEXT.SEG,ax
+	mov	ax,es:[si].REG_NEXT._OFF
+	mov	es:[di].REG_NEXT._OFF,ax
+	mov	ax,es:[si].REG_NEXT._SEG
+	mov	es:[di].REG_NEXT._SEG,ax
 	call	endCode			; DX:AX -> end of the code, where the
-	mov	es:[si].REG_NEXT.OFF,ax	; new region's code will start
-	mov	es:[si].REG_NEXT.SEG,dx
+	mov	es:[si].REG_NEXT._OFF,ax; new region's code will start
+	mov	es:[si].REG_NEXT._SEG,dx
 	call	getRegions
 	inc	word ptr es:[si]	; one more region is open
 	mov	si,di
@@ -254,7 +254,7 @@ gr4:	mov	si,cx
 	sub	di,di			; DI = nearest region (none yet)
 	mov	cx,0FFFFh		; CX = its last line
 	mov	bx,REG_MAX
-gr4a:	cmp	es:[si].REG_CAP.SEG,0	; is the region open?
+gr4a:	cmp	es:[si].REG_CAP._SEG,0	; is the region open?
 	je	gr4b			; no
 	mov	ax,es:[si].REG_NUM
 	cmp	ax,dx			; is its last line the loop or after?
@@ -281,10 +281,10 @@ gr5:	mov	[bp-4],si
 	mov	ax,es:[si].REG_STOP
 	mov	[bp-6],ax
 	mov	bx,ds:[PSP_HEAP]
-	mov	ax,es:[si].REG_PTR.OFF
-	mov	[bx].LINE_PTR.OFF,ax
-	mov	ax,es:[si].REG_PTR.SEG
-	mov	[bx].LINE_PTR.SEG,ax
+	mov	ax,es:[si].REG_PTR._OFF
+	mov	[bx].LINE_PTR._OFF,ax
+	mov	ax,es:[si].REG_PTR._SEG
+	mov	[bx].LINE_PTR._SEG,ax
 	mov	ax,es:[si].REG_LEN
 	mov	[bx].LINE_LEN,ax
 	mov	ax,es:[si].REG_NUM
@@ -356,8 +356,8 @@ grJmp:	push	es
 	push	di
 	call	getRegions
 	mov	si,[bp-4]
-	mov	ax,es:[si].REG_NEXT.OFF
-	mov	dx,es:[si].REG_NEXT.SEG
+	mov	ax,es:[si].REG_NEXT._OFF
+	mov	dx,es:[si].REG_NEXT._SEG
 	pop	di
 	pop	es
 	call	emitJmp
@@ -433,7 +433,7 @@ DEFPROC	closeRegion
 	call	getRegions
 	push	si
 	mov	si,[bp-4]
-	mov	es:[si].REG_CAP.SEG,0	; the region is free
+	mov	es:[si].REG_CAP._SEG,0	; the region is free
 	pop	si
 	dec	word ptr es:[si]	; and one less region is open
 	pop	si
@@ -569,13 +569,13 @@ DEFPROC	saveRegion
 	push	si
 	call	getRegions
 	mov	si,[bp-4]
-	mov	es:[si].REG_CAP.OFF,ax
-	mov	es:[si].REG_CAP.SEG,dx
+	mov	es:[si].REG_CAP._OFF,ax
+	mov	es:[si].REG_CAP._SEG,dx
 	mov	bx,ss:[PSP_HEAP]
-	mov	ax,ss:[bx].LINE_PTR.OFF
-	mov	es:[si].REG_PTR.OFF,ax
-	mov	ax,ss:[bx].LINE_PTR.SEG
-	mov	es:[si].REG_PTR.SEG,ax
+	mov	ax,ss:[bx].LINE_PTR._OFF
+	mov	es:[si].REG_PTR._OFF,ax
+	mov	ax,ss:[bx].LINE_PTR._SEG
+	mov	es:[si].REG_PTR._SEG,ax
 	mov	ax,ss:[bx].LINE_LEN
 	mov	es:[si].REG_LEN,ax
 	mov	ax,ss:[bx].LINE_NUM

@@ -109,9 +109,9 @@ si16c:	mov	es:[def_drive],al
 	mov	ax,-1
 	stosw				; SPB_ENVSEG <- -1
 	xchg	ax,bx
-	stosw				; SPB_CMDLINE.OFF <- BX
+	stosw				; SPB_CMDLINE._OFF <- BX
 	mov	ax,ds
-	stosw				; SPB_CMDLINE.OFF <- DS
+	stosw				; SPB_CMDLINE._OFF <- DS
 	xchg	ax,bx			; AX = -1 again (aka SFH_NONE)
 	stosb				; SPB_SFHIN  <- SFH_NONE
 	stosb				; SPB_SFHOUT <- SFH_NONE
@@ -125,8 +125,8 @@ si16c:	mov	es:[def_drive],al
 ; Every SHELL has a console (see next_con), so skip the SHELL of a console
 ; that couldn't be opened (see si11).
 ;
-	shr	[con_fails].SEG,1
-	rcr	[con_fails].OFF,1
+	shr	[con_fails]._SEG,1
+	rcr	[con_fails]._OFF,1
 	jc	si17			; its console failed
 	DOSUTIL	LOAD,0			; load specified SHELL into an SCB
 	jc	si18
@@ -161,14 +161,14 @@ si16c:	mov	es:[def_drive],al
 	jnc	si16a
 	sub	si,si			; no alias, so no cache
 si16a:	mov	[cbCacheData],ax
-	mov	[pCacheData].OFF,si
-	mov	[pCacheData].SEG,bx
+	mov	[pCacheData]._OFF,si
+	mov	[pCacheData]._SEG,bx
 
 si17:	sub	bx,bx			; no default shell now
 	jmp	si15
 
 si18:	mov	si,sp			; SS:SI -> SPB
-	mov	si,ss:[si].SPB_CMDLINE.OFF
+	mov	si,ss:[si].SPB_CMDLINE._OFF
 ;
 ; Print the error on the console of the session we tried to load (CL), if
 ; any; since there's no PSP yet, PRINTF would always use SFH 1 (ie, the first
@@ -180,10 +180,10 @@ si18:	mov	si,sp			; SS:SI -> SPB
 	push	es
 	mov	es,[dos_seg]
 	ASSUME	ES:DOS
-	add	ax,es:[scb_table].OFF
+	add	ax,es:[scb_table]._OFF
 	xchg	bx,ax			; BX -> SCB
 	mov	al,1			; default to SFH 1
-	cmp	bx,es:[scb_table].SEG	; valid SCB?
+	cmp	bx,es:[scb_table]._SEG	; valid SCB?
 	jae	$+6			; no
 	mov	al,es:[bx].SCB_SFHOUT	; (4 bytes)
 	pop	es
@@ -232,8 +232,8 @@ si20a:
 	jnc	$+5
 	jmp	open_error
 	mov	ds,[dos_seg]
-	mov	[clk_ptr].OFF,di
-	mov	[clk_ptr].SEG,es
+	mov	[clk_ptr]._OFF,di
+	mov	[clk_ptr]._SEG,es
 ;
 ; "Revector" DDINT_ENTER and DDINT_LEAVE to int_enter and int_leave.
 ;
@@ -264,8 +264,8 @@ iv1:	lodsb				; AL = vector #
 	test	al,al			; end of the list (-1)?
 	js	iv2			; yes
 	call	far ptr DDINT_GETVEC	; DX:CX = vector
-	mov	[si].OFF,cx
-	mov	[si].SEG,dx
+	mov	[si]._OFF,cx
+	mov	[si]._SEG,dx
 	add	si,4
 	jmp	iv1
 iv2:
@@ -283,7 +283,7 @@ iv2:
 ; scb_release; any deferred yield will occur on the session's next unlock.
 ;
 	dec	[scb_locked]
-	mov	bx,[scb_table].OFF	; BX -> the first SCB
+	mov	bx,[scb_table]._OFF	; BX -> the first SCB
 	mov	[scb_active],bx		; make it active (for consistency)
 ;
 ; With a ring 3 first program, make its session's LDT active and set its ring
@@ -303,8 +303,8 @@ iv2:
 	mov	dx,[r3_stseg]		; DX:CX = the session's ring 0 stack
 	mov	ah,CPU_SETSTACK
 	call	far ptr DDINT_CPU
-stt1:	mov	ss,[bx].SCB_STACK.SEG
-	mov	sp,[bx].SCB_STACK.OFF
+stt1:	mov	ss,[bx].SCB_STACK._SEG
+	mov	sp,[bx].SCB_STACK._OFF
 	push	cs:[dos_code]		; (the kernel's code segment, not DS)
 	mov	ax,offset dos_leave
 	push	ax
@@ -487,8 +487,8 @@ sf8:	pop	di
 	pop	si
 	mov	ax,offset sysinit_start + ERR_STACK_SIZE + 1
 	and	al,0FEh			; AX = top of the stack (word-aligned)
-	mov	[err_stack].OFF,ax
-	mov	[err_stack].SEG,ds
+	mov	[err_stack]._OFF,ax
+	mov	[err_stack]._SEG,ds
 	ret
 ENDPROC	set_fault
 ;
@@ -788,16 +788,16 @@ DEFPROC	cache_int21,FAR
 	jz	ci1			; no
 	repe	cmpsb			; does previous filename match current?
 	jne	ci1			; no
-	mov	ax,[pCacheData].OFF	; yes, init active cache data
+	mov	ax,[pCacheData]._OFF	; yes, init active cache data
 ci1:	mov	es,cs:[init_data]
 	ASSUME	ES:DOS
-	mov	[pCacheActive].OFF,ax
-	mov	ax,[pCacheData].SEG
-	mov	[pCacheActive].SEG,ax
+	mov	[pCacheActive]._OFF,ax
+	mov	ax,[pCacheData]._SEG
+	mov	[pCacheActive]._SEG,ax
 	mov	ax,[cbCacheData]
 	mov	[cbCacheActive],ax
-	mov	[pCacheFile].OFF,dx	; in any case, remember this filename
-	mov	[pCacheFile].SEG,ds
+	mov	[pCacheFile]._OFF,dx	; in any case, remember this filename
+	mov	[pCacheFile]._SEG,ds
 	pop	es
 	ASSUME	ES:NOTHING
 	pop	di
@@ -808,7 +808,7 @@ ci1:	mov	es,cs:[init_data]
 
 ci2:	cmp	ah,DOS_HDL_SEEK
 	jne	ci4
-	cmp	[pCacheActive].OFF,0	; is the cached file open?
+	cmp	[pCacheActive]._OFF,0	; is the cached file open?
 	je	ci9			; no
 ;
 ; Only SEEK_BEG and SEEK_END are supported (with offsets in DX), since those
@@ -824,9 +824,9 @@ ci2:	cmp	ah,DOS_HDL_SEEK
 	sbb	ax,ax
 	and	ax,[cbCacheData]
 	add	bx,ax			; BX = new position
-	mov	ax,[pCacheData].OFF
+	mov	ax,[pCacheData]._OFF
 	add	ax,bx
-	mov	[pCacheActive].OFF,ax
+	mov	[pCacheActive]._OFF,ax
 	mov	ax,[cbCacheData]
 	sub	ax,bx
 	mov	[cbCacheActive],ax
@@ -861,7 +861,7 @@ ci3:	mov	cx,ax
 	mov	es,cs:[init_data]
 	ASSUME	ES:DOS
 	sub	[cbCacheActive],ax
-	add	[pCacheActive].OFF,ax
+	add	[pCacheActive]._OFF,ax
 	ASSERT	NC
 	ASSUME	ES:NOTHING
 ci8:	pop	es
@@ -904,7 +904,7 @@ ENDPROC	cache_int21
 	push	bx
 	push	cx
 	push	dx
-	mov	bx,[pCacheData].SEG
+	mov	bx,[pCacheData]._SEG
 	test	bx,bx			; is there one yet?
 	jz	cf8			; no
 	sub	cx,cx			; CX = 0 (one selector)
@@ -932,8 +932,8 @@ cf9:	ret
 ;
 DEFPROC	init_free
 	push	ax
-	mov	cx,cs:[init_addr].LOW
-	mov	dx,cs:[init_addr].HIW
+	mov	cx,cs:[init_addr].LW
+	mov	dx,cs:[init_addr].HW
 	mov	ah,CPU_FREE
 	call	far ptr DDINT_CPU
 	ASSERT	NC
@@ -944,10 +944,10 @@ DEFPROC	init_free
 	sub	ax,cs:[init_base]	; AX = bytes to give back
 	add	ss:[init_base],ax
 	sub	ss:[init_len],ax
-	add	ss:[init_addr].LOW,ax
-	adc	ss:[init_addr].HIW,0
-	mov	cx,ss:[init_addr].LOW
-	mov	dx,ss:[init_addr].HIW
+	add	ss:[init_addr].LW,ax
+	adc	ss:[init_addr].HW,0
+	mov	cx,ss:[init_addr].LW
+	mov	dx,ss:[init_addr].HW
 	sub	si,si
 	mov	di,ss:[init_len]	; SI:DI = length
 	mov	bx,MCBOWNER_SYSTEM

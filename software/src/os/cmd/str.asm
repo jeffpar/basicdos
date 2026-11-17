@@ -263,8 +263,8 @@ cb6:	mov	bl,es:[si+STR_HDR]
 	push	si
 	lea	ax,[di+STR_HDR]
 	lds	si,es:[di+1]		; DS:SI -> owner
-	mov	[si].OFF,ax		; update the owner
-	mov	[si].SEG,es
+	mov	[si]._OFF,ax		; update the owner
+	mov	[si]._SEG,es
 	pop	si
 	pop	ds
 	add	di,bx
@@ -470,13 +470,13 @@ DEFPROC	setStr,FAR
 	lds	si,[pTargetVar]		; DS:SI -> variable
 	les	di,[si]			; ES:DI = current value
 	mov	ax,es
-	cmp	di,[pSource].OFF	; is the variable being set to itself?
+	cmp	di,[pSource]._OFF	; is the variable being set to itself?
 	jne	ss1			; no
-	cmp	ax,[pSource].SEG
+	cmp	ax,[pSource]._SEG
 	je	ss9			; yes, nothing to do
 ss1:	sub	ax,ax
-	mov	[si].OFF,ax		; set the variable to empty
-	mov	[si].SEG,ax
+	mov	[si]._OFF,ax		; set the variable to empty
+	mov	[si]._SEG,ax
 	test	di,di			; did it have a value?
 	jz	ss2			; no
 	cmp	es:[BLK_SIG],SIG_SBLK
@@ -497,13 +497,13 @@ ss2:	les	di,[pSource]
 	rep	movsb			; and the characters
 	pop	di
 ss3:	mov	byte ptr es:[di-STR_HDR],STR_OWNED
-	mov	ax,[pTargetVar].OFF
+	mov	ax,[pTargetVar]._OFF
 	mov	es:[di-STR_HDR+1],ax
-	mov	ax,[pTargetVar].SEG
+	mov	ax,[pTargetVar]._SEG
 	mov	es:[di-STR_HDR+3],ax
 	lds	si,[pTargetVar]
-	mov	[si].OFF,di
-	mov	[si].SEG,es
+	mov	[si]._OFF,di
+	mov	[si]._SEG,es
 ss9:	pop	ds
 	LEAVE
 	RETURN
@@ -538,8 +538,8 @@ DEFPROC	evalAddStr,FAR
 	jz	ea0			; yes, so the result is A
 	test	di,di			; is A empty?
 	jnz	ea1			; no
-	mov	[pA].OFF,si		; yes, so the result is B
-	mov	[pA].SEG,ds
+	mov	[pA]._OFF,si		; yes, so the result is B
+	mov	[pA]._SEG,ds
 ea0:	jmp	ea9
 ea1:	mov	al,es:[di]
 	mov	ah,0
@@ -590,8 +590,8 @@ ea3:	xchg	cx,ax			; CX = length of A + B
 	push	di
 	les	di,[pA]
 	call	releaseStr
-	pop	[pA].OFF		; the result is the new string
-	pop	[pA].SEG
+	pop	[pA]._OFF		; the result is the new string
+	pop	[pA]._SEG
 ea8:	les	di,[pB]
 	call	releaseStr
 ea9:	pop	ds
@@ -680,8 +680,8 @@ evalX:	les	di,[pStrA]
 	les	di,[pStrB]
 	call	releaseStr
 	cwd
-	mov	[pStrA].LOW,ax
-	mov	[pStrA].HIW,dx
+	mov	[pStrA].LW,ax
+	mov	[pStrA].HW,dx
 	pop	ds
 	LEAVE
 	ret	4

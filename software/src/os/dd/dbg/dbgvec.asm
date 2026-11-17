@@ -749,8 +749,8 @@ ls5:	and	si,NOT 7
 	mov	cx,4
 	mov	ax,(CPU_RWMEM SHL 8) OR ADDR_LDT
 	call	cpu_call
-	mov	cx,[lsBase].LOW
-	mov	dx,[lsBase].HIW
+	mov	cx,[lsBase].LW
+	mov	dx,[lsBase].HW
 	mov	dh,0			; DX:CX = its address
 ls6:	jc	ls7			; (we can't tell)
 	mov	bx,-1			; BX = -1 (the block at DX:CX)

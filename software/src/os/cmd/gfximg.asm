@@ -379,7 +379,7 @@ ENDPROC	opAnd
 ;	AX, DI, DS
 ;
 DEFPROC	getArray
-	mov	ax,[di].SEG		; AX = array block, if any
+	mov	ax,[di]._SEG		; AX = array block, if any
 	test	ax,ax
 	jz	ga9
 	mov	ds,ax

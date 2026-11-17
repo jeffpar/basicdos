@@ -263,8 +263,8 @@ dr1a:
 	jne	dr1b
 	mov	ax,(DOS_MSC_GETVEC SHL 8) OR 13h
 	int	21h
-	mov	[old_disk].OFF,bx
-	mov	[old_disk].SEG,es
+	mov	[old_disk]._OFF,bx
+	mov	[old_disk]._SEG,es
 	push	ds
 	pop	es
 	mov	dx,offset disk_handler
@@ -419,8 +419,8 @@ vw1:	stosw
 	mov	[rwhandle],ax
 	mov	ax,(DOS_MSC_GETVEC SHL 8) OR 13h
 	int	21h
-	mov	[old_disk].OFF,bx
-	mov	[old_disk].SEG,es
+	mov	[old_disk]._OFF,bx
+	mov	[old_disk]._SEG,es
 	mov	dx,offset disk_handler
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 13h
 	int	21h
@@ -961,8 +961,8 @@ dh0:
 	jmp	short dh8
 dh1:
 	dec	[rwfaults]
-	mov	[faultaddr].OFF,bx
-	mov	[faultaddr].SEG,es
+	mov	[faultaddr]._OFF,bx
+	mov	[faultaddr]._SEG,es
 	mov	[faultcx],cx
 	mov	[faultdx],dx
 	pop	ds
@@ -988,8 +988,8 @@ DEFPROC	handler,far
 	mov	ds,cs:[data_seg]
 	mov	[regAX],ax
 	mov	[regDI],di
-	mov	[regDDH].OFF,si
-	mov	[regDDH].SEG,bp
+	mov	[regDDH]._OFF,si
+	mov	[regDDH]._SEG,bp
 	mov	[regSS],ss
 	inc	[count]
 	push	si

@@ -970,8 +970,8 @@ DEFPROC	utl_parsesw,DOS
 	push	di
 	mov	di,PSP_DIGITS
 	stosw				; zero PSP_DIGITS
-	stosw				; zero PSP_LETTERS.LOW
-	stosw				; zero PSP_LETTERS.HIW
+	stosw				; zero PSP_LETTERS.LW
+	stosw				; zero PSP_LETTERS.HW
 	xchg	bx,ax			; BX = 0
 	mov	dx,[bp].REG_DX		; DL = token index
 	mov	bl,dl			; BX = token index

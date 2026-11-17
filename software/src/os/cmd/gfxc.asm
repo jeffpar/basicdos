@@ -85,8 +85,8 @@ DEFPROC	gfxCircle,FAR
 	jz	ci0
 	mov	ax,107			; or 5/12 * 256 (640x200)
 ci0:	mov	[ciAsp],ax
-	mov	ax,[ciColor].LOW
-	mov	dx,[ciColor].HIW
+	mov	ax,[ciColor].LW
+	mov	dx,[ciColor].HW
 	call	getColor		; BL = color
 	lea	si,[ciX]
 	call	getPoint

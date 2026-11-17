@@ -10,6 +10,12 @@ BASIC-DOS build process is now run entirely on BASIC-DOS.  You can do the
 same on a BASIC-DOS hard disk with the BASIC-DOS sources in C:\SRC; just run
 the MK.BAT file in that directory.
 
+Either way, building BASIC-DOS (MKDOS.BAT on MS-DOS, MK.BAT on BASIC-DOS) runs
+only MAKE, MASM5, LINK, LINK4 (for TESTS\BIN\PRIMES.EXE), EXE2BIN, EXEMOD (for
+MSBASIC.EXE), and MAPSYM, all from this collection: on BASIC-DOS, MK finds
+their BASIC-DOS versions in TOOLS\BD, and on MS-DOS, the build disk's
+AUTOEXEC.BAT puts the originals (D:\TOOLS\DOS) first in the PATH.
+
 Over time, this collection has expanded to include some tools some needed to
 build protected-mode binaries, first in assembly (using Microsoft MASM 4.00)
 and later in C (using Microsoft C 4.00).
@@ -31,11 +37,11 @@ bytes, 10-16-85), which has been replaced (see the next section):
     README   DOC      7630  10-16-85   Microsoft's release notes
     SYMDEB   EXE     37021  10-16-85   Symbolic Debug Utility 4.00
 
-Building BASIC-DOS requires only EXEMOD, LINK, MAPSYM, and MASM.  The other
-files complete the package, for use with other software: CREF, EXEPACK, and
-LIB are additional development tools, SYMDEB is a debugger (which the BASIC-DOS
-Tests diskette has, too), COUNT.ASM is a sample, and README.DOC has Microsoft's
-notes about the release.
+Building BASIC-DOS uses only EXEMOD, LINK, and MAPSYM from this package (and
+MASM5, below, in place of MASM).  The other files complete the package, for use
+with other software: CREF, EXEPACK, and LIB are additional development tools,
+SYMDEB is a debugger (which the BASIC-DOS Tests diskette has, too), COUNT.ASM
+is a sample, and README.DOC has Microsoft's notes about the release.
 
 Microsoft C Compiler, Version 4.00 (June 27, 1986)
 --------------------------------------------------
@@ -116,13 +122,20 @@ building Windows 386 enhanced mode virtual devices (VxDs):
     LINK386  EXE    123008  01-05-92   Linear-Executable Linker 1.00.058
     MASM5    EXE    111396  01-05-92   Macro Assembler 5.10B
 
-They're for 80386 code: MASM5 assembles .386P sources with 32-bit (USE32)
+Both handle 80386 code: MASM5 assembles .386P sources with 32-bit (USE32)
 segments, and LINK386 links them into a "linear executable" (LE) file, of
 4K pages and 32-bit fixups, as a paging loader needs.  A definitions file
 selects the kind of LE file: EXETYPE OS2 (with NAME) makes a program, and
 EXETYPE DEV386 (with LIBRARY) makes a VxD.  LINK386 is an OS/2 1.x program
 whose DOS stub runs it on DOS, too (it has been tried on MS-DOS 3.20), and
 the default stub of the programs it links says that they can't run on DOS.
+
+The BASIC-DOS makefiles assemble with MASM5 (ASM=MASM5).  Everything still
+assembles with MASM 4.00 (run MAKE with ASM=MASM), to the same binaries except
+for AND, OR, and XOR with small immediates, which only MASM5 encodes in the
+shorter (sign-extended byte) form.  The 80386 instructions in 16-bit code are
+still DB bytes, because once a module uses .386, MASM5 writes 32-bit OMF
+records, which LINK 3.x and LINK4 reject.
 
 BASIC-DOS Versions
 ------------------

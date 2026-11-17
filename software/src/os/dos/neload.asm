@@ -69,8 +69,8 @@ ne9:	mov	sp,bp
 ne1:	cmp	[di].EXE_OFFRELOC,EXE_NEHDR + 4
 	jb	ne8			; there's no NE header
 	mov	si,di			; DS:SI -> NEBUF
-	push	[si+EXE_NEHDR].SEG
-	push	[si+EXE_NEHDR].OFF	; [BP-4] = file offset of NE header
+	push	[si+EXE_NEHDR]._SEG
+	push	[si+EXE_NEHDR]._OFF	; [BP-4] = file offset of NE header
 	mov	ax,[bp-4]
 	mov	dx,[bp-2]
 	mov	cx,size NEHDR
@@ -224,34 +224,34 @@ nl7:	pop	cx
 ; stack (SS:SP, where SP 0 means the top of the segment) must be in a data
 ; segment, with room below SP for the initial REG_FRAME (see load_program).
 ;
-	mov	ax,ds:[NEBUF].NE_START.SEG
+	mov	ax,ds:[NEBUF].NE_START._SEG
 	call	ne_seg			; DS:DI -> CS's segment table entry
 	jc	nl9
 	test	[di].NES_FLAGS,NESF_DATA; is it a code segment?
 	jnz	nl9			; no
 	mov	ax,[di].NES_SIZE
 	lsl	cx,ax			; CX = limit of segment
-	cmp	ds:[NEBUF].NE_START.OFF,cx
+	cmp	ds:[NEBUF].NE_START._OFF,cx
 	ja	nl9			; IP isn't in it (its IRET would fault)
 	call	mem_alias		; AX = its code alias
 	jc	nl9a
-	mov	ds:[PSP_START].SEG,ax
-	mov	ax,ds:[NEBUF].NE_START.OFF
-	mov	ds:[PSP_START].OFF,ax
-	mov	ax,ds:[NEBUF].NE_STACKPTR.SEG
+	mov	ds:[PSP_START]._SEG,ax
+	mov	ax,ds:[NEBUF].NE_START._OFF
+	mov	ds:[PSP_START]._OFF,ax
+	mov	ax,ds:[NEBUF].NE_STACKPTR._SEG
 	call	ne_seg			; DS:DI -> SS's segment table entry
 	jc	nl9
 	test	[di].NES_FLAGS,NESF_DATA; is it a data segment?
 	jz	nl9			; no
 	mov	ax,[di].NES_SIZE
-	mov	ds:[PSP_STACK].SEG,ax
+	mov	ds:[PSP_STACK]._SEG,ax
 	lsl	cx,ax			; CX = limit of segment
-	mov	ax,ds:[NEBUF].NE_STACKPTR.OFF
+	mov	ax,ds:[NEBUF].NE_STACKPTR._OFF
 	test	ax,ax			; SP zero?
 	jnz	nl8			; no
 	mov	ax,cx
 	inc	ax			; AX = top of segment
-nl8:	mov	ds:[PSP_STACK].OFF,ax
+nl8:	mov	ds:[PSP_STACK]._OFF,ax
 	dec	ax			; AX = offset of top byte of stack
 	cmp	ax,cx			; within the segment?
 	ja	nl9			; no

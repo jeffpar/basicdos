@@ -231,14 +231,14 @@ DEFPROC	init_bpb
 	pop	di
 	call	set_geo
 	sub	ax,ax
-	mov	es:[di].BPB_LARGESECS.LOW,ax
-	mov	es:[di].BPB_LARGESECS.HIW,ax
-	mov	es:[di].BPB_DEVICE.OFF,ax
-	mov	es:[di].BPB_DEVICE.SEG,cs
+	mov	es:[di].BPB_LARGESECS.LW,ax
+	mov	es:[di].BPB_LARGESECS.HW,ax
+	mov	es:[di].BPB_DEVICE._OFF,ax
+	mov	es:[di].BPB_DEVICE._SEG,cs
 	mov	ah,TIME_GETTICKS
 	int	INT_TIME		; CX:DX is current tick count
-	mov	es:[di].BPB_TIMESTAMP.OFF,dx
-	mov	es:[di].BPB_TIMESTAMP.SEG,cx
+	mov	es:[di].BPB_TIMESTAMP._OFF,dx
+	mov	es:[di].BPB_TIMESTAMP._SEG,cx
 ;
 ; Make sure we can support the volume (512-byte sectors, 16-bit sector
 ; numbers, and a power-of-two number of sectors per cluster).
@@ -321,10 +321,10 @@ DEFPROC	set_geo
 	mov	es:[di].BPB_DRIVEHEADS,ax
 	mov	ax,cs:[bx].VOL_CYLSECS
 	mov	es:[di].BPB_CYLSECS,ax
-	mov	ax,cs:[bx].VOL_START.LOW
-	mov	es:[di].BPB_HIDDENSECS.LOW,ax
-	mov	ax,cs:[bx].VOL_START.HIW
-	mov	es:[di].BPB_HIDDENSECS.HIW,ax
+	mov	ax,cs:[bx].VOL_START.LW
+	mov	es:[di].BPB_HIDDENSECS.LW,ax
+	mov	ax,cs:[bx].VOL_START.HW
+	mov	es:[di].BPB_HIDDENSECS.HW,ax
 	ret
 ENDPROC	set_geo
 
@@ -551,10 +551,10 @@ fv1:	cmp	cs:[bx].VOL_DRIVE,dl	; same disk?
 	jne	fv2			; no
 	push	ax
 	mov	ax,[si+PART_LBA]
-	cmp	cs:[bx].VOL_START.LOW,ax
+	cmp	cs:[bx].VOL_START.LW,ax
 	jne	fv1a
 	mov	ax,[si+PART_LBA+2]
-	cmp	cs:[bx].VOL_START.HIW,ax
+	cmp	cs:[bx].VOL_START.HW,ax
 fv1a:	pop	ax			; (flags are unaffected)
 	je	fv9			; same start, so it's the volume
 fv2:	inc	ax			; next drive letter
@@ -595,8 +595,8 @@ DEFPROC	set_part
 stp0a:	jmp	stp8
 stp0:	cmp	es:[di].DDPRW_LENGTH,64	; a whole partition table?
 	jb	stp0a			; no
-	mov	cx,cs:[bx].VOL_START.LOW
-	or	cx,cs:[bx].VOL_START.HIW; is the unit the whole disk?
+	mov	cx,cs:[bx].VOL_START.LW
+	or	cx,cs:[bx].VOL_START.HW	; is the unit the whole disk?
 	jnz	stp0a			; no
 	push	bx
 	push	di
@@ -649,9 +649,9 @@ stp3:	cmp	byte ptr [si+PART_TYPE],PART_FAT12
 	jmp	short stp7		; (carry is clear)
 stp4:	mov	es,cs:[0].DDH_DATA
 	mov	ax,[si+PART_LBA]
-	mov	es:[bx].VOL_START.LOW,ax
+	mov	es:[bx].VOL_START.LW,ax
 	mov	ax,[si+PART_LBA+2]
-	mov	es:[bx].VOL_START.HIW,ax
+	mov	es:[bx].VOL_START.HW,ax
 stp7:	sub	dx,dx			; (carry is clear)
 	ret
 stp8:	stc
@@ -801,14 +801,14 @@ DEFPROC	ddhdc_init,far
 	mov	es,cs:[0].DDH_DATA
 	ASSUME	ES:CODE			; (ES:BX -> DDPI is on the stack)
 	mov	ax,[si + size DDH].FDCX_RW
-	mov	[fdc_rw].OFF,ax
+	mov	[fdc_rw]._OFF,ax
 	mov	ax,[si + size DDH].FDCX_RDBUF
-	mov	[fdc_rdbuf].OFF,ax
+	mov	[fdc_rdbuf]._OFF,ax
 	mov	ax,[si + size DDH].FDCX_MBR
-	mov	[fdc_mbr].OFF,ax
-	mov	[fdc_rw].SEG,ds
-	mov	[fdc_rdbuf].SEG,ds
-	mov	[fdc_mbr].SEG,ds
+	mov	[fdc_mbr]._OFF,ax
+	mov	[fdc_rw]._SEG,ds
+	mov	[fdc_rdbuf]._SEG,ds
+	mov	[fdc_mbr]._SEG,ds
 hi0:	pop	ds
 	ASSUME	DS:BIOS
 	jz	hi8
@@ -859,7 +859,7 @@ hi8:	pop	bx
 	test	al,al
 	jz	hi9
 	mov	cx,offset ddhdc_init
-hi9:	mov	es:[bx].DDPI_END.OFF,cx
+hi9:	mov	es:[bx].DDPI_END._OFF,cx
 	ret
 ENDPROC	ddhdc_init
 
@@ -935,9 +935,9 @@ av1:	cmp	byte ptr es:[si+PART_TYPE],PART_FAT12
 	jne	av8			; skip other partition types
 av2:	push	ax
 	mov	ax,es:[si+PART_LBA]
-	mov	ds:[di].VOL_START.LOW,ax
+	mov	ds:[di].VOL_START.LW,ax
 	mov	ax,es:[si+PART_LBA+2]
-	mov	ds:[di].VOL_START.HIW,ax
+	mov	ds:[di].VOL_START.HW,ax
 	call	add_vol			; add a volume for the partition
 	pop	ax
 	jc	av9
@@ -951,8 +951,8 @@ av8:	add	si,16
 av7:	cmp	al,ds:[hdc_vols]	; were any volumes added?
 	jne	av9			; yes
 	sub	ax,ax
-	mov	ds:[di].VOL_START.LOW,ax
-	mov	ds:[di].VOL_START.HIW,ax
+	mov	ds:[di].VOL_START.LW,ax
+	mov	ds:[di].VOL_START.HW,ax
 	call	add_vol
 av9:	ret
 ENDPROC	add_vols

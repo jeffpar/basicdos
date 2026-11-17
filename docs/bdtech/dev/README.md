@@ -45,7 +45,7 @@ In BASDEV.COM, each driver's DDH_NEXT_OFF initially contains the driver's length
 	ENDPROC	ddnul_req
 
 	DEFPROC	ddnul_init,far
-		mov	es:[bx].DDPI_END.OFF,offset ddnul_init
+		mov	es:[bx].DDPI_END._OFF,offset ddnul_init
 		mov	ds,cs:[0].DDH_DATA
 		mov	ds:[0].DDH_REQUEST,offset DEV:ddnul_req
 		ret
@@ -333,7 +333,7 @@ CON, AUX, and PRN aren't drivers, but names that DOS gives the active session's 
 
 ### CLOCK$ Timers {#clock-timers}
 
-Drivers that need to do something after a delay (eg, the COM driver, to decide that a held ESC is just an ESC) use CLOCK$ timers instead of hooking the timer interrupt.  CLOCK$ exports a far entry point immediately after its device header (CLKX in dev.inc), and devinit records the CLOCK$ header in CLOCK_DEVICE (0:50Eh), so a driver can find it at any time after initialization (CLOCK_DEVICE.SEG is zero if CLOCK$ isn't loaded).
+Drivers that need to do something after a delay (eg, the COM driver, to decide that a held ESC is just an ESC) use CLOCK$ timers instead of hooking the timer interrupt.  CLOCK$ exports a far entry point immediately after its device header (CLKX in dev.inc), and devinit records the CLOCK$ header in CLOCK_DEVICE (0:50Eh), so a driver can find it at any time after initialization (CLOCK_DEVICE._SEG is zero if CLOCK$ isn't loaded).
 
 CLKX_TIMER takes ES:DI pointing to a TMR structure (owned by the caller, with TMR_FUNC set to a far function) and CX = milliseconds, which are rounded up to whole clock ticks (the first of which may be partial); CX = 0 cancels the timer, and starting a timer that's already running restarts it.  It can be called from interrupt handlers.  When the timer expires, CLOCK$ removes it and calls TMR_FUNC from its timer interrupt handler (after DDINT_ENTER, so it can call DOS_UTL_ENDWAIT), with ES:DI pointing to the TMR and interrupts disabled; the function may modify any registers except SS:SP and BP.
 
@@ -369,7 +369,7 @@ A device can be opened any number of times, unless an open (DOS_HDL_OPEN, INT 21
 
 ### Installable Drivers {#installable-drivers}
 
-Each DEVICE= line in CONFIG.SYS loads a character device driver from a file: a single driver with no relocations, whose DDH is at offset 0, with DDH_NEXT_OFF set to FFFFh and DDATTR_CHAR set.  A dual-mode .COM file can instead put a JMP SHORT (EBh) in DDH_NEXT_OFF, which a program run from the prompt executes first.  DOS reads the entire file into memory (the block is the driver's data segment, or in protected mode, its data selector, in DDH_DATA), then calls DDH_REQUEST, through a code alias of that block from CPU$ (CPU_ALIAS, which in real mode is the same segment), with a DDC_INIT request, where DDPI_BUFPTR points to the ASCIIZ arguments that follow the filename, and DDPI_END is preset to the end of the file.  INIT runs before any sessions exist, so the driver can open files and devices (it gets system file handles, since there's no PSP yet), but if it fails, it must close them and leave no interrupt vectors hooked.  If INIT succeeds, DOS releases any memory beyond DDPI_END.OFF and adds the driver (with its code alias) to the head of the driver list; otherwise, DOS frees the driver and displays a warning with error 31 (general failure), and for any other failure, the warning includes the DOS error (eg, 2 if the file wasn't found, or 11 if it's not a valid driver).
+Each DEVICE= line in CONFIG.SYS loads a character device driver from a file: a single driver with no relocations, whose DDH is at offset 0, with DDH_NEXT_OFF set to FFFFh and DDATTR_CHAR set.  A dual-mode .COM file can instead put a JMP SHORT (EBh) in DDH_NEXT_OFF, which a program run from the prompt executes first.  DOS reads the entire file into memory (the block is the driver's data segment, or in protected mode, its data selector, in DDH_DATA), then calls DDH_REQUEST, through a code alias of that block from CPU$ (CPU_ALIAS, which in real mode is the same segment), with a DDC_INIT request, where DDPI_BUFPTR points to the ASCIIZ arguments that follow the filename, and DDPI_END is preset to the end of the file.  INIT runs before any sessions exist, so the driver can open files and devices (it gets system file handles, since there's no PSP yet), but if it fails, it must close them and leave no interrupt vectors hooked.  If INIT succeeds, DOS releases any memory beyond DDPI_END._OFF and adds the driver (with its code alias) to the head of the driver list; otherwise, DOS frees the driver and displays a warning with error 31 (general failure), and for any other failure, the warning includes the DOS error (eg, 2 if the file wasn't found, or 11 if it's not a valid driver).
 
 DEBUG.COM is a dual-mode example (see [DEBUG.COM](../../bdman/cmd/external/debug/) for its commands).  As a program, its JMP SHORT lands on its input buffer, whose initial contents (unused by the driver) jump to code past DDPI_END, so loading it as a driver costs no extra memory.  DOS names each installed driver's memory block after its device (eg, DEBUG$, with CPU_SETBLK), so DEBUG's DM command shows it by name.
 

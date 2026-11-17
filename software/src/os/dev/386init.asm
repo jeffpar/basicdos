@@ -249,7 +249,7 @@ di3:	mov	ax,[MEMORY_SIZE]
 	ASSUME	DS:NOTHING
 	mov	si,offset DEV:gdt_init
 	mov	di,SYS_GDT + (size DESC)
-	mov	cx,offset DEV:gdt_init_end - offset DEV:gdt_init
+	mov	cx,offset gdt_init_end - offset gdt_init
 	rep	movsb
 ;
 ; Every system area address has the same upper base bits (and the lower bits
@@ -340,8 +340,8 @@ di6:	call	idt_default		; AX = handler, DH = access rights
 	cmp	es:[SYS_VARS].SV_TYPE,CPUTYPE_80386
 	jb	di8			; no paging (see LIN_HI)
 	call	pg_init
-di8:	mov	[CPU_ARENA].OFF,SYS_PMBS
-	mov	[CPU_ARENA].SEG,es	; CPU_ARENA -> the PMB table
+di8:	mov	[CPU_ARENA]._OFF,SYS_PMBS
+	mov	[CPU_ARENA]._SEG,es	; CPU_ARENA -> the PMB table
 	call	cpu_len
 	mov	byte ptr ds:[DDINT_CPU],OP_JMPF
 	mov	word ptr ds:[DDINT_CPU+1],offset DEV:cpu_entry
@@ -349,7 +349,7 @@ di8:	mov	[CPU_ARENA].OFF,SYS_PMBS
 	pop	bx
 	pop	es
 	ASSUME	ES:NOTHING
-	mov	es:[bx].DDPI_END.OFF,ax
+	mov	es:[bx].DDPI_END._OFF,ax
 	ret
 ENDPROC	ddcpu_init
 
@@ -455,8 +455,8 @@ ia0c:	mov	cx,es			; CX = segment of the system area
 	shl	ax,4
 	mov	dx,cx
 	shr	dx,12
-	mov	es:[SYS_VARS].SV_PDIR.LOW,ax
-	mov	es:[SYS_VARS].SV_PDIR.HIW,dx
+	mov	es:[SYS_VARS].SV_PDIR.LW,ax
+	mov	es:[SYS_VARS].SV_PDIR.HW,dx
 ia0:	mov	ax,cx
 	shl	ax,4
 	mov	dx,cx
@@ -529,8 +529,8 @@ ENDPROC	init_arena
 ;
 DEFPROC	pg_init
 	push	es
-	mov	ax,es:[SYS_VARS].SV_PDIR.LOW
-	mov	dx,es:[SYS_VARS].SV_PDIR.HIW
+	mov	ax,es:[SYS_VARS].SV_PDIR.LW
+	mov	dx,es:[SYS_VARS].SV_PDIR.HW
 	mov	cl,es:[SYS_VARS].SV_NPT
 	mov	ch,0
 	mov	bp,cx			; BP = # of page tables
@@ -628,18 +628,18 @@ DEFPROC	pmb_add
 	sub	si,si			; SI:CX = start (0 if first)
 	cmp	di,SYS_PMBS
 	je	pa1
-	mov	cx,es:[di-(size PMB)].PMB_ADDR.LOW
-	mov	si,es:[di-(size PMB)].PMB_ADDR.HIW
-	add	cx,es:[di-(size PMB)].PMB_LEN.LOW
-	adc	si,es:[di-(size PMB)].PMB_LEN.HIW
+	mov	cx,es:[di-(size PMB)].PMB_ADDR.LW
+	mov	si,es:[di-(size PMB)].PMB_ADDR.HW
+	add	cx,es:[di-(size PMB)].PMB_LEN.LW
+	adc	si,es:[di-(size PMB)].PMB_LEN.HW
 pa1:	mov	es:[di].PMB_SIG,PMBSIG_NEXT
 	mov	es:[di].PMB_TYPE,bl
-	mov	es:[di].PMB_ADDR.LOW,cx
-	mov	es:[di].PMB_ADDR.HIW,si
+	mov	es:[di].PMB_ADDR.LW,cx
+	mov	es:[di].PMB_ADDR.HW,si
 	sub	ax,cx
 	sbb	dx,si			; DX:AX = length
-	mov	es:[di].PMB_LEN.LOW,ax
-	mov	es:[di].PMB_LEN.HIW,dx
+	mov	es:[di].PMB_LEN.LW,ax
+	mov	es:[di].PMB_LEN.HW,dx
 	sub	ax,ax
 	mov	es:[di].PMB_SEL,ax
 	mov	es:[di].PMB_NSEL,ax
@@ -797,8 +797,8 @@ DEFPROC	pm_call
 	ASSUME	ES:BIOS
 	mov	[EDGE_CNT],offset pm_resume
 	mov	[CRC_REG],cs
-	lgdt	qword ptr ds:[SYS_VARS].SV_GDTR
-	lidt	qword ptr ds:[SYS_VARS].SV_PIDTR
+	DTREG	lgdt,<ds:[SYS_VARS].SV_GDTR>
+	DTREG	lidt,<ds:[SYS_VARS].SV_PIDTR>
 	smsw	ax
 	or	al,1			; set PE
 	lmsw	ax
@@ -842,7 +842,7 @@ pm_resume:
 	mov	ds,cs:[sys_seg]
 	mov	ss,ds:[SYS_VARS].SV_RMSS
 	mov	sp,ds:[SYS_VARS].SV_RMSP
-	lidt	qword ptr ds:[SYS_VARS].SV_RMIDTR
+	DTREG	lidt,<ds:[SYS_VARS].SV_RMIDTR>
 	mov	al,8Fh			; clear the CMOS shutdown code
 	out	70h,al
 	mov	al,0

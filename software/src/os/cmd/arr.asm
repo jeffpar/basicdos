@@ -33,7 +33,7 @@ CODE    SEGMENT
 ;	AX, CX, DX, DI, ES
 ;
 DEFPROC	listDims
-	mov	ax,es:[di].SEG
+	mov	ax,es:[di]._SEG
 	test	ax,ax
 	jnz	ld0
 	PRINTF	<"() = undimensioned",13,10>
@@ -90,7 +90,7 @@ DEFPROC	dimArray,FAR
 	push	bp
 	mov	bp,sp
 	call	getArrayVar		; ES:DI -> array variable
-	mov	ax,es:[di].SEG
+	mov	ax,es:[di]._SEG
 	test	ax,ax			; already dimensioned?
 	jz	dm1			; no
 	jmp	arrDup
@@ -142,8 +142,8 @@ DEFPROC	getElemVal,FAR
 	push	bp
 	mov	bp,sp
 	call	findElem		; ES:DI -> element
-	mov	ax,es:[di].LOW
-	mov	dx,es:[di].HIW		; DX:AX = result
+	mov	ax,es:[di].LW
+	mov	dx,es:[di].HW		; DX:AX = result
 	DEFLBL	getElem9,near
 	mov	cl,1			; CL = 1 (result in DX:AX)
 	jmp	short arrReturn
@@ -236,8 +236,8 @@ DEFPROC	freeArray
 	push	si
 	push	ds
 	sub	ax,ax
-	mov	[si].OFF,ax
-	xchg	ax,[si].SEG		; AX = array block (and zero it)
+	mov	[si]._OFF,ax
+	xchg	ax,[si]._SEG		; AX = array block (and zero it)
 	test	ax,ax			; was it dimensioned?
 	jz	ea9			; no
 	mov	ds,ax
@@ -394,7 +394,7 @@ ENDPROC	setOptBase
 ;
 DEFPROC	findElem
 	call	getArrayVar		; ES:DI -> array variable
-	mov	ax,es:[di].SEG
+	mov	ax,es:[di]._SEG
 	test	ax,ax			; dimensioned?
 	jnz	fe1			; yes
 	mov	bl,1			; no, so dimension it automatically
@@ -410,8 +410,8 @@ fe1:	mov	es,ax
 	lea	si,[bp+si+ARR_SUBS-4]	; SS:SI -> first subscript
 	mov	bx,ABLK_DATA+2		; ES:BX -> first dimension
 	sub	di,di			; DI = element index
-fe2:	mov	ax,ss:[si].LOW
-	mov	dx,ss:[si].HIW
+fe2:	mov	ax,ss:[si].LW
+	mov	dx,ss:[si].HW
 	sub	ax,es:[ABLK_BASE]
 	sbb	dx,0			; DX:AX = subscript - base
 	jnz	fe9			; out of range (negative or too large)
@@ -464,8 +464,8 @@ DEFPROC	allocArray
 aa1:	mov	dx,AUTO_BOUND + 1
 	test	bh,bh			; automatic?
 	jnz	aa2			; yes
-	mov	dx,ss:[si].LOW
-	cmp	ss:[si].HIW,0		; upper bound in range?
+	mov	dx,ss:[si].LW
+	cmp	ss:[si].HW,0		; upper bound in range?
 	jne	aa9		; no
 	inc	dx			; DX = upper bound + 1
 	jz	aa9
@@ -473,7 +473,7 @@ aa2:	sub	dx,di			; DX = # of elements in dimension
 	jbe	aa9		; must be at least 1
 	test	bh,bh			; automatic?
 	jnz	aa2a			; yes, so preserve the subscript
-	mov	ss:[si].LOW,dx		; no, so save # of elements for later
+	mov	ss:[si].LW,dx		; no, so save # of elements for later
 aa2a:	mul	dx			; DX:AX = new total
 	jc	aa8		; too large
 	sub	si,4
@@ -533,7 +533,7 @@ aa3:	mul	cx
 aa4:	mov	ax,dx
 	test	bh,bh			; automatic?
 	jnz	aa5			; yes
-	mov	ax,ss:[si].LOW
+	mov	ax,ss:[si].LW
 aa5:	stosw				; store # of elements in each dimension
 	sub	si,4
 	loop	aa4
@@ -541,8 +541,8 @@ aa5:	stosw				; store # of elements in each dimension
 	mov	ax,es
 	pop	di
 	pop	es			; ES:DI -> array variable
-	mov	es:[di].OFF,0
-	mov	es:[di].SEG,ax
+	mov	es:[di]._OFF,0
+	mov	es:[di]._SEG,ax
 	ret
 ENDPROC	allocArray
 

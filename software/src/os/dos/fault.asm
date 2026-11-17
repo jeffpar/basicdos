@@ -83,7 +83,7 @@ df0a:	mov	es,ax
 df0b:	pop	bx
 	jnc	df9
 	jmp	short df1
-df0c:	cmp	es:[PSP_START].SEG,ax	; is it the program's code?
+df0c:	cmp	es:[PSP_START]._SEG,ax	; is it the program's code?
 	je	df1			; yes
 ;
 ; It's also the program's own code if it's in a block that the program owns

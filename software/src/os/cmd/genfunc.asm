@@ -53,8 +53,8 @@ DEFPROC	genFuncExpr
 	LOCVAR	fLongs,word
 	ENTER
 	sub	cx,cx			; CX = 0 if no parms supplied
-	mov	[pFuncData].OFF,si
-	mov	[pFuncData].SEG,dx
+	mov	[pFuncData]._OFF,si
+	mov	[pFuncData]._SEG,dx
 ;
 ; Without the FPU$ driver, there are no doubles, but VAL and STR$ can still
 ; convert between strings and longs (see strVal and strStr), and TIMER can
@@ -62,7 +62,7 @@ DEFPROC	genFuncExpr
 ; or parameter is a VAR_LONG instead (see gfeLong).
 ;
 	mov	[fLongs],cx
-	cmp	word ptr ss:[PSP_FPUTBL].SEG,cx
+	cmp	word ptr ss:[PSP_FPUTBL]._SEG,cx
 	jne	gfeA			; FPU$ driver present
 	mov	ax,cs
 	cmp	dx,ax			; predefined function?
@@ -136,7 +136,7 @@ gfe1:	dec	[nFuncParms]		; more parameters?
 gfe1b:	cmp	al,VAR_STR		; string parameter?
 	jne	gfe1c			; no
 	mov	si,cs
-	cmp	[pFuncData].SEG,si	; for a user-defined function?
+	cmp	[pFuncData]._SEG,si	; for a user-defined function?
 	je	gfe1c			; no
 	push	cx
 	push	dx
@@ -215,7 +215,7 @@ gfe10:	LEAVE
 	push	ds
 	lds	si,[pFuncData]
 	lodsw
-	mov	[pFuncData].OFF,si
+	mov	[pFuncData]._OFF,si
 	pop	ds
 	ret
 ;

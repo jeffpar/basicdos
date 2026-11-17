@@ -269,7 +269,7 @@ dcw3:	test	es:[CT_STATUS],CTSTAT_BUSY
 ;
 dcw3a:	pop	es			; ES:DI -> packet again
 	mov	es:[di].DDPRW_LENGTH,cx
-	mov	es:[di].DDPRW_ADDR.OFF,si
+	mov	es:[di].DDPRW_ADDR._OFF,si
 	call	add_packet
 	jc	dcw8			; the wait was interrupted
 	jmp	dcw2			; otherwise, try writing again
@@ -1784,11 +1784,11 @@ DEFPROC	add_packet
 	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	ax,di
-	xchg	[wait_ptr].OFF,ax
-	mov	es:[di].DDP_PTR.OFF,ax
+	xchg	[wait_ptr]._OFF,ax
+	mov	es:[di].DDP_PTR._OFF,ax
 	mov	ax,es
-	xchg	[wait_ptr].SEG,ax
-	mov	es:[di].DDP_PTR.SEG,ax
+	xchg	[wait_ptr]._SEG,ax
+	mov	es:[di].DDP_PTR._SEG,ax
 	pop	ds
 	ASSUME	DS:NOTHING
 ;
@@ -1837,20 +1837,20 @@ DEFPROC	remove_packet
 	mov	cx,es			; CX:DI -> packet to remove
 	pushf
 	cli
-rp1:	mov	ax,[bx].OFF
+rp1:	mov	ax,[bx]._OFF
 	cmp	ax,-1			; end of chain?
 	je	rp8			; yes, packet not found
 	cmp	ax,di
 	jne	rp2
-	cmp	[bx].SEG,cx
+	cmp	[bx]._SEG,cx
 	je	rp3
 rp2:	lds	bx,dword ptr [bx]	; DS:BX -> next packet
 	lea	bx,[bx].DDP_PTR		; DS:BX -> its link
 	jmp	rp1
-rp3:	mov	ax,es:[di].DDP_PTR.OFF	; unlink the packet
-	mov	[bx].OFF,ax
-	mov	ax,es:[di].DDP_PTR.SEG
-	mov	[bx].SEG,ax
+rp3:	mov	ax,es:[di].DDP_PTR._OFF	; unlink the packet
+	mov	[bx]._OFF,ax
+	mov	ax,es:[di].DDP_PTR._SEG
+	mov	[bx]._SEG,ax
 	popf
 	clc
 	jmp	short rp9
@@ -2145,7 +2145,7 @@ pli1:	call	pull_buffer
 	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
 	mov	[bx],al
 	inc	bx
-	mov	es:[di].DDPRW_ADDR.OFF,bx
+	mov	es:[di].DDPRW_ADDR._OFF,bx
 	pop	ds
 	dec	es:[di].DDPRW_LENGTH	; have we satisfied the request yet?
 	jnz	pli1
@@ -2337,8 +2337,8 @@ DEFPROC	esc_timer
 	jz	et9			; no
 	push	es
 	push	es:[bx + size DDH].CLKX_TIMER
-	mov	ds:[CT_TIMER].TMR_FUNC.OFF,offset esc_timeout
-	mov	ds:[CT_TIMER].TMR_FUNC.SEG,cs
+	mov	ds:[CT_TIMER].TMR_FUNC._OFF,offset esc_timeout
+	mov	ds:[CT_TIMER].TMR_FUNC._SEG,cs
 	push	ds
 	pop	es
 	mov	di,offset CT_TIMER	; ES:DI -> timer
@@ -2438,11 +2438,11 @@ wk3:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 ; In any case, proceed with the packet removal now.
 ;
 	cli
-	mov	ax,es:[di].DDP_PTR.OFF
-	mov	dx,es:[di].DDP_PTR.SEG
+	mov	ax,es:[di].DDP_PTR._OFF
+	mov	dx,es:[di].DDP_PTR._SEG
 	mov	es,cx
-	mov	es:[bx].OFF,ax
-	mov	es:[bx].SEG,dx
+	mov	es:[bx]._OFF,ax
+	mov	es:[bx]._SEG,dx
 	sti
 	stc
 	ret
@@ -3128,18 +3128,18 @@ in0:
 	jne	in1			; no
 	mov	ax,ds:[DDH_REQUEST]	; use the temporary ddcom_req offset
 
-in1:	mov	es:[di].DDPI_END.OFF,ax
+in1:	mov	es:[di].DDPI_END._OFF,ax
 	mov	ds:[DDH_REQUEST],offset DEV:ddcom_req
 
-	mov	[ddcom_cmdp].OFF,offset DEV:ddcom_cmd
-	mov	[ddcom_intp].OFF,offset DEV:ddcom_int
+	mov	[ddcom_cmdp]._OFF,offset DEV:ddcom_cmd
+	mov	[ddcom_intp]._OFF,offset DEV:ddcom_int
 in2:	mov	ax,0			; this MOV will be modified
 	test	ax,ax			; on the first call to contain the CS
 	jnz	in3			; of the first driver (this is the
 	mov	ax,cs			; easiest way to communicate between
 	mov	word ptr ds:[in2+1],ax	; the otherwise insulated drivers)
-in3:	mov	[ddcom_cmdp].SEG,ax
-	mov	[ddcom_intp].SEG,ax
+in3:	mov	[ddcom_cmdp]._SEG,ax
+	mov	[ddcom_intp]._SEG,ax
 ;
 ; Determine the hardware interrupt vector for port DX
 ;

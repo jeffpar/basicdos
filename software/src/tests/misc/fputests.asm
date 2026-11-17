@@ -619,8 +619,8 @@ DEFPROC	getFunc
 	push	es
 	les	si,[fpuTable]
 	mov	ax,es:[si+bx]
-	mov	[funcPtr].OFF,ax
-	mov	[funcPtr].SEG,es
+	mov	[funcPtr]._OFF,ax
+	mov	[funcPtr]._SEG,es
 	pop	es
 	pop	si
 	ret

@@ -57,8 +57,8 @@ DEFPROC	devinit,far
 ; so install a temporary INT_BP handler; sysinit will initialize it properly.
 ;
 	IFDEF	DEBUG
-	mov	word ptr ds:[INT_BP*4].OFF,offset devinit - 2
-	mov	word ptr ds:[INT_BP*4].SEG,cs
+	mov	word ptr ds:[INT_BP*4]._OFF,offset devinit - 2
+	mov	word ptr ds:[INT_BP*4]._SEG,cs
 	ENDIF	; DEBUG
 ;
 ; Perform some preliminary BIOS data initialization; in particular, stubs for
@@ -80,8 +80,8 @@ DEFPROC	devinit,far
 	mov	word ptr ds:[DDINT_GETVEC],ax
 	mov	word ptr ds:[DDINT_SETVEC],ax
 	sub	ax,ax
-	mov	[FDC_DEVICE].SEG,ax	; no FDC driver yet
-	mov	[CLOCK_DEVICE].SEG,ax	; and no CLOCK$ driver yet
+	mov	[FDC_DEVICE]._SEG,ax	; no FDC driver yet
+	mov	[CLOCK_DEVICE]._SEG,ax	; and no CLOCK$ driver yet
 	mov	[FDC_UNITS],al
 	mov	[HDC_UNITS],al		; and no HDC volumes yet
 	mov	[HOT_KEY],al		; and no HOTKEY setting (see sysinit)
@@ -135,14 +135,14 @@ d2:	mov	es:[buf_off],di		; scratch buffer follows CFG_FILE data
 	mov	word ptr [bp].DDP_LEN,size DDP
 	mov	[bp].DDP_CMD,DDC_INIT
 	mov	[bp].DDP_STATUS,0
-	mov	[bp].DDP_PTR.OFF,offset devinit_end
-	mov	[bp].DDP_PTR.SEG,cs	; DDP_PTR -> CFG_FILE data
+	mov	[bp].DDP_PTR._OFF,offset devinit_end
+	mov	[bp].DDP_PTR._SEG,cs	; DDP_PTR -> CFG_FILE data
 
 i1:	cmp	si,di		; reached the end of drivers?
 	jb	i2		; no
 	jmp	i9		; yes
 i2:	call	chk_cpu		; claim our memory once CPU$ is loaded
-	mov	[bp].DDPI_END.OFF,0
+	mov	[bp].DDPI_END._OFF,0
 ;
 ; Memory beyond the end of this code (and our copy of CFG_FILE) is free until
 ; we return, so it serves as a scratch buffer for any driver that needs one
@@ -150,9 +150,9 @@ i2:	call	chk_cpu		; claim our memory once CPU$ is loaded
 ; is where this code begins.
 ;
 	mov	cx,cs:[buf_off]
-	mov	[bp].DDPI_BUFPTR.OFF,cx
+	mov	[bp].DDPI_BUFPTR._OFF,cx
 	push	cs:[dv_data]
-	pop	[bp].DDPI_BUFPTR.SEG
+	pop	[bp].DDPI_BUFPTR._SEG
 ;
 ; A driver that's skipped gets no selectors; any other gets a code selector
 ; and a data selector (or its segment), which fit_sels fits to whatever the
@@ -164,7 +164,7 @@ i2:	call	chk_cpu		; claim our memory once CPU$ is loaded
 	jc	i2s		; yes (and DDPI_END is zero)
 	call	get_sels	; AX = code selector, DX = data selector
 	mov	[si].DDH_DATA,dx	; the driver's data segment/selector
-	mov	[bp].DDPI_END.SEG,dx
+	mov	[bp].DDPI_END._SEG,dx
 i2s:	push	dx		; save the data selector
 	push	ax		; and the code selector (or segment)
 	mov	dx,[si]		; DX = original size of this driver
@@ -193,7 +193,7 @@ i2s:	push	dx		; save the data selector
 	pop	dx
 	pop	ax		; toss DDH_REQUEST address
 
-i2a:	mov	bx,[bp].DDPI_END.OFF
+i2a:	mov	bx,[bp].DDPI_END._OFF
 	add	bx,15
 	and	bx,0FFF0h
 ;
@@ -210,11 +210,11 @@ i2a:	mov	bx,[bp].DDPI_END.OFF
 	mov	es,cs:[dv_data]
 	ASSUME	ES:DEV
 	lea	ax,[si+bx]
-	mov	es:[mv_pkt].MV_DST.LOW,ax
+	mov	es:[mv_pkt].MV_DST.LW,ax
 	add	dx,si
-	mov	es:[mv_pkt].MV_SRC.LOW,dx
+	mov	es:[mv_pkt].MV_SRC.LW,dx
 	sub	di,dx
-	mov	es:[mv_pkt].MV_LEN.LOW,di
+	mov	es:[mv_pkt].MV_LEN.LW,di
 	add	di,ax			; DI = new end of drivers
 	mov	bx,offset mv_pkt	; ES:BX -> MOVEPKT
 	mov	ah,CPU_MOVE
@@ -228,9 +228,9 @@ i2a:	mov	bx,[bp].DDPI_END.OFF
 ;
 	push	si
 	push	di
-	mov	si,cs:[mv_pkt].MV_SRC.LOW
-	mov	di,cs:[mv_pkt].MV_DST.LOW
-	mov	cx,cs:[mv_pkt].MV_LEN.LOW
+	mov	si,cs:[mv_pkt].MV_SRC.LW
+	mov	di,cs:[mv_pkt].MV_DST.LW
+	mov	cx,cs:[mv_pkt].MV_LEN.LW
 	push	ds
 	pop	es
 	rep	movsb			; (moving down, so forward is fine)
@@ -257,10 +257,10 @@ i4:	pop	ax		; recover the driver's code selector
 	test	[si].DDH_ATTR,DDATTR_CHAR
 	jnz	i7
 	push	ax
-	cmp	[FDC_DEVICE].SEG,0	; FDC driver already found?
+	cmp	[FDC_DEVICE]._SEG,0	; FDC driver already found?
 	jne	i5			; yes
-	mov	[FDC_DEVICE].OFF,cx
-	mov	[FDC_DEVICE].SEG,ax
+	mov	[FDC_DEVICE]._OFF,cx
+	mov	[FDC_DEVICE]._SEG,ax
 	mov	al,[bp].DDPI_UNITS
 	mov	[FDC_UNITS],al
 	jmp	short i6
@@ -271,17 +271,17 @@ i6:	pop	ax
 ;
 ; Link the driver into the chain.  I originally chained them in reverse:
 ;
-;	xchg	[DD_LIST].OFF,cx
+;	xchg	[DD_LIST]._OFF,cx
 ;	mov	[si].DDH_NEXT_OFF,cx
-;	xchg	[DD_LIST].SEG,ax
+;	xchg	[DD_LIST]._SEG,ax
 ;	mov	[si].DDH_NEXT_SEG,ax
 ;
 ; because it's simpler, but later decided to keep the list in memory order.
 ;
 i7:	test	[si].DDH_ATTR,DDATTR_CLOCK
 	jz	i7c
-	mov	[CLOCK_DEVICE].OFF,cx	; record the CLOCK$ driver (see CLKX)
-	mov	[CLOCK_DEVICE].SEG,ax
+	mov	[CLOCK_DEVICE]._OFF,cx	; record the CLOCK$ driver (see CLKX)
+	mov	[CLOCK_DEVICE]._SEG,ax
 i7c:	push	di
 	lea	di,[DD_LIST]
 i7a:	cmp	es:[di].DDH_NEXT_OFF,-1
@@ -320,8 +320,8 @@ i9:	add	sp,DDP_MAXSIZE
 	mov	cx,cs:[dv_addr]
 	mov	ah,CPU_FREE
 	call	cpu_blk
-	mov	cx,cs:[dos_pkt].MV_SRC.LOW
-	mov	dx,cs:[dos_pkt].MV_SRC.HIW
+	mov	cx,cs:[dos_pkt].MV_SRC.LW
+	mov	dx,cs:[dos_pkt].MV_SRC.HW
 	mov	ah,CPU_FREE
 	call	cpu_chk
 	pop	di			; DI = length through devinit_end
@@ -335,9 +335,9 @@ i9:	add	sp,DDP_MAXSIZE
 ; MCB lands in the slack that chk_cpu left; sysinit resizes the block before
 ; it needs the memory (see dos_size).
 ;
-	mov	bx,cs:[dos_pkt].MV_LEN.LOW
-	mov	ax,cs:[dos_pkt].MV_SRC.LOW
-	mov	dx,cs:[dos_pkt].MV_SRC.HIW
+	mov	bx,cs:[dos_pkt].MV_LEN.LW
+	mov	ax,cs:[dos_pkt].MV_SRC.LW
+	mov	dx,cs:[dos_pkt].MV_SRC.HW
 	sub	ax,cx
 	sbb	dx,0			; DX:AX = how far DOS_FILE moves
 	jnz	i9a			; too far to overlap
@@ -354,7 +354,7 @@ i9a:	cmp	bx,di			; is the block long enough already?
 	pop	cx			; CX = address of the block again
 i9b:	mov	es,cs:[dv_data]
 	ASSUME	ES:DEV
-	mov	es:[dos_pkt].MV_DST.LOW,cx
+	mov	es:[dos_pkt].MV_DST.LW,cx
 	mov	si,cx
 	push	si			; address of DOS_FILE
 	call	get_sels		; AX = code selector, DX = data
@@ -429,12 +429,12 @@ cu1:	push	si
 	jz	cu1b			; no
 	add	di,DV_ROOM		; yes, so the drivers need more room
 cu1b:	mov	cx,es:[dv_addr]
-	mov	es:[mv_pkt].MV_SRC.LOW,cx
+	mov	es:[mv_pkt].MV_SRC.LW,cx
 	lea	cx,[di+16]		; (the 8086 CPU$ puts our MCB at DI)
-	mov	es:[mv_pkt].MV_DST.LOW,cx
+	mov	es:[mv_pkt].MV_DST.LW,cx
 	mov	es:[dv_addr],cx		; (the copy has our new address)
 	mov	cx,es:[buf_off]		; CX = our code and CFG_FILE length
-	mov	es:[mv_pkt].MV_LEN.LOW,cx
+	mov	es:[mv_pkt].MV_LEN.LW,cx
 	mov	bx,offset mv_pkt	; ES:BX -> MOVEPKT
 	mov	ah,CPU_MOVE
 	call	cpu_chk
@@ -448,7 +448,7 @@ cu1b:	mov	cx,es:[dv_addr]
 cu1a:	push	cs
 	pop	es
 	mov	es:[dv_data],cs		; (protected mode replaces these two)
-	mov	[bp].DDP_PTR.SEG,cs
+	mov	[bp].DDP_PTR._SEG,cs
 	mov	cx,si
 	sub	di,si			; DI = length of the drivers left
 	call	claim
@@ -482,8 +482,8 @@ cu1a:	push	cs
 	mov	bx,MCBOWNER_SYSTEM
 	mov	ax,(CPU_ALLOC SHL 8) OR MEMF_LOW OR MEMF_HIGH
 	call	cpu_chk			; AX = segment, DX:CX = address
-	mov	es:[dos_pkt].MV_SRC.LOW,cx
-	mov	es:[dos_pkt].MV_SRC.HIW,dx
+	mov	es:[dos_pkt].MV_SRC.LW,cx
+	mov	es:[dos_pkt].MV_SRC.HW,dx
 	pop	si
 	pop	bx
 	mov	es,ax
@@ -502,7 +502,7 @@ cu1a:	push	cs
 	pop	es
 	ASSUME	ES:DEV
 	mov	es:[dos_end],dx
-	mov	es:[dos_pkt].MV_LEN.LOW,di
+	mov	es:[dos_pkt].MV_LEN.LW,di
 	pop	bp
 	pop	ax			; AH = CPUF_* flags
 	test	ah,CPUF_PMOK		; is protected mode available?
@@ -520,7 +520,7 @@ cu1a:	push	cs
 	mov	es,ax
 	ASSUME	ES:DEV
 	mov	es:[dv_data],ax
-	mov	[bp].DDP_PTR.SEG,ax	; DDP_PTR -> CFG_FILE data
+	mov	[bp].DDP_PTR._SEG,ax	; DDP_PTR -> CFG_FILE data
 ;
 ; The only driver initialized so far is CPU$ (see get_sels), so we relink it.
 ;
@@ -534,7 +534,7 @@ cu5:	mov	si,offset BIOS_END + BIOS_DATA
 	mov	dx,BIOS
 	mov	es,dx
 	ASSUME	ES:BIOS
-	mov	es:[DD_LIST].SEG,ax
+	mov	es:[DD_LIST]._SEG,ax
 	pop	di
 	pop	si
 	ret

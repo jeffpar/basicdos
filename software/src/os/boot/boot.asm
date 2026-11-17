@@ -89,8 +89,8 @@ CFG_FILE	db	"CONFIG  SYS",-1
 ;
 DEFPROC	get_chs
 	sub	dx,dx
-	add	ax,[si].BPB_HIDDENSECS.LOW
-	adc	dx,[si].BPB_HIDDENSECS.HIW ; DX:AX is LBA
+	add	ax,[si].BPB_HIDDENSECS.LW
+	adc	dx,[si].BPB_HIDDENSECS.HW ; DX:AX is LBA
 	div	[si].BPB_CYLSECS; AX = cylinder, DX = remaining sectors
 	xchg	al,ah		; AH = cylinder, AL = cylinder bits 8-9
 	ror	al,1		; future-proofing: saving cylinder bits 8-9
@@ -500,7 +500,7 @@ i2:	jmp	load_error
 ;
 ; Jump to the DEV_FILE entry point, with DI -> end of drivers.
 ;
-i3:	mov	ds:[DD_LIST+BIOS_DATA].OFF,ax
+i3:	mov	ds:[DD_LIST+BIOS_DATA]._OFF,ax
 				; initialize driver list head (to -1)
 	mov	ax,di
 	mov	bx,offset read_file

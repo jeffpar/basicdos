@@ -52,8 +52,8 @@ DEFPROC	bd_init
 	inc	[bd_hook]	; no, so remember to restore INT_DOSUTIL
 	mov	ax,(DOS_MSC_GETVEC SHL 8) + INT_DOSUTIL
 	int	21h
-	mov	[bd_vec].low,bx
-	mov	[bd_vec].hiw,es
+	mov	[bd_vec].LW,bx
+	mov	[bd_vec].HW,es
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSUTIL
 	mov	dx,offset bd_util
 	int	21h
@@ -372,8 +372,8 @@ ENDPROC	utl_printf
 	DEFBYTE	SEP,<"September",0>
 	DEFBYTE	OCT,<"October",0>
 	DEFBYTE	NOV,<"November",0>
-	DEFBYTE	DEC,<"December",0>
-	DEFWORD	MONTHS,<JAN,FEB,MAR,APR,MAY,JUN,JUL,AUG,SEP,OCT,NOV,DEC>
+	DEFBYTE	DEC_,<"December",0>
+	DEFWORD	MONTHS,<JAN,FEB,MAR,APR,MAY,JUN,JUL,AUG,SEP,OCT,NOV,DEC_>
 	DEFBYTE	SUN,<"Sunday",0>
 	DEFBYTE	MON,<"Monday",0>
 	DEFBYTE	TUE,<"Tuesday",0>

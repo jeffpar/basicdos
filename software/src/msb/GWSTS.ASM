@@ -2269,7 +2269,7 @@ TIMEF:
 	CALL	PUTCHR		;Store ascii seconds.
 	JMP	PUTNEW		;Put result and ret (Txt ptr on stack).
 
-	EXTRN	FMULT:NEAR,CONIA:NEAR,FRCSNG:NEAR,FADD:NEAR,PUSHF:NEAR
+	EXTRN	FMULT:NEAR,CONIA:NEAR,FRCSNG:NEAR,FADD_:NEAR,PUSHF_:NEAR
 	EXTRN	$FDIVS:NEAR,$FLT:NEAR,$NORMS:NEAR
 
 ;X=TIMER returns the number of seconds since midnight, to .01 second
@@ -2297,7 +2297,7 @@ TIMERF:
 				;([AH]=0: no overflow byte)
 	MOV	WORD PTR FAC,152D	;exponent of a 24-bit integer, sign +
 	CALL	$NORMS		;[FAC]=hundredths since midnight
-	CALL	PUSHF
+	CALL	PUSHF_
 	MOV	DX,100D
 	CALL	$FLT		;[FAC]=100
 	POP	BX

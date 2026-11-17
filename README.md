@@ -302,7 +302,7 @@ The poster child for BASIC samples support is [DONKEY.BAS](https://www.pcjs.org/
 
 ### Build, Tests, and Documentation
 
-- [x] Builds with MASM 4.0 using `mkdos.sh` (PC.js and MS-DOS 3.20), which builds the binaries that package.json's `config.release` property selects by default (`final` for release binaries, or `debug` for DEBUG binaries, with run-time assertions; `mkdos.sh final` or `mkdos.sh debug` overrides it), using its `version` property's major and minor numbers as the BASIC-DOS version, and also updates the BASIC-DOS demo disks after a successful build
+- [x] Builds with MASM 5.10B using `mkdos.sh` (PC.js and MS-DOS 3.20; everything still assembles with MASM 4.0, with `MAKE ASM=MASM`), which builds the binaries that package.json's `config.release` property selects by default (`final` for release binaries, or `debug` for DEBUG binaries, with run-time assertions; `mkdos.sh final` or `mkdos.sh debug` overrides it), using its `version` property's major and minor numbers as the BASIC-DOS version, and also updates the BASIC-DOS demo disks after a successful build
 - [x] Builds itself: `mk.sh` runs the same build tools on BASIC-DOS, producing identical binaries
 - [x] DOSTESTS: CALL 5, memory allocation, file create/write/read-back, file sharing, path character, and file rename/delete tests
 - [x] STRFUN and STRPOOL: BASIC string function tests, and string pool stress and leak tests
@@ -370,7 +370,7 @@ A ring 3 program shouldn't be able to corrupt or damage the system, even as DEBU
 
 ## Building BASIC-DOS
 
-Everything needed to build BASIC-DOS is in this repository, including the `pc.js` utility (in `tools/pc`) and the MS-DOS 3.20 disk image with MASM 4.0 and associated tools that the build runs on.  Just clone the repository and install its Node.js dependencies:
+Everything needed to build BASIC-DOS is in this repository, including the `pc.js` utility (in `tools/pc`), the MS-DOS 3.20 disk image that the build runs on, and the build tools (MASM 5.10B, LINK 3.05, MAKE 4.02, etc, in `software/src/tools`).  Just clone the repository and install its Node.js dependencies:
 
     git clone https://github.com/jeffpar/basicdos
     cd basicdos

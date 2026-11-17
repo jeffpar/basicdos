@@ -516,13 +516,13 @@ DEFPROC	doSound,FAR
 	ARGVAR	sndFreq,dword
 	ARGVAR	sndTicks,dword
 	ENTER
-	cmp	[sndTicks].HIW,0
+	cmp	[sndTicks].HW,0
 	jne	dsX
-	mov	cx,[sndTicks].LOW	; CX = duration
+	mov	cx,[sndTicks].LW	; CX = duration
 	sub	dx,dx			; DX = 0 (turn the sound off)
 	jcxz	ds8
-	mov	bx,[sndFreq].LOW
-	cmp	[sndFreq].HIW,0
+	mov	bx,[sndFreq].LW
+	cmp	[sndFreq].HW,0
 	jne	dsX
 	cmp	bx,37
 	jb	dsX

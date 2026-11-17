@@ -83,6 +83,6 @@ MAX_PAGES	equ	8	; pages per adapter (see CURSOR_POSN)
 ;
 ; CRT Controller Registers
 ;
-CRTC_CURTOP	equ	0Ah	; cursor top (mirrored at CURSOR_MODE.HIB)
+CRTC_CURTOP	equ	0Ah	; cursor top (mirrored at CURSOR_MODE.HB)
 CRTC_STARTHI	equ	0Ch	; display start address (high)
 CRTC_CURHI	equ	0Eh	; cursor start address (high)

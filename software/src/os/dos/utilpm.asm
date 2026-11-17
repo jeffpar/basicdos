@@ -448,8 +448,8 @@ DEFPROC	r3_sfhok,DOS
 	mov	dl,al			; DL = SFH
 	mov	ah,size SFB
 	mul	ah
-	add	ax,cs:[sfb_table].OFF
-	cmp	ax,cs:[sfb_table].SEG	; is it an SFB?
+	add	ax,cs:[sfb_table]._OFF
+	cmp	ax,cs:[sfb_table]._SEG	; is it an SFB?
 	jae	so8			; no
 	mov	bx,cs:[scb_active]
 	lea	si,[bx].SCB_SFHIN
@@ -551,7 +551,7 @@ DEFPROC	r3_sfbfree,DOS
 	pusha
 	push	es
 	xchg	ax,bx
-	sub	ax,cs:[sfb_table].OFF
+	sub	ax,cs:[sfb_table]._OFF
 	mov	cl,size SFB
 	div	cl			; AL = its SFH
 	mov	ah,0

@@ -91,8 +91,8 @@ din0a:	test	al,al			; end of the arguments?
 	mov	ax,ds
 	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
-	mov	[sw_ptr].OFF,si
-	mov	[sw_ptr].SEG,ax
+	mov	[sw_ptr]._OFF,si
+	mov	[sw_ptr]._SEG,ax
 	push	ax
 	push	bx
 	mov	bx,offset gl1
@@ -151,8 +151,8 @@ din1:	push	dx
 	mov	dx,cs
 	cli
 	call	far ptr DDINT_SETVEC	; DX:CX = previous vector
-	mov	[old_com].OFF,cx
-	mov	[old_com].SEG,dx
+	mov	[old_com]._OFF,cx
+	mov	[old_com]._SEG,dx
 	pop	dx
 	inc	dx			; DX -> REG_IER (DLAB is clear)
 	mov	al,IER_RBR_AVAIL OR IER_DELTA
@@ -163,12 +163,12 @@ din1:	push	dx
 	mov	dx,cs			; DX:CX -> dbg_fault
 	mov	ah,CPU_SETFAULT
 	call	cpu_call		; DX:CX = previous handler
-	mov	[old_fault].OFF,cx
-	mov	[old_fault].SEG,dx
+	mov	[old_fault]._OFF,cx
+	mov	[old_fault]._SEG,dx
 	mov	si,offset BANNER
 	call	put_string
-	mov	es:[di].DDPI_END.OFF,offset resident_end
-	mov	es:[di].DDPI_END.SEG,cs
+	mov	es:[di].DDPI_END._OFF,offset resident_end
+	mov	es:[di].DDPI_END._SEG,cs
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 din7:	nop				; (switches change this to INT 3)
 ;
@@ -222,8 +222,8 @@ sg2:	test	al,al			; end of the switches?
 	cmp	[sw_last],CHR_RETURN	; at the start of a line?
 	jne	sg4			; no, so end it
 	inc	[sw_halt]		; (so the G's end restores get_char)
-	mov	[sw_ptr].OFF,offset G_CMD
-	mov	[sw_ptr].SEG,cs
+	mov	[sw_ptr]._OFF,offset G_CMD
+	mov	[sw_ptr]._SEG,cs
 	jmp	sg1
 sg3:	push	bx
 	mov	bx,offset gl1
@@ -237,7 +237,7 @@ sg3:	push	bx
 	jmp	get_char
 sg4:	mov	al,CHR_RETURN
 sg5:	pop	ds			; DS = our data again (see get_line)
-	mov	[sw_ptr].OFF,si
+	mov	[sw_ptr]._OFF,si
 	mov	[sw_last],al
 	pop	si
 	ret
@@ -456,13 +456,13 @@ sw1:	mov	al,01h
 	pop	dx
 	pop	cx
 	ret
-sv1:	mov	cx,[bx].OFF
-	mov	dx,[bx].SEG
+sv1:	mov	cx,[bx]._OFF
+	mov	dx,[bx]._SEG
 	cmp	[com_r3],0		; at ring 3?
 	jne	sv2			; yes
 	call	far ptr DDINT_SETVEC	; DX:CX = previous vector
-sv1a:	mov	[bx].OFF,cx
-	mov	[bx].SEG,dx
+sv1a:	mov	[bx]._OFF,cx
+	mov	[bx]._SEG,dx
 	add	bx,4
 	ret
 sv2:	push	es
@@ -637,9 +637,9 @@ cm4:	mov	byte ptr [di],0
 	sub	al,cl			; AL = its length (tail length - name)
 	dec	si
 	mov	es:[si],al		; stored just before it
-	mov	[epb_tail].OFF,si
-	mov	[epb_tail].SEG,es
-	mov	[epb_fcb1].OFF,-1	; let DOS build the FCBs from the tail
+	mov	[epb_tail]._OFF,si
+	mov	[epb_tail]._SEG,es
+	mov	[epb_fcb1]._OFF,-1	; let DOS build the FCBs from the tail
 	call	hook_vecs
 	push	ds
 	pop	es
@@ -661,12 +661,12 @@ cm4c:	mov	[com_runs],2
 	cmp	[com_r3],0		; at ring 3 (where we can't CLI)?
 	jne	cm4t			; yes (and interrupts land on SP0)
 	cli
-cm4t:	mov	ss,[epb_sp].SEG		; (MOV SS holds interrupts for MOV SP)
-	mov	sp,[epb_sp].OFF
+cm4t:	mov	ss,[epb_sp]._SEG	; (MOV SS holds interrupts for MOV SP)
+	mov	sp,[epb_sp]._OFF
 	pop	ax			; AX = the program's initial AX
 	push	cx
-	push	[epb_ip].SEG
-	push	[epb_ip].OFF		; its CS:IP (as if interrupted there)
+	push	[epb_ip]._SEG
+	push	[epb_ip]._OFF		; its CS:IP (as if interrupted there)
 	mov	ds,bx
 	mov	es,bx			; DS = ES = PSP, and the rest are zero
 	sub	bx,bx
@@ -1208,6 +1208,19 @@ ENDPROC	com_free
 ; Inputs and outputs:
 ;	The same as CPU$'s (but a failure leaves AX unchanged)
 ;
+;
+; DTREG assembles SGDT or SIDT (op) with a 6-byte operand (mem), as it does in
+; 386dev.inc: MASM5 calls that size an FWORD, but MASM 4.00 has no FWORD (.TYPE
+; says it's undefined) and wants a QWORD.
+;
+DTREG	macro	op,mem
+IF .TYPE FWORD
+	op	fword ptr mem
+ELSE
+	op	qword ptr mem
+ENDIF
+	endm
+
 	.286p
 DEFPROC	r3_cpu
 	cmp	ah,CPU_RWMEM
@@ -1312,7 +1325,7 @@ DEFPROC	r3_dos
 	push	bx
 	sub	sp,6
 	mov	si,sp
-	sidt	qword ptr ss:[si]
+	DTREG	sidt,<ss:[si]>
 	pop	ax
 	pop	cx
 	pop	dx
@@ -1346,7 +1359,7 @@ DEFPROC	r3_base
 	jnz	rb8			; yes
 	sub	sp,6
 	mov	si,sp
-	sgdt	qword ptr ss:[si]
+	DTREG	sgdt,<ss:[si]>
 	pop	ax			; AX = the GDT's limit
 	pop	cx
 	pop	dx

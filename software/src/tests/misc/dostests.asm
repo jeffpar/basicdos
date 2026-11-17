@@ -177,9 +177,9 @@ m7:
 	push	ds
 	pop	es		; ES:BX -> EPB
 	mov	bx,offset execparms
-	mov	[bx].EPB_CMDTAIL.SEG,ds
-	mov	[bx].EPB_FCB1.SEG,ds
-	mov	[bx].EPB_FCB2.SEG,ds
+	mov	[bx].EPB_CMDTAIL._SEG,ds
+	mov	[bx].EPB_FCB1._SEG,ds
+	mov	[bx].EPB_FCB2._SEG,ds
 	mov	ax,DOS_PSP_EXEC1
 	mov	dx,offset execfile
 	int	21h		; exec (but don't launch)
@@ -610,11 +610,11 @@ tl0a:	mov	[loadhandle],-1
 	pop	ax
 	mov	cx,es
 	jcxz	tl0c			; (a ring 3 program can't read them)
-	add	ax,es:[bx].DV_SFB_TABLE.OFF
-tl0c:	mov	[loadrefs].OFF,ax
-	mov	[loadrefs].SEG,es
-	mov	[loadspb].SPB_CMDLINE.SEG,ds
-	mov	[loadspb].SPB_CMDLINE.OFF,offset testfile
+	add	ax,es:[bx].DV_SFB_TABLE._OFF
+tl0c:	mov	[loadrefs]._OFF,ax
+	mov	[loadrefs]._SEG,es
+	mov	[loadspb].SPB_CMDLINE._SEG,ds
+	mov	[loadspb].SPB_CMDLINE._OFF,offset testfile
 	mov	bp,32
 tl1:
 	call	load_session
@@ -625,7 +625,7 @@ tl1:
 	jc	tl7
 	dec	bp
 	jnz	tl1
-	mov	[loadspb].SPB_CMDLINE.OFF,offset loadchild
+	mov	[loadspb].SPB_CMDLINE._OFF,offset loadchild
 	call	load_session
 	jc	tl7
 	DOSUTIL	START
@@ -713,9 +713,9 @@ rv6:	pushf
 rv0:	mov	ah,DOS_HDL_CLOSE
 	int	21h
 	jc	rv8
-	mov	[execparms].EPB_CMDTAIL.SEG,ds
-	mov	[execparms].EPB_FCB1.SEG,ds
-	mov	[execparms].EPB_FCB2.SEG,ds
+	mov	[execparms].EPB_CMDTAIL._SEG,ds
+	mov	[execparms].EPB_FCB1._SEG,ds
+	mov	[execparms].EPB_FCB2._SEG,ds
 	mov	ax,cs
 	mov	bx,ds
 	cmp	ax,bx			; real mode (where CS = DS)?

@@ -453,8 +453,8 @@ lp2b:	mov	cx,word ptr [VARS + V_HDR + 8]
 	shl	cx,4			; (a header has less than 4K paras)
 	sub	ax,cx
 	sbb	dx,0			; DX:AX = the image's length
-	mov	[ld_size].LOW,ax
-	mov	[ld_size].HIW,dx
+	mov	[ld_size].LW,ax
+	mov	[ld_size].HW,dx
 	add	ax,15
 	adc	dx,0
 	mov	cx,4
@@ -496,17 +496,17 @@ lp3:	mov	ax,[ld_psp]
 	jc	lpe2
 	mov	ax,[ld_base]
 lp3a:	mov	cx,8000h
-	cmp	[ld_size].HIW,0
+	cmp	[ld_size].HW,0
 	jne	lp3b
-	cmp	[ld_size].LOW,cx
+	cmp	[ld_size].LW,cx
 	jae	lp3b
-	mov	cx,[ld_size].LOW
+	mov	cx,[ld_size].LW
 	jcxz	lp4			; all of it
 lp3b:	sub	di,di
 	call	ld_read
 	jc	lpe2
-	sub	[ld_size].LOW,cx
-	sbb	[ld_size].HIW,0
+	sub	[ld_size].LW,cx
+	sbb	[ld_size].HW,0
 	add	ax,800h			; (the next 32K)
 	jmp	lp3a
 lpe2:	jmp	lp_errf
@@ -575,18 +575,18 @@ lp_com:	mov	ax,DOS_HDL_SEEKEND
 	jnz	lpc7
 	cmp	ax,COM_MAX
 	ja	lpc7
-	mov	[ld_size].LOW,ax
+	mov	[ld_size].LW,ax
 	mov	ax,DOS_HDL_SEEKBEG
 	sub	dx,dx
 	int	21h
 	jc	lpc8
-	mov	ax,[ld_size].LOW
+	mov	ax,[ld_size].LW
 	add	ax,100h + MINHEAP + 15
 	rcr	ax,1
 	shr	ax,3			; AX = the paragraphs it needs
 	call	ld_alloc		; AX = PSP, BX = paragraphs
 	jc	lpc8
-	mov	cx,[ld_size].LOW
+	mov	cx,[ld_size].LW
 	mov	di,100h
 	jcxz	lc1
 	cmp	cx,8000h
@@ -594,7 +594,7 @@ lp_com:	mov	ax,DOS_HDL_SEEKEND
 	mov	cx,8000h
 	call	ld_read
 	jc	lpc9
-	mov	cx,[ld_size].LOW
+	mov	cx,[ld_size].LW
 	sub	cx,8000h
 	add	di,8000h
 lc0:	call	ld_read
@@ -606,7 +606,7 @@ lpc8:	jmp	lp_err
 ; As BASIC-DOS does (see load_program), give it COMDATA's heap (at least
 ; MINHEAP) after its image, unless the heap is in the image.
 ;
-lc1:	mov	si,[ld_size].LOW
+lc1:	mov	si,[ld_size].LW
 	add	si,100h			; SI = the end of its image
 	mov	dx,MINHEAP SHR 4	; DX = paragraphs for its heap
 	mov	ax,[ld_psp]
@@ -848,13 +848,13 @@ DEFPROC	psp_build
 	mov	word ptr es:[di].PSP_DOSCALL,21CDh	; INT 21h
 	mov	es:[di].PSP_DOSCALL+2,0CBh		; RETF
 	mov	es:[di].PSP_HDLFREE,PFT_LEN
-	mov	es:[di].PSP_HDLPTR.OFF,PSP_PFT
+	mov	es:[di].PSP_HDLPTR._OFF,PSP_PFT
 	mov	ax,[ld_psp]
-	mov	es:[di].PSP_HDLPTR.SEG,ax
-	mov	ax,[dta].OFF
-	mov	es:[di].PSP_DTAPREV.OFF,ax
-	mov	ax,[dta].SEG
-	mov	es:[di].PSP_DTAPREV.SEG,ax
+	mov	es:[di].PSP_HDLPTR._SEG,ax
+	mov	ax,[dta]._OFF
+	mov	es:[di].PSP_DTAPREV._OFF,ax
+	mov	ax,[dta]._SEG
+	mov	es:[di].PSP_DTAPREV._SEG,ax
 	mov	ax,[ld_par]
 	test	ax,ax			; is there a parent?
 	jnz	pb1			; yes
@@ -1026,15 +1026,15 @@ DEFPROC	start_prog
 	mov	ax,[cur_psp]
 	mov	word ptr [VARS+VR_DS],ax
 	mov	word ptr [VARS+VR_ES],ax
-	mov	[dta].SEG,ax
-	mov	[dta].OFF,PSP_DTA
+	mov	[dta]._SEG,ax
+	mov	[dta]._OFF,PSP_DTA
 	DEFLBL	set_dta,near
 ;
 ; Point our DTA at the program's (the machine's [dta]).
 ;
 	push	ds
-	mov	ax,[dta].SEG
-	mov	di,[dta].OFF
+	mov	ax,[dta]._SEG
+	mov	di,[dta]._OFF
 	call	seg_ptr
 	push	es
 	pop	ds

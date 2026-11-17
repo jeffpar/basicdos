@@ -99,10 +99,10 @@ scm1:	mov	es:[bx].SFB_TIME,ax
 	mov	[si].DIR_DATE,dx
 	mov	ax,es:[bx].SFB_CLN
 	mov	[si].DIR_CLN,ax
-	mov	ax,es:[bx].SFB_SIZE.LOW
-	mov	[si].DIR_SIZE.LOW,ax
-	mov	ax,es:[bx].SFB_SIZE.HIW
-	mov	[si].DIR_SIZE.HIW,ax
+	mov	ax,es:[bx].SFB_SIZE.LW
+	mov	[si].DIR_SIZE.LW,ax
+	mov	ax,es:[bx].SFB_SIZE.HW
+	mov	[si].DIR_SIZE.HW,ax
 	or	[si].DIR_ATTR,DIRATTR_ARCHIVE
 	mov	ds:[BUF_DIRTY],1
 	and	es:[bx].SFB_FLAGS,NOT SFBF_DIRTY
@@ -209,16 +209,16 @@ wf1:	jcxz	wf8			; nothing (more) to write
 ; isn't reported until we need a cluster that couldn't be allocated (see wf1).
 ;
 wf2:	push	dx			; save CLN for CURPOS
-	push	[bx].SFB_CURPOS.LOW
-	push	[bx].SFB_CURPOS.HIW
+	push	[bx].SFB_CURPOS.LW
+	push	[bx].SFB_CURPOS.HW
 	mov	ax,cx
 	dec	ax
-	add	[bx].SFB_CURPOS.LOW,ax
-	adc	[bx].SFB_CURPOS.HIW,0
+	add	[bx].SFB_CURPOS.LW,ax
+	adc	[bx].SFB_CURPOS.HW,0
 	mov	[bx].SFB_CURCLN,0
 	call	get_wcln
-	pop	[bx].SFB_CURPOS.HIW
-	pop	[bx].SFB_CURPOS.LOW
+	pop	[bx].SFB_CURPOS.HW
+	pop	[bx].SFB_CURPOS.LW
 	pop	[bx].SFB_CURCLN
 	push	cx			; save byte count
 	mov	ah,DDC_WRITE
@@ -229,20 +229,20 @@ wf2:	push	dx			; save CLN for CURPOS
 ; Time for some bookkeeping: adjust the SFB's CURPOS by DX, and if CURPOS
 ; is now beyond SIZE, then update SIZE as well.
 ;
-	add	[bx].SFB_CURPOS.LOW,dx
-	adc	[bx].SFB_CURPOS.HIW,0
+	add	[bx].SFB_CURPOS.LW,dx
+	adc	[bx].SFB_CURPOS.HW,0
 	add	[bp].TMP_AX,dx		; update accumulation of bytes written
 	add	[bp].TMP_DX,dx		; update data buffer offset
 	or	[bx].SFB_FLAGS,SFBF_DIRTY
-	mov	ax,[bx].SFB_CURPOS.LOW
-	mov	si,[bx].SFB_CURPOS.HIW
-	cmp	si,[bx].SFB_SIZE.HIW
+	mov	ax,[bx].SFB_CURPOS.LW
+	mov	si,[bx].SFB_CURPOS.HW
+	cmp	si,[bx].SFB_SIZE.HW
 	jb	wf5
 	ja	wf4
-	cmp	ax,[bx].SFB_SIZE.LOW
+	cmp	ax,[bx].SFB_SIZE.LW
 	jbe	wf5
-wf4:	mov	[bx].SFB_SIZE.LOW,ax
-	mov	[bx].SFB_SIZE.HIW,si
+wf4:	mov	[bx].SFB_SIZE.LW,ax
+	mov	[bx].SFB_SIZE.HW,si
 ;
 ; As in sfb_read, if CURPOS is now at a cluster boundary, advance SFB_CURCLN
 ; to the next cluster, or zero it if there is no next cluster (get_wcln will
@@ -281,7 +281,7 @@ DEFPROC	clns_request,DOS
 	push	di
 	push	es
 	push	ax			; save the request
-	mov	dx,[bx].SFB_CURPOS.LOW
+	mov	dx,[bx].SFB_CURPOS.LW
 	mov	ax,[di].BPB_CLUSBYTES
 	dec	ax
 	and	dx,ax			; DX = offset within current cluster
@@ -597,8 +597,8 @@ ad8:	push	cx			; save DIRENT #
 	stosw				; DIR_DATE
 	sub	ax,ax
 	stosw				; DIR_CLN
-	stosw				; DIR_SIZE.LOW
-	stosw				; DIR_SIZE.HIW
+	stosw				; DIR_SIZE.LW
+	stosw				; DIR_SIZE.HW
 	mov	ds:[BUF_DIRTY],1
 	pop	es
 	ASSUME	ES:NOTHING
@@ -838,7 +838,7 @@ rd1:	push	[si].DIR_CLN		; save the directory
 ;
 ; Make sure the directory isn't the current directory of any session.
 ;
-	mov	bx,[scb_table].OFF
+	mov	bx,[scb_table]._OFF
 rd2:	push	bx
 	mov	al,dl			; AL = drive #
 	call	get_cdir		; BX -> session's current directory
@@ -848,7 +848,7 @@ rd2:	push	bx
 	stc
 	je	rd7
 	add	bx,size SCB
-	cmp	bx,[scb_table].SEG
+	cmp	bx,[scb_table]._SEG
 	jb	rd2
 ;
 ; Make sure the directory is empty (except for "." and "..").
@@ -1048,8 +1048,8 @@ sc3:	call	chk_dirent		; can the file be truncated?
 	mov	[si].DIR_TIME,ax
 	mov	[si].DIR_DATE,dx
 	sub	bx,bx
-	mov	[si].DIR_SIZE.LOW,bx
-	mov	[si].DIR_SIZE.HIW,bx
+	mov	[si].DIR_SIZE.LW,bx
+	mov	[si].DIR_SIZE.HW,bx
 	xchg	bx,[si].DIR_CLN		; BX = first CLN (and zero DIR_CLN)
 	mov	ds:[BUF_DIRTY],1
 	mov	dl,cl			; DL = drive #

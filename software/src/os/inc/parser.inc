@@ -125,7 +125,7 @@ TOKDEF		ends
 ;
 ; WARNING: You can test multiple switches (eg, <'D','E'>) with a single
 ; test, but the burden is on you to make sure all the switch bits are in the
-; same word (ie, PSP_DIGITS, PSP_LETTERS.LOW, or PSP_LETTERS.HIW).
+; same word (ie, PSP_DIGITS, PSP_LETTERS.LW, or PSP_LETTERS.HW).
 ;
 TESTSW	macro	syms
 	_SWVAL = 0

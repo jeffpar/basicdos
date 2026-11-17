@@ -33,10 +33,10 @@ DEFPROC	evalAddLong,FAR
 	ARGVAR	addA,dword
 	ARGVAR	addB,dword
 	ENTER
-	mov	ax,[addB].LOW
-	add	[addA].LOW,ax
-	mov	ax,[addB].HIW
-	adc	[addA].HIW,ax
+	mov	ax,[addB].LW
+	add	[addA].LW,ax
+	mov	ax,[addB].HW
+	adc	[addA].HW,ax
 	into
 	LEAVE
 	ret	4
@@ -59,10 +59,10 @@ DEFPROC	evalSubLong,FAR
 	ARGVAR	subA,dword
 	ARGVAR	subB,dword
 	ENTER
-	mov	ax,[subB].LOW
-	sub	[subA].LOW,ax
-	mov	ax,[subB].HIW
-	sbb	[subA].HIW,ax
+	mov	ax,[subB].LW
+	sub	[subA].LW,ax
+	mov	ax,[subB].HW
+	sbb	[subA].HW,ax
 	into
 	LEAVE
 	ret	4
@@ -122,8 +122,8 @@ DEFPROC	evalMulLong,FAR
 	ARGVAR	mulB,dword
 	ENTER
 
-	mov	bx,[mulA].LOW
-	mov	ax,[mulA].HIW		; AX:BX = mulA
+	mov	bx,[mulA].LW
+	mov	ax,[mulA].HW		; AX:BX = mulA
 
 	cwd				; DX = 0 or -1
 	xor	bx,dx
@@ -132,8 +132,8 @@ DEFPROC	evalMulLong,FAR
 	sbb	ax,dx			; AX:BX = abs(mulA)
 	xchg	si,ax			; SI:BX = abs(mulA)
 
-	mov	cx,[mulB].LOW
-	mov	ax,[mulB].HIW		; AX:CX = mulB
+	mov	cx,[mulB].LW
+	mov	ax,[mulB].HW		; AX:CX = mulB
 
 	cwd				; DX = 0 or -1
 	xor	cx,dx
@@ -154,14 +154,14 @@ DEFPROC	evalMulLong,FAR
 	inc	di
 
 ml0:	mul	bx
-	xchg	si,ax			; SI = mulB.HIW (AX) * mulA.LOW (BX)
+	xchg	si,ax			; SI = mulB.HW (AX) * mulA.LW (BX)
 	or	di,dx			; any bits in DX triggers an overflow
 	mul	cx
-	add	si,ax			; SI += mulA.HIW (AX) * mulB.LOW (CX)
+	add	si,ax			; SI += mulA.HW (AX) * mulB.LW (CX)
 	adc	di,0			; any carry triggers an overflow
 	or	di,dx			; any bits in DX triggers an overflow
 ml1:	xchg	ax,bx
-	mul	cx			; DX:AX = mulA.LOW (AX) * mulB.LOW (CX)
+	mul	cx			; DX:AX = mulA.LW (AX) * mulB.LW (CX)
 	add	dx,si			; DX += SI
 	adc	di,0			; any carry triggers an overflow
 
@@ -172,8 +172,8 @@ ml1:	xchg	ax,bx
 	jz	ml5			; yes, it is
 ml4:	or	di,1			; no, it's not, so flag it as overflow
 
-ml5:	mov	cl,[mulA].HIW.HIB
-	xor	cl,[mulB].HIW.HIB	; signs differ?
+ml5:	mov	cl,[mulA].HW.HB
+	xor	cl,[mulB].HW.HB		; signs differ?
 	jns	ml6			; no
 	neg 	dx
 	neg	ax			; subtract DX:AX from 0 with carry
@@ -187,24 +187,24 @@ ml6:	test	di,di			; overflow indicator set?
 ; case where both high words are FFFFh (ie, sign-extensions of the low words),
 ; and makes no attempt to catch any of the many potentials for overflow.
 ;
-; 	mov	cx,[mulA].HIW		; a small optimization:
-; 	or	cx,[mulB].HIW		; if both numbers are >= 0 and < 65536
+; 	mov	cx,[mulA].HW		; a small optimization:
+; 	or	cx,[mulB].HW		; if both numbers are >= 0 and < 65536
 ; 	jcxz	ml1			; then a single multiplication suffices
 ;
-; 	mov	ax,[mulB].LOW
-; 	mul	[mulA].HIW
-; 	xchg	cx,ax			; CX = mulB.LOW * mulA.HIW
+; 	mov	ax,[mulB].LW
+; 	mul	[mulA].HW
+; 	xchg	cx,ax			; CX = mulB.LW * mulA.HW
 ;
-; 	mov	ax,[mulA].LOW
-; 	mul	[mulB].HIW
+; 	mov	ax,[mulA].LW
+; 	mul	[mulB].HW
 ; 	add	cx,ax			; CX = sum of cross product
 ;
-; ml1:	mov	ax,[mulA].LOW
-; 	mul	[mulB].LOW		; DX:AX = mulB.LOW * mulA.LOW
+; ml1:	mov	ax,[mulA].LW
+; 	mul	[mulB].LW		; DX:AX = mulB.LW * mulA.LW
 ; 	add	dx,cx			; add cross product to upper word
 
-ml7:	mov	[mulA].LOW,ax
-	mov	[mulA].HIW,dx
+ml7:	mov	[mulA].LW,ax
+	mov	[mulA].HW,dx
 	LEAVE
 	ret	4
 ENDPROC	evalMulLong
@@ -236,8 +236,8 @@ DEFPROC	evalDivLong,FAR
 	ENTER
 	mov	[bitCount],32
 	mov	[resultType],al
-	mov	bx,[divA].LOW
-	mov	ax,[divA].HIW		; AX:BX = dividend
+	mov	bx,[divA].LW
+	mov	ax,[divA].HW		; AX:BX = dividend
 
 	cwd				; DX = 0 or -1
 	xor	bx,dx
@@ -247,8 +247,8 @@ DEFPROC	evalDivLong,FAR
 
 	xchg	si,ax			; SI:BX = abs(dividend), for now
 
-	mov	cx,[divB].LOW
-	mov	ax,[divB].HIW		; AX:CX = divisor
+	mov	cx,[divB].LW
+	mov	ax,[divB].HW		; AX:CX = divisor
 
 	cwd				; DX = 0 or -1
 	xor	cx,dx
@@ -302,14 +302,14 @@ dl4a:	div	bx			; AX is low quotient
 	mov	di,dx			; SI:DI = remainder
 	mov	dx,cx			; DX:AX = quotient
 
-dl5:	test	[divA].HIW.HIB,-1	; negate remainder if dividend neg
+dl5:	test	[divA].HW.HB,-1		; negate remainder if dividend neg
 	jns	dl6
 	neg 	si
 	neg	di			; subtract SI:DI from 0 with carry
 	sbb	si,0
 
-dl6:	mov	cl,[divB].HIW.HIB	; negate quotient if signs opposite
-	xor	cl,[divA].HIW.HIB
+dl6:	mov	cl,[divB].HW.HB		; negate quotient if signs opposite
+	xor	cl,[divA].HW.HB
 	jns	dl7
 	neg 	dx
 	neg	ax			; subtract DX:AX from 0 with carry
@@ -317,11 +317,11 @@ dl6:	mov	cl,[divB].HIW.HIB	; negate quotient if signs opposite
 
 dl7:	cmp	[resultType],0
 	je	dl8
-	mov	[divA].LOW,di		; return remainder
-	mov	[divA].HIW,si
+	mov	[divA].LW,di		; return remainder
+	mov	[divA].HW,si
 	jmp	short dl9
-dl8:	mov	[divA].LOW,ax		; return quotient
-	mov	[divA].HIW,dx
+dl8:	mov	[divA].LW,ax		; return quotient
+	mov	[divA].HW,dx
 dl9:	LEAVE
 	ret	4
 dl10:	mov	al,11			; "Division by zero"
@@ -387,8 +387,8 @@ DEFPROC	evalExpLong,FAR
 	ARGVAR	expB,dword
 	LOCVAR	loopCount,word
 	ENTER
-	mov	ax,[expB].LOW
-	mov	dx,[expB].HIW		; DX:AX = power
+	mov	ax,[expB].LW
+	mov	dx,[expB].HW		; DX:AX = power
 	test	dx,dx			; TODO: large and/or negative powers
 	jnz	ex4
 	cmp	ax,1			; power = 1?
@@ -399,8 +399,8 @@ DEFPROC	evalExpLong,FAR
 ; Power is greater than 1.  Check for simple bases.
 ;
 	dec	ax			; undo previous power increment
-	mov	cx,[expA].LOW
-	mov	dx,[expA].HIW		; DX:CX = base, AX = power
+	mov	cx,[expA].LW
+	mov	dx,[expA].HW		; DX:CX = base, AX = power
 	test	dx,dx
 	jnz	ex1
 	jcxz	ex10			; DX:CX is 0, return base as-is
@@ -423,8 +423,8 @@ ex2:	cmp	ax,32			; power >= 32?
 	jae	ex4			; yes, return 0 (overflow)
 	xchg	cx,ax			; CX = shift count
 	dec	cx
-	mov	ax,[expA].LOW
-	mov	dx,[expA].HIW		; DX:AX = base
+	mov	ax,[expA].LW
+	mov	dx,[expA].HW		; DX:AX = base
 	test	dx,dx
 	jnz	ex5
 	cmp	ax,2
@@ -443,8 +443,8 @@ ex4:	sub	ax,ax
 ex5:	mov	[loopCount],cx
 	push	dx
 	push	ax
-ex6:	push	[expA].HIW
-	push	[expA].LOW
+ex6:	push	[expA].HW
+	push	[expA].LW
 	push	cs
 	call	near ptr evalMulLong
 	dec	[loopCount]
@@ -452,8 +452,8 @@ ex6:	push	[expA].HIW
 	pop	ax
 	pop	dx
 
-ex9:	mov	[expA].LOW,ax
-	mov	[expA].HIW,dx
+ex9:	mov	[expA].LW,ax
+	mov	[expA].HW,dx
 ex10:	LEAVE
 	ret	4
 ENDPROC	evalExpLong
@@ -474,9 +474,9 @@ ENDPROC	evalExpLong
 DEFPROC	evalNegLong,FAR
 	ARGVAR	negA,dword
 	ENTER
-	neg 	[negA].HIW
-	neg	[negA].LOW
-	sbb	[negA].HIW,0
+	neg 	[negA].HW
+	neg	[negA].LW
+	sbb	[negA].HW,0
 	LEAVE
 	ret
 ENDPROC	evalNegLong
@@ -497,8 +497,8 @@ ENDPROC	evalNegLong
 DEFPROC	evalNotLong,FAR
 	ARGVAR	notA,dword
 	ENTER
-	not 	[notA].HIW
-	not	[notA].LOW
+	not 	[notA].HW
+	not	[notA].LW
 	LEAVE
 	ret
 ENDPROC	evalNotLong
@@ -520,12 +520,12 @@ DEFPROC	evalImpLong,FAR
 	ARGVAR	impA,dword
 	ARGVAR	impB,dword
 	ENTER
-	mov	ax,[impB].LOW
-	not	[impA].LOW
-	or	[impA].LOW,ax
-	mov	ax,[impB].HIW
-	not	[impA].HIW
-	or	[impA].HIW,ax
+	mov	ax,[impB].LW
+	not	[impA].LW
+	or	[impA].LW,ax
+	mov	ax,[impB].HW
+	not	[impA].HW
+	or	[impA].HW,ax
 	LEAVE
 	ret	4
 ENDPROC	evalImpLong
@@ -547,12 +547,12 @@ DEFPROC	evalEqvLong,FAR
 	ARGVAR	eqvA,dword
 	ARGVAR	eqvB,dword
 	ENTER
-	mov	ax,[eqvB].LOW
-	xor	[eqvA].LOW,ax
-	not	[eqvA].LOW
-	mov	ax,[eqvB].HIW
-	xor	[eqvA].HIW,ax
-	not	[eqvA].HIW
+	mov	ax,[eqvB].LW
+	xor	[eqvA].LW,ax
+	not	[eqvA].LW
+	mov	ax,[eqvB].HW
+	xor	[eqvA].HW,ax
+	not	[eqvA].HW
 	LEAVE
 	ret	4
 ENDPROC	evalEqvLong
@@ -574,10 +574,10 @@ DEFPROC	evalXorLong,FAR
 	ARGVAR	xorA,dword
 	ARGVAR	xorB,dword
 	ENTER
-	mov	ax,[xorB].LOW
-	xor	[xorA].LOW,ax
-	mov	ax,[xorB].HIW
-	xor	[xorA].HIW,ax
+	mov	ax,[xorB].LW
+	xor	[xorA].LW,ax
+	mov	ax,[xorB].HW
+	xor	[xorA].HW,ax
 	LEAVE
 	ret	4
 ENDPROC	evalXorLong
@@ -599,10 +599,10 @@ DEFPROC	evalOrLong,FAR
 	ARGVAR	orA,dword
 	ARGVAR	orB,dword
 	ENTER
-	mov	ax,[orB].LOW
-	or	[orA].LOW,ax
-	mov	ax,[orB].HIW
-	or	[orA].HIW,ax
+	mov	ax,[orB].LW
+	or	[orA].LW,ax
+	mov	ax,[orB].HW
+	or	[orA].HW,ax
 	LEAVE
 	ret	4
 ENDPROC	evalOrLong
@@ -624,10 +624,10 @@ DEFPROC	evalAndLong,FAR
 	ARGVAR	andA,dword
 	ARGVAR	andB,dword
 	ENTER
-	mov	ax,[andB].LOW
-	and	[andA].LOW,ax
-	mov	ax,[andB].HIW
-	and	[andA].HIW,ax
+	mov	ax,[andB].LW
+	and	[andA].LW,ax
+	mov	ax,[andB].HW
+	and	[andA].HW,ax
 	LEAVE
 	ret	4
 ENDPROC	evalAndLong
@@ -651,10 +651,10 @@ DEFPROC	evalEQLong,FAR
 	ARGVAR	eqA,dword
 	ARGVAR	eqB,dword
 	ENTER
-	mov	cx,[eqA].LOW
-	mov	dx,[eqB].LOW
-	mov	ax,[eqA].HIW
-	cmp	ax,[eqB].HIW
+	mov	cx,[eqA].LW
+	mov	dx,[eqB].LW
+	mov	ax,[eqA].HW
+	cmp	ax,[eqB].HW
 	jmp	bx
 
 evalEQ:	jne	evalF
@@ -693,8 +693,8 @@ evalT:	mov	ax,-1
 
 evalF:	sub	ax,ax
 evalX:	cwd
-	mov	[eqA].LOW,ax
-	mov	[eqA].HIW,dx
+	mov	[eqA].LW,ax
+	mov	[eqA].HW,dx
 	LEAVE
 	ret	4
 ENDPROC	evalEQLong
@@ -806,14 +806,14 @@ DEFPROC	evalShlLong,FAR
 	ARGVAR	shlA,dword
 	ARGVAR	shlB,dword
 	ENTER
-	mov	dx,[shlB].HIW
+	mov	dx,[shlB].HW
 	test	dx,dx
 	jnz	shl8
-	mov	cx,[shlB].LOW
+	mov	cx,[shlB].LW
 	cmp	cx,32
 	jae	shl8
-	mov	dx,[shlA].HIW
-	mov	ax,[shlA].LOW
+	mov	dx,[shlA].HW
+	mov	ax,[shlA].LW
 	jcxz	shl9			; a zero shift leaves the operand unchanged
 shl1:	shl	ax,1
 	rcl	dx,1
@@ -821,8 +821,8 @@ shl1:	shl	ax,1
 	jmp	short shl9
 shl8:	sub	ax,ax
 	cwd
-shl9:	mov	[shlA].LOW,ax
-	mov	[shlA].HIW,dx
+shl9:	mov	[shlA].LW,ax
+	mov	[shlA].HW,dx
 	LEAVE
 	ret	4
 ENDPROC	evalShlLong
@@ -844,14 +844,14 @@ DEFPROC	evalShrLong,FAR
 	ARGVAR	shrA,dword
 	ARGVAR	shrB,dword
 	ENTER
-	mov	dx,[shrB].HIW
+	mov	dx,[shrB].HW
 	test	dx,dx
 	jnz	shl8
-	mov	cx,[shrB].LOW
+	mov	cx,[shrB].LW
 	cmp	cx,32
 	jae	shl8
-	mov	dx,[shrA].HIW
-	mov	ax,[shrA].LOW
+	mov	dx,[shrA].HW
+	mov	ax,[shrA].LW
 	jcxz	shl9			; a zero shift leaves the operand unchanged
 shr1:	sar	dx,1
 	rcr	ax,1
@@ -895,8 +895,8 @@ DEFPROC	getErrorLevel,FAR
 	mov	al,ss:[bx].EXIT_CODE
 	mov	ah,0
 	cwd
-	mov	[retErrorLevel].HIW,dx
-	mov	[retErrorLevel].LOW,ax
+	mov	[retErrorLevel].HW,dx
+	mov	[retErrorLevel].LW,ax
 	LEAVE
 	RETURN
 ENDPROC	getErrorLevel
@@ -920,7 +920,7 @@ DEFPROC	setErrorLevel,FAR
 	ARGVAR	lLevel,dword
 	ENTER
 	mov	bx,ss:[PSP_HEAP]
-	mov	al,byte ptr [lLevel].LOW
+	mov	al,byte ptr [lLevel].LW
 	mov	ss:[bx].EXIT_CODE,al
 	LEAVE
 	RETURN
@@ -1012,10 +1012,10 @@ DEFPROC	cvtLong,FAR
 	RETVAR	retCvtL,dword
 	ARGVAR	lCvtL,dword
 	ENTER
-	mov	ax,[lCvtL].LOW
-	mov	dx,[lCvtL].HIW
-	mov	[retCvtL].LOW,ax
-	mov	[retCvtL].HIW,dx
+	mov	ax,[lCvtL].LW
+	mov	dx,[lCvtL].HW
+	mov	[retCvtL].LW,ax
+	mov	[retCvtL].HW,dx
 	LEAVE
 	RETURN
 ENDPROC	cvtLong

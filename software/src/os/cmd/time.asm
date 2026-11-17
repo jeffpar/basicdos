@@ -104,19 +104,19 @@ DEFPROC	cmdTime
 	push	cx			; CX:DX = current time
 	push	dx
 	push	bx
-	sub	dl,[bx].PREV_TIME.LOW.LOB
+	sub	dl,[bx].PREV_TIME.LW.LB
 	jnb	tm1a
 	add	dl,100			; adjust hundredths
 	stc
-tm1a:	sbb	dh,[bx].PREV_TIME.LOW.HIB
+tm1a:	sbb	dh,[bx].PREV_TIME.LW.HB
 	jnb	tm1b
 	add	dh,60			; adjust seconds
 	stc
-tm1b:	sbb	cl,[bx].PREV_TIME.HIW.LOB
+tm1b:	sbb	cl,[bx].PREV_TIME.HW.LB
 	jnb	tm1c
 	add	cl,60			; adjust minutes
 	stc
-tm1c:	sbb	ch,[bx].PREV_TIME.HIW.HIB
+tm1c:	sbb	ch,[bx].PREV_TIME.HW.HB
 	jnb	tm1d
 	add	ch,24			; adjust hours
 tm1d:	mov	al,ch			; AL = hours
@@ -124,8 +124,8 @@ tm1d:	mov	al,ch			; AL = hours
 	mov	cl,dh			; CL = seconds, DL = hundredths
 	PRINTF	<"Elapsed time is %2bu:%02bu:%02bu.%02bu",13,10>,ax,bx,cx,dx
 	pop	bx
-	pop	[bx].PREV_TIME.LOW
-	pop	[bx].PREV_TIME.HIW
+	pop	[bx].PREV_TIME.LW
+	pop	[bx].PREV_TIME.HW
 	jmp	short tm7
 
 tm3:	mov	ax,offset promptTime
@@ -153,8 +153,8 @@ tm7:	clc
 	DEFLBL	promptTime,near
 	jnc	tm8
 	DOSUTIL	GETTIME,0		; GETTIME returns packed time
-	mov	[bx].PREV_TIME.LOW,dx
-	mov	[bx].PREV_TIME.HIW,cx
+	mov	[bx].PREV_TIME.LW,dx
+	mov	[bx].PREV_TIME.HW,cx
 
 	DEFLBL	printTime,near
 	mov	cl,dh			; CL = seconds, DL = hundredths

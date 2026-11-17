@@ -268,8 +268,8 @@ DEFPROC	getPos,FAR
 	ARGVAR	lPos,dword
 	ENTER
 	call	getCol			; AX = column
-	mov	[retPos].LOW,ax
-	mov	[retPos].HIW,0
+	mov	[retPos].LW,ax
+	mov	[retPos].HW,0
 	LEAVE
 	RETURN
 ENDPROC	getPos
@@ -280,8 +280,8 @@ DEFPROC	getCsrlin,FAR
 	call	getCol
 	mov	al,dh			; AL = row (zero-based)
 	inc	ax
-	mov	[retCsrlin].LOW,ax
-	mov	[retCsrlin].HIW,0
+	mov	[retCsrlin].LW,ax
+	mov	[retCsrlin].HW,0
 	LEAVE
 	RETURN
 ENDPROC	getCsrlin
@@ -311,10 +311,10 @@ DEFPROC	getScreen,FAR
 	ARGVAR	scrCol,dword
 	ARGVAR	scrAttr,dword
 	ENTER
-	mov	cx,[scrCol].LOW
-	mov	dx,[scrRow].LOW
-	mov	ax,[scrCol].HIW
-	or	ax,[scrRow].HIW
+	mov	cx,[scrCol].LW
+	mov	dx,[scrRow].LW
+	mov	ax,[scrCol].HW
+	or	ax,[scrRow].HW
 	or	al,ch
 	or	al,dh
 	or	al,ah			; are row and col both 0-255?
@@ -324,13 +324,13 @@ DEFPROC	getScreen,FAR
 	mov	al,IOCTL_GETCHAR
 	call	ioctlCon		; DL = character, DH = attributes
 	jc	gsc8
-	mov	ax,[scrAttr].LOW
-	or	ax,[scrAttr].HIW	; attributes requested?
+	mov	ax,[scrAttr].LW
+	or	ax,[scrAttr].HW		; attributes requested?
 	jz	gsc1			; no
 	mov	dl,dh
 gsc1:	mov	dh,0
-	mov	[retScreen].LOW,dx
-	mov	[retScreen].HIW,0
+	mov	[retScreen].LW,dx
+	mov	[retScreen].HW,0
 	LEAVE
 	RETURN
 gsc8:	jmp	strIllegal
@@ -383,8 +383,8 @@ DEFPROC	strTab,FAR
 	ARGVAR	lTab,dword
 	ENTER
 	call	getCol			; AX = current column
-	mov	cx,[lTab].LOW
-	cmp	[lTab].HIW,0
+	mov	cx,[lTab].LW
+	cmp	[lTab].HW,0
 	jne	st8
 	cmp	cx,254			; (room for CRLF and 253 spaces)
 	ja	st8
@@ -415,8 +415,8 @@ st3:	mov	al,' '
 	rep	stosb
 	pop	ax
 	mov	dx,es			; DX:AX = string value
-st9:	mov	[retTab].OFF,ax
-	mov	[retTab].SEG,dx
+st9:	mov	[retTab]._OFF,ax
+	mov	[retTab]._SEG,dx
 	LEAVE
 	RETURN
 st8:	jmp	strIllegal
@@ -444,8 +444,8 @@ DEFPROC	getRnd,FAR
 	RETVAR	pRnd,dword
 	ARGVAR	seedRnd,dword
 	ENTER
-	mov	dx,[seedRnd].HIW
-	mov	ax,[seedRnd].LOW
+	mov	dx,[seedRnd].HW
+	mov	ax,[seedRnd].LW
 	call	nextRnd			; CX:BX = 0 to MAXINT
 	sub	dx,dx			; DX = high word of the double
 	mov	ax,cx
@@ -508,11 +508,11 @@ DEFPROC	getRndLong,FAR
 	RETVAR	retRndLong,dword
 	ARGVAR	seed,dword
 	ENTER
-	mov	dx,[seed].HIW
-	mov	ax,[seed].LOW
+	mov	dx,[seed].HW
+	mov	ax,[seed].LW
 	call	nextRnd
-	mov	[retRndLong].HIW,cx
-	mov	[retRndLong].LOW,bx
+	mov	[retRndLong].HW,cx
+	mov	[retRndLong].LW,bx
 	LEAVE
 	RETURN
 ENDPROC	getRndLong
@@ -540,8 +540,8 @@ DEFPROC	nextRnd
 	mov	cx,ax
 	or	cx,dx
 	mov	bx,ss:[PSP_HEAP]
-	mov	cx,ss:[bx].RND_SEED.HIW
-	mov	bx,ss:[bx].RND_SEED.LOW
+	mov	cx,ss:[bx].RND_SEED.HW
+	mov	bx,ss:[bx].RND_SEED.LW
 	jz	rnd9			; zero arg: return the last number
 	test	dx,dx			; (its high word has the arg's sign)
 	jns	rnd1
@@ -575,8 +575,8 @@ rnd2:	mov	dx,bx
 	xor	bx,ax
 	mov	ax,bx
 	mov	bx,ss:[PSP_HEAP]
-	mov	ss:[bx].RND_SEED.HIW,cx
-	mov	ss:[bx].RND_SEED.LOW,ax
+	mov	ss:[bx].RND_SEED.HW,cx
+	mov	ss:[bx].RND_SEED.LW,ax
 	xchg	bx,ax
 rnd9:	and	cx,7FFFh		; never return a negative result
 	ret
@@ -605,15 +605,15 @@ DEFPROC	randomize,FAR
 	ARGVAR	lSeed,dword
 	ARGVAR	wSeedTicks,word
 	ENTER
-	mov	ax,[lSeed].LOW
-	mov	dx,[lSeed].HIW
+	mov	ax,[lSeed].LW
+	mov	dx,[lSeed].HW
 	mov	bx,[wSeedTicks]
 	test	bl,bl			; use the BIOS tick count?
 	jz	rz1			; no
 	DOSUTIL	GETTIME,1		; DX:AX = BIOS tick count
 rz1:	mov	bx,ss:[PSP_HEAP]
-	mov	ss:[bx].RND_SEED.LOW,ax
-	mov	ss:[bx].RND_SEED.HIW,dx
+	mov	ss:[bx].RND_SEED.LW,ax
+	mov	ss:[bx].RND_SEED.HW,dx
 	LEAVE
 	RETURN
 ENDPROC	randomize
@@ -652,8 +652,8 @@ DEFPROC	getSgn,FAR
 	jz	sg9			; no
 	neg	ax
 	cwd				; DX:AX = -1
-sg9:	mov	[retSgn].LOW,ax
-	mov	[retSgn].HIW,dx
+sg9:	mov	[retSgn].LW,ax
+	mov	[retSgn].HW,dx
 	LEAVE
 	RETURN
 ENDPROC	getSgn
@@ -720,15 +720,15 @@ DEFPROC	peekByte,FAR
 	RETVAR	retPeek,dword
 	ARGVAR	peekOff,dword
 	ENTER
-	mov	ax,[peekOff].LOW
-	mov	bx,[peekOff].HIW
+	mov	ax,[peekOff].LW
+	mov	bx,[peekOff].HW
 	call	chkWord
 	call	getSeg
 	xchg	bx,ax
 	mov	al,es:[bx]
 	mov	ah,0
-	mov	[retPeek].LOW,ax
-	mov	[retPeek].HIW,0
+	mov	[retPeek].LW,ax
+	mov	[retPeek].HW,0
 	LEAVE
 	RETURN
 ENDPROC	peekByte

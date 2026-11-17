@@ -286,7 +286,7 @@ lf3:	shr	word ptr [bx+6],1	; shift the mantissa right 3 bits
 	shl	ax,1
 	or	[bx+6],ax
 	pop	ax			; AH = precision again
-	cmp	word ptr ss:[PSP_FPUTBL].SEG,0
+	cmp	word ptr ss:[PSP_FPUTBL]._SEG,0
 	je	lf8			; no FPU$ driver
 	push	bp
 	push	cx

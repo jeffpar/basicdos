@@ -206,8 +206,8 @@ rdt9c:	mov	di,ss:[PSP_HEAP]
 	mov	dx,es			; DX:AX = string value
 	inc	di
 	rep	movsb			; copy the item to it
-rdt10:	mov	[retItem].OFF,ax
-	mov	[retItem].SEG,dx
+rdt10:	mov	[retItem]._OFF,ax
+	mov	[retItem]._SEG,dx
 	pop	ds
 	LEAVE
 	RETURN
@@ -264,7 +264,7 @@ DEFPROC	restoreData,FAR
 	mov	di,ss:[PSP_HEAP]
 	sub	ax,ax
 	mov	ss:[di].DATA_STATE.DATA_SEG,ax	; start over
-	mov	dx,[dataLine].LOW
+	mov	dx,[dataLine].LW
 	test	dx,dx			; line # specified?
 	jz	rst9			; no
 	mov	cx,ss:[di].TBLKDEF.BLK_NEXT
@@ -326,8 +326,8 @@ DEFPROC	strToLong,FAR
 	DOSUTIL	ATOI32			; DX:AX = value
 	les	di,[pLongStr]
 	call	releaseStr
-stl9:	mov	[retLong].LOW,ax
-	mov	[retLong].HIW,dx
+stl9:	mov	[retLong].LW,ax
+	mov	[retLong].HW,dx
 	pop	ds
 	LEAVE
 	RETURN

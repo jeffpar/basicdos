@@ -91,8 +91,8 @@ DEFPROC	gfxLine,FAR
 	ARGVAR	lnBox,dword
 	ENTER
 	call	gfxMode
-	mov	ax,[lnColor].LOW
-	mov	dx,[lnColor].HIW
+	mov	ax,[lnColor].LW
+	mov	dx,[lnColor].HW
 	call	getColor		; BL = color
 	lea	si,[lnX1]
 	call	getPoint
@@ -211,16 +211,16 @@ vw1:	mov	dx,ss:[di].GFX_DATA.GFX_VX2
 	test	cl,1			; a y coordinate?
 	jz	vw2			; no
 	mov	dx,ss:[di].GFX_DATA.GFX_VY2
-vw2:	cmp	word ptr ss:[si].HIW,0	; is the coordinate on the screen?
+vw2:	cmp	word ptr ss:[si].HW,0	; is the coordinate on the screen?
 	jne	vw8			; no
-	cmp	ss:[si].LOW,dx
+	cmp	ss:[si].LW,dx
 	ja	vw8			; no
 	sub	si,4
 	loop	vw1
-	mov	cx,[vwX1].LOW
-	mov	dx,[vwY1].LOW
-	mov	si,[vwX2].LOW
-	mov	di,[vwY2].LOW
+	mov	cx,[vwX1].LW
+	mov	dx,[vwY1].LW
+	mov	si,[vwX2].LW
+	mov	di,[vwY2].LW
 	cmp	cx,si
 	jle	vw3
 	xchg	cx,si			; make sure CX <= SI
@@ -281,8 +281,8 @@ DEFPROC	vwColor
 	push	dx
 	push	si
 	xchg	si,ax			; SS:SI -> color
-	mov	ax,ss:[si].LOW
-	mov	dx,ss:[si].HIW
+	mov	ax,ss:[si].LW
+	mov	dx,ss:[si].HW
 	pop	si
 	push	ax
 	and	ax,dx
@@ -393,16 +393,16 @@ DEFPROC	gfxPaint,FAR
 	LOCVAR	ptSR,word		; right end of the range to seed
 	ENTER
 	call	gfxInit
-	mov	ax,[ptPaint].LOW
-	mov	dx,[ptPaint].HIW
+	mov	ax,[ptPaint].LW
+	mov	dx,[ptPaint].HW
 	mov	word ptr [ptXor],0	; (and ptTiles)
-	cmp	[ptBack].HIW,0		; a tile?
+	cmp	[ptBack].HW,0		; a tile?
 	jne	ptA			; no
 	call	ptTile			; ptTiles = its length (DX:AX = -1)
 ptA:	call	getColor		; BL = paint color
 	push	bx
-	mov	ax,[ptBorder].LOW
-	mov	dx,[ptBorder].HIW
+	mov	ax,[ptBorder].LW
+	mov	dx,[ptBorder].HW
 	call	getColor		; BL = border color (default is paint)
 	mov	[ptBdr],bl
 	pop	bx
@@ -929,8 +929,8 @@ DEFPROC	gfxPset,FAR
 	ARGVAR	psColor,dword
 	ENTER
 	call	gfxMode
-	mov	ax,[psColor].LOW
-	mov	dx,[psColor].HIW
+	mov	ax,[psColor].LW
+	mov	dx,[psColor].HW
 	call	getColor
 	lea	si,[psX]
 	call	getPoint
@@ -1181,10 +1181,10 @@ ENDPROC	getColor
 ;	AX, CX, DX
 ;
 DEFPROC	getPoint
-	cmp	word ptr ss:[si].HIW,GFX_MARK
+	cmp	word ptr ss:[si].HW,GFX_MARK
 	jne	gp1			; it hasn't been converted (see gfxPt)
-	mov	cx,ss:[si].LOW
-	mov	dx,ss:[si-4].LOW
+	mov	cx,ss:[si].LW
+	mov	dx,ss:[si-4].LW
 	ret
 gp1:	push	bx
 	mov	bx,ss:[PSP_HEAP]
@@ -1193,12 +1193,12 @@ gp1:	push	bx
 	jz	gp2			; no mapping is required
 	mov	al,4			; (and it becomes the last point)
 	jmp	mapPoint
-gp2:	mov	ax,ss:[si-4].LOW
-	mov	dx,ss:[si-4].HIW
+gp2:	mov	ax,ss:[si-4].LW
+	mov	dx,ss:[si-4].HW
 	call	clampCoord
 	push	ax
-	mov	ax,ss:[si].LOW
-	mov	dx,ss:[si].HIW
+	mov	ax,ss:[si].LW
+	mov	dx,ss:[si].HW
 	call	clampCoord
 	xchg	cx,ax
 	pop	dx
@@ -1741,8 +1741,8 @@ DEFPROC	getMouse,FAR
 	and	byte ptr ss:[si].GFX_DATA.MOUSE_STATE,NOT MS_GFX
 	mov	ax,1			; show the pointer again
 	call	mouseCall
-gm1:	mov	di,[mouseNum].LOW
-	cmp	[mouseNum].HIW,0
+gm1:	mov	di,[mouseNum].LW
+	cmp	[mouseNum].HW,0
 	jne	gmX
 	cmp	di,5
 	ja	gmX
@@ -1767,8 +1767,8 @@ gm3:	xchg	ax,cx			; AX = x
 	cmp	di,4
 	je	gm8
 	xchg	ax,bx			; AX = buttons
-gm8:	mov	[retMouse].LOW,ax
-	mov	[retMouse].HIW,0
+gm8:	mov	[retMouse].LW,ax
+	mov	[retMouse].HW,0
 	LEAVE
 	RETURN
 gmX:	jmp	strIllegal

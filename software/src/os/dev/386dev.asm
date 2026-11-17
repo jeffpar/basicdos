@@ -253,8 +253,8 @@ DEFPROC	ddcpu_alloc
 	jnc	ca1
 	call	pmb_free		; no descriptors, so free it again
 	jmp	short ca8
-ca1:	mov	cx,ds:[bx].PMB_ADDR.LOW
-	mov	dx,ds:[bx].PMB_ADDR.HIW
+ca1:	mov	cx,ds:[bx].PMB_ADDR.LW
+	mov	dx,ds:[bx].PMB_ADDR.HW
 	ret				; (carry is clear)
 ca8:	call	pmb_largest
 	mov	ax,ERR_NOMEMORY
@@ -390,10 +390,10 @@ DEFPROC	ddcpu_realloc
 	jz	cr8			; yes
 	call	pmb_used		; BX -> PMB
 	jc	cr9
-	mov	ax,ds:[SYS_VARS].SV_LEN.LOW
-	mov	dx,ds:[SYS_VARS].SV_LEN.HIW
-	sub	ax,ds:[bx].PMB_LEN.LOW
-	sbb	dx,ds:[bx].PMB_LEN.HIW	; DX:AX = new length - old length
+	mov	ax,ds:[SYS_VARS].SV_LEN.LW
+	mov	dx,ds:[SYS_VARS].SV_LEN.HW
+	sub	ax,ds:[bx].PMB_LEN.LW
+	sbb	dx,ds:[bx].PMB_LEN.HW	; DX:AX = new length - old length
 	jb	cr4			; shorter
 	mov	cx,ax
 	or	cx,dx			; the same?
@@ -402,36 +402,36 @@ DEFPROC	ddcpu_realloc
 	je	cr6
 	cmp	ds:[bx+size PMB].PMB_TYPE,PMBTYPE_FREE
 	jne	cr6			; the next block isn't free
-	cmp	ds:[bx+size PMB].PMB_LEN.HIW,dx
+	cmp	ds:[bx+size PMB].PMB_LEN.HW,dx
 	ja	cr2
 	jb	cr6
-	cmp	ds:[bx+size PMB].PMB_LEN.LOW,ax
+	cmp	ds:[bx+size PMB].PMB_LEN.LW,ax
 	jae	cr2			; it's long enough
 cr6:	call	blk_move		; move it to a block that's long enough
 	jnc	cr9
-cr7:	mov	cx,ds:[bx].PMB_LEN.LOW
-	mov	dx,ds:[bx].PMB_LEN.HIW
+cr7:	mov	cx,ds:[bx].PMB_LEN.LW
+	mov	dx,ds:[bx].PMB_LEN.HW
 	cmp	ds:[bx].PMB_SIG,PMBSIG_LAST
 	je	cr7a
 	cmp	ds:[bx+size PMB].PMB_TYPE,PMBTYPE_FREE
 	jne	cr7a
-	add	cx,ds:[bx+size PMB].PMB_LEN.LOW
-	adc	dx,ds:[bx+size PMB].PMB_LEN.HIW
+	add	cx,ds:[bx+size PMB].PMB_LEN.LW
+	adc	dx,ds:[bx+size PMB].PMB_LEN.HW
 cr7a:	mov	ax,ERR_NOMEMORY
 	stc
 cr9:	ret
-cr2:	mov	ds:[SYS_VARS].SV_LEN.LOW,ax
-	mov	ds:[SYS_VARS].SV_LEN.HIW,dx
+cr2:	mov	ds:[SYS_VARS].SV_LEN.LW,ax
+	mov	ds:[SYS_VARS].SV_LEN.HW,dx
 	call	blk_room		; are there selectors for that length?
 	jc	cr9			; no
 	add	bx,size PMB
 	call	pmb_split		; BX -> the part of it we need
 	lea	bx,[bx-size PMB]	; (LEA leaves carry alone)
 	jc	cr7
-	mov	ax,ds:[SYS_VARS].SV_LEN.LOW
-	add	ds:[bx].PMB_LEN.LOW,ax
-	mov	ax,ds:[SYS_VARS].SV_LEN.HIW
-	adc	ds:[bx].PMB_LEN.HIW,ax
+	mov	ax,ds:[SYS_VARS].SV_LEN.LW
+	add	ds:[bx].PMB_LEN.LW,ax
+	mov	ax,ds:[SYS_VARS].SV_LEN.HW
+	adc	ds:[bx].PMB_LEN.HW,ax
 	call	blk_fit
 	jmp	pmb_drop		; remove the PMB after BX
 cr4:	call	pmb_split		; BX -> PMB of the new length
@@ -585,8 +585,8 @@ cl0e:	call	pm_alias		; AX = new alias
 	mov	ds:[bx].PMB_CODE,ax
 	mov	ds:[bx].PMB_SHARE,bp
 cl0:	mov	ax,ds:[bx].PMB_CODE
-	mov	cx,ds:[bx].PMB_ADDR.LOW
-	mov	dx,ds:[bx].PMB_ADDR.HIW	; DX:CX = base address
+	mov	cx,ds:[bx].PMB_ADDR.LW
+	mov	dx,ds:[bx].PMB_ADDR.HW	; DX:CX = base address
 	clc
 cl9:	ret
 cl0f:	test	bp,bp			; (the alias it has can't be changed)
@@ -853,8 +853,8 @@ ENDPROC	ddcpu_rwmem
 ;	DX = TR (both zero in real mode, where they can't be read)
 ;
 DEFPROC	ddcpu_sysregs
-	sgdt	qword ptr es:[di]
-	sidt	qword ptr es:[di+6]
+	DTREG	sgdt,<es:[di]>
+	DTREG	sidt,<es:[di+6]>
 	sub	cx,cx
 	cwd				; (AH is our function number)
 	smsw	ax
@@ -881,7 +881,7 @@ ENDPROC	ddcpu_sysregs
 ;
 DEFPROC	ddcpu_setfault
 	mov	bx,SYS_VARS + SV_FAULT
-	mov	si,2			; SI = offset of the segment (.SEG)
+	mov	si,2			; SI = offset of the segment (._SEG)
 	jmp	short sf1
 	DEFLBL	ddcpu_setstack,near
 	mov	si,ds:[SYS_VARS].SV_TSSSP0
@@ -1071,37 +1071,37 @@ ENDPROC	ddcpu_setblk
 DEFPROC	ddcpu_move
 	push	ds
 	push	es
-	mov	ax,es:[bx].MV_SRC.LOW
-	mov	ds:[SYS_VARS].SV_SRC.LOW,ax
-	mov	ax,es:[bx].MV_SRC.HIW
-	mov	ds:[SYS_VARS].SV_SRC.HIW,ax
-	mov	ax,es:[bx].MV_DST.LOW
-	mov	ds:[SYS_VARS].SV_DST.LOW,ax
-	mov	ax,es:[bx].MV_DST.HIW
-	mov	ds:[SYS_VARS].SV_DST.HIW,ax
-	mov	ax,es:[bx].MV_LEN.LOW
-	mov	ds:[SYS_VARS].SV_LEN.LOW,ax
-	mov	ax,es:[bx].MV_LEN.HIW
-	mov	ds:[SYS_VARS].SV_LEN.HIW,ax
-	mov	ax,ds:[SYS_VARS].SV_SRC.LOW
-	mov	dx,ds:[SYS_VARS].SV_SRC.HIW
+	mov	ax,es:[bx].MV_SRC.LW
+	mov	ds:[SYS_VARS].SV_SRC.LW,ax
+	mov	ax,es:[bx].MV_SRC.HW
+	mov	ds:[SYS_VARS].SV_SRC.HW,ax
+	mov	ax,es:[bx].MV_DST.LW
+	mov	ds:[SYS_VARS].SV_DST.LW,ax
+	mov	ax,es:[bx].MV_DST.HW
+	mov	ds:[SYS_VARS].SV_DST.HW,ax
+	mov	ax,es:[bx].MV_LEN.LW
+	mov	ds:[SYS_VARS].SV_LEN.LW,ax
+	mov	ax,es:[bx].MV_LEN.HW
+	mov	ds:[SYS_VARS].SV_LEN.HW,ax
+	mov	ax,ds:[SYS_VARS].SV_SRC.LW
+	mov	dx,ds:[SYS_VARS].SV_SRC.HW
 	sub	bp,bp			; BP = 0 to copy forward
-	cmp	dx,ds:[SYS_VARS].SV_DST.HIW
+	cmp	dx,ds:[SYS_VARS].SV_DST.HW
 	ja	mv1
 	jb	mv0b
-	cmp	ax,ds:[SYS_VARS].SV_DST.LOW
+	cmp	ax,ds:[SYS_VARS].SV_DST.LW
 	jae	mv1
 mv0b:	inc	bp			; BP = 1 to copy backward
 mv1:	mov	ax,ds			; AX = SYSVARS segment (or selector)
 	mov	cx,8000h		; CX = up to 32K
-	cmp	ds:[SYS_VARS].SV_LEN.HIW,0
+	cmp	ds:[SYS_VARS].SV_LEN.HW,0
 	jne	mv2
-	cmp	cx,ds:[SYS_VARS].SV_LEN.LOW
+	cmp	cx,ds:[SYS_VARS].SV_LEN.LW
 	jbe	mv2
-	mov	cx,ds:[SYS_VARS].SV_LEN.LOW
+	mov	cx,ds:[SYS_VARS].SV_LEN.LW
 	jcxz	mv9			; nothing left (and carry is clear)
-mv2:	sub	ds:[SYS_VARS].SV_LEN.LOW,cx
-	sbb	ds:[SYS_VARS].SV_LEN.HIW,0
+mv2:	sub	ds:[SYS_VARS].SV_LEN.LW,cx
+	sbb	ds:[SYS_VARS].SV_LEN.HW,0
 	mov	si,SYS_VARS + SV_SRC
 	call	mv_ptr			; SI = source offset, BX = its segment
 	push	bx
@@ -1148,15 +1148,15 @@ ENDPROC	ddcpu_move
 ;
 DEFPROC	mv_ptr
 	push	ax
-	mov	ax,[si].LOW
-	mov	dx,[si].HIW		; DX:AX = address
+	mov	ax,[si].LW
+	mov	dx,[si].HW		; DX:AX = address
 	test	bp,bp
 	jnz	mp1
-	add	[si].LOW,cx
-	adc	[si].HIW,0
+	add	[si].LW,cx
+	adc	[si].HW,0
 	jmp	short mp2
-mp1:	add	ax,ds:[SYS_VARS].SV_LEN.LOW
-	adc	dx,ds:[SYS_VARS].SV_LEN.HIW
+mp1:	add	ax,ds:[SYS_VARS].SV_LEN.LW
+	adc	dx,ds:[SYS_VARS].SV_LEN.HW
 mp2:	mov	bx,SEL_TMP
 	cmp	si,SYS_VARS + SV_SRC
 	jne	mp3
@@ -1212,8 +1212,8 @@ DEFPROC	blk_move
 	je	bm0			; (or a V86 machine's memory)
 bm8:	stc
 bm9:	ret
-bm0:	mov	di,ds:[SYS_VARS].SV_LEN.LOW
-	mov	si,ds:[SYS_VARS].SV_LEN.HIW
+bm0:	mov	di,ds:[SYS_VARS].SV_LEN.LW
+	mov	si,ds:[SYS_VARS].SV_LEN.HW
 	call	blk_room		; can it have that length's selectors?
 	jc	bm9			; no
 	call	pmb_end
@@ -1221,10 +1221,10 @@ bm0:	mov	di,ds:[SYS_VARS].SV_LEN.LOW
 	cmp	ds:[SYS_VARS+SV_LDTLOW],ax
 	jb	bm9			; no room to split a free block twice
 	push	bx
-	push	ds:[bx].PMB_ADDR.HIW
-	push	ds:[bx].PMB_ADDR.LOW
+	push	ds:[bx].PMB_ADDR.HW
+	push	ds:[bx].PMB_ADDR.LW
 	mov	al,0
-	cmp	ds:[bx].PMB_ADDR.HIW,10h; is the block below 1Mb?
+	cmp	ds:[bx].PMB_ADDR.HW,10h	; is the block below 1Mb?
 	jae	bm1			; no
 	mov	al,MEMF_LOW		; yes, so that's where it stays
 bm1:	call	pmb_fit			; BX -> free PMB, DX:CX = address
@@ -1294,8 +1294,8 @@ DEFPROC	blk_copy
 	push	es
 	sub	si,si
 	sub	bp,bp			; BP:SI = bytes copied
-bc1:	mov	cx,ds:[bx].PMB_LEN.LOW
-	mov	dx,ds:[bx].PMB_LEN.HIW
+bc1:	mov	cx,ds:[bx].PMB_LEN.LW
+	mov	dx,ds:[bx].PMB_LEN.HW
 	sub	cx,si
 	sbb	dx,bp			; DX:CX = bytes left
 	jnz	bc2
@@ -1309,16 +1309,16 @@ bc3:	jcxz	bc9
 	push	di
 	push	si
 	push	cx
-	mov	ax,ds:[di].PMB_ADDR.LOW
-	mov	dx,ds:[di].PMB_ADDR.HIW
+	mov	ax,ds:[di].PMB_ADDR.LW
+	mov	dx,ds:[di].PMB_ADDR.HW
 	add	ax,si
 	adc	dx,bp			; DX:AX = where they go
 	push	bx
 	mov	bx,SEL_TMP
 	call	pm_ptr
 	pop	bx
-	mov	ax,ds:[bx].PMB_ADDR.LOW
-	mov	dx,ds:[bx].PMB_ADDR.HIW
+	mov	ax,ds:[bx].PMB_ADDR.LW
+	mov	dx,ds:[bx].PMB_ADDR.HW
 	add	ax,si
 	adc	dx,bp			; DX:AX = where they are
 	mov	bx,SEL_TMP2
@@ -1370,16 +1370,16 @@ rb1:	cmp	si,ax
 	test	ds:[si].DESC_ACC,ACC_SEG; a code or data descriptor?
 	jz	rb3			; no (or it's free)
 	call	desc_addr		; DX:CX = its base address
-	sub	cx,ds:[di].PMB_ADDR.LOW
-	sbb	dx,ds:[di].PMB_ADDR.HIW	; DX:CX = its offset in the old block
+	sub	cx,ds:[di].PMB_ADDR.LW
+	sbb	dx,ds:[di].PMB_ADDR.HW	; DX:CX = its offset in the old block
 	jb	rb3			; it's below the block
-	cmp	dx,ds:[di].PMB_LEN.HIW
+	cmp	dx,ds:[di].PMB_LEN.HW
 	ja	rb3
 	jb	rb2
-	cmp	cx,ds:[di].PMB_LEN.LOW
+	cmp	cx,ds:[di].PMB_LEN.LW
 	jae	rb3			; it's above the block
-rb2:	add	cx,ds:[bx].PMB_ADDR.LOW
-	adc	dx,ds:[bx].PMB_ADDR.HIW
+rb2:	add	cx,ds:[bx].PMB_ADDR.LW
+	adc	dx,ds:[bx].PMB_ADDR.HW
 	mov	ds:[si].DESC_BASE,cx
 	mov	ds:[si].DESC_BASE16,dl
 	add	dh,ds:[SYS_VARS].SV_LINHI	; (see LIN_HI)
@@ -1407,8 +1407,8 @@ ENDPROC	blk_rebase
 ;	AX, CX, DX, SI, DI
 ;
 DEFPROC	blk_sel
-	mov	cx,ds:[bx].PMB_ADDR.LOW
-	mov	dx,ds:[bx].PMB_ADDR.HIW
+	mov	cx,ds:[bx].PMB_ADDR.LW
+	mov	dx,ds:[bx].PMB_ADDR.HW
 	sub	ax,ax
 	test	ds:[SYS_VARS].SV_ARG,MEMF_NONE
 	jnz	bs9			; (carry is clear)
@@ -1421,8 +1421,8 @@ DEFPROC	blk_sel
 bs1:	push	bx
 	push	bp
 	mov	al,ds:[SYS_VARS].SV_ARG
-	mov	di,ds:[bx].PMB_LEN.LOW
-	mov	si,ds:[bx].PMB_LEN.HIW
+	mov	di,ds:[bx].PMB_LEN.LW
+	mov	si,ds:[bx].PMB_LEN.HW
 	call	map_block		; AX = selector, CX = # of selectors
 	pop	bp
 	pop	bx
@@ -1509,8 +1509,8 @@ DEFPROC	blk_fit
 	test	bp,bp
 	jz	bf9			; none
 	push	bx
-	mov	di,ds:[bx].PMB_LEN.LOW
-	mov	si,ds:[bx].PMB_LEN.HIW	; SI:DI = its length
+	mov	di,ds:[bx].PMB_LEN.LW
+	mov	si,ds:[bx].PMB_LEN.HW	; SI:DI = its length
 	call	len_sels		; CX = # of selectors it needs
 	mov	ds:[bx].PMB_NSEL,cx
 	sub	bp,cx			; BP = # that it no longer needs
@@ -1532,10 +1532,10 @@ bf2:	mov	ds:[si].DESC_ACC,al
 	add	si,size DESC
 	loop	bf2
 	pop	cx
-	mov	bp,ds:[bx].PMB_ADDR.LOW
-	mov	dx,ds:[bx].PMB_ADDR.HIW	; DX:BP = its address
-	mov	di,ds:[bx].PMB_LEN.LOW
-	mov	si,ds:[bx].PMB_LEN.HIW	; SI:DI = its length
+	mov	bp,ds:[bx].PMB_ADDR.LW
+	mov	dx,ds:[bx].PMB_ADDR.HW	; DX:BP = its address
+	mov	di,ds:[bx].PMB_LEN.LW
+	mov	si,ds:[bx].PMB_LEN.HW	; SI:DI = its length
 	pop	bx
 	push	bx
 	call	desc_fill		; (BX -> its first descriptor)
@@ -1600,8 +1600,8 @@ DEFPROC	len_round
 	add	di,15
 	adc	si,0
 	and	di,0FFF0h
-	mov	ds:[SYS_VARS].SV_LEN.LOW,di
-	mov	ds:[SYS_VARS].SV_LEN.HIW,si
+	mov	ds:[SYS_VARS].SV_LEN.LW,di
+	mov	ds:[SYS_VARS].SV_LEN.HW,si
 	push	si
 	or	si,di
 	pop	si
@@ -1634,14 +1634,14 @@ DEFPROC	pmb_fit
 	cmp	ds:[bx].PMB_TYPE,PMBTYPE_FREE
 	stc
 	jne	pf0			; it isn't free
-	mov	si,ds:[bx].PMB_ADDR.LOW
-	mov	di,ds:[bx].PMB_ADDR.HIW
-	add	si,ds:[bx].PMB_LEN.LOW
-	adc	di,ds:[bx].PMB_LEN.HIW	; DI:SI = end of the free block
+	mov	si,ds:[bx].PMB_ADDR.LW
+	mov	di,ds:[bx].PMB_ADDR.HW
+	add	si,ds:[bx].PMB_LEN.LW
+	adc	di,ds:[bx].PMB_LEN.HW	; DI:SI = end of the free block
 	sub	si,cx
 	sbb	di,dx			; DI:SI = room after DX:CX
-	sub	si,ds:[SYS_VARS].SV_LEN.LOW
-	sbb	di,ds:[SYS_VARS].SV_LEN.HIW
+	sub	si,ds:[SYS_VARS].SV_LEN.LW
+	sbb	di,ds:[SYS_VARS].SV_LEN.HW
 pf0:	ret				; carry set if it doesn't fit
 pf1:	mov	ah,al
 	mov	bx,SYS_PMBS
@@ -1649,16 +1649,16 @@ pf1:	mov	ah,al
 	sub	di,di			; DI -> PMB found (none yet)
 pf2:	test	ah,MEMF_LOW		; must it be below 1Mb?
 	jz	pf2a			; no
-	cmp	ds:[bx].PMB_ADDR.HIW,10h; is this block below 1Mb?
+	cmp	ds:[bx].PMB_ADDR.HW,10h	; is this block below 1Mb?
 	jae	pf5			; no (and neither are the rest)
 pf2a:	cmp	ds:[bx].PMB_TYPE,PMBTYPE_FREE
 	jne	pf4
-	mov	cx,ds:[SYS_VARS].SV_LEN.HIW
-	cmp	ds:[bx].PMB_LEN.HIW,cx
+	mov	cx,ds:[SYS_VARS].SV_LEN.HW
+	cmp	ds:[bx].PMB_LEN.HW,cx
 	ja	pf3
 	jb	pf4
-	mov	cx,ds:[SYS_VARS].SV_LEN.LOW
-	cmp	ds:[bx].PMB_LEN.LOW,cx
+	mov	cx,ds:[SYS_VARS].SV_LEN.LW
+	cmp	ds:[bx].PMB_LEN.LW,cx
 	jb	pf4			; it's not long enough
 pf3:	mov	di,bx
 	test	ah,MEMF_HIGH		; look for the last one?
@@ -1669,14 +1669,14 @@ pf4:	add	bx,size PMB
 pf5:	mov	bx,di
 	test	bx,bx			; found one?
 	jz	pf8			; no
-	mov	cx,ds:[bx].PMB_ADDR.LOW
-	mov	dx,ds:[bx].PMB_ADDR.HIW
+	mov	cx,ds:[bx].PMB_ADDR.LW
+	mov	dx,ds:[bx].PMB_ADDR.HW
 	test	ah,MEMF_HIGH
 	jz	pf9			; (carry is clear)
-	add	cx,ds:[bx].PMB_LEN.LOW
-	adc	dx,ds:[bx].PMB_LEN.HIW
-	sub	cx,ds:[SYS_VARS].SV_LEN.LOW
-	sbb	dx,ds:[SYS_VARS].SV_LEN.HIW
+	add	cx,ds:[bx].PMB_LEN.LW
+	adc	dx,ds:[bx].PMB_LEN.HW
+	sub	cx,ds:[SYS_VARS].SV_LEN.LW
+	sbb	dx,ds:[SYS_VARS].SV_LEN.HW
 	ret				; (carry is clear)
 pf8:	stc
 pf9:	ret
@@ -1698,10 +1698,10 @@ ENDPROC	pmb_fit
 DEFPROC	pmb_find
 	mov	bx,SYS_PMBS
 	mov	si,ds:[SYS_VARS].SV_NPMBS
-fd1:	mov	ax,ds:[bx].PMB_ADDR.LOW
-	mov	di,ds:[bx].PMB_ADDR.HIW
-	add	ax,ds:[bx].PMB_LEN.LOW
-	adc	di,ds:[bx].PMB_LEN.HIW	; DI:AX = end of this block
+fd1:	mov	ax,ds:[bx].PMB_ADDR.LW
+	mov	di,ds:[bx].PMB_ADDR.HW
+	add	ax,ds:[bx].PMB_LEN.LW
+	adc	di,ds:[bx].PMB_LEN.HW	; DI:AX = end of this block
 	cmp	dx,di
 	jb	fd9
 	ja	fd2
@@ -1753,9 +1753,9 @@ pu1:	call	pmb_find		; BX -> PMB containing DX:CX
 pu2:	pop	di
 	pop	si
 	jc	pu8
-	cmp	ds:[bx].PMB_ADDR.LOW,cx
+	cmp	ds:[bx].PMB_ADDR.LW,cx
 	jne	pu8
-	cmp	ds:[bx].PMB_ADDR.HIW,dx
+	cmp	ds:[bx].PMB_ADDR.HW,dx
 	jne	pu8			; DX:CX isn't the start of a block
 	cmp	ds:[bx].PMB_TYPE,PMBTYPE_USED
 	je	pu9			; (carry is clear)
@@ -1816,16 +1816,16 @@ pl1:	cmp	ds:[bx].PMB_TYPE,PMBTYPE_FREE
 	jne	pl3
 	test	ds:[SYS_VARS].SV_ARG,MEMF_LOW
 	jz	pl1a			; any block counts
-	cmp	ds:[bx].PMB_ADDR.HIW,10h
+	cmp	ds:[bx].PMB_ADDR.HW,10h
 	jae	pl3			; this one is above 1Mb
-pl1a:	mov	ax,ds:[bx].PMB_LEN.HIW
+pl1a:	mov	ax,ds:[bx].PMB_LEN.HW
 	cmp	ax,dx
 	jb	pl3
 	ja	pl2
-	cmp	ds:[bx].PMB_LEN.LOW,cx
+	cmp	ds:[bx].PMB_LEN.LW,cx
 	jbe	pl3
 pl2:	mov	dx,ax
-	mov	cx,ds:[bx].PMB_LEN.LOW
+	mov	cx,ds:[bx].PMB_LEN.LW
 pl3:	add	bx,size PMB
 	dec	si
 	jnz	pl1
@@ -1848,14 +1848,14 @@ ENDPROC	pmb_largest
 ;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	pmb_cut
-	sub	cx,ds:[bx].PMB_ADDR.LOW
-	sbb	dx,ds:[bx].PMB_ADDR.HIW	; DX:CX = length of the first part
+	sub	cx,ds:[bx].PMB_ADDR.LW
+	sbb	dx,ds:[bx].PMB_ADDR.HW	; DX:CX = length of the first part
 	mov	ax,cx
 	or	ax,dx			; is it zero?
 	jz	pc9			; yes
 	call	pmb_dup
-	mov	ds:[bx].PMB_LEN.LOW,cx
-	mov	ds:[bx].PMB_LEN.HIW,dx
+	mov	ds:[bx].PMB_LEN.LW,cx
+	mov	ds:[bx].PMB_LEN.HW,dx
 	add	bx,size PMB
 	jmp	short pmb_rest		; the second part is the rest
 pc9:	ret
@@ -1879,16 +1879,16 @@ ENDPROC	pmb_cut
 ;	AX, CX, DX, SI, DI
 ;
 DEFPROC	pmb_split
-	mov	cx,ds:[SYS_VARS].SV_LEN.LOW
-	mov	dx,ds:[SYS_VARS].SV_LEN.HIW
-	cmp	ds:[bx].PMB_LEN.LOW,cx
+	mov	cx,ds:[SYS_VARS].SV_LEN.LW
+	mov	dx,ds:[SYS_VARS].SV_LEN.HW
+	cmp	ds:[bx].PMB_LEN.LW,cx
 	jne	ps1
-	cmp	ds:[bx].PMB_LEN.HIW,dx
+	cmp	ds:[bx].PMB_LEN.HW,dx
 	je	pc9			; exact fit (and carry is clear)
 ps1:	call	pmb_dup
 	jc	pc9
-	mov	ds:[bx].PMB_LEN.LOW,cx
-	mov	ds:[bx].PMB_LEN.HIW,dx
+	mov	ds:[bx].PMB_LEN.LW,cx
+	mov	ds:[bx].PMB_LEN.HW,dx
 	push	bx
 	add	bx,size PMB
 	call	pmb_rest
@@ -1910,10 +1910,10 @@ ENDPROC	pmb_split
 ;	Carry clear
 ;
 DEFPROC	pmb_rest
-	add	ds:[bx].PMB_ADDR.LOW,cx
-	adc	ds:[bx].PMB_ADDR.HIW,dx
-	sub	ds:[bx].PMB_LEN.LOW,cx
-	sbb	ds:[bx].PMB_LEN.HIW,dx
+	add	ds:[bx].PMB_ADDR.LW,cx
+	adc	ds:[bx].PMB_ADDR.HW,dx
+	sub	ds:[bx].PMB_LEN.LW,cx
+	sbb	ds:[bx].PMB_LEN.HW,dx
 	clc
 	ret
 ENDPROC	pmb_rest
@@ -1997,10 +1997,10 @@ DEFPROC	pmb_merge
 	je	pm9
 	cmp	ds:[bx+size PMB].PMB_TYPE,PMBTYPE_FREE
 	jne	pm9
-	mov	ax,ds:[bx+size PMB].PMB_LEN.LOW
-	add	ds:[bx].PMB_LEN.LOW,ax
-	mov	ax,ds:[bx+size PMB].PMB_LEN.HIW
-	adc	ds:[bx].PMB_LEN.HIW,ax
+	mov	ax,ds:[bx+size PMB].PMB_LEN.LW
+	add	ds:[bx].PMB_LEN.LW,ax
+	mov	ax,ds:[bx+size PMB].PMB_LEN.HW
+	adc	ds:[bx].PMB_LEN.HW,ax
 	DEFLBL	pmb_drop,near		; remove the PMB after BX
 	mov	al,ds:[bx+size PMB].PMB_SIG
 	mov	ds:[bx].PMB_SIG,al
@@ -2710,11 +2710,11 @@ dp1:	mov	ax,[bp+18]
 ; memory, so the code after MOV CR0 runs until the far jump reloads CS.
 ;
 	db	66h
-	lgdt	qword ptr ds:[SYS_VARS].SV_GDTR
+	DTREG	lgdt,<ds:[SYS_VARS].SV_GDTR>
 	db	66h
-	lidt	qword ptr ds:[SYS_VARS].SV_PIDTR
-	push	ds:[SYS_VARS].SV_PDIR.HIW
-	push	ds:[SYS_VARS].SV_PDIR.LOW
+	DTREG	lidt,<ds:[SYS_VARS].SV_PIDTR>
+	push	ds:[SYS_VARS].SV_PDIR.HW
+	push	ds:[SYS_VARS].SV_PDIR.LW
 	db	66h,58h			; POP EAX
 	db	0Fh,22h,0D8h		; MOV CR3,EAX
 	db	0Fh,20h,0C0h		; MOV EAX,CR0
@@ -2722,8 +2722,8 @@ dp1:	mov	ax,[bp+18]
 	dw	0001h,8000h
 	db	0Fh,22h,0C0h		; MOV CR0,EAX
 	jmp	short dp1c
-dp1b:	lgdt	qword ptr ds:[SYS_VARS].SV_GDTR
-	lidt	qword ptr ds:[SYS_VARS].SV_PIDTR
+dp1b:	DTREG	lgdt,<ds:[SYS_VARS].SV_GDTR>
+	DTREG	lidt,<ds:[SYS_VARS].SV_PIDTR>
 	smsw	ax
 	or	al,1			; set PE
 	lmsw	ax
@@ -2743,8 +2743,8 @@ dp2:	mov	ss,dx
 ;
 	cmp	ds:[SYS_VARS].SV_LINHI,0
 	je	dp3
-	mov	ax,ds:[SYS_VARS].SV_PDIR.LOW
-	mov	dx,ds:[SYS_VARS].SV_PDIR.HIW
+	mov	ax,ds:[SYS_VARS].SV_PDIR.LW
+	mov	dx,ds:[SYS_VARS].SV_PDIR.HW
 	mov	bx,SEL_TMP
 	call	pm_ptr			; BX = selector, AX = offset (zero)
 	mov	es,bx
@@ -3182,8 +3182,8 @@ DEFPROC	rm_vector
 	mov	bl,al
 	mov	bh,0
 	shl	bx,2
-	mov	cx,[bx].OFF
-	mov	dx,[bx].SEG
+	mov	cx,[bx]._OFF
+	mov	dx,[bx]._SEG
 	pop	bx
 	pop	ds
 	cmp	dx,SEL_ROM		; is the handler in the ROM
@@ -3249,7 +3249,7 @@ DEFPROC	to_fault
 	push	ds
 	mov	dx,SEL_SYS
 	mov	ds,dx
-	mov	dx,ds:[SYS_VARS].SV_FAULT.SEG
+	mov	dx,ds:[SYS_VARS].SV_FAULT._SEG
 	pop	ds
 	test	dx,dx			; is there a handler?
 	jz	tf9			; no
@@ -3279,9 +3279,9 @@ tf2:	mov	ss:[si-8],dx
 	push	ds
 	mov	dx,SEL_SYS
 	mov	ds,dx
-	mov	dx,ds:[SYS_VARS].SV_FAULT.OFF
+	mov	dx,ds:[SYS_VARS].SV_FAULT._OFF
 	mov	ss:[si-12],dx
-	mov	dx,ds:[SYS_VARS].SV_FAULT.SEG
+	mov	dx,ds:[SYS_VARS].SV_FAULT._SEG
 	mov	ss:[si-10],dx
 	pop	ds
 	popa

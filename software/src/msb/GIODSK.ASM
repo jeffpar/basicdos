@@ -204,7 +204,7 @@ DSKOP2:	PUSH	CX		;save user requested Random-Record-Size
 	CLD			;Set Post-Increment mode
  REP	MOVSB			; to FDB's FCB
 	MOV	BYTE PTR 0[DI],CL	;Make sure ext field is zero
-	ADD	DI,OFFSET FCB_NR-FCB_EX	;Advance to NR field
+	ADD	DI,FCB_NR-FCB_EX	;Advance to NR field
 	MOV	AX,CX		;[AX]=0
 	CLD			;Set Post-Increment mode
 	STOSW
@@ -281,7 +281,7 @@ APPFIN:
 NTZRF1:
 	LEA	DI,DWORD PTR FCB_RN[SI]	;DI points to random record# field
 	PUSH	SI		;Save FDB pointer
-	ADD	SI,OFFSET FCB_FS	;Move to File Size
+	ADD	SI,FCB_FS		;Move to File Size
 	TEST	BYTE PTR 0[SI],LOW 127D	;See if multiple of 128
 	CLD			;Set Post-Inc mode for next 10 lines
 	PUSHF			;and remember
@@ -730,8 +730,8 @@ CHKNFL:
 	JE	IGNTFL		;branch if same as FDB in question
 	PUSH	SI
 	PUSH	DI
-	ADD	SI,OFFSET F_FCB
-	ADD	DI,OFFSET F_FCB
+	ADD	SI,F_FCB
+	ADD	DI,F_FCB
 	MOV	CX,OFFSET FNAML+1
 ;compare filenames, mapping lower case to upper case
 CMPLOP:
@@ -930,7 +930,7 @@ FCERRA:	JMP	FCERR
 	PAGE
 	SUBTTL  KILL, FILES, NAME commands
 
-	PUBLIC	FILES,KILL,NAME
+	PUBLIC	FILES,KILL,NAME_
 	EXTRN	FRMEVL:NEAR,FRESTR:NEAR,CRDO:NEAR,POLKEY:NEAR
 DSEG	SEGMENT PUBLIC 'DATASG'
 	EXTRN	LINLEN:WORD,BUF:WORD
@@ -1045,7 +1045,7 @@ KILL2:	POP	DX		;DX points to FCB
 ; Entry - [BX] = text pointer
 ; Exit  - [BX] = text pointer
 ;
-NAME:
+NAME_:
 	CALL	NAMFIL		;[SI] points to 1st byte of old filename
 				;[CX] = number of bytes in filename
 	PUSH	BX		;save text pointer

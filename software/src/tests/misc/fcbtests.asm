@@ -736,9 +736,9 @@ DEFPROC	ownership_tests
 	CHECK	je,ax,<offset childend-offset ownerchild>
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
-	mov	ownerepb.EPB_CMDTAIL.SEG,ds
-	mov	ownerepb.EPB_FCB1.SEG,ds
-	mov	ownerepb.EPB_FCB2.SEG,ds
+	mov	ownerepb.EPB_CMDTAIL._SEG,ds
+	mov	ownerepb.EPB_FCB1._SEG,ds
+	mov	ownerepb.EPB_FCB2._SEG,ds
 	call	refcount
 	mov	ownerrefs,ax
 	mov	si,4
@@ -849,8 +849,8 @@ DEFPROC	refcount
 	xor	ax,ax
 	mov	cx,es
 	jcxz	rc2			; (ring 3 can't read DOS's tables)
-	mov	cx,es:[bx].DV_SFB_TABLE.SEG
-	mov	bx,es:[bx].DV_SFB_TABLE.OFF
+	mov	cx,es:[bx].DV_SFB_TABLE._SEG
+	mov	bx,es:[bx].DV_SFB_TABLE._OFF
 rc1:	mov	dl,es:[bx].SFB_REFS
 	xor	dh,dh
 	add	ax,dx

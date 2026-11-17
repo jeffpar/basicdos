@@ -324,8 +324,8 @@ ENDPROC	find_cln
 ;
 DEFPROC	walk_cln,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
-	mov	ax,[bx].SFB_CURPOS.LOW
-	mov	dx,[bx].SFB_CURPOS.HIW
+	mov	ax,[bx].SFB_CURPOS.LW
+	mov	dx,[bx].SFB_CURPOS.HW
 	cmp	dx,[di].BPB_CLUSBYTES	; would the division overflow?
 	jae	wc8			; yes (the position is far too large)
 	div	[di].BPB_CLUSBYTES	; AX = cluster index of CURPOS
@@ -423,7 +423,7 @@ DEFPROC	advance_cln,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	mov	ax,[di].BPB_CLUSBYTES
 	dec	ax
-	test	[bx].SFB_CURPOS.LOW,ax	; is CURPOS at a cluster boundary?
+	test	[bx].SFB_CURPOS.LW,ax	; is CURPOS at a cluster boundary?
 	jnz	anc9			; no (and carry is clear)
 	push	dx
 	sub	dx,dx
@@ -576,8 +576,8 @@ DEFPROC	resize_file,DOS
 	push	si
 	mov	dl,[bx].SFB_DRIVE
 	call	get_bpb			; DI -> BPB
-	mov	ax,[bx].SFB_CURPOS.LOW
-	mov	cx,[bx].SFB_CURPOS.HIW	; CX:AX = new size
+	mov	ax,[bx].SFB_CURPOS.LW
+	mov	cx,[bx].SFB_CURPOS.HW	; CX:AX = new size
 	push	cx
 	push	ax
 	jc	rz8
@@ -590,12 +590,12 @@ DEFPROC	resize_file,DOS
 ; Back CURPOS up to the new last byte, so that find_cln (or get_wcln) will
 ; return the new last cluster.
 ;
-	sub	[bx].SFB_CURPOS.LOW,1
-	sbb	[bx].SFB_CURPOS.HIW,0
-	cmp	cx,[bx].SFB_SIZE.HIW
+	sub	[bx].SFB_CURPOS.LW,1
+	sbb	[bx].SFB_CURPOS.HW,0
+	cmp	cx,[bx].SFB_SIZE.HW
 	ja	rz2
 	jb	rz1
-	cmp	ax,[bx].SFB_SIZE.LOW
+	cmp	ax,[bx].SFB_SIZE.LW
 	ja	rz2			; the file is growing
 ;
 ; The file is shrinking (or staying the same size), so end the cluster chain
@@ -628,13 +628,13 @@ rz3:	mov	[bx].SFB_CONTEXT,dx
 	call	free_clns
 rz8:	pop	cx
 	pop	dx			; DX:CX = new size
-	mov	[bx].SFB_CURPOS.LOW,cx	; restore CURPOS
-	mov	[bx].SFB_CURPOS.HIW,dx
+	mov	[bx].SFB_CURPOS.LW,cx	; restore CURPOS
+	mov	[bx].SFB_CURPOS.HW,dx
 	mov	[bx].SFB_CURCLN,0
 	mov	word ptr [bx+SFB_HINTCLN],0	; the chain may be shorter now
 	jc	rz9
-	mov	[bx].SFB_SIZE.LOW,cx
-	mov	[bx].SFB_SIZE.HIW,dx
+	mov	[bx].SFB_SIZE.LW,cx
+	mov	[bx].SFB_SIZE.HW,dx
 	or	[bx].SFB_FLAGS,SFBF_DIRTY ; (and carry is clear)
 rz9:	pop	si
 	pop	cx

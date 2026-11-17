@@ -894,7 +894,7 @@ CLSFL1:	CALL	FDBPTR		;[SI] points to FDB [AL]
 	MOV	AH,LOW OFFSET G_CLS
 	CALL	SIDSP		;close FDB pointed to by [SI]
 	MOV	WORD PTR FREFDB,0
-	CALL	FFREE		;Deallocate FDB and remove from FDB Chain
+	CALL	FFREE_		;Deallocate FDB and remove from FDB Chain
 	POP	DX
 	POP	CX
 	POP	BX
@@ -1549,7 +1549,7 @@ SCNAM3:	POPF
 FILLNM:	POPF
 	STC			;set carry indicating "." scanned
 	PUSHF
-FILNM0:	CMP	DX,OFFSET FNAML	;file name length
+FILNM0:	CMP	DX,FNAML	;file name length
 	JE	ERIFN1		;Error - extension only !
 	CMP	DX,3
 	JB	ERIFN1		;Error - 2nd dot
@@ -1684,7 +1684,7 @@ INIFDB:	PUSH	CX
 	PUSH	DI
 	TEST	BYTE PTR FILMOD,AH	;Check for valid file mode
 	JZ	ERBFM4		;  Bad file mode
-	ADD	CX,OFFSET FDBSIZ	;(CX) = size of block to allocate
+	ADD	CX,FDBSIZ		;(CX) = size of block to allocate
 	CALL	FALLOC		;SI points to Allocated block
 	MOV	WORD PTR PTRFIL,SI
 	MOV	BYTE PTR F_NUM[SI],BL	;Set file number
@@ -1811,7 +1811,7 @@ PBAX:	POP	BX
 ;  nbytes := size of freed file-data-block.
 ;  xfrstr(fdbptr, nbytes); {move string space and lower-FDB's up nbytes}
 ;
-FFREE:	PUSH	AX
+FFREE_:	PUSH	AX
 	PUSH	BX
 	PUSH	CX
 	PUSH	DX
@@ -2135,7 +2135,7 @@ DSEG	ENDS
 	MOV	SI,WORD PTR FREFDB
 	OR	SI,SI
 	JZ	NFRFDB		;branch if no FDB needs to be released
-	CALL	FFREE
+	CALL	FFREE_
 NFRFDB:	XOR	AX,AX
 	MOV	WORD PTR FREFDB,AX	;reset FREE-FDB flag
 	CALL	CLSFIL		;close file #0 (if NLONLY=0)

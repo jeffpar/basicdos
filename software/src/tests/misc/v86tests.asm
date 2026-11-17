@@ -47,7 +47,7 @@ DEFPROC	main
 ;
 ; 2: CLI, STI, PUSHF, and POPF use the machine's IF.
 ;
-	inc	[test]
+	inc	[testnum]
 	pushf
 	pop	ax
 	test	ah,FL_INTS SHR 8	; on to begin with?
@@ -72,7 +72,7 @@ DEFPROC	main
 ;
 ; 3: An INT goes to the machine's vector, with IF clear, and IRET returns.
 ;
-	inc	[test]
+	inc	[testnum]
 	mov	dx,offset count_int
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR INT_TEST
 	int	21h
@@ -91,7 +91,7 @@ DEFPROC	main
 ;
 ; The failures are here, in the middle, so that every test can reach them.
 ;
-fail:	mov	al,[test]
+fail:	mov	al,[testnum]
 	add	al,'0'
 	mov	[FAILNUM],al
 	mov	dx,offset FAILED
@@ -102,7 +102,7 @@ fail:	mov	al,[test]
 ; 4: INT3 goes to vector 03h.
 ;
 t4:
-	inc	[test]
+	inc	[testnum]
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR INT_BP
 	int	21h			; (DX -> count_int still)
 	int	3
@@ -111,7 +111,7 @@ t4:
 ;
 ; 5: A divide error goes to vector 00h, which returns past the DIV.
 ;
-	inc	[test]
+	inc	[testnum]
 	mov	dx,offset div_err
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR INT_DV
 	int	21h
@@ -124,7 +124,7 @@ t4:
 ;
 ; 6: The upper half of a 32-bit register survives a DOS call.
 ;
-	inc	[test]
+	inc	[testnum]
 	db	66h,0BBh		; MOV EBX,12345678h
 	dd	12345678h
 	mov	ah,DOS_MSC_GETVER
@@ -136,7 +136,7 @@ t4:
 ; 7: An instruction that CPU$ does for the machine (eg, PUSHF) works with the
 ; direction flag set (which would otherwise loop here, or worse).
 ;
-	inc	[test]
+	inc	[testnum]
 	std
 	pushf
 	cld
@@ -147,14 +147,14 @@ t4:
 ; 8: A hook of INT 21h can pass calls on to the previous handler (which
 ; exits the machine at its HLT), and gets their results.
 ;
-	inc	[test]
+	inc	[testnum]
 	mov	ah,DOS_MSC_GETVER
 	int	21h
 	push	ax			; the version
 	mov	ax,(DOS_MSC_GETVEC SHL 8) OR INT_DOSFUNC
 	int	21h
-	mov	[prev21].OFF,bx
-	mov	[prev21].SEG,es
+	mov	[prev21]._OFF,bx
+	mov	[prev21]._SEG,es
 	mov	dx,offset hook21
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR INT_DOSFUNC
 	int	21h
@@ -218,7 +218,7 @@ DEFPROC	hook21
 	jmp	dword ptr cs:[prev21]
 ENDPROC	hook21
 
-	DEFBYTE	test,1
+	DEFBYTE	testnum,1
 	DEFBYTE	count,0
 	DEFBYTE	ints,0
 	DEFLONG	prev21,0

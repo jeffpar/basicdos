@@ -370,8 +370,8 @@ cu3:	call	syncFiles		; update OPEN files, too
 	push	bx
 	mov	bp,bx
 	lea	bx,[bx].EXECDATA
-	mov	[bx].EPB_INIT_IP.LOW,0	; set the program's CS:IP to PSP:0
-	mov	[bx].EPB_INIT_IP.HIW,cx
+	mov	[bx].EPB_INIT_IP.LW,0	; set the program's CS:IP to PSP:0
+	mov	[bx].EPB_INIT_IP.HW,cx
 	call	cmdExec			; this should be a very fast "EXEC"
 	pop	bx
 cu9:	popf
@@ -652,8 +652,8 @@ DEFPROC	parseDOS
 	mov	[bp].HDL_INPIPE,bx	; no input pipe (yet)
 	mov	[bp].HDL_OUTPIPE,bx	; and no output pipe (yet)
 	mov	[bp].HDL_OUTFILE,bx	; or output file
-	mov	[bp].PIPE_SCB.LOW,bx	; and no pipeline sessions (yet)
-	mov	[bp].PIPE_SCB.HIW,bx
+	mov	[bp].PIPE_SCB.LW,bx	; and no pipeline sessions (yet)
+	mov	[bp].PIPE_SCB.HW,bx
 	dec	bx			; BX = -1
 	mov	[bp].HDL_INPUT,bx
 	mov	[bp].HDL_OUTPUT,bx
@@ -931,8 +931,8 @@ pd9e:	test	ax,ax			; is there a deferred command?
 ; that runLine runs), which call parseDOS again, so save the pipe handle and
 ; the pipeline's sessions, which parseDOS resets.
 ;
-	push	[bp].PIPE_SCB.HIW
-	push	[bp].PIPE_SCB.LOW
+	push	[bp].PIPE_SCB.HW
+	push	[bp].PIPE_SCB.LW
 	push	[bp].CMD_DEFER[8]
 	js	pd9a			; the deferred command is external (-1)
 
@@ -978,8 +978,8 @@ pd9a:	call	cmdExec			; invoke deferred external command
 ; The deferred command's carry is saved, so that a failure sets ERRORLEVEL.
 ;
 pd9b:	pop	bx			; BX = deferred command's pipe handle
-	pop	[bp].PIPE_SCB.LOW
-	pop	[bp].PIPE_SCB.HIW
+	pop	[bp].PIPE_SCB.LW
+	pop	[bp].PIPE_SCB.HW
 	pushf
 	sub	cx,cx			; CX = 0 for "truncating" write
 	mov	ah,DOS_HDL_WRITE
@@ -1510,15 +1510,15 @@ cf5x:	DOSUTIL	STRLEN			; AX = length of filename in LINEBUF
 	add	di,ax			; but the filename is now in LINEBUF
 	inc	di			; so use the remaining space in LINEBUF
 	push	di
-	mov	[bx].EPB_CMDTAIL.OFF,di
-	mov	[bx].EPB_CMDTAIL.SEG,es
+	mov	[bx].EPB_CMDTAIL._OFF,di
+	mov	[bx].EPB_CMDTAIL._SEG,es
 	inc	di			; use our tail space to build new tail
 	call	copyArgs		; CX = length of tail
 	mov	al,CHR_RETURN		; regardless how the command line ends,
 	stosb				; terminate the tail with CHR_RETURN
 	pop	di
 	mov	[di],cl			; set the cmd tail length
-	mov	[bx].EPB_FCB1.OFF,-1	; let the EXEC function build the FCBs
+	mov	[bx].EPB_FCB1._OFF,-1	; let the EXEC function build the FCBs
 ;
 ; If there are no pipes, and the transient portion can be discarded, let
 ; runTransient load and run the program (see res.asm).
@@ -1574,9 +1574,9 @@ cf6:	mov	di,dx			; DI -> filename in LINEBUF
 	sub	ax,ax
 	stosw				; SPB_ENVSEG <- 0
 	mov	ax,si
-	stosw				; SPB_CMDLINE.OFF
+	stosw				; SPB_CMDLINE._OFF
 	mov	ax,ds
-	stosw				; SPB_CMDLINE.SEG
+	stosw				; SPB_CMDLINE._SEG
 	mov	al,[bp].SFH_STDIN
 	mov	bx,[bp].HDL_INPIPE
 	test	bx,bx

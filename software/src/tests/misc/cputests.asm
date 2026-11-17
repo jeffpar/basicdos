@@ -70,8 +70,8 @@ m1:	mov	[pmflag],ah
 	ASSUME	ES:CODE
 	PRINTF	<"CPU type %d (hardware %d)",13,10>,ax,bx
 	call	info
-	mov	[free0].LOW,cx
-	mov	[free0].HIW,dx
+	mov	[free0].LW,cx
+	mov	[free0].HW,dx
 	call	arena
 	mov	[npmbs],bx
 	sub	bp,bp			; BP = step #
@@ -91,8 +91,8 @@ m2:	call	ring3
 	mov	si,1
 	mov	di,86A0h		; SI:DI = 100000
 	call	alloc
-	mov	[addr1].LOW,cx
-	mov	[addr1].HIW,dx
+	mov	[addr1].LW,cx
+	mov	[addr1].HW,dx
 	call	bigseg
 	inc	bp
 	mov	al,MEMF_LDT
@@ -100,8 +100,8 @@ m2:	call	ring3
 	mov	di,4096
 	call	alloc
 	mov	[sel2],ax
-	mov	[addr2].LOW,cx
-	mov	[addr2].HIW,dx
+	mov	[addr2].LW,cx
+	mov	[addr2].HW,dx
 ;
 ; Map 4000 bytes of CGA video memory (B8000h).
 ;
@@ -144,8 +144,8 @@ m2:	call	ring3
 ; Free everything, and make sure the arena is back where it started.
 ;
 	inc	bp
-	mov	cx,[addr1].LOW
-	mov	dx,[addr1].HIW
+	mov	cx,[addr1].LW
+	mov	dx,[addr1].HW
 	mov	ah,CPU_FREE
 	call	cpu_ok
 	inc	bp
@@ -154,8 +154,8 @@ m2:	call	ring3
 	mov	ah,CPU_UNMAP
 	call	cpu_ok
 	inc	bp
-	mov	cx,[addr2].LOW
-	mov	dx,[addr2].HIW
+	mov	cx,[addr2].LW
+	mov	dx,[addr2].HW
 	mov	ah,CPU_FREE
 	call	cpu_ok
 	inc	bp
@@ -167,9 +167,9 @@ m7:	inc	bp
 	mov	ah,CPU_FREE
 	call	cpu_ok
 	call	info
-	cmp	cx,[free0].LOW		; is the largest free block the same?
+	cmp	cx,[free0].LW		; is the largest free block the same?
 	jne	m8
-	cmp	dx,[free0].HIW
+	cmp	dx,[free0].HW
 	jne	m8
 	call	arena
 	cmp	bx,[npmbs]		; and the number of blocks?
@@ -198,8 +198,8 @@ DEFPROC	common
 	mov	di,4096
 	call	alloc
 	mov	[sel6],ax
-	mov	[addr6].LOW,cx
-	mov	[addr6].HIW,dx
+	mov	[addr6].LW,cx
+	mov	[addr6].HW,dx
 	inc	bp
 	mov	di,2048
 	call	resize
@@ -244,8 +244,8 @@ ENDPROC	common
 ; Sets up a CPU_REALLOC of the block at addr6 to DI bytes.
 ;
 DEFPROC	resize
-	mov	cx,[addr6].LOW
-	mov	dx,[addr6].HIW
+	mov	cx,[addr6].LW
+	mov	dx,[addr6].HW
 	sub	si,si
 	mov	ah,CPU_REALLOC
 	ret
@@ -334,16 +334,16 @@ DEFPROC	move
 	call	cpu_ok			; DX:CX = address of DS
 	xchg	ax,cx			; DX:AX = address of DS
 	mov	bx,offset mvpkt
-	mov	[bx].MV_SRC.LOW,si
-	add	[bx].MV_SRC.LOW,ax
-	mov	[bx].MV_SRC.HIW,dx
-	adc	[bx].MV_SRC.HIW,0
-	mov	[bx].MV_DST.LOW,di
-	add	[bx].MV_DST.LOW,ax
-	mov	[bx].MV_DST.HIW,dx
-	adc	[bx].MV_DST.HIW,0
-	mov	[bx].MV_LEN.LOW,STR_LEN
-	mov	[bx].MV_LEN.HIW,0
+	mov	[bx].MV_SRC.LW,si
+	add	[bx].MV_SRC.LW,ax
+	mov	[bx].MV_SRC.HW,dx
+	adc	[bx].MV_SRC.HW,0
+	mov	[bx].MV_DST.LW,di
+	add	[bx].MV_DST.LW,ax
+	mov	[bx].MV_DST.HW,dx
+	adc	[bx].MV_DST.HW,0
+	mov	[bx].MV_LEN.LW,STR_LEN
+	mov	[bx].MV_LEN.HW,0
 	mov	ah,CPU_MOVE
 	jmp	cpu_ok
 ENDPROC	move
@@ -390,9 +390,9 @@ DEFPROC	aliases
 	je	al7
 	test	al,4			; an LDT selector?
 	jz	al7
-	cmp	cx,[addr2].LOW		; for the same address?
+	cmp	cx,[addr2].LW		; for the same address?
 	jne	al7
-	cmp	dx,[addr2].HIW
+	cmp	dx,[addr2].HW
 	je	al1
 al7:	jmp	m8
 al1:	mov	[sel4],ax
@@ -453,8 +453,8 @@ DEFPROC	ring3
 	mov	di,R0_STACK
 	call	alloc			; AX = selector, DX:CX = address
 	mov	[sel2],ax
-	mov	[addr1].LOW,cx
-	mov	[addr1].HIW,dx
+	mov	[addr1].LW,cx
+	mov	[addr1].HW,dx
 	xchg	dx,ax
 	mov	cx,R0_STACK		; DX:CX = the ring 0 stack
 	mov	ah,CPU_SETSTACK
@@ -539,7 +539,7 @@ DEFPROC	ring3
 	cmp	byte ptr [r3flag],1	; and did INT 0 reach r3int0?
 	jne	r3x
 	inc	bp
-	cmp	[fpu_fn].SEG,0		; is FPU$ loaded?
+	cmp	[fpu_fn]._SEG,0		; is FPU$ loaded?
 	je	r3a			; no
 	cmp	[r3di],offset pmb_buf+3	; did FPU_DTOA store 3 chars
 	jne	r3x
@@ -552,7 +552,7 @@ r3a:	mov	ax,[r3cs]
 	mov	bx,[r3bx]
 	mov	dx,[r3ec]
 	PRINTF	<"Ring 3 at %#x: INT 21h %#x, INT 0Dh EC %#x",13,10>,ax,bx,dx
-	cmp	[fpu_fn].SEG,0
+	cmp	[fpu_fn]._SEG,0
 	je	r3b
 	PRINTF	<"FPU_DTOA at ring 3: 2.5",13,10>
 r3b:	inc	bp
@@ -568,8 +568,8 @@ r3b:	inc	bp
 	sub	cx,cx
 	mov	ah,CPU_UNMAP
 	call	cpu_ok
-	mov	cx,[addr1].LOW
-	mov	dx,[addr1].HIW
+	mov	cx,[addr1].LW
+	mov	dx,[addr1].HW
 	mov	ah,CPU_FREE
 	jmp	cpu_ok
 ENDPROC	ring3
@@ -611,14 +611,14 @@ rl1:	push	ss
 	mov	ax,ss
 	cmp	[r3fss],ax		; and SS?
 	jne	rl7
-	mov	ax,[r0stk].OFF
+	mov	ax,[r0stk]._OFF
 	sub	ax,cx
 	cmp	[r3fsp],ax		; and SP?
 	je	rl9
 rl7:	inc	byte ptr [r3lim]
 rl9:	ret
-rl8:	mov	[r0stk].OFF,sp		; SS:SP -> our return address
-	mov	[r0stk].SEG,ss
+rl8:	mov	[r0stk]._OFF,sp		; SS:SP -> our return address
+	mov	[r0stk]._SEG,ss
 	push	cs
 	push	bx			; CS:IP
 	DEFLBL	r3retf,near
@@ -634,12 +634,12 @@ ENDPROC	r3limit
 DEFPROC	r3go
 	mov	bx,offset r3code
 	DEFLBL	r3enter,near
-	mov	[r0stk].OFF,sp		; SS:SP -> our return address
-	mov	[r0stk].SEG,ss
+	mov	[r0stk]._OFF,sp		; SS:SP -> our return address
+	mov	[r0stk]._SEG,ss
 	mov	ax,[sel5]
 	or	al,3			; AX = data alias, with RPL 3
 	push	ax			; SS
-	push	[r0stk].OFF		; SP
+	push	[r0stk]._OFF		; SP
 	pushf
 	mov	cx,[sel4]
 	or	cl,3
@@ -649,7 +649,7 @@ DEFPROC	r3go
 	mov	es,ax			; selectors null at ring 3)
 	DEFLBL	r3iret,near
 	iret
-r3code:	mov	cx,[fpu_fn].SEG
+r3code:	mov	cx,[fpu_fn]._SEG
 	jcxz	r3c1			; no FPU$
 	mov	si,offset dbl_2_5	; DS:SI -> 2.5
 	mov	di,offset pmb_buf	; ES:DI -> buffer
@@ -680,8 +680,8 @@ r3c1:	mov	ah,DOS_MSC_GETVER
 	mov	[r3cs],ax
 	mov	[r3bx],bx
 	mov	[r3di],di
-	mov	ss,[r0stk].SEG
-	mov	sp,[r0stk].OFF
+	mov	ss,[r0stk]._SEG
+	mov	sp,[r0stk]._OFF
 	db	OP_RETF			; (from the alias, back to our CS)
 ;
 ; r3code's INT 0 comes here, at ring 0 (on the ring 0 stack).
@@ -712,7 +712,7 @@ DEFPROC	r3fpu
 	mov	cx,es
 	jcxz	rf8			; (none)
 	mov	ax,es:[si].FPU_DTOA
-	mov	[fpu_fn].OFF,ax		; fpu_fn -> FPU_DTOA
+	mov	[fpu_fn]._OFF,ax	; fpu_fn -> FPU_DTOA
 rf8:	push	ds
 	pop	es
 rf9:	ret
@@ -740,11 +740,11 @@ DEFPROC	blocks
 	mov	di,offset pmb_buf
 	mov	ah,CPU_QUERY
 	call	cpu_ok
-	mov	ax,[addr6].LOW
-	cmp	[di].PMB_ADDR.LOW,ax
+	mov	ax,[addr6].LW
+	cmp	[di].PMB_ADDR.LW,ax
 	jne	bk8
-	mov	ax,[addr6].HIW
-	cmp	[di].PMB_ADDR.HIW,ax
+	mov	ax,[addr6].HW
+	cmp	[di].PMB_ADDR.HW,ax
 	jne	bk8
 	cmp	[di].PMB_OWNER,2
 	jne	bk8
@@ -762,24 +762,24 @@ bk1:	inc	bp
 	mov	di,16			; SI:DI = length
 	mov	ax,(CPU_ALLOC SHL 8) OR MEMF_LOW OR MEMF_HIGH
 	call	cpu_ok
-	mov	[addr1].LOW,cx
-	mov	[addr1].HIW,dx
+	mov	[addr1].LW,cx
+	mov	[addr1].HW,dx
 	mov	ax,(CPU_ALLOC SHL 8) OR MEMF_LOW OR MEMF_HIGH
 	call	cpu_ok
-	mov	[addr2].LOW,cx
-	mov	[addr2].HIW,dx
+	mov	[addr2].LW,cx
+	mov	[addr2].HW,dx
 	inc	bp
 	mov	ah,CPU_FREEALL
 	call	cpu_ok
 	inc	bp
 	mov	[experr],ERR_BADADDR
-	mov	cx,[addr1].LOW
-	mov	dx,[addr1].HIW
+	mov	cx,[addr1].LW
+	mov	dx,[addr1].HW
 	mov	ah,CPU_FREE
 	call	cpu_err			; it's free already
 	inc	bp
-	mov	cx,[addr2].LOW
-	mov	dx,[addr2].HIW
+	mov	cx,[addr2].LW
+	mov	dx,[addr2].HW
 	mov	ah,CPU_FREE
 	call	cpu_err			; and so is this one
 	mov	si,offset name1

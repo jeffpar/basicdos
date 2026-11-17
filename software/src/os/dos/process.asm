@@ -107,23 +107,23 @@ pt1a:	call	psp_close		; close all the process file handles
 ;
 ; Restore the SCB's CTRLC and ERROR handlers from the values in the PSP.
 ;
-	push	es:[PSP_EXIT].SEG	; push PSP_EXIT (exit return address)
-	push	es:[PSP_EXIT].OFF
+	push	es:[PSP_EXIT]._SEG	; push PSP_EXIT (exit return address)
+	push	es:[PSP_EXIT]._OFF
 
-	mov	ax,es:[PSP_CTRLC].OFF	; brute-force restoration
-	mov	[bx].SCB_CTRLC.OFF,ax	; of CTRLC and ERROR handlers
-	mov	ax,es:[PSP_CTRLC].SEG
-	mov	[bx].SCB_CTRLC.SEG,ax
+	mov	ax,es:[PSP_CTRLC]._OFF	; brute-force restoration
+	mov	[bx].SCB_CTRLC._OFF,ax	; of CTRLC and ERROR handlers
+	mov	ax,es:[PSP_CTRLC]._SEG
+	mov	[bx].SCB_CTRLC._SEG,ax
 
-	mov	ax,es:[PSP_ERROR].OFF
-	mov	[bx].SCB_ERROR.OFF,ax
-	mov	ax,es:[PSP_ERROR].SEG
-	mov	[bx].SCB_ERROR.SEG,ax
+	mov	ax,es:[PSP_ERROR]._OFF
+	mov	[bx].SCB_ERROR._OFF,ax
+	mov	ax,es:[PSP_ERROR]._SEG
+	mov	[bx].SCB_ERROR._SEG,ax
 
-	mov	ax,es:[PSP_DTAPREV].OFF	; restore the previous DTA
-	mov	[bx].SCB_DTA.OFF,ax	; (PC DOS may require every process
-	mov	ax,es:[PSP_DTAPREV].SEG	; to restore this itself after an exec)
-	mov	[bx].SCB_DTA.SEG,ax
+	mov	ax,es:[PSP_DTAPREV]._OFF; restore the previous DTA
+	mov	[bx].SCB_DTA._OFF,ax	; (PC DOS may require every process
+	mov	ax,es:[PSP_DTAPREV]._SEG; to restore this itself after an exec)
+	mov	[bx].SCB_DTA._SEG,ax
 ;
 ; Just as scb_load had to bump SCB_INDOS, we must now reduce it, because
 ; this call isn't returning anywhere.
@@ -145,13 +145,13 @@ pt1a:	call	psp_close		; close all the process file handles
 ; If no other session has started, this one's exit ends the system, so say so
 ; on its console (while its handles are still open) and stop.
 ;
-	mov	di,[scb_table].OFF	; DI -> the first SCB
+	mov	di,[scb_table]._OFF	; DI -> the first SCB
 pt1c:	cmp	di,bx			; this session?
 	je	pt1d			; yes, skip it
 	test	[di].SCB_STATUS,SCSTAT_START
 	jnz	pt1e			; another session is running
 pt1d:	add	di,size SCB
-	cmp	di,[scb_table].SEG
+	cmp	di,[scb_table]._SEG
 	jb	pt1c
 	mov	bl,[bx].SCB_SFHOUT	; BL = the session's console SFH
 	CCALL	DOS_UTL_HPRINTF,<13,10,"System halted",13,10>
@@ -202,8 +202,8 @@ pt8a:
 	mov	word ptr es:[PSP_EXCODE],ax
 
 	cli
-	mov	ss,es:[PSP_STACK].SEG
-	mov	sp,es:[PSP_STACK].OFF
+	mov	ss,es:[PSP_STACK]._SEG
+	mov	sp,es:[PSP_STACK]._OFF
 	dec	[scb_locked]		; (interrupts are off until dos_leave2)
 ;
 ; When a program (eg, SYMDEB.EXE) loads another program using DOS_PSP_EXEC1,
@@ -364,14 +364,14 @@ px4:	push	ds
 	ENDIF
 	mov	di,ax
 	add	ax,size REG_FRAME-2	; leave just REG_FL on the stack
-	mov	[bx].EPB_INIT_SP.OFF,ax
-	mov	[bx].EPB_INIT_SP.SEG,dx	; return the program's SS:SP
+	mov	[bx].EPB_INIT_SP._OFF,ax
+	mov	[bx].EPB_INIT_SP._SEG,dx; return the program's SS:SP
 	mov	es,dx			; ES:DI -> REG_FRAME
 	mov	ax,es:[di].REG_AX
 	mov	es:[di].REG_FL,ax	; store REG_AX in place of REG_FL
 	les	di,dword ptr es:[di].REG_IP
-	mov	[bx].EPB_INIT_IP.OFF,di
-	mov	[bx].EPB_INIT_IP.SEG,es	; return the program's CS:IP
+	mov	[bx].EPB_INIT_IP._OFF,di
+	mov	[bx].EPB_INIT_IP._SEG,es; return the program's CS:IP
 	clc
 	ret
 pxx:	jmp	short px9
@@ -410,14 +410,14 @@ px5:	mov	ds,[bp].REG_ES
 	IF REG_CHECK			; in the previous PSP is based on the
 	sub	ax,2			; assumption that the same INT 21h
 	ENDIF				; both loaded and exec'ed us
-	mov	ds:[PSP_STACK].OFF,ax	;
-	mov	ds:[PSP_STACK].SEG,ss	; so, re-save the current stack ptr
+	mov	ds:[PSP_STACK]._OFF,ax	;
+	mov	ds:[PSP_STACK]._SEG,ss	; so, re-save the current stack ptr
 	pop	ds
 
 	mov	ax,[bp].REG_IP
-	mov	ds:[PSP_EXIT].OFF,ax
+	mov	ds:[PSP_EXIT]._OFF,ax
 	mov	ax,[bp].REG_CS
-	mov	ds:[PSP_EXIT].SEG,ax
+	mov	ds:[PSP_EXIT]._SEG,ax
 px7:	xchg	ax,si			; DX:AX -> REG_FRAME
 	IF REG_CHECK
 	sub	ax,REG_CHECK
@@ -638,9 +638,9 @@ lc1:	lodsb
 	mov	[bx],ch			; restore separator
 	dec	bx
 	xchg	[bx],cl			; set length
-	mov	[bp].EPB_CMDTAIL.OFF,bx
-	mov	[bp].EPB_CMDTAIL.SEG,ds
-	mov	[bp].EPB_FCB1.OFF,-1	; tell load_args to build the FCBs
+	mov	[bp].EPB_CMDTAIL._OFF,bx
+	mov	[bp].EPB_CMDTAIL._SEG,ds
+	mov	[bp].EPB_FCB1._OFF,-1	; tell load_args to build the FCBs
 	push	bx
 	mov	bx,bp
 	push	ss
@@ -663,8 +663,8 @@ ENDPROC	load_command
 ;
 ; load_args
 ;
-; NOTE: If EPB_FCB1.OFF is -1, then this function will build both FCBs
-; from the command tail at EPB_CMDTAIL (and EPB_FCB1.SEG is ignored).
+; NOTE: If EPB_FCB1._OFF is -1, then this function will build both FCBs
+; from the command tail at EPB_CMDTAIL (and EPB_FCB1._SEG is ignored).
 ;
 ; NOTE: While EPB_CMDTAIL normally ends with a CHR_RETURN, load_command
 ; doesn't bother, because it knows load_args will copy only the specified
@@ -711,7 +711,7 @@ la0:	mov	es:[PSP_ENVSEG],ax
 ; Check EPB_FCB1's offset before loading the pointer, since with -1 there,
 ; its segment can be anything (eg, an invalid selector in protected mode).
 ;
-	cmp	[bx].EPB_FCB1.OFF,-1	; build the FCBs?
+	cmp	[bx].EPB_FCB1._OFF,-1	; build the FCBs?
 	jne	la1			; no
 	lds	si,[bx].EPB_CMDTAIL
 	inc	si
@@ -813,8 +813,8 @@ lp1:	mov	[bp].TMP_DX,bx		; TMP_DX = size of segment (in paras)
 	IF REG_CHECK
 	sub	bx,2
 	ENDIF
-	mov	es:[PSP_STACK].OFF,bx
-	mov	es:[PSP_STACK].SEG,ss
+	mov	es:[PSP_STACK]._OFF,bx
+	mov	es:[PSP_STACK]._SEG,ss
 
 lp2:	push	ax			; save original PSP
 	xchg	ax,dx			; AX = new PSP
@@ -829,9 +829,9 @@ lp2:	push	ax			; save original PSP
 	call	get_psp
 	mov	ds,ax			; DS = segment of new PSP
 	mov	ax,[bp].REG_IP
-	mov	ds:[PSP_EXIT].OFF,ax	; update the PSP's exit address
+	mov	ds:[PSP_EXIT]._OFF,ax	; update the PSP's exit address
 	mov	ax,[bp].REG_CS
-	mov	ds:[PSP_EXIT].SEG,ax
+	mov	ds:[PSP_EXIT]._SEG,ax
 
 	sub	cx,cx
 	sub	dx,dx
@@ -1008,8 +1008,8 @@ lp6e:	push	ax
 	mov	cx,es:[EXE_NRELOCS]
 	mov	di,es:[EXE_OFFRELOC]	; ES:DI -> first relocation entry
 	jcxz	lp6g			; it's always possible there are none
-lp6f:	mov	bx,es:[di].OFF		; BX = offset
-	mov	si,es:[di].SEG		; SI = segment
+lp6f:	mov	bx,es:[di]._OFF		; BX = offset
+	mov	si,es:[di]._SEG		; SI = segment
 	add	si,ax
 	mov	ds,si
 	add	[bx],ax			; add base segment to DS:[BX]
@@ -1082,14 +1082,14 @@ lp6i:	mov	cx,[bp].TMP_DX
 	push	dx
 	mov	dx,[load_reserve]
 	inc	dx			; DX = N (this session plus those to come)
-	mov	si,[scb_table].OFF
+	mov	si,[scb_table]._OFF
 lp6j:	cmp	si,[scb_active]		; is this the session we're loading?
 	je	lp6j2			; yes, it's already counted
 	test	cs:[si].SCB_STATUS,SCSTAT_LOAD
 	jz	lp6j2			; nothing loaded in this session
 	inc	dx			; count it
 lp6j2:	add	si,size SCB
-	cmp	si,[scb_table].SEG
+	cmp	si,[scb_table]._SEG
 	jb	lp6j
 	push	ax
 	xchg	ax,cx			; AX = paras available
@@ -1110,12 +1110,12 @@ lp6l:	add	dx,bx			; DX = base + additional
 
 	mov	ds,ax			; DS = PSP segment
 	add	ax,10h			; AX = EXE base segment (again)
-	pop	ds:[PSP_STACK].OFF
-	pop	ds:[PSP_STACK].SEG
-	add	ds:[PSP_STACK].SEG,ax
-	pop	ds:[PSP_START].OFF
-	pop	ds:[PSP_START].SEG
-	add	ds:[PSP_START].SEG,ax
+	pop	ds:[PSP_STACK]._OFF
+	pop	ds:[PSP_STACK]._SEG
+	add	ds:[PSP_STACK]._SEG,ax
+	pop	ds:[PSP_START]._OFF
+	pop	ds:[PSP_START]._SEG
+	add	ds:[PSP_START]._SEG,ax
 
 	IFDEF	MAXDEBUG
 	DPRINTF	<"New PSP %04x, %04x paras, min,max=%04x,%04x\r\n">,ds,dx,si,di
@@ -1159,8 +1159,8 @@ lp7:	add	dx,ax
 lp7a:	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the file
 	jc	lpf2
-	mov	ds:[PSP_START].OFF,100h
-	mov	ds:[PSP_START].SEG,ds
+	mov	ds:[PSP_START]._OFF,100h
+	mov	ds:[PSP_START]._SEG,ds
 	mov	di,dx			; DI -> uninitialized heap space
 	mov	dx,MINHEAP SHR 4	; DX = additional space (1Kb in paras)
 ;
@@ -1201,7 +1201,7 @@ lp7d:	mov	ds:[PSP_HEAP],ax
 ; (which is where DI is now pointing) represent statically initialized data
 ; that is also considered part of the program's "heap".
 ;
-	mov	ds:[PSP_START].SEG,cx
+	mov	ds:[PSP_START]._SEG,cx
 	mov	si,ds:[PSP_CODESIZE]
 	mov	cx,di
 	sub	cx,si
@@ -1227,8 +1227,8 @@ lp7g:	mov	ax,[di - size COMDATA].CD_HEAPOFF
 	shl	ax,cl
 	pop	cx
 	add	ax,cx			; DS:AX -> top of the heap
-	mov	ds:[PSP_STACK].OFF,ax
-	mov	ds:[PSP_STACK].SEG,ds
+	mov	ds:[PSP_STACK]._OFF,ax
+	mov	ds:[PSP_STACK]._SEG,ds
 	mov	bx,di
 	add	bx,15
 	mov	cl,4
@@ -1259,8 +1259,8 @@ lp7h:	mov	ax,bx
 	jb	lp7f
 	mov	ax,1000h
 lp7f:	shl	ax,cl			; DS:AX -> top of the segment
-	mov	ds:[PSP_STACK].OFF,ax
-	mov	ds:[PSP_STACK].SEG,ds
+	mov	ds:[PSP_STACK]._OFF,ax
+	mov	ds:[PSP_STACK]._SEG,ds
 
 	IFDEF	MAXDEBUG
 	DPRINTF	<"New PSP %04x, %04x paras, stack @%08lx\r\n">,ds,bx,ax,ds
@@ -1299,20 +1299,20 @@ lp8b:	mov	dx,es
 ; handlers inside the SCB rather than the IVT (exactly as DOS_MSC_SETVEC does).
 ;
 	mov	bx,[scb_active]
-	mov	[bx].SCB_CTRLC.OFF,offset dos_ctrlc
-	mov	[bx].SCB_CTRLC.SEG,cs
-	mov	[bx].SCB_ERROR.OFF,offset dos_error
-	mov	[bx].SCB_ERROR.SEG,cs
+	mov	[bx].SCB_CTRLC._OFF,offset dos_ctrlc
+	mov	[bx].SCB_CTRLC._SEG,cs
+	mov	[bx].SCB_ERROR._OFF,offset dos_error
+	mov	[bx].SCB_ERROR._SEG,cs
 ;
 ; Initialize the DTA to its default (PSP:80h), while simultaneously preserving
 ; the previous DTA in the new PSP.
 ;
 	mov	ax,80h
-	xchg	[bx].SCB_DTA.OFF,ax
-	mov	es:[PSP_DTAPREV].OFF,ax
+	xchg	[bx].SCB_DTA._OFF,ax
+	mov	es:[PSP_DTAPREV]._OFF,ax
 	mov	ax,es
-	xchg	[bx].SCB_DTA.SEG,ax
-	mov	es:[PSP_DTAPREV].SEG,ax
+	xchg	[bx].SCB_DTA._SEG,ax
+	mov	es:[PSP_DTAPREV]._SEG,ax
 ;
 ; Create an initial REG_FRAME at the top of the stack segment.  A program
 ; whose code is in its PSP's segment starts with a code alias of its block
@@ -1324,18 +1324,18 @@ lp8b:	mov	dx,es
 	pop	ds
 	ASSUME	DS:NOTHING
 	mov	ax,ds
-	cmp	ds:[PSP_START].SEG,ax	; is the code in the PSP's segment?
+	cmp	ds:[PSP_START]._SEG,ax	; is the code in the PSP's segment?
 	jne	lpx2			; no (eg, another copy's, or an EXE's)
 	call	mem_alias		; AX = code alias
 	jnc	lpx1			; (it can fail only in protected mode)
 	jmp	lpf
-lpx1:	mov	ds:[PSP_START].SEG,ax
+lpx1:	mov	ds:[PSP_START]._SEG,ax
 lpx2:	les	di,ds:[PSP_STACK]	; ES:DI -> stack (NOT PSP)
 	dec	di
 	dec	di
 	std
-	mov	dx,ds:[PSP_START].OFF	; CX:DX = start address
-	mov	cx,ds:[PSP_START].SEG
+	mov	dx,ds:[PSP_START]._OFF	; CX:DX = start address
+	mov	cx,ds:[PSP_START]._SEG
 ;
 ; NOTE: Pushing a zero on the top of the program's stack is expected by
 ; COM files, but what about EXE files?  Do they have the same expectation
@@ -1513,8 +1513,8 @@ lpm4:	pop	ax
 	test	cx,cx			; any match?
 	jnz	$+5			; yes
 lpm4a:	jmp	lpmc			; no, but maybe the core fits
-	mov	ds:[PSP_START].OFF,100h
-	mov	ds:[PSP_START].SEG,cx
+	mov	ds:[PSP_START]._OFF,100h
+	mov	ds:[PSP_START]._SEG,cx
 	mov	ds:[PSP_CODESIZE],ax
 	mov	ds:[PSP_CHECKSUM],dx
 	mov	ds:[PSP_HEAP],100h
@@ -1764,7 +1764,7 @@ cp1:	call	pfh_close		; close process file handle
 	push	es
 	call	get_psp
 	mov	cx,ax
-	mov	bx,[sfb_table].OFF
+	mov	bx,[sfb_table]._OFF
 	mov	si,-1			; no PFT entry for an FCB
 cp2:	test	[bx].SFB_FLAGS,SFBF_FCB
 	jz	cp3
@@ -1773,7 +1773,7 @@ cp2:	test	[bx].SFB_FLAGS,SFBF_FCB
 	and	[bx].SFB_FLAGS,NOT SFBF_FCB
 	call	sfb_close
 cp3:	add	bx,size SFB
-	cmp	bx,[sfb_table].SEG	; checked every SFB?
+	cmp	bx,[sfb_table]._SEG	; checked every SFB?
 	jb	cp2
 	pop	es
 	pop	di
@@ -1862,8 +1862,8 @@ prv1:	lodsb				; AL = vector #
 	jb	prv2			; no
 	cmp	dx,di
 	jae	prv2			; no
-	mov	cx,[si].OFF
-	mov	dx,[si].SEG
+	mov	cx,[si]._OFF
+	mov	dx,[si]._SEG
 	call	far ptr DDINT_SETVEC	; yes, so restore the saved vector
 prv2:	add	si,4
 	jmp	prv1

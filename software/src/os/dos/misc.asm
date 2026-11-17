@@ -90,8 +90,8 @@ msv0:	pop	ax
 msv0a:	call	far ptr DDINT_SETVEC	; it's in the IVT
 	jmp	short msv9
 msv1:	cli
-	mov	[di].OFF,cx
-	mov	[di].SEG,dx
+	mov	[di]._OFF,cx
+	mov	[di]._SEG,dx
 	sti
 msv9:	clc
 	ret
@@ -366,7 +366,7 @@ DEFPROC	msc_setctrlc,DOS
 	ASSERT	STRUCT,[bx],SCB
 	sub	al,1
 	jae	msc1
-	mov	al,[bx].SCB_CTRLC_ALL]	; AL was 0
+	mov	al,[bx].SCB_CTRLC_ALL	; AL was 0
 	mov	[bp].REG_DL,al		; so return CTRLC_ALL in REG_DL
 	clc
 	jmp	short msc9
@@ -445,8 +445,8 @@ msg1:	cmp	[err_active],0		; inside a hard error handler?
 	cmp	[r3_cbsp],0		; a ring 3 ERROR handler?
 	je	msg1b			; no
 	jmp	r3_cbabort		; yes (see r3_error)
-msg1b:	mov	ss,[err_stack].SEG
-	mov	sp,[err_stack].OFF
+msg1b:	mov	ss,[err_stack]._SEG
+	mov	sp,[err_stack]._OFF
 	sub	sp,ERR_FRAME
 	jmp	err_jump
 
@@ -488,9 +488,9 @@ msg2:
 ; swap IVT vectors on every SCB switch, hence the use of "shadow" vectors
 ; inside the SCB.
 ;
-	mov	ax,[bx].SCB_CTRLC.SEG
+	mov	ax,[bx].SCB_CTRLC._SEG
 	mov	[bp].REG_WS.JMP_CS,ax
-	mov	ax,[bx].SCB_CTRLC.OFF
+	mov	ax,[bx].SCB_CTRLC._OFF
 	mov	[bp].REG_WS.JMP_IP,ax
 	cmp	[prog_user],0		; ring 3 programs?
 	je	msg3			; no
@@ -584,8 +584,8 @@ DEFPROC	msc_getvec,DOS
 	jmp	short mgv2
 mgv0:	call	far ptr DDINT_GETVEC	; it's in the IVT
 	jmp	short mgv2
-mgv1:	mov	cx,[si].OFF
-	mov	dx,[si].SEG
+mgv1:	mov	cx,[si]._OFF
+	mov	dx,[si]._SEG
 mgv2:	mov	[bp].REG_BX,cx
 	mov	[bp].REG_ES,dx
 	clc

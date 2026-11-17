@@ -735,7 +735,7 @@ DEFPROC	keepCode
 	test	[si].GEN_FLAGS,GEN_DONE	; was all the code generated?
 	jz	kc8			; no
 	mov	ax,ss
-	cmp	[si].LINE_PTR.SEG,ax	; did we run the loaded program?
+	cmp	[si].LINE_PTR._SEG,ax	; did we run the loaded program?
 	je	kc8			; no
 	call	freeCache		; yes, so keep its code
 	mov	si,ds:[PSP_HEAP]
@@ -1350,8 +1350,8 @@ lv2:	mov	al,'%'
 lv3:	PRINTF	<"%c = ">,ax
 	cmp	bl,VAR_LONG
 	jne	lv4
-	mov	ax,es:[di].LOW
-	mov	dx,es:[di].HIW
+	mov	ax,es:[di].LW
+	mov	dx,es:[di].HW
 	PRINTF	<"%ld">,ax,dx
 	jmp	short lv6
 lv4:	cmp	bl,VAR_DOUBLE

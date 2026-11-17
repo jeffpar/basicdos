@@ -28,6 +28,18 @@ GDT_MAX		equ	256
 SYS_PIDT	equ	SYS_GDT + GDT_MAX * 8
 IDT_MAX		equ	256
 ;
+; DTREG assembles LGDT, LIDT, SGDT, or SIDT (op) with a 6-byte operand (mem):
+; MASM5 calls that size an FWORD, but MASM 4.00 has no FWORD (.TYPE says it's
+; undefined) and wants a QWORD.
+;
+DTREG	macro	op,mem
+IF .TYPE FWORD
+	op	fword ptr mem
+ELSE
+	op	qword ptr mem
+ENDIF
+	endm
+;
 ; The TSS is only for its ring 0 stack (SS0:SP0; see CPU_SETSTACK), which the
 ; processor switches to when an interrupt takes ring 3 code to ring 0; we
 ; never switch tasks, so the rest of it stays zero.  It has room for the

@@ -44,8 +44,8 @@ DEFPROC	strHex,FAR
 	ARGVAR	baseNum,dword
 	LOCVAR	baseBuf,byte,12
 	ENTER
-	mov	si,[baseNum].LOW
-	mov	dx,[baseNum].HIW	; DX:SI = value
+	mov	si,[baseNum].LW
+	mov	dx,[baseNum].HW		; DX:SI = value
 	mov	bh,PF_LONG
 	sub	cx,cx
 	push	ss
@@ -57,8 +57,8 @@ DEFPROC	strHex,FAR
 	mov	cl,al
 	mov	ch,0
 	call	newStr
-	mov	[retBase].OFF,ax
-	mov	[retBase].SEG,dx
+	mov	[retBase]._OFF,ax
+	mov	[retBase]._SEG,dx
 	LEAVE
 	RETURN
 ENDPROC	strHex
@@ -103,8 +103,8 @@ DEFPROC	strUCase,FAR
 	mov	cl,es:[di-1]
 	rep	movsb			; copy the string
 	pop	di
-	mov	[pCaseStr].OFF,di	; and use the copy instead
-	mov	[pCaseStr].SEG,es
+	mov	[pCaseStr]._OFF,di	; and use the copy instead
+	mov	[pCaseStr]._SEG,es
 sc1:	push	di
 	mov	cl,es:[di]
 	inc	di
@@ -118,10 +118,10 @@ sc2:	mov	al,es:[di]
 sc3:	inc	di
 	loop	sc2
 	pop	di
-sc9:	mov	ax,[pCaseStr].OFF
-	mov	[retCase].OFF,ax
-	mov	ax,[pCaseStr].SEG
-	mov	[retCase].SEG,ax
+sc9:	mov	ax,[pCaseStr]._OFF
+	mov	[retCase]._OFF,ax
+	mov	ax,[pCaseStr]._SEG
+	mov	[retCase]._SEG,ax
 	pop	ds
 	LEAVE
 	RETURN
@@ -168,8 +168,8 @@ DEFPROC	strInkey,FAR
 	inc	cx
 sk8:	lea	si,[keyBuf]
 	call	newStr
-	mov	[retInkey].OFF,ax
-	mov	[retInkey].SEG,dx
+	mov	[retInkey]._OFF,ax
+	mov	[retInkey]._SEG,dx
 	LEAVE
 	RETURN
 ENDPROC	strInkey
@@ -235,8 +235,8 @@ DEFPROC	strTime,FAR
 	DEFLBL	strDT,near
 	lea	si,[timeBuf]
 	call	newStr
-	mov	[retTime].OFF,ax
-	mov	[retTime].SEG,dx
+	mov	[retTime]._OFF,ax
+	mov	[retTime]._SEG,dx
 	LEAVE
 	RETURN
 ENDPROC	strTime
@@ -286,18 +286,18 @@ DEFPROC	strFre,FAR
 	push	ds
 	call	compactStrs
 	mov	ax,1			; AX = 1 (free blocks)
-	cmp	[freArg].HIW,0		; negative argument?
+	cmp	[freArg].HW,0		; negative argument?
 	jge	fr0			; no
 	mov	al,3			; AX = 3 (our own blocks)
 fr0:	mov	[freType],ax
 	sub	cx,cx			; CX = memory block #
-	mov	[retFre].LOW,cx
-	mov	[retFre].HIW,cx		; total bytes (none yet)
+	mov	[retFre].LW,cx
+	mov	[retFre].HW,cx		; total bytes (none yet)
 fr1:	mov	dx,[freType]		; DL = type of block
 	DOSUTIL	QRYMEM			; SI:DX = size (in bytes)
 	jc	fr8
-	add	[retFre].LOW,dx
-	adc	[retFre].HIW,si
+	add	[retFre].LW,dx
+	adc	[retFre].HW,si
 	inc	cx
 	jmp	fr1
 fr8:	pop	ds

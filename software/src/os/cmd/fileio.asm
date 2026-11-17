@@ -73,14 +73,14 @@ DEFPROC	openFile,FAR
 	ARGVAR	lRecLen,dword
 	ENTER
 	push	ds
-	mov	ax,[lNum].LOW
+	mov	ax,[lNum].LW
 	call	getSlot			; SS:BX -> slot
 	mov	al,55			; "File already open"
 	cmp	ss:[bx].FILE_DATA,0
 	jne	of9
-	mov	ax,[lRecLen].LOW
+	mov	ax,[lRecLen].LW
 	dec	ax
-	or	ax,[lRecLen].HIW
+	or	ax,[lRecLen].HW
 	cmp	ax,255			; is the record length 1-255?
 	mov	al,5			; "Illegal function call"
 	jb	of0b			; yes
@@ -133,7 +133,7 @@ of1:	xchg	ax,cx
 	inc	cx			; yes, so it's mode 4 (FM_DEVICE)
 of2:	mov	ah,cl
 	mov	word ptr ss:[bx].FILE_DATA,ax	; record the handle and mode
-	mov	ax,[lRecLen].LOW
+	mov	ax,[lRecLen].LW
 	mov	word ptr ss:[bx].FS_RLEN,ax	; record length
 	sub	ax,ax
 	mov	word ptr ss:[bx].FS_REC,ax	; no records used yet
@@ -179,7 +179,7 @@ ENDPROC	openFile
 DEFPROC	closeFile,FAR
 	ARGVAR	lCloseNum,dword
 	ENTER
-	mov	ax,[lCloseNum].LOW
+	mov	ax,[lCloseNum].LW
 	test	ax,ax			; all files?
 	jnz	cf2			; no
 	mov	cx,FILE_MAX
@@ -244,7 +244,7 @@ DEFPROC	fileOut,FAR
 	ARGVAR	lOutNum,dword
 	ARGVAR	pOutW,dword
 	ENTER
-	mov	ax,[lOutNum].LOW
+	mov	ax,[lOutNum].LW
 	mov	dl,FM_OUTPUT OR FM_APPEND OR FM_DEVICE
 	call	getFile			; AL = handle
 	mov	bl,al
@@ -307,7 +307,7 @@ DEFPROC	selectInput,FAR
 	ARGVAR	lInNum,dword
 	ARGVAR	wInLine,word
 	ENTER
-	mov	ax,[lInNum].LOW
+	mov	ax,[lInNum].LW
 	mov	dl,FM_INPUT OR FM_DEVICE
 	call	getFile			; AL = handle
 	mov	cx,[wInLine]
@@ -341,7 +341,7 @@ DEFPROC	fileEof,FAR
 	ARGVAR	lEofNum,dword
 	ENTER
 	push	ds
-	mov	ax,[lEofNum].LOW
+	mov	ax,[lEofNum].LW
 	mov	dl,FM_INPUT OR FM_RANDOM OR FM_DEVICE
 	call	getFile			; AL = handle
 	mov	bl,al
@@ -372,8 +372,8 @@ fe0:	push	ss
 	cmp	cl,CHR_CTRLZ		; was it a CTRLZ?
 	je	fe9			; yes
 	inc	dx			; no, so DX = 0 (false)
-fe9:	mov	[retEof].LOW,dx
-	mov	[retEof].HIW,dx
+fe9:	mov	[retEof].LW,dx
+	mov	[retEof].HW,dx
 	pop	ds
 	LEAVE
 	RETURN
@@ -399,7 +399,7 @@ DEFPROC	fileLof,FAR
 	RETVAR	retLof,dword
 	ARGVAR	lLofNum,dword
 	ENTER
-	mov	ax,[lLofNum].LOW
+	mov	ax,[lLofNum].LW
 	call	seekCur			; DX:AX = position (BX = handle)
 	push	dx
 	push	ax
@@ -407,8 +407,8 @@ DEFPROC	fileLof,FAR
 	mov	dx,cx
 	mov	ax,DOS_HDL_SEEKEND
 	int	21h			; DX:AX = size
-	mov	[retLof].LOW,ax
-	mov	[retLof].HIW,dx
+	mov	[retLof].LW,ax
+	mov	[retLof].HW,dx
 	pop	dx
 	pop	cx			; CX:DX = position
 	mov	ax,DOS_HDL_SEEKBEG
@@ -440,7 +440,7 @@ DEFPROC	fileLoc,FAR
 	RETVAR	retLoc,dword
 	ARGVAR	lLocNum,dword
 	ENTER
-	mov	ax,[lLocNum].LOW
+	mov	ax,[lLocNum].LW
 	call	seekCur			; DX:AX = position (CL = mode)
 	xchg	di,ax			; DX:DI = position
 	call	inCount			; AX = # bytes waiting (eg, for COM1)
@@ -461,8 +461,8 @@ fl1:	mov	cx,7
 fl2:	shr	dx,1
 	rcr	ax,1
 	loop	fl2			; DX:AX = position / 128
-fl9:	mov	[retLoc].LOW,ax
-	mov	[retLoc].HIW,dx
+fl9:	mov	[retLoc].LW,ax
+	mov	[retLoc].HW,dx
 	LEAVE
 	RETURN
 ENDPROC	fileLoc
@@ -554,8 +554,8 @@ DEFPROC	strInput,FAR
 	ARGVAR	lInFile,dword
 	ENTER
 	push	ds
-	mov	ax,[lInCount].LOW
-	mov	dx,[lInCount].HIW
+	mov	ax,[lInCount].LW
+	mov	dx,[lInCount].HW
 	call	getByteArg		; AX = count (0-255)
 	xchg	cx,ax			; CX = count
 	jcxz	snX			; (it must be 1-255)
@@ -563,7 +563,7 @@ DEFPROC	strInput,FAR
 	pop	ds
 	mov	si,ds:[PSP_HEAP]
 	lea	dx,[si].LINEBUF		; DS:DX -> LINEBUF
-	mov	ax,[lInFile].LOW
+	mov	ax,[lInFile].LW
 	test	ax,ax			; from the keyboard?
 	jnz	sn2			; no
 	mov	di,dx
@@ -588,8 +588,8 @@ sn2:	push	dx
 	jb	sn9			; no
 sn8:	mov	si,dx			; SS:SI -> characters
 	call	newStr			; DX:AX = string
-	mov	[retInput].OFF,ax
-	mov	[retInput].SEG,dx
+	mov	[retInput]._OFF,ax
+	mov	[retInput]._SEG,dx
 	pop	ds
 	LEAVE
 	RETURN
@@ -623,8 +623,8 @@ DEFPROC	keyDef,FAR
 	ENTER
 	les	di,[pKeyStr]
 	call	releaseStr
-	mov	ax,[lKeyNum].LOW
-	mov	dx,[lKeyNum].HIW
+	mov	ax,[lKeyNum].LW
+	mov	dx,[lKeyNum].HW
 	call	getByteArg		; AX = key number (0-255)
 	dec	ax
 	cmp	ax,10			; is it 1-10?
@@ -670,14 +670,14 @@ wd1:	les	di,[pDev]
 	call	releaseStr
 	pop	ds
 	jcxz	wd2
-	push	[lDevWidth].HIW
-	push	[lDevWidth].LOW
+	push	[lDevWidth].HW
+	push	[lDevWidth].LW
 	push	cx			; (1 argument; see getArgs)
 	push	cs
 	call	near ptr setWidth	; WIDTH "SCRN:",n is WIDTH n
 	jmp	short wd9
-wd2:	mov	ax,[lDevWidth].LOW
-	mov	dx,[lDevWidth].HIW
+wd2:	mov	ax,[lDevWidth].LW
+	mov	dx,[lDevWidth].HW
 	call	getByteArg		; AX = width (0-255)
 	test	ax,ax			; is it 1-255?
 	jz	kdX			; no
@@ -748,15 +748,15 @@ DEFPROC	fieldVar,FAR
 	ARGVAR	pFvVar,dword
 	ENTER
 	les	di,[pFvEntry]
-	mov	ax,[lFvWidth].LOW
-	cmp	[lFvWidth].HIW,0
+	mov	ax,[lFvWidth].LW
+	cmp	[lFvWidth].HW,0
 	jne	fvX
 	cmp	ax,255
 	ja	fvX
 	stosb				; record the width
-	mov	ax,[pFvVar].OFF
+	mov	ax,[pFvVar]._OFF
 	stosw				; and the variable
-	mov	ax,[pFvVar].SEG
+	mov	ax,[pFvVar]._SEG
 	stosw
 	LEAVE
 	RETURN
@@ -787,7 +787,7 @@ DEFPROC	setField,FAR
 	ARGVAR	pFldTbl,dword
 	ENTER
 	push	ds
-	mov	ax,[lFldNum].LOW
+	mov	ax,[lFldNum].LW
 	mov	dl,FM_RANDOM
 	call	getFile			; SS:BX -> slot
 	lds	si,[pFldTbl]
@@ -804,9 +804,9 @@ sfd1:	lodsb
 	mov	ah,0
 	cmp	dx,ax			; do the fields fit in a record?
 	ja	fvX			; no
-	mov	ax,[pFldTbl].OFF
+	mov	ax,[pFldTbl]._OFF
 	mov	word ptr ss:[bx].FS_FIELDS,ax
-	mov	ax,[pFldTbl].SEG
+	mov	ax,[pFldTbl]._SEG
 	mov	word ptr ss:[bx].FS_FIELDS+2,ax
 	pop	ds
 	LEAVE
@@ -846,13 +846,13 @@ DEFPROC	fileRecord,FAR
 	LOCVAR	frLast,word
 	ENTER
 	push	ds
-	mov	ax,[lRecNum].LOW
+	mov	ax,[lRecNum].LW
 	mov	dl,FM_RANDOM
 	call	getFile			; SS:BX -> slot
 	mov	dx,word ptr ss:[bx].FS_REC
 	mov	[frLast],dx		; retain the last completed record on error
-	mov	ax,[lRecRec].LOW
-	mov	cx,[lRecRec].HIW
+	mov	ax,[lRecRec].LW
+	mov	cx,[lRecRec].HW
 	inc	cx			; next record?
 	jnz	fr1			; no
 	sub	ax,ax
@@ -946,12 +946,12 @@ DEFPROC	fileIoctl,FAR
 	ARGVAR	wIoType,word
 	ENTER
 	push	ds
-	mov	ax,[lIoNum].LOW
+	mov	ax,[lIoNum].LW
 	mov	dl,FM_INPUT OR FM_OUTPUT OR FM_APPEND OR FM_RANDOM OR FM_DEVICE
 	call	getFile			; AL = handle
 	mov	bl,al
 	mov	bh,0			; BX = handle
-	mov	cx,[lIoCX].LOW		; CX = first value
+	mov	cx,[lIoCX].LW		; CX = first value
 	cmp	byte ptr [wIoType],VAR_STR ; is the first value a string?
 	jne	io1			; no
 	lds	si,[lIoCX]		; yes, DS:SI -> string
@@ -960,8 +960,8 @@ DEFPROC	fileIoctl,FAR
 	jz	io1			; yes
 	lodsb
 	mov	cl,al			; CX = length, DS:SI -> data
-io1:	mov	dx,[lIoDX].LOW		; DX = second value
-	mov	ax,[lIoCode].LOW
+io1:	mov	dx,[lIoDX].LW		; DX = second value
+	mov	ax,[lIoCode].LW
 	mov	ah,DOS_HDL_IOCTL
 	int	21h
 	pushf
@@ -1046,7 +1046,7 @@ DEFPROC	fileIoctlStr,FAR
 	ARGVAR	lIsVal,dword
 	ENTER
 	push	ds
-	mov	ax,[lIsNum].LOW
+	mov	ax,[lIsNum].LW
 	mov	dl,FM_INPUT OR FM_OUTPUT OR FM_APPEND OR FM_RANDOM OR FM_DEVICE
 	call	getFile			; AL = handle
 	mov	bl,al
@@ -1056,22 +1056,22 @@ DEFPROC	fileIoctlStr,FAR
 	push	ss
 	pop	ds			; DS:SI -> LINEBUF
 	mov	cx,255			; CX = its length
-	mov	dx,[lIsVal].LOW
-	mov	ax,[lIsCode].LOW
+	mov	dx,[lIsVal].LW
+	mov	ax,[lIsCode].LW
 	mov	ah,DOS_HDL_IOCTL
 	int	21h			; DX = # bytes stored
 	jc	ioctlErr
 	sub	ax,ax
-	mov	[retIoctl].OFF,ax
-	mov	[retIoctl].SEG,ax	; return an empty string
+	mov	[retIoctl]._OFF,ax
+	mov	[retIoctl]._SEG,ax	; return an empty string
 	cmp	dx,255
 	jbe	is1
 	mov	dx,255
 is1:	mov	cx,dx			; CX = # bytes (1-255)
 	jcxz	is9			; none
 	call	allocStr		; ES:DI -> new string
-	mov	[retIoctl].OFF,di
-	mov	[retIoctl].SEG,es
+	mov	[retIoctl]._OFF,di
+	mov	[retIoctl]._SEG,es
 	inc	di
 	rep	movsb			; copy the data from LINEBUF
 is9:	pop	ds
@@ -1139,7 +1139,7 @@ DEFPROC	dosCall,FAR
 	ARGVAR	wDosType,word
 	ENTER
 	push	ds
-	mov	dx,[lDosDX].LOW		; DX = value
+	mov	dx,[lDosDX].LW		; DX = value
 	cmp	byte ptr [wDosType],VAR_STR ; is it a string?
 	jne	dc2			; no
 	push	ss
@@ -1160,9 +1160,9 @@ dc1:	xchg	ax,cx
 	call	releaseStr
 	push	ss
 	pop	ds			; DS:DX -> string
-dc2:	mov	ax,[lDosAX].LOW
-	mov	bx,[lDosBX].LOW
-	mov	cx,[lDosCX].LOW
+dc2:	mov	ax,[lDosAX].LW
+	mov	bx,[lDosBX].LW
+	mov	cx,[lDosCX].LW
 	int	21h
 	push	bx
 	mov	bx,ss:[PSP_HEAP]
@@ -1200,16 +1200,16 @@ DEFPROC	getDos,FAR
 	RETVAR	retDos,dword
 	ARGVAR	lDosReg,dword
 	ENTER
-	mov	bx,[lDosReg].LOW
-	cmp	[lDosReg].HIW,0		; is the register number 0-3?
+	mov	bx,[lDosReg].LW
+	cmp	[lDosReg].HW,0		; is the register number 0-3?
 	jne	gdo8			; no
 	cmp	bx,3
 	ja	gdo8			; no
 	add	bx,bx
 	mov	si,ss:[PSP_HEAP]
 	mov	ax,ss:[si+bx].DOS_REGS
-	mov	[retDos].LOW,ax
-	mov	[retDos].HIW,0
+	mov	[retDos].LW,ax
+	mov	[retDos].HW,0
 	LEAVE
 	RETURN
 gdo8:	mov	al,5			; "Illegal function call"
@@ -1349,10 +1349,10 @@ ls1:	push	cx
 	mov	ch,0			; CX = # fields
 	inc	di
 ls2:	mov	ax,es:[di+1]
-	cmp	ax,[pLsVar].OFF
+	cmp	ax,[pLsVar]._OFF
 	jne	ls2a
 	mov	ax,es:[di+3]
-	cmp	ax,[pLsVar].SEG
+	cmp	ax,[pLsVar]._SEG
 	jne	ls2a
 	pop	cx			; found it
 	mov	al,es:[di]		; AL = its width
@@ -1403,8 +1403,8 @@ ls8:	push	dx
 	call	releaseStr
 	pop	ax
 	pop	dx
-	push	[pLsVar].SEG
-	push	[pLsVar].OFF
+	push	[pLsVar]._SEG
+	push	[pLsVar]._OFF
 	push	dx
 	push	ax
 	push	cs
@@ -1444,8 +1444,8 @@ DEFPROC	getLpos,FAR
 glp1:	mov	al,dl
 	mov	ah,0
 	inc	ax
-	mov	[retLpos].LOW,ax
-	mov	[retLpos].HIW,0
+	mov	[retLpos].LW,ax
+	mov	[retLpos].HW,0
 	LEAVE
 	RETURN
 ENDPROC	getLpos
@@ -1478,11 +1478,11 @@ DEFPROC	midSet,FAR
 	ARGVAR	lMsLen,dword
 	ARGVAR	pMsStr,dword
 	ENTER
-	mov	ax,[lMsStart].LOW
+	mov	ax,[lMsStart].LW
 	dec	ax			; AX = offset of start
-	mov	cx,[lMsLen].LOW		; CX = length
-	mov	dx,[lMsStart].HIW
-	or	dx,[lMsLen].HIW		; are both less than 64K?
+	mov	cx,[lMsLen].LW		; CX = length
+	mov	dx,[lMsStart].HW
+	or	dx,[lMsLen].HW		; are both less than 64K?
 	jnz	ms9			; no
 	cmp	ax,254			; is start 1 to 255?
 	ja	ms9			; no
@@ -1560,8 +1560,8 @@ mk2:	call	allocStr		; ES:DI -> new string
 	mov	dx,es			; DX:AX = string value
 	inc	di
 	rep	movsb
-	mov	[retMk].OFF,ax
-	mov	[retMk].SEG,dx
+	mov	[retMk]._OFF,ax
+	mov	[retMk]._SEG,dx
 	pop	ds
 	LEAVE
 	RETURN

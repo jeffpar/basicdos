@@ -90,8 +90,8 @@ m1f:	lodsb
 	mov	dx,ax
 	shl	ax,4
 	shr	dx,12			; DX:AX = size in bytes
-	mov	[mach_top].OFF,ax
-	mov	[mach_top].SEG,dx
+	mov	[mach_top]._OFF,ax
+	mov	[mach_top]._SEG,dx
 	jmp	m1a
 m1g:
 	mov	di,offset PATH_STR
@@ -137,8 +137,8 @@ m3:	mov	[args],si		; SI -> the arguments
 	mov	ax,[path_arg]
 	test	ax,ax			; were we given a PATH$?
 	jz	m3a			; no
-	mov	[path].OFF,ax
-	mov	[path].SEG,ds
+	mov	[path]._OFF,ax
+	mov	[path]._SEG,ds
 	jmp	short m3d
 m3a:	mov	cx,ds:[PSP_ENVSEG]
 	jcxz	m3d			; we have no environment
@@ -153,8 +153,8 @@ m3b:	cmp	byte ptr es:[di],0	; the end of it?
 	cmp	byte ptr es:[di],'='	; "PATH="?
 	jne	m3c			; no
 	inc	di
-	mov	[path].OFF,di
-	mov	[path].SEG,es
+	mov	[path]._OFF,di
+	mov	[path]._SEG,es
 	jmp	short m3d
 m3c:	dec	di			; (in case the mismatch was its null)
 	mov	al,0
@@ -169,7 +169,7 @@ m3d:	push	ds
 	mov	di,offset VARS + V_PATH
 m3e:	call	try_open
 	jnc	m4
-	mov	cx,[path].SEG
+	mov	cx,[path]._SEG
 	jcxz	m3j			; no more directories
 	push	ds
 	lds	si,[path]
@@ -184,8 +184,8 @@ m3f:	lodsb
 m3g:	stosb
 	jmp	m3f
 m3h:	pop	ds
-	mov	[path].OFF,si
-	mov	[path].SEG,cx
+	mov	[path]._OFF,si
+	mov	[path]._SEG,cx
 	cmp	byte ptr [di-1],'\'	; does the directory end with one?
 	je	m3e			; yes
 	mov	al,'\'
@@ -432,8 +432,8 @@ DEFPROC	v86_ctrlc,far
 dc1:	sub	ax,ax
 	mov	di,INT_DOSCTRLC * 4
 	call	seg_ptr			; ES:DI -> its CTRLC vector
-	mov	cx,es:[di].OFF
-	mov	dx,es:[di].SEG
+	mov	cx,es:[di]._OFF
+	mov	dx,es:[di]._SEG
 	cmp	cx,INT_DOSCTRLC
 	jne	dc2
 	cmp	dx,STUB_SEG		; the default?
@@ -710,10 +710,10 @@ DEFPROC	v86_ptr
 	call	v86_ptr			; to the first 64K
 	add	dx,10h
 	ret
-vp0:	cmp	dx,[mach_top].SEG	; in the machine's memory?
+vp0:	cmp	dx,[mach_top]._SEG	; in the machine's memory?
 	jb	vp1			; yes
 	ja	vp2			; no
-	cmp	ax,[mach_top].OFF
+	cmp	ax,[mach_top]._OFF
 	jb	vp1			; yes
 ;
 ; Everything above the machine's memory (eg, the ROMs) is the system's, so we

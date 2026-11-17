@@ -1462,8 +1462,8 @@ in4:	cli
 	mov	cx,offset ddmou_int10
 	mov	dx,cs
 	call	far ptr DDINT_SETVEC	; DX:CX = previous vector
-	mov	[int10_ptr].OFF,cx
-	mov	[int10_ptr].SEG,dx
+	mov	[int10_ptr]._OFF,cx
+	mov	[int10_ptr]._SEG,dx
 	pop	dx
 	inc	dx			; DX -> IER
 	mov	al,01h			; enable RBR (data received) interrupts
@@ -1477,7 +1477,7 @@ in4:	cli
 	call	get_mode
 	pop	es
 	pop	bx
-	mov	es:[bx].DDPI_END.OFF,offset ddmou_init
+	mov	es:[bx].DDPI_END._OFF,offset ddmou_init
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddmou_req
 	ret
 

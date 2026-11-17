@@ -183,9 +183,9 @@ ld10:	sub	sp,size DDPI
 	mov	[bp].DDP_LEN,size DDPI
 	mov	[bp].DDP_CMD,DDC_INIT
 	mov	[bp].DDP_STATUS,0
-	mov	[bp].DDPI_END.OFF,cx
-	mov	[bp].DDPI_BUFPTR.OFF,si
-	mov	[bp].DDPI_BUFPTR.SEG,ds
+	mov	[bp].DDPI_END._OFF,cx
+	mov	[bp].DDPI_BUFPTR._OFF,si
+	mov	[bp].DDPI_BUFPTR._SEG,ds
 	mov	es:[DDH_DATA],es	; the driver's data segment
 	push	cx			; save the file size
 	push	es			; and the driver's data segment
@@ -210,7 +210,7 @@ ld10:	sub	sp,size DDPI
 	pop	es			; ES = driver's data segment
 	pop	cx			; CX = file size
 	mov	ax,[bp].DDP_STATUS
-	mov	bx,[bp].DDPI_END.OFF
+	mov	bx,[bp].DDPI_END._OFF
 	add	sp,size DDPI
 	test	ax,DDSTAT_ERROR
 	jz	ld10a
@@ -244,17 +244,17 @@ ld11:	push	dx
 	mov	ds,ax
 	ASSUME	DS:BIOS
 	mov	ax,dx
-	xchg	ax,[DD_LIST].SEG
+	xchg	ax,[DD_LIST]._SEG
 	mov	es:[DDH_NEXT_SEG],ax
 	sub	ax,ax
-	xchg	ax,[DD_LIST].OFF
+	xchg	ax,[DD_LIST]._OFF
 	mov	es:[DDH_NEXT_OFF],ax
 	pop	ds
 	ASSUME	DS:DOS
 	mov	es,[dos_seg]
 	ASSUME	ES:DOS
-	mov	es:[dev_head].OFF,0	; keep dev_head in sync with DD_LIST
-	mov	es:[dev_head].SEG,dx
+	mov	es:[dev_head]._OFF,0	; keep dev_head in sync with DD_LIST
+	mov	es:[dev_head]._SEG,dx
 	ASSUME	ES:NOTHING
 	jmp	ld1
 ENDPROC	load_devices
@@ -285,28 +285,28 @@ DEFPROC	move_init
 	mov	[init_base],si
 	sub	di,si
 	mov	[init_len],di
-	mov	[init_pkt].MV_LEN.LOW,di
+	mov	[init_pkt].MV_LEN.LW,di
 	add	bp,si
-	mov	[init_pkt].MV_SRC.LOW,bp
-	adc	[init_pkt].MV_SRC.HIW,0
+	mov	[init_pkt].MV_SRC.LW,bp
+	adc	[init_pkt].MV_SRC.HW,0
 	push	si
 	sub	si,si			; SI:DI = length
 	mov	bx,MCBOWNER_SYSTEM
 	mov	ax,(CPU_ALLOC SHL 8) OR MEMF_LOW OR MEMF_HIGH OR MEMF_NONE
 	call	far ptr DDINT_CPU	; DX:CX = address
 	ASSERT	NC
-	mov	[init_addr].LOW,cx
-	mov	[init_addr].HIW,dx
-	mov	[init_pkt].MV_DST.LOW,cx
-	mov	[init_pkt].MV_DST.HIW,dx
+	mov	[init_addr].LW,cx
+	mov	[init_addr].HW,dx
+	mov	[init_pkt].MV_DST.LW,cx
+	mov	[init_pkt].MV_DST.HW,dx
 	push	ds
 	pop	es
 	mov	bx,offset init_pkt	; ES:BX -> MOVEPKT
 	mov	ah,CPU_MOVE
 	call	far ptr DDINT_CPU
 	pop	si
-	mov	cx,[init_addr].LOW
-	mov	dx,[init_addr].HIW
+	mov	cx,[init_addr].LW
+	mov	dx,[init_addr].HW
 	sub	cx,si
 	sbb	dx,0			; DX:CX = address of offset 0
 	mov	si,1
@@ -355,12 +355,12 @@ DEFPROC	mem_total
 mt1:	mov	ah,CPU_QUERY
 	call	far ptr DDINT_CPU
 	jc	mt9			; no more
-	cmp	es:[di].PMB_ADDR.HIW,10h; is the block above 1Mb?
+	cmp	es:[di].PMB_ADDR.HW,10h	; is the block above 1Mb?
 	jb	mt2			; no
 	cmp	es:[di].PMB_TYPE,PMBTYPE_RSVD
 	je	mt2			; (it isn't memory)
-	mov	ax,es:[di].PMB_LEN.LOW
-	mov	dx,es:[di].PMB_LEN.HIW
+	mov	ax,es:[di].PMB_LEN.LW
+	mov	dx,es:[di].PMB_LEN.HW
 	mov	cx,1024
 	div	cx
 	add	si,ax			; add its Kb
@@ -543,10 +543,10 @@ DEFPROC	init_fpu
 	mov	cx,di			; CX = length
 	sub	di,di
 	fninit
-if1:	fsave	es:[di]			; (which also does an FNINIT)
+if3:	fsave	es:[di]			; (which also does an FNINIT)
 	add	di,FPU_STATE
 	cmp	di,cx
-	jb	if1
+	jb	if3
 	fwait
 	pop	es
 if9:	ret

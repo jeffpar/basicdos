@@ -42,7 +42,7 @@ CODE    SEGMENT
 ;	BX, plus whatever the function modifies
 ;
 DEFPROC	callFPUFunc
-	cmp	word ptr ss:[PSP_FPUTBL].SEG,0
+	cmp	word ptr ss:[PSP_FPUTBL]._SEG,0
 	stc
 	je	cff9			; no FPUTBL
 	push	ds
@@ -85,8 +85,8 @@ DEFPROC	strToChar,FAR
 	jz	stc8
 	mov	al,es:[di+1]
 	call	releaseStr
-stc8:	mov	[pStrChr].LOW,ax
-	mov	[pStrChr].HIW,0
+stc8:	mov	[pStrChr].LW,ax
+	mov	[pStrChr].HW,0
 	LEAVE
 	RETURN
 ENDPROC	strToChar
@@ -113,8 +113,8 @@ DEFPROC	strLen,FAR
 	call	getStrLen
 	les	di,[pLenStr]
 	call	releaseStr
-	mov	[retLen].LOW,cx
-	mov	[retLen].HIW,0
+	mov	[retLen].LW,cx
+	mov	[retLen].HW,0
 	LEAVE
 	RETURN
 ENDPROC	strLen
@@ -154,8 +154,8 @@ DEFPROC	strArg,FAR
 	cbw
 	mov	di,si
 	add	di,ax			; DI -> end of command line
-	mov	dx,[argNum].LOW		; DX = argument #
-	test	byte ptr [argNum].HIW.HIB,80h
+	mov	dx,[argNum].LW		; DX = argument #
+	test	byte ptr [argNum].HW.HB,80h
 	jz	ag1			; not negative
 	mov	dx,1			; negative, so find the 1st argument
 ag1:	sub	cx,cx
@@ -173,7 +173,7 @@ ag2:	push	si
 	mov	si,bx			; no, so skip it
 	dec	dx
 	jmp	ag1
-ag3:	test	byte ptr [argNum].HIW.HIB,80h
+ag3:	test	byte ptr [argNum].HW.HB,80h
 	jz	ag9			; return just this argument
 	xchg	si,ax			; return all the arguments
 	mov	cx,di
@@ -184,8 +184,8 @@ ag4:	mov	bx,si			; (without trailing whitespace)
 	ja	ag9
 	loop	ag4
 ag9:	call	newStr
-	mov	[retArg].OFF,ax
-	mov	[retArg].SEG,dx
+	mov	[retArg]._OFF,ax
+	mov	[retArg]._SEG,dx
 	LEAVE
 	RETURN
 ENDPROC	strArg
@@ -248,8 +248,8 @@ DEFPROC	strAsc,FAR
 	mov	al,es:[di+1]
 	mov	ah,0
 	call	releaseStr
-	mov	[retAsc].LOW,ax
-	mov	[retAsc].HIW,0
+	mov	[retAsc].LW,ax
+	mov	[retAsc].HW,0
 	LEAVE
 	RETURN
 sa9:	jmp	strIllegal
@@ -273,15 +273,15 @@ DEFPROC	strChr,FAR
 	RETVAR	retChr,dword
 	ARGVAR	chrCode,dword
 	ENTER
-	mov	ax,[chrCode].LOW
-	mov	dx,[chrCode].HIW
+	mov	ax,[chrCode].LW
+	mov	dx,[chrCode].HW
 	call	getByteArg
 	xchg	dx,ax			; DL = character code
 	mov	cx,1
 	call	allocStr
 	mov	es:[di+1],dl
-	mov	[retChr].OFF,di
-	mov	[retChr].SEG,es
+	mov	[retChr]._OFF,di
+	mov	[retChr]._SEG,es
 	LEAVE
 	RETURN
 ENDPROC	strChr
@@ -306,8 +306,8 @@ DEFPROC	strLeft,FAR
 	ARGVAR	pLeftStr,dword
 	ARGVAR	leftLen,dword
 	ENTER
-	mov	ax,[leftLen].LOW
-	mov	dx,[leftLen].HIW
+	mov	ax,[leftLen].LW
+	mov	dx,[leftLen].HW
 	call	getByteArg		; AX = requested length
 	lea	si,[pLeftStr]
 	call	getStrLen		; CX = string length
@@ -316,8 +316,8 @@ DEFPROC	strLeft,FAR
 	xchg	cx,ax			; CX = substring length
 sl1:	sub	ax,ax			; AX = substring offset
 	call	getSubStr
-	mov	[retLeft].OFF,ax
-	mov	[retLeft].SEG,dx
+	mov	[retLeft]._OFF,ax
+	mov	[retLeft]._SEG,dx
 	LEAVE
 	RETURN
 ENDPROC	strLeft
@@ -342,8 +342,8 @@ DEFPROC	strRight,FAR
 	ARGVAR	pRightStr,dword
 	ARGVAR	rightLen,dword
 	ENTER
-	mov	ax,[rightLen].LOW
-	mov	dx,[rightLen].HIW
+	mov	ax,[rightLen].LW
+	mov	dx,[rightLen].HW
 	call	getByteArg		; AX = requested length
 	lea	si,[pRightStr]
 	call	getStrLen		; CX = string length
@@ -353,8 +353,8 @@ DEFPROC	strRight,FAR
 sr1:	sub	cx,ax			; CX = substring offset
 	xchg	cx,ax			; AX = offset, CX = length
 	call	getSubStr
-	mov	[retRight].OFF,ax
-	mov	[retRight].SEG,dx
+	mov	[retRight]._OFF,ax
+	mov	[retRight]._SEG,dx
 	LEAVE
 	RETURN
 ENDPROC	strRight
@@ -383,14 +383,14 @@ DEFPROC	strMid,FAR
 	ARGVAR	midPos,dword
 	ARGVAR	midLen,dword
 	ENTER
-	mov	ax,[midPos].LOW
-	mov	dx,[midPos].HIW
+	mov	ax,[midPos].LW
+	mov	dx,[midPos].HW
 	call	getByteArg
 	dec	ax			; AX = offset
 	jl	sm9			; position must be 1 or more
 	xchg	bx,ax			; BX = offset
-	mov	ax,[midLen].LOW
-	mov	dx,[midLen].HIW
+	mov	ax,[midLen].LW
+	mov	dx,[midLen].HW
 	cmp	ax,-2			; PARM_OPT_REST (sign-extended)?
 	jne	sm1
 	cmp	dx,-1
@@ -408,8 +408,8 @@ sm2:	cmp	cx,ax
 	xchg	cx,ax			; CX = substring length
 sm3:	xchg	ax,bx			; AX = offset
 	call	getSubStr
-	mov	[retMid].OFF,ax
-	mov	[retMid].SEG,dx
+	mov	[retMid]._OFF,ax
+	mov	[retMid]._SEG,dx
 	LEAVE
 	RETURN
 sm9:	jmp	strIllegal
@@ -443,8 +443,8 @@ DEFPROC	strInstr,FAR
 	ARGVAR	pInstrB,dword
 	ENTER
 	push	ds
-	mov	ax,[instrPos].LOW
-	mov	dx,[instrPos].HIW
+	mov	ax,[instrPos].LW
+	mov	dx,[instrPos].HW
 	call	getByteArg
 	dec	ax			; AX = offset
 	jl	si10			; position must be 1 or more
@@ -490,8 +490,8 @@ si8:	push	ax
 	les	di,[pInstrB]
 	call	releaseStr
 	pop	ax
-	mov	[retInstr].LOW,ax
-	mov	[retInstr].HIW,0
+	mov	[retInstr].LW,ax
+	mov	[retInstr].HW,0
 	pop	ds
 	LEAVE
 	RETURN
@@ -523,9 +523,9 @@ DEFPROC	strStr,FAR
 	push	ds
 	push	ss
 	pop	es
-	mov	ax,[pStrNum].LOW
-	mov	bx,[pStrNum].HIW	; BX:AX = long (if no FPU$ driver)
-	cmp	word ptr ss:[PSP_FPUTBL].SEG,0
+	mov	ax,[pStrNum].LW
+	mov	bx,[pStrNum].HW		; BX:AX = long (if no FPU$ driver)
+	cmp	word ptr ss:[PSP_FPUTBL]._SEG,0
 	je	sst4			; no FPU$ driver
 ;
 ; If the double is an integer that fits in 32 bits (eg, STR$(I)), we format
@@ -595,8 +595,8 @@ sst8:	lds	si,[pStrNum]		; DS:SI -> double
 	xchg	cx,di
 sst9:	lea	si,[strBuf]
 	call	newStr
-	mov	[retStr].OFF,ax
-	mov	[retStr].SEG,dx
+	mov	[retStr]._OFF,ax
+	mov	[retStr]._SEG,dx
 	pop	ds
 	LEAVE
 	RETURN
@@ -677,7 +677,7 @@ sv3a:	inc	si
 	dec	si			; no letter, so it's octal
 sv4:	mov	cx,-1			; CX = length (buffer is null-terminated)
 	DOSUTIL	ATOI32			; DX:AX = value
-	cmp	word ptr ss:[PSP_FPUTBL].SEG,0
+	cmp	word ptr ss:[PSP_FPUTBL]._SEG,0
 	je	sv8			; no FPU$ driver, so it's the result
 	xchg	si,ax			; DX:SI = value
 	push	ss
@@ -690,7 +690,7 @@ sv4:	mov	cx,-1			; CX = length (buffer is null-terminated)
 	add	di,ax
 	mov	byte ptr es:[di],0	; null-terminate the decimal digits
 	lea	si,[valBuf]		; DS:SI -> buffer
-sv5:	cmp	word ptr ss:[PSP_FPUTBL].SEG,0
+sv5:	cmp	word ptr ss:[PSP_FPUTBL]._SEG,0
 	je	sv4			; no FPU$ driver, so convert a long
 	les	di,[pValNum]		; ES:DI -> result
 	mov	bx,FPU_ATOD
@@ -701,8 +701,8 @@ sv5:	cmp	word ptr ss:[PSP_FPUTBL].SEG,0
 	mov	cx,4
 	rep	stosw
 	jmp	short sv9
-sv8:	mov	[pValNum].LOW,ax
-	mov	[pValNum].HIW,dx
+sv8:	mov	[pValNum].LW,ax
+	mov	[pValNum].HW,dx
 sv9:	pop	ds
 	LEAVE
 	RETURN
@@ -727,11 +727,11 @@ DEFPROC	strSpace,FAR
 	ARGVAR	spaceLen,dword
 	ENTER
 	mov	bl,' '
-	mov	ax,[spaceLen].LOW
-	mov	dx,[spaceLen].HIW
+	mov	ax,[spaceLen].LW
+	mov	dx,[spaceLen].HW
 	call	fillStr
-	mov	[retSpace].OFF,ax
-	mov	[retSpace].SEG,dx
+	mov	[retSpace]._OFF,ax
+	mov	[retSpace]._SEG,dx
 	LEAVE
 	RETURN
 ENDPROC	strSpace
@@ -756,15 +756,15 @@ DEFPROC	strString,FAR
 	ARGVAR	stringLen,dword
 	ARGVAR	stringChr,dword
 	ENTER
-	mov	ax,[stringChr].LOW
-	mov	dx,[stringChr].HIW
+	mov	ax,[stringChr].LW
+	mov	dx,[stringChr].HW
 	call	getByteArg
 	xchg	bx,ax			; BL = character code
-	mov	ax,[stringLen].LOW
-	mov	dx,[stringLen].HIW
+	mov	ax,[stringLen].LW
+	mov	dx,[stringLen].HW
 	call	fillStr
-	mov	[retString].OFF,ax
-	mov	[retString].SEG,dx
+	mov	[retString]._OFF,ax
+	mov	[retString]._SEG,dx
 	LEAVE
 	RETURN
 ENDPROC	strString

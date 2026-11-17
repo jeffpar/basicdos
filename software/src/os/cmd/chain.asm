@@ -141,7 +141,7 @@ DEFPROC	doChain,FAR
 	pop	ds
 	ASSUME	DS:DATA
 	mov	bx,ds:[PSP_HEAP]
-	cmp	[lineNum].HIW,0		; is the line # out of range?
+	cmp	[lineNum].HW,0		; is the line # out of range?
 	mov	al,5			; ("Illegal function call")
 	jne	dc8			; yes
 	les	di,[pName]		; ES:DI -> filename
@@ -191,7 +191,7 @@ dc8:	jmp	rtError
 ; and the file's name in LINEBUF (unless CH_RUN keeps the program's text).
 ;
 dc4:	mov	cx,[chFlags]
-	mov	dx,[lineNum].LOW
+	mov	dx,[lineNum].LW
 dc4a:	mov	sp,[bx].ERR_SP
 	push	dx
 	push	cx
@@ -244,7 +244,7 @@ dc6c:	sub	si,si
 	mov	es:[BLK_FREE],di
 dc7:	sub	ax,ax
 	mov	[bx].ERR_NUM,ax		; no error or ON ERROR handler
-	mov	[bx].ERR_ADDR.SEG,ax
+	mov	[bx].ERR_ADDR._SEG,ax
 	mov	dx,es
 	call	codeSeg
 	mov	ds,[bx].VBLKDEF.BDEF_NEXT

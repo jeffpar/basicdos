@@ -168,25 +168,25 @@ I21_FUNCS_LEN	equ	$ - I21_FUNCS
 DEFPROC	i21sv				; set vector AL to DS:DX
 	call	vec_ptr			; ES:DI -> vector
 	mov	ax,word ptr [VARS+VR_EDX]
-	mov	es:[di].OFF,ax
+	mov	es:[di]._OFF,ax
 	mov	ax,word ptr [VARS+VR_DS]
-	mov	es:[di].SEG,ax
+	mov	es:[di]._SEG,ax
 	jmp	i21ok
 	DEFLBL	i21gv,near		; get vector AL in ES:BX
 	call	vec_ptr
-	mov	ax,es:[di].OFF
-	mov	cx,es:[di].SEG
+	mov	ax,es:[di]._OFF
+	mov	cx,es:[di]._SEG
 	jmp	short i21esbx
 	DEFLBL	i21sd,near		; set DTA to DS:DX
 	mov	ax,word ptr [VARS+VR_EDX]
-	mov	[dta].OFF,ax
+	mov	[dta]._OFF,ax
 	mov	ax,word ptr [VARS+VR_DS]
-	mov	[dta].SEG,ax
+	mov	[dta]._SEG,ax
 	call	set_dta
 	jmp	i21ok
 	DEFLBL	i21gd,near		; get DTA in ES:BX
-	mov	ax,[dta].OFF
-	mov	cx,[dta].SEG
+	mov	ax,[dta]._OFF
+	mov	cx,[dta]._SEG
 i21esbx:mov	word ptr [VARS+VR_EBX],ax
 	mov	word ptr [VARS+VR_ES],cx
 	jmp	i21ok
@@ -353,14 +353,14 @@ DEFPROC	dd_vec
 	mov	al,byte ptr [VARS+VR_EAX]
 	call	vec_ptr			; ES:DI -> vector
 	pop	ax
-	mov	cx,es:[di].OFF
-	mov	dx,es:[di].SEG
+	mov	cx,es:[di]._OFF
+	mov	dx,es:[di]._SEG
 	cmp	ax,offset DDINT_GETVEC
 	je	dc9
 	mov	cx,word ptr [VARS+VR_ECX]
 	mov	dx,word ptr [VARS+VR_EDX]
-	xchg	cx,es:[di].OFF
-	xchg	dx,es:[di].SEG
+	xchg	cx,es:[di]._OFF
+	xchg	dx,es:[di]._SEG
 	jmp	short dc9
 ENDPROC	dd_vec
 
@@ -550,9 +550,9 @@ ie3:	mov	bh,0
 	mov	al,INT_DOSEXIT
 	call	vec_ptr			; ES:DI -> exit vector
 	mov	ax,word ptr [VARS+VR_EIP]
-	mov	es:[di].OFF,ax		; it returns to our caller
+	mov	es:[di]._OFF,ax		; it returns to our caller
 	mov	ax,word ptr [VARS+VR_CS]
-	mov	es:[di].SEG,ax
+	mov	es:[di]._SEG,ax
 	mov	ax,word ptr [VARS + V_EPB + EPB_ENVSEG]
 	mov	cx,[cur_psp]
 	call	load_prog		; AX = its PSP
@@ -588,8 +588,8 @@ ie4:	add	word ptr [VARS+VR_ESP],REGS_LEN	; (our caller's stack again)
 	mov	dx,[ld_cs]
 	call	ie_put
 	mov	ax,[cur_psp]
-	mov	[dta].SEG,ax
-	mov	[dta].OFF,PSP_DTA
+	mov	[dta]._SEG,ax
+	mov	[dta]._OFF,PSP_DTA
 	call	set_dta
 	jmp	i21ok
 ie_put:	mov	di,bx			; put DX at the machine's AX:BX
@@ -723,11 +723,11 @@ tp3a:	inc	bx
 	mov	ax,[cur_psp]
 	mov	di,PSP_DTAPREV
 	call	get_word
-	mov	[dta].OFF,ax
+	mov	[dta]._OFF,ax
 	mov	ax,[cur_psp]
 	mov	di,PSP_DTAPREV + 2
 	call	get_word
-	mov	[dta].SEG,ax
+	mov	[dta]._SEG,ax
 	cmp	byte ptr [tp_code+1],EXTYPE_KEEP
 	je	tp4
 	mov	dx,[cur_psp]

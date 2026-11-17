@@ -7,13 +7,15 @@
 #
 # This file is part of PCjs, a computer emulation software project at pcjs.org
 #
-ASM=MASM
+# MASM5 is MASM 5.10B; use ASM=MASM on MAKE's command line to assemble with
+# MASM 4.00 instead.
+#
+ASM=MASM5
 LINK=LINK
 #
-# LINK4 builds NE programs (see PRIMES.EXE below).  It's named by its path in
-# TOOLS\BD, since the MS-DOS build disk (see mkdos.sh) doesn't have it on PATH.
+# LINK4 builds NE programs (see PRIMES.EXE below).
 #
-LINK4=..\TOOLS\BD\LINK4
+LINK4=LINK4
 EXE2BIN=EXE2BIN
 MAPSYM=MAPSYM
 AFLAGS=/MX /R /D$(REL) /I..\OS\INC

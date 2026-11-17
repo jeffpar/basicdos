@@ -429,7 +429,7 @@ so2:	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	mov	ah,bl			; save mode in AH
 	mov	cx,es			; CX:DI is driver, DX is context
-	mov	si,[sfb_table].OFF
+	mov	si,[sfb_table]._OFF
 	sub	bx,bx			; use BX to remember a free SFB
 so3:	test	al,al			; is this a file (ie, a drive #)?
 	jge	so4			; yes, files never share SFBs
@@ -437,9 +437,9 @@ so3:	test	al,al			; is this a file (ie, a drive #)?
 	jnz	so4
 	test	dx,dx			; any context?
 	jnz	so4			; yes, check next SFB
-	cmp	[si].SFB_DEVICE.SEG,cx
+	cmp	[si].SFB_DEVICE._SEG,cx
 	jne	so4			; check next SFB
-	cmp	[si].SFB_DEVICE.OFF,di
+	cmp	[si].SFB_DEVICE._OFF,di
 	jne	so4			; check next SFB
 	cmp	[si].SFB_CONTEXT,dx	; context-less device?
 	jne	so4			; no
@@ -455,7 +455,7 @@ so4:	test	bx,bx			; are we still looking for a free SFB?
 	jne	so5			; no
 	mov	bx,si			; yes, remember it
 so5:	add	si,size SFB
-	cmp	si,[sfb_table].SEG
+	cmp	si,[sfb_table]._SEG
 	jb	so3			; keep checking
 
 	pop	si
@@ -487,7 +487,7 @@ so5a:	pop	ds
 	pop	si			; DS:SI -> DDH
 	push	si
 	push	ds
-	add	si,offset DDH_NAME
+	add	si,DDH_NAME
 	mov	cx,size DDH_NAME SHR 1
 	rep	movsw
 	push	ax
@@ -503,14 +503,14 @@ so5b:	pop	es
 so6:	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	DBGINIT	STRUCT,[bx],SFB
-	mov	[bx].SFB_DEVICE.OFF,di
-	mov	[bx].SFB_DEVICE.SEG,es
+	mov	[bx].SFB_DEVICE._OFF,di
+	mov	[bx].SFB_DEVICE._SEG,es
 	mov	[bx].SFB_CONTEXT,dx	; set DRIVE (AL) and MODE (AH) next
 	mov	word ptr [bx].SFB_DRIVE,ax
 	sub	ax,ax
 	mov	[bx].SFB_REFS,1		; one handle reference initially
-	mov	[bx].SFB_CURPOS.LOW,ax	; zero the initial file position
-	mov	[bx].SFB_CURPOS.HIW,ax
+	mov	[bx].SFB_CURPOS.LW,ax	; zero the initial file position
+	mov	[bx].SFB_CURPOS.HW,ax
 	mov	[bx].SFB_CURCLN,dx	; initial position cluster
 	mov	[bx+SFB_HINTCLN],dx	; which is also the initial hint
 	mov	[bx+SFB_HINTIDX],ax	; (at cluster index 0)
@@ -537,7 +537,7 @@ so8b:	mov	[bx].SFB_ATTR,DIRATTR_VOLUME
 	mov	al,[bx].SFB_DRIVE
 	mov	ah,size BPBEX
 	mul	ah
-	add	ax,[bpb_table].OFF
+	add	ax,[bpb_table]._OFF
 	xchg	di,ax			; DI -> BPB (chk_volume checked it)
 	call	vol_size
 	clc				; return new SFB
@@ -656,7 +656,7 @@ DEFPROC	sfb_chkopen,DOS
 	push	si
 	mov	si,cs:[scb_active]
 	mov	dx,cs:[si].SCB_DIRCLN	; DX = directory of DIRENT
-	mov	si,cs:[sfb_table].OFF
+	mov	si,cs:[sfb_table]._OFF
 sco1:	cmp	cs:[si].SFB_REFS,0	; is this SFB open?
 	je	sco2			; no
 	cmp	cs:[si].SFB_DRIVE,al	; (devices never match, since -1)
@@ -674,7 +674,7 @@ sco1a:	test	bl,MODE_ACC_WO OR MODE_ACC_RW
 	test	cs:[si].SFB_MODE,MODE_ACC_WO OR MODE_ACC_RW
 	jnz	sco8			; the file is open for writing
 sco2:	add	si,size SFB
-	cmp	si,cs:[sfb_table].SEG
+	cmp	si,cs:[sfb_table]._SEG
 	jb	sco1			; keep checking (carry clear when done)
 	jmp	short sco9
 sco8:	mov	ax,ERR_SHARE
@@ -703,13 +703,13 @@ DEFPROC	chk_devopen,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	push	si
 	push	ax
-	mov	si,cs:[sfb_table].OFF
+	mov	si,cs:[sfb_table]._OFF
 cdo1:	cmp	cs:[si].SFB_REFS,0	; is this SFB open?
 	je	cdo2			; no
-	cmp	cs:[si].SFB_DEVICE.OFF,di
+	cmp	cs:[si].SFB_DEVICE._OFF,di
 	jne	cdo2
 	mov	ax,es
-	cmp	cs:[si].SFB_DEVICE.SEG,ax
+	cmp	cs:[si].SFB_DEVICE._SEG,ax
 	jne	cdo2			; not the same device
 	mov	ah,bl
 	mov	al,cs:[si].SFB_MODE
@@ -719,7 +719,7 @@ cdo1:	cmp	cs:[si].SFB_REFS,0	; is this SFB open?
 	cmp	al,MODE_DENY_RW		; does someone else have it?
 	je	cdo8			; yes
 cdo2:	add	si,size SFB
-	cmp	si,cs:[sfb_table].SEG
+	cmp	si,cs:[sfb_table]._SEG
 	jb	cdo1			; keep checking (carry clear when done)
 	pop	ax
 	jmp	short cdo9
@@ -797,8 +797,8 @@ sr1a:	push	cx			; save byte count
 ;
 ; Time for some bookkeeping: adjust the SFB's CURPOS by DX.
 ;
-	add	[bx].SFB_CURPOS.LOW,dx
-	adc	[bx].SFB_CURPOS.HIW,0
+	add	[bx].SFB_CURPOS.LW,dx
+	adc	[bx].SFB_CURPOS.HW,0
 	add	[bp].TMP_AX,dx		; update accumulation of bytes read
 	add	[bp].TMP_DX,dx		; update data buffer offset
 	ASSERT	NC
@@ -896,8 +896,8 @@ DEFPROC	vol_io,DOS
 	pop	si			; SI = request (in high byte)
 	sub	ax,ax			; AX = 0 (and carry clear)
 	jcxz	vi9			; nothing to transfer
-	mov	ax,[bx].SFB_CURPOS.LOW
-	mov	dx,[bx].SFB_CURPOS.HIW
+	mov	ax,[bx].SFB_CURPOS.LW
+	mov	dx,[bx].SFB_CURPOS.HW
 	div	[di].BPB_SECBYTES	; AX = LBA, DX = offset
 	push	bx
 	xchg	bx,ax			; BX = LBA
@@ -905,8 +905,8 @@ DEFPROC	vol_io,DOS
 	call	file_request
 	pop	bx
 	jc	vi9
-	add	[bx].SFB_CURPOS.LOW,cx
-	adc	[bx].SFB_CURPOS.HIW,0
+	add	[bx].SFB_CURPOS.LW,cx
+	adc	[bx].SFB_CURPOS.HW,0
 	xchg	ax,cx			; AX = bytes transferred
 vi9:	ret
 ENDPROC	vol_io
@@ -919,8 +919,8 @@ DEFPROC	vol_size,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	mov	ax,[di].BPB_DISKSECS
 	mul	[di].BPB_SECBYTES
-	mov	[bx].SFB_SIZE.LOW,ax
-	mov	[bx].SFB_SIZE.HIW,dx
+	mov	[bx].SFB_SIZE.LW,ax
+	mov	[bx].SFB_SIZE.HW,dx
 	ret
 ENDPROC	vol_size
 
@@ -929,10 +929,10 @@ ENDPROC	vol_size
 ;
 DEFPROC	lim_count,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
-	mov	ax,[bx].SFB_SIZE.LOW
-	mov	dx,[bx].SFB_SIZE.HIW
-	sub	ax,[bx].SFB_CURPOS.LOW
-	sbb	dx,[bx].SFB_CURPOS.HIW
+	mov	ax,[bx].SFB_SIZE.LW
+	mov	dx,[bx].SFB_SIZE.HW
+	sub	ax,[bx].SFB_CURPOS.LW
+	sbb	dx,[bx].SFB_CURPOS.HW
 	jnb	lc1
 	sub	ax,ax			; no data available
 	cwd
@@ -972,15 +972,15 @@ DEFPROC	sfb_seek,DOS
 	cmp	al,SEEK_CUR
 	mov	ax,si			; SI:AX = offset for SEEK_BEG
 	jl	ss7
-	mov	ax,[bx].SFB_CURPOS.LOW
-	mov	si,[bx].SFB_CURPOS.HIW	; SI:AX = offset for SEEK_CUR
+	mov	ax,[bx].SFB_CURPOS.LW
+	mov	si,[bx].SFB_CURPOS.HW	; SI:AX = offset for SEEK_CUR
 	je	ss7
-	mov	ax,[bx].SFB_SIZE.LOW
-	mov	si,[bx].SFB_SIZE.HIW	; SI:AX = offset for SEEK_END
+	mov	ax,[bx].SFB_SIZE.LW
+	mov	si,[bx].SFB_SIZE.HW	; SI:AX = offset for SEEK_END
 ss7:	add	dx,ax
 	adc	cx,si
-	mov	[bx].SFB_CURPOS.LOW,dx
-	mov	[bx].SFB_CURPOS.HIW,cx
+	mov	[bx].SFB_CURPOS.LW,dx
+	mov	[bx].SFB_CURPOS.HW,cx
 ;
 ; Carry from the addition is NOT an error, since negative offsets (eg, -1:-6
 ; for 6 bytes before the end) always produce one, so make sure it's clear.
@@ -1101,8 +1101,8 @@ sc6a:	call	sfb_commit		; update the file's DIRENT
 sc6b:	jnc	sc7
 	xchg	dx,ax			; DX = error code
 sc7:	sub	ax,ax
-	mov	[bx].SFB_DEVICE.OFF,ax
-	mov	[bx].SFB_DEVICE.SEG,ax	; mark SFB as unused
+	mov	[bx].SFB_DEVICE._OFF,ax
+	mov	[bx].SFB_DEVICE._SEG,ax	; mark SFB as unused
 	call	cs:[sfb_hook]		; (see r3_sfbfree)
 sc8:	test	si,si			; valid PFH?
 	jl	sc9			; no
@@ -1150,8 +1150,8 @@ DEFPROC	sfb_get,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 sg1:	mov	al,size SFB		; convert SFH to SFB
 	mul	bl
-	add	ax,[sfb_table].OFF
-	cmp	ax,[sfb_table].SEG	; is the SFB valid?
+	add	ax,[sfb_table]._OFF
+	cmp	ax,[sfb_table]._SEG	; is the SFB valid?
 	xchg	bx,ax			; BX -> SFB
 	jae	sg8
 	cmp	cs:[bx].SFB_REFS,0	; is the SFB open?
@@ -1179,17 +1179,17 @@ ENDPROC	sfb_get
 ;
 DEFPROC	sfb_find_fcb,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
-	mov	bx,[sfb_table].OFF
+	mov	bx,[sfb_table]._OFF
 sff1:	cmp	[bx].SFB_REFS,0
 	je	sff8
 	test	[bx].SFB_FLAGS,SFBF_FCB
 	jz	sff8
-	cmp	[bx].SFB_FCB.OFF,dx
+	cmp	[bx].SFB_FCB._OFF,dx
 	jne	sff8
-	cmp	[bx].SFB_FCB.SEG,cx
+	cmp	[bx].SFB_FCB._SEG,cx
 	je	sff9
 sff8:	add	bx,size SFB
-	cmp	bx,[sfb_table].SEG
+	cmp	bx,[sfb_table]._SEG
 	jb	sff1
 	stc
 sff9:	ret
@@ -1247,14 +1247,14 @@ ENDPROC	pfh_alloc
 DEFPROC	pfh_set,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	xchg	ax,bx			; AX = SFB address
-	sub	ax,[sfb_table].OFF
+	sub	ax,[sfb_table]._OFF
 	mov	cl,size SFB
 	div	cl			; AL = SFB # (from SFB address)
 	ASSERT	Z,<test ah,ah>		; assert that the remainder is zero
 	test	di,di			; did we find a free PFT entry?
 	jz	ps9			; no
 	stosb				; yes, store SFB # in the PFT entry
-	sub	di,offset PSP_PFT + 1	; convert PFT entry into PFH
+	sub	di,PSP_PFT + 1		; convert PFT entry into PFH
 	xchg	ax,di			; AX = handle
 ps9:	ret
 ENDPROC	pfh_set
