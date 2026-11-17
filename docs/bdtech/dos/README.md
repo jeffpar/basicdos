@@ -148,12 +148,13 @@ The path character is set at boot by CONFIG.SYS's PATHCHAR setting (`\` by defau
 
 #### DOS_MSC_GETVER {#dos_msc_getver}
 
-Returns the BASIC-DOS version, which is currently 2.00, so that PC DOS 2.x programs pass their version checks:
+Returns the BASIC-DOS version, whose major number is 2, so that PC DOS 2.x programs pass their version checks:
 
 - AL = major version
 - AH = minor version
 - BX = 4442h ("BD" in memory; SIG_BASICDOS in dosapi.inc), which identifies BASIC-DOS, since a PC DOS 2.x BX holds an OEM number and serial number instead
-- CX = internal state (bit 0 is set in DEBUG builds)
+- CH = revision letter ('A' through 'Z'), or 0 if none (eg, 2.10A returns AL = 2, AH = 10, and CH = 'A')
+- CL = internal state (bit 0 is set in DEBUG builds)
 
 A program that demands one exact version, by following the INT 21h with `XCHG AH,AL` and `CMP AX,imm16` (as EXE2BIN 3.20 does, comparing with 0314h), gets that version instead: when the byte at the caller's CS:IP+2 is 3Dh, AX returns the word that follows it, byte-swapped.
 

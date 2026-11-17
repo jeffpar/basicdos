@@ -1292,6 +1292,7 @@
     "printf",
     "printp",
     "PRNDEV",
+    "PROCS",
     "PROCTYPE",
     "PROTMODE",
     "prtbyte",

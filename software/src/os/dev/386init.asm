@@ -779,6 +779,15 @@ DEFPROC	pm_call
 	push	ds
 	push	es
 	push	bp
+;
+; The first PC AT BIOS (1984-01-10) re-initializes both PICs for every
+; shutdown code except 09h, which masks all their interrupts (eg, the
+; diskette's), so save the masks for pm_resume to restore.
+;
+	in	al,0A1h
+	mov	ah,al
+	in	al,21h
+	push	ax			; AH = slave PIC mask, AL = master's
 	mov	ds,cs:[sys_seg]
 	mov	ax,ss
 	mov	dx,ax
@@ -849,6 +858,10 @@ pm_resume:
 	out	71h,al
 	mov	al,0Dh			; and enable NMI again
 	out	70h,al
+	pop	ax
+	out	21h,al			; restore the master PIC's mask
+	mov	al,ah
+	out	0A1h,al			; and the slave's
 	pop	bp
 	pop	es
 	pop	ds

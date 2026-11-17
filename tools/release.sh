@@ -1,31 +1,36 @@
 #
 # Sourced (from the repository root) by mk.sh and mkdos.sh, which take their defaults from package.json:
 #
-#   "version"   the major and minor numbers (eg, 2.0 of "2.0.0") are the BASIC-DOS version, which this script copies to
-#               VERSION_MAJOR (0-9) and VERSION_MINOR (0-99) in software/src/os/inc/version.inc whenever they change
-#               (only then, since the makefiles depend on it); the minor number is displayed with two digits, so
-#               "2.1.0" is BASIC-DOS 2.01, and "2.10.0" is 2.10
+#   "version"   the major, minor, and patch numbers (eg, 2, 10, and 1 of "2.10.1") are the BASIC-DOS version and
+#               revision, which this script copies to VERSION_MAJOR (0-9), VERSION_MINOR (0-99), and VERSION_REV (0-26)
+#               in software/src/os/inc/version.inc whenever they change (only then, since the makefiles depend on it,
+#               so any change rebuilds everything); the minor number is displayed with two digits, and a nonzero
+#               revision as a letter (1 is A, 26 is Z), so "2.1.0" is BASIC-DOS 2.01, and "2.10.1" is 2.10A
 #   "config"    its "release" property ("final" or "debug") is the default build mode, which this script sets $release to
 #               (in upper case); it's in "config" because VS Code's package.json schema expects a top-level "release"
 #               property to be an object (semantic-release's configuration)
 #
 read -r version release < <(node -e 'const p = require("./package.json"); console.log(p.version, p.config?.release)')
-if [[ ! $version =~ ^([0-9])\.([0-9]{1,2})(\.|$) ]]; then
-    echo "error: package.json version \"$version\" must begin with major.minor (0-9.0-99)" >&2
+if [[ ! $version =~ ^([0-9])\.([0-9]{1,2})\.([0-9]{1,2})$ ]] || [ $((10#${BASH_REMATCH[3]})) -gt 26 ]; then
+    echo "error: package.json version \"$version\" must be major.minor.revision (0-9.0-99.0-26)" >&2
     exit 1
 fi
 major=${BASH_REMATCH[1]}
 minor=$((10#${BASH_REMATCH[2]}))
+rev=$((10#${BASH_REMATCH[3]}))
 release=$(echo "$release" | tr a-z A-Z)
 if [ "$release" != FINAL ] && [ "$release" != DEBUG ]; then
     echo "error: package.json config.release must be \"final\" or \"debug\"" >&2
     exit 1
 fi
 inc=software/src/os/inc/version.inc
-if ! grep -q "^VERSION_MAJOR	equ	$major	" $inc || ! grep -q "^VERSION_MINOR	equ	$minor	" $inc; then
-    sed -e "s/^\(VERSION_MAJOR	equ	\)[0-9]*/\1$major/" -e "s/^\(VERSION_MINOR	equ	\)[0-9]*/\1$minor/" $inc > $inc.tmp &&
-        mv $inc.tmp $inc || exit 1
-    echo "BASIC-DOS version set to $major.$(printf %02d $minor)"
+if ! grep -q "^VERSION_MAJOR	equ	$major	" $inc || ! grep -q "^VERSION_MINOR	equ	$minor	" $inc ||
+        ! grep -q "^VERSION_REV	equ	$rev	" $inc; then
+    sed -e "s/^\(VERSION_MAJOR	equ	\)[0-9]*/\1$major/" -e "s/^\(VERSION_MINOR	equ	\)[0-9]*/\1$minor/" \
+        -e "s/^\(VERSION_REV	equ	\)[0-9]*/\1$rev/" $inc > $inc.tmp && mv $inc.tmp $inc || exit 1
+    letter=
+    [ $rev -gt 0 ] && letter=$(printf "\\$(printf %o $((64 + rev)))")
+    echo "BASIC-DOS version set to $major.$(printf %02d $minor)$letter"
 fi
 #
 # watching

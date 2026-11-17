@@ -1214,11 +1214,16 @@ DEFPROC	cmdExec
 	mov	word ptr [bp].EXIT_CODE,ax
 	call	freeEnv			; the program is done with it
 	mov	dx,word ptr [bp].SFH_STDIN
-	mov	word ptr ds:[PSP_PFT][STDIN],dx	; report to the original STDOUT
+	xchg	dx,word ptr ds:[PSP_PFT][STDIN]	; report to the original STDOUT
 ;
 ; If the program didn't end its output with CR/LF, then we do it for them,
-; so that whatever comes next (eg, the prompt) starts on a new line.
+; so that whatever comes next (eg, the prompt) starts on a new line, unless
+; its STDOUT was redirected: its output didn't go to the console, and if it
+; went to a pipe, the pipe's reader (eg, MORE) may still be in the middle of
+; a line there.
 ;
+	cmp	dh,[bp].SFH_STDOUT	; was the program's STDOUT redirected?
+	jne	ce9			; yes
 	call	endLine
 	IFDEF	MAXDEBUG
 	mov	ax,word ptr [bp].EXIT_CODE
@@ -2108,11 +2113,20 @@ DEFPROC	cmdVer
 	mov	ah,DOS_MSC_GETVER
 	int	21h			; AL = BASIC-DOS major version
 	mov	dl,ah			; DL = BASIC-DOS minor version
-	test	cx,1			; CX bit 0 set if BASIC-DOS DEBUG ver
+;
+; The revision letter (CH), if any, is pushed as a string; if there's no
+; letter, the string is empty.
+;
+	mov	bl,ch
+	mov	bh,0
+	push	bx
+	mov	bx,sp			; SS:BX -> revision string
+	test	cl,1			; CL bit 0 set if BASIC-DOS DEBUG ver
 	mov	cx,offset VER_FINAL
 	jz	ver1
 	mov	cx,offset VER_DEBUG
-ver1:	PRINTF	<13,10,"BASIC-DOS %bd.%02bd%ls",13,10,13,10>,ax,dx,cx,cs
+ver1:	PRINTF	<13,10,"BASIC-DOS %bd.%02bd%ls%ls",13,10,13,10>,ax,dx,bx,ss,cx,cs
+	pop	bx
 	ret
 ENDPROC	cmdVer
 

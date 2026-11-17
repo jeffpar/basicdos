@@ -95,17 +95,18 @@ function checkOutput(task, outputFile)
  */
 const SRC = "./software/src";
 /*
- * The BASIC-DOS version comes from package.json's version (see tools/release.sh): its major number, and its minor
- * number as two digits (eg, "2.1.0" is BASIC-DOS 2.01).
+ * The BASIC-DOS version comes from package.json's version (see tools/release.sh): its major number, its minor
+ * number as two digits, and a letter for a nonzero patch number, its revision (eg, "2.1.0" is BASIC-DOS 2.01, and
+ * "2.10.1" is 2.10A).
  */
-const VERSION = JSON.parse(fs.readFileSync("./package.json", "utf8")).version.replace(/^(\d+)\.(\d+).*$/,
-    (match, major, minor) => major + "." + minor.padStart(2, "0"));
+const [MAJOR, MINOR, REV] = JSON.parse(fs.readFileSync("./package.json", "utf8")).version.split(".").map(Number);
+const VERSION = MAJOR + "." + String(MINOR).padStart(2, "0") + (REV ? String.fromCharCode(64 + REV) : "");
 /*
  * The distribution files (the root files, and the files that the manifest lists in EXT and DEMOS) are dated
- * September 9, 1986, at a time that matches the version (eg, 2:10 AM for 2.10), on every disk; the PC DOS 1.00
- * samples keep their own timestamps (see stageDisk()).
+ * September 9, 1986, at a time that matches the version (eg, 2:10 AM for 2.10, whatever its revision), on every
+ * disk; the PC DOS 1.00 samples keep their own timestamps (see stageDisk()).
  */
-const DIST_TIME = "1986-09-09T" + VERSION.replace(/^(\d+)\.(\d+)$/, (match, major, minor) => major.padStart(2, "0") + ":" + minor);
+const DIST_TIME = "1986-09-09T" + String(MAJOR).padStart(2, "0") + ":" + String(MINOR).padStart(2, "0");
 const DIST_DATE = new Date(DIST_TIME);         // (a date-time string without a time zone is local time)
 const MKMODE = "./tools/pc/disks/mkmode";
 /*
@@ -154,11 +155,25 @@ const toolFiles = (dir) => globSync(SRC + "/tools/" + dir + "/*").sort().filter(
 
 //
 // The distribution diskette and the 64K demo diskettes (whose machines can't run the tests) have only EXT and DEMOS;
-// every other demo diskette also has the early BASIC-DOS tests (PIPES.BAT and RANDOM.BAT) in TESTS\MISC, where its
-// CONFIG.SYS can run them, but not the rest of TESTS\MISC, which is on the TESTS diskette.
+// every other demo diskette also has, in TESTS (which its CONFIG.SYS adds to PATH$, since a diskette doesn't need
+// the TESTS subfolders), the test files that its CONFIG.SYS runs (eg, PIPES.BAT on the Dual Monitor diskettes) and
+// any that its entry lists (eg, FPUTESTS.COM on the Single diskette, whose machines have a coprocessor); the rest of
+// the tests are on the TESTS diskette.
 //
 const distFolders = { EXT: manifest.EXT, DEMOS: manifest.DEMOS };
-const diskFolders = { ...distFolders, "TESTS/MISC": manifest["TESTS/MISC"].filter(file => /\/(PIPES|RANDOM)\.BAT$/i.test(file)) };
+const testFiles = [].concat(manifest.TESTS, manifest["TESTS/REGRESS"], manifest["TESTS/MISC"]);
+function diskFolders(disk)
+{
+    let config = fs.readFileSync(disk.config, "utf8").toUpperCase();
+    let named = (file) => new RegExp("(^|[^\\w$])" + path.basename(file).toUpperCase().replace(".", "\\.") + "\\b").test(config);
+    let tests = testFiles.filter(named);
+    for (let name of disk.tests || []) {
+        let file = testFiles.find(file => path.basename(file).toUpperCase() == name);
+        if (!file) throw new Error("test file " + name + " isn't in the manifest");
+        if (!tests.includes(file)) tests.push(file);
+    }
+    return { ...distFolders, TESTS: tests };
+}
 /**
  * diskFiles(diskName, fileSpecs)
  *
@@ -189,7 +204,7 @@ let disks = {
         img: true,
         final: true
     },
-    "BASICDOS-360K-S80": { config: "./demos/s80/CONFIG.SYS", title: "BASIC-DOS Single" },
+    "BASICDOS-360K-S80": { config: "./demos/s80/CONFIG.SYS", title: "BASIC-DOS Single", tests: [ "FPUTESTS.COM" ] },
     "BASICDOS-360K-D40": { config: "./demos/d40/CONFIG.SYS", title: "BASIC-DOS 40-Cols" },
     "BASICDOS-360K-D80": { config: "./demos/d80/CONFIG.SYS", title: "BASIC-DOS 80-Cols" },
     "BASICDOS-360K-P80": { config: "./demos/p80/CONFIG.SYS", title: "BASIC-DOS Multi-Page" },
@@ -338,7 +353,7 @@ function stageDisk(diskName)
         fs.utimesSync(path.join(dirStage, "MKFINAL"), DIST_DATE, DIST_DATE);
         entries.push(path.join(dirStage, "MKFINAL"));
     }
-    let folders = disk.folders || diskFolders;
+    let folders = disk.folders || diskFolders(disk);
     for (let folder in folders) {
         let files = folders[folder];
         if (!files.length) continue;
@@ -498,7 +513,7 @@ function diskSources(diskName)
     if (!disk.data && !disk.hd) {
         sources.push(...manifest.ROOT.filter(file => file != "CONFIG.SYS"), SRC + "/os/boot/obj/BOOT1.COM");
     }
-    let folders = disk.folders || diskFolders;
+    let folders = disk.folders || diskFolders(disk);
     for (let folder in folders) {
         let files = folders[folder];
         if (typeof files == "string") sources.push(files + "/**"); else sources.push(...files);

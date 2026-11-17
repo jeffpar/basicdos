@@ -137,9 +137,9 @@ Each START needs a free session (see [SESSIONS=](../../cfg/#sessions)), and its 
 
 > VER
 
-Displays the BASIC-DOS version number.
+Displays the BASIC-DOS version number, followed by its revision letter, if any (eg, 2.10A), and "DEBUG" for a DEBUG build.
 
 	VER
-	BASIC-DOS 2.00
+	BASIC-DOS 2.10
 
 {% include footer.html prev="WC:../external/wc/" next="BASIC-DOS Programming:../../lang/" %}

@@ -24,9 +24,10 @@
 # diskimage.js resolves) followed by the file's path within the image.
 #
 # gulpfile.js builds the BASICDOS-360K distribution diskette and every demo
-# diskette with ROOT, EXT, and DEMOS (and every demo diskette but the 64K
-# ones also has the TESTS/MISC files that its CONFIG.SYS can run: PIPES.BAT
-# and RANDOM.BAT), the BASICDOS-360K-TESTS diskette with
+# diskette with ROOT, EXT, and DEMOS (and a demo diskette also has, in TESTS,
+# the test files that its CONFIG.SYS runs, eg, PIPES.BAT, and any that
+# gulpfile.js lists for it, eg, FPUTESTS.COM on the Single diskette, whose
+# machines have a coprocessor), the BASICDOS-360K-TESTS diskette with
 # TESTS (and its REGRESS and MISC subfolders) and TOOLS, and the BASICDOS-10MB
 # hard disk with all of them (plus TESTS/SAMPLES, DEMOS/WOLF3D, the WOLF3D.BAT and JIVE files that only it has
 # in DEMOS, SRC, and the build tools in TOOLS/BIN, with the C compiler's include

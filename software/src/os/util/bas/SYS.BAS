@@ -37,13 +37,15 @@
 	FIELD #1, 255 AS R$
 	GET #1, 1 : B1$ = R$ : GET #1, 2 : B2$ = R$ : GET #1, 3 : B3$ = LEFT$(R$, 2)
 	CLOSE #1
-	' The boot code must be our version (K$), whose number is followed by the
-	' CR,LF (Y$) before the boot message, or by 0,1 (Z$), which ends the string
-	' before the message and makes the boot code wait 1 tick instead; the
-	' current drive's copy could be either, or could be other boot code, which
-	' we can't use
+	' The boot code must be our version (K$, including any revision letter
+	' that DOS returns in CH), whose number is followed by the CR,LF (Y$)
+	' before the boot message, or by 0,1 (Z$), which ends the string before
+	' the message and makes the boot code wait 1 tick instead; the current
+	' drive's copy could be either, or could be other boot code, which we
+	' can't use
 	DOS &H3000 : A = DOS(0)
 	K$ = CHR$(48 + (A AND 255)) + "." + RIGHT$(STR$(100 + A \ 256), 2)
+	A = DOS(2) \ 256 : IF A THEN K$ = K$ + CHR$(A)
 	P = INSTR(B2$, K$ + Y$) : IF P = 0 THEN P = INSTR(B2$, K$ + Z$)
 	IF P = 0 THEN PRINT "Drive "; V$; " doesn't have BASIC-DOS "; K$; " boot code" : END 1
 	MID$(B2$, P + LEN(K$), 2) = C$

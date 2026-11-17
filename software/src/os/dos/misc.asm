@@ -321,8 +321,9 @@ ENDPROC	msc_settime
 ; Outputs:
 ;	REG_AL = major version #
 ;	REG_AH = minor version #
-;	REG_BX = revision # (currently zero)
-;	REG_CX = 0 (1 if DEBUG build)
+;	REG_BX = SIG_BASICDOS
+;	REG_CH = revision letter ('A'-'Z'), or 0 if none
+;	REG_CL = 0 (1 if DEBUG build)
 ;
 ; Modifies:
 ;	AX, SI, ES
@@ -343,9 +344,9 @@ DEFPROC	msc_getver,DOS
 gvr1:	mov	[bp].REG_AX,ax
 	mov	[bp].REG_BX,SIG_BASICDOS	; BX = "BD" (identifies BASIC-DOS)
 	IFNDEF DEBUG
-	mov	[bp].REG_CX,0
+	mov	[bp].REG_CX,VERSION_LTR SHL 8
 	ELSE
-	mov	[bp].REG_CX,1
+	mov	[bp].REG_CX,(VERSION_LTR SHL 8) OR 1
 	ENDIF
 	ret
 ENDPROC	msc_getver
