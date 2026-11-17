@@ -11,6 +11,7 @@
   "editor.tabSize": 8,
   "editor.wordWrap": "off",
   "workbench.colorTheme": "Tokyo City Darker",
+  "workbench.iconTheme": "vs-seti-dos",
   "workbench.colorCustomizations": {
     "[Atom One Dark]": {
       "debugToolBar.background": "#21252B"
