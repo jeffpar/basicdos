@@ -95,7 +95,7 @@ Each session has its own console context (if it was given one by a CON= line), a
 | Vector | Use |
 |--------|-----|
 | 00h, 04h | Divide error and overflow: DOS displays "Division error" or "Overflow error" (followed by "at cccc:iiii", in DEBUG builds) and terminates the program (exit types EXTYPE_DVERR and EXTYPE_OVERR), as MS-DOS ends a program after "Divide overflow"; the parent isn't aborted, too (unlike a CTRL-C), and a session's last program (eg, COMMAND) gets a CTRL-C signal instead.  DEBUG.COM (as a driver or a program) stops on a divide error first |
-| 01h, 03h | Single-step and breakpoint (used by DEBUG builds, where an INT 3 preceded by a NOP is an assertion failure, which is reported and ends the current program, or halts the system if the session is locked or a driver is handling a hardware interrupt, while any other INT 3, such as a DBGBRK, is ignored) |
+| 01h, 03h | Single-step and breakpoint (used by DEBUG builds, where an INT 3 preceded by a NOP is an assertion failure, which is reported and ends the current program, or halts the system if the session is locked or a driver is handling a hardware interrupt (DEBUG.COM, loaded as a driver, stops at every assertion), while any other INT 3, such as a DBGBRK, is ignored) |
 | 20h | Terminate program |
 | 21h | DOS functions (see [DOS Functions](../dos/)) |
 | 22h | Exit address |

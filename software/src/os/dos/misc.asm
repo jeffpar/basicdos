@@ -28,7 +28,7 @@ DOS	segment word public 'CODE'
 	EXTLONG	<err_stack>
 	EXTSTR	<STR_CTRLC>
 
-	EXTWORD	<mcb_head,mem_size>
+	EXTWORD	<mcb_head,mem_size,cfg_counts>
 	EXTLONG	<clk_ptr>
 	EXTWORD	<scb_active>
 
@@ -654,6 +654,8 @@ ENDPROC	msc_getswc
 ;	REG_ES:REG_BX-2 -> mcb_head
 ;	REG_AX = total memory, in Kb (BASIC-DOS only, since a ring 3 program
 ;	can't read the DV_MEM_SIZE that follows mcb_head; see r3supp.asm)
+;	REG_CX, REG_SI, REG_DI = # of buffers, files, and sessions (see
+;	cfg_counts; also BASIC-DOS only, for MEM)
 ;
 ; Modifies:
 ;	None
@@ -663,6 +665,13 @@ DEFPROC	msc_getvars,DOS
 	mov	[bp].REG_BX,offset mcb_head + 2
 	mov	ax,[mem_size]
 	mov	[bp].REG_AX,ax
+	mov	si,offset cfg_counts
+	lodsw
+	mov	[bp].REG_CX,ax		; CX = BUFFERS
+	lodsw
+	mov	[bp].REG_SI,ax		; SI = FILES
+	lodsw
+	mov	[bp].REG_DI,ax		; DI = SESSIONS
 	ret
 ENDPROC	msc_getvars
 

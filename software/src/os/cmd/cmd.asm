@@ -1606,7 +1606,7 @@ cf8:	mov	dx,word ptr [bp].SFH_STDIN
 	jmp	short cf9a		; (carry is set)
 cf9:	clc
 cf9a:	pushf
-	call	hideCursor		; (if a BAS program is still running)
+	call	hideCursor		; (if a running BAS program hid it)
 	popf
 	pop	bp
 	ret
@@ -2067,7 +2067,6 @@ ru1:	mov	dx,offset runFile
 	xchg	dx,ax
 	pop	ax
 	push	dx
-	call	hideCursor		; (as MSBASIC does while a program runs)
 	sub	si,si
 	call	genCode			; (see genInit)
 	pop	dx

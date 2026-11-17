@@ -178,7 +178,7 @@ A program's interrupt handlers (eg, an INT 21h hook that passes the calls it doe
 
 > SESSIONS=*n*
 
-Sets the maximum number of sessions that can be active at once; *n* can range from 1 to 32.  The default is the number of consoles (the number of [SHELL](#shell) lines, or 1 if there aren't any), plus 4 so that pipelines can have up to 4 filters at once, unless the PIPE$ driver isn't loaded (see [SKIP](#skip)), in which case it's just the number of consoles.
+Sets the maximum number of sessions that can be active at once; *n* can range from 1 to 32.  The default is the number of consoles (the number of [SHELL](#shell) lines, or 1 if there aren't any), plus 4 so that pipelines can have up to 4 filters at once, unless the PIPE$ driver isn't loaded (see [SKIP](#skip)), plus 4 more with more than 256K of memory (eg, for [START](../cmd/system/#start)).  Each session costs only about 80 bytes of the kernel's memory (plus 1K at ring 3), and [MEM](../cmd/system/#mem) displays the number.
 
 Sessions are used not only by consoles, but also by [pipes](../intro/#redirection-and-pipes): every command after the first in a pipeline runs in its own session.  So if you set SESSIONS yourself, it should exceed the number of consoles by at least the number of filters you want to run at once.
 

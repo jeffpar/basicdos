@@ -23,7 +23,7 @@
 CODE	SEGMENT
 
 	EXTNEAR	<getArgs,getMode,ioctlCon,mouseCall,strIllegal,allocStr>
-	EXTNEAR	<rtError,strKeep,setKeep,hideCursor>
+	EXTNEAR	<rtError,strKeep,setKeep,markCursor,screenCursor>
 	EXTWORD	<CODE_DS>
 
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -99,8 +99,10 @@ ss4b:	cmp	al,cl			; any change?
 	jne	ss4a			; yes
 ;
 ; The mode is the same, so unless rows were requested (see setWidth) and the
-; console has some other number of rows, there's nothing to do.
+; console has some other number of rows, there's nothing to do (other than
+; noting that the program uses the screen; see markCursor).
 ;
+	call	markCursor
 	test	ch,ch
 	jz	ss9
 	mov	al,IOCTL_GETDIM
@@ -129,7 +131,7 @@ ss5:	push	cx
 	mov	al,IOCTL_SETMODE
 	call	ioctlCon
 	pushf
-	call	hideCursor		; (a new mode displays the cursor again)
+	call	screenCursor		; (a new mode displays the cursor again)
 	mov	ax,1
 	call	mouseCall		; and show it again (in the new mode)
 	popf

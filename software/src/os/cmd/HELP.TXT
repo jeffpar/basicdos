@@ -300,7 +300,7 @@ Returns the last record number used by GET # or PUT # for file *n* (or for a seq
 
 [b]LOCATE [*row*][,[*col*][,*cursor*]]
 Moves the cursor to the specified *row* and *col* (starting at 1,1), and hides (0) or shows (1) the cursor.
-While a BAS program runs, the cursor is hidden except during input (and while an external program runs); a cursor shown with 1 stays until the next input.  Omitted values are unchanged.  On a 24-row terminal, output on row 25 is ignored.
+Once a BAS program uses the screen (SCREEN, WIDTH, CLS, or LOCATE), the cursor is hidden until the program ends, except during input (and while an external program runs); a cursor shown with 1 stays until the next input.  Omitted values are unchanged.  On a 24-row terminal, output on row 25 is ignored.
 
 [f+]LOF(*n*)
 Returns the size of file *n*, in bytes.
@@ -335,7 +335,7 @@ Constant equal to the largest positive integer.
 Creates a new directory.
 
 [c]MEM
-Displays the total memory, available memory, and any unavailable features (eg, floating-point). See HELP CORE for more details.
+Displays the number of buffers, files, and sessions, the total memory, available memory, and any unavailable features (eg, floating-point). See HELP CORE for more details.
 
 [b+]MERGE *file*
 Adds the numbered lines of the specified BAS file (searching PATH$ if necessary) to the loaded program, replacing any lines with the same numbers.  MERGE can't be used inside a BAS or BAT file; use CHAIN MERGE instead.

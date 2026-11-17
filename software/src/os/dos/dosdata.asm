@@ -33,6 +33,7 @@ DOS	segment word public 'CODE'
 	DEFWORD	mem_size,0		; 08h: total memory (in Kb)
 	DEFTBL	<bpb_table,sfb_table,scb_table,cdir_table>
 	DEFPTR	dev_head		; 1Ah: head of device driver list
+	DEFWORD	cfg_counts,0,3		; # BUFFERS, FILES, SESSIONS (sysinit)
 	DEFWORD	mcb_limit,0		; MEMORY_SIZE, in paragraphs
 	DEFWORD	scb_active,0		; offset of active SCB (zero if none)
 	DEFWORD	load_reserve,0		; sessions to load next (see load_program)

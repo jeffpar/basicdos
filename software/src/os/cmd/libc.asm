@@ -264,7 +264,8 @@ DEFPROC	clearScreen,FAR
 	mov	al,IOCTL_SETMODE
 	call	ioctlCon
 	jnc	cs9			; restored (and cleared)
-cs1:	sub	cx,cx
+cs1:	call	markCursor		; (the program uses the screen)
+	sub	cx,cx
 	mov	dx,cx			; (DX is non-zero only to set rows)
 	mov	al,IOCTL_SCROLL
 	call	ioctlCon
@@ -452,7 +453,7 @@ rsm1:	call	showCursor		; (hidden while the program ran)
 	mov	cl,0
 	xchg	cl,byte ptr ss:[bx].GFX_DATA.GFX_SAVED
 	mov	ch,cl			; CH bit 7 set if graphics were used
-	and	cl,7Fh
+	and	cl,3Fh			; (bit 6 if the screen was used)
 	dec	cl			; CL = saved mode
 	js	rsm9			; there isn't one
 	push	cx
@@ -487,13 +488,21 @@ ENDPROC	restoreMode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; showCursor, hideCursor
+; showCursor, hideCursor, markCursor, screenCursor
 ;
 ; As in MSBASIC, the cursor is hidden while a BAS program runs, except during
 ; keyboard input (see inputLine) and while an external program that it starts
-; is running (see cmdFile).  A BAS program is running if saveMode saved its
-; video mode, so nothing happens otherwise (or on a console that has no video
-; modes, such as a terminal).
+; is running (see cmdFile), but only once the program uses the screen: once
+; it sets a mode (see screenCursor), or clears the screen or positions or
+; hides the cursor (see markCursor), which sets GFX_SAVED bit 6.  Until then,
+; it leaves the cursor alone, like any other program (eg, the BAS utilities).
+; A BAS program is running if saveMode saved its video mode, so nothing
+; happens otherwise (or on a console that has no video modes, such as a
+; terminal).
+;
+; markCursor hides the cursor only when it sets bit 6, so that a cursor shown
+; with LOCATE ,,1 stays until the next input; screenCursor always hides it,
+; since a mode change shows it again.
 ;
 ; Inputs:
 ;	None
@@ -508,13 +517,27 @@ DEFPROC	showCursor
 	push	dx
 	mov	dl,1			; DL = 1 to show the cursor
 	jmp	short hcu1
+	DEFLBL	markCursor,near
+	push	bx
+	mov	bx,ss:[PSP_HEAP]
+	test	byte ptr ss:[bx].GFX_DATA.GFX_SAVED,40h
+	jz	mcu1			; the screen hasn't been used yet
+mcu9:	pop	bx
+	ret
+	DEFLBL	screenCursor,near
+	push	bx
+	mov	bx,ss:[PSP_HEAP]
+mcu1:	cmp	byte ptr ss:[bx].GFX_DATA.GFX_SAVED,0
+	je	mcu9			; no BAS program is running
+	or	byte ptr ss:[bx].GFX_DATA.GFX_SAVED,40h
+	pop	bx
 	DEFLBL	hideCursor,near
 	push	dx
 	mov	dl,0			; DL = 0 to hide the cursor
 hcu1:	push	bx
 	mov	bx,ss:[PSP_HEAP]
-	cmp	byte ptr ss:[bx].GFX_DATA.GFX_SAVED,0
-	je	hcu9			; no BAS program is running
+	test	byte ptr ss:[bx].GFX_DATA.GFX_SAVED,40h
+	jz	hcu9			; no BAS program is using the screen
 	push	ax
 	push	cx
 	mov	dh,0			; (nothing to erase)
@@ -847,8 +870,9 @@ ENDPROC	setColor
 ;
 ; Used by "LOCATE [row][,[col][,cursor]]" (as with COLOR, any additional
 ; arguments, such as the cursor's scan lines, are ignored).  Row and col are
-; 1-based, and cursor is 0 to hide the cursor (until the next input) or 1 to
-; show it.  Nothing happens if STDOUT doesn't support cursor positioning.
+; 1-based, and cursor is 0 to hide the cursor or 1 to show it, until the next
+; input (or, in a BAS program, see markCursor).  Nothing happens if STDOUT
+; doesn't support cursor positioning.
 ;
 ; Inputs:
 ;	N numeric expressions pushed on stack (only 1st 3 are processed)
@@ -875,7 +899,15 @@ sp1:	test	dx,dx			; col omitted?
 	js	sp8			; col 0 is illegal
 sp2:	mov	dh,al			; DL = col, DH = row
 	xchg	cx,dx			; CX = new position, DL = cursor
-	mov	al,IOCTL_SETPOS
+;
+; Positioning or hiding the cursor means the program uses the screen.
+;
+	cmp	cx,-1			; row or col specified?
+	jne	sp3			; yes
+	test	dl,dl			; hide the cursor?
+	jnz	sp4			; no
+sp3:	call	markCursor
+sp4:	mov	al,IOCTL_SETPOS
 	call	ioctlCon
 	jnc	sp9
 	cmp	al,25			; (seek error: outside the console)

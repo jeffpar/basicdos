@@ -21,7 +21,8 @@ CODE    SEGMENT
 ;
 ; cmdMem
 ;
-; Prints memory usage: the total memory (all of it, including any extended
+; Prints the number of buffers, files, and sessions (see DOS_MSC_GETVARS),
+; and memory usage: the total memory (all of it, including any extended
 ; memory; see DOS_MSC_GETVARS), the available memory (which includes COMMAND's
 ; transient portion, if it can be discarded; see transParas), and if it can,
 ; the memory available for BASIC programs, followed by a line for anything
@@ -41,9 +42,9 @@ CODE    SEGMENT
 DEFPROC	cmdMem
 	mov	ah,DOS_MSC_GETVARS
 	int	21h			; AX = total memory (in Kb)
-	mov	cx,1024
-	mul	cx			; DX:AX = total memory (in bytes)
-	PRINTF	<"%8ld bytes total",13,10>,ax,dx
+	mov	dx,1024			; CX, SI, DI = # buffers, files, sessions
+	mul	dx			; DX:AX = total memory (in bytes)
+	PRINTF	<"%8d buffers",13,10,"%8d files",13,10,"%8d sessions",13,10,"%8ld bytes total",13,10>,cx,si,di,ax,dx
 	sub	cx,cx			; CX = memory block #
 	sub	di,di			; DI = free bytes (low word)
 	push	cx			; and the high word is on the stack

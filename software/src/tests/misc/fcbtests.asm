@@ -841,9 +841,10 @@ ENDPROC	ownership_tests
 ; Return the sum of open SFB references in AX without changing SI or ES.
 ;
 DEFPROC	refcount
+	push	si
 	push	es
 	mov	ah,DOS_MSC_GETVARS
-	int	21h
+	int	21h			; (which returns FILES in SI)
 	sub	bx,2
 	xor	ax,ax
 	mov	cx,es
@@ -857,6 +858,7 @@ rc1:	mov	dl,es:[bx].SFB_REFS
 	cmp	bx,cx			; sum every SFB in the table
 	jb	rc1
 rc2:	pop	es
+	pop	si
 	ret
 ENDPROC	refcount
 

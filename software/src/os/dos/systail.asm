@@ -27,7 +27,7 @@ DOS	segment word public 'CODE'
 
 	EXTBYTE	<def_drive,scb_locked,prog_user,r3_stubs>
 	EXTWORD	<scb_active,ivt_save,sprintf_hook,r3_code,r3_stseg,r3_vsel>
-	EXTWORD	<FUNCTBL,UTILTBL,r3_ksel,r3_sfbtab,sfb_hook>
+	EXTWORD	<FUNCTBL,UTILTBL,r3_ksel,r3_sfbtab,sfb_hook,cfg_counts>
 	EXTLONG	<scb_table,clk_ptr,sfb_table,err_stack>
 	EXTNEAR	<dos_leave,int_enter,int_leave,dos_fault,sysinit_start>
 	EXTNEAR	<r3_sprintf,r3_free,r3_realloc,init_fpu,utl_alias,utl_mapseg>
@@ -38,7 +38,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<r3_time,r3_sfbfree,next_con>
 	EXTNEAR	<r3_sread,r3_swrite,r3_rread,r3_rwrite,r3_rbread,r3_rbwrite>
 	EXTNEAR	<fcb_code,func_none>
-	EXTWORD	<mcb_limit>
+	EXTWORD	<mcb_limit,mem_size>
 	EXTABS	<FUNCTBL_SIZE,UTILTBL_SIZE>
 
 	ASSUME	CS:DOS, DS:DOS, ES:NOTHING, SS:NOTHING
@@ -559,11 +559,7 @@ DEFPROC	init_sess
 ; reach, with a bit for each session that may use it (see r3_sfhok).
 ;
 	mov	es:[r3_sfbtab],di
-	mov	ax,es:[sfb_table].SEG
-	sub	ax,es:[sfb_table].OFF
-	mov	bl,size SFB
-	div	bl			; AL = # of SFBs
-	mov	ah,0
+	mov	ax,es:[cfg_counts+2]	; AX = # of SFBs
 	shl	ax,1
 	shl	ax,1			; AX = their doublewords' length
 	push	ax
@@ -707,7 +703,9 @@ ENDPROC	next_line
 ; Without a "SESSIONS=" line, there's a session for each console (one for
 ; each "SHELL=" line in CFG_FILE, or just one without any; see next_con), plus
 ; 4 for the filters of pipelines, unless the PIPE$ driver isn't loaded (eg, it
-; unloads itself with 64K of memory or less, or SKIP=PIPE$).
+; unloads itself with 64K of memory or less, or SKIP=PIPE$), plus 4 more with
+; more than 256K of memory (eg, for START and MEMTESTS), since each one costs
+; only about 80 bytes of the kernel's block (plus a ring 0 stack at ring 3).
 ;
 ; Outputs:
 ;	AX = default number of sessions
@@ -741,7 +739,10 @@ ds4:	cmp	di,-1			; end of device list?
 ds5:	les	di,es:[di]		; on to the next device
 	jmp	ds4
 ds7:	add	bx,4
-ds8:	xchg	ax,bx			; AX = number of sessions
+ds8:	cmp	ds:[mem_size],256	; more than 256K of memory?
+	jbe	ds8a			; no
+	add	bx,4			; yes, so 4 more sessions
+ds8a:	xchg	ax,bx			; AX = number of sessions
 	cmp	ax,MAX_SESSIONS		; more than the limit?
 	jbe	ds9			; no
 	mov	ax,MAX_SESSIONS

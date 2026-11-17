@@ -334,12 +334,18 @@ ENDPROC	set_jmp
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	set_dos
+	push	cx
+	push	si
+	push	di
 	push	es
 	mov	ah,DOS_MSC_GETVARS
 	int	21h			; ES:BX -> DOS's variables
 	mov	[dos_seg],es
 	mov	[dos_vars],bx
 	pop	es
+	pop	di			; (CX, SI, DI are DOS's counts)
+	pop	si
+	pop	cx
 ENDPROC	set_dos				; fall into set_cpu
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

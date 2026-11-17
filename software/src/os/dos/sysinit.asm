@@ -22,7 +22,7 @@ DOS	segment word public 'CODE'
 	EXTBYTE	<bpb_total,sfh_debug,def_drive,def_swchar,def_pathchar>
 	EXTBYTE	<scb_locked>
 	EXTWORD	<mcb_limit,buf_head,key_boot,scb_active,ivt_save,tbl_next>
-	EXTWORD	<dos_data,mem_size>
+	EXTWORD	<dos_data,mem_size,cfg_counts>
 	EXTLONG	<bpb_table,scb_table,sfb_table,cdir_table,clk_ptr,fpu_table>
 	EXTLONG	<dev_head>
 	EXTNEAR	<find_cfg,def_sessions,init_table,set_bpbtime,load_devices>
@@ -273,7 +273,8 @@ si5x:	xchg	si,di
 	pop	es
 	mov	bl,10			; BL = base 10
 	DOSUTIL	ATOI16			; DS:SI -> string, ES:DI -> validation
-si5a:	mov	dx,size SCB		; AX = new value
+si5a:	mov	[cfg_counts+4],ax	; AX = new value (for msc_getvars)
+	mov	dx,size SCB
 	mov	bx,offset scb_table
 	call	init_table
 ;
@@ -456,10 +457,7 @@ si6d:	add	di,size BPBEX
 ; The next resident table (cdir_table) contains every session's current
 ; directory (1st cluster, or 0 for the root) for every drive.
 ;
-	mov	ax,[scb_table].SEG
-	sub	ax,[scb_table].OFF
-	mov	dl,size SCB
-	div	dl			; AL = # SCBs
+	mov	ax,[cfg_counts+4]	; AL = # SCBs
 	mul	[bpb_total]		; AX = # SCBs * # drives
 	mov	dx,2
 	mov	bx,offset cdir_table
@@ -484,7 +482,8 @@ si7b:	xchg	si,di
 	pop	es
 	mov	bl,10			; BL = base 10
 	DOSUTIL	ATOI16			; DS:SI -> string, ES:DI -> validation
-si7a:	mov	dx,size SFB		; AX = new value
+si7a:	mov	[cfg_counts+2],ax	; AX = new value (for msc_getvars)
+	mov	dx,size SFB
 	mov	bx,offset sfb_table
 	call	init_table
 ;
@@ -508,7 +507,8 @@ sb0:	xchg	si,di
 	pop	es
 	mov	bl,10			; BL = base 10
 	DOSUTIL	ATOI16			; DS:SI -> string, ES:DI -> validation
-sb1:	sub	ax,2			; AX = new value
+sb1:	mov	[cfg_counts],ax		; AX = new value (for msc_getvars)
+	sub	ax,2
 	jbe	sb3
 	xchg	cx,ax			; CX = # extra buffers
 	mov	bx,[buf_head]		; BX = head
@@ -750,10 +750,7 @@ si12:	mov	dx,offset FPU_DEVICE
 	pop	ds
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
-si12a:	mov	ax,es:[scb_table].SEG
-	sub	ax,es:[scb_table].OFF
-	mov	dl,size SCB
-	div	dl			; AL = # of sessions
+si12a:	mov	ax,es:[cfg_counts+4]	; AX = # of sessions
 	call	init_sess
 
 ;

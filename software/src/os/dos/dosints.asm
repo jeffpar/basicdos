@@ -78,7 +78,7 @@ ENDPROC	dos_sstep
 ; is an assertion failure (see ASSERT), so we report it and end the current
 ; program, as dos_dverr does, unless the session is locked (eg, by sysinit)
 ; or a driver is handling a hardware interrupt, which can't be abandoned, so
-; we halt instead.
+; we halt instead.  To stop at every assertion, load DEBUG.COM as a driver.
 ;
 DEFPROC	dos_brkpt,DOSFAR
 	IFDEF	DEBUG
