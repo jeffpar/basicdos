@@ -57,7 +57,7 @@ An NE file gives protected mode what a COM file can't: a separate block for each
 - **In protected mode**, the kernel loads the NE image, which must be marked PROTMODE, with FIXED segments, no imports, and only internal relocations.
 - **In real mode**, on BASIC-DOS or any other DOS, the stub is an ordinary MZ program, not just a message saying that the program can't run.
 
-The two images can come from the same object file, and both call the same DOS functions, so no compatibility layer is needed.  `TESTS\BIN\PRIMES.EXE` is built this way: LINK makes the MZ program from PRIMES.OBJ, and LINK4 makes the NE program from PRIMES.OBJ, with the MZ program named as the stub in `tests/primes/PRIMES.DEF`.
+The two images can come from the same object file, and both call the same DOS functions, so no compatibility layer is needed.  `TESTS\MISC\PRIMES.EXE` is built this way: LINK makes the MZ program from PRIMES.OBJ, and LINK4 makes the NE program from PRIMES.OBJ, with the MZ program named as the stub in `tests/misc/PRIMES.DEF`.
 
 This differs from earlier uses of the stub.  A DOS extender's stub loads the extender, which then needs a processor it can use.  OS/2's BIND made one NE image run on DOS, too, but only by adding a stub with a library of OS/2 functions for DOS, and only for programs that restricted themselves to the Family API.  A BASIC-DOS stub can be a full real-mode program, which runs on an 8088.
 
@@ -73,7 +73,7 @@ The stub needs no file I/O.  Its MZ header gives a header size of zero, and a lo
 
 The cost is memory when it's short: a converted C program's data segment is always 64K, whereas the original uses less when memory is short.  So MASM, for example, always needs a 144K block in real mode, compared to as little as about 88K for the original.
 
-`TESTS\BIN\PRIMES.EXE`, a pure NE program, would go from 1,348 bytes to 788, and EXE2BIN in **TOOLS\BIN** already went from 5,536 bytes to 2,960.  There are limits:
+`TESTS\MISC\PRIMES.EXE`, a pure NE program, would go from 1,348 bytes to 788, and EXE2BIN in **TOOLS\BIN** already went from 5,536 bytes to 2,960.  There are limits:
 
 - A program that may run on an 8088 can use only 8086 instructions, as any program that targets both processors must.
 - Real mode uses the program's protected-mode layout, including any fixed 64K segment (eg, EXE2BIN's file buffer), rather than sizing itself to the memory available.

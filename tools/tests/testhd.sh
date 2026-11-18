@@ -25,7 +25,7 @@ if [ ! -d "$hdir" ]; then
     mkdir -p "$hdir/SUBDIR" || exit 1
     printf 'Hello from the hard disk\r\n' > "$hdir/HELLO.TXT"
     printf 'This file is in a subdirectory\r\n' > "$hdir/SUBDIR/INSIDE.TXT"
-    cp software/src/tests/primes/PRIMES.BAS "$hdir/"
+    cp software/src/demos/PRIMES.BAS "$hdir/"
 fi
 tools/tests/prep.sh "$cfg" || exit 1
 #

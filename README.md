@@ -304,20 +304,21 @@ The poster child for BASIC samples support is [DONKEY.BAS](https://www.pcjs.org/
 
 - [x] Builds with MASM 5.10B using `mkdos.sh` (PC.js and MS-DOS 3.20; everything still assembles with MASM 4.0, with `MAKE ASM=MASM`), which builds the binaries that package.json's `config.release` property selects by default (`final` for release binaries, or `debug` for DEBUG binaries, with run-time assertions; `mkdos.sh final` or `mkdos.sh debug` overrides it), using its `version` property's major and minor numbers as the BASIC-DOS version (and a nonzero patch number as its revision letter; eg, "2.10.1" is 2.10A), and also updates the BASIC-DOS demo disks after a successful build
 - [x] Builds itself: `mk.sh` runs the same build tools on BASIC-DOS, producing identical binaries
+- [x] Test layout: TESTS\REGRESS has the regression tests (each checks its own results, runs unattended on any machine and in either mode, and is run by REGRESS.BAT and `tools/tests/quick.sh`), TESTS\MISC has the other test programs (eg, those that need a CGA, V86.COM, or a debugger, or that fault on purpose), and `software/src/tests` matches, with `regress`, `misc`, and `tools` folders whose programs are built in their OBJ folders (see `software/manifest.txt`)
 - [x] DOSTESTS: CALL 5, memory allocation, file create/write/read-back, file sharing, path character, and file rename/delete tests
 - [x] STRFUN and STRPOOL: BASIC string function tests, and string pool stress and leak tests
 - [x] ARRAYS: BASIC array tests (including leak tests)
 - [x] FLOW: BASIC control flow tests
-- [x] EXPRERR: invalid expressions (eg, string operators and optional function parameters) that must be syntax errors
+- [x] EXPRERR: invalid expressions (eg, string operators and optional function parameters) that must report the expected error
 - [x] FILEIO: BASIC sequential and random access file tests
 - [x] RUNFILE: RUN tests (a missing file, and replacing or restarting the program, which clears its variables and closes its files)
 - [x] MOVES: file and directory moves, destination growth, sharing, and ancestry checks
 - [x] HARDERR: INT 24h compatibility tests (handler inputs, the stack switch, Retry, Fail, Ignore conversion, and Abort), using an empty drive B:
 - [x] R3TESTS: at ring 3, tests that misusing DOS (bad pointers, stacks, selectors, and vectors, and overwritten PSP fields) or using CLI or OUT ends only the program that did it, each in its own copy of the program
-- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, and from a hard disk, runs FPUTESTS, DOSTESTS, BUFTESTS, STRFUN, STRPOOL, ARRAYS, FLOW, EXPRERR, CMDS, VARS, FILEIO, RUNFILE, PRTUSING, MOVES, ATTRS, FCBTESTS, HARDERR, IOERR, and PRINTF, and reports whether the tests passed)
+- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, and from a hard disk, runs FPUTESTS, DOSTESTS, BUFTESTS, CPUTESTS, R3TESTS, STRFUN, STRPOOL, ARRAYS, FLOW, EXPRERR, CMDS, VARS, FILEIO, RUNFILE, PRTUSING, MOVES, ATTRS, FCBTESTS, HARDERR, IOERR, and PRINTF, and reports whether the tests passed)
 - [x] MEMTESTS: fills the system area's pool of PMBs and LDT descriptors from 7 sessions at once, checking their selectors and code aliases as their LDTs move, and that the system recovers (in `mmutest.sh`)
-- [x] `tools/tests/mmutest.sh` runs the same floppy tests, plus CPUTESTS, on a PC XT, a PC AT in real mode, and a PC AT in protected mode, with and without `RING=0` (at ring 3, CPUTESTS and HARDERR's interrupt hook tests are skipped), and R3TESTS with a second console
-- [x] CMDS: command tests (pipes, redirection, including to quoted and string variable file names, string variables and unquoted strings in external command arguments, TYPE, DEL, DEL's extra arguments, invalid switches, TIME /D, HELP, SOUND, remarks, and hex constants)
+- [x] `tools/tests/mmutest.sh` runs the same floppy tests on a PC XT, a PC AT in real mode, and a PC AT in protected mode, with and without `RING=0` (at ring 3, CPUTESTS and HARDERR's interrupt hook tests are skipped), and R3TESTS with a second console
+- [x] CMDS: command tests (pipes, redirection, including to quoted and string variable file names, string variables and unquoted strings in external command arguments, TYPE, DEL, DEL's extra arguments, invalid switches, TIME /D, HELP, SOUND, remarks, and hex constants), which checks the output and error messages that it captures
 - [x] `tools/tests/chkdsk.sh` runs MS-DOS 3.20 CHKDSK on a diskette image saved by a test session (see `QUIT /S` in `pc.js`)
 - [x] TIMER in the MSBASIC.EXE test copy of GW-BASIC (TOOLS), which the open-source files lack: the TIMER function, TIMER ON/OFF/STOP, and ON TIMER(*n*) GOSUB, as in BASICA
 - [x] BENCH.BAS and MICRO.BAS benchmarks, which run unchanged in BASIC-DOS, BASICA, and GW-BASIC (see the [results](preview/part6/)); `tools/tests/bench.sh` runs BENCH.BAS in all six configurations (each with and without an 8087) and prints the results in seconds

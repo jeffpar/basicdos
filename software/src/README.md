@@ -55,7 +55,7 @@ The [MSB](msb/) directory contains a buildable copy of Microsoft BASIC ("GW-BASI
 
 NOTE: The Microsoft BASIC source files in the [MSB](msb/) directory are copyright (c) Microsoft Corporation; see the [MIT License](msb/LICENSE).  The Microsoft BASIC files are included for reference and testing purposes only and are *not* part of the final BASIC-DOS distribution.
 
-The [TESTS](tests/) directory contains an assortment of test programs, some of which assemble into `.COM` and `.EXE` files (in `tests/bin`), while others are ready-to-run `.BAT` and `.BAS` files.
+The [TESTS](tests/) directory matches the TESTS directory of the BASIC-DOS disks: [REGRESS](tests/regress/) has the regression tests, and [MISC](tests/misc/) has the other test programs (see `software/manifest.txt` for what goes where), along with [TOOLS](tests/tools/) for the test tools (DISKREAD and DISKWRIT); their assembly-language programs are built in each folder's `OBJ` folder, while others are ready-to-run `.BAT` and `.BAS` files.
 
 ## Supporting Files
 

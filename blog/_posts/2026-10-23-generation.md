@@ -5,7 +5,7 @@ date: 2026-10-23 11:00:00
 permalink: /blog/2026/10/23/
 ---
 
-Every BASIC program that BASIC-DOS runs is compiled into 8086 code, and that code is generated and executed one line at a time.  To illustrate the process, I ran [PRIMES.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/tests/primes/PRIMES.BAS) with breakpoints in the code generator, and captured the code and the variables that each line produced.
+Every BASIC program that BASIC-DOS runs is compiled into 8086 code, and that code is generated and executed one line at a time.  To illustrate the process, I ran [PRIMES.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/demos/PRIMES.BAS) with breakpoints in the code generator, and captured the code and the variables that each line produced.
 
 Here's the program.  It prints the primes below 1000 (or below the number on its command line), by trial division with odd divisors up to the square root of each candidate:
 

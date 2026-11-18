@@ -18,7 +18,7 @@ The machine below boots the `BASICDOS-360K-S80` diskette, with the `BASICDOS-360
 
 {% include machine.html id="ibm5150" name="IBM PC, 256Kb RAM, Dual Floppy Drives, CGA" %}
 
-How does BASIC-DOS compare with the BASIC interpreters that IBM PC users actually had?  To find out, we wrote a set of benchmarks, [BENCH.BAS]({{ site.github.repository_url }}/blob/master/software/src/tests/misc/BENCH.BAS), that runs unchanged in all three environments:
+How does BASIC-DOS compare with the BASIC interpreters that IBM PC users actually had?  To find out, we wrote a set of benchmarks, [BENCH.BAS]({{ site.github.repository_url }}/blob/master/software/src/tests/BENCH.BAS), that runs unchanged in all three environments:
 
   - **BASICA**: IBM Advanced BASIC A2.00 from PC DOS 2.00, running with the IBM PC's ROM BASIC
   - **GW-BASIC**: **MSBASIC.EXE**, built from Microsoft's open-source [GW-BASIC](https://github.com/microsoft/GW-BASIC) files, also running on PC DOS 2.00

@@ -12,12 +12,24 @@
 #            DOS 1.00 BASIC sample on every disk
 #   TESTS    BENCH.BAS, STRESS.BAT, and REGRESS.BAT (which runs the tests in
 #            TESTS/REGRESS)
-#   TESTS/REGRESS  the regression tests (which tools/tests/quick.sh runs, too)
-#   TESTS/MISC  other test programs (eg, GFXTESTS.BAS, which needs a CGA, and
-#            the BAT and EXE versions of PRIMES)
+#   TESTS/REGRESS  the regression tests: each checks its own results (printing
+#            "passed" or "failed", and setting an exit code if it's a program),
+#            runs unattended in one session on any machine and in either mode
+#            (skipping what it can't test there), and is run by REGRESS.BAT and
+#            tools/tests/quick.sh
+#   TESTS/MISC  every other test program: those that need something more (eg,
+#            GFXTESTS.BAS needs a CGA, V86TESTS needs V86.COM, DBGTESTS needs a
+#            debugger, and MEMTESTS needs a protected-mode machine with several
+#            sessions), cause a fault or failure on purpose (FAULT, ASSERT),
+#            measure rather than check (MICRO.BAS), or just run (PIPES.BAT,
+#            RANDOM.BAT, and the BAT and EXE versions of PRIMES)
 #   TESTS/SAMPLES  the rest of the PC DOS 1.00 BASIC samples (hard disk only)
 #            (ie, demos/samples/*.BAS except for any file that DEMOS lists)
 #   TOOLS    tools used for testing (DISKREAD, DISKWRIT, SYMDEB, and MSBASIC)
+#
+# The software/src/tests folders match: the TESTS files are in tests, and the
+# sources of the TESTS/REGRESS, TESTS/MISC, and TOOLS files are in tests/regress,
+# tests/misc, and tests/tools, with the programs built in their OBJ folders.
 #
 # A section named FOLDER/SUBFOLDER (eg, DEMOS/WOLF3D) is a subfolder of FOLDER,
 # and a file inside a disk image can be listed as the image's path (which PCJS's
@@ -66,60 +78,58 @@ software/src/os/cmd/HELP.TXT
 [DEMOS]
 software/src/demos/*
 demos/samples/DONKEY.BAS
-software/src/tests/misc/DIR.BAS
 demos/mouse/PAINT.BAS
-software/src/tests/primes/PRIMES.BAS
 
 [DEMOS/WOLF3D]
 /harddisks/pcx86/10mb/COMPAQ331-WOLF3D.json/WOLF3D/*
 
 [TESTS]
-software/src/tests/misc/BENCH.BAS
-software/src/tests/misc/REGRESS.BAT
-software/src/tests/misc/STRESS.BAT
+software/src/tests/BENCH.BAS
+software/src/tests/REGRESS.BAT
+software/src/tests/STRESS.BAT
 
 [TESTS/REGRESS]
-software/src/tests/bin/BUFTESTS.COM
-software/src/tests/bin/DOSTESTS.COM
-software/src/tests/bin/FCBTESTS.COM
-software/src/tests/bin/FPUTESTS.COM
-software/src/tests/bin/HARDERR.COM
-software/src/tests/bin/IOERR.COM
-software/src/tests/bin/PRINTF.COM
-software/src/tests/misc/ARRAYS.BAS
-software/src/tests/misc/ATTRS.BAS
-software/src/tests/misc/CMDS.BAT
-software/src/tests/misc/EXPRERR.BAS
-software/src/tests/misc/FILEIO.BAS
-software/src/tests/misc/FLOW.BAS
-software/src/tests/misc/IOERR.BAS
-software/src/tests/misc/MOVES.BAS
-software/src/tests/misc/PRTUSING.BAS
-software/src/tests/misc/RUNFILE.BAS
-software/src/tests/misc/STRFUN.BAS
-software/src/tests/misc/STRPOOL.BAS
-software/src/tests/misc/VARS.BAS
+software/src/tests/regress/OBJ/BUFTESTS.COM
+software/src/tests/regress/OBJ/CPUTESTS.COM
+software/src/tests/regress/OBJ/DOSTESTS.COM
+software/src/tests/regress/OBJ/FCBTESTS.COM
+software/src/tests/regress/OBJ/FPUTESTS.COM
+software/src/tests/regress/OBJ/HARDERR.COM
+software/src/tests/regress/OBJ/IOERR.COM
+software/src/tests/regress/OBJ/PRINTF.COM
+software/src/tests/regress/OBJ/R3TESTS.COM
+software/src/tests/regress/ARRAYS.BAS
+software/src/tests/regress/ATTRS.BAS
+software/src/tests/regress/CMDS.BAT
+software/src/tests/regress/EXPRERR.BAS
+software/src/tests/regress/FILEIO.BAS
+software/src/tests/regress/FLOW.BAS
+software/src/tests/regress/IOERR.BAS
+software/src/tests/regress/MOVES.BAS
+software/src/tests/regress/PRTUSING.BAS
+software/src/tests/regress/RUNFILE.BAS
+software/src/tests/regress/STRFUN.BAS
+software/src/tests/regress/STRPOOL.BAS
+software/src/tests/regress/VARS.BAS
 
 [TESTS/MISC]
-software/src/tests/bin/ASSERT.COM
-software/src/tests/bin/CPUTESTS.COM
-software/src/tests/bin/DBGTESTS.COM
-software/src/tests/bin/FAULT.COM
-software/src/tests/bin/R3TESTS.COM
-software/src/tests/bin/V86TESTS.COM
-software/src/tests/bin/MEMTESTS.COM
+software/src/tests/misc/OBJ/ASSERT.COM
+software/src/tests/misc/OBJ/DBGTESTS.COM
+software/src/tests/misc/OBJ/FAULT.COM
+software/src/tests/misc/OBJ/MEMTESTS.COM
+software/src/tests/misc/OBJ/V86TESTS.COM
+software/src/tests/misc/OBJ/PRIMES.EXE
 software/src/tests/misc/GFXTESTS.BAS
 software/src/tests/misc/MICRO.BAS
 software/src/tests/misc/PIPES.BAT
+software/src/tests/misc/PRIMES.BAT
 software/src/tests/misc/RANDOM.BAT
-software/src/tests/primes/PRIMES.BAT
-software/src/tests/bin/PRIMES.EXE
 
 [TESTS/SAMPLES]
 demos/samples/*.BAS
 
 [TOOLS]
-software/src/tests/bin/DISKREAD.COM
-software/src/tests/bin/DISKWRIT.COM
+software/src/tests/tools/OBJ/DISKREAD.COM
+software/src/tests/tools/OBJ/DISKWRIT.COM
 software/src/tools/dos/SYMDEB.EXE
 software/src/msb/OBJ/MSBASIC.EXE

@@ -1,5 +1,9 @@
 @ECHO OFF
 REM CMDS.BAT: BASIC-DOS command tests (prints "failed" on error)
+REM Output that a command must display, including the errors that some
+REM tests expect, goes to E.TMP, and GOSUB 900 checks it for M$; the rest
+REM of the errors displayed (SED, TR, FIND, and pipe and redirection errors)
+REM are expected, too, since they go to the console, not to E.TMP.
 FAILS = 0
 X = 1 ' X = 2
 IF X <> 1 THEN PRINT "remark failed" : FAILS = FAILS + 1
@@ -7,9 +11,12 @@ IF &H1F<>31 THEN PRINT "hex constant failed" : FAILS = FAILS + 1
 A$ = "it's" : IF LEN(A$) <> 4 THEN PRINT "quote failed" : FAILS = FAILS + 1
 SOUND 440,1
 DIR \EXT\TR.COM > T.TMP
-TYPE T.TMP | TR a-z A-Z
-DIR \EXT\TR.COM | TR a-z A-Z
-DIR \EXT\TR.COM | MORE
+TYPE T.TMP | TR a-z A-Z > E.TMP
+C$ = "TYPE | TR" : M$ = "1 FILE(S)" : GOSUB 900
+DIR \EXT\TR.COM | TR a-z A-Z > E.TMP
+C$ = "DIR | TR" : M$ = "1 FILE(S)" : GOSUB 900
+DIR \EXT\TR.COM | MORE > E.TMP
+C$ = "DIR | MORE" : M$ = "TR       COM" : GOSUB 900
 DEL T.TMP
 PRINT "hello,  world" :> T.TMP
 TYPE T.TMP | TR a-z A-Z > T2.TMP
@@ -67,8 +74,9 @@ F$ = "T1.TMP"
 TR a-z A-Z < F$ > "T2.TMP"
 OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
 IF VAL(L$) <> 1 THEN PRINT "redirection string failed" : FAILS = FAILS + 1
-DEL "T1.TMP" + F$
+DEL "T1.TMP" + F$ > E.TMP
 IF ERRORLEVEL = 0 THEN PRINT "DEL expression failed" : FAILS = FAILS + 1
+C$ = "DEL expression" : M$ = "Syntax error" : GOSUB 900
 DEL T?.TMP
 DIR /W \EXT\T*.COM > T.TMP
 OPEN "T.TMP" FOR INPUT AS #1
@@ -91,8 +99,9 @@ HEXDUMP T1.TMP /S 2 /N 3 > T.TMP
 OPEN "T.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
 IF LEFT$(L$, 24) <> "0000:0000       32 33 34" OR MID$(L$, 60, 5) <> "  234" THEN PRINT "HEXDUMP failed" : FAILS = FAILS + 1
 DEL T1.TMP
-TYPE NOFILE.TMP | SORT
+TYPE NOFILE.TMP | SORT > E.TMP
 IF ERRORLEVEL = 0 THEN PRINT "deferred error failed" : FAILS = FAILS + 1
+C$ = "deferred error" : M$ = "Unable to find NOFILE.TMP" : GOSUB 900
 REM A BAT or BAS file can't be the target of a pipe
 VER | LS
 IF ERRORLEVEL = 0 THEN PRINT "BAS pipe target failed" : FAILS = FAILS + 1
@@ -111,11 +120,15 @@ IF ERRORLEVEL THEN PRINT "drive path command failed" : FAILS = FAILS + 1
 SLEEP 0
 IF ERRORLEVEL THEN PRINT "bare command failed" : FAILS = FAILS + 1
 REM An invalid drive is reported the same way by commands and BAS utilities
-TYPE Z:X
+TYPE Z:X > E.TMP
 IF ERRORLEVEL = 0 THEN PRINT "invalid drive failed" : FAILS = FAILS + 1
-VOL Z:
-TIME /D
-HELP SQR
+C$ = "TYPE Z:" : M$ = "Invalid drive" : GOSUB 900
+VOL Z: > E.TMP
+C$ = "VOL Z:" : M$ = "Invalid drive" : GOSUB 900
+TIME /D > E.TMP
+C$ = "TIME /D" : M$ = "Elapsed time is" : GOSUB 900
+HELP SQR > E.TMP
+C$ = "HELP SQR" : M$ = "Returns the square root" : GOSUB 900
 REM A colon after a switch of any length doesn't end the command, unlike others
 P$ = "x"
 SLEEP 0 /ALIGN:P$ = "y"
@@ -126,39 +139,54 @@ IF P$ <> "y" THEN PRINT "colon after switch failed" : FAILS = FAILS + 1
 DEL TX
 REM Invalid switches are syntax errors, in any position, and valid ones work
 OPEN "T.TMP" FOR OUTPUT AS #1 : PRINT #1, "x" : CLOSE #1
-TYPE /Z T.TMP
+TYPE /Z T.TMP > E.TMP
 IF ERRORLEVEL = 0 THEN PRINT "TYPE /Z failed" : FAILS = FAILS + 1
-COPY T.TMP T1.TMP /Z
+C$ = "TYPE /Z" : M$ = "Syntax error" : GOSUB 900
+COPY T.TMP T1.TMP /Z > E.TMP
 IF ERRORLEVEL = 0 THEN PRINT "COPY /Z failed" : FAILS = FAILS + 1
-DIR /? T.TMP
+C$ = "COPY /Z" : M$ = "Syntax error" : GOSUB 900
+DIR /? T.TMP > E.TMP
 IF ERRORLEVEL = 0 THEN PRINT "DIR /? failed" : FAILS = FAILS + 1
-TYPE T.TMP/..
+C$ = "DIR /?" : M$ = "Syntax error" : GOSUB 900
+TYPE T.TMP/.. > E.TMP
 IF ERRORLEVEL = 0 THEN PRINT "TYPE /.. failed" : FAILS = FAILS + 1
-TYPE T.TMP /
+C$ = "TYPE /.." : M$ = "Syntax error" : GOSUB 900
+TYPE T.TMP / > E.TMP
 IF ERRORLEVEL = 0 THEN PRINT "TYPE / failed" : FAILS = FAILS + 1
-TYPE T.TMP/1
+C$ = "TYPE /" : M$ = "Syntax error" : GOSUB 900
+TYPE T.TMP/1 > E.TMP
 IF ERRORLEVEL = 0 THEN PRINT "TYPE /1 failed" : FAILS = FAILS + 1
-HEXDUMP T.TMP /N 1 | MORE
+C$ = "TYPE /1" : M$ = "Syntax error" : GOSUB 900
+HEXDUMP T.TMP /N 1 | MORE > E.TMP
 IF ERRORLEVEL THEN PRINT "BAS switch before pipe failed" : FAILS = FAILS + 1
+C$ = "HEXDUMP | MORE" : M$ = "0000:0000 78" : GOSUB 900
 DIR /W>T1.TMP
 IF ERRORLEVEL THEN PRINT "DIR /W> failed" : FAILS = FAILS + 1
 DEL T1.TMP
-KILL 99
+KILL 99 > E.TMP
 IF ERRORLEVEL = 0 THEN PRINT "KILL 99 failed" : FAILS = FAILS + 1
-KILL 1X
+C$ = "KILL 99" : M$ = "Invalid session" : GOSUB 900
+KILL 1X > E.TMP
 IF ERRORLEVEL = 0 THEN PRINT "KILL 1X failed" : FAILS = FAILS + 1
-KILL 1 2
+C$ = "KILL 1X" : M$ = "Invalid session" : GOSUB 900
+KILL 1 2 > E.TMP
 IF ERRORLEVEL = 0 THEN PRINT "KILL 1 2 failed" : FAILS = FAILS + 1
-KILL 0
+C$ = "KILL 1 2" : M$ = "Invalid session" : GOSUB 900
+KILL 0 > E.TMP
 IF ERRORLEVEL = 0 THEN PRINT "KILL 0 failed" : FAILS = FAILS + 1
-KILL /A 1
+C$ = "KILL 0" : M$ = "Invalid session" : GOSUB 900
+KILL /A 1 > E.TMP
 IF ERRORLEVEL = 0 THEN PRINT "KILL /A 1 failed" : FAILS = FAILS + 1
-KILL /Z
+C$ = "KILL /A 1" : M$ = "Invalid session" : GOSUB 900
+KILL /Z > E.TMP
 IF ERRORLEVEL = 0 THEN PRINT "KILL /Z failed" : FAILS = FAILS + 1
-KILL
+C$ = "KILL /Z" : M$ = "Syntax error" : GOSUB 900
+KILL > E.TMP
 IF ERRORLEVEL = 0 THEN PRINT "KILL failed" : FAILS = FAILS + 1
-START
+C$ = "KILL" : M$ = "Syntax error" : GOSUB 900
+START > E.TMP
 IF ERRORLEVEL THEN PRINT "START failed" : FAILS = FAILS + 1
+C$ = "START" : M$ = "COMMAND" : GOSUB 900
 COPY /B T.TMP T1.TMP
 IF ERRORLEVEL THEN PRINT "COPY /B failed" : FAILS = FAILS + 1
 DEL T1.TMP
@@ -188,8 +216,18 @@ OPEN "T1.BAS" FOR OUTPUT AS #1 : PRINT #1, "IF 1 THEN END 7 ELSE PRINT 1" : CLOS
 T1
 IF ERRORLEVEL <> 7 THEN PRINT "END 7 failed" : FAILS = FAILS + 1
 OPEN "T1.BAS" FOR OUTPUT AS #1 : PRINT #1, "DEL NOFILE.TMP : END" : CLOSE #1
-T1
+T1 > E.TMP
 IF ERRORLEVEL THEN PRINT "END failed" : FAILS = FAILS + 1
+C$ = "END" : M$ = "Unable to find NOFILE.TMP" : GOSUB 900
 DEL T1.BAS
 DEL T.TMP
+DEL E.TMP
 IF FAILS THEN PRINT "CMDS failed" ELSE PRINT "CMDS passed"
+END
+REM Check E.TMP for M$ (eg, an error message), and report C$ if it isn't there
+900	F = 0 : OPEN "E.TMP" FOR INPUT AS #1
+910	IF EOF(1) THEN GOTO 920
+LINE INPUT #1, L$ : IF INSTR(L$, M$) = 0 THEN GOTO 910
+F = 1
+920	CLOSE #1 : IF F = 0 THEN PRINT C$; " message failed" : FAILS = FAILS + 1
+RETURN

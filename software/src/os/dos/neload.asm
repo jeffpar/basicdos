@@ -37,7 +37,7 @@ NE_RELMAX	equ	64
 ; In protected mode, load_program can't load an MZ program, whose relocations
 ; are paragraph arithmetic, but it can load an NE program, whose segment table
 ; gives each segment's type (code or data) and size, and whose relocations
-; refer to segments by number (eg, PRIMES.EXE; see tests/primes/PRIMES.DEF).
+; refer to segments by number (eg, PRIMES.EXE; see tests/misc/PRIMES.DEF).
 ; Each segment gets its own block, which the new PSP owns (so it's freed when
 ; the program ends, or by load_program if loading fails), and its own selector
 ; (for a code segment, the block's code alias).  The program must be marked

@@ -11,7 +11,7 @@ same on a BASIC-DOS hard disk with the BASIC-DOS sources in C:\SRC; just run
 the MK.BAT file in that directory.
 
 Either way, building BASIC-DOS (MKDOS.BAT on MS-DOS, MK.BAT on BASIC-DOS) runs
-only MAKE, MASM5, LINK, LINK4 (for TESTS\BIN\PRIMES.EXE), EXE2BIN, EXEMOD (for
+only MAKE, MASM5, LINK, LINK4 (for TESTS\MISC\OBJ\PRIMES.EXE), EXE2BIN, EXEMOD (for
 MSBASIC.EXE), and MAPSYM, all from this collection: on BASIC-DOS, MK finds
 their BASIC-DOS versions in TOOLS\BD, and on MS-DOS, the build disk's
 AUTOEXEC.BAT puts the originals (D:\TOOLS\DOS) first in the PATH.
@@ -66,7 +66,7 @@ LINK4 comes from the product's eighth diskette ("C WINDOWS"), which updated
 the Windows Software Development Kit 1.01 for C 4.00.  It links "new
 executable" (NE) programs, which list each segment's type (code or data),
 size, and relocations, as a protected-mode loader needs.  It builds
-TESTS\BIN\PRIMES.EXE (see TESTS\PRIMES\PRIMES.DEF), with the MS-DOS program
+TESTS\MISC\OBJ\PRIMES.EXE (see TESTS\MISC\PRIMES.DEF), with the MS-DOS program
 that LINK builds as its stub, so the file runs in real mode, too.
 
 CL, C1, C2, and C3 are the C compiler: CL runs the three passes, and then

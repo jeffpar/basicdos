@@ -2,7 +2,7 @@
 #
 # Usage: tools/tests/mmutest.sh [8088] [real] [pm] [r3] [386] [r386] [multi] [pool] [tools]
 #
-# Runs quick.sh's floppy tests (FPUTESTS through PRINTF), followed by CPUTESTS, R3TESTS, and V86TESTS (in V86.COM's
+# Runs quick.sh's floppy tests (FPUTESTS through PRINTF, with CPUTESTS and R3TESTS last), followed by V86TESTS (in V86.COM's
 # V86 machine, which only the "386" and "r386" machines have), on these test machines:
 #
 #   8088    an IBM PC XT (ibm5160), where CPU$ keeps only what an 8088 needs
@@ -34,7 +34,7 @@ tools/tests/prep.sh $fpe || exit 1
 ok='IF ERRORLEVEL = 0 THEN PRINT "EXITOK" ELSE PRINT "EXITBAD"'
 abort='IF ERRORLEVEL = 255 THEN PRINT "ABORTOK" ELSE PRINT "ABORTBAD"'
 m='\TESTS\REGRESS\'
-cmds="VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}BUFTESTS;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;\\TESTS\\MISC\\CPUTESTS;$ok;\\TESTS\\MISC\\R3TESTS;$ok;V86 \\TESTS\\MISC\\V86TESTS;SLEEP 1;QUIT"
+cmds="VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}BUFTESTS;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;${m}CPUTESTS;$ok;${m}R3TESTS;$ok;V86 \\TESTS\\MISC\\V86TESTS;SLEEP 1;QUIT"
 log=$(mktemp)
 failed=
 for name in ${@:-8088 real pm r3 386 r386 multi pool tools}; do
@@ -50,7 +50,7 @@ for name in ${@:-8088 real pm r3 386 r386 multi pool tools}; do
                 cp -R $fpe $tmp || exit 1
                 grep -v "^SKIP=" $fpe/CONFIG.SYS > $tmp/CONFIG.SYS
                 echo SHELL=COMMAND.COM >> $tmp/CONFIG.SYS
-                tools/pc/pc.js ibm5170 $tmp --ram=2M "VER;MEM;\TESTS\MISC\R3TESTS;$ok;SLEEP 1;QUIT" --sys=bd:2 --floppy --serial --normalize --nosync | tee "$log"
+                tools/pc/pc.js ibm5170 $tmp --ram=2M "VER;MEM;\TESTS\REGRESS\R3TESTS;$ok;SLEEP 1;QUIT" --sys=bd:2 --floppy --serial --normalize --nosync | tee "$log"
                 if ! grep -q "R3TESTS passed" "$log" || ! grep -q "EXITOK" "$log"; then
                     failed="$failed $name"
                 fi
@@ -67,26 +67,26 @@ for name in ${@:-8088 real pm r3 386 r386 multi pool tools}; do
                 continue ;;
         tools)  rm -rf $tmp
                 src=software/src
-                mkdir -p $tmp/MT/PRIMES $tmp/MT/OBJ $tmp/MT/BIN $tmp/OS/INC $tmp/TOOLS || exit 1
+                mkdir -p $tmp/MT/MISC/OBJ $tmp/MT/OBJ $tmp/OS/INC $tmp/TOOLS || exit 1
                 printf 'SKIP=VKD$\nCON=COM1:9600,N,8,1\nSHELL=COMMAND.COM PATH$="C:\\;C:\\EXT;C:\\TOOLS"\n' > $tmp/CONFIG.SYS
                 tools/tests/prep.sh $tmp || exit 1
                 cp $src/tools/dos/*.EXE $tmp/TOOLS/ && cp $src/tools/bd/*.EXE $tmp/TOOLS/ || exit 1
-                cp $src/os/inc/*.inc $tmp/OS/INC/ && cp $src/tests/primes/primes.asm $src/tests/primes/PRIMES.DEF $tmp/MT/PRIMES/ &&
+                cp $src/os/inc/*.inc $tmp/OS/INC/ && cp $src/tests/misc/primes.asm $src/tests/misc/PRIMES.DEF $tmp/MT/MISC/ &&
                     cp $src/os/util/misc/sleep.asm $tmp/MT/ || exit 1
-                cp $src/tests/bin/PRIMES.EXE $tmp/MT/REF.EXE && cp $src/os/util/misc/OBJ/SLEEP.COM $tmp/MT/REF.COM || exit 1
+                cp $src/tests/misc/OBJ/PRIMES.EXE $tmp/MT/REF.EXE && cp $src/os/util/misc/OBJ/SLEEP.COM $tmp/MT/REF.COM || exit 1
                 #
                 # These rules use the same commands and switches as the rules in the TESTS and UTIL\MISC makefiles.
                 #
                 sed 's/$/\r/' > $tmp/MT/MAKEFILE <<'EOF'
-BIN\PRIMES.EXE: PRIMES\PRIMES.ASM PRIMES\PRIMES.DEF
-	MASM /MX /R /D$(REL) /I..\OS\INC PRIMES\$*.ASM,BIN\$*.OBJ,NUL;
-	LINK BIN\$*.OBJ,OBJ\$*.EXE;
-	LINK4 BIN\$*.OBJ,$@/ALIGN:16,NUL,,PRIMES\$*.DEF;
-	DEL BIN\$*.OBJ
+MISC\OBJ\PRIMES.EXE: MISC\PRIMES.ASM MISC\PRIMES.DEF
+	MASM5 /MX /R /D$(REL) /I..\OS\INC MISC\$*.ASM,MISC\OBJ\$*.OBJ,NUL;
+	LINK MISC\OBJ\$*.OBJ,OBJ\$*.EXE;
+	LINK4 MISC\OBJ\$*.OBJ,$@/ALIGN:16,NUL,,MISC\$*.DEF;
+	DEL MISC\OBJ\$*.OBJ
 	DEL OBJ\$*.EXE
 
 OBJ\SLEEP.COM: SLEEP.ASM
-	MASM /MX /R /D$(REL) /I. /I..\OS\INC $*.ASM,OBJ\$*.OBJ,NUL;
+	MASM5 /MX /R /D$(REL) /I. /I..\OS\INC $*.ASM,OBJ\$*.OBJ,NUL;
 	LINK OBJ\$*.OBJ,OBJ\$*.EXE;
 	EXE2BIN OBJ\$*.EXE $@
 
@@ -95,9 +95,9 @@ M.SYM: OBJ\SLEEP.COM
 	EXEMOD M.EXE /MIN 400
 	MAPSYM M
 EOF
-                tools/pc/pc.js ibm5170 $tmp --ram=2M "VER;CD MT;MAKE REL=$(cat tools/pc/disks/mkmode) MAKEFILE;$ok;COMP BIN\PRIMES.EXE REF.EXE;COMP OBJ\SLEEP.COM REF.COM;DIR M.SYM;SLEEP 1;CD \;QUIT" \
+                tools/pc/pc.js ibm5170 $tmp --ram=2M "VER;CD MT;MAKE REL=$(cat tools/pc/disks/mkmode) MAKEFILE;$ok;COMP MISC\OBJ\PRIMES.EXE REF.EXE;COMP OBJ\SLEEP.COM REF.COM;DIR M.SYM;SLEEP 1;CD \;QUIT" \
                     --sys=bd:2 --target=10M --serial --normalize --nosync --speed=8 | tee "$log"
-                if ! grep -q "Assembler  Version 4.00BD" "$log" || ! grep -q "Linker  Version 3.05BD" "$log" ||
+                if ! grep -q "Assembler Version 5.10BD" "$log" || ! grep -q "Linker  Version 3.05BD" "$log" ||
                    ! grep -q "Linker  Version 5.00.12BD" "$log" || ! grep -q "Utility  Version 4.02BD" "$log" ||
                    ! grep -q "Utility  Version 4.00BD" "$log" || ! grep -q "Generator  Version 4.00BD" "$log" ||
                    ! grep -q "EXITOK" "$log" || grep -q "EXITBAD" "$log" || grep -q "CPU fault" "$log" ||
@@ -134,8 +134,7 @@ EOF
        ! grep -q "RUNFILE passed" "$log" || ! grep -q "PRTUSING passed" "$log" || ! grep -q "FCBTESTS passed" "$log" ||
        ! grep -q "HARDERR passed" "$log" || ! grep -q "$meta" "$log" ||
        ! grep -q "$seek" "$log" || ! grep -q "IOERR passed" "$log" || ! grep -q "$r3t" "$log" ||
-       ! grep -q "ABORTOK" "$log" || grep -q "ABORTBAD" "$log" || ! grep -q "1 FILE(S)" "$log" ||
-       ! grep -q "Elapsed time is" "$log" || ! grep -q "Returns the square root" "$log" ||
+       ! grep -q "ABORTOK" "$log" || grep -q "ABORTBAD" "$log" ||
        ! grep -q "hello world!" "$log" || ! grep -q "$v86" "$log"; then
         failed="$failed $name"
     fi

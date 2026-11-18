@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Runs BENCH.BAS (software/src/tests/misc) with BASIC-DOS, BASICA, and GW-BASIC (MSBASIC.EXE), each on
+# Runs BENCH.BAS (software/src/tests) with BASIC-DOS, BASICA, and GW-BASIC (MSBASIC.EXE), each on
 # an IBM PC XT with a CGA (ibm5160), both without and with an 8087 (--fpu), all six at once, and
 # then prints each test's time in seconds (BIOS ticks / 18.2), as shown on the preview/part6 page.
 #
@@ -19,14 +19,14 @@ cd "$(dirname "$0")/../.." || exit 1
 secs=${1:-420}
 src=software/src
 out=tools/pc/disks/bench
-for f in $src/tests/misc/BENCH.BAS $src/msb/OBJ/MSBASIC.EXE; do
+for f in $src/tests/BENCH.BAS $src/msb/OBJ/MSBASIC.EXE; do
     if [ ! -f "$f" ]; then echo "error: $f not found (has it been built?)" >&2; exit 1; fi
 done
 rm -rf "$out/bd"
 mkdir -p "$out/bd/TESTS" "$out/pc"
 cp demos/s80/CONFIG.SYS "$out/bd/"
-cp $src/tests/misc/BENCH.BAS "$out/bd/TESTS/"
-cp $src/tests/misc/BENCH.BAS $src/msb/OBJ/MSBASIC.EXE "$out/pc/"
+cp $src/tests/BENCH.BAS "$out/bd/TESTS/"
+cp $src/tests/BENCH.BAS $src/msb/OBJ/MSBASIC.EXE "$out/pc/"
 if [ ! -f "$out/pc/BASICA.COM" ]; then
     root=$(pwd)
     pcjs=$(cd "${PCJS:-../pcjs}" 2>/dev/null && pwd)

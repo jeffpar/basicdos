@@ -2,9 +2,9 @@
 REM REGRESS.BAT: runs the regression tests in \TESTS\REGRESS (run it
 REM from \TESTS).  Each test prints "failed" (or "passed") messages, and
 REM the tests that return an exit code are checked here.  The programs in
-REM \TESTS\MISC aren't run: DBGTESTS.COM (it needs DEBUG.COM and a debugger
-REM terminal), ASSERT.COM (it fakes an assertion failure, for a debugger to
-REM stop on), GFXTESTS.BAS (it needs a CGA), and MICRO.BAS (a benchmark).
+REM \TESTS\MISC aren't run, since each needs something more (eg, a CGA,
+REM V86.COM, or a debugger), faults or fails on purpose, measures instead
+REM of checking (MICRO.BAS), or just runs (eg, PIPES.BAT).
 IF NOT EXISTS("REGRESS\DOSTESTS.COM") THEN PRINT "Run REGRESS from \TESTS" : END
 D$ = LEFT$(CURDIR$, 1)
 CD REGRESS
@@ -14,6 +14,11 @@ DOSTESTS
 IF ERRORLEVEL THEN PRINT "DOSTESTS failed"
 BUFTESTS
 IF ERRORLEVEL THEN PRINT "BUFTESTS failed"
+REM CPUTESTS is skipped at ring 3, and R3TESTS everywhere else
+CPUTESTS
+IF ERRORLEVEL THEN PRINT "CPUTESTS failed"
+R3TESTS
+IF ERRORLEVEL THEN PRINT "R3TESTS failed"
 STRFUN
 STRPOOL
 ARRAYS

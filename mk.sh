@@ -54,7 +54,9 @@ mk="MK $mode" tests= msb=
 if [ -n "$clean" ]; then
     del() { for f in "$@"; do printf ';IF EXISTS("%s") THEN DEL %s' "$f" "$f"; done; }
     mk="MK $mode CLEAN"
-    tests=$(del 'OBJ\*.OBJ' 'OBJ\*.MAP' 'OBJ\*.SYM' 'OBJ\*.LST' 'BIN\*.COM' 'BIN\*.EXE')
+    tests=$(del 'OBJ\*.OBJ' 'OBJ\*.MAP' 'OBJ\*.SYM' 'OBJ\*.LST' \
+        'REGRESS\OBJ\*.OBJ' 'REGRESS\OBJ\*.MAP' 'REGRESS\OBJ\*.SYM' 'REGRESS\OBJ\*.COM' 'MISC\OBJ\*.COM' 'MISC\OBJ\*.EXE' \
+        'TOOLS\OBJ\*.COM')
     msb=$(del 'OBJ\*.OBJ' 'OBJ\*.EXE' 'OBJ\*.MAP' 'OBJ\*.SYM' 'OBJ\*.LST')
 fi
 tools/pc/pc.js compaq386 $src "CD OS;$mk;CD ..\TESTS$tests;$make;CD ..\MSB$msb;$make;QUIT" \

@@ -620,7 +620,7 @@ results	db	0,0,0,0,F,0,0,F,F,F,F,F,0
 	db	F,F,F,F,F,F,0,0,0,0,0,0,0,0,F,F
 	db	0,F,0,0,F,0,0,0,0,0,0
 
-progname db	"A:\TESTS\MISC\R3TESTS.COM",0
+progname db	"A:\TESTS\REGRESS\R3TESTS.COM",0
 tail	db	2," A",13
 fcbx	db	14 dup (0)		; (just FCB_RECSIZE matters)
 	dw	128
