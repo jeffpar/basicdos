@@ -16,8 +16,9 @@ CODE    SEGMENT
 
 ;
 ; Every long operation that overflows (eg, &H7FFFFFFF + 1) is a runtime error
-; ("Overflow"), which ON ERROR can trap; we don't use INTO, since INT 04h is a
-; CPU exception (which only FPU$ raises; see fpuTrap).
+; ("Overflow"), which ON ERROR can trap; we don't use INTO, since detecting
+; it directly is simpler than an exception signal (which FPU$'s errors need;
+; see ctrlc).
 ;
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE

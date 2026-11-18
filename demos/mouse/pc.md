@@ -9,7 +9,7 @@ machines:
     debugger: available
     autoMount:
       A: "BASIC-DOS Single"
-    autoType: $date\r$time\rPAINT\r
+    autoType: PAINT\r
 ---
 
 The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 256K of memory, an Enhanced Color Display, and two diskette drives, plus a serial mouse on COM2.  It boots the BASIC-DOS Single diskette and runs PAINT.BAS.  Click the screen to capture the mouse, and hold the left button down to draw; press **Esc** twice to exit.

@@ -10,7 +10,6 @@ machines:
     autoMount:
       A: "BASIC-DOS Multi-Page"
       B: "PC DOS 2.00 (Disk 1)"
-    autoType: $date\r$time\r
 ---
 
 {% include machine.html id="ibm5160" %}

@@ -9,7 +9,6 @@ machines:
     debugger: true
     autoMount:
       A: "BASIC-DOS Multi-Console"
-    autoType: $date\r$time\r
 ---
 
 {% include machine.html id="ibm5160" %}

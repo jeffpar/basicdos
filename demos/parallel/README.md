@@ -8,10 +8,9 @@ machines:
     config: /machines/pcx86/ibm/ibm-5160-cga-parallel-640kb.json
     autoMount:
       A: "BASIC-DOS Single"
-    autoType: $date\r$time\r
 ---
 
-This IBM PC XT boots the BASIC-DOS Single diskette and runs a single 80x25 console on the Color Display, with its parallel port (LPT1) connected to the **Printer** pane, which shows everything the machine prints.  BASIC-DOS's printer device, PRN, is LPT1.  The PC XT has no clock to keep the date and time, so BASIC-DOS prompts for them at startup, and this page types the current date and time.
+This IBM PC XT boots the BASIC-DOS Single diskette and runs a single 80x25 console on the Color Display, with its parallel port (LPT1) connected to the **Printer** pane, which shows everything the machine prints.  BASIC-DOS's printer device, PRN, is LPT1.  The PC XT has no clock to keep the date and time, so PCjs supplies them at startup.
 
 Type `LPRINT "Hello from LPT1"`, or enter a few program lines and type `LLIST`, or run `CALENDAR` (one of the PC DOS 1.00 samples) and choose a year to print a two-month-per-page calendar.  Since the Printer pane is plain text, it shows control characters by name (eg, `<ESC>` for the escape sequences that CALENDAR sends to IBM's printer) and the printer's block graphics characters as asterisks.
 

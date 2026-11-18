@@ -1016,6 +1016,8 @@ DEFPROC	sfb_write,DOS
 sw7:	mov	ah,DDC_WRITE
 	les	di,cs:[bx].SFB_DEVICE
 	mov	dx,cs:[bx].SFB_CONTEXT
+	call	sfb_lock		; wait for other sessions' writes
+	push	bx			; (for sfb_unlock)
 ;
 ; If the driver is a character device (eg, STDOUT or a pipe), and the I/O
 ; request was not "raw", then we need to check for a CTRLC signal.  Checking
@@ -1023,16 +1025,16 @@ sw7:	mov	ah,DDC_WRITE
 ; the first command in "DIR | SORT") would never notice a CTRLC.
 ;
 	test	es:[di].DDH_ATTR,DDATTR_CHAR
-	jz	sw8
+	jz	sw7a
 	ASSERT	IO_RAW,EQ,0
 	test	al,al			; IO_RAW (or IO_DIRECT) request?
-	jle	sw8			; yes
+	jle	sw7a			; yes
 	mov	bx,cs:[scb_active]
 	ASSERT	STRUCT,cs:[bx],SCB
 	cmp	cs:[bx].SCB_CTRLC_ACT,0
 	jne	sw7b
 	call	dev_request		; issue the DDC_WRITE request
-	jnc	sw9
+	jnc	sw7d
 ;
 ; If the write failed because its wait was interrupted by a CTRLC (eg, MORE
 ; writing to a full COM console), then signal it now (as sfb_read does);
@@ -1041,13 +1043,75 @@ sw7:	mov	ah,DDC_WRITE
 ;
 	cmp	cs:[bx].SCB_CTRLC_ACT,0	; CTRLC pending (BX -> SCB)?
 	stc				; (carry set for the write error)
-	je	sw9			; no
-sw7b:	mov	ds,cs:[dos_data]
+	je	sw7d			; no
+sw7b:	pop	si			; SI -> SFB
+	mov	ds,cs:[dos_data]
+	mov	[si].SFB_WRITER,0	; (see sfb_unlock)
 	jmp	msc_readctrlc
-
-sw8:	call	dev_request		; issue the DDC_WRITE request
-sw9:	ret
+sw7a:	call	dev_request		; issue the DDC_WRITE request
+sw7d:	pop	bx
+	jmp	short sfb_unlock
 ENDPROC	sfb_write
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; sfb_lock and sfb_unlock
+;
+; Each write to a device (eg, a console that several sessions share) is
+; whole, as long as it's one write request: sfb_lock waits (yielding) until no
+; other session is writing to the SFB (see SFB_WRITER), and then makes it this
+; session's, until sfb_unlock.  A writer that has left DOS (eg, one that a
+; fault ended mid-write) no longer counts, and a pending CTRLC or ABORT (which
+; the write then acts on) ends the wait, as it does in scb_wait.
+;
+; Inputs:
+;	BX -> SFB
+;
+; Outputs:
+;	None (sfb_unlock leaves the flags unchanged)
+;
+; Modifies:
+;	None
+;
+DEFPROC	sfb_lock,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	ax
+	push	si
+	push	ds
+	mov	ds,cs:[dos_data]
+	ASSUME	DS:DOS
+sl1:	mov	si,[scb_active]
+	cli
+	mov	ax,[bx].SFB_WRITER
+	test	ax,ax			; is a session writing to it?
+	jz	sl8			; no
+	cmp	ax,si			; is it this session?
+	je	sl8			; yes (eg, a fault ended its write)
+	xchg	ax,si
+	cmp	[si].SCB_INDOS,0	; is the writer still in DOS?
+	xchg	ax,si
+	je	sl8			; no
+	sti
+	test	[si].SCB_STATUS,SCSTAT_ABORT
+	jnz	sl8			; an ABORT or CTRLC ends the wait
+	cmp	[si].SCB_CTRLC_ACT,0
+	jne	sl8
+	DOSUTIL	YIELD			; let the writer finish
+	jmp	sl1
+sl8:	mov	[bx].SFB_WRITER,si
+	sti
+	pop	ds
+	ASSUME	DS:NOTHING
+	pop	si
+	pop	ax
+	ret
+	DEFLBL	sfb_unlock,near
+	push	ds
+	mov	ds,cs:[dos_data]
+	mov	[bx].SFB_WRITER,0
+	pop	ds
+	ret
+ENDPROC	sfb_lock
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

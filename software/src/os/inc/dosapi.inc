@@ -83,6 +83,8 @@ DOS_DSK_GETDTA	equ	2Fh	; get DTA (ES:BX)
 DOS_MSC_GETVER	equ	30h	; get version (AL,AH,BH,BL,CX)
 DOS_DSK_GETDPB	equ	32h	; get DPB (DS:BX, AL=FFh if invalid drive)
 DOS_MSC_CTRLC	equ	33h	; get/set CTRLC state
+CTRLC_SETSIGS	equ	2	; DOS_MSC_CTRLC AL: exception signals (DL)
+CTRLC_SIGNAL	equ	0FFh	; AH for a CTRLC handler's exception signal
 DOS_MSC_GETVEC	equ	35h	; get vector (AL) addr (ES:BX)
 DOS_DSK_GETINFO	equ	36h	; get disk info; eg, available clusters (BX)
 DOS_MSC_GETSWC	equ   3700h	; get switch char (DL) (undocumented)
@@ -413,7 +415,8 @@ PSP_CODESIZE	dw	?	; 44h: BASIC-DOS: code size (see COMHEAP)
 PSP_CHECKSUM	dw	?	; 46h: BASIC-DOS: code checksum (see COMHEAP)
 PSP_HEAPSIZE	dw	?	; 48h: BASIC-DOS: heap size (see COMHEAP)
 PSP_HEAP	dw	?	; 4Ah: BASIC-DOS: heap offset (see COMHEAP)
-		dw	?	; 4Ch
+PSP_SIGNALS	db	?	; 4Ch: BASIC-DOS: exception signals (see 33h)
+		db	?	; 4Dh
 PSP_EXCODE	db	?	; 4Eh: BASIC-DOS: exit code, if any
 PSP_EXTYPE	db	?	; 4Fh: BASIC-DOS: exit type (see EXTYPE_*)
 PSP_DOSCALL	db	3 dup(?); 50h: INT 21h/RETF

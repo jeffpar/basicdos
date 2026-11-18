@@ -135,6 +135,16 @@ SCAN_CTRL_PGUP	equ	84h	; ctrl-page-up
 ;
 TIME_GETTICKS	equ	00h	; returns CX:DX, and AL != 0 if wrapped
 TIME_GETDATE	equ	04h	; returns CX = century/year, DX = month/day (BCD)
+;
+; A PCjs machine without a real-time clock (eg, a PC or XT) saves the date
+; and time in vectors 58h-5Bh when it reads a BASIC-DOS boot sector into
+; 0:7C00h: "PCJS" (CLK_SIG1 and CLK_SIG2), the day and month (bytes), the
+; year (word), the ticks since midnight (dword), and the BIOS tick count
+; (dword).
+;
+INT_CLKDATA	equ	58h	; first of the 4 vectors (see ddclk_init)
+CLK_SIG1	equ	'P' OR ('C' SHL 8)
+CLK_SIG2	equ	'J' OR ('S' SHL 8)
 	ENDIF	; BIOSAPI
 
 ;

@@ -9,10 +9,9 @@ machines:
     debugger: available
     autoMount:
       A: "BASIC-DOS HD Serial Port"
-    autoType: $date\r$time\r
 ---
 
-This IBM PC XT boots the BASIC-DOS HD Serial Port diskette and runs two independent consoles: an 80x25 console on the Color Display and a serial console on COM1 at 9600 baud, with no parity, eight data bits, and one stop bit.  The serial console uses the GENERIC terminal mode for this text pane.  The PC XT has no clock to keep the date and time, so BASIC-DOS prompts for them at startup, and this page types the current date and time.
+This IBM PC XT boots the BASIC-DOS HD Serial Port diskette and runs two independent consoles: an 80x25 console on the Color Display and a serial console on COM1 at 9600 baud, with no parity, eight data bits, and one stop bit.  The serial console uses the GENERIC terminal mode for this text pane.  The PC XT has no clock to keep the date and time, so PCjs supplies them at startup.
 
 Click the **Serial Display** pane to the right of the machine and type a command, such as `DIR` or `PRINT "Hello from COM1"`.  Click the Color Display to use the local console, and try commands such as `DIR > COM1` or `DIR > AUX`.  Both consoles share the same hard disk.
 

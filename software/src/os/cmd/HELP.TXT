@@ -55,7 +55,7 @@ In SCREEN 1, the values are the background color (0-15) and palette (0 or 1) ins
 A VT100 terminal has no colors: COLOR 0,7 is reverse video, a *foreground* of 1 is underlined, 8-15 are bold, and 16-31 blink.
 
 [e]COMMAND [~C] [~Q] [*command*[:*command*]...]
-Starts another copy of the Command Shell, which runs any *commands* first; ~C runs them and then exits.  On a machine with no real-time clock (eg, an IBM PC or PC XT), the first SHELL prompts for the date and time before its commands, unless ~Q comes first.
+Starts another copy of the Command Shell, which runs any *commands* first; ~C runs them and then exits.  On a machine with no real-time clock (eg, an IBM PC or PC XT), the first SHELL prompts for the date and time before its commands, unless ~Q comes first or PCjs supplied them (pressing a letter at the boot message ignores them).
 
 [e]COMP *file1* *file2*
 Compares each file matching *file1* (which can contain wildcards, but doesn't match hidden files) with *file2* (or if *file2* is a drive or directory, with the file there that has the same name), and reports the offset (in hex) and bytes of each difference, up to 10 differences.

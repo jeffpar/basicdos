@@ -138,13 +138,15 @@ DOS_HDL_IOCTL (INT 21h, AH = 44h) sends IOCTL requests to drivers: AL is passed 
 
 | AL | Name | Description |
 |----|------|-------------|
-| C0h | IOCTL_CLOCK | Returns DX = 1 if the date came from a real-time clock, or 0 if not (eg, on a PC or PC XT) |
+| C0h | IOCTL_CLOCK | Returns DX = 1 if the date came from a real-time clock or PCjs, or 0 if not (eg, on a PC or PC XT) |
 | C1h | IOCTL_WAIT | Waits the number of milliseconds in DDPRW_LENGTH:DDPRW_OFFSET |
 | C2h | IOCTL_SETDATE | Sets the date (CL = year - 1980 (0-127), DH = month, DL = day) |
 | C3h | IOCTL_SETTIME | Sets the time (CH = hours, CL = minutes, DH = seconds, DL = hundredths) |
 | C4h | IOCTL_GETDATE | Gets the date |
 | C5h | IOCTL_GETTIME | Gets the time |
 | C6h | IOCTL_SOUND | Plays a sound (DX = PIT divisor) for CX ticks |
+
+On a machine without a real-time clock (eg, a PC or PC XT), PCjs saves the host's date and time in vectors 58h-5Bh (INT_CLKDATA in bios.inc) whenever an INT 13h read loads a BASIC-DOS boot sector into 0:7C00h: the signature "PCJS" (CLK_SIG1 and CLK_SIG2), the day and month (bytes), the year (word), the ticks since midnight (dword), and the BIOS tick count (dword).  When CLOCK$ initializes in real mode, it uses them, adding the ticks since they were saved, unless a letter was pressed at the boot message or the result is within 10 seconds of midnight; IOCTL_CLOCK then returns 1.
 
 #### VKD$ {#vkd}
 

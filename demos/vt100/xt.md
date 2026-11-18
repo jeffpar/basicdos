@@ -18,10 +18,9 @@ machines:
     connection: com1->vt100.serialPort
     autoMount:
       A: "BASIC-DOS HD VT100"
-    autoType: $date\r$time\r
 ---
 
-The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memory, an Enhanced Color Display, two diskette drives, and a 10Mb hard disk.  It boots the BASIC-DOS HD VT100 diskette and runs two independent consoles: an 80x25 console on the Enhanced Color Display, and a console on a DEC VT100 terminal connected to COM1.  The PC XT has no clock to keep the date and time, so BASIC-DOS prompts for them at startup, and this page types the current date and time.
+The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memory, an Enhanced Color Display, two diskette drives, and a 10Mb hard disk.  It boots the BASIC-DOS HD VT100 diskette and runs two independent consoles: an 80x25 console on the Enhanced Color Display, and a console on a DEC VT100 terminal connected to COM1.  The PC XT has no clock to keep the date and time, so PCjs supplies them at startup.
 
 {% include vt100-demo.html id="ibm5160" %}
 

@@ -23,7 +23,7 @@ CODE    SEGMENT
 	EXTNEAR	<enterLine,editPrompt,genUpper,runFile,showPrompt>
 	EXTNEAR	<saveChains,restoreChains,compactStrs,bootTime>
 	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resSum,resParas>
-	EXTNEAR	<showCursor,hideCursor,hookFPU>
+	EXTNEAR	<showCursor,hideCursor,rtError>
 	EXTNEAR	<initEnv,buildEnv,freeEnv>
 	EXTBYTE	<CMD_PATH,MSG_DRIVE>
 	EXTWORD	<CMD_REFS,CODE_DS,TRANS_SUM>
@@ -113,12 +113,19 @@ m0:	mov	bx,ds:[PSP_HEAP]
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	int	21h
 ;
+; Ask for exception signals, so that FPU$'s errors (a division by zero, an
+; overflow, or an invalid result, which it reports with INT 00h and INT 04h)
+; become runtime errors (see ctrlc).
+;
+	mov	ax,(DOS_MSC_CTRLC SHL 8) OR CTRLC_SETSIGS
+	mov	dl,1
+	int	21h
+;
 ; Get the address of the FPU$ driver's function table (FPUTBL), which the
 ; code generator uses for all floating-point operations; each copy keeps its
 ; own pointer, in its PSP (PSP_FPUTBL), since shared code can't be written.
 ; If there's no FPU$ driver, PSP_FPUTBL remains zero, which also disables
-; doubles (see getNextToken and genExpr); if there is, we hook the vectors it
-; raises errors with (see hookFPU).
+; doubles (see getNextToken and genExpr).
 ;
 	push	bx
 	mov	dx,offset FPU_NAME	; DS:DX -> FPU_NAME (DS = CS)
@@ -133,9 +140,6 @@ m0:	mov	bx,ds:[PSP_HEAP]
 	int	21h			; DH = FPU type
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
-	pop	bx
-	push	bx			; BX -> our heap
-	call	hookFPU
 m0a:	pop	bx
 	pop	ds
 
@@ -390,8 +394,12 @@ ENDPROC	cleanUp
 ; free any active code buffer (or keep it for RUN; see keepCode), and then
 ; jump to our start address.
 ;
+; It also receives the exception signals that main asked for (see
+; DOS_MSC_CTRLC): a division by zero or an overflow (eg, from FPU$) becomes a
+; runtime error, which ON ERROR can trap.
+;
 ; Inputs:
-;	None
+;	AH = CTRLC_SIGNAL and AL = EXTYPE_DVERR or EXTYPE_OVERR for a signal
 ;
 ; Outputs:
 ;	DS = ES = SS
@@ -401,6 +409,14 @@ ENDPROC	cleanUp
 ;	Any
 ;
 DEFPROC	ctrlc,FAR
+	cmp	ah,CTRLC_SIGNAL		; an exception signal?
+	jne	cta1			; no
+	cmp	al,EXTYPE_DVERR		; a division error?
+	mov	al,BERR_DIVZERO
+	je	cta
+	mov	al,BERR_OVERFLOW
+cta:	jmp	rtError			; (which doesn't return)
+cta1:
 ;
 ; Restore every symbol that parseDOS replaced with a null and hasn't restored
 ; yet (eg, the '|' of "TYPE FILE | MORE"), so that the line can be recalled

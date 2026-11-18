@@ -23,6 +23,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<dos_check,dos_restart,dev_request,write_handle>
 	EXTNEAR	<sfb_get,flush_console,err_jump,get_psp,mem_alias>
 	EXTNEAR	<r3_ctrlc,r3_cbabort,r3_getvec,r3_setvec>
+	EXTNEAR	<psp_setsigs>
 	EXTBYTE	<err_active,prog_user,def_drive>
 	EXTWORD	<r3_cbsp>
 	EXTLONG	<err_stack>
@@ -358,9 +359,12 @@ ENDPROC	msc_getver
 ; Inputs:
 ;	REG_AL = 0 to get current CTRLC state in REG_DL
 ;	REG_AL = 1 to set current CTRLC state in REG_DL
+;	REG_AL = CTRLC_SETSIGS (2) to set whether the current program gets
+;	exception signals (REG_DL = 1) or not (0; see psp_setsigs)
 ;
 ; Outputs:
-;	REG_DL = current state if REG_AL = 1, or 0FFh if REG_AL neither 0 nor 1
+;	REG_DL = current state if REG_AL = 0, or REG_AL = 0FFh (and carry set)
+;	if REG_AL isn't 0, 1, or 2
 ;
 DEFPROC	msc_setctrlc,DOS
 	mov	bx,[scb_active]
@@ -379,7 +383,10 @@ msc1:	jnz	msc2			; jump if AL was neither 0 nor 1
 	mov	[bx].SCB_CTRLC_ALL,al
 	clc
 	jmp	short msc9
-msc2:	mov	al,0FFh
+msc2:	cmp	al,CTRLC_SETSIGS - 1	; AL was CTRLC_SETSIGS?
+	jne	msc8			; no
+	jmp	psp_setsigs
+msc8:	mov	al,0FFh
 	stc
 msc9:	ret
 ENDPROC	msc_setctrlc

@@ -290,13 +290,13 @@ async function runDemo(demo)
             checks.push({ name: pm? 'protected mode' : 'real mode', test: (s) => ((s.cr0 & bits) >>> 0 == bits) == pm });
         }
         //
-        // A PC or XT's first SHELL prompts for the date and time; a page types them on the keyboard, but on a
-        // serial console (eg, the Terminal demo), we press Enter instead.
+        // PCjs supplies a PC or XT's date and time, so its first SHELL shouldn't prompt for them, but if one
+        // does on a serial console (eg, the Terminal demo), we press Enter.
         //
         const tick = async (i, s) => {
             //
-            // Switching consoles (eg, on the IBM PC's Multiple Pages demo, whose MDA shows one at a time) must wait
-            // for a prompt, so that the page's DATE and TIME keys go to the first console, which asked for them.
+            // Switching consoles (eg, on the IBM PC's Multiple Pages demo, whose MDA shows one at a time) waits
+            // for a prompt, so that the first console has finished starting.
             //
             if (spec.cycle && i % 10 == 9 && PROMPT.test(s.screen)) await page.evaluate('__dx.shiftTab()');
             for (const n of spec.com || []) {

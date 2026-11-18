@@ -13,7 +13,7 @@ Insert a BASIC-DOS diskette in drive A: of an IBM PC and turn the machine on.  B
 	BASIC-DOS 2.00
 	System starting...
 
-Press any key (or wait 2 seconds) to start BASIC-DOS.  If you booted a diskette on a machine with a hard disk, pressing **Esc** boots from the hard disk instead.  Pressing `-` also makes `-` the switch character (see [SWITCHAR=](../cfg/#switchar)), and on an 80286 or later, pressing `P` selects protected mode and pressing `R` selects real mode (see [CPU=](../cfg/#cpu)).  To remove the message from a disk, see [SYS /N](../cmd/external/sys/).  The following messages should then appear on your screen:
+Press any key (or wait 2 seconds) to start BASIC-DOS.  If you booted a diskette on a machine with a hard disk, pressing **Esc** boots from the hard disk instead.  Pressing `-` also makes `-` the switch character (see [SWITCHAR=](../cfg/#switchar)), and on an 80286 or later, pressing `P` selects protected mode and pressing `R` selects real mode (see [CPU=](../cfg/#cpu)).  On a PC or PC XT running in PCjs, which supplies the host's date and time, pressing a letter (eg, `P` or `R`) makes BASIC-DOS prompt for them instead (see [COMMAND](../cmd/external/command/#startup-commands)).  To remove the message from a disk, see [SYS /N](../cmd/external/sys/).  The following messages should then appear on your screen:
 
 	BASIC-DOS 2.00
 	Copyright (c) PCJS.ORG 1981-2026

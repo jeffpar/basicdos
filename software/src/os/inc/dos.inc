@@ -197,6 +197,11 @@ SFB_DIRCLN	dw	?	; 30h: directory (1st cluster) of DIRENT
 SFB_HINTCLN	dw	?	; 32h: a known CLN in the file (0 if none)
 SFB_HINTIDX	dw	?	; 34h: cluster index of SFB_HINTCLN
 SFB		ends
+;
+; A device's SFB has no cluster hint, so SFB_HINTIDX (which sfb_open zeroes)
+; holds the SCB of the session writing to it, if any (see sfb_lock).
+;
+SFB_WRITER	equ	SFB_HINTIDX
 
 SIG_SFB		equ	'F'
 

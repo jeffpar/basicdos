@@ -253,10 +253,12 @@ pcp1:	call	psp_init		; returns ES:DI -> PSP_PARENT
 	mov	cx,(size PSP - PSP_PARENT) SHR 1
 	rep	movsw
 ;
-; The copy hasn't enabled raw keys, and it isn't a SHELL (see scb_load).
+; The copy hasn't enabled raw keys or exception signals, and it isn't a SHELL
+; (see scb_load).
 ;
 	ASSERT	<PSP_RAWKEYS + 1>,EQ,<PSP_SHELL>
 	mov	word ptr es:[PSP_RAWKEYS],0
+	mov	es:[PSP_SIGNALS],0
 	ret
 ENDPROC	psp_copy
 
@@ -1969,6 +1971,34 @@ DEFPROC	get_psp,DOS
 	pop	bx
 	ret
 ENDPROC	get_psp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; psp_setsigs (REG_AH = 33h, REG_AL = CTRLC_SETSIGS)
+;
+; Sets whether the current program gets exception signals (see dos_dverr):
+; each program starts without them.
+;
+; Inputs:
+;	REG_DL = 1 for exception signals, 0 for none
+;
+; Outputs:
+;	Carry clear if successful
+;
+; Modifies:
+;	AX, ES
+;
+DEFPROC	psp_setsigs,DOS
+	call	get_psp			; AX = current PSP (and carry clear)
+	jz	pss9			; there isn't one
+	mov	es,ax
+	ASSUME	ES:NOTHING
+	mov	al,[bp].REG_DL
+	mov	es:[PSP_SIGNALS],al
+	ret
+pss9:	stc
+	ret
+ENDPROC	psp_setsigs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

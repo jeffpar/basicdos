@@ -233,11 +233,16 @@ tl:	mov	cl,DOS_MSC_GETVER
 	mov	sp,-1
 	jmp	CALL5
 ;
-; PRINTF on a stack with no room for it.
+; SPRINTF (which formats PRINTF's output, too) on a stack with no room for
+; it; its output goes to a buffer (our command tail), so nothing is displayed.
 ;
 tm:	mov	bp,sp
 	mov	sp,16
-	PRINTF	<13,10>
+	mov	bx,offset tm1		; DS:BX -> the format, after the INT
+	mov	di,PSP_DTA		; ES:DI -> the buffer
+	mov	cx,2
+	DOSUTIL	SPRINTF
+tm1:	db	"ok",0
 	mov	sp,bp
 	jmp	ok
 ;
@@ -558,13 +563,20 @@ tzm8:	jmp	bad
 ; second selector, too): its selector and its code alias stay the same, and so
 ; do its contents, which we run through the alias.  Freeing the second of
 ; three blocks leaves the first one a free descriptor for that selector, and
-; 16 free bytes before the third block.
+; 16 free bytes before the third block, as long as the first two blocks have
+; consecutive selectors; something else can have the selector between them
+; (eg, the console's video memory, which tzm's VKD$ console keeps), so we
+; allocate blocks until two in a row do.
 ;
 tzn:	mov	bx,1
 	call	alloc
-	mov	dx,es			; DX = the block
+tzn1:	mov	dx,es			; DX = the block
 	mov	bx,1
 	call	alloc
+	mov	ax,es
+	sub	ax,dx
+	cmp	ax,8			; are their selectors consecutive?
+	jne	tzn1			; no, so try again with that block
 	push	es
 	mov	bx,1
 	call	alloc

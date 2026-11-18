@@ -429,7 +429,6 @@ PIPE_SCB	dd	?		; 562h: pipeline sessions (endPipes)
 PATH_BUF	db  128 dup (?)		; 566h: PATH$ (length, 120 chars, null)
 PROMPT_BUF	db   64 dup (?)		; 5E6h: PROMPT$ (length, 62 chars, null)
 DOS_REGS	dw    4 dup (?)		; 626h: AX-DX from DOS (see dosCall)
-FPU_VECS	dd    2 dup (?)		; 62Eh: INT 00h/04h we hooked (fpuTrap)
 ;
 ; The BASIC-DOS loader always set the stack pointer for a COM file to the top
 ; of the segment, which means we must declare our stack at the end of CMDHEAP.
@@ -440,8 +439,8 @@ FPU_VECS	dd    2 dup (?)		; 62Eh: INT 00h/04h we hooked (fpuTrap)
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-SYM_CHAIN	dw	?		; 636h: nulled symbols (see parseDOS)
-STACK		dw  940 dup (?)		; 638h
+SYM_CHAIN	dw	?		; 62Eh: nulled symbols (see parseDOS)
+STACK		dw  944 dup (?)		; 630h
 CMDHEAP		ends			; D90h
 SIG_CMD		equ	'H'
 

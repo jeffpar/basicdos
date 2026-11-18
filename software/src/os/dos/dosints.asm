@@ -23,20 +23,100 @@ DOS	segment word public 'CODE'
 	EXTWORD	<scb_active>
 	EXTBYTE	<scb_locked,int_level,prog_user>
 	EXTNEAR	<msc_readctrlc,scb_wait,scb_endwait>
-	EXTNEAR	<scb_hotkey,scb_release,r3_call5,r3_cbret>
+	EXTNEAR	<scb_hotkey,scb_release,r3_call5,r3_cbret,r3_signal>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dos_dverr (INT 00h)
+; dos_dverr (INT 00h) and dos_oferr (INT 04h)
 ;
-; If a "divide exception" occurs, this default handler reports it and then
-; aborts the current program, in every build, as MS-DOS does (since resuming
-; would run the DIV again on an 80286 or later, which report the address of
-; the DIV, not the instruction after it).  The exit type isn't EXTYPE_CTRLC,
-; so the parent isn't aborted, too (see psp_retcode), unless the program is
-; its session's last (see psp_term).
+; A divide error (eg, a DIV by zero, or FPU$'s division by zero) or an
+; overflow (INTO, or FPU$'s overflow or invalid result) is a signal to the
+; program's CTRLC handler, if it asked for exception signals (see
+; psp_setsigs), with AH = CTRLC_SIGNAL, AL = EXTYPE_DVERR or EXTYPE_OVERR, and
+; its other registers as they were; on its stack (as the exception left it),
+; we push its AX and the handler's return address (dos_sigdv or dos_sigof, or
+; at ring 3, r3_sigdv or r3_sigof; see r3_signal).  Otherwise, or while DOS or
+; an interrupt handler is running (or at ring 0, with ring 3 programs),
+; dos_dvdef or dos_ofdef reports it and ends the program.
 ;
 DEFPROC	dos_dverr,DOSFAR
+	push	ax
+	mov	ax,(CTRLC_SIGNAL SHL 8) OR EXTYPE_DVERR
+	jmp	short de1
+ENDPROC	dos_dverr
+
+DEFPROC	dos_oferr,DOSFAR
+	push	ax
+	mov	ax,(CTRLC_SIGNAL SHL 8) OR EXTYPE_OVERR
+de1:	push	ax			; (room for the handler's return
+	push	ax			; address and FLAGS, and for the
+	push	ax			; handler's address)
+	push	ax
+	push	ax
+	push	ds
+	push	bx
+	push	bp
+	mov	bp,sp			; BP+16 -> AX, then IP, CS, and FLAGS
+	mov	ds,cs:[dos_data]
+	ASSUME	DS:DOS
+	cmp	word ptr [scb_locked],-1; unlocked, and no interrupt?
+	jne	de8			; no
+	mov	bx,[scb_active]
+	cmp	[bx].SCB_INDOS,0	; and no DOS call?
+	jne	de8			; no
+	mov	bx,[bx].SCB_PSP
+	test	bx,bx			; is there a program?
+	jz	de8			; no
+	push	ds
+	mov	ds,bx
+	cmp	ds:[PSP_SIGNALS],0	; did it ask for exception signals?
+	pop	ds
+	je	de8			; no
+	mov	bx,[scb_active]
+	cmp	[prog_user],0		; ring 3 programs?
+	je	de4			; no
+	test	byte ptr [bp+20],3	; from ring 3?
+	jz	de8			; no
+	jmp	r3_signal
+de4:	push	word ptr [bx].SCB_CTRLC._OFF
+	pop	word ptr [bp+6]
+	push	word ptr [bx].SCB_CTRLC._SEG
+	pop	word ptr [bp+8]		; [BP+6] -> the CTRLC handler
+	mov	word ptr [bp+10],offset dos_sigdv
+	cmp	al,EXTYPE_DVERR
+	je	de5
+	mov	word ptr [bp+10],offset dos_sigof
+de5:	mov	[bp+12],cs
+	mov	bx,[bp+22]
+	and	bl,NOT FL_CARRY
+	mov	[bp+14],bx		; (the exception's FLAGS, less carry)
+	pop	bp
+	pop	bx
+	pop	ds
+	ASSUME	DS:NOTHING
+	sti
+	ret				; enter the handler
+	DEFLBL	dos_xdef,near		; (see r3_signal)
+de8:	pop	bp
+	pop	bx
+	pop	ds
+	cmp	al,EXTYPE_DVERR
+	pop	ax
+	pop	ax
+	pop	ax
+	pop	ax
+	pop	ax
+	pop	ax			; AX = the program's AX
+	jne	dos_ofdef
+;
+; dos_dvdef and dos_ofdef report the error and end the program, in every
+; build, as MS-DOS does (for a divide error, resuming would run the DIV again
+; on an 80286 or later, which report the address of the DIV, not of the
+; instruction after it).  The exit type isn't EXTYPE_CTRLC, so the parent
+; isn't aborted, too (see psp_retcode), unless the program is its session's
+; last (see psp_term).
+;
+	DEFLBL	dos_dvdef,near
 	IFDEF MAXDEBUG
 	DBGBRK
 	ENDIF
@@ -56,7 +136,46 @@ DEFPROC	dos_dverr,DOSFAR
 	ENDIF
 	mov	ah,EXTYPE_DVERR
 	jmp	dos_abort
-ENDPROC	dos_dverr
+	DEFLBL	dos_ofdef,near
+	IFDEF MAXDEBUG
+	DBGBRK
+	ENDIF
+	IFNDEF	DEBUG
+	PRINTF	<"Overflow error",13,10>
+	ELSE
+	pop	ax
+	pop	dx
+	push	ax
+	push	dx			; (see dos_dvdef)
+	PRINTF	<"Overflow error at %04x:%04x",13,10>
+	ENDIF
+	mov	ah,EXTYPE_OVERR
+	jmp	dos_abort
+ENDPROC	dos_oferr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dos_sigdv and dos_sigof
+;
+; Where a CTRLC handler returns from an exception signal (see dos_dverr): an
+; IRET from an overflow (see dos_sigof) resumes the program after its INT 04h
+; (or INTO), with its own AX; a RETF with carry set (which leaves the FLAGS on
+; the stack), or any return from a divide error, reports it and ends the
+; program.
+;
+DEFPROC	dos_sigdv,DOSFAR
+	jnc	sd1			; (an IRET, which popped its FLAGS)
+	add	sp,2
+sd1:	pop	ax			; AX = the program's AX
+	jmp	dos_dvdef
+	DEFLBL	dos_sigof,near
+	jnc	sd2			; an IRET, so resume the program
+	add	sp,2
+	pop	ax
+	jmp	dos_ofdef
+sd2:	pop	ax
+	iret
+ENDPROC	dos_sigdv
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -113,30 +232,6 @@ bk9:	pop	ds
 	ENDIF
 	iret
 ENDPROC	dos_brkpt
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; dos_oferr (INT 04h)
-;
-; If an "overflow exception" occurs, this default handler reports it and then
-; aborts the current program, in every build (see dos_dverr).
-;
-DEFPROC	dos_oferr,DOSFAR
-	IFDEF MAXDEBUG
-	DBGBRK
-	ENDIF
-	IFNDEF	DEBUG
-	PRINTF	<"Overflow error",13,10>
-	ELSE
-	pop	ax
-	pop	dx
-	push	ax
-	push	dx			; (see dos_dverr)
-	PRINTF	<"Overflow error at %04x:%04x",13,10>
-	ENDIF
-	mov	ah,EXTYPE_OVERR
-	jmp	dos_abort
-ENDPROC	dos_oferr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

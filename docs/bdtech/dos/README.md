@@ -69,6 +69,8 @@ The line editing keys that 0Ah supports are described in [Typing Commands](../..
 
 Handles 0-4 are the predefined handles STDIN, STDOUT, STDERR, STDAUX, and STDPRN.  Filenames can also be device names (eg, `NUL` or `COM1`), optionally followed by a colon and device-specific parameters (eg, `VKD$:40,25`).  `CON`, `AUX`, and `PRN` (with or without a colon) are the session's console, AUX, and PRN devices (see [CON=](../../bdman/cfg/#con), [AUX=](../../bdman/cfg/#aux), and [PRN=](../../bdman/cfg/#prn)), and opening one shares the session's handle for it; if the session has no such device (eg, PRN on a machine without a parallel port), the open fails with ERR_NOFILE, and STDAUX or STDPRN contains SFH_NODEV (FEh), which keeps the handle in use, so that reads and writes fail with ERR_BADHANDLE.  For the same reason, [FILES=](../../bdman/cfg/#files) can't exceed 254.
 
+Each write to a device through a handle is whole, as far as other sessions are concerned: a session that writes to a handle (eg, a console or a pipe that several sessions share, as a program's children do) while another session's write to it is in progress waits until that write is done, so their output never interleaves within a write (although a program's output can still interleave between its writes).  A pending CTRL-C or ABORT ends the wait.
+
 A file can be open more than once for reading, but a file opened for writing (MODE_ACC_WO or MODE_ACC_RW, which includes every file opened with 3Ch) can't be open anywhere else.  Opening a file in a way that would violate that rule fails with ERR_SHARE, as does deleting (41h) a file that's open.  Unlike PC DOS 3.x, BASIC-DOS doesn't need SHARE for this, and it ignores the MODE_DENY_* bits for files.  Devices are exempt from that rule, so `CON` can be open for both reading and writing, but a device opened with MODE_DENY_RW can't be open anywhere else (see [Device Sharing](../dev/#device-sharing)).
 
 A filename that is only a drive letter and colon (eg, `C:`) opens the entire volume, whose sectors can then be read (or written) at file offsets of LBA * bytes per sector; the size of the file is the size of the volume.  For sharing purposes, a volume counts as every file on it: it can be opened for reading only if no file on it is open for writing, and for writing only if no file on it is open at all, and while the volume is open, no file on it can be opened in a way that conflicts with that.  Creating, deleting, or renaming a file, and creating or removing a directory, also fail with ERR_SHARE while the volume is open.  Opening a volume writes any modified buffers for the drive, writing to it discards the drive's buffers, and closing a volume that was written rebuilds its BPB (eg, after it's been reformatted).  Creating a volume (3Ch, which is how OPEN FOR OUTPUT opens it) simply opens it for writing.  A volume whose media is unknown (eg, an unformatted diskette) can still be opened: the media check is done with hard errors treated as FAIL (so there's no critical error prompt), and only an invalid drive is an error; the volume's size is then zero (its size is refreshed from its BPB at every read and write) until the drive's driver is given valid parameters (see IOCTL_SETPARMS in [IOCTL Functions](../dev/#ioctl-functions)), which is how FORMAT.BAS formats a new diskette.
@@ -136,7 +138,7 @@ An FCB opens a file read-only, so any number of FCBs (and handles opened for rea
 | 2Ch | DOS_MSC_GETTIME | | CH = hours, CL = minutes, DH = seconds, DL = hundredths |
 | 2Dh | DOS_MSC_SETTIME | CH = hours, CL = minutes, DH = seconds, DL = hundredths | AL = 0 if valid, FFh if not |
 | 30h | DOS_MSC_GETVER | | See [DOS_MSC_GETVER](#dos_msc_getver) |
-| 33h | DOS_MSC_CTRLC | AL = 0 to get, 1 to set (from DL) | DL = CTRL-C checking state |
+| 33h | DOS_MSC_CTRLC | AL = 0 to get, 1 to set (from DL); AL = 2 (CTRLC_SETSIGS) and DL = 1 or 0 to get exception signals or not (see [Exception Signals](#exception-signals)) | DL = CTRL-C checking state |
 | 35h | DOS_MSC_GETVEC | AL = vector # | ES:BX = address (0:0 for vectors 80h and up; for a ring 3 program, unless it's its own session's handler, the address of a stub that chains to it, or 0:0 for a vector that it can't hook; see [Ring 3](../mmu/#ring3)) |
 | 3700h | DOS_MSC_GETSWC | | DL = switch character |
 | 3704h | DOS_MSC_GETPCH | | DL = path character, DH = system drive letter (BASIC-DOS only; fixed at boot, so programs need to get them only once) |
@@ -186,6 +188,19 @@ BASIC-DOS doesn't store the path of each current directory, only the directory's
 
 Each session has its own current drive, current directory for every drive, DTA, switch and path characters, CTRL-C state, and exit, CTRL-C, and critical error handlers, all of which are stored in its [SCB](../data/#scb).  For example, DOS_MSC_SETVEC with vector 23h changes only the current session's CTRL-C handler.
 
+### Exception Signals {#exception-signals}
+
+A program can ask for its divide and overflow errors as signals to its CTRL-C handler (the INT 23h vector that it sets with DOS_MSC_SETVEC), instead of having DOS report them and end it, with DOS_MSC_CTRLC (33h), AL = 2 (CTRLC_SETSIGS), and DL = 1 (or 0 to stop).  This applies to that program only: every program starts without signals, so a program's children get DOS's handling, unless they ask too.  A divide error is INT 00h (eg, DIV or IDIV, or FPU$'s division by zero), and an overflow is INT 04h (INTO, or FPU$'s overflow or invalid result).
+
+The handler is entered with:
+
+- AH = 0FFh (CTRLC_SIGNAL), which a CTRL-C never has (its AH is the number of the DOS function that was interrupted)
+- AL = EXTYPE_DVERR (4) for a divide error, or EXTYPE_OVERR (5) for an overflow
+- its other registers as they were at the exception
+- its own stack as the exception left it, with the program's AX and DOS's return address pushed on it, so the handler can find the frames below
+
+If the handler returns with RETF and carry set, or returns at all from a divide error, DOS reports the error and ends the program, as it would have without signals (resuming after a divide error would run the DIV again on an 80286 or later).  An IRET from an overflow resumes the program after its INT 04h (or INTO), with its AX restored.  A handler that never returns (eg, COMMAND.COM's, which makes the error a BASIC runtime error) is fine, too.  While DOS or an interrupt handler is running, or at ring 0 with ring 3 programs, DOS handles the error itself.
+
 ### Critical Errors {#critical-errors}
 
 When a block device request fails (eg, a diskette drive isn't ready, or a diskette is write-protected), DOS calls the session's critical error handler (INT 24h) with the same inputs as PC DOS:
@@ -229,7 +244,7 @@ When DOS_PSP_RETCODE reports EXTYPE_CTRLC, BASIC-DOS also signals CTRL-C to the 
 
 A divide or overflow error or a CPU fault (EXTYPE_DVERR, EXTYPE_OVERR, or EXTYPE_FAULT) doesn't ripple that way: DOS has already reported it, so the parent gets the exit code (FFh) and continues (eg, a BAT or BAS file sees an ERRORLEVEL of 255).
 
-FPU$ reports a floating-point division by zero with INT 00h and an overflow (or invalid result) with INT 04h, as if the CPU had, so when FPU$ is loaded, COMMAND.COM hooks both vectors: an error that occurs while COMMAND.COM itself is the current program (ie, in a BAS or BAT program, or at the prompt) becomes a BASIC runtime error that ON ERROR can trap, and any other program's goes to the handler that COMMAND.COM replaced, so that program still ends as described above.  COMMAND.COM detects integer overflow itself, without INTO.
+FPU$ reports a floating-point division by zero with INT 00h and an overflow (or invalid result) with INT 04h, as if the CPU had.  COMMAND.COM asks for [exception signals](#exception-signals), so those errors in a BAS or BAT program, or at the prompt, become BASIC runtime errors that ON ERROR can trap, while any other program still ends as described above.  COMMAND.COM detects integer overflow itself, without INTO.
 
 When a session's last program ends, its session closes, and when no session is left, DOS displays "System halted" and stops.  An ABORT (CTRL-ALT-DEL), a critical error ABORT, or a divide, overflow, or CPU fault doesn't end a session's last program, though: it becomes a CTRL-C signal to the program instead, which a shell answers by returning to its prompt.  DOS sets PSP_SHELL in the PSP of each session's SHELL (the first program of a session that CONFIG.SYS defines), so that the program can tell that its exit would close the session; COMMAND.COM ignores EXIT (and `/C`'s exit) when it's set.
 

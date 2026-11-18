@@ -91,6 +91,7 @@ DOS	segment word public 'CODE'
 	EXTLONG	<r3_cbsp0>
 	EXTNEAR	<dos_func,dos_abort,dos_fterm,dos_ctrlc,dos_error,sprintf>
 	EXTNEAR	<get_psp,scb_load1>
+	EXTNEAR	<dos_xdef,dos_dvdef,dos_ofdef>
 
 	.286p
 
@@ -544,6 +545,10 @@ ENDPROC	r3_iret
 ;
 	DEFLBL	r3_stub,near
 	int	INT_DOSEXIT
+	DEFLBL	r3_sigdv,near		; (see r3_signal)
+	int	INT_DOSEXIT
+	DEFLBL	r3_sigof,near
+	int	INT_DOSEXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -629,9 +634,13 @@ rc0:	cmp	cs:[r3_cbsp],0		; is the ERROR handler running?
 rc5:	mov	ax,cs:[r3_code]
 	cmp	[bp+22],ax		; through the handlers' selector?
 	jne	rc7			; no
-	cmp	word ptr [bp+20],offset r3_stub + 2
-	jne	rc7			; it isn't r3_stub's INT
-	test	byte ptr [bp+24],FL_CARRY; end the program?
+	mov	ax,[bp+20]
+	sub	ax,offset r3_stub + 2	; AX = 0 for r3_stub's INT, 2 for
+	jz	rc5a			; r3_sigdv's, or 4 for r3_sigof's
+	cmp	ax,offset r3_sigof - offset r3_stub
+	jbe	xs0
+	jmp	rc7			; it isn't one of them
+rc5a:	test	byte ptr [bp+24],FL_CARRY; end the program?
 	jz	rc6			; no
 	mov	ah,EXTYPE_CTRLC
 	jmp	dos_abort
@@ -640,7 +649,127 @@ rc6:	call	r3_popret		; pop the DOS call's IP, CS, and FLAGS
 	popa
 	add	sp,4
 	jmp	dos_func
+;
+; A CTRLC handler's return from an exception signal (see r3_signal), which
+; leaves the program's AX, and the exception's IP, CS, and FLAGS, on its stack
+; (after the FLAGS of a RETF): an IRET from an overflow resumes the program
+; after its INT 04h (or INTO), and anything else reports the error and ends
+; the program, as dos_sigdv and dos_sigof do.
+;
+xs0:	test	byte ptr [bp+24],FL_CARRY; a RETF with carry set?
+	jz	xs1			; no
+	add	word ptr [bp+26],2	; (the FLAGS that it left)
+	inc	ax			; (AX = 3 or 5, which won't resume)
+xs1:	push	ax
+	mov	dx,[bp+28]
+	mov	di,[bp+26]		; DX:DI -> the program's stack
+	mov	cx,2
+	call	r3_chkrd		; can we read its AX?
+	jc	xs8			; no
+	push	ds
+	mov	ds,dx
+	mov	ax,[di]
+	pop	ds
+	mov	[bp+14],ax		; (for POPA)
+	add	word ptr [bp+26],2
+	call	r3_popret		; pop the exception's IP, CS, and FLAGS
+xs8:	pop	ax
+	jnc	xs8a
+	jmp	rc7
+xs8a:	cmp	al,offset r3_sigof - offset r3_stub
+	jne	xs9			; it isn't an IRET from an overflow
+	popa
+	add	sp,4
+	iret				; resume the program
+xs9:	mov	word ptr [bp+16],offset dos_dvdef
+	test	al,offset r3_sigof - offset r3_stub
+	jz	xs9a			; a divide error
+	mov	word ptr [bp+16],offset dos_ofdef
+xs9a:	mov	[bp+18],cs
+	popa
+	db	OP_RETF			; report it, and end the program
 ENDPROC	r3_cbret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; r3_signal
+;
+; dos_dverr and dos_oferr come here to deliver an exception signal to a ring
+; 3 program's CTRLC handler: on the program's stack, we push the exception's
+; IP, CS, and FLAGS, the program's AX, and the handler's return address
+; (r3_sigdv or r3_sigof, whose INT 22h goes to r3_cbret) and FLAGS, and IRET
+; to the handler, with AX = the signal and the program's other registers.  If
+; the handler can't be entered (eg, it isn't at ring 3), or those don't fit on
+; the program's stack, the default handler reports the error instead (see
+; dos_xdef).
+;
+; Inputs:
+;	AX = signal (see dos_dverr)
+;	DS:BX -> SCB
+;	SS:BP -> BP, BX, DS, 5 words of room, the program's AX, and the
+;	exception's IP, CS, FLAGS, SP, and SS (see dos_dverr)
+;
+DEFPROC	r3_signal,DOS
+	ASSUME	DS:DOS
+	push	ax			; [BP-2] = the signal
+	push	cx
+	push	dx
+	push	si
+	push	di
+	mov	ax,word ptr [bx].SCB_CTRLC._SEG
+	or	al,3			; (a ring 3 handler only)
+	mov	cx,word ptr [bx].SCB_CTRLC._OFF
+	call	r3_chkcode		; can we enter the handler?
+	jc	sg8			; no
+	mov	[bp+6],cx
+	mov	[bp+8],ax		; [BP+6] -> the handler
+	mov	dx,[bp+26]
+	mov	di,[bp+24]
+	sub	di,14			; DX:DI -> the program's stack
+	mov	cx,14
+	call	r3_chkstk		; do its 7 words fit?
+	jc	sg8			; no
+	push	es
+	mov	es,dx
+	mov	[bp+24],di		; (its SP, after the 7 words)
+	cld
+	mov	ax,offset r3_sigdv
+	cmp	byte ptr [bp-2],EXTYPE_DVERR
+	je	sg1
+	mov	ax,offset r3_sigof
+sg1:	stosw
+	mov	ax,[r3_code]
+	stosw
+	mov	ax,[bp+22]
+	and	ax,NOT (FL_CARRY OR FL_TRAP)
+	stosw				; the handler's return, and FLAGS
+	lea	si,[bp+16]
+	mov	cx,4			; the program's AX, and the exception's
+	rep	movs word ptr es:[di],word ptr ss:[si]
+	pop	es
+	mov	ax,[bp+6]
+	mov	[bp+18],ax
+	mov	ax,[bp+8]
+	mov	[bp+20],ax		; IRET to the handler
+	and	byte ptr [bp+23],NOT (FL_TRAP SHR 8)
+	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	pop	ax			; AX = the signal
+	pop	bp
+	pop	bx
+	pop	ds
+	ASSUME	DS:NOTHING
+	add	sp,12			; (the room and the program's AX)
+	iret
+sg8:	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	pop	ax
+	jmp	dos_xdef
+ENDPROC	r3_signal
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

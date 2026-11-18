@@ -37,7 +37,7 @@ CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CLOCK+DDATTR_CHAR+DDATTR_IOCTL,offset
 	DEFBYTE	dateDay,10		; 1-31 (default for PC and XT)
 	DEFBYTE	dateMonth,12		; 1-12
 	DEFWORD	dateYear,2020		; 1980-
-	DEFBYTE	dateRTC,0		; 1 if date from a real-time clock
+	DEFBYTE	dateRTC,0		; 1 if date from an RTC or PCjs
 	DEFLONG	ticksToday,0		; ticks since midnight (from BIOS)
 	DEFWORD	sndTicks,0		; ticks until the speaker is turned off
 
@@ -277,7 +277,8 @@ dci4:	cmp	al,IOCTL_CLOCK
 	jne	dci4a
 ;
 ; For CLOCK requests, return DX = 1 if the date came from a real-time clock
-; (see ddclk_init), or 0 if it's still our default date (eg, on a PC or XT).
+; or PCjs (see ddclk_init), or 0 if it's still our default date (eg, on a PC
+; or XT).
 ;
 	mov	dl,[dateRTC]
 	mov	dh,0
@@ -775,7 +776,52 @@ DEFPROC	ddclk_init,far
 	int	INT_TIME		; CX:DX is current tick count
 	mov	[ticksToday].LW,dx
 	mov	[ticksToday].HW,cx
-	mov	ah,TIME_GETDATE
+;
+; However, a date and time that PCjs saved (see INT_CLKDATA) take precedence,
+; unless a letter was pressed at the boot message; in protected mode,
+; DDINT_GETVEC returns 0:0 for these vectors, so there's no signature.  The
+; ticks since then (the BIOS tick count less the saved one) are added to the
+; saved time.
+;
+	mov	ax,BIOS
+	mov	es,ax
+	ASSUME	ES:BIOS
+	cmp	byte ptr [BOOT_KEY],'A'	; a letter at the boot message?
+	jae	ci0			; yes, so ignore any saved values
+	mov	al,INT_CLKDATA
+	call	far ptr DDINT_GETVEC	; DX:CX = signature
+	cmp	cx,CLK_SIG1		; did PCjs save a date and time?
+	jne	ci0			; no
+	cmp	dx,CLK_SIG2
+	jne	ci0			; no
+	inc	ax
+	call	far ptr DDINT_GETVEC	; CX = day and month, DX = year
+	mov	bp,cx
+	mov	di,dx
+	inc	ax
+	call	far ptr DDINT_GETVEC	; DX:CX = saved ticks since midnight
+	mov	si,cx
+	mov	bx,dx
+	inc	ax
+	call	far ptr DDINT_GETVEC	; DX:CX = saved BIOS tick count
+	sub	si,cx
+	sbb	bx,dx
+	add	si,[ticksToday].LW
+	adc	bx,[ticksToday].HW	; BX:SI = ticks since midnight now
+;
+; A day is 1800B0h ticks, so ignore the saved values in the last 10 seconds
+; before midnight, rather than have the timer interrupt increment the date
+; before DOS is loaded.
+;
+	cmp	bx,18h			; within 10 seconds of midnight?
+	jae	ci0			; yes
+	mov	[ticksToday].LW,si
+	mov	[ticksToday].HW,bx
+	mov	word ptr [dateDay],bp
+	mov	[dateYear],di
+	jmp	short ci0a
+
+ci0:	mov	ah,TIME_GETDATE
 	sub	cx,cx
 	int	INT_TIME		; CX = century/year, DX = month/day
 	jcxz	ci1			; no real-time clock date
@@ -794,8 +840,8 @@ DEFPROC	ddclk_init,far
 	mov	al,dl
 	call	bcd_bin
 	mov	[dateDay],al
-	inc	[dateRTC]		; (see IOCTL_CLOCK)
-ci1:
+ci0a:	inc	[dateRTC]		; (see IOCTL_CLOCK)
+ci1:	ASSUME	ES:NOTHING
 ;
 ; Install an INT 08h hardware interrupt handler, which we will use to service
 ; WAIT requests, and which will also drive the DOS scheduler as soon as DOS has
