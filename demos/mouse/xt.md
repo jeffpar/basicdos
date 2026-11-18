@@ -16,7 +16,7 @@ The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memo
 
 {% include machine.html id="ibm5160" %}
 
-Additional demo configurations:
+Additional hardware options:
 
 - [Serial Mouse on IBM PC](../pc/)
 - [Serial Mouse on IBM PC AT](../at/)

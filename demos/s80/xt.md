@@ -19,7 +19,7 @@ The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088 with an 8087,
 
 Use the **MEM** command to display current memory usage.
 
-Additional demo configurations:
+Additional hardware options:
 
 - [Single Console on IBM PC](../pc/)
 - [Single Console on IBM PC AT](../at/)

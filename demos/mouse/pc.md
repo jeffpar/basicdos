@@ -16,7 +16,7 @@ The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 256K of memory,
 
 {% include machine.html id="ibm5150" %}
 
-Additional demo configurations:
+Additional hardware options:
 
 - [Serial Mouse on IBM PC XT](../xt/)
 - [Serial Mouse on IBM PC AT](../at/)

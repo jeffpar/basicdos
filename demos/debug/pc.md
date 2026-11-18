@@ -26,7 +26,7 @@ The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 256K of memory,
 
 {% include vt100-demo.html id="ibm5150" %}
 
-Additional demo configurations:
+Additional hardware options:
 
 - [VT100 Debugger on IBM PC XT](../xt/)
 - [VT100 Debugger on IBM PC AT](../at/)

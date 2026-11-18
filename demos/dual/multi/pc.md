@@ -19,11 +19,14 @@ The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 256K of memory,
 
 Use **SHIFT-TAB** to move keyboard focus from one console to the next.
 
-Additional demo configurations:
+Additional hardware options:
 
 - [Dueling Monitors on IBM PC XT](../xt/)
 - [Dueling Monitors on IBM PC AT](../at/)
 - [Dueling Monitors on COMPAQ DeskPro 386](../386/)
-- [Dual Monitors on IBM PC](../../pc/)
+
+Additional IBM PC configurations:
+
+- [Two Consoles on Two Monitors](../../pc/)
 
 {% include_relative _overview.md hw="pc" %}

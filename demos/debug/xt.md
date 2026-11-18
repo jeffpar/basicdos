@@ -26,7 +26,7 @@ The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memo
 
 {% include vt100-demo.html id="ibm5160" %}
 
-Additional demo configurations:
+Additional hardware options:
 
 - [VT100 Debugger on IBM PC](../pc/)
 - [VT100 Debugger on IBM PC AT](../at/)

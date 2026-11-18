@@ -17,7 +17,7 @@ The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 128K of memory,
 
 {% include machine.html id="ibm5150" %}
 
-Additional demo configurations:
+Additional hardware options:
 
 - [80-Column Consoles on IBM PC XT](../xt/)
 - [80-Column Consoles on IBM PC AT](../at/)

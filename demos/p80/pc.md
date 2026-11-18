@@ -18,7 +18,7 @@ The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 256K of memory,
 
 {% include machine.html id="ibm5150" name="IBM PC, 256Kb RAM, Dual Floppy Drives, MDA, No Ports" %}
 
-Additional demo configurations:
+Additional hardware options:
 
 - [Multiple Video Pages on IBM PC XT](../xt/)
 - [Multiple Video Pages on IBM PC AT](../at/)

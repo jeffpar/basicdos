@@ -16,7 +16,7 @@ The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of memory
 
 {% include machine.html id="ibm5170" %}
 
-Additional demo configurations:
+Additional hardware options:
 
 - [80-Column Consoles on IBM PC](../pc/)
 - [80-Column Consoles on IBM PC XT](../xt/)

@@ -18,11 +18,14 @@ The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memo
 
 Use **SHIFT-TAB** to move keyboard focus from one console to the next.  For even more consoles, try the [Dueling Monitors](../multi/xt/) demo, which runs FOUR consoles, two on each monitor.
 
-Additional demo configurations:
+Additional hardware options:
 
 - [Dual Monitors on IBM PC](../pc/)
 - [Dual Monitors on IBM PC AT](../at/)
 - [Dual Monitors on COMPAQ DeskPro 386](../386/)
-- [Dueling Monitors on IBM PC XT](../multi/xt/)
+
+Additional IBM PC XT configurations:
+
+- [Four Consoles on Two Monitors](../multi/xt/)
 
 {% include_relative _overview.md hw="xt" %}

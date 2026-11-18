@@ -31,10 +31,13 @@ To set up the hard disk, type `FORMAT C: /S`: since the disk has no partition ta
 
 The boot sector first displays `System starting...`; press any key (or wait 2 seconds) to boot from the diskette.
 
-Additional demo configurations:
+Additional hardware options:
 
-- [Extended Memory (Debugger) on IBM PC AT](../) with a 10Mb hard disk
-- [Extended Memory (Debugger) on COMPAQ DeskPro 386](../386/) (using the 80386's features)
+- [Extended Memory (Debugger) on COMPAQ DeskPro 386](../386/)
+
+Additional IBM PC AT configurations:
+
+- [BASIC-DOS Hard Disk](../)
 
 ### **CONFIG.SYS** from the BASIC-DOS Serial Debugger Diskette
 

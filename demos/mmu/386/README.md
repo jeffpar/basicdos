@@ -22,7 +22,7 @@ The diskette's **CONFIG.SYS** defines three full-screen 80-column consoles, each
 
 The boot sector first displays `System starting...`; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  Note that bypassing the diskette and booting from the hard disk will give you only one full-screen console.
 
-Additional demo configurations:
+Additional hardware options:
 
 - [Extended Memory (2Mb) on IBM PC AT](../)
 

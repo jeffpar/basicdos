@@ -37,12 +37,12 @@ Press any key at the boot message (or wait 2 seconds) to start the diskette.  It
 
 Changes to the hard disk are lost when you leave the page.  Use **Save HD** to download a copy as an IMG file.
 
-Additional demo configurations:
+Additional IBM PC XT configurations:
 
-- [Parallel Port on IBM PC XT](../parallel/) with a printer on LPT1
-- [40-Column Consoles on IBM PC XT](../d40/xt/)
-- [80-Column Consoles on IBM PC XT](../d80/xt/)
-- [Multiple Video Pages on IBM PC XT](../p80/xt/)
+- [Parallel Printer on LPT1](../parallel/)
+- [Two 40-Column Consoles](../d40/xt/)
+- [Two 80-Column Consoles](../d80/xt/)
+- [Multiple Video Pages](../p80/xt/)
 
 ### CONFIG.SYS from the BASIC-DOS HD Serial Port diskette
 

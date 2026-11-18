@@ -25,7 +25,7 @@ The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of memory
 
 {% include vt100-demo.html id="ibm5170" %}
 
-Additional demo configurations:
+Additional hardware options:
 
 - [VT100 Debugger on IBM PC](../pc/)
 - [VT100 Debugger on IBM PC XT](../xt/)

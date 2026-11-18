@@ -28,7 +28,7 @@ Press any key on the Enhanced Color Display at the boot message (or wait 2 secon
 
 The VT100 has DEC's Advanced Video Option (AVO), which gives it bold, blinking, and underlined characters, and 24 rows in 132-column mode (try `WIDTH 132`).  A [VT100 without the AVO](noavo/) is also available.
 
-Additional demo configurations:
+Additional hardware options:
 
 - [10Mb Hard Disk (VT100 Console) on IBM PC XT](../xt/)
 - [10Mb Hard Disk (VT100 Console) on COMPAQ DeskPro 386](../386/)

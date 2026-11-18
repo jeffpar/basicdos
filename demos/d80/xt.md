@@ -17,12 +17,15 @@ The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memo
 
 {% include machine.html id="ibm5160" %}
 
-Additional demo configurations:
+Additional hardware options:
 
 - [80-Column Consoles on IBM PC](../pc/)
 - [80-Column Consoles on IBM PC AT](../at/)
 - [80-Column Consoles on COMPAQ DeskPro 386](../386/)
-- [Serial Port on IBM PC XT](../../serial/) with a serial console on COM1
-- [Parallel Port on IBM PC XT](../../parallel/) with a printer on LPT1
+
+Additional IBM PC XT configurations:
+
+- [Parallel Printer on LPT1](../../parallel/)
+- [Serial Console on COM1](../../serial/)
 
 {% include_relative _overview.md hw="xt" %}

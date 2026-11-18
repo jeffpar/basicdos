@@ -36,12 +36,12 @@ Press any key at the boot message (or wait 2 seconds) to start the diskette, or 
 
 If there's no printer (eg, on a machine without a parallel port), LPRINT, LLIST, and PRINT # to PRN report "Device timeout", as in Microsoft BASIC.
 
-Additional demo configurations:
+Additional IBM PC XT configurations:
 
-- [Serial Port on IBM PC XT](../serial/) with a serial console on COM1
-- [40-Column Consoles on IBM PC XT](../d40/xt/)
-- [80-Column Consoles on IBM PC XT](../d80/xt/)
-- [Multiple Video Pages on IBM PC XT](../p80/xt/)
+- [Two 40-Column Consoles](../d40/xt/)
+- [Two 80-Column Consoles](../d80/xt/)
+- [Multiple Video Pages](../p80/xt/)
+- [Serial Console on COM1](../serial/)
 
 ### **CONFIG.SYS** from the BASIC-DOS Single Diskette
 
