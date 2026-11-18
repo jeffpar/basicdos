@@ -25,6 +25,10 @@ The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of memory
 
 {% include vt100-demo.html id="ibm5170" %}
 
-Additional demo configurations: [IBM PC](../pc/), [IBM PC XT](../xt/), and [COMPAQ DeskPro 386](../386/).
+Additional demo configurations:
+
+- [VT100 Debugger on IBM PC](../pc/)
+- [VT100 Debugger on IBM PC XT](../xt/)
+- [VT100 Debugger on COMPAQ DeskPro 386](../386/)
 
 {% include_relative _overview.md hw="at" %}

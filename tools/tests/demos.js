@@ -62,7 +62,8 @@ const DEMOS = {
     'vt100':        () => ({ screen: [HELLO], com: [1] }),
     'wolf3d':       () => ({ screen: [], keys: false, graphics: true, pm: false }),
     'mmu':          () => ({ screen: [HELLO, FIBO, PRIMES], pm: true }),
-    'mmu/vt100':    () => ({ screen: [HELLO, FIBO, PRIMES], pm: true, debug: 2 })
+    'mmu/vt100':    () => ({ screen: [HELLO, FIBO, PRIMES], pm: true, debug: 2 }),
+    'mmu/vt100/47mb': () => ({ screen: [HELLO], pm: true, debug: 2 })
 };
 
 /**
@@ -154,9 +155,11 @@ function getDemos()
         }
     }
     //
-    // The VT100 Terminal demo's pages without the AVO aren't in the table (each page links to its own).
+    // The VT100 Terminal demo's pages without the AVO and the pages in other pages' lists of
+    // additional demo configurations aren't in the table.
     //
     for (const hw of ['xt', 'at', '386']) demos.push({ path: `vt100/${hw}/noavo/`, key: 'vt100', hw });
+    for (const path of ['serial', 'parallel', 'mmu/vt100/47mb']) demos.push({ path: path + '/', key: path, hw: '' });
     return demos;
 }
 

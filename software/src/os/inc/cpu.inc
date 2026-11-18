@@ -122,7 +122,11 @@ SELID_WAIT	equ	0FFFFh	; segment of a selector ID's wait ID
 ; in which case it's a physical address (the "segment" holds bits 16-31, and
 ; with the 8086 driver, it must be below 1Mb), or (in protected mode, with the
 ; 80386 driver) ADDR_LDT is set, in which case the "segment" is an LDT # (see
-; CPU_SETLDT), and the segment is that LDT, whose limit is FFFFh if it's empty:
+; CPU_SETLDT), and the segment is that LDT, whose limit is FFFFh if it's empty,
+; or (likewise) ADDR_V86 is set, in which case the address is a real-mode one
+; in the V86 machine (see v86.inc) whose memory's first selector is in the
+; active LDT (an error if there's none), where only its memory and the ROMs
+; are mapped, so the limit ends where they do:
 ;
 ;	CPU_SEGINFO returns the segment's base address in DX:CX and its limit
 ;	in AX (FFFFh for a real-mode segment), or with ADDR_RIGHTS, a
@@ -177,6 +181,7 @@ ADDR_WRITE	equ	02h	; CPU_RWMEM: copy from ES:DI to BX:SI
 ADDR_PHYS	equ	04h	; the "segment" is bits 16-31 of an address
 ADDR_RIGHTS	equ	08h	; CPU_SEGINFO: AX = access rights, not limit
 ADDR_LDT	equ	10h	; the "segment" is an LDT #
+ADDR_V86	equ	20h	; the address is in the active LDT's machine
 
 ;
 ; In protected mode, a PSP's CALL 5 (a far call to PSP_FCSEG:PSP_SIZE) can't

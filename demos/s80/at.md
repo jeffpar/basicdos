@@ -18,6 +18,10 @@ The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286 with an 80287, 
 
 Use the **MEM** command to display current memory usage.
 
-Additional demo configurations: [IBM PC](../pc/), [IBM PC XT](../xt/), and [COMPAQ DeskPro 386](../386/).
+Additional demo configurations:
+
+- [Single Console on IBM PC](../pc/)
+- [Single Console on IBM PC XT](../xt/)
+- [Single Console on COMPAQ DeskPro 386](../386/)
 
 {% include_relative _overview.md hw="at" %}

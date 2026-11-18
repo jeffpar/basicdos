@@ -48,7 +48,7 @@ DEV	group	CODE
 CODE	segment para public 'CODE'
 
 	EXTNEAR	<alloc_at,ddcpu_alloc,pmb_fit,pmb_used,pmb_free,desc_alloc>
-	EXTNEAR	<sel_desc,pm_ptr,cpu_inval>
+	EXTNEAR	<sel_desc,pm_ptr,cpu_inval,ddcpu_seginfo>
 
 	.286p
 ;
@@ -818,6 +818,79 @@ DEFPROC	v86_stk
 	mov	es,bx
 	ret
 ENDPROC	v86_stk
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; v86_info (CPU_SEGINFO with ADDR_V86)
+;
+; Finds the machine whose memory's first selector is in the active LDT (with
+; that memory as its base, since another LDT can have a selector at the same
+; index), and returns where a segment is in it, and how many of the bytes
+; there are mapped (by v86_init) in the same order: the rest of its memory,
+; or of the ROMs.
+;
+; Inputs:
+;	BX = segment
+;
+; Outputs:
+;	Carry clear if successful: DX:CX = address, AX = limit (FFFFh if the
+;	bytes go beyond 64K)
+;	Carry set if no machine, or the segment isn't mapped (AX = ERR_INVALID)
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	v86_info
+	push	bx
+	push	di
+	push	bp
+	mov	di,SYS_PMBS
+	mov	bp,ds:[SYS_VARS].SV_NPMBS
+vq1:	cmp	ds:[di].PMB_V86,0	; a machine's memory?
+	je	vq2			; no
+	push	bx
+	mov	bx,ds:[di].PMB_SEL
+	mov	al,ADDR_SEL
+	call	ddcpu_seginfo		; DX:CX = its first selector's base
+	pop	bx
+	jc	vq2			; (it isn't in the active LDT)
+	cmp	cx,ds:[di].PMB_ADDR.LW
+	jne	vq2
+	cmp	dx,ds:[di].PMB_ADDR.HW
+	je	vq3			; it's this machine
+vq2:	add	di,size PMB
+	dec	bp
+	jnz	vq1
+vq8:	pop	bp
+	pop	di
+	pop	bx
+	jmp	cpu_inval
+vq3:	mov	ax,16
+	mul	bx			; DX:AX = linear address
+	mov	cx,ds:[di].PMB_LEN.LW
+	mov	si,ds:[di].PMB_LEN.HW
+	stc
+	sbb	cx,ax
+	sbb	si,dx			; SI:CX = bytes after it in memory
+	jb	vq4			; it's beyond the memory
+	add	ax,ds:[di].PMB_ADDR.LW
+	adc	dx,ds:[di].PMB_ADDR.HW	; DX:AX = its physical address
+	jmp	short vq5
+vq4:	cmp	dx,0Ch			; is it in the ROMs?
+	jb	vq8			; no (it isn't mapped)
+	mov	cx,0FFFFh
+	sub	cx,ax
+	mov	si,0Fh
+	sbb	si,dx			; SI:CX = bytes after it in the ROMs
+vq5:	test	si,si			; more than 64K?
+	jz	vq6			; no (and carry is clear)
+	mov	cx,0FFFFh
+vq6:	xchg	ax,cx			; DX:CX = address, AX = limit
+	pop	bp
+	pop	di
+	pop	bx
+	ret
+ENDPROC	v86_info
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

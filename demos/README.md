@@ -17,13 +17,11 @@ Each BASIC-DOS demo runs on up to four generations of PC hardware: the original 
 | 7. Dual Monitors | [128K, MDA, CGA](dual/pc/) | [640K, MDA, CGA](dual/xt/) | [640K, MDA, CGA](dual/at/) | [1Mb, MDA, CGA](dual/386/) |
 | 8. Serial Mouse | [256K, EGA, Mouse](mouse/pc/) | [640K, EGA, Mouse](mouse/xt/) | [640K, EGA, Mouse](mouse/at/) | [1Mb, VGA, Mouse](mouse/386/) |
 | 9. VT100 Debugger | [256K, EGA, VT100](debug/pc/) | [640K, EGA, VT100](debug/xt/) | [640K, EGA, VT100](debug/at/) | [1Mb, VGA, VT100](debug/386/) |
-| 10. Serial Port | | [640K, CGA, Screen](serial/) | | |
-| 11. Parallel Port | | [640K, CGA, Printer](parallel/) | | |
-| 12. 10Mb Drive | | [640K, EGA](hd/xt/) | [640K, EGA](hd/at/) | [1Mb, VGA](hd/386/) |
-| 13. 10Mb (VT100 Console) | | [640K, EGA, VT100](vt100/xt/) | [640K, EGA, VT100](vt100/at/) | [1Mb, VGA, VT100](vt100/386/) |
-| 14. Wolfenstein 3D | | | [640K, VGA, Sound](wolf3d/at/) | [1Mb, VGA, Sound](wolf3d/386/) |
-| 15. Extended Memory (2Mb) | | | [2Mb, CGA](mmu/) | [2Mb, VGA](mmu/386/) |
-| 16. Extended Memory (Debugger) | | | [2Mb, CGA, VT100](mmu/vt100/) | [2Mb, VGA, VT100](mmu/vt100/386/) |
+| 10. 10Mb Drive | | [640K, EGA](hd/xt/) | [640K, EGA](hd/at/) | [1Mb, VGA](hd/386/) |
+| 11. 10Mb (VT100 Console) | | [640K, EGA, VT100](vt100/xt/) | [640K, EGA, VT100](vt100/at/) | [1Mb, VGA, VT100](vt100/386/) |
+| 12. Wolfenstein 3D | | | [640K, VGA, Sound](wolf3d/at/) | [1Mb, VGA, Sound](wolf3d/386/) |
+| 13. Extended Memory (2Mb) | | | [2Mb, CGA](mmu/) | [2Mb, VGA](mmu/386/) |
+| 14. Extended Memory (Debugger) | | | [2Mb, CGA, VT100](mmu/vt100/) | [2Mb, VGA, VT100](mmu/vt100/386/) |
 
 The boot sector first displays `System starting...`; press any key (or wait 2 seconds) to continue.  The PC XT, PC AT, and DeskPro 386 machines also have the 10Mb BASIC-DOS hard disk (drive C:), so when they boot a diskette, you can press **Esc** to boot from the hard disk instead.  On a PC AT or DeskPro 386, the demos run in protected mode (and on the DeskPro 386, with the 80386's features), except Wolfenstein 3D, which needs real mode; press **R** to run any other demo in real mode instead.
 

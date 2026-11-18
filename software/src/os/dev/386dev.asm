@@ -52,7 +52,7 @@ CODE	segment para public 'CODE'
 ; initialization's, only on an 80386.
 ;
 	EXTERNS	<ddcpu_init>,far
-	EXTNEAR	<v86_func>
+	EXTNEAR	<v86_func,v86_info>
 
 	.286p
 
@@ -701,6 +701,8 @@ ENDPROC	lim_desc
 ;	AX, CX, DX, SI
 ;
 DEFPROC	ddcpu_seginfo
+	test	al,ADDR_V86		; a V86 machine's segment?
+	jnz	sg5			; yes
 	test	al,ADDR_LDT		; an LDT # (see CPU_SETLDT)?
 	jnz	sg4			; yes
 	test	al,ADDR_SEL		; a selector?
@@ -752,6 +754,9 @@ sg4:	cmp	bx,LDT_SESSIONS		; a valid LDT #?
 	mov	dh,0			; DX:CX = its base
 	ret
 sg8:	jmp	cpu_inval
+sg5:	cmp	ds:[SYS_VARS].SV_V86SEL,0	; has a machine been created?
+	je	sg8			; no (and none can be on an 80286)
+	jmp	v86_info
 ENDPROC	ddcpu_seginfo
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -773,7 +778,27 @@ ENDPROC	ddcpu_seginfo
 ;	AX, BX, CX, DX, SI, DI, BP
 ;
 DEFPROC	ddcpu_rwmem
+	test	al,ADDR_V86		; a V86 machine's address?
+	jz	rw0			; no
+;
+; A machine's offset can reach past its segment's first 64K (and wrap at 1Mb,
+; as an 8086's does), so its address becomes the segment that contains it,
+; with an offset of 0-15, and that segment's limit is the one that applies.
+;
 	push	ax
+	mov	ax,16
+	mul	bx
+	add	ax,si
+	adc	dl,0
+	and	dl,0Fh			; DX:AX = linear address (wrapped)
+	mov	si,ax
+	and	si,0Fh			; SI = offset
+	shr	ax,4
+	ror	dx,4
+	or	ax,dx
+	xchg	bx,ax			; BX = segment
+	pop	ax
+rw0:	push	ax
 	push	cx
 	push	si
 	call	ddcpu_seginfo		; DX:CX = base, AX = limit

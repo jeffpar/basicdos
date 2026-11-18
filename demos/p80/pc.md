@@ -18,6 +18,10 @@ The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 256K of memory,
 
 {% include machine.html id="ibm5150" name="IBM PC, 256Kb RAM, Dual Floppy Drives, MDA, No Ports" %}
 
-Additional demo configurations: [IBM PC XT](../xt/), [IBM PC AT](../at/), and [COMPAQ DeskPro 386](../386/).
+Additional demo configurations:
+
+- [Multiple Video Pages on IBM PC XT](../xt/)
+- [Multiple Video Pages on IBM PC AT](../at/)
+- [Multiple Video Pages on COMPAQ DeskPro 386](../386/)
 
 {% include_relative _overview.md hw="pc" %}

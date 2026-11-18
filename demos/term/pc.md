@@ -30,6 +30,9 @@ With only 64K of memory, there isn't room for all of COMMAND.COM, so BASIC-DOS l
 
 The VT100 has DEC's Advanced Video Option (AVO), which gives it bold, blinking, and underlined characters, but at 64K, WIDTH is one of the statements left out, so the VT100 stays at 80 columns.  The [VT100 Terminal](../../vt100/xt/noavo/) demo also has a VT100 without the AVO.
 
-Additional demo configurations: [IBM PC XT](../xt/) with 640K and a 10Mb hard disk, and [IBM PC AT](../at/) with a second VT100 on COM2.
+Additional demo configurations:
+
+- [VT100 Console on IBM PC XT](../xt/) with 640K and a 10Mb hard disk
+- [VT100 Console on IBM PC AT](../at/) with a second VT100 on COM2
 
 {% include_relative _overview.md hw="pc" %}

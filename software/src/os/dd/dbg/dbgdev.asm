@@ -966,7 +966,11 @@ DEFPROC	set_bp
 	mov	bp,regs[R_CS]
 	call	parse_addr
 	jc	sb9
-	test	[mem_mode],ADDR_PHYS	; (a breakpoint needs a segment)
+;
+; A breakpoint needs a segment, but not a V86 machine's, since the machine's
+; INT 3 goes to its own vector.
+;
+	test	[mem_mode],ADDR_PHYS OR ADDR_V86
 	stc
 	jnz	sb9
 	call	end_command
@@ -2040,7 +2044,7 @@ ENDPROC	at_ip
 ;	AX, CX, DX
 ;
 DEFPROC	lin_addr
-	and	al,ADDR_SEL OR ADDR_PHYS
+	and	al,ADDR_SEL OR ADDR_PHYS OR ADDR_V86
 	mov	ah,CPU_SEGINFO
 	call	cpu_call		; DX:CX = base address
 	jc	la9
@@ -2835,7 +2839,8 @@ ENDPROC	parse_hex
 ; parse_addr
 ;
 ; Parse [&|#][segment:]offset, where either may be a register name (see
-; parse_hex); & means real mode, and # protected mode (if CPU$ is the 80286
+; parse_hex); & means real mode (in protected mode, the active session's V86
+; machine, if any; see ADDR_V86), and # protected mode (if CPU$ is the 80286
 ; driver), and otherwise the address has the current mode; or parse %address,
 ; a physical address of up to 6 hex digits, whose "segment" is bits 16-23
 ; (see ADDR_PHYS).
@@ -2858,7 +2863,22 @@ DEFPROC	parse_addr
 	and	al,ADDR_SEL		; AL = current mode
 	cmp	byte ptr [si],'&'	; real mode?
 	jne	pa1			; no
-	mov	al,0
+	test	al,al			; while in protected mode?
+	jz	pa2			; no
+;
+; In protected mode, a real-mode address is in the active session's V86
+; machine, if it has one.
+;
+	push	bx
+	push	si
+	sub	bx,bx
+	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_V86
+	call	cpu_call		; is there a machine?
+	pop	si
+	pop	bx
+	cmc
+	sbb	al,al
+	and	al,ADDR_V86		; AL = ADDR_V86 if so, else 0
 	jmp	short pa2
 pa1:	cmp	byte ptr [si],'#'	; protected mode?
 	jne	pa3			; no

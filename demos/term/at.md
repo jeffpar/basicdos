@@ -38,6 +38,9 @@ Any changes you make to the hard disk are lost when you leave the page, unless y
 
 Both VT100s have DEC's Advanced Video Option (AVO), which gives them bold, blinking, and underlined characters, and 24 rows in 132-column mode (try `WIDTH 132`).  The [VT100 Terminal](../../vt100/at/noavo/) demo also has a VT100 without the AVO.
 
-Additional demo configurations: [IBM PC](../pc/) with 64K, no hard disk, and one VT100, and [IBM PC XT](../xt/) with 640K, a 10Mb hard disk, and one VT100.
+Additional demo configurations:
+
+- [VT100 Console on IBM PC](../pc/) with 64K, no hard disk, and one VT100
+- [VT100 Console on IBM PC XT](../xt/) with 640K, a 10Mb hard disk, and one VT100
 
 {% include_relative _overview.md hw="at" %}
