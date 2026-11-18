@@ -1823,10 +1823,10 @@ ENDPROC	psp_init
 ;
 ; psp_restvec
 ;
-; Some programs hook vectors 00h, 01h, 03h, 08h, 09h, 1Bh, or 1Ch directly
-; (eg, DEBUG hooks 00h, 01h, and 03h, MSBASIC hooks 1Bh and 1Ch, and C and
-; Pascal runtimes hook 00h), and restore them only when they exit normally;
-; if one is terminated some other way (eg,
+; Some programs hook vectors 00h, 01h, 03h, 04h, 08h, 09h, 1Bh, or 1Ch
+; directly (eg, DEBUG hooks 00h, 01h, and 03h, COMMAND hooks 00h and 04h,
+; MSBASIC hooks 1Bh and 1Ch, and C and Pascal runtimes hook 00h), and restore
+; them only when they exit normally; if one is terminated some other way (eg,
 ; CTRL-ALT-DEL, or G in DEBUG without a program), any vector it left pointing
 ; into its memory is restored to the value that sysinit saved in ivt_save.
 ;

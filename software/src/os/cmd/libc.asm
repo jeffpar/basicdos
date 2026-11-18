@@ -217,16 +217,16 @@ DEFPROC	chkOut
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_OUTSTATUS
 	int	21h			; did a printer report an error?
 	jnc	co9			; no
-	mov	dl,24			; "Device timeout"
+	mov	dl,BERR_TIMEOUT		; "Device timeout"
 	cmp	al,ERR_NOTREADY		; (from a time-out)
 	je	co8
-	mov	dl,27			; "Out of paper"
-	cmp	al,28			; (printer out of paper)
+	mov	dl,BERR_NOPAPER		; "Out of paper"
+	cmp	al,ERR_NOPAPER
 	je	co8
-	mov	dl,25			; "Device fault"
-	cmp	al,29			; (write fault)
+	mov	dl,BERR_DEVFAULT	; "Device fault"
+	cmp	al,ERR_WRFAULT
 	je	co8
-	mov	dl,68			; "Device unavailable"
+	mov	dl,BERR_NODEVICE	; "Device unavailable"
 	cmp	al,ERR_BADHANDLE	; (no PRN device)
 	jne	co9			; anything else isn't a printer error
 co8:	xchg	ax,dx
@@ -910,7 +910,7 @@ sp3:	call	markCursor
 sp4:	mov	al,IOCTL_SETPOS
 	call	ioctlCon
 	jnc	sp9
-	cmp	al,25			; (seek error: outside the console)
+	cmp	al,ERR_SEEK		; (outside the console)
 	je	sp8			; anything else means unsupported
 sp9:	ret
 sp8:	jmp	strIllegal

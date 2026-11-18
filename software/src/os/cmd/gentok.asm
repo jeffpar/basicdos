@@ -11,6 +11,7 @@
 ; gen*.asm files share (eg, getNextLine, getNextToken, and validateOp).
 ;
 	DOSFUNC equ 1
+	GENDEFS equ 1
 	include	cmd.inc
 	include	gen.inc
 

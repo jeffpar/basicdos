@@ -142,7 +142,7 @@ DEFPROC	doChain,FAR
 	ASSUME	DS:DATA
 	mov	bx,ds:[PSP_HEAP]
 	cmp	[lineNum].HW,0		; is the line # out of range?
-	mov	al,5			; ("Illegal function call")
+	mov	al,BERR_ILLFUNC		; ("Illegal function call")
 	jne	dc8			; yes
 	les	di,[pName]		; ES:DI -> filename
 	ASSUME	ES:NOTHING
@@ -180,9 +180,9 @@ dc3:	mov	[di],cl			; null-terminate the name
 	call	findProgram		; LINEBUF = the file's name, if found
 	jnc	dc4
 	cmp	al,ERR_BADDRIVE		; was there no such drive to search?
-	mov	al,77			; ("Invalid drive")
+	mov	al,BERR_BADDRIVE	; ("Invalid drive")
 	je	dc8			; right
-	mov	al,53			; ("File not found")
+	mov	al,BERR_NOFILE		; ("File not found")
 dc8:	jmp	rtError
 ;
 ; We've found the file, so the current program is done: discard its stack

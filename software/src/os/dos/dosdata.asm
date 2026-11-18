@@ -88,9 +88,9 @@ DOS	segment word public 'CODE'
 	DEFBYTE	def_swchar,'/'
 	DEFBYTE	def_pathchar,'\'
 ;
-; Vectors 00h, 01h, 03h, 08h, 09h, 1Bh, and 1Ch, each followed by its value at
-; the end of sysinit, so that psp_restvec can restore any that a terminated
-; program left hooked (a -1 ends the list).
+; Vectors 00h, 01h, 03h, 04h, 08h, 09h, 1Bh, and 1Ch, each followed by its
+; value at the end of sysinit, so that psp_restvec can restore any that a
+; terminated program left hooked (a -1 ends the list).
 ;
 	DEFLBL	ivt_save,word
 	db	00h
@@ -98,6 +98,8 @@ DOS	segment word public 'CODE'
 	db	01h
 	dd	0
 	db	03h
+	dd	0
+	db	04h
 	dd	0
 	db	08h
 	dd	0

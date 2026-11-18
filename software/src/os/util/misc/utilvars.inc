@@ -68,7 +68,7 @@ UV_GAP		dw	?	; SORT: Shell sort gap, in bytes
 UV_COUNT	dw	?	; FIND: # lines; SORT: # lines * 2; WC: # files
 UV_LINENO	dw	?	; FIND and SED: current line #
 UV_PREFIX	dw	?	; FIND: prefix for line count (": " or "")
-UV_CNTS		dd	6 dup (?); WC: line, word, and byte counts, and totals
+UV_CNTS		dw	13 dup (?); WC: counts, pending word count, totals
 UV_STR		dw	?	; offset of the string (0 if none)
 UV_STRLEN	dw	?	; length of the string
 UV_NFILES	dw	?	; # file names * 2

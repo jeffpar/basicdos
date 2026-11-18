@@ -229,9 +229,11 @@ When DOS_PSP_RETCODE reports EXTYPE_CTRLC, BASIC-DOS also signals CTRL-C to the 
 
 A divide or overflow error or a CPU fault (EXTYPE_DVERR, EXTYPE_OVERR, or EXTYPE_FAULT) doesn't ripple that way: DOS has already reported it, so the parent gets the exit code (FFh) and continues (eg, a BAT or BAS file sees an ERRORLEVEL of 255).
 
+FPU$ reports a floating-point division by zero with INT 00h and an overflow (or invalid result) with INT 04h, as if the CPU had, so when FPU$ is loaded, COMMAND.COM hooks both vectors: an error that occurs while COMMAND.COM itself is the current program (ie, in a BAS or BAT program, or at the prompt) becomes a BASIC runtime error that ON ERROR can trap, and any other program's goes to the handler that COMMAND.COM replaced, so that program still ends as described above.  COMMAND.COM detects integer overflow itself, without INTO.
+
 When a session's last program ends, its session closes, and when no session is left, DOS displays "System halted" and stops.  An ABORT (CTRL-ALT-DEL), a critical error ABORT, or a divide, overflow, or CPU fault doesn't end a session's last program, though: it becomes a CTRL-C signal to the program instead, which a shell answers by returning to its prompt.  DOS sets PSP_SHELL in the PSP of each session's SHELL (the first program of a session that CONFIG.SYS defines), so that the program can tell that its exit would close the session; COMMAND.COM ignores EXIT (and `/C`'s exit) when it's set.
 
-However a program terminates, any of vectors 00h, 01h, 03h, 08h, 09h, 1Bh, and 1Ch that still points into its memory is restored to the value it had when BASIC-DOS started, since some programs (eg, DEBUG, MSBASIC, and programs built with C or Pascal runtimes) hook those vectors directly and restore them only when they exit normally.
+However a program terminates, any of vectors 00h, 01h, 03h, 04h, 08h, 09h, 1Bh, and 1Ch that still points into its memory is restored to the value it had when BASIC-DOS started, since some programs (eg, DEBUG, MSBASIC, and programs built with C or Pascal runtimes) hook those vectors directly and restore them only when they exit normally.
 
 ### Error Codes
 
@@ -246,13 +248,27 @@ However a program terminates, any of vectors 00h, 01h, 03h, 08h, 09h, 1Bh, and 1
 | 7 | ERR_BADMCB | Invalid MCB |
 | 8 | ERR_NOMEMORY | Out of memory |
 | 9 | ERR_BADADDR | Invalid memory segment |
+| 11 | ERR_BADFORMAT | Invalid format (eg, a DEVICE= file that isn't a driver) |
 | 15 | ERR_BADDRIVE | Invalid drive |
 | 16 | ERR_CURDIR | Attempt to remove a current directory |
 | 17 | ERR_NOTSAME | Not the same device |
-| 19-31 | | Device errors, as in DOS 3.x: 19 (write-protected), 20 (unknown unit), 21 (ERR_NOTREADY: drive not ready, eg, no diskette), 22 (unknown command), 23 (CRC error), 25 (seek error), 26 (unknown media), 27 (sector not found), 29 (write fault), 30 (read fault), or 31 (general failure, for any other device error) |
+| 19 | ERR_WRPROTECT | Write-protected disk |
+| 20 | ERR_BADUNIT | Unknown unit |
+| 21 | ERR_NOTREADY | Drive not ready (eg, no diskette) |
+| 22 | ERR_BADCMD | Unknown command |
+| 23 | ERR_CRC | Data error (CRC) |
+| 25 | ERR_SEEK | Seek error |
+| 26 | ERR_BADMEDIA | Unknown media type |
+| 27 | ERR_NOSECTOR | Sector not found |
+| 28 | ERR_NOPAPER | Printer out of paper |
+| 29 | ERR_WRFAULT | Write fault |
+| 30 | ERR_RDFAULT | Read fault |
+| 31 | ERR_GENFAIL | General failure (any other device error) |
 | 32 | ERR_SHARE | Sharing violation (the file is already open) |
 | 39 | ERR_DISKFULL | Disk full |
 | 100 | ERR_BADSESSION | Invalid session (BASIC-DOS only) |
 | 101 | ERR_NOSESSION | Out of sessions (BASIC-DOS only) |
+
+Errors 19-31 are device errors, as in DOS 3.x; a critical error handler gets the same error minus 19 (see [Critical Errors](#critical-errors)).
 
 {% include footer.html prev="Architecture:../arch/" next="Utility Functions:../util/" %}

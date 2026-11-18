@@ -33,6 +33,7 @@
 ; call functions (eg, genPushVarPtr) that access genCode's local variables.
 ;
 	DOSFUNC equ 1
+	GENDEFS equ 1
 	include	cmd.inc
 	include	arr.inc
 	include	gen.inc

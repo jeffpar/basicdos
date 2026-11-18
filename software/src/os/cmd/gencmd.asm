@@ -142,7 +142,7 @@ gc5:	pop	ds			; (genMore arrives here with carry set)
 	call	compactStrs		; free any leftover temp strings
 	popf
 	jnc	gc9
-	mov	al,2			; "Syntax error" (unless an error was
+	mov	al,BERR_SYNTAX		; "Syntax error" (unless an error was
 	call	compError		; already reported)
 
 gc9:	mov	bx,ss:[PSP_HEAP]
@@ -348,7 +348,7 @@ DEFPROC	genMore,FAR
 	lea	ax,[bx].STACK + GEN_MIN
 	cmp	sp,ax			; is there enough stack space?
 	jae	gm0			; yes
-	mov	al,7			; "Out of memory"
+	mov	al,BERR_NOMEMORY	; "Out of memory"
 	jmp	rtError
 gm0:	mov	dx,offset genRegion
 	cmp	dx,ss:[PSP_CODESIZE]	; is genRegion loaded (see genUpper)?

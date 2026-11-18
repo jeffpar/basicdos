@@ -693,7 +693,7 @@ DEFPROC	defSeg,FAR
 	xchg	bx,ax			; BX = segment
 	DOSUTIL	MAPSEG,0		; AX = its selector (or segment)
 	jnc	dfs1
-	mov	al,7			; "Out of memory"
+	mov	al,BERR_NOMEMORY	; "Out of memory"
 	jmp	rtError
 dfs1:	mov	bx,ss
 	xor	ax,bx

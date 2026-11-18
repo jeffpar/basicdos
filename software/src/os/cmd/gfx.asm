@@ -563,7 +563,7 @@ pt9:	mov	ax,ds
 	call	releaseStr		; yes, so release it
 pt9a:	LEAVE
 	RETURN
-ptErr:	mov	al,7			; "Out of memory"
+ptErr:	mov	al,BERR_NOMEMORY	; "Out of memory"
 	jmp	rtError
 ENDPROC	gfxPaint
 

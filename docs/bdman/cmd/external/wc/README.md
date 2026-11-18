@@ -6,7 +6,7 @@ permalink: /docs/bdman/cmd/external/wc/
 
 {% include header.html %}
 
-> WC [/L] [/W] [/C] [*file*]...
+> WC [/B] [/L] [/W] [/C] [*file*]...
 
 A [filter](../#filters) that displays the number of lines, words, and bytes of input (or of each *file*, or with wildcards (`?` and `*`), every matching file, followed by their totals if there's more than one), along with each file's name (eg, `DIR | WC /L` or `WC *.BAS`).  WC accepts up to 8 file names (more displays `Syntax error`); each can match any number of files.
 
@@ -15,6 +15,8 @@ A [filter](../#filters) that displays the number of lines, words, and bytes of i
 - `/C` displays only the byte counts
 
 Without any of them, all three are displayed.  Lines are counted by their line feeds, and words are separated by spaces and control characters (eg, tabs and line breaks).
+
+`/B` counts only BASIC code, along with any of the other switches (eg, `WC /B /L *.BAS` counts lines of code).  A line is counted only if it contains something besides whitespace, a line number, and a comment (`REM` or `'`), and only its words and bytes up to the comment are counted, without trailing spaces or colons (but with its CR and LF).  A comment is a `'` anywhere outside quotes, or `REM` at the start of a statement (after the line number or a colon).  `/B` works with any text file (eg, BAT files, which also use `REM`), although in other kinds of files, it could mistake other uses of `'` for comments.
 
 	WC NAMES.TXT CONFIG.SYS
 	       5       6      33 NAMES.TXT

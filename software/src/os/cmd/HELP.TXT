@@ -383,7 +383,7 @@ If N is zero or greater than the number of labels, the program continues with th
 ON ERROR GOTO *label* transfers program control to the label when a runtime error occurs (eg, "Division by zero"; see ERR and RESUME), and ON ERROR GOTO 0 disables it.
 
 [b+]OPEN *file* [FOR INPUT|OUTPUT|APPEND|RANDOM] AS #*n* [LEN=*reclen*]
-Opens *file* as file number *n* (1-4) for reading (INPUT), for writing (OUTPUT, which creates or truncates the file), for adding to the end (APPEND), or without FOR, for random access to records of *reclen* (1-255, default 128) bytes.  *file* can be a device (eg, "SCRN:" for the screen, or "COM1:9600,N,8,1" for a serial port; see MODE), which can be both read and written if opened without FOR.
+Opens *file* as file number *n* (1-4) for reading (INPUT), for writing (OUTPUT, which creates or truncates the file), for adding to the end (APPEND), or without FOR, for random access to records of *reclen* (1-255, default 128) bytes.  *file* can be a device (eg, "CON" for the console, or "COM1:9600,N,8,1" for a serial port; see MODE), which can be both read and written if opened without FOR.
 
 [b]OPTION BASE 0|1
 Sets the smallest subscript (0 or 1) of arrays dimensioned afterward.  The default is 0.
@@ -611,8 +611,8 @@ VIEW PRINT limits scrolling (and CLS) to rows *top* through *bottom* (starting a
 [e]VOL [*drive*:]
 Displays the volume label of *drive* (or the current drive).
 
-[e]WC [~L] [~W] [~C] [*file*]...
-Displays the number of lines, words, and bytes of input (or of each *file*, or with wildcards (? and *), every matching file, and their totals) (eg, DIR | WC ~L).  ~L, ~W, and ~C display only the selected counts.
+[e]WC [~B] [~L] [~W] [~C] [*file*]...
+Displays the number of lines (~L), words (~W), and bytes (~C) of input (or of each matching *file*).  ~B counts only BASIC code: lines that contain more than a line number and a comment (REM or '), and their words and bytes up to any comment.
 ERRORLEVEL is set to 0, or 2 if a *file* couldn't be opened.
 
 [b]WEND
@@ -624,7 +624,7 @@ Executes the lines up to the matching WEND repeatedly, as long as the *expressio
 [b+]WIDTH 40|80|132[,*rows*] or WIDTH *device*,*width*
 Sets the number of columns in text mode (which clears the screen), and the number of *rows*: 25, 43 (on an EGA or VGA), or 50 (on a VGA); they last until the next mode change.  In a console as wide as the width requested (eg, WIDTH 40 in a 40-column console), the console is cleared and loses its border instead, until CLS at the prompt restores it.  On a VT100 terminal, WIDTH 40 uses double-width characters, and WIDTH 132 selects its 132 columns (with 14 rows instead of 24, unless it has the Advanced Video Option).
 In SCREEN 1, WIDTH 80 selects SCREEN 2, and in SCREEN 2, WIDTH 40 selects SCREEN 1.
-WIDTH "SCRN:",*width* is the same as WIDTH *width*; any other *device* is accepted for compatibility with MSBASIC, but its output is never broken into lines (not available on low memory systems).
+WIDTH "CON",*width* (or "SCRN:") is the same as WIDTH *width*; any other *device* is accepted for compatibility with MSBASIC, but its output is never broken into lines (not available on low memory systems).
 
 [b+]WINDOW [[SCREEN] (*x1*,*y1*)-(*x2*,*y2*)]
 Defines the world coordinates of the viewport (or screen) for graphics commands, where x increases to the right and y increases upward (or with SCREEN, downward).  Requires floating-point (see MEM).  WINDOW alone ends world coordinates.

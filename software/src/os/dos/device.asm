@@ -640,10 +640,13 @@ dr9:	pop	bp
 	ret
 ENDPROC	dev_request
 
-dev_errs	db	DDERR_WP,19, DDERR_UNKUNIT,20, DDERR_NOTREADY,21
-		db	DDERR_UNKCMD,22, DDERR_CRC,23, DDERR_SEEK,25
-		db	DDERR_UNKMEDIA,26, DDERR_NOSECTOR,27, DDERR_NOPAPER,28
-		db	DDERR_WRFAULT,29, DDERR_RDFAULT,30, 0,31
+dev_errs	db	DDERR_WP,ERR_WRPROTECT, DDERR_UNKUNIT,ERR_BADUNIT
+		db	DDERR_NOTREADY,ERR_NOTREADY, DDERR_UNKCMD,ERR_BADCMD
+		db	DDERR_CRC,ERR_CRC, DDERR_SEEK,ERR_SEEK
+		db	DDERR_UNKMEDIA,ERR_BADMEDIA
+		db	DDERR_NOSECTOR,ERR_NOSECTOR
+		db	DDERR_NOPAPER,ERR_NOPAPER, DDERR_WRFAULT,ERR_WRFAULT
+		db	DDERR_RDFAULT,ERR_RDFAULT, 0,ERR_GENFAIL
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -706,7 +709,7 @@ DEFPROC	dev_error,DOS
 	jmp	he7			; yes, so fail this one, too
 he0:	mov	si,di			; SI = DDH offset (for BP:SI)
 	xchg	ax,di
-	sub	di,19			; DI = INT 24h error code (0-12)
+	sub	di,ERR_WRPROTECT	; DI = INT 24h error code (0-12)
 	mov	ax,word ptr [bp].DDP_UNIT; AL = drive #, AH = command
 	mov	cl,CRERR_FAILOK OR CRERR_RETRYOK
 	cmp	ah,DDC_READ		; READ request?

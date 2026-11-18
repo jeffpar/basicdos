@@ -884,7 +884,7 @@ sd2:	mov	cx,0			; CX = 0 (empty result) if no match
 	jnc	sd2a
 	cmp	al,ERR_BADDRIVE		; or was there no such drive to search?
 	jne	sd3			; no
-	mov	al,77			; "Invalid drive"
+	mov	al,BERR_BADDRIVE	; "Invalid drive"
 	jmp	rtError
 sd2a:	mov	si,PSP_DTA + FFB_NAME
 	DOSUTIL	STRLEN			; AX = name length

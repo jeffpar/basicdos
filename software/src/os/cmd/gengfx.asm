@@ -780,7 +780,7 @@ gpt4:	test	al,al			; is a call required?
 	mov	cx,cs:GFX_CVT[si]
 	GENCALL	cx
 	ret
-gpt7:	mov	al,13			; "Type mismatch"
+gpt7:	mov	al,BERR_TYPE		; "Type mismatch"
 	call	compError
 gpt8:	pop	ax
 	stc

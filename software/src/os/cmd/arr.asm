@@ -575,16 +575,16 @@ ENDPROC	getArrayVar
 ; These report the error (see rtError), using MSBASIC's error numbers.
 ;
 arrRange:
-	mov	al,9			; "Subscript out of range"
+	mov	al,BERR_SUBSCRIPT	; "Subscript out of range"
 	jmp	short arrError
 arrDup:
-	mov	al,10			; "Duplicate definition"
+	mov	al,BERR_DUPDEF		; "Duplicate definition"
 	jmp	short arrError
 arrIllegal:
-	mov	al,5			; "Illegal function call"
+	mov	al,BERR_ILLFUNC		; "Illegal function call"
 	jmp	short arrError
 arrMemory:
-	mov	al,7			; "Out of memory"
+	mov	al,BERR_NOMEMORY	; "Out of memory"
 arrError:
 	jmp	rtError
 

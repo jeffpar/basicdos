@@ -2916,7 +2916,7 @@ ENDPROC	pic_init
 ; identity code selectors (eg, F000h), at ring 0.  A driver's handler, which
 ; pm_setvec puts in the vector's gate, is called directly.
 ;
-; Exception stubs for vectors 00h-0Fh (the IDT sends 03h-05h to sw_int
+; Exception stubs for vectors 00h-0Fh (the IDT sends 03h-04h to sw_int
 ; instead); each one loads AL with its vector.
 ;
 	DEFLBL	exc_stubs,near
@@ -2930,13 +2930,14 @@ ENDPROC	pic_init
 ;
 ; exc_common
 ;
-; Vectors 08h-0Fh are also IRQ 0-7 vectors in real mode, so if the frame
-; (taken as having no error code) returns just past an INT for this vector
-; (eg, the BIOS's IRQ 9 handler does INT 0Ah), we treat it as a software
-; interrupt (see sw_int).  A general protection fault with a zero error code
-; in the ROM, while DS (or ES) holds a null selector, is retried with SEL_LOW
-; (base 0), because the BIOS loads DS with 0 to address the vectors; any
-; other exception is fatal.
+; Vector 05h is also the BIOS's print screen interrupt, and 08h-0Fh are also
+; IRQ 0-7 vectors in real mode, so if the frame (taken as having no error
+; code) returns to ring 0 just past an INT for this vector (eg, the BIOS's
+; IRQ 9 handler does INT 0Ah), we treat it as a software interrupt (see
+; sw_int).  A general protection fault with a zero error code in the ROM,
+; while DS (or ES) holds a null selector, is retried with SEL_LOW (base 0),
+; because the BIOS loads DS with 0 to address the vectors; any other
+; exception is fatal.
 ;
 ; Inputs:
 ;	AL = vector
@@ -2946,6 +2947,13 @@ DEFPROC	exc_common
 	mov	bp,sp
 	mov	ah,al			; AH = vector
 	mov	cx,[bp+18]		; CX = CS (if there's no error code)
+;
+; Only ring 0 can issue an INT that comes here (gate 00h is DPL 3, but DOS
+; takes that vector before any ring 3 code runs), so a nonzero RPL means an
+; exception (eg, BOUND, even after an instruction that ends in CD 05).
+;
+	test	cl,3			; is it a ring 0 CS?
+	jnz	ex1			; no
 	verr	cx			; is it readable?
 	jnz	ex1			; no
 	lsl	dx,cx			; DX = its limit
@@ -2968,7 +2976,7 @@ ex1:	lea	si,[bp+16]		; SS:SI -> IP and CS
 	mov	cl,ah
 	mov	dx,1
 	shl	dx,cl
-	test	dx,3D00h		; error code? (08h and 0Ah-0Dh)
+	test	dx,7D00h		; error code? (08h and 0Ah-0Eh)
 	jz	ex8			; no
 	mov	bx,ss:[si]		; BX = error code
 	inc	si

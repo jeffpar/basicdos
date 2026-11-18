@@ -784,7 +784,7 @@ DEFPROC	genStrVar
 	jc	gsv9
 	cmp	ah,VAR_STR		; string variable?
 	je	gsv9			; yes (and carry is clear)
-	mov	al,13			; "Type mismatch"
+	mov	al,BERR_TYPE		; "Type mismatch"
 	jmp	compError
 gsv9:	ret
 ENDPROC	genStrVar

@@ -73,6 +73,7 @@ The L and Q commands exist only in program mode, the commands marked "Driver" ex
 
 | Command | Description | Available |
 |---------|-------------|-----------|
+| [A](#a) | Assemble instructions | Always |
 | [BC](#bc) | Clear breakpoints | Always |
 | [BL](#bl) | List breakpoints | Always |
 | [BP](#bp) | Set a breakpoint | Always |
@@ -97,6 +98,34 @@ The L and Q commands exist only in program mode, the commands marked "Driver" ex
 | [?](#help) | List the commands | Always |
 | [CTRL-A](#ctrl-a) | Repeat the last command | Always |
 | [CTRL-C](#ctrl-c) | Stop a command's output | Driver |
+
+#### A
+
+> A [*address*]
+
+Assembles instructions, one per line, at *address* (whose default segment is CS), or after the last A, or at CS:IP after the debugger stops.  Each line is prompted with its address, and an empty line ends A:
+
+	-A 100
+	0E2F:0100 MOV AX,[BX+SI+10]
+	0E2F:0103 REP MOVSB
+	0E2F:0105 JNZ 100
+	0E2F:0107 
+	-
+
+A accepts the instructions that [U](#u) displays, for the processor it's running on (eg, PUSH 5 needs an 80186 or later, and SETZ AL or EAX an 80386), and 80x87 instructions on any processor, using the same syntax:
+
+- Numbers are hexadecimal, up to 8 digits (and never a register's value), and an immediate value may be negative (eg, `MOV AL,-1`)
+- Memory is `[`*base*`+`*index*`+`*displacement*`]`, with BX or BP, SI or DI, and displacements in any order (eg, `[BP-2]` or `[1234]`), or with 32-bit addressing (a 67h prefix), any 32-bit register as the base, and any but ESP as the index, which may have a scale of `*2`, `*4`, or `*8` (eg, `[EBX+ESI*4+10]`); 16-bit and 32-bit registers can't be mixed.  A segment override can come before it (eg, `ES:[DI]`) or before the instruction, and BYTE PTR, WORD PTR, DWORD PTR, QWORD PTR, or TBYTE PTR must come before it when the size isn't otherwise clear (eg, `INC BYTE PTR [BX]` or `FLD QWORD PTR [BX]`), and FAR when it holds a far address (eg, `CALL FAR [BX]`)
+- A 32-bit register (EAX through EDI), DWORD PTR, or a value that doesn't fit in 16 bits makes the operands 32-bit (a 66h prefix; eg, `MOV EAX,[BX]`, `PUSH DWORD PTR 5`, or `PUSH 12345678`), except in MOV with CR0-CR7, DR0-DR7, or TR0-TR7 (eg, `MOV CR0,EAX`), and in an 80x87 instruction, where DWORD PTR is just the size of memory
+- A jump or call to a *segment*:*offset* is far, and otherwise, A uses the shortest form that reaches the address, unless SHORT or NEAR comes before it (eg, `JMP NEAR 200`); the address is relative to where the instruction is assembled
+- String instructions need a size suffix (eg, MOVSB or LODSW), and a D suffix on one of them, or on PUSHA, POPA, PUSHF, POPF, or IRET, adds a 66h prefix (eg, PUSHAD)
+- LOCK, REP, REPZ (REPE), REPNZ (REPNE), and segment overrides (eg, `CS:`) can each be a line by themselves, or come before an instruction (eg, `REP STOSW`)
+- The usual alternative mnemonics are accepted, eg, JE for JZ, JNC for JNB, LOOPE for LOOPZ, SAL for SHL, SETNE for SETNZ, and FWAIT for WAIT
+- 80x87 registers are ST (or ST(0)) and ST(1) through ST(7) (eg, `FADD ST,ST(1)` or `FSTP ST(1)`); A doesn't add a WAIT before an 80x87 instruction (an 8087 needs one before many of them: use WAIT or FWAIT), except that FINIT, FCLEX, FSTSW, FSTCW, FSTENV, FSAVE, FENI, and FDISI are a WAIT (9Bh) followed by FNINIT, FNCLEX, and so on
+- `INT 3` is the one-byte INT 3 (CCh)
+- DB stores bytes and quoted strings, and DW words, separated by spaces or commas (eg, `DB 0D,0A,"Hi$"`)
+
+When there's a choice of encodings of the same length, A may not choose the one that another assembler would (eg, `MOV AX,BX` is 8BC3).  A line that can't be assembled displays `^ Error` below the place where it went wrong, and the same address is prompted again.
 
 #### BC
 
@@ -201,7 +230,7 @@ As a program at [ring 3](#ring-3), DEBUG gets the blocks from DOS, and reads the
 
 > E *address* [*list*]
 
-Stores a list of bytes and quoted strings (with `"` or `'`) at *address*, whose default segment is the one that D would use (eg, `E 200 "Hi" 21`).  Without a list, E displays each byte and prompts for its replacement, which can be a list, too; an empty line ends.
+Stores a list of bytes and quoted strings (with `"` or `'`), separated by spaces or commas, at *address*, whose default segment is the one that D would use (eg, `E 200 "Hi" 21`).  Without a list, E displays each byte and prompts for its replacement, which can be a list, too; an empty line ends.
 
 #### G
 
@@ -284,7 +313,7 @@ Executes *count* instructions (default 1), displaying the next instruction after
 
 > U [*range*]
 
-Disassembles instructions as the processor runs them: 80386 instructions on an 80386 or later (even in real mode), 80286 instructions on an 80286, and 8086 instructions on an 8088 or 8086 (where, for example, opcode 0Fh is POP CS).  Code is disassembled as 16-bit code, so a 66h prefix makes operands 32-bit (eg, `EAX`, `PUSHAD`, or `MOVSD`), and a 67h prefix makes addresses 32-bit (eg, `[EBX+ECX*4+10]`); an effective address shows only the low 16 bits of the offset, and none is shown for an FS or GS override.  U displays 32 bytes by default, continuing from the last U, or from CS:IP.  An INT 2Bh that prints (eg, from the PRINTF macro) is followed by a tab, a semicolon, and its format string in quotes (with `\r`, `\n`, `\t`, or `\x`*nn* for each character that isn't printable), and the next instruction starts after the string.
+Disassembles instructions as the processor runs them: 80386 instructions on an 80386 or later (even in real mode), 80286 instructions on an 80286, and 8086 instructions on an 8088 or 8086 (where, for example, opcode 0Fh is POP CS).  Code is disassembled as 16-bit code, so a 66h prefix makes operands 32-bit (eg, `EAX`, `PUSHAD`, or `MOVSD`), and a 67h prefix makes addresses 32-bit (eg, `[EBX+ECX*4+10]`); ESC opcodes (D8h-DFh) are 80387 instructions on any processor (eg, `FLD QWORD PTR [BX]` or `FSUB ST(1),ST`, with Intel's operand order), and a WAIT before one is displayed by itself (eg, FINIT is `WAIT` and then `FNINIT`); an effective address shows only the low 16 bits of the offset, and none is shown for an FS or GS override.  U displays 32 bytes by default, continuing from the last U, or from CS:IP.  An INT 2Bh that prints (eg, from the PRINTF macro) is followed by a tab, a semicolon, and its format string in quotes (with `\r`, `\n`, `\t`, or `\x`*nn* for each character that isn't printable), and the next instruction starts after the string.
 
 	-U
 	0E2F:0100 BE8100        MOV     SI,0081
@@ -309,6 +338,7 @@ Lists the vectors that VT can trap, or only what belongs to one *vector* (hex, o
 	  00:   Division error
 	  02:   Nonmaskable interrupt
 	  04:   Overflow error
+	  05:   BOUND range exceeded
 	  06:   Invalid opcode
 	  07:   No coprocessor
 	  08:   Double fault

@@ -23,7 +23,7 @@ CODE    SEGMENT
 	EXTNEAR	<enterLine,editPrompt,genUpper,runFile,showPrompt>
 	EXTNEAR	<saveChains,restoreChains,compactStrs,bootTime>
 	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resSum,resParas>
-	EXTNEAR	<showCursor,hideCursor>
+	EXTNEAR	<showCursor,hideCursor,hookFPU>
 	EXTNEAR	<initEnv,buildEnv,freeEnv>
 	EXTBYTE	<CMD_PATH,MSG_DRIVE>
 	EXTWORD	<CMD_REFS,CODE_DS,TRANS_SUM>
@@ -117,7 +117,8 @@ m0:	mov	bx,ds:[PSP_HEAP]
 ; code generator uses for all floating-point operations; each copy keeps its
 ; own pointer, in its PSP (PSP_FPUTBL), since shared code can't be written.
 ; If there's no FPU$ driver, PSP_FPUTBL remains zero, which also disables
-; doubles (see getNextToken and genExpr).
+; doubles (see getNextToken and genExpr); if there is, we hook the vectors it
+; raises errors with (see hookFPU).
 ;
 	push	bx
 	mov	dx,offset FPU_NAME	; DS:DX -> FPU_NAME (DS = CS)
@@ -132,6 +133,9 @@ m0:	mov	bx,ds:[PSP_HEAP]
 	int	21h			; DH = FPU type
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
+	pop	bx
+	push	bx			; BX -> our heap
+	call	hookFPU
 m0a:	pop	bx
 	pop	ds
 

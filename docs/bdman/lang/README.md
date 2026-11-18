@@ -145,7 +145,9 @@ Operators are listed below from highest to lowest precedence; operators on the s
 
 Relational operators return -1 for TRUE and 0 for FALSE, and they compare strings as well as numbers.  The logical operators operate on all 32 bits of their integer operands, so `NOT 0` is -1 (TRUE).
 
-The `/` operator always produces a double (eg, `7/2` is 3.5), unless floating-point support is disabled.  Integer division by zero (with `\` or `MOD`, or with `/` when floating-point support is disabled) is a "Division by zero" error (11), which an [ON ERROR](../cmd/basic/#on-error) handler can catch.  The `<<` and `>>` operators are BASIC-DOS extensions.
+The `/` and `^` operators always produce a double (eg, `7/2` is 3.5), unless floating-point support is disabled.  The `<<` and `>>` operators are BASIC-DOS extensions.
+
+Division by zero (with `\`, `MOD`, or `/`, or raising 0 to a negative power) is a "Division by zero" error (11), and a result too large for its type is an "Overflow" error (6): eg, `&H7FFFFFFF + 1`, a double beyond about 1.8E+308, a double assigned to an integer that can't hold it, or a FOR loop's integer variable stepping past &H7FFFFFFF.  An [ON ERROR](../cmd/basic/#on-error) handler can catch either error.  Unlike Microsoft BASIC, an integer result never becomes a double, and a floating-point overflow or division by zero is an error, not just a warning.
 
 ### Functions
 

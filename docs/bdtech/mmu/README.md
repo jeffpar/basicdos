@@ -208,8 +208,8 @@ After CPU_PMODE, every interrupt goes through CPU$'s IDT, and the master PIC is 
 | IDT entries | DPL | Default handling |
 |-------------|-----|------------------|
 | 00h | 3 | Divide errors (DPL 3, since ring 3 code may issue INT 0, as FPU$ does) |
-| 01h-02h, 06h-0Fh | 0 | Exceptions: fatal, except the cases below |
-| 03h-05h, 10h-6Fh, 80h-FFh | 3 | Software interrupts: the vector's handler, if it's in the ROM; otherwise fatal |
+| 01h-02h, 05h-0Fh | 0 | Exceptions: fatal, except the cases below |
+| 03h-04h, 10h-6Fh, 80h-FFh | 3 | Software interrupts: the vector's handler, if it's in the ROM; otherwise fatal |
 | 70h-77h | 0 | IRQs 8-15: vectors 70h-77h's handlers, if in the ROM; otherwise an EOI |
 | 78h-7Fh | 0 | IRQs 0-7: vectors 08h-0Fh's handlers, if in the ROM; otherwise an EOI |
 
@@ -217,7 +217,7 @@ Ring 3 code can issue software interrupts (eg, INT 21h, or INT 10h, which is ref
 
 - **Drivers' handlers**: in protected mode, DDINT_GETVEC and DDINT_SETVEC read and write the IDT: setting a vector replaces its gate's selector and offset (for vectors 08h-0Fh, the gates for IRQs 0-7), keeping the gate's DPL, so the driver's handler is called directly, and getting a vector returns its gate, or if the gate is a default one, its real-mode vector if that's in the ROM (eg, F000:FEA5h for INT 08h, which CLOCK$ chains to), or 0:0 if not.
 - **INT 13h**: the BIOS's disk functions assume that ES:BX is a real-mode address, so FDC$, which makes every disk transfer, gives the BIOS an address that works in both modes: for the diskette BIOS, which turns ES:BX into a DMA address, an offset from segment 40h (or, for a buffer more than 64K above it, a buffer of its own, large enough for a track of the largest diskette drive, so that reading a track still takes one BIOS call), and for the fixed disk BIOS, a selector of the buffer's own, with a zero offset.
-- **Vectors 08h-0Fh** are also software interrupts sometimes (eg, the AT BIOS's IRQ 9 handler does `INT 0Ah`), so an exception whose return address follows an `INT` for its vector is treated as one.
+- **Vectors 05h and 08h-0Fh** are also software interrupts sometimes (INT 05h is the BIOS's print screen, which its keyboard handler issues, and eg, the AT BIOS's IRQ 9 handler does `INT 0Ah`), so an exception at ring 0 whose return address follows an `INT` for its vector is treated as one.  Ring 3 code can't issue those INTs, so at ring 3, vector 05h is always a BOUND fault.
 - **Null selectors in the ROM**: the BIOS loads DS with 0 to address the vectors (eg, `LDS SI,[78h]` with DS = 0), so a general protection fault with a zero error code, in the ROM, while DS or ES holds a null selector, is retried with a selector for the first 64K.  BASIC-DOS's own code gets no such fix.
 
 #### Faults {#faults}
@@ -229,6 +229,8 @@ Any other exception (including a software interrupt with no handler that CPU$ ca
 - **In the kernel, working for a ring 3 program**: a protection fault (#TS, #NP, #SS, or #GP) in the kernel, usually from a bad pointer that a program gave it, ends that program the same way, since the kernel can abandon what it was doing: it resets its session lock and INDOS count, returns to the top of the program's ring 0 stack, and ends the program as if the program had asked to end.  A fault in a hardware interrupt isn't working for a program, and a fault while already ending one could repeat forever, so both are fatal.
 - **Anywhere else** (eg, in a driver or the ROM, or in the kernel with `RING=0`), the exception is fatal: CPU$ prints the same `CPU fault` line, followed by `System halted`, offers the halt to the fault handler, and unless a debugger takes it, stops the machine.
 - **With DEBUG.COM** loaded as a driver, DEBUG.COM passes each exception on to the kernel unless its VT command traps the vector, and stops for any that the kernel declines, so that G can retry it (eg, after a fix); it then accepts CPU$'s halt, so that it never gives up control (see [Exceptions and Faults](../../bdman/cmd/external/debug/#exceptions-and-faults)).
+
+The processor's exceptions differ in where the saved CS:IP points: a fault (eg, #BR, #UD, #NP, #SS, #GP, #PF, and on an 80286 or later, a divide error) is reported before its instruction completes, with CS:IP at that instruction, so that it can run again once the cause is fixed; a trap (eg, #BP, #OF, a single-step, or any INT *n*) is reported after its instruction, with CS:IP at the next one; and an abort (a double fault, or a coprocessor overrun) leaves no reliable place to resume.  Despite its name, `CPU fault` reports any exception that CPU$ can't give to a handler, not just faults: an NMI or an abort, too, and a software interrupt with no handler that CPU$ can call, whose CS:IP is the INT and whose EC is the caller's AX (eg, its function number).  Only after a fault does a retry (eg, DEBUG.COM's G after a fix) run the instruction that failed.
 
 ### Mode-Independent Code {#modeless}
 

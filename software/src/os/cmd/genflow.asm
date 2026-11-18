@@ -44,6 +44,7 @@
 ; ES:DI -> code block.
 ;
 	DOSFUNC equ 1
+	GENDEFS equ 1
 	include	cmd.inc
 	include	gen.inc
 	include	8086.inc
@@ -342,7 +343,7 @@ ENDPROC	genReturn
 DEFPROC	genResume
 	mov	al,CLS_DEC
 	call	peekNextToken
-	mov	al,2			; "Syntax error"
+	mov	al,BERR_SYNTAX		; "Syntax error"
 	jbe	grs9			; no line number
 	GENCALL	resumeErr
 	jmp	genGoto
@@ -561,7 +562,7 @@ DEFPROC	genNext
 gnx1:	call	findCtl			; DX:SI -> innermost FOR or WHILE
 	cmp	ax,CTL_FOR		; is it a FOR?
 	je	gnx1a			; yes
-gnxE:	mov	al,1			; "NEXT without FOR"
+gnxE:	mov	al,BERR_NOFOR		; "NEXT without FOR"
 	jmp	compError
 gnx1a:	push	dx			; [sp+6] = block containing the FOR
 	push	si			; [sp+4] = LBLREF offset
@@ -713,7 +714,7 @@ DEFPROC	genWend
 	call	findCtl			; DX:SI -> innermost FOR or WHILE
 	cmp	ax,CTL_WHILE		; is it a WHILE?
 	je	gwe1			; yes
-	mov	al,30			; "WEND without WHILE"
+	mov	al,BERR_NOWHILE		; "WEND without WHILE"
 	jmp	compError
 gwe1:	push	es
 	mov	es,dx
@@ -1288,9 +1289,9 @@ DEFPROC	checkCtl
 	mov	si,es:[si].LBL_IP	; SI = offset of the loop's body
 	mov	cx,es:[si-4]		; CX = line # of the FOR or WHILE
 	inc	ax			; CTL_FOR (0FFFFh)?
-	mov	al,26			; "FOR without NEXT"
+	mov	al,BERR_NONEXT		; "FOR without NEXT"
 	je	cct0			; yes
-	mov	al,29			; "WHILE without WEND"
+	mov	al,BERR_NOWEND		; "WHILE without WEND"
 cct0:	call	compErrLine
 	jmp	short cct8
 cct1:	mov	si,ss:[PSP_HEAP]

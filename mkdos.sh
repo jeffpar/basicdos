@@ -54,10 +54,75 @@
 # we create a CLEAN file in the source directory, which tells MKDOS.BAT to run
 # MKCLEAN.BAT first (which deletes CLEAN and all the build outputs).
 #
+# "mkdos.sh masm4 [FINAL or DEBUG]" instead checks that everything still
+# assembles with MASM 4.00, whose symbol space is fixed (see AGENTS.md): it
+# copies the source directory to tools/pc/disks/tmp-masm4 and does a clean
+# build there, with each component's MKDOS.BAT running "MAKE /I ASM=MASM", so
+# that the ASM macro overrides the makefile's (ASM=MASM5) and one failure
+# doesn't stop the rest (software/src, its build outputs, and the disk images
+# aren't touched).  It then lists every module that failed
+# to assemble or has less than MINFREE bytes of symbol space free, saves the
+# build's output in tools/pc/disks/masm4.log, and removes the copy, exiting
+# with 1 if any module failed.  It's an occasional check (eg, before a commit),
+# not part of every build.
+#
 cd "$(dirname "$0")" || exit 1
-usage() { echo "Usage: $0 [FINAL or DEBUG] [CLEAN]" >&2; exit 1; }
+usage() { echo "Usage: $0 [FINAL or DEBUG] [CLEAN], or $0 MASM4 [FINAL or DEBUG]" >&2; exit 1; }
 [ $# -le 2 ] || usage
 . tools/release.sh
+src=software/src
+MINFREE=2048
+masm4() {
+    local dir=tools/pc/disks/tmp-masm4 log=tools/pc/disks/masm4.log start=$SECONDS pid idle=0 size=-1 code
+    rm -rf "$dir" "$dir.json"
+    rsync -a --exclude=/MKFINAL --exclude=/CLEAN "$src/" "$dir/" || return 1
+    find "$dir" -iname mkdos.bat -exec perl -pi -e 's/\bMAKE REL=/MAKE \/I ASM=MASM REL=/' {} +
+    touch "$dir/CLEAN"
+    [ "$1" = FINAL ] && touch "$dir/MKFINAL"
+    echo "Building with MASM 4.00 ($1) in $dir..."
+    tools/pc/pc.js --disk=software/disks/MSDOS320-C400.json --dir="$dir" --normalize --speed=16 --target=30M --fat=16:2048:512 < /dev/null > "$log" 2>&1 &
+    pid=$!
+    #
+    # A build that runs to the end QUITs, but if a step other than MAKE fails, the batch files stop at
+    # a DOS prompt, so we also stop pc.js once a prompt is the last thing it displayed, or after two
+    # minutes without any output (or in any case, after an hour).
+    #
+    while kill -0 $pid 2> /dev/null; do
+        sleep 5
+        if [ "$(wc -c < "$log")" -ne $size ]; then
+            size=$(wc -c < "$log"); idle=0
+        else
+            idle=$((idle + 5))
+        fi
+        if tail -c 40 "$log" | tr -d '\r' | tail -1 | grep -Eq '^[A-Z]:\\[^ ]*>$' && [ $idle -ge 10 ] ||
+           [ $idle -ge 120 ] || [ $((SECONDS - start)) -ge 3600 ]; then
+            kill $pid; break
+        fi
+    done
+    wait $pid 2> /dev/null
+    rm -rf "$dir" "$dir.json"
+    tr -d '\r' < "$log" | awk -v min=$MINFREE -v mode=$1 -v mins=$(((SECONDS - start + 30) / 60)) '
+        / (MASM|masm) .*\.(ASM|asm),/ { for (i = 1; i <= NF; i++) if ($i ~ /\.(ASM|asm),/) { split($i, a, ","); mod = a[1] }; n++ }
+        /Out of memory|\) ?: (error|Error)/ { bad[mod] = bad[mod] ? bad[mod] : $0 }
+        /Bytes symbol space free/ { free[mod] = $1 }
+        / [1-9][0-9]* Severe +Errors/ { if (!bad[mod]) bad[mod] = $0 }
+        END {
+            printf "MASM 4.00 %s build: %d modules in %d minutes\n", mode, n, mins
+            for (m in bad) { printf "  %s failed: %s\n", m, bad[m]; nbad++ }
+            for (m in free) if (free[m] + 0 < min && !(m in bad)) printf "  %s has %d bytes of symbol space free\n", m, free[m]
+            if (!n) print "  (no modules were assembled; see the log)"
+            exit (nbad || !n) ? 1 : 0
+        }'
+    code=$?
+    echo "Full output: $log"
+    return $code
+}
+if [ "$(echo "$1" | tr a-z A-Z)" = MASM4 ]; then
+    mode=$(echo "${2:-$release}" | tr a-z A-Z)
+    [ "$mode" = FINAL ] || [ "$mode" = DEBUG ] || usage
+    masm4 $mode
+    exit
+fi
 mode=$(echo "${1:-$release}" | tr a-z A-Z)
 [ "$mode" = FINAL ] || [ "$mode" = DEBUG ] || usage
 clean=
@@ -66,7 +131,6 @@ case "$(echo "$2" | tr a-z A-Z)" in
     CLEAN) clean=1 ;;
     *) usage ;;
 esac
-src=software/src
 setMode $mode
 rm -f $src/MKFINAL $src/CLEAN
 trap 'rm -f '$src'/MKFINAL '$src'/CLEAN' EXIT

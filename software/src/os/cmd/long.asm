@@ -14,6 +14,12 @@ CODE    SEGMENT
 
 	EXTNEAR	<rtError>
 
+;
+; Every long operation that overflows (eg, &H7FFFFFFF + 1) is a runtime error
+; ("Overflow"), which ON ERROR can trap; we don't use INTO, since INT 04h is a
+; CPU exception (which only FPU$ raises; see fpuTrap).
+;
+
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -37,7 +43,7 @@ DEFPROC	evalAddLong,FAR
 	add	[addA].LW,ax
 	mov	ax,[addB].HW
 	adc	[addA].HW,ax
-	into
+	jo	ovError
 	LEAVE
 	ret	4
 ENDPROC	evalAddLong
@@ -63,10 +69,23 @@ DEFPROC	evalSubLong,FAR
 	sub	[subA].LW,ax
 	mov	ax,[subB].HW
 	sbb	[subA].HW,ax
-	into
+	jo	ovError
 	LEAVE
 	ret	4
 ENDPROC	evalSubLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ovError
+;
+; Raises an "Overflow" runtime error, for the long operations above and below
+; (and forNext), which jump here with their frames still on the stack (rtError
+; doesn't return).
+;
+DEFPROC	ovError
+	mov	al,BERR_OVERFLOW
+	jmp	rtError
+ENDPROC	ovError
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -78,9 +97,9 @@ ENDPROC	evalSubLong
 ; both inputs have a magnitude of 16 bits or less, harder to detect overflow
 ; conditions, and less obvious that it works for all signed inputs.
 ;
-; TODO: Overflow detection is still slightly complicated by 80000000h, both
-; as an input value (because it can't be negated) and as an output value
-; (since it can be produced by two positive values such as 20000h and 4000h).
+; A magnitude of 80000000h is the one result that fits only if it's negative
+; (eg, -20000h * 4000h, but not 20000h * 4000h); as an input, its magnitude
+; is still correct, since abs(80000000h) is 80000000h unsigned.
 ;
 ; Example: -123123123 (F8A9 4A4D) * 91283123 (0570 DEB3)
 ;
@@ -165,23 +184,24 @@ ml1:	xchg	ax,bx
 	add	dx,si			; DX += SI
 	adc	di,0			; any carry triggers an overflow
 
-	cmp	dx,8000h		; negative result?
+	mov	cl,[mulA].HW.HB
+	xor	cl,[mulB].HW.HB		; CL bit 7 set if the signs differ
+	cmp	dx,8000h		; is the magnitude 80000000h or more?
 	jb	ml5			; no
-	jne	ml4			; yes, and it's not 80000000h
-	test	ax,ax			; oh wait, maybe it is
-	jz	ml5			; yes, it is
-ml4:	or	di,1			; no, it's not, so flag it as overflow
+	jne	ml4			; yes, more
+	test	ax,ax
+	jnz	ml4			; yes, more
+	test	cl,cl			; 80000000h fits only if negative
+	js	ml5
+ml4:	or	di,1			; flag it as overflow
 
-ml5:	mov	cl,[mulA].HW.HB
-	xor	cl,[mulB].HW.HB		; signs differ?
-	jns	ml6			; no
+ml5:	test	di,di			; overflow indicator set?
+	jnz	ovError			; yes
+	test	cl,cl			; signs differ?
+	jns	ml7			; no
 	neg 	dx
 	neg	ax			; subtract DX:AX from 0 with carry
 	sbb	dx,0
-
-ml6:	test	di,di			; overflow indicator set?
-	jz	ml7			; no
-	int	04h			; signal overflow
 ;
 ; Previous code, retained for reference.  Note that it fails to optimize the
 ; case where both high words are FFFFh (ie, sign-extensions of the low words),
@@ -320,12 +340,21 @@ dl7:	cmp	[resultType],0
 	mov	[divA].LW,di		; return remainder
 	mov	[divA].HW,si
 	jmp	short dl9
-dl8:	mov	[divA].LW,ax		; return quotient
+;
+; The only quotient that doesn't fit is a positive 80000000h (ie, &H80000000
+; divided by -1), so it's an overflow if the signs agree (CL bit 7 is clear)
+; and the quotient's sign bit is set.
+;
+dl8:	not	cl
+	and	cl,dh			; positive 80000000h?
+	js	dl11			; yes
+	mov	[divA].LW,ax		; return quotient
 	mov	[divA].HW,dx
 dl9:	LEAVE
 	ret	4
-dl10:	mov	al,11			; "Division by zero"
+dl10:	mov	al,BERR_DIVZERO		; "Division by zero"
 	jmp	rtError
+dl11:	jmp	ovError
 ENDPROC	evalDivLong
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -351,27 +380,19 @@ ENDPROC	evalModLong
 ; evalExpLong
 ;
 ; This version of exponentiation supports only long base (expA) and power
-; (expB) args, so we consider these discrete power cases:
+; (expB) args, so we consider these cases:
 ;
-;	<0, =0, =1, >1, >31
+; A power of 0 returns 1 (even for a base of 0), and a power of 1 returns the
+; base.
 ;
-; If <0, negate the power, calculate the result, and return 1/result;
-; however, note that the long division of 1 by any possible result here can
-; only produce 1, -1, or 0|underflow.
+; Bases of 0, 1, and -1 have simple results for any other power: 0 returns 0
+; for a positive power, and "Division by zero" for a negative one; 1 returns
+; 1; and -1 returns 1 for an even power and -1 for an odd one.
 ;
-; If =0, return 1.
-;
-; If =1, return base.
-;
-; If >1, return base if base=0 or base=1; if base=-1, then return 1 if power
-; is even or -1 if power is odd.
-;
-; If base is 2, return base shifted left power times, which may result in
-; zero|overflow (guaranteed if power > 31).
-;
-; Otherwise, perform repeated multiplication until power is exhausted or the
-; result becomes zero|overflow; note that any power larger than 31 will always
-; cause an overflow, since we've already eliminated bases <= 2.
+; Any other base returns 0 for a negative power (since 1/result truncates to
+; 0), and "Overflow" for a power of 32 or more (since its magnitude is at least
+; 2); otherwise, a base of 2 is shifted left, and any other base is multiplied
+; by itself, either of which can overflow, too.
 ;
 ; Inputs:
 ;	2 32-bit args on stack (popped)
@@ -389,38 +410,46 @@ DEFPROC	evalExpLong,FAR
 	ENTER
 	mov	ax,[expB].LW
 	mov	dx,[expB].HW		; DX:AX = power
-	test	dx,dx			; TODO: large and/or negative powers
-	jnz	ex4
+	mov	cx,[expA].LW
+	mov	bx,[expA].HW		; BX:CX = base
+	test	dx,dx
+	jnz	ex1
 	cmp	ax,1			; power = 1?
 	je	ex10			; yes, return base as-is
 	inc	ax			; power = 0?
 	jb	ex9			; yes, set return value to 1
-;
-; Power is greater than 1.  Check for simple bases.
-;
 	dec	ax			; undo previous power increment
-	mov	cx,[expA].LW
-	mov	dx,[expA].HW		; DX:CX = base, AX = power
-	test	dx,dx
-	jnz	ex1
-	jcxz	ex10			; DX:CX is 0, return base as-is
-	dec	cx
-	jz	ex10			; DX:CX is 1, return base as-is
-	jmp	short ex2
-ex1:	inc	dx
+;
+; Check for bases 0, 1, and -1.
+;
+ex1:	test	bx,bx
+	jnz	ex1a
+	cmp	cx,1
+	ja	ex2			; base is 2 or more
+	je	ex10			; base is 1, return base as-is
+	test	dx,dx			; base is 0, so is the power negative?
+	jns	ex10			; no, return base as-is
+	mov	al,BERR_DIVZERO		; "Division by zero"
+	jmp	rtError
+ex1a:	inc	bx
 	jnz	ex2
-	inc	cx			; DX was FFFFh, is CX FFFFh too?
+	inc	cx			; BX was FFFFh, is CX FFFFh too?
 	jnz	ex2			; no
-	test	al,1			; DX:CX = -1, so is the power odd?
+	test	al,1			; base is -1, so is the power odd?
 	jnz	ex10			; yes, return base (-1)
-	inc	cx			; DX:CX = 1
-	xchg	ax,cx			; DX:AX = 1
+	inc	cx
+	xchg	ax,cx
+	cwd				; DX:AX = 1
 	jmp	short ex9		; return DX:AX (1) when power is even
 ;
-; Check base for 2, which can be shifted instead of multiplied.
+; Any other base: check the power's range, and then check for 2, which can be
+; shifted instead of multiplied.
 ;
-ex2:	cmp	ax,32			; power >= 32?
-	jae	ex4			; yes, return 0 (overflow)
+ex2:	test	dx,dx			; is the power negative?
+	js	ex4			; yes, return 0
+	jnz	ex11			; no, but it's 64K or more
+	cmp	ax,32			; power >= 32?
+	jae	ex11			; yes
 	xchg	cx,ax			; CX = shift count
 	dec	cx
 	mov	ax,[expA].LW
@@ -431,6 +460,7 @@ ex2:	cmp	ax,32			; power >= 32?
 	jne	ex5
 ex3:	shl	ax,1
 	rcl	dx,1
+	jo	ex11			; the shift changed the sign
 	loop	ex3
 	jmp	short ex9		; return shifted base
 
@@ -438,7 +468,7 @@ ex4:	sub	ax,ax
 	cwd
 	jmp	short ex9
 ;
-; Worst case: repetitive multiplication.
+; Worst case: repetitive multiplication (which reports any overflow).
 ;
 ex5:	mov	[loopCount],cx
 	push	dx
@@ -456,6 +486,7 @@ ex9:	mov	[expA].LW,ax
 	mov	[expA].HW,dx
 ex10:	LEAVE
 	ret	4
+ex11:	jmp	ovError
 ENDPROC	evalExpLong
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -469,16 +500,22 @@ ENDPROC	evalExpLong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	None
+;	AX
+;
+; We subtract the arg from zero (rather than negating each word), so that
+; the overflow flag is valid: only -(&H80000000) overflows.
 ;
 DEFPROC	evalNegLong,FAR
 	ARGVAR	negA,dword
 	ENTER
-	neg 	[negA].HW
+	sub	ax,ax
 	neg	[negA].LW
-	sbb	[negA].HW,0
+	sbb	ax,[negA].HW
+	mov	[negA].HW,ax
+	jo	ng9
 	LEAVE
 	ret
+ng9:	jmp	ovError
 ENDPROC	evalNegLong
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

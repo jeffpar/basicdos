@@ -8,6 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	HEAPDEFS equ 1			; (see HEAPDEF in cmd.inc)
+	GENDEFS equ 1
 	include	cmd.inc
 
 ;

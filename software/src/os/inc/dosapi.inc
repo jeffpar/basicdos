@@ -350,9 +350,10 @@ DV_DD_LIST	dd	?	;  12h: head of device driver list
 DOSVARS		ends
 
 ;
-; DOS error codes (not to be confused with device error codes).
-;
-; TODO: Make this list complete (well, more complete than this anyway).
+; DOS error codes (not to be confused with device error codes), which are all
+; the codes that BASIC-DOS returns; for the critical error codes (ERR_WRPROTECT
+; through ERR_GENFAIL), an INT 24h handler's error code (DI) is the DOS error
+; code minus ERR_WRPROTECT (see dev_request and dev_error).
 ;
 ERR_INVALID	equ	1	; invalid function
 ERR_NOFILE	equ	2	; file not found
@@ -367,7 +368,17 @@ ERR_BADFORMAT	equ	11	; invalid format (eg, DEVICE= driver)
 ERR_BADDRIVE	equ	15	; invalid drive
 ERR_CURDIR	equ	16	; attempt to remove current directory
 ERR_NOTSAME	equ	17	; not same device
+ERR_WRPROTECT	equ	19	; write-protected disk
+ERR_BADUNIT	equ	20	; unknown unit
 ERR_NOTREADY	equ	21	; drive not ready (see dev_request)
+ERR_BADCMD	equ	22	; unknown command
+ERR_CRC		equ	23	; data error (CRC)
+ERR_SEEK	equ	25	; seek error
+ERR_BADMEDIA	equ	26	; unknown media type
+ERR_NOSECTOR	equ	27	; sector not found
+ERR_NOPAPER	equ	28	; printer out of paper
+ERR_WRFAULT	equ	29	; write fault
+ERR_RDFAULT	equ	30	; read fault
 ERR_GENFAIL	equ	31	; general failure
 ERR_SHARE	equ	32	; sharing violation
 ERR_DISKFULL	equ	39	; disk full

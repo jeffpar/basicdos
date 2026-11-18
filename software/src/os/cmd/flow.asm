@@ -8,12 +8,14 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	DOSFUNC equ 1
+	GENDEFS equ 1
 	include	cmd.inc
 	include	fpu.inc
 
 CODE    SEGMENT
 
 	EXTNEAR	<ctrlc,restoreMode,firstBlock,nextBlock,codeSeg,printCRLF>
+	EXTNEAR	<ovError>
 	EXTWORD	<CODE_DS>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -119,7 +121,8 @@ DEFPROC	forNext,FAR
 	add	[si].LW,ax
 	mov	ax,word ptr es:[di].FS_STEP+2
 	adc	[si].HW,ax
-	jmp	short fn2
+	jno	fn2			; (a step past &H7FFFFFFF overflows)
+	jmp	ovError
 fn1:	mov	bx,FPU_ADD
 	call	getFPUFunc		; DX:AX -> FPU_ADD
 	push	bp
@@ -282,7 +285,7 @@ DEFPROC	doGosub,FAR
 	push	dx
 	push	cx
 	ret
-dg9:	mov	al,7			; "Out of memory"
+dg9:	mov	al,BERR_NOMEMORY	; "Out of memory"
 	jmp	short rtError
 ENDPROC	doGosub
 
@@ -313,7 +316,7 @@ DEFPROC	doReturn,FAR
 	push	dx
 	push	ax
 	ret
-dr9:	mov	al,3			; "RETURN without GOSUB"
+dr9:	mov	al,BERR_NOGOSUB		; "RETURN without GOSUB"
 	jmp	short rtError
 ENDPROC	doReturn
 
@@ -428,41 +431,42 @@ fm9:	ret
 ENDPROC	findMsg
 
 ERR_MSGS label byte
-	db	1,"NEXT without FOR",0
-	db	2,"Syntax error",0
-	db	3,"RETURN without GOSUB",0
-	db	4,"Out of DATA",0
-	db	5,"Illegal function call",0
-	db	7,"Out of memory",0
-	db	8,"Undefined line number",0
-	db	9,"Subscript out of range",0
-	db	10,"Duplicate definition",0
-	db	11,"Division by zero",0
-	db	13,"Type mismatch",0
-	db	14,"Out of string space",0
-	db	15,"String too long",0
-	db	20,"RESUME without error",0
-	db	24,"Device timeout",0
-	db	25,"Device fault",0
-	db	26,"FOR without NEXT",0
-	db	27,"Out of paper",0
-	db	29,"WHILE without WEND",0
-	db	30,"WEND without WHILE",0
-	db	50,"FIELD overflow",0
-	db	52,"Bad file number",0
-	db	53,"File not found",0
-	db	54,"Bad file mode",0
-	db	55,"File already open",0
-	db	57,"Device I/O error",0
-	db	61,"Disk full",0
-	db	62,"Input past end",0
-	db	63,"Bad record number",0
-	db	68,"Device unavailable",0
-	db	70,"Permission denied",0
-	db	71,"Disk not ready",0
-	db	72,"Disk media error",0
-	db	75,"Path/File access error",0
-	db	77,"Invalid drive",0
+	db	BERR_NOFOR,"NEXT without FOR",0
+	db	BERR_SYNTAX,"Syntax error",0
+	db	BERR_NOGOSUB,"RETURN without GOSUB",0
+	db	BERR_NODATA,"Out of DATA",0
+	db	BERR_ILLFUNC,"Illegal function call",0
+	db	BERR_OVERFLOW,"Overflow",0
+	db	BERR_NOMEMORY,"Out of memory",0
+	db	BERR_NOLINE,"Undefined line number",0
+	db	BERR_SUBSCRIPT,"Subscript out of range",0
+	db	BERR_DUPDEF,"Duplicate definition",0
+	db	BERR_DIVZERO,"Division by zero",0
+	db	BERR_TYPE,"Type mismatch",0
+	db	BERR_NOSTRS,"Out of string space",0
+	db	BERR_STRLONG,"String too long",0
+	db	BERR_NOERROR,"RESUME without error",0
+	db	BERR_TIMEOUT,"Device timeout",0
+	db	BERR_DEVFAULT,"Device fault",0
+	db	BERR_NONEXT,"FOR without NEXT",0
+	db	BERR_NOPAPER,"Out of paper",0
+	db	BERR_NOWEND,"WHILE without WEND",0
+	db	BERR_NOWHILE,"WEND without WHILE",0
+	db	BERR_FIELD,"FIELD overflow",0
+	db	BERR_FILENUM,"Bad file number",0
+	db	BERR_NOFILE,"File not found",0
+	db	BERR_FILEMODE,"Bad file mode",0
+	db	BERR_FILEOPEN,"File already open",0
+	db	BERR_DEVIO,"Device I/O error",0
+	db	BERR_DISKFULL,"Disk full",0
+	db	BERR_INPUTEND,"Input past end",0
+	db	BERR_RECNUM,"Bad record number",0
+	db	BERR_NODEVICE,"Device unavailable",0
+	db	BERR_ACCESS,"Permission denied",0
+	db	BERR_NOTREADY,"Disk not ready",0
+	db	BERR_MEDIA,"Disk media error",0
+	db	BERR_PATHFILE,"Path/File access error",0
+	db	BERR_BADDRIVE,"Invalid drive",0
 	db	0,"Unknown error",0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -535,7 +539,7 @@ ENDPROC	offError
 ;
 DEFPROC	resumeErr,FAR
 	mov	bx,ss:[PSP_HEAP]
-	mov	al,20			; "RESUME without error"
+	mov	al,BERR_NOERROR		; "RESUME without error"
 	cmp	byte ptr ss:[bx].ERR_NUM.HB,0
 	je	rse8			; no error is being handled (see rse8)
 	mov	byte ptr ss:[bx].ERR_NUM.HB,0
@@ -596,7 +600,7 @@ DEFPROC	raiseError,FAR
 	cmp	ax,255
 	inc	ax
 	jb	rse8
-rse9:	mov	al,5			; "Illegal function call"
+rse9:	mov	al,BERR_ILLFUNC		; "Illegal function call"
 rse8:	jmp	rtError
 ENDPROC	raiseError
 

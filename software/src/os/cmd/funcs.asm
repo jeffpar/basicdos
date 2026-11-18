@@ -10,6 +10,7 @@
 ; The table of predefined functions (PREDEF_VARS), which findVar searches
 ; (see var.asm) before any of a program's variables, in order of name length.
 ;
+	GENDEFS equ 1
 	include	cmd.inc
 
 CODE    SEGMENT

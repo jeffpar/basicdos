@@ -226,7 +226,7 @@ fiEOF:	mov	cx,si
 	jne	fiX			; no
 	mov	ax,[fiFile]
 	jmp	fi0			; yes, so read more
-fiX:	mov	al,62			; "Input past end"
+fiX:	mov	al,BERR_INPUTEND	; "Input past end"
 	jmp	rtError
 
 fi5:	cmp	si,di			; find the end of the unquoted item

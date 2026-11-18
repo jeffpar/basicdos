@@ -77,7 +77,7 @@
 CODE	segment para public 'CODE'
 
 	EXTNEAR	<com_main,com_quit,dbgdev_init>
-	EXTNEAR	<chk_over,dis_line>
+	EXTNEAR	<chk_over,cmd_a,dis_line>
 	EXTNEAR	<chk_sess,chk_trap,cmd_v,list_sess,put_vec,rpt_vec>
 	EXTBYTE	<DIV_MSG,FAULT_MSG,OVF_MSG>
 	EXTNEAR	<put_fmt>
@@ -161,6 +161,9 @@ TRACE_OVER	equ	02h	; step over CALL, INT, LOOP, and REP (P)
 	DEFBYTE	mem_mode,0		; ADDR_SEL if mem_seg is a selector
 	DEFBYTE	dump_mode,0		; ADDR_SEL if dump_seg is a selector
 	DEFBYTE	u_mode,0		; ADDR_SEL if u_seg is a selector
+	DEFWORD	a_off,0			; offset of the next A command
+	DEFWORD	a_seg,0			; segment of the next A command
+	DEFBYTE	a_mode,0		; ADDR_SEL if a_seg is a selector
 	DEFBYTE	cpu_mode,0		; CPU_DUAL, plus ADDR_SEL if in PM
 ;
 ; sys_regs holds what CPU_SYSREGS returns: the GDTR and IDTR (6 bytes each),
@@ -212,6 +215,7 @@ FLAG_MASK	equ	0ED5h	; OF, DF, IF, SF, ZF, AF, PF, and CF
 	DEFLBL	FLAG_END,byte
 
 	DEFLBL	HELP_MSG,byte
+	db	"A [addr]",9,"assemble",13,10
 	db	"BC n|*",9,9,"clear breakpoint(s)",13,10
 	db	"BL",9,9,"list breakpoints",13,10
 	db	"BP [n] addr",9,"set breakpoint",13,10
@@ -256,6 +260,8 @@ PM_FLAG_MASK	equ	0FD5h	; OF, DF, IF, TF, SF, ZF, AF, PF, and CF
 ; the command letter); each returns carry set if the command was invalid.
 ;
 	DEFLBL	CMD_TABLE,byte
+	db	'A'
+	dw	cmd_a
 	db	'B'
 	dw	cmd_b
 	db	'D'
@@ -721,14 +727,17 @@ mon2b:	mov	si,offset ASSERT_MSG
 mon2c:	call	put_string
 	call	newline
 mon3:	mov	ax,regs[R_IP]
-	mov	[u_off],ax		; U defaults to CS:IP
+	mov	[u_off],ax		; U and A default to CS:IP
+	mov	[a_off],ax
 	mov	ax,regs[R_CS]
 	mov	[u_seg],ax
+	mov	[a_seg],ax
 	mov	ax,regs[R_DS]
 	mov	[dump_seg],ax		; D defaults to DS
 	mov	al,[cpu_mode]
 	and	al,ADDR_SEL
 	mov	[u_mode],al		; in the current mode
+	mov	[a_mode],al
 	mov	[dump_mode],al
 mon3a:	call	show_step		; (com_main changes this, and mon4)
 	cmp	[trace_cnt],0		; more T or P steps?
@@ -1047,7 +1056,8 @@ ENDPROC	cmd_e
 ; store_list
 ;
 ; Inputs:
-;	SI -> list of bytes and quoted strings
+;	SI -> list of bytes and quoted strings (separated by spaces or
+;	commas, as A's DB allows)
 ;	mem_seg:DI -> memory
 ;
 ; Outputs:
@@ -1056,6 +1066,8 @@ ENDPROC	cmd_e
 DEFPROC	store_list
 sl1:	call	skip_space
 	lodsb
+	cmp	al,','			; a comma between items?
+	je	sl1			; yes
 	test	al,al
 	jz	sl9
 	cmp	al,'"'
@@ -3479,20 +3491,14 @@ ENDPROC	sel_type
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; fetch, fetch_word
+; fetch_word (see fetch, in dbgdis.asm)
 ;
 ; Inputs:
-;	mem_seg:DI -> next instruction byte
+;	mem_seg:DI -> next instruction word
 ;
 ; Outputs:
-;	AL (or AX) = next instruction byte (or word); DI advanced
+;	AX = next instruction word; DI advanced
 ;
-DEFPROC	fetch
-	call	peek_b
-	inc	di
-	ret
-ENDPROC	fetch
-
 DEFPROC	fetch_word
 	call	peek_w
 	inc	di

@@ -14,6 +14,7 @@
 ; See gencmd.asm for an overview of all the gen*.asm files.
 ;
 	DOSFUNC equ 1
+	GENDEFS equ 1
 	include	cmd.inc
 	include	gen.inc
 	include	fpu.inc
@@ -584,7 +585,7 @@ go8e:	call	genCallFPU
 go8c:	jc	go8x			; no FPU$ driver
 	pop	si
 	ret
-goTM:	mov	al,13			; "Type mismatch"
+goTM:	mov	al,BERR_TYPE		; "Type mismatch"
 	call	compError
 go8x:	jmp	ge8x
 

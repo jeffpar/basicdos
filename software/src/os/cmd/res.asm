@@ -28,11 +28,12 @@
 ;
 	DOSFUNC equ 1
 	include	cmd.inc
+	include	8086.inc
 
 CODE    SEGMENT
 	org	100h
 
-	EXTNEAR	<main,ctrlc>
+	EXTNEAR	<main,ctrlc,rtError>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -392,6 +393,127 @@ rcIgnore:
 	clc
 	ret
 ENDPROC	resCtrlC
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; hookFPU
+;
+; If there's an FPU$ driver, main calls this to hook INT 00h and INT 04h,
+; which FPU$ raises for a division by zero and an overflow (or an invalid
+; result), so that fpuTrap can make them runtime errors.  A copy that finds
+; our handler already installed (by another copy that shares this code) leaves
+; it alone, so its FPU_VECS stay zero.
+;
+; Inputs:
+;	DS = SS = our PSP
+;	BX -> our heap
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+DEFPROC	hookFPU
+	lea	di,[bx].FPU_VECS
+	mov	al,INT_DV
+	mov	dx,offset fpuTrap0
+	call	hf1
+	mov	al,INT_OF
+	mov	dx,offset fpuTrap4
+hf1:	push	bx
+	push	es
+	mov	ah,DOS_MSC_GETVEC
+	int	21h			; ES:BX = current handler
+	mov	cx,es
+	mov	si,cs
+	cmp	cx,si			; is it ours?
+	jne	hf2			; no
+	cmp	bx,dx
+	je	hf3			; yes
+hf2:	mov	[di]._OFF,bx
+	mov	[di]._SEG,cx		; save the handler we're replacing
+	push	ds
+	push	cs
+	pop	ds
+	mov	ah,DOS_MSC_SETVEC
+	int	21h			; DS:DX -> our handler
+	pop	ds
+hf3:	add	di,4
+	pop	es
+	pop	bx
+	ret
+ENDPROC	hookFPU
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fpuTrap0 (INT 00h) and fpuTrap4 (INT 04h)
+;
+; If the current program is a copy of COMMAND (its code is ours), FPU$ raised
+; the error for a BASIC program's floating-point operation (see hwDone and
+; swRaise; FPU$'s decimal conversions, which the kernel's sprintf also uses,
+; don't raise errors), so it becomes a runtime error ("Division by zero" or
+; "Overflow"), which ON ERROR can trap, like the long operations' errors.
+;
+; Otherwise, the error belongs to another program, so we pass it to the
+; handler that we replaced: the one saved by the nearest ancestor that hooked
+; the vector (at ring 3, where every session has its own vectors, and a copy
+; doesn't hook them again in a session where an ancestor did), or else by the
+; copy that owns the shared code (where every session shares the vectors, so
+; only the first copy hooks them).
+;
+DEFPROC	fpuTrap0,FAR
+	push	ax
+	mov	ax,BERR_DIVZERO		; AH = offset of INT 00h's FPU_VECS
+	jmp	short ft1
+	DEFLBL	fpuTrap4,far
+	push	ax
+	mov	ax,(4 SHL 8) OR BERR_OVERFLOW
+ft1:	push	bx
+	push	es
+	push	ax
+	mov	ah,DOS_PSP_GET
+	int	21h			; BX = current PSP
+	pop	ax
+	mov	es,bx
+	mov	bx,cs
+	cmp	es:[PSP_START]._SEG,bx	; is it a copy of COMMAND?
+	jne	ft3			; no
+;
+; Discard the registers we saved and the interrupt's return address, and
+; restore the interrupted code's flags, which turns interrupts back on in
+; real mode (ring 3 can't change IF, so it can't use STI).
+;
+	add	sp,10
+	popf
+	jmp	rtError			; AL = error # (rtError never returns)
+ft3:	push	si
+	push	bp
+	mov	bp,sp			; BP+6 -> BX, BP+8 -> AX
+	mov	al,ah
+	cbw				; AX = offset of the vector's FPU_VECS
+ft4:	mov	si,es:[PSP_PARENT]
+	test	si,si			; any more ancestors?
+	jz	ft6			; no
+	mov	es,si
+	cmp	es:[PSP_START]._SEG,bx	; is it a copy of COMMAND?
+	jne	ft4			; no
+	mov	si,es:[PSP_HEAP]
+	add	si,ax
+	cmp	es:[si].FPU_VECS._SEG,0	; did it hook the vector?
+	je	ft4			; no
+	jmp	short ft7
+ft6:	mov	es,cs:[CODE_DS]		; the copy that owns the shared code
+	mov	si,es:[PSP_HEAP]
+	add	si,ax
+ft7:	mov	ax,es:[si].FPU_VECS._OFF
+	mov	si,es:[si].FPU_VECS._SEG
+	xchg	ax,[bp+6]		; replace BX and AX on the stack
+	xchg	si,[bp+8]		; with the replaced handler's address
+	xchg	bx,ax
+	xchg	ax,si
+	pop	bp
+	pop	si
+	pop	es
+	ret				; enter that handler (RETF)
+ENDPROC	fpuTrap0
 ;
 ; The heap (and stack) of the copy that owns the shared code, which the loader
 ; uses because COMHEAP specifies it (see BEG_HEAP), so that it remains while

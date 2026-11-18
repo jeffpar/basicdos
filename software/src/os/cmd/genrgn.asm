@@ -33,6 +33,7 @@
 ; typed at the prompt).  If the table is full, a forward jump just generates
 ; the lines that lead to it, as genMore would.
 ;
+	GENDEFS equ 1
 	include	cmd.inc
 	include	gen.inc
 	include	8086.inc

@@ -895,11 +895,13 @@ ENDPROC	pm_test
 ; idt_default
 ;
 ; Returns the default gate for an entry in the protected-mode IDT: exceptions
-; (00h-02h and 06h-0Fh) go to exc_stubs, hardware interrupts (70h-7Fh) to
+; (00h-02h and 05h-0Fh) go to exc_stubs, hardware interrupts (70h-7Fh) to
 ; irq_stubs, and everything else (software interrupts) to sw_int.  Only INT 0
 ; (eg, FPU$ signals a divide error with it, since its frame is the same as a
 ; divide error's) and the software interrupts meant for programs (see idd2)
-; have DPL 3 gates, so ring 3 code may not issue any BIOS interrupt.
+; have DPL 3 gates, so ring 3 code may not issue any BIOS interrupt.  INT 03h
+; and 04h come only from INT3 and INTO, but 05h is both a BOUND fault and the
+; BIOS's print screen interrupt, which exc_common tells apart.
 ;
 ; Inputs:
 ;	BL = IDT entry
@@ -922,7 +924,7 @@ idd1:	mov	al,bl
 	jae	idd2			; no
 	cmp	al,INT_BP
 	jb	idd1a
-	cmp	al,INT_UD		; 03h-05h are software interrupts
+	cmp	al,INT_BR		; 03h-04h are software interrupts
 	jb	idd2
 idd1a:	test	al,al			; INT 0?
 	jnz	idd1b			; no
@@ -938,9 +940,7 @@ idd1b:	mov	ah,5			; each exception stub is 5 bytes
 ; program would trust whatever it was given (eg, a disk function computes its
 ; DMA address from a segment value), and a fault in the ROM stops the system.
 ;
-idd2:	cmp	al,INT_PRTSC
-	je	idd4			; DPL 0
-	cmp	al,10h			; INT 03h or 04h?
+idd2:	cmp	al,10h			; INT 03h or 04h?
 	jb	idd3			; yes
 	cmp	al,INT_MOUSE
 	je	idd3

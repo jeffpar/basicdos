@@ -784,13 +784,13 @@ ENDPROC	evalGEStr
 ; These report the error (see rtError), using MSBASIC's error numbers.
 ;
 strNoSpace:
-	mov	al,14			; "Out of string space"
+	mov	al,BERR_NOSTRS		; "Out of string space"
 	jmp	short strError
 strTooLong:
-	mov	al,15			; "String too long"
+	mov	al,BERR_STRLONG		; "String too long"
 	jmp	short strError
 	DEFLBL	strIllegal,near
-	mov	al,5			; "Illegal function call"
+	mov	al,BERR_ILLFUNC		; "Illegal function call"
 strError:
 	jmp	rtError
 

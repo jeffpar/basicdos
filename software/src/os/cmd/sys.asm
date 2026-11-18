@@ -61,7 +61,7 @@ DEFPROC	readData,FAR
 	je	rdt3			; look for another DATA statement
 	jmp	rdt6			; get the next DATA item
 
-rdtX:	mov	al,4			; "Out of DATA"
+rdtX:	mov	al,BERR_NODATA		; "Out of DATA"
 	jmp	rtError
 
 rdt0:	mov	cx,ss:[di].TBLKDEF.BLK_NEXT
@@ -288,7 +288,7 @@ rst4:	mov	ss:[di].DATA_STATE.DATA_OFF,si
 rst9:	pop	ds
 	LEAVE
 	RETURN
-rst8:	mov	al,8			; "Undefined line number"
+rst8:	mov	al,BERR_NOLINE		; "Undefined line number"
 	jmp	rtError
 ENDPROC	restoreData
 

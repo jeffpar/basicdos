@@ -255,8 +255,8 @@ si20a:
 	sub	ax,ax
 	call	init_free
 ;
-; Save the vectors that programs commonly hook directly (00h, 01h, 03h, 08h,
-; 09h, 1Bh, and 1Ch), now that the drivers have hooked theirs (see
+; Save the vectors that programs commonly hook directly (00h, 01h, 03h, 04h,
+; 08h, 09h, 1Bh, and 1Ch), now that the drivers have hooked theirs (see
 ; psp_restvec).
 ;
 	mov	si,offset ivt_save	; DS:SI -> vector #s and saved vectors

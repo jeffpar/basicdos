@@ -75,14 +75,14 @@ DEFPROC	openFile,FAR
 	push	ds
 	mov	ax,[lNum].LW
 	call	getSlot			; SS:BX -> slot
-	mov	al,55			; "File already open"
+	mov	al,BERR_FILEOPEN	; "File already open"
 	cmp	ss:[bx].FILE_DATA,0
 	jne	of9
 	mov	ax,[lRecLen].LW
 	dec	ax
 	or	ax,[lRecLen].HW
 	cmp	ax,255			; is the record length 1-255?
-	mov	al,5			; "Illegal function call"
+	mov	al,BERR_ILLFUNC		; "Illegal function call"
 	jb	of0b			; yes
 of9:	jmp	rtError
 of0b:	push	ss
@@ -94,7 +94,7 @@ of0b:	push	ss
 	sub	cx,cx
 	test	si,si			; empty string?
 	jz	of1			; yes
-	call	chkScrn			; "SCRN:"?
+	call	chkScrn			; the screen?
 	jne	of0			; no
 	push	cs
 	pop	ds
@@ -144,16 +144,16 @@ of2:	mov	ah,cl
 of8:	mov	cl,ch			; CL = 68 for a device name
 	test	cl,cl			; a device name?
 	jnz	of8a			; yes ("Device unavailable")
-	mov	cl,55			; "File already open" (elsewhere)
+	mov	cl,BERR_FILEOPEN	; "File already open" (elsewhere)
 	cmp	al,ERR_SHARE
 	je	of8a
-	mov	cl,53			; "File not found"
+	mov	cl,BERR_NOFILE		; "File not found"
 	cmp	al,ERR_NOFILE
 	je	of8a
-	mov	cl,77			; "Invalid drive"
+	mov	cl,BERR_BADDRIVE	; "Invalid drive"
 	cmp	al,ERR_BADDRIVE
 	je	of8a
-	mov	cl,75			; "Path/File access error"
+	mov	cl,BERR_PATHFILE	; "Path/File access error"
 of8a:	xchg	ax,cx
 	jmp	rtError
 ENDPROC	openFile
@@ -216,7 +216,7 @@ DEFPROC	closeSlot
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
 	jnc	cs9
-	mov	al,57			; "Device I/O error"
+	mov	al,BERR_DEVIO		; "Device I/O error"
 	jmp	rtError
 cs9:	ret
 ENDPROC	closeSlot
@@ -593,7 +593,7 @@ sn8:	mov	si,dx			; SS:SI -> characters
 	pop	ds
 	LEAVE
 	RETURN
-sn9:	mov	al,62			; "Input past end"
+sn9:	mov	al,BERR_INPUTEND	; "Input past end"
 	jmp	rtError
 snX:	jmp	strIllegal
 ENDPROC	strInput
@@ -639,10 +639,10 @@ ENDPROC	keyDef
 ; widthDev
 ;
 ; Used by "WIDTH device,width", where device is a string (eg, "COM1:"): for
-; "SCRN:", it's the same as WIDTH width (see setWidth); BASIC-DOS doesn't
-; insert line breaks in any other device's output, so for any other device,
-; we only check that the width is 1-255 (where 255, as in MSBASIC, means that
-; lines are never broken).
+; the screen ("CON" or "SCRN:"), it's the same as WIDTH width (see setWidth);
+; BASIC-DOS doesn't insert line breaks in any other device's output, so for
+; any other device, we only check that the width is 1-255 (where 255, as in
+; MSBASIC, means that lines are never broken).
 ;
 ; Inputs:
 ;	string value (popped)
@@ -663,9 +663,9 @@ DEFPROC	widthDev,FAR
 	lds	si,[pDev]		; DS:SI -> device name
 	test	si,si			; empty string?
 	jz	wd1			; yes
-	call	chkScrn			; "SCRN:"?
+	call	chkScrn			; the screen?
 	jne	wd1			; no
-	inc	cx			; CX = 1 for "SCRN:"
+	inc	cx			; CX = 1 for the screen
 wd1:	les	di,[pDev]
 	call	releaseStr
 	pop	ds
@@ -674,7 +674,7 @@ wd1:	les	di,[pDev]
 	push	[lDevWidth].LW
 	push	cx			; (1 argument; see getArgs)
 	push	cs
-	call	near ptr setWidth	; WIDTH "SCRN:",n is WIDTH n
+	call	near ptr setWidth	; WIDTH "CON",n is WIDTH n
 	jmp	short wd9
 wd2:	mov	ax,[lDevWidth].LW
 	mov	dx,[lDevWidth].HW
@@ -700,27 +700,36 @@ ENDPROC	widthDev
 ;
 DEFPROC	chkScrn
 	push	cx
-	push	si
 	push	di
-	mov	di,offset SCRN_NAME
-	mov	cx,6			; (the length byte, too)
-cks1:	lodsb
-	and	al,0DFh			; (see SCRN_NAME)
+	sub	cx,cx
+	mov	di,offset SCRN_NAMES
+cks1:	push	si
+	mov	cl,cs:[di]
+	inc	cx			; (the length byte, too)
+cks2:	lodsb
+	and	al,0DFh			; (see SCRN_NAMES)
 	inc	di
 	cmp	al,cs:[di-1]
-	loope	cks1			; (ZF stays set if every byte matches)
-	pop	di
+	loope	cks2			; (ZF stays set if every byte matches)
 	pop	si
+	je	cks9			; a match
+	add	di,cx			; DI -> next name
+	test	byte ptr cs:[di],80h	; end of SCRN_NAMES?
+	jz	cks1			; no
+cks9:	pop	di
 	pop	cx
 	ret
 ENDPROC	chkScrn
 
 ;
-; SCRN_NAME is "SCRN:" (with its length), with each byte ANDed with 0DFh, as
-; chkScrn does to every byte of the name (which upper-cases the letters).
+; SCRN_NAMES are the screen's names (each with its length), with each byte
+; ANDed with 0DFh, as chkScrn does to every byte of the name (which upper-
+; cases the letters): "SCRN:", "CON", and "CON:".
 ;
-SCRN_NAME	db	5,"SCRN",':' AND 0DFh
+SCRN_NAMES	db	5,"SCRN",':' AND 0DFh
 CON_NAME	db	3,"CON"
+		db	4,"CON",':' AND 0DFh
+		db	80h		; (end of SCRN_NAMES)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -760,7 +769,7 @@ DEFPROC	fieldVar,FAR
 	stosw
 	LEAVE
 	RETURN
-fvX:	mov	al,50			; "FIELD overflow"
+fvX:	mov	al,BERR_FIELD		; "FIELD overflow"
 	jmp	rtError
 ENDPROC	fieldVar
 
@@ -896,19 +905,19 @@ fr4:	mov	bl,ss:[bx].FILE_DATA
 	jz	fr5			; yes (short reads retain the zero padding)
 	cmp	ax,cx			; was the entire PUT record written?
 	je	fr9			; yes
-	mov	al,61			; "Disk full"
+	mov	al,BERR_DISKFULL	; "Disk full"
 	jmp	short frErr
 fr5:	sub	ax,ax			; AL = 0 for GET's doFields
 	call	doFields		; yes, so set the variables
 fr9:	pop	ds
 	LEAVE
 	RETURN
-frX:	mov	al,63			; "Bad record number"
+frX:	mov	al,BERR_RECNUM		; "Bad record number"
 	jmp	rtError
 frIO:	cmp	al,ERR_ACCDENIED	; a PUT to a read-only file?
-	mov	al,70			; "Permission denied"
+	mov	al,BERR_ACCESS		; "Permission denied"
 	je	frErr			; yes
-	mov	al,57			; "Device I/O error"
+	mov	al,BERR_DEVIO		; "Device I/O error"
 frErr:	mov	dx,[frLast]
 	mov	word ptr ss:[bx].FS_REC,dx
 	jmp	rtError
@@ -1100,10 +1109,13 @@ ENDPROC	ioctlErr
 ; DOS_ERRS maps the other DOS errors that dosCall may encounter, and then
 ; continues with IOCTL_ERRS.
 ;
-DOS_ERRS	db	ERR_INVALID,5, ERR_NOFILE,53, ERR_NOPATH,75
-		db	ERR_ACCDENIED,70, ERR_BADHANDLE,52, ERR_SHARE,70
-		db	ERR_BADDRIVE,77, ERR_NOMEMORY,7
-IOCTL_ERRS	db	19,70, ERR_NOTREADY,71, 22,5, 26,72, 27,72, 0,57
+DOS_ERRS	db	ERR_INVALID,BERR_ILLFUNC, ERR_NOFILE,BERR_NOFILE
+		db	ERR_NOPATH,BERR_PATHFILE, ERR_ACCDENIED,BERR_ACCESS
+		db	ERR_BADHANDLE,BERR_FILENUM, ERR_SHARE,BERR_ACCESS
+		db	ERR_BADDRIVE,BERR_BADDRIVE, ERR_NOMEMORY,BERR_NOMEMORY
+IOCTL_ERRS	db	ERR_WRPROTECT,BERR_ACCESS, ERR_NOTREADY,BERR_NOTREADY
+		db	ERR_BADCMD,BERR_ILLFUNC, ERR_BADMEDIA,BERR_MEDIA
+		db	ERR_NOSECTOR,BERR_MEDIA, 0,BERR_DEVIO
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1212,7 +1224,7 @@ DEFPROC	getDos,FAR
 	mov	[retDos].HW,0
 	LEAVE
 	RETURN
-gdo8:	mov	al,5			; "Illegal function call"
+gdo8:	mov	al,BERR_ILLFUNC		; "Illegal function call"
 	jmp	rtError
 ENDPROC	getDos
 
@@ -1623,7 +1635,7 @@ cv4:	les	di,[sCv]
 	pop	ds
 	LEAVE
 	RETURN
-cvX:	mov	al,5			; "Illegal function call"
+cvX:	mov	al,BERR_ILLFUNC		; "Illegal function call"
 	jmp	rtError
 ENDPROC	fileCvd
 
@@ -1655,7 +1667,7 @@ DEFPROC	getFile
 	pop	cx
 	jz	gfX			; no
 	ret
-gfX:	mov	al,54			; "Bad file mode"
+gfX:	mov	al,BERR_FILEMODE	; "Bad file mode"
 	jmp	rtError
 ENDPROC	getFile
 
@@ -1683,7 +1695,7 @@ DEFPROC	getSlot
 	xchg	bx,ax
 	add	bx,ss:[PSP_HEAP]	; SS:BX.FILE_DATA -> slot
 	ret
-gsX:	mov	al,52			; "Bad file number"
+gsX:	mov	al,BERR_FILENUM		; "Bad file number"
 	jmp	rtError
 ENDPROC	getSlot
 

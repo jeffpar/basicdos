@@ -98,6 +98,8 @@ VEC_DOS		equ	INT_DOSFUNC SHL 8
 	db	' '
 	DEFLBL	OVF_MSG,byte
 	db	"Overflow error",0
+	dw	05h
+	db	" BOUND range exceeded",0
 	dw	06h
 	db	" Invalid opcode",0
 	dw	07h

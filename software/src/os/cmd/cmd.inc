@@ -91,17 +91,6 @@ FBLK_SIG	equ	BLK_SIG
 SIG_FBLK	equ	MCBTYPE_FBLK
 
 ;
-; Parameter flags
-;
-; Predefined functions can have optional parameters; user-defined functions
-; cannot, only because there is currently no syntax for declaring them and
-; their corresponding default value.
-;
-PARM_OPT_ZERO	equ	00h		; optional parameter (default is zero)
-PARM_OPT_ONE	equ	01h		; optional parameter (default is one)
-PARM_REQUIRED	equ	0FFh		; required parameter
-
-;
 ; Variable Block (VBLK) definitions
 ;
 VAR_NAMELEN	equ	01Fh		; max chars allowed in var name
@@ -154,6 +143,23 @@ SIG_TBLK	equ	MCBTYPE_TBLK
 ; Array Block (ABLK) signature (see arr.inc for the ABLK definitions)
 ;
 SIG_ABLK	equ	MCBTYPE_ABLK
+
+;
+; The code generator's definitions (operators, label references, and parameter
+; flags), which only the modules that define GENDEFS need (since MASM's symbol
+; space is tight in the others; eg, dir.asm).
+;
+	IFDEF	GENDEFS
+;
+; Parameter flags
+;
+; Predefined functions can have optional parameters; user-defined functions
+; cannot, only because there is currently no syntax for declaring them and
+; their corresponding default value.
+;
+PARM_OPT_ZERO	equ	00h		; optional parameter (default is zero)
+PARM_OPT_ONE	equ	01h		; optional parameter (default is one)
+PARM_REQUIRED	equ	0FFh		; required parameter
 
 ;
 ; Operator definition structure
@@ -214,6 +220,7 @@ LBLREF		ends
 LBL_RESOLVE	equ	8000h
 CTL_FOR		equ	0FFFFh
 CTL_WHILE	equ	0FFFEh
+	ENDIF	; GENDEFS
 
 ;
 ; Code generation flags
@@ -232,6 +239,47 @@ GEN_DONE	equ	20h		; all code generated (see genMore)
 ;
 CMD_NOECHO	equ	01h		; set if ECHO turned off
 CMD_SINGLE	equ	02h		; set if /C (exit after the command)
+
+;
+; BASIC error numbers (the same as MSBASIC's), which rtError and compError
+; raise, ERR returns, and ERR_MSGS (see findMsg) has a message for.
+;
+BERR_NOFOR	equ	1		; NEXT without FOR
+BERR_SYNTAX	equ	2		; Syntax error
+BERR_NOGOSUB	equ	3		; RETURN without GOSUB
+BERR_NODATA	equ	4		; Out of DATA
+BERR_ILLFUNC	equ	5		; Illegal function call
+BERR_OVERFLOW	equ	6		; Overflow
+BERR_NOMEMORY	equ	7		; Out of memory
+BERR_NOLINE	equ	8		; Undefined line number
+BERR_SUBSCRIPT	equ	9		; Subscript out of range
+BERR_DUPDEF	equ	10		; Duplicate definition
+BERR_DIVZERO	equ	11		; Division by zero
+BERR_TYPE	equ	13		; Type mismatch
+BERR_NOSTRS	equ	14		; Out of string space
+BERR_STRLONG	equ	15		; String too long
+BERR_NOERROR	equ	20		; RESUME without error
+BERR_TIMEOUT	equ	24		; Device timeout
+BERR_DEVFAULT	equ	25		; Device fault
+BERR_NONEXT	equ	26		; FOR without NEXT
+BERR_NOPAPER	equ	27		; Out of paper
+BERR_NOWEND	equ	29		; WHILE without WEND
+BERR_NOWHILE	equ	30		; WEND without WHILE
+BERR_FIELD	equ	50		; FIELD overflow
+BERR_FILENUM	equ	52		; Bad file number
+BERR_NOFILE	equ	53		; File not found
+BERR_FILEMODE	equ	54		; Bad file mode
+BERR_FILEOPEN	equ	55		; File already open
+BERR_DEVIO	equ	57		; Device I/O error
+BERR_DISKFULL	equ	61		; Disk full
+BERR_INPUTEND	equ	62		; Input past end
+BERR_RECNUM	equ	63		; Bad record number
+BERR_NODEVICE	equ	68		; Device unavailable
+BERR_ACCESS	equ	70		; Permission denied
+BERR_NOTREADY	equ	71		; Disk not ready
+BERR_MEDIA	equ	72		; Disk media error
+BERR_PATHFILE	equ	75		; Path/File access error
+BERR_BADDRIVE	equ	77		; Invalid drive
 
 ;
 ; Graphics and mouse state (see GFX_DATA in CMDHEAP), which only the modules
@@ -381,6 +429,7 @@ PIPE_SCB	dd	?		; 562h: pipeline sessions (endPipes)
 PATH_BUF	db  128 dup (?)		; 566h: PATH$ (length, 120 chars, null)
 PROMPT_BUF	db   64 dup (?)		; 5E6h: PROMPT$ (length, 62 chars, null)
 DOS_REGS	dw    4 dup (?)		; 626h: AX-DX from DOS (see dosCall)
+FPU_VECS	dd    2 dup (?)		; 62Eh: INT 00h/04h we hooked (fpuTrap)
 ;
 ; The BASIC-DOS loader always set the stack pointer for a COM file to the top
 ; of the segment, which means we must declare our stack at the end of CMDHEAP.
@@ -391,9 +440,9 @@ DOS_REGS	dw    4 dup (?)		; 626h: AX-DX from DOS (see dosCall)
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-SYM_CHAIN	dw	?		; 62Eh: nulled symbols (see parseDOS)
-STACK		dw  944 dup (?)		; 630h
-CMDHEAP		ends			 ; D90h
+SYM_CHAIN	dw	?		; 636h: nulled symbols (see parseDOS)
+STACK		dw  940 dup (?)		; 638h
+CMDHEAP		ends			; D90h
 SIG_CMD		equ	'H'
 
 ;

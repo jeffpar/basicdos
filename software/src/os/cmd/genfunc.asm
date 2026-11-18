@@ -10,6 +10,7 @@
 ; Generates code for calls to predefined and user-defined functions in
 ; expressions (see genExpr in genexp.asm).
 ;
+	GENDEFS equ 1
 	include	cmd.inc
 	include	gen.inc
 

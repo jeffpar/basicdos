@@ -124,7 +124,7 @@ gct1:	mov	cx,FPU_CVT1DL
 	jmp	genCallFPU
 gct8:	clc
 	ret
-gct9:	mov	al,13			; "Type mismatch"
+gct9:	mov	al,BERR_TYPE		; "Type mismatch"
 	jmp	compError
 ENDPROC	genCvtType
 

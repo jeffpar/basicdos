@@ -357,10 +357,13 @@ ENDPROC	set_dos				; fall into set_cpu
 ; opcodes; on an 8086 or 8088, opcodes 60h-6Fh are copies of 70h-7Fh, C0h-C1h
 ; of C2h-C3h, and C8h-C9h of CAh-CBh, and 0Fh is POP CS.  So if CPU$ says
 ; that's the processor (with CPUF_HWTYPE, which real mode doesn't change), we
-; change the disassembler's OPTAB entries and tests to match.
+; change the disassembler's OPTAB entries and tests to match.  A program at
+; ring 3, which can't call CPU$, uses set_cpux, with flags from SIDT (see
+; com_main).
 ;
 ; Inputs:
 ;	DS = our data (DDH_DATA)
+;	AH = CPUF_* flags (set_cpux only)
 ;
 ; Modifies:
 ;	AX
@@ -370,8 +373,12 @@ DEFPROC	set_cpu
 	push	cx
 	push	dx
 	mov	ah,CPU_GETINFO
-	call	cpu_call		; AH = CPUF_* flags
-	cmp	ah,CPUTYPE_80386 SHL 6	; an 80386?
+	call	cpu_call		; AH = CPUF_* flags (and DX:CX)
+	jmp	short sc0
+	DEFLBL	set_cpux,near
+	push	cx
+	push	dx
+sc0:	cmp	ah,CPUTYPE_80386 SHL 6	; an 80386?
 	jae	sc9			; yes
 	mov	dl,ah
 	push	si
@@ -564,7 +571,18 @@ cm1:	mov	ds,dx
 	jne	cm1a			; yes
 	call	set_dos			; (which calls CPU$)
 	jmp	short cm1r
-cm1a:	mov	cl,COM_NJMPS + R3_NJMPS
+;
+; At ring 3 (so on an 80286 or 80386), SIDT, which any ring can use, tells
+; which: an 80286 stores FFh in the base address's high byte.
+;
+cm1a:	mov	bx,offset command
+	db	0Fh,01h,0Fh		; SIDT [BX]
+	mov	ah,CPUTYPE_80386 SHL 6
+	cmp	byte ptr [bx+5],0FFh	; an 80286?
+	jne	cm1b			; no
+	mov	ah,CPUTYPE_80286 SHL 6
+cm1b:	call	set_cpux
+	mov	cl,COM_NJMPS + R3_NJMPS
 	mov	word ptr [CMD_VEC+1],offset rc8	; (VC, VL, and VT fail)
 cm1r:	lodsw
 	xchg	bx,ax			; BX -> instruction
