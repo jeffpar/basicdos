@@ -20,7 +20,7 @@ CODE    SEGMENT
 	ENDIF
 	EXTNEAR	<freeAllText,genCode,keepCode,freeAllVars,cmdLoad,chkProgram>
 	EXTNEAR	<freeIdleVars,resetVars,findVar,cmdPipe,runLine,syntaxError>
-	EXTNEAR	<enterLine,editPrompt,genUpper,runFile,showPrompt>
+	EXTNEAR	<enterLine,editPrompt,genUpper,runFile,showPrompt,readCmd>
 	EXTNEAR	<saveChains,restoreChains,compactStrs,cmdInit>
 	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resSum,resParas>
 	EXTNEAR	<showCursor,hideCursor,rtError>
@@ -61,12 +61,21 @@ m1:	test	[bx].CMD_FLAGS,CMD_SINGLE
 	jmp	short m2
 
 m1a:	call	printPrompt
-
+;
+; readCmd reads the command with history (see UP and DOWN in readCmd), but
+; it's outside COMMAND's core, so if only the core was loaded, we read the
+; command with DOS_TTY_INPUT instead.
+;
 	lea	dx,[bx].INPUTBUF
 	mov	[bx].INPUT_BUF,dx
-	mov	ah,DOS_TTY_INPUT
+	mov	ax,offset readCmd
+	cmp	ax,ds:[PSP_CODESIZE]	; is readCmd loaded?
+	jae	m1b			; no
+	call	ax
+	jmp	short m1c
+m1b:	mov	ah,DOS_TTY_INPUT
 	int	21h
-	call	printCRLF
+m1c:	call	printCRLF
 
 m2:	mov	si,[bx].INPUT_BUF
 	mov	cl,[si].INP_CNT

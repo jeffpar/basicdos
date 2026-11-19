@@ -28,7 +28,7 @@ CODE    SEGMENT word public 'CODE'
 	EXTBYTE	<VARS>
 	EXTNEAR	<int21,int2b,load_prog,start_prog,mem_init,mem_alloc>
 	EXTNEAR	<term_prog,pft_save,dd_cpu,dd_vec,int10,int16,int17,set_keys>
-	EXTNEAR	<tick,do_io>
+	EXTNEAR	<tick,do_io,con_ioctl>
 ;
 ; Only the CPU check (and its message) must run on an 8086; everything after
 ; it runs on an 80386.
@@ -195,15 +195,23 @@ m3j:	mov	dx,offset VARS + V_NAME
 	EPRINTF	<"Unable to find %s">,<13,10>,ax,dx
 	jmp	m8a
 ;
-; Create a machine, fill in its memory, and load the program into it.
+; Create a machine, with our console's video memory (if it has any; see
+; i21ioctl), fill in its memory, and load the program into it.
 ;
 m4:	push	ax			; save the program's handle
+	mov	cl,1
+	mov	al,IOCTL_GETMODE
+	call	con_ioctl		; DX = our console's video memory
+	jnc	m4a
+	sub	dx,dx			; (none, eg, on a terminal)
+m4a:	mov	[vid_sel],dx
 	mov	bx,[mach_paras]
-	DOSUTIL	MAPSEG,2		; AX = machine
-	jc	m4d
+	DOSUTIL	MAPSEG,2		; AX = machine, DX = its video memory
+	jc	m4e
 	mov	[machine],ax
+	mov	[vid_seg],dx
 	call	init_mem		; AX = the program's environment
-	jc	m4d
+	jc	m4e
 	push	ax
 	mov	cl,2
 	call	set_keys		; the console updates its BIOS data
@@ -217,13 +225,13 @@ m4:	push	ax			; save the program's handle
 	mov	si,[args]
 	mov	di,offset VARS + V_TAIL + 1
 	sub	cx,cx
-m4a:	lodsb
+m4b:	lodsb
 	stosb
 	cmp	al,CHR_RETURN
-	je	m4b
+	je	m4c
 	inc	cx
-	jmp	m4a
-m4b:	mov	[VARS + V_TAIL],cl
+	jmp	m4b
+m4c:	mov	[VARS + V_TAIL],cl
 	pop	bx			; BX = handle
 	sub	cx,cx			; CX = 0 (no parent)
 	mov	word ptr [VARS + V_EPB + EPB_FCB1],-1	; (build its FCBs)
@@ -231,7 +239,7 @@ m4b:	mov	[VARS + V_TAIL],cl
 	push	ax
 	call	load_prog		; AX = its PSP
 	pop	dx			; DX = the environment
-	jc	m4e
+	jc	m4f
 	mov	[root_psp],ax
 	mov	[cur_psp],ax
 	xchg	ax,dx
@@ -240,8 +248,8 @@ m4b:	mov	[VARS + V_TAIL],cl
 	call	put_word		; its program owns the environment
 	call	start_prog
 	jmp	short m5
-m4d:	pop	bx
-m4e:	mov	dx,offset VARS + V_PATH
+m4e:	pop	bx
+m4f:	mov	dx,offset VARS + V_PATH
 	EPRINTF	<"Unable to load %s">,<13,10>,ax,dx
 	jmp	m8a
 ;
@@ -865,6 +873,8 @@ NOP_INTS_LEN	equ	$ - NOP_INTS
 
 	DEFWORD	our_ds,0		; our DS (for v86_ctrlc)
 	DEFWORD	machine,0		; the machine's first selector
+	DEFWORD	vid_sel,0		; our console's video memory selector
+	DEFWORD	vid_seg,0		; and its segment in the machine
 	DEFWORD	mach_paras,V86_PARAS	; its memory, in paragraphs
 	DEFWORD	mach_top,<0,V86_PARAS SHR 12>	; and in bytes (a long)
 	DEFWORD	root_psp,0		; the PSP of its first program

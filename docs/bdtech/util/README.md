@@ -200,7 +200,7 @@ Free memory is also useful for data that can be recreated if it's overwritten.  
 
 ### Console
 
-**DOS_UTL_EDITLN (25h)**: DS:DX -> input buffer, as for DOS_TTY_INPUT, and AL = options: bit 0 returns AX = the last editing action, so that the caller can respond to keys like **Up** and **Down** (eg, for command history), and bit 1 displays the buffer's existing characters (INP_CNT) first, as if they had been recalled, so that they can be edited (COMMAND.COM uses this for AUTO and EDIT).  Otherwise, it's the same as DOS_TTY_INPUT.
+**DOS_UTL_EDITLN (25h)**: DS:DX -> input buffer, as for DOS_TTY_INPUT, and AL = options: bit 0 returns **Up** and **Down** to the caller instead of handling them, as AX = CHR_CTRLE or CHR_CTRLX, with the line erased and INP_CNT set to the number of characters it had (with no RETURN after them), so that the caller can display another line (COMMAND.COM uses this for its command history), and bit 1 displays the buffer's existing characters (INP_CNT) first, as if they had been recalled, so that they can be edited (COMMAND.COM uses this for AUTO and EDIT, and to display a command from its history).  When the line is entered, AX is unchanged.  Otherwise, it's the same as DOS_TTY_INPUT.
 
 ### Sound
 

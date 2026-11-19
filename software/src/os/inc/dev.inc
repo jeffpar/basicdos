@@ -113,8 +113,9 @@ COMDBG_XON	equ	02h	; XON/XOFF flow control enabled
 COMDBG_RTS	equ	04h	; RTS/CTS flow control enabled
 ;
 ; DDINT_UTIL functions, for a driver that doesn't otherwise need DOSFUNC
-; (the same as DOS_UTL_LOCK and DOS_UTL_UNLOCK)
+; (the same as DOS_UTL_WAIT, DOS_UTL_LOCK, and DOS_UTL_UNLOCK)
 ;
+DDUTL_WAIT	equ	1Ah
 DDUTL_LOCK	equ	1Dh
 DDUTL_UNLOCK	equ	1Eh
 

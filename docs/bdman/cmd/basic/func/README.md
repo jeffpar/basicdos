@@ -11,7 +11,7 @@ Functions can be used in any expression, in BASIC programs or at the prompt (eg,
 - Numeric functions: [ABS](#abs), [ATN](#atn), [CDBL](#cdbl), [CINT](#cint), [COS](#cos), [CSNG](#cdbl), [EXP](#exp), [FIX](#fix), [INT](#int), [LOG](#log), [RND](#rnd), [RND%](#rnd-int), [SGN](#sgn), [SIN](#sin), [SQR](#sqr), [TAN](#tan)
 - String functions: [ASC](#asc), [CHR$](#chr), [HEX$](#hex), [INSTR](#instr), [LCASE$](#lcase), [LEFT$](#left), [LEN](#len), [MID$](#mid), [OCT$](#oct), [RIGHT$](#right), [SPACE$](#space), [SPC](#space), [STR$](#str), [STRING$](#string), [TAB](#tab), [UCASE$](#ucase), [VAL](#val)
 - File functions: [CVD](#cvi), [CVI](#cvi), [CVL](#cvi), [DIR$](#dir), [EOF](#eof), [EXISTS](#exists), [INPUT$](#input), [LOC](#loc), [LOF](#lof), [MKD$](#mki), [MKI$](#mki), [MKL$](#mki)
-- System functions: [ARG$](#arg), [CSRLIN](#csrlin), [CURDIR$](#curdir), [DATE$](#date), [DOS](#dos), [ERL](#erl), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PATH$](#path), [LPOS](#lpos), [PEEK](#peek), [POS](#pos), [PROMPT$](#prompt), [SCREEN](#screen), [TIME$](#time), [TIMER](#timer)
+- System functions: [ARG$](#arg), [CSRLIN](#csrlin), [CURDIR$](#curdir), [DATE$](#date), [DOS](#dos), [ERL](#erl), [ERR](#err), [FRE](#fre), [HISTORY$](#history), [INKEY$](#inkey), [MOUSE](#mouse), [PATH$](#path), [LPOS](#lpos), [PEEK](#peek), [POS](#pos), [PROMPT$](#prompt), [SCREEN](#screen), [TIME$](#time), [TIMER](#timer)
 - Predefined constants: [ERRORLEVEL](#errorlevel), [FALSE](#true), [MAXINT](#maxint), [TRUE](#true)
 
 You can also define your own functions with [DEF](../def/).
@@ -353,6 +353,16 @@ Returns the number of the last error (see [ON ERROR](../#on-error)).
 > FRE(*x*)
 
 Compacts string memory and returns the number of bytes available, or if *x* is negative (eg, `FRE(-1)`), the number of bytes of memory owned by the current session (its command processor's memory blocks, including its program, variables, and strings).  Other sessions can't change that amount, so it's useful for checking for memory leaks while other sessions are running.
+
+#### HISTORY$ {#history}
+
+> HISTORY$(*n*)
+
+Returns command *n* of the session's history (1 for the latest command entered at the prompt, 2 for the one before it, and so on), or an empty string if there's no such command (including for *n* = 0); a negative *n* is an "Illegal function call".  The history keeps the latest commands typed at the prompt that fit in 1K, leaving out empty commands and repeats of the latest one (see [Typing Commands](../../../intro/#typing-commands)).  Like [PATH$](#path), it isn't affected when variables are cleared, and each session has its own.  For example, typed at the prompt, this lists the latest 10 commands, oldest first, ending with itself (since it's the latest):
+
+	FOR I = 10 TO 1 STEP -1 : PRINT HISTORY$(I) : NEXT
+
+HISTORY$ isn't available on low memory systems, which have no history.
 
 #### INKEY$ {#inkey}
 

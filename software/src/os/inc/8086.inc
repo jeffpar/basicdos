@@ -20,6 +20,7 @@ INT_BR		EQU	05h	; #BR (BOUND error fault; 80186 and up)
 INT_UD		EQU	06h	; #UD (undefined opcode fault; 80186 and up)
 INT_NM		EQU	07h	; #NM (no math coprocessor fault; 80286 and up)
 INT_GP		EQU	0Dh	; #GP (general protection fault; 80286 and up)
+INT_PF		EQU	0Eh	; #PF (page fault; 80386 and up)
 
 ;
 ; Processor flag definitions

@@ -17,7 +17,7 @@
 CODE    SEGMENT word public 'CODE'
 
 	EXTBYTE	<VARS,in_call>
-	EXTWORD	<cur_psp,root_psp,mach_paras>
+	EXTWORD	<cur_psp,root_psp,mach_paras,vid_sel,vid_seg>
 	EXTLONG	<dta>
 	EXTNEAR	<run,do_exit,do_ctrlc,seg_ptr,v86_get,v86_put>
 	EXTNEAR	<get_word,put_word,push_word,pop_word>
@@ -518,30 +518,47 @@ ENDPROC	sfh_close
 ; i21ioctl
 ;
 ; IOCTL_GETFPU (from FPU$) gets a far pointer to a copy of FPU$'s functions in
-; the machine (see fpu_copy), which its programs call directly; every other
-; IOCTL is passed on.
+; the machine (see fpu_copy), which its programs call directly, and
+; IOCTL_GETMODE with CL = 1 gets the segment of our console's video memory in
+; the machine (see m4), instead of the console's selector for it (or an error,
+; for another console's); every other IOCTL is passed on.
 ;
 DEFPROC	i21ioctl
 	cmp	al,IOCTL_GETFPU
-	je	ii1
-	jmp	pass21
-ii1:	mov	al,INT_DOSFUNC
+	je	ii3
+	cmp	al,IOCTL_GETMODE
+	jne	ii1
+	cmp	byte ptr [VARS+VR_ECX],1	; its video memory?
+	je	ii2			; yes
+ii1:	jmp	pass21
+ii2:	mov	al,INT_DOSFUNC
+	call	call_dos		; the program's DX = the selector
+	test	al,FL_CARRY
+	jnz	ii9
+	mov	dx,[vid_seg]
+	xchg	dx,word ptr [VARS+VR_EDX]	; the program gets the segment
+	sub	ax,ax
+	cmp	dx,[vid_sel]		; if the selector is our console's
+	je	ii9			; (and carry is clear)
+	mov	ax,ERR_INVALID
+	jmp	i21err
+ii3:	mov	al,INT_DOSFUNC
 	call	call_dos		; the program's DS:SI = FPU$'s pointer
 	test	al,FL_CARRY
 	jnz	ii9
 	mov	ax,[fpu_seg]
 	test	ax,ax			; do we have a copy?
-	jnz	ii2			; yes
+	jnz	ii5			; yes
 	mov	ax,word ptr [VARS+VR_DS]
 	mov	di,word ptr [VARS+VR_ESI]
 	inc	di
 	inc	di
 	call	get_word		; AX = the FPUTBL's selector
 	call	fpu_copy		; AX = its copy's segment
-	jnc	ii1a
+	jnc	ii4
 	jmp	i21err
-ii1a:	mov	[fpu_seg],ax
-ii2:	xchg	dx,ax
+ii4:	mov	[fpu_seg],ax
+ii5:	xchg	dx,ax
 	mov	ax,word ptr [VARS+VR_DS]
 	mov	di,word ptr [VARS+VR_ESI]
 	inc	di

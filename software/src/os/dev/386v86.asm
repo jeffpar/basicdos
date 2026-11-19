@@ -18,7 +18,10 @@
 ; memory's PMB has its page number (PMB_V86).  The page directory has the
 ; system's PDEs (see LIN_HI) and the PDE for the page table, which maps the
 ; machine's first 1Mb (plus the 64K that wraps), and the rest of its page is
-; free, so the machine's context (V86CTX) is there, too.
+; free, so the machine's context (V86CTX) is there, too.  A machine that has
+; a console's video memory (see v86_vsel) gets the selector's memory in its
+; page table each time it resumes (see v86_vid), or while the selector isn't
+; present, no pages there, so that touching them waits (see v86_pf).
 ;
 ; While the machine runs, its context's V86REGS is the TSS's ring 0 stack
 ; (through SEL_V86STK, the first of SV_V86SEL's selectors), so every
@@ -48,7 +51,8 @@ DEV	group	CODE
 CODE	segment para public 'CODE'
 
 	EXTNEAR	<alloc_at,ddcpu_alloc,pmb_fit,pmb_used,pmb_free,desc_alloc>
-	EXTNEAR	<sel_desc,pm_ptr,cpu_inval,ddcpu_seginfo>
+	EXTNEAR	<sel_desc,pm_ptr,cpu_inval,ddcpu_seginfo,id_desc,desc_addr>
+	EXTNEAR	<enc_owner>
 
 	.286p
 ;
@@ -66,6 +70,9 @@ VC_MEM		dd	?	; the machine's memory (physical address)
 VC_LEN		dd	?	; and its length
 VC_VIF		db	?	; the machine's IF (FL_INTS SHR 8, or 0)
 VC_DBG		db	?	; nonzero if a debugger gets traps (v86_refl)
+VC_VID		dw	?	; its video memory's selector ID (or zero)
+VC_VPG		db	?	; and that memory's first page
+VC_VCNT		db	?	; and # of pages
 V86CTX		ends
 
 V86_CTX		equ	0800h	; context's offset (PDEs for 80000000h and up)
@@ -221,7 +228,8 @@ ENDPROC	v86_run
 ; the top of the context's frame (saving the kernel's, which v86_common
 ; restores), its page directory, and its IDT.  SEL_V86STK may name another
 ; machine's context by now (eg, after a hardware interrupt that switched
-; sessions), so it's set again.
+; sessions), so it's set again, and its video memory may have changed (eg,
+; during another session's DOS call), so its pages are, too (see v86_vid).
 ;
 ; Inputs:
 ;	SS:SP -> the machine's page directory's address, and the caller's
@@ -235,6 +243,7 @@ DEFPROC	v86_resume
 	mov	cx,[bp]
 	mov	dx,[bp+2]
 	call	v86_stk			; BX = ES = SEL_V86STK
+	call	v86_vid
 	mov	ax,ds:[TSS_ESP0]
 	mov	es:[V86_CTX].VC_SP0,ax
 	mov	word ptr ds:[TSS_ESP0],V86_CTX + VR_DSSEL
@@ -336,6 +345,8 @@ vc1:	mov	ah,0
 	je	v86_irq			; yes
 	cmp	al,INT_GP		; a general protection fault?
 	je	v86_gp			; yes
+	cmp	al,INT_PF		; a page fault?
+	je	v86_pf			; yes
 ;
 ; The exceptions that real mode delivers through the vectors (the same ones
 ; that it returns from at the same address) go to the machine's own.
@@ -389,6 +400,47 @@ DEFPROC	v86_irq
 vi9:	mov	al,V86X_TICK
 	jmp	v86_exit
 ENDPROC	v86_irq
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; v86_pf
+;
+; A page fault in the machine's video memory (see v86_vid) means that its
+; selector wasn't present when the machine resumed, so unless it's present
+; now, the machine waits until it is, as a program that loads it does (see
+; SELID_WAIT), and then runs again, at the same instruction; if the wait ends
+; early (eg, for a CTRLC), it exits as after a timer tick, so that DOS can act
+; on it.  Any other page fault exits (V86X_FAULT), as one does after its
+; selector is freed.
+;
+; Inputs:
+;	DS = SEL_SYS, ES = context
+;
+DEFPROC	v86_pf
+	db	0Fh,20h,0D0h		; MOV EAX,CR2
+	db	66h,0C1h,0E8h,12	; SHR EAX,12 (AX = its page)
+	mov	cx,word ptr es:[V86_CTX].VC_VPG	; CL = first page, CH = count
+;
+; Video memory is below 1Mb, so the page's high byte must be zero, and then
+; its offset from the first page (which wraps if it's below it) must be less
+; than the count (which is zero if there's no video memory).
+;
+	test	ah,ah
+	jnz	pf8
+	sub	al,cl
+	cmp	al,ch			; in the machine's video memory?
+	jae	pf8			; no
+	call	v86_vid			; ZF clear if it's there now
+	jc	pf8			; (it's gone)
+	jnz	pf1			; it is
+	mov	dx,SELID_WAIT
+	mov	di,es:[V86_CTX].VC_VID	; DX:DI = its wait ID
+	mov	ah,DDUTL_WAIT
+	call	far ptr DDINT_UTIL
+	jc	vi9			; the wait ended early
+pf1:	jmp	v86_resume
+pf8:	jmp	vc8
+ENDPROC	v86_pf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -977,20 +1029,24 @@ ENDPROC	v86_info
 ; Creates a machine, owned by BX, with SI:DI bytes of memory (rounded up to a
 ; multiple of 4K, at most 640K), allocated from the top of memory (which is
 ; likely to be extended memory), so that it doesn't take conventional memory
-; that DOS could use.
+; that DOS could use, and with a console's video memory, if DX is its
+; selector (see v86_vsel).
 ;
 ; Inputs:
-;	BX = owner, SI:DI = length
+;	BX = owner, SI:DI = length, DX = video memory's selector (or zero)
 ;
 ; Outputs:
-;	Carry clear: AX = first selector of its memory, DX:CX = address
+;	Carry clear: AX = first selector of its memory, DX = video memory's
+;	segment in the machine (or zero)
 ;	Carry set: AX = error code
 ;
 DEFPROC	v86_create
 	push	bx
 	push	si
 	push	di
+	push	dx
 	call	v86_setup		; the machines' IDT and selectors
+	pop	dx
 	pop	di
 	pop	si
 	pop	bx
@@ -1007,8 +1063,14 @@ DEFPROC	v86_create
 	test	di,di
 	jz	vcr1			; no
 vcr8:	jmp	cpu_inval
+vcr5:	pop	cx
+	pop	cx			; (the video memory's ID and pages)
 vcr0:	ret
-vcr1:	push	si
+vcr1:	call	v86_vsel		; DX = video ID, CX = its pages
+	jc	vcr0
+	push	cx
+	push	dx
+	push	si
 	push	di
 	push	bx
 	mov	al,MEMF_NONE OR MEMF_HIGH
@@ -1016,13 +1078,14 @@ vcr1:	push	si
 	pop	bx			; BX = owner
 	pop	di
 	pop	si
-	jc	vcr0
+	jc	vcr5
 	push	si
 	push	di
 	push	dx
 	push	cx
 	push	ax
-	mov	bp,sp			; BP -> selector, address, and length
+	mov	bp,sp			; BP -> selector, address, length,
+					; and video memory's ID and pages
 	push	bx
 	push	bp
 	mov	al,MEMF_NONE OR MEMF_HIGH
@@ -1071,9 +1134,10 @@ vcr1:	push	si
 	call	v86_init
 	add	sp,6
 	pop	ax			; AX = memory's selector
-	pop	cx
-	pop	dx			; DX:CX = its address
-	add	sp,4
+	add	sp,10			; (its address, length, and video ID)
+	pop	dx			; DL = video memory's first page (or 0)
+	mov	dh,dl
+	mov	dl,0			; DX = its segment (or 0)
 	clc
 	ret
 vcr6:	mov	cx,[bp-4]
@@ -1083,7 +1147,7 @@ vcr7:	mov	cx,[bp+2]
 	mov	dx,[bp+4]
 	call	vcr_free		; and the memory's block
 	mov	sp,bp
-	add	sp,10
+	add	sp,14
 	mov	ax,ERR_NOMEMORY
 	stc
 	ret
@@ -1100,10 +1164,12 @@ ENDPROC	v86_create
 ;
 ; Fills in a new machine's page directory, page table, and context: its
 ; memory, the ROMs (C0000h-FFFFFh, read-only), and the wrap of its first 64K
-; at 1Mb; nothing else (eg, video memory) is mapped.
+; at 1Mb, and its video memory's selector ID and pages, if any, which get
+; their PTEs as it runs (see v86_vid).
 ;
 ; Inputs:
-;	SS:BP -> memory's selector, address, and length (see v86_create)
+;	SS:BP -> memory's selector, address, and length, and video memory's
+;	ID and pages (see v86_create)
 ;	SS:BP-4 -> page directory's address, and [BP-6] = VR_DSSEL
 ;	DS = SEL_SYS
 ;
@@ -1175,6 +1241,10 @@ vi1:	shl	cx,1
 	mov	word ptr es:[V86_CTX].VC_LEN,ax
 	mov	ax,[bp+8]
 	mov	word ptr es:[V86_CTX].VC_LEN+2,ax
+	mov	ax,[bp+10]
+	mov	es:[V86_CTX].VC_VID,ax
+	mov	ax,[bp+12]
+	mov	word ptr es:[V86_CTX].VC_VPG,ax
 	mov	bx,[bp-6]
 	or	bl,3			; (RPL 3, for the ring 3 caller)
 	mov	es:[V86_CTX].VR_DSSEL,bx
@@ -1198,6 +1268,115 @@ vi_ptes:
 	loop	vi_ptes
 	ret
 ENDPROC	v86_init
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; v86_vsel
+;
+; Checks a new machine's video memory selector, if any: a console's (eg, from
+; VKD$'s IOCTL_GETMODE), so an LDT selector, for whole pages from A0000h to
+; C0000h, which the machine gets where they are (see v86_vid).
+;
+; Inputs:
+;	DX = selector (or zero)
+;	DS = SEL_SYS
+;
+; Outputs:
+;	Carry clear: DX = its ID, CL = its first page, CH = # of pages (all
+;	zero if none)
+;	Carry set: AX = ERR_INVALID
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	v86_vsel
+	sub	cx,cx
+	test	dx,dx			; a selector?
+	jz	vl9			; no (and carry is clear)
+	push	bx
+	push	si
+	mov	bx,dx
+	call	sel_desc		; SI -> its descriptor
+	jc	vl8
+	test	bl,SEL_TI		; an LDT selector (not a driver's)?
+	jz	vl7			; no
+	push	ds:[si].DESC_LIMIT
+	call	desc_addr		; DX:CX = its address
+	pop	ax			; AX = its limit (less than 64K)
+	sub	dx,0Ah			; DX:CX = its offset from A0000h
+	cmp	dx,1			; is it in A0000h-BFFFFh?
+	ja	vl7			; no
+	test	cx,PG_SIZE - 1		; does it start a page?
+	jnz	vl7			; no
+	shr	cx,12
+	shl	dl,4
+	or	cl,dl			; CL = its page in A0000h-BFFFFh
+	shr	ah,4
+	inc	ah
+	mov	ch,ah			; CH = # of pages
+	add	ah,cl
+	cmp	ah,20h			; does it end by C0000h?
+	ja	vl7			; no
+	add	cl,0A0h			; CL = its first page
+	xchg	ax,bx
+	call	enc_owner		; AX = its ID (and carry is clear)
+	xchg	dx,ax
+	jmp	short vl8
+vl7:	mov	ax,ERR_INVALID
+	stc
+vl8:	pop	si
+	pop	bx
+vl9:	ret
+ENDPROC	v86_vsel
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; v86_vid
+;
+; Gives the machine's video memory (see v86_vsel) PTEs for its selector's
+; memory, if the selector is present, or else PTEs that aren't present, so
+; that the machine faults if it touches them (see v86_pf); a selector that's
+; been freed takes the video memory away for good.
+;
+; Inputs:
+;	DS = SEL_SYS, ES = context
+;
+; Outputs:
+;	ZF clear if the video memory is there, or carry set if it's gone now
+;
+DEFPROC	v86_vid
+	cmp	es:[V86_CTX].VC_VCNT,0	; does it have video memory?
+	je	vv9			; no
+	pusha
+	cld
+	mov	bx,es:[V86_CTX].VC_VID
+	call	id_desc			; BX -> its selector's descriptor
+	sbb	bp,bp			; BP = -1 if it's been freed
+	mov	ax,0
+	cwd				; DX:AX = 0 (not present)
+	jnz	vv1
+	test	ds:[bx].DESC_ACC,ACC_PRESENT
+	jz	vv1
+	mov	si,bx
+	call	desc_addr		; DX:CX = its address
+	xchg	ax,cx
+	or	al,PG_USER		; DX:AX = its first PTE
+vv1:	mov	cx,word ptr es:[V86_CTX].VC_VPG	; CL = first page, CH = count
+	mov	bl,cl
+	mov	bh,0
+	shl	bx,2
+	lea	di,[bx+V86_PT]		; ES:DI -> the first page's PTE
+	mov	cl,ch
+	mov	ch,0
+	call	vi_ptes
+	add	bp,bp			; was it freed?
+	jnc	vv2			; no
+	mov	es:[V86_CTX].VC_VCNT,0	; yes (and carry is set)
+vv2:	inc	al
+	dec	al			; (zero if not present)
+	popa
+vv9:	ret
+ENDPROC	v86_vid
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

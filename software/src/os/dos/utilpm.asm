@@ -116,18 +116,21 @@ ENDPROC	utl_alias
 ; the selector of another program in its session (eg, DEBUG.COM at ring 3).
 ;
 ; With REG_AL = 2, it creates a V86 machine (see v86.inc), owned by the
-; current program, whose memory's first selector names it, and with REG_AL =
-; 3, it runs one until it exits; both need CPU_TYPE 3 (see CPU_V86).
+; current program, whose memory's first selector names it (and which also has
+; a console's video memory, if REG_DX is its selector), and with REG_AL = 3,
+; it runs one until it exits; both need CPU_TYPE 3 (see CPU_V86).
 ;
 ; Inputs:
 ;	REG_AL = 0, REG_BX = real-mode segment
 ;	REG_AL = 1, REG_BX:REG_SI = physical address (below 1Mb)
-;	REG_AL = 2, REG_BX = paragraphs of memory for a V86 machine
+;	REG_AL = 2, REG_BX = paragraphs of memory for a V86 machine, REG_DX =
+;	video memory's selector (or zero)
 ;	REG_AL = 3, REG_BX = V86 machine, REG_ES:REG_DI -> V86REGS
 ;
 ; Outputs:
 ;	Carry clear if successful: REG_AX = selector (or segment), or the word
-;	(or with REG_AL = 2, the machine, and with REG_AL = 3, the V86X_* exit)
+;	(or with REG_AL = 2, the machine, and REG_DX = its video memory's
+;	segment, or zero, and with REG_AL = 3, the V86X_* exit)
 ;	Carry set if error: REG_AX = error code
 ;
 DEFPROC	utl_mapseg,DOS
@@ -206,9 +209,11 @@ ums4:	cmp	al,3			; run a machine?
 	call	para_len		; SI:DI = length
 	call	get_psp			; AX = owner
 	xchg	bx,ax
+	mov	dx,[bp].REG_DX		; DX = video memory's selector
 	mov	ax,CPU_V86 SHL 8	; AL = 0 (create)
-	call	far ptr DDINT_CPU	; AX = machine
+	call	far ptr DDINT_CPU	; AX = machine, DX = video segment
 	jc	ums8
+	mov	[bp].REG_DX,dx
 	or	al,3			; (RPL 3, as for mem_alloc)
 	jmp	short ums7
 ums6:	mov	dx,[bp].REG_ES

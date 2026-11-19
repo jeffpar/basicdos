@@ -23,7 +23,7 @@ CODE    SEGMENT
 	EXTNEAR	<strLCase,strLeft,strLen,strMid,strOct,strRight,strSpace>
 	EXTNEAR	<strStr,strString,strTime,strUCase,strVal,strCurDir,strPath>
 	EXTNEAR	<getExists,strDir,getDos,gfxPoint,gfxPmap,getLpos,strInput>
-	EXTNEAR	<getTimer,strPrompt>
+	EXTNEAR	<getTimer,strPrompt,strHistory>
 ;
 ; PREDEF_VARS is preceded by the offsets of its first names of 4, 5, 6, and 7
 ; or more characters, where findVar starts searching for a name that long.
@@ -285,7 +285,11 @@ pv6	db	VAR_FUNC + 6,"CSRLIN"
 	db	VAR_LONG,PARM_REQUIRED
 	db	VAR_CHAR,PARM_REQUIRED
 	dw	offset strString,0
-pv7	db	VAR_FUNC + 10,"ERRORLEVEL"
+pv7	db	VAR_FUNC + 7,"HISTORY"
+	db	VAR_STR,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset strHistory,0
+	db	VAR_FUNC + 10,"ERRORLEVEL"
 	db	VAR_LONG,0		; returns VAR_LONG with 0 parameters
 	dw	offset getErrorLevel,0	; 0 implies our own CODE segment
 	db	0			; terminator

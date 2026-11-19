@@ -36,8 +36,8 @@ Other special keys include:
 
 - **Backspace** deletes the previous character
 - **Esc** erases the entire line
-- **Up Arrow** displays the previous line (also: **Ctrl-E**)
-- **Down Arrow** displays the next line (also: **Ctrl-X**)
+- **Up Arrow** displays the previous command (also: **Ctrl-E**)
+- **Down Arrow** displays the next command (also: **Ctrl-X**)
 - **Left Arrow** moves the cursor left one character (also: **Ctrl-S**)
 - **Right Arrow** moves the cursor right one character (also: **Ctrl-D**)
 - **Home** moves the cursor to the beginning of the line (also: **Ctrl-W**)
@@ -47,6 +47,8 @@ Other special keys include:
 - **Del** deletes the current character (also: **Ctrl-G**)
 - **Ins** toggles the current Insert/Overwrite mode (also: **Ctrl-V**)
 - **Ctrl-End** deletes all characters to the end of the line (also: **Ctrl-K**)
+
+Each session keeps a history of the latest commands typed at its prompt, as many as fit in 1K.  **Up Arrow** and **Down Arrow** step through older and newer commands, and **Down Arrow** past the newest returns to what you were typing.  If you typed some characters first, they display only the commands that begin with those characters (eg, type `DIR` and press **Up Arrow** for the latest DIR command).  Commands that are empty or the same as the latest one aren't added, and [HISTORY$](../cmd/basic/func/#history) returns any command in the history.  Lines in BAT and BAS files aren't added, and on low memory systems (see [Low Memory](../lang/#low-memory)), there's no history, so **Up Arrow** displays only the last line typed.
 
 Other special key sequences that can be typed at any time include:
 

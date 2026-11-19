@@ -1131,7 +1131,7 @@ ENDPROC	con_read
 ; read_line
 ;
 ; Internal function for console input (tty_input, REG_AH = 0Ah)
-; and line editing (utl_editln, REG_AH = 24h).
+; and line editing (utl_editln, REG_AH = 25h).
 ;
 ; Inputs:
 ;	TMP_AH = 0 for normal input; otherwise, bit 0 is set for editing
@@ -1139,7 +1139,8 @@ ENDPROC	con_read
 ;	characters (INP_CNT) first, as if they had been recalled
 ;
 ; Outputs:
-;	None
+;	INP_CNT = # characters entered; for an editing notification, REG_AX
+;	is the key (eg, CHR_CTRLE for UP), and the line has been erased
 ;
 ; Modifies:
 ;	Any
@@ -1288,16 +1289,24 @@ rl8:	push	ax
 	mov	es:[di].INP_DATA[bx],al	; store the final character (RETURN)
 	call	write_char		; and display it
 
-	mov	cx,[bp].TMP_DX		; restore original insert mode
+rl8a:	mov	cx,[bp].TMP_DX		; restore original insert mode
 	mov	al,IOCTL_SETINS
 	call	con_ioctl
 
 rl9:	mov	es:[di].INP_CNT,bl	; return character count in 2nd byte
 	ret
-
+;
+; For an editing notification, we erase the line (as ESC does), so that the
+; caller can display another, and return the characters that were displayed
+; (eg, so that COMMAND can use them as a history search prefix).
+;
 rl10:	cbw
-	mov	[bp].REG_AX,ax
-	ret
+	mov	[bp].REG_AX,ax		; return the key in AX
+	call	con_end			; BL = # characters displayed
+	push	bx
+	call	con_erase
+	pop	bx
+	jmp	rl8a
 ENDPROC	read_line
 
 	DEFLBL	SCAN_MAP,byte		; non-ASCII keys that edit (see rl2)

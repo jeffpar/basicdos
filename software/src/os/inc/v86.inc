@@ -16,14 +16,18 @@
 ;	CPU_V86 with AL = 0 creates a machine whose memory (SI:DI bytes,
 ;	rounded up to a multiple of 4K, at most 640K) starts at linear address
 ;	0, owned by BX (as for CPU_ALLOC); it returns the memory's first
-;	selector in AX, which names the machine, and its address in DX:CX.
-;	Its DPL 3 LDT selectors start every 32K, and each covers the 64K
-;	there (or what remains), so anything smaller than 32K at linear
-;	address L can be reached through selector AX + (L SHR 15) * 8.  The
-;	machine also maps the ROMs (C0000h-FFFFFh, read-only) and wraps
-;	the 64K above 1Mb to the first 64K, as an 8086 does; nothing else
-;	(eg, video memory) is mapped.  Freeing the memory (or its owner
-;	ending) frees the machine.
+;	selector in AX, which names the machine.  Its DPL 3 LDT selectors
+;	start every 32K, and each covers the 64K there (or what remains), so
+;	anything smaller than 32K at linear address L can be reached through
+;	selector AX + (L SHR 15) * 8.  The machine also maps the ROMs
+;	(C0000h-FFFFFh, read-only) and wraps the 64K above 1Mb to the first
+;	64K, as an 8086 does.  If DX is a console's video memory selector
+;	(from IOCTL_GETMODE with CL = 1), the machine has that memory, too,
+;	where the selector's memory starts (eg, B8000h), and DX returns its
+;	segment (otherwise, DX is zero, and nothing else is mapped); it's
+;	there while the selector is present, and while it isn't, a machine
+;	that touches it waits (see SELID_WAIT).  Freeing the memory (or its
+;	owner ending) frees the machine.
 ;
 ;	CPU_V86 with AL = 1 runs machine BX, with the registers in the V86REGS
 ;	at ES:DI, until it exits (see V86X_*), and then stores its registers
@@ -59,7 +63,8 @@
 ; machine gets none of its own; it exits after each timer tick (V86X_TICK),
 ; so that DOS can switch sessions, and the host can give the machine a tick
 ; of its own (eg, by pushing an interrupt frame on its stack, and running it
-; at its INT 08h or 1Ch handler).
+; at its INT 08h or 1Ch handler), and the same way when its wait for its
+; video memory ends early (eg, for a CTRLC).
 ;
 V86REGS		struc
 VR_EDI		dd	?	; 00h: (in PUSHAD order)

@@ -91,7 +91,8 @@ On an 80286 or later with sufficient memory (256K or more), BASIC-DOS runs in pr
 - [x] V86.COM runs COMMAND.COM (the default, so `START V86` opens a real-mode command shell) and the programs it runs in a V86 machine: COM and MZ EXE files (eg, MASM, SYMDEB, and DEBUG, whose CPU$ calls V86.COM answers), memory blocks, EXEC, BASIC-DOS's own functions, floating-point (through a copy of FPU$ in the machine), pipes (whose later programs run in protected mode), and CTRL-C
 - [x] V86.COM: the common BIOS video, keyboard, and printer functions (INT 10h, 16h, and 17h), translated to console driver and DOS functions, so that real-mode programs that use them run (eg, MSBASIC)
 - [x] V86.COM: timer ticks for the machine (INT 08h and 1Ch, and the BIOS tick count), and I/O ports, through a table of handlers in V86.COM (the game port, 201h, so far); a machine never uses a port itself
-- [ ] V86.COM: video memory (and the rest of the BIOS), for real-mode programs that use them
+- [x] V86.COM: the console's video memory, at its usual address (eg, B8000h), so that COMMAND.COM's graphics statements (eg, in DONKEY.BAS) and programs that draw directly work in a V86 machine on a video console; while another console on the same adapter is in another mode, a machine that touches it waits, as a protected-mode program does
+- [ ] V86.COM: the rest of the BIOS, for real-mode programs that use it
 - [ ] 32-bit sessions for LE programs (built with MASM 5.10B and LINK386 from the Windows 3.1 DDK, in **TOOLS\\BIN**)
 
 ### Kernel: Processes, Memory, and Sessions
@@ -159,6 +160,7 @@ On an 80286 or later with sufficient memory (256K or more), BASIC-DOS runs in pr
 - [x] LIST VARS: list preserved strings (including PATH$), scalar values, and array dimensions in the current session
 - [x] PATH$: the directories searched for programs (eg, `PATH$="A:\;A:\EXT;A:\DEMOS"` on a SHELL line in CONFIG.SYS); unlike other variables, it survives NEW and CLEAR
 - [x] PROMPT$: a custom prompt, as a PRINTF format whose specifiers supply their own values (eg, `PROMPT$ = "%.3W %H:%02N %s%g"` for `Tue 14:05 A:\>`): the current directory (`%s`), the mode's `>`, `]`, or `}` (`%g`) and its left counterpart (`%l`), the session number (`%d`), a new line (`%n`), and the date and time letters; it survives NEW and CLEAR, too
+- [x] Command history: Up and Down at the prompt display older and newer commands, or only those that begin with the characters typed first (eg, `DIR` and Up for the latest DIR command), from each session's history of the latest commands that fit in 1K, which HISTORY$(*n*) also returns; the DOS line editor (DOS_UTL_EDITLN) returns Up and Down to COMMAND.COM, so the kernel keeps no history
 - [x] Every bootable BASIC-DOS disk has the same layout: BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, and AUTOEXEC.BAT (if any) in the root, utilities (including DEBUG.COM, and HELP.COM with HELP.TXT) in EXT, and demo programs in DEMOS, including BROGUE.BAS and DONKEY.BAS, the only PC DOS 1.00 BASIC sample on every disk (test programs are on a separate diskette, in TESTS, and the rest of the samples are only on the 10Mb hard disk, in TESTS\SAMPLES); the [BASIC-DOS Release](download/) diskette, BASICDOS-360K (which leaves out the TESTS folder that a few demo diskettes have for tests their pages can run, eg, PIPES.BAT on the Dual Monitor diskettes and FPUTESTS.COM on the Single diskette; their CONFIG.SYS files add it to PATH$), is also available as a raw 360K image; every disk has a volume label (eg, BD-D40), and every machine's diskette list shows the BASIC-DOS diskettes by title (eg, "BASIC-DOS 40-Cols"); the 10Mb hard disk's directories are in the same order as a diskette's (EXT and DEMOS, followed by SRC, TESTS, and TOOLS), since pc.js's `--order` option overrides its usual sorting
 - [x] REN: rename files and directories and move them between directories on the same drive
 - [x] Loading tokenized (binary) BAS files saved by BASICA or GW-BASIC (eg, the samples on the PC DOS diskettes): they're converted back to text as they're loaded (as LIST would display them), including MBF floating-point constants (converted to IEEE doubles and formatted by FPU$); protected BAS files are still rejected with "Invalid file format"
@@ -350,7 +352,7 @@ These are the next steps, roughly in priority order:
 2. The rest of runtime error handling (messages for numeric errors other than "Division by zero", such as "Overflow")
 3. Common BASICA features that BASIC-DOS lacks: BEEP and COMMON
 4. The rest of protected mode on an 80286 or 80386: ring 3 for the programs that still need `RING=0` (interrupt hooks that DOS or the ROM BIOS calls, and CPUTESTS); see [Limitations](docs/bdtech/mmu/#limits)
-5. 80386 sessions: video memory for V86.COM's V86 machine, and 32-bit sessions for LE programs
+5. 80386 sessions: the rest of the BIOS for V86.COM's V86 machine, and 32-bit sessions for LE programs
 
 ### Ring 3 Security
 
