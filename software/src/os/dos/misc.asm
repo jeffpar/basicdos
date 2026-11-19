@@ -664,6 +664,8 @@ ENDPROC	msc_getswc
 ;	can't read the DV_MEM_SIZE that follows mcb_head; see r3supp.asm)
 ;	REG_CX, REG_SI, REG_DI = # of buffers, files, and sessions (see
 ;	cfg_counts; also BASIC-DOS only, for MEM)
+;	REG_DX = offset (in REG_ES) of scb_active, the active SCB's offset (or
+;	zero), for a debugger (eg, DEBUG's prompt shows the session #)
 ;
 ; Modifies:
 ;	None
@@ -671,6 +673,7 @@ ENDPROC	msc_getswc
 DEFPROC	msc_getvars,DOS
 	mov	[bp].REG_ES,ds
 	mov	[bp].REG_BX,offset mcb_head + 2
+	mov	[bp].REG_DX,offset scb_active
 	mov	ax,[mem_size]
 	mov	[bp].REG_AX,ax
 	mov	si,offset cfg_counts

@@ -1,11 +1,11 @@
 {
-  "name": "COMPAQ DeskPro 386, 2Mb RAM, 10Mb Hard Disk, VGA, Serial Mouse",
+  "name": "COMPAQ DeskPro 386, 2Mb RAM, 10Mb Hard Disk, VGA",
   "defaults": {
     "ram": "2Mb",
     "fpu": "None",
     "fdc": "1.2Mb and 1.44Mb diskette drives",
     "parallel": "LPT1",
-    "serial": "COM1 (serial mouse), COM2",
+    "serial": "COM1, COM2",
     "hdc": "10Mb hard disk"
   },
   "machine": {
@@ -50,8 +50,6 @@
       "screenHeight": 960,
       "screenColor": "black",
       "overlay": true,
-      "autoLock": true,
-      "touchScreen": "mouse",
       "controls": [
         {
           "type": "group",
@@ -286,12 +284,6 @@
       "class": "parallel",
       "adapter": 2,
       "binding": "print"
-    },
-    {
-      "id": "mouse",
-      "class": "mouse",
-      "serial": "com1",
-      "scaleMouse": 0.5
     }
   ]
 }

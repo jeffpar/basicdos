@@ -55,7 +55,12 @@
 ; with & (real mode) or # (protected mode), and otherwise has the current
 ; mode, every address is displayed with its prefix, and the registers include
 ; the MSW, GDTR, and IDTR, plus in protected mode, the LDTR, the TR, and each
-; segment register's base and limit (see CPU_SEGINFO).
+; segment register's base (a linear address) and limit (see CPU_SEGINFO).  In
+; any mode, % starts a linear address and %% a physical one (which are the
+; same without paging; see ADDR_LIN).  On an 80386, the registers are the
+; 32-bit registers, with FS and GS (and in protected mode, CR0, CR2, and CR3
+; in place of the MSW), and a stop that interrupts a V86 machine (eg, a
+; Ctrl-C) stops the machine (see get_v86).
 ;
 ; The disassembler is in dbgdis.asm, which LINK puts after this module, and
 ; which is resident, too.  Only INIT calls DOS, and it's in dbginit.asm,
@@ -73,12 +78,14 @@
 	include	dosapi.inc
 	include	uart.inc
 	include	cpu.inc
+	include	v86.inc
 
 CODE	segment para public 'CODE'
 
 	EXTNEAR	<com_main,com_quit,dbgdev_init>
 	EXTNEAR	<chk_over,cmd_a,dis_line>
-	EXTNEAR	<chk_sess,chk_trap,cmd_v,list_sess,put_vec,rpt_vec>
+	EXTNEAR	<chk_sess,chk_trap,cmd_v,get_sess,list_sess,put_vec,rpt_vec>
+	EXTNEAR	<set_step>
 	EXTBYTE	<DIV_MSG,FAULT_MSG,OVF_MSG>
 	EXTNEAR	<put_fmt>
 	public	gl1,mon3a,mon4,mon4a,ct1v,cg1	; (patched by dbginit.asm)
@@ -107,7 +114,10 @@ IN_MASK		equ	127	; in_buf is a ring buffer, with one slot unused
 ; resume).  These are their offsets, in the order they're pushed, from last
 ; to first; SP and SS are saved as they were before the interrupt, which for
 ; code interrupted at another ring (ie, a ring 3 program, while we're at ring
-; 0) are in the interrupt frame (see chk_ring).
+; 0) are in the interrupt frame (see chk_ring).  On an 80386, the rest of
+; the registers (the upper halves, FS, and GS) are in xregs, a V86REGS just
+; before regs (see monitor), so their offsets from regs are negative (see
+; X_REGS).
 ;
 R_SP		equ	0
 R_SS		equ	2
@@ -117,19 +127,22 @@ R_CS		equ	24
 R_FL		equ	26
 R_AX		equ	20
 REGS_LEN	equ	28
+X_REGS		equ	-VR_DSSEL	; the offset of xregs from regs
 ;
 ; Each breakpoint (BP_TAB entry) has an offset, segment, original byte, and
-; state (BP_* flags, plus ADDR_SEL if the segment is a selector); entry 0 is
-; the temporary breakpoint (for G addr, P, and BP 0), which is cleared when
-; CS:IP reaches it.
+; state (BP_* flags, plus ADDR_SEL if the segment is a selector, or ADDR_V86
+; if it's a V86 machine's, which is followed by its physical address; see
+; put_bp); entry 0 is the temporary breakpoint (for G addr, P, and BP 0),
+; which is cleared when CS:IP reaches it.
 ;
 BP_SET		equ	02h	; breakpoint is set
 BP_ARMED	equ	04h	; breakpoint's INT 3 is in memory
 BP_STEP		equ	08h	; temporary breakpoint ends a P step
 BP_GO		equ	10h	; temporary breakpoint resumes (see r3_go)
+BP_HLT		equ	40h	; breakpoint is a HLT in ring 3 code (see arm)
 	public	BP_SET,BP_GO	; (see com_main)
 CPU_DUAL	equ	80h	; cpu_mode: CPU$ is the 80386 driver
-BP_SIZE		equ	6
+BP_SIZE		equ	10
 NUM_BPS		equ	10
 ;
 ; trace_mode flags, for the T or P command in progress (see cmd_t).
@@ -150,6 +163,7 @@ TRACE_OVER	equ	02h	; step over CALL, INT, LOOP, and REP (P)
 	DEFPTR	old_com			; original COM interrupt handler
 	DEFWORD	com_port,0		; UART base port
 	DEFWORD	dos_vars,0		; DOS_MSC_GETVARS's BX (see set_dos)
+	DEFWORD	dos_scb,0		; DOS_MSC_GETVARS's DX (see get_sess)
 	DEFWORD	dos_seg,0		; DOS's segment (see hook_vecs)
 	DEFWORD	dump_off,0		; offset of the next D command
 	DEFWORD	dump_seg,0		; segment of the next D command
@@ -165,12 +179,16 @@ TRACE_OVER	equ	02h	; step over CALL, INT, LOOP, and REP (P)
 	DEFWORD	a_seg,0			; segment of the next A command
 	DEFBYTE	a_mode,0		; ADDR_SEL if a_seg is a selector
 	DEFBYTE	cpu_mode,0		; CPU_DUAL, plus ADDR_SEL if in PM
+	DEFBYTE	ip_mode,0		; CS:IP's mode (see get_v86)
+	DEFBYTE	cpu_flags,0		; CPU_GETINFO's flags (see set_cpu)
 ;
-; sys_regs holds what CPU_SYSREGS returns: the GDTR and IDTR (6 bytes each),
-; and then the MSW, LDTR, and TR.
+; sys_regs holds what CPU_SYSREGS returns: the GDTR and IDTR (6 bytes each)
+; and the address that a V86 machine's interrupt handler returns to (see
+; get_v86), and then the MSW, LDTR, and TR.
 ;
-	DEFWORD	sys_regs,0,9
+	DEFWORD	sys_regs,0,11
 	DEFWORD	trace_cnt,0		; T or P steps remaining
+	DEFWORD	xregs,0,VR_DSSEL/2	; 80386 registers (must precede regs)
 	DEFWORD	regs,0,REGS_LEN/2	; saved registers
 	DEFWORD	fault_ec,0		; (after regs, for V_FEC and V_FVEC)
 	DEFBYTE	fault_vec,0		; the vector of a fault (or INT 0 or 4)
@@ -190,6 +208,7 @@ TRACE_OVER	equ	02h	; step over CALL, INT, LOOP, and REP (P)
 	DEFBYTE	brk_skip,0		; nonzero to resume past a DBGBRK
 	DEFBYTE	notstart,0		; loaded, not yet started (prog mode)
 	DEFBYTE	prog_char,0		; prompt char in prog mode (put_prompt)
+	DEFBYTE	sess_num,0		; our session # in prog mode (from 1)
 	DEFWORD	start_hook,0		; -> com_exec2 (see com_main)
 	DEFBYTE	tracing,0		; 1 for T or P, 2 for G past a BP
 	DEFBYTE	trace_mode,0		; TRACE_* flags (0 after other stops)
@@ -199,15 +218,19 @@ TRACE_OVER	equ	02h	; step over CALL, INT, LOOP, and REP (P)
 	DEFLONG	ln_addr,0		; the address that put_name looks for
 ;
 ; Register names, with offsets of the saved registers in regs, in display
-; order.
+; order, and then the segment registers in the PCjs Debugger's order (see
+; show_regs), where find_reg also finds FS and GS (see X_REGS).
 ;
 	DEFLBL	REG_TABLE,byte
 	db	"AX",20,"BX",18,"CX",16,"DX",14,"SP",0,"BP",12,"SI",10,"DI",8
 	DEFLBL	SEG_TABLE,byte
 	db	"DS",6,"ES",4,"SS",2,"CS",24,"IP",22
+	DEFLBL	SEG_386,byte
+	db	"SS",2,"DS",6,"ES",4,"CS",24
+	db	"FS",X_REGS+VR_FS,"GS",X_REGS+VR_GS
 ;
 ; Flag names (clear, set), for the flags in FLAG_MASK, from high to low;
-; they must immediately follow REG_TABLE (see show_regs).
+; they must immediately follow SEG_386 (see find_reg and show_regs).
 ;
 FLAG_MASK	equ	0ED5h	; OF, DF, IF, SF, ZF, AF, PF, and CF
 	DEFLBL	FLAG_NAMES,byte
@@ -243,17 +266,31 @@ FLAG_MASK	equ	0ED5h	; OF, DF, IF, SF, ZF, AF, PF, and CF
 	db	"Assertion failure",0
 ;
 ; The names of the registers that show_regs displays in protected mode after
-; SS, in order (A20 is always enabled then), and the flags' letters there.
+; the segment registers, in order (A20 is always enabled then), and the
+; flags' letters in the PCjs Debugger's format.
 ;
 	DEFLBL	SYS_NAMES,byte
-	db	"A20=ON ",0,"LD=",0
+	db	"LD=",0
 	DEFLBL	SYS_GD,byte
-	db	" GD=",0," ID=",0,"TR=",0
+	db	" GD=",0," ID=",0," TR=",0," A20=ON ",0
+	db	"CR0=",0," CR2=",0," CR3=",0
 	DEFLBL	SYS_MS,byte
 	db	" MS=",0," PS=",0
 	DEFLBL	PM_FLAGS,byte
 	db	"VDITSZAPC"
 PM_FLAG_MASK	equ	0FD5h	; OF, DF, IF, TF, SF, ZF, AF, PF, and CF
+;
+; The offset (from regs) of each general register's upper half (in xregs),
+; by its own offset / 2 (see put_regval), and the offset in regs of each
+; V86REGS low word, VR_EDI through VR_EAX (with SP for the unused one) and
+; VR_EIP through VR_DS (see map_v86).
+;
+	DEFLBL	HI_TAB,byte
+	db	X_REGS+VR_ESP+2,0,0,0,X_REGS+VR_EDI+2,X_REGS+VR_ESI+2
+	db	X_REGS+VR_EBP+2,X_REGS+VR_EDX+2,X_REGS+VR_ECX+2
+	db	X_REGS+VR_EBX+2,X_REGS+VR_EAX+2
+	DEFLBL	V86_MAP,byte
+	db	8,10,12,0,18,14,16,20,22,24,26,0,2,4,6
 
 ;
 ; Commands, and the procedures that perform them (with SI -> the text after
@@ -474,9 +511,8 @@ di21:	push	ax
 	xchg	ax,[bp+4]
 	mov	[fault_ret]._SEG,ax	; (see cmd_gt)
 	mov	ax,[bp+6]		; AX = vector
-	call	chk_trap		; is it trapped?
-	mov	al,-1			; (a trapped fault)
-	jc	df1			; yes
+	call	chk_fault		; a HLT breakpoint, or trapped?
+	jc	df1			; yes (AL = 3 or -1)
 	test	ah,FAULT_HALTED		; is CPU$ offering us its halt?
 	mov	al,-3			; (a halt)
 	jnz	df1			; yes, so we keep control
@@ -595,33 +631,56 @@ ENDPROC	dbgdev_enter
 ;
 ; monitor
 ;
-; Get the processor's mode (and system registers, if CPU$ is the 80286
-; driver), remove breakpoints, finish any G past a breakpoint (or T or P with
-; a count), and process commands.
+; On an 80386, save the rest of the registers in xregs (nothing so far has
+; changed them), and then get the processor's mode (and system registers, if
+; CPU$ is the 80386 driver), remove breakpoints, finish any G past a
+; breakpoint (or T or P with a count), and process commands.
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	monitor
 	push	ds
 	pop	es
-	mov	di,offset sys_regs	; ES:DI -> GDTR and IDTR buffer
+	call	chk_386			; an 80386?
+	jc	mon0			; no
+	db	66h,60h			; PUSHAD
+	mov	si,sp
+	mov	di,offset xregs
+	mov	cx,16
+	rep	movsw			; (VR_EDI through VR_EAX)
+	mov	sp,si
+	mov	ax,word ptr xregs[VR_EBX-2]	; (PUSHAD's ESP)
+	mov	word ptr xregs[VR_ESP+2],ax
+	db	66h,9Ch			; PUSHFD
+	pop	ax
+	pop	word ptr xregs[VR_EFL+2]
+	db	8Ch,26h			; MOV [xregs+VR_FS],FS
+	dw	offset xregs+VR_FS
+	db	8Ch,2Eh			; MOV [xregs+VR_GS],GS
+	dw	offset xregs+VR_GS
+mon0:	mov	di,offset sys_regs	; ES:DI -> GDTR and IDTR buffer
 	mov	ah,CPU_SYSREGS
 	call	cpu_call		; AX = MSW, CX = LDTR, DX = TR
 	mov	bl,0
-	jc	mon0			; it's not the 80386 driver
-	mov	sys_regs[12],ax
-	mov	sys_regs[14],cx
-	mov	sys_regs[16],dx
+	jc	mon0a			; it's not the 80386 driver
+	mov	sys_regs[16],ax
+	mov	sys_regs[18],cx
+	mov	sys_regs[20],dx
 	and	al,ADDR_SEL		; (the MSW's PE bit)
 	or	al,CPU_DUAL
 	mov	bl,al
-mon0:	mov	[cpu_mode],bl
+mon0a:	mov	[cpu_mode],bl
+	and	bl,ADDR_SEL
+	mov	[ip_mode],bl
+	call	get_v86			; stopped in a V86 machine?
+	cmp	[ip_mode],ADDR_V86	; (whose CS isn't a selector)
+	je	mon0b			; yes
 	call	chk_ring		; interrupted at another ring?
-	jz	mon0d			; no
+	jz	mon0b			; no
 	les	bx,[frame_ptr]
 	les	ax,es:[bx]
 	mov	regs[R_SP],ax
 	mov	regs[R_SS],es		; yes, so get its SS:SP from the frame
-mon0d:	call	disarm
+mon0b:	call	disarm
 	mov	dl,0			; DL = nonzero if a T or P step is done
 	mov	al,0
 	xchg	al,[tracing]
@@ -636,18 +695,18 @@ mon0d:	call	disarm
 	cmp	[why],1			; a single-step trap?
 	jne	mon1			; no
 	test	al,al			; were we tracing?
-	jnz	mon0a			; yes
+	jnz	mon0c			; yes
 	test	ah,01h			; was TF set?
 	jz	mon1			; no (it was an INT 1)
 	mov	al,2			; yes, so resume
-mon0a:	dec	al			; was it T or P?
-	jnz	mon0b			; no
+mon0c:	dec	al			; was it T or P?
+	jnz	mon0d			; no
 	inc	dx			; yes, so the step is done
 	jmp	short mon1
-mon0b:	call	arm			; no, G past a breakpoint
-	jc	mon0c			; but we're at another one
+mon0d:	call	arm			; no, G past a breakpoint
+	jc	mon0e			; but we're at another one
 	jmp	resume
-mon0c:	call	disarm			; (DL is zero, since arm zeroes it)
+mon0e:	call	disarm			; (DL is zero, since arm zeroes it)
 ;
 ; Reaching the temporary breakpoint, however we got there, clears it, and if
 ; P set it, the P step is done; if G set it after an INT at ring 3 (BP_GO),
@@ -734,8 +793,7 @@ mon3:	mov	ax,regs[R_IP]
 	mov	[a_seg],ax
 	mov	ax,regs[R_DS]
 	mov	[dump_seg],ax		; D defaults to DS
-	mov	al,[cpu_mode]
-	and	al,ADDR_SEL
+	mov	al,[ip_mode]
 	mov	[u_mode],al		; in the current mode
 	mov	[a_mode],al
 	mov	[dump_mode],al
@@ -806,18 +864,102 @@ ENDPROC	mon_reset
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; get_v86
+;
+; A stop whose interrupt frame returns to where the handler of a hardware
+; interrupt from a V86 machine returns (see CPU_SYSREGS) interrupted that
+; handler (eg, ours, for a CTRL-C, or a single-step trap or INT 3 that CPU$
+; sends us from the machine; see rs3), so we stop the machine instead: its
+; registers (see CPU_V86) replace regs (and xregs), and CS:IP's mode
+; (ip_mode) is ADDR_V86, until resume gives them back.  A breakpoint in CPU$
+; at that address doesn't (its frame returns past the INT 3).
+;
+; Modifies:
+;	AX, BX, DX, SI, DI, ES
+;
+DEFPROC	get_v86
+	les	bx,[frame_ptr]
+	mov	ax,es:[bx-6]		; AX = the frame's IP
+	cmp	ax,sys_regs[12]		; the handler's return address?
+	jne	mv9			; no
+	mov	ax,es:[bx-4]		; AX = the frame's CS
+	cmp	ax,sys_regs[14]
+	jne	mv9			; no
+	push	ds
+	pop	es
+	mov	di,offset xregs		; ES:DI -> V86REGS
+	mov	ax,(CPU_V86 SHL 8) OR 2
+	call	cpu_call
+	jc	mv9			; there's no machine
+	mov	[ip_mode],ADDR_V86
+	mov	dl,0
+ENDPROC	get_v86				; fall into map_v86
+
+;
+; map_v86
+;
+; Copies the low words of the V86REGS in xregs to regs (DL = 0), or from
+; regs (DL nonzero); FS and GS are always in xregs (see SEG_386).
+;
+; Modifies:
+;	AX, BX, SI, DI
+;
+DEFPROC	map_v86
+	mov	si,offset V86_MAP
+	mov	di,offset xregs
+mv1:	lodsb
+	cbw
+	xchg	bx,ax			; BX = the register's offset in regs
+	mov	ax,[di]
+	test	dl,dl			; to regs?
+	jnz	mv2			; no
+	mov	regs[bx],ax
+mv2:	mov	ax,regs[bx]
+	mov	[di],ax
+	add	di,4
+	cmp	di,offset xregs+VR_VEC	; past VR_EAX?
+	jne	mv3			; no
+	mov	di,offset xregs+VR_EIP
+mv3:	cmp	si,offset V86_MAP+15
+	jb	mv1
+mv9:	ret
+ENDPROC	map_v86
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; resume
 ;
 ; Copy regs to the (possibly new) stack, below the saved SS:SP, and then
 ; restore them all and IRET; to resume another ring, they go below its SS:SP
-; in the interrupt frame instead, since the IRET pops those, too.
+; in the interrupt frame instead, since the IRET pops those, too.  On an
+; 80386, xregs are restored first (with a POPAD, whose low words the rest
+; replace).  A V86 machine's registers go back to it instead (see get_v86),
+; and the handler that we interrupted gets its own (still on its stack),
+; since its caller (CPU$) resumes the machine with the machine's.
 ;
 DEFPROC	resume
 	cmp	[notstart],0		; a loaded program not yet started?
 	jz	rsa			; no
 	mov	[notstart],0		; yes, so start it (see com_exec2)
 	jmp	[start_hook]
-rsa:	les	di,dword ptr regs[R_SP]
+rsa:	call	set_step		; (see SCSTAT_STEP)
+	push	ds
+	pop	es
+	cmp	[ip_mode],ADDR_V86	; resuming a V86 machine?
+	je	rs3			; yes
+	call	chk_386			; an 80386?
+	jc	rsb			; no
+	sub	sp,32
+	mov	di,sp
+	mov	si,offset xregs
+	mov	cx,16
+	rep	movsw			; (VR_EDI through VR_EAX)
+	db	8Eh,26h			; MOV FS,[xregs+VR_FS]
+	dw	offset xregs+VR_FS
+	db	8Eh,2Eh			; MOV GS,[xregs+VR_GS]
+	dw	offset xregs+VR_GS
+	db	66h,61h			; POPAD
+rsb:	les	di,dword ptr regs[R_SP]
 	call	chk_ring		; resuming another ring?
 	jz	rs1			; no
 	call	put_sssp		; yes, ES:BX -> its SS:SP in the frame
@@ -828,7 +970,7 @@ rs1:	sub	di,REGS_LEN
 	mov	cx,REGS_LEN/2
 	rep	movsw
 	pop	di
-	mov	ax,es
+rs2:	mov	ax,es
 	mov	ss,ax
 	lea	sp,[di+4]		; skip the saved SP and SS
 	pop	es
@@ -842,6 +984,32 @@ rs1:	sub	di,REGS_LEN
 	pop	bx
 	pop	ax
 	iret
+	ASSUME	DS:CODE
+rs3:	mov	dl,1
+	call	map_v86			; (regs to xregs)
+;
+; CPU$ sends us the machine's single-step traps and INT 3s (see VR_VEC in
+; v86.inc) while we're stepping it (TF) or it has an armed breakpoint.
+;
+	mov	al,byte ptr regs[R_FL+1]
+	and	al,01h			; AL = TF
+	mov	bx,offset bp_tab
+rs3a:	mov	ah,[bx+5]
+	and	ah,BP_ARMED OR ADDR_V86
+	cmp	ah,BP_ARMED OR ADDR_V86	; an armed breakpoint in the machine?
+	jne	rs3b			; no
+	mov	al,1
+rs3b:	add	bx,BP_SIZE
+	cmp	bx,offset bp_end
+	jb	rs3a
+	cbw
+	mov	xregs[VR_VEC],ax
+	mov	di,offset xregs		; ES:DI -> V86REGS
+	mov	ax,(CPU_V86 SHL 8) OR 3
+	call	cpu_call
+	les	di,[frame_ptr]
+	sub	di,REGS_LEN
+	jmp	rs2
 ENDPROC	resume
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -951,7 +1119,7 @@ bl1:	test	byte ptr [bx+5],BP_SET
 	mov	al,dl
 	call	put_char
 	call	space
-	call	bp_mem
+	call	bl_mem
 	call	dis_line
 bl2:	add	bx,BP_SIZE
 	inc	dx
@@ -976,21 +1144,77 @@ DEFPROC	set_bp
 	call	parse_addr
 	jc	sb9
 ;
-; A breakpoint needs a segment, but not a V86 machine's, since the machine's
-; INT 3 goes to its own vector.
+; A breakpoint needs a segment, and a V86 machine's only while we're stopped
+; in that machine (whose INT 3 then comes to us; see rs3), where put_bp also
+; stores its physical address, which bp_mem uses, since & may mean another
+; session's machine at the next stop (see cmd_bl).
 ;
-	test	[mem_mode],ADDR_PHYS OR ADDR_V86
+	test	[mem_mode],ADDR_PHYS OR ADDR_LIN
 	stc
 	jnz	sb9
 	call	end_command
 	jc	sb9
-	mov	[bx],ax
+	DEFLBL	put_bp,near		; (BX -> entry, BP:AX = address)
+	mov	cl,[mem_mode]
+	test	cl,ADDR_V86		; a V86 machine's?
+	jz	sb1			; no
+	cmp	[ip_mode],ADDR_V86	; are we stopped in one?
+	stc
+	jne	sb9			; no
+	push	ax
+	push	bx
+	push	di
+	xchg	di,ax
+	mov	bx,bp
+	mov	al,cl
+	call	lin_addr		; DX:CX = its physical address
+	pop	di
+	pop	bx
+	pop	ax
+	jc	sb9
+	mov	[bx+6],cx
+	mov	[bx+8],dx
+	mov	cl,ADDR_V86
+sb1:	mov	[bx],ax
 	mov	[bx+2],bp
-	mov	al,[mem_mode]
-	or	al,BP_SET
-	mov	[bx+5],al
+	or	cl,BP_SET		; (carry is clear)
+	mov	[bx+5],cl
 sb9:	ret
 ENDPROC	set_bp
+
+;
+; bl_mem makes breakpoint BX the memory to access, as bp_mem does, except
+; that a V86 machine's is displayed as it was set (&segment:offset), if the
+; machine that & means now has it there, or else at its physical address.
+;
+; Modifies:
+;	AX, CX, DI
+;
+DEFPROC	bl_mem
+	call	bp_mem
+	test	byte ptr [bx+5],ADDR_V86	; a machine's?
+	jz	bk9			; no
+	push	dx
+	push	bx
+	push	di
+	mov	di,[bx]
+	mov	bx,[bx+2]
+	mov	al,ADDR_V86
+	call	lin_addr		; DX:CX = where & has it now
+	pop	di
+	pop	bx
+	jc	bk8			; (there's no machine)
+	cmp	cx,[bx+6]
+	jne	bk8
+	cmp	dx,[bx+8]
+	jne	bk8			; (it's another machine's)
+	mov	di,[bx]
+	mov	ax,[bx+2]
+	mov	[mem_seg],ax
+	mov	[mem_mode],ADDR_V86
+bk8:	pop	dx
+bk9:	ret
+ENDPROC	bl_mem
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1214,6 +1438,8 @@ ct1:	mov	[trace_cnt],ax
 	je	ct1b			; yes, so skip it
 	cmp	al,0CDh			; INT n?
 	jne	ct2			; no
+	cmp	[ip_mode],ADDR_V86	; in a machine (whose INTs keep TF)?
+	je	ct2			; yes, so just trace it
 	mov	al,ah
 ;
 ; Program mode at ring 3 makes this a JMP to ct2a, which steps over an INT n,
@@ -1253,12 +1479,11 @@ ct2:	test	[trace_mode],TRACE_OVER	; P?
 	jz	ct3			; no
 ct2a:	call	chk_over		; DI -> next instruction
 	jnc	ct3			; but trace this one
-	mov	word ptr bp_tab[0],di
-	mov	ax,[mem_seg]
-	mov	word ptr bp_tab[2],ax
-	mov	al,[mem_mode]
-	or	al,BP_SET OR BP_STEP
-	mov	bp_tab[5],al		; (replacing any temporary breakpoint)
+	mov	bx,offset bp_tab
+	xchg	ax,di
+	mov	bp,[mem_seg]
+	call	put_bp			; (replacing any temporary breakpoint)
+	or	bp_tab[5],BP_STEP
 	jmp	cg1
 ct3:	mov	al,1
 	jmp	step
@@ -1933,7 +2158,10 @@ ENDPROC	cmd_help
 ;
 ; arm
 ;
-; Write an INT 3 at every breakpoint except any at CS:IP.
+; Write an INT 3 at every breakpoint except any at CS:IP, or in ring 3 code
+; (in protected mode), a HLT, whose general protection fault comes to us
+; (see dbg_fault and chk_hlt) before any ring 3 handler of INT 3 could take
+; it (eg, DEBUG's, run as a program in that session).
 ;
 ; Outputs:
 ;	Carry set if a breakpoint is at CS:IP (and DL zero, either way)
@@ -1954,16 +2182,68 @@ ar1:	test	byte ptr [bx+5],BP_SET
 ar2:	call	peek_b			; AL = original byte
 	jc	ar3			; (the address isn't valid)
 	mov	[bx+4],al
-	mov	al,0CCh
+	mov	ax,(BP_ARMED SHL 8) OR 0CCh	; (INT 3)
+	test	byte ptr [bx+5],ADDR_SEL	; a selector
+	jz	ar2a
+	test	byte ptr [bx+2],3	; at ring 3?
+	jz	ar2a			; no
+	mov	ax,((BP_ARMED OR BP_HLT) SHL 8) OR 0F4h	; (HLT)
+ar2a:	push	ax
 	call	poke_b
+	pop	ax
 	jc	ar3
-	or	byte ptr [bx+5],BP_ARMED
+	or	[bx+5],ah
 ar3:	add	bx,BP_SIZE
 	cmp	bx,offset bp_end
 	jb	ar1
 	shr	dl,1
 	ret
 ENDPROC	arm
+
+;
+; chk_fault returns carry set if dbg_fault should stop for fault AX: with AL
+; = 3 for a HLT breakpoint (see arm), whose frame's IP (at BP+10) it moves
+; past the HLT, as for an INT 3, or AL = -1 if VT traps the vector.  chk_hlt
+; returns carry set if the frame is at a HLT breakpoint.
+;
+; Modifies:
+;	AX (chk_fault only if it returns carry)
+;
+DEFPROC	chk_fault
+	cmp	ax,0Dh			; #GP (INT_GP in 8086.inc)?
+	jne	cf1			; no
+	call	chk_hlt			; at one of our HLT breakpoints?
+	mov	ax,0Dh			; (the vector again)
+	jnc	cf1			; no
+	inc	word ptr [bp+10]
+	mov	al,3
+	ret
+cf1:	call	chk_trap		; is it trapped?
+	mov	al,-1			; (carry set if so)
+	ret
+ENDPROC	chk_fault
+
+DEFPROC	chk_hlt
+	push	bx
+	mov	bx,offset bp_tab
+ch1:	mov	al,[bx+5]
+	and	al,BP_ARMED OR BP_HLT
+	cmp	al,BP_ARMED OR BP_HLT	; an armed HLT?
+	jne	ch2			; no
+	mov	ax,[bx]
+	cmp	ax,[bp+10]		; at its IP?
+	jne	ch2
+	mov	ax,[bx+2]
+	cmp	ax,[bp+12]		; and CS?
+	stc
+	je	ch9			; yes
+ch2:	add	bx,BP_SIZE
+	cmp	bx,offset bp_end	; (carry set until the end)
+	jb	ch1
+	clc
+ch9:	pop	bx
+	ret
+ENDPROC	chk_hlt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1980,7 +2260,7 @@ DEFPROC	disarm
 da1:	sub	bx,BP_SIZE
 	test	byte ptr [bx+5],BP_ARMED
 	jz	da2
-	and	byte ptr [bx+5],0FFh XOR BP_ARMED
+	and	byte ptr [bx+5],0FFh XOR (BP_ARMED OR BP_HLT)
 	call	bp_mem
 	mov	al,[bx+4]
 	call	poke_b			; (which advances DI)
@@ -2025,7 +2305,7 @@ DEFPROC	at_ip
 	push	di
 	mov	di,regs[R_IP]
 	mov	bx,regs[R_CS]
-	mov	al,[cpu_mode]
+	mov	al,[ip_mode]
 	call	lin_addr		; DX:CX = address of CS:IP
 	pop	di
 	pop	bx			; BX:SI = address of mem_seg:DI
@@ -2056,9 +2336,12 @@ ENDPROC	at_ip
 ;	AX, CX, DX
 ;
 DEFPROC	lin_addr
-	and	al,ADDR_SEL OR ADDR_PHYS OR ADDR_V86
+	and	al,ADDR_SEL OR ADDR_PHYS OR ADDR_V86 OR ADDR_LIN
 	mov	ah,CPU_SEGINFO
+	push	si
+	mov	si,di			; (the offset, for ADDR_LIN)
 	call	cpu_call		; DX:CX = base address
+	pop	si
 	jc	la9
 	add	cx,di
 	adc	dx,0			; (carry is clear)
@@ -2078,7 +2361,10 @@ ENDPROC	lin_addr
 DEFPROC	ip_mem
 	mov	di,regs[R_IP]
 	mov	ax,regs[R_CS]
-	DEFLBL	ax_mem,near		; (AX = segment, in the current mode)
+	mov	[mem_seg],ax
+	mov	al,[ip_mode]		; (CS:IP's mode)
+	jmp	short bm1
+	DEFLBL	ax_mem,near		; (AX = segment, in the system's mode)
 	mov	[mem_seg],ax
 	mov	al,[cpu_mode]
 	jmp	short bm1
@@ -2089,7 +2375,14 @@ DEFPROC	bp_mem
 	mov	ax,[bx+2]
 	mov	[mem_seg],ax
 	mov	al,[bx+5]
-bm1:	and	al,ADDR_SEL
+	and	al,ADDR_SEL OR ADDR_V86
+	cmp	al,ADDR_V86		; a V86 machine's (see put_bp)?
+	jne	bm1			; no
+	mov	di,[bx+6]
+	mov	ax,[bx+8]
+	mov	[mem_seg],ax		; (its physical address)
+	mov	al,ADDR_PHYS
+bm1:	and	al,ADDR_SEL OR ADDR_V86 OR ADDR_PHYS
 	mov	[mem_mode],al
 	ret
 ENDPROC	bp_mem
@@ -2304,25 +2597,32 @@ ENDPROC	newline
 ;	AX
 ;
 DEFPROC	hex_addr
-	test	[mem_mode],ADDR_PHYS	; a physical address?
-	jz	ha0			; no
+	test	[mem_mode],ADDR_PHYS OR ADDR_LIN	; physical or linear?
+	jz	ha1			; neither
 	mov	al,'%'
 	call	put_char
-	mov	ax,[mem_seg]
-	call	hex_byte		; (bits 16-23)
-	jmp	short ha2
-ha0:	test	[cpu_mode],CPU_DUAL	; does the mode matter?
-	jz	ha1			; no
+	test	[mem_mode],ADDR_PHYS	; physical?
+	jz	ha0			; no
+	call	put_char		; (%%)
+ha0:	mov	ax,[mem_seg]		; AX = bits 16-31
+	call	chk_386			; an 80386?
+	jc	ha0a			; no
+	call	hex_word
+	jmp	short ha3
+ha0a:	call	hex_byte		; (bits 16-23)
+	jmp	short ha3
+ha1:	test	[cpu_mode],CPU_DUAL	; does the mode matter?
+	jz	ha2			; no
 	mov	al,'&'
 	test	[mem_mode],ADDR_SEL	; protected mode?
-	jz	ha0a			; no
+	jz	ha1a			; no
 	mov	al,'#'
-ha0a:	call	put_char
-ha1:	mov	ax,[mem_seg]
+ha1a:	call	put_char
+ha2:	mov	ax,[mem_seg]
 	call	hex_word
 	mov	al,':'
 	call	put_char
-ha2:	mov	ax,di
+ha3:	mov	ax,di
 	call	hex_word
 	jmp	space
 ENDPROC	hex_addr
@@ -2396,24 +2696,27 @@ ENDPROC	show_step			; fall into show_regs
 ; show_regs
 ;
 ; Display the saved registers and flags, followed by the instruction at CS:IP.
-; In real mode, they're in the same format as DEBUG, with a line for the MSW,
-; GDTR, and IDTR if CPU$ is the 80386 driver; in protected mode, they're in
-; the PCjs Debugger's format, with each segment register's [base,limit], the
-; system registers, and the flags as 0 or 1 (and no IP, which the instruction
-; shows).
+; In real mode before an 80386, they're in the same format as DEBUG, with a
+; line for the MSW, GDTR, and IDTR if CPU$ is the 80386 driver; otherwise,
+; they're in the PCjs Debugger's format, with the flags as 0 or 1 (and no CS
+; or IP in real mode, which the instruction shows), and on an 80386, the
+; 32-bit registers, FS, and GS; in protected mode, each segment register has
+; its [base,limit], followed by the system registers.
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	show_regs
 	mov	si,offset REG_TABLE
-	test	[cpu_mode],ADDR_SEL	; protected mode?
-	jnz	srp			; yes
+	call	chk_386			; an 80386?
+	jnc	sr3			; yes
+	test	[ip_mode],ADDR_SEL	; protected mode?
+	jnz	sr3			; yes
 sr1:	cmp	si,offset SEG_TABLE	; start of the second line?
 	jne	sr2			; no
 	call	newline
 sr2:	call	put_regval
-	cmp	si,offset FLAG_NAMES
+	cmp	si,offset SEG_386
 	jb	sr1
 	call	show_flags
 	call	newline
@@ -2421,7 +2724,7 @@ sr2:	call	put_regval
 	jz	sr9			; no
 	mov	si,offset SYS_MS+1
 	call	put_string		; "MS="
-	mov	ax,sys_regs[12]
+	mov	ax,sys_regs[16]
 	call	hex_word
 	mov	si,offset SYS_GD
 	call	put_string		; " GD="
@@ -2433,25 +2736,49 @@ sr2:	call	put_regval
 sr8:	call	newline
 sr9:	call	ip_mem
 	jmp	dis_line
-
-srp:	call	put_regval		; AX through DI
-	cmp	si,offset SEG_TABLE
-	jb	srp
+;
+; The PCjs Debugger's format starts with the general registers (four per
+; line on an 80386), and then in real mode (or V86 mode), SS, DS, ES, FS,
+; and GS, followed by the flags.
+;
+sr3:	call	put_regval
+	cmp	si,offset REG_TABLE+4*3	; after DX?
+	jne	sr3a			; no
+	call	chk_386			; an 80386?
+	jc	sr3a			; no
 	call	newline
-sp2:	call	put_regval		; DS, ES, and SS
-	cmp	si,offset SEG_TABLE+9	; CS's entry?
-	jb	sp2
-	push	si
-	mov	si,offset SYS_NAMES
-	call	put_string		; "A20=ON "
+sr3a:	cmp	si,offset SEG_TABLE
+	jb	sr3
 	call	newline
-	pop	ax
-	push	si			; (SI -> "LD=")
-	xchg	si,ax			; SI -> CS's entry
+	mov	si,offset SEG_386
+	test	[ip_mode],ADDR_SEL	; protected mode?
+	jnz	sr5			; yes
+sr4:	call	put_regval
+	cmp	si,offset SEG_386+3*3	; CS's entry?
+	jne	sr4a			; no
+	add	si,3			; (skip it)
+sr4a:	cmp	si,offset FLAG_NAMES
+	jb	sr4
+	mov	si,offset SYS_MS+6	; "PS="
+	jmp	sr7
+;
+; In protected mode, they're SS, DS, and ES, and then CS (and FS and GS),
+; followed by the LDTR, GDTR, IDTR, TR, and A20, and then CR0, CR2, and CR3
+; on an 80386 (or else the MSW), and the flags.
+;
+sr5:	call	put_regval		; SS, DS, and ES
+	cmp	si,offset SEG_386+3*3	; CS's entry?
+	jb	sr5
+	call	newline
 	call	put_regval		; CS
-	pop	si
+	call	chk_386			; an 80386?
+	jc	sr5a			; no
+	call	put_regval		; FS
+	call	put_regval		; GS
+sr5a:	call	newline
+	mov	si,offset SYS_NAMES
 	call	put_string		; "LD="
-	mov	ax,sys_regs[14]
+	mov	ax,sys_regs[18]
 	push	ax
 	call	hex_word
 	pop	ax
@@ -2462,16 +2789,34 @@ sp2:	call	put_regval		; DS, ES, and SS
 	call	put_string		; " ID="
 	mov	bx,offset sys_regs+6
 	call	put_dtr
-	call	space
+	call	put_string		; " TR="
+	mov	ax,sys_regs[20]
+	call	hex_word
+	call	put_string		; " A20=ON "
 	call	newline
-	call	put_string		; "TR="
+	call	chk_386			; an 80386?
+	jc	sr6			; no
+	call	put_string		; "CR0="
+	db	0Fh,20h,0C0h		; MOV EAX,CR0
+	call	hex_eax
+	call	put_string		; " CR2="
+	db	0Fh,20h,0D0h		; MOV EAX,CR2
+	call	hex_eax
+	call	put_string		; " CR3="
+	db	0Fh,20h,0D8h		; MOV EAX,CR3
+	call	hex_eax
+	add	si,5			; (past " MS=")
+	jmp	short sr7
+sr6:	mov	si,offset SYS_MS+1
+	call	put_string		; "MS="
 	mov	ax,sys_regs[16]
 	call	hex_word
-	call	put_string		; " MS="
-	mov	ax,sys_regs[12]
-	call	hex_word
-	call	put_string		; " PS="
-	mov	ax,regs[R_FL]
+sr7:	call	put_string		; " PS="
+	call	chk_386			; an 80386?
+	jc	sr7a			; no
+	mov	ax,regs[X_REGS+VR_EFL+2]
+	call	hex_word		; (bits 31-16)
+sr7a:	mov	ax,regs[R_FL]
 	mov	dx,ax
 	call	hex_word
 	call	space
@@ -2495,30 +2840,70 @@ spf3:	shl	dx,1
 spf9:	jmp	sr8
 ENDPROC	show_regs
 
+;
+; chk_386 returns carry clear on an 80386 (see set_cpu), and hex_eax displays
+; EAX (8 hex digits).
+;
+; Modifies:
+;	AX, DX (hex_eax)
+;
+DEFPROC	chk_386
+	cmp	[cpu_flags],CPUTYPE_80386 SHL 6
+	ret
+ENDPROC	chk_386
+
+DEFPROC	hex_eax
+	db	66h,50h			; PUSH EAX
+	pop	dx
+	pop	ax
+	call	hex_word		; (bits 31-16)
+	xchg	ax,dx
+	jmp	hex_word
+ENDPROC	hex_eax
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; put_regval
 ;
 ; Display the register whose name (2 characters) and offset in regs are at
-; SI as NAME=VALUE, followed in protected mode by a segment register's
-; [base,limit], and then a space.
+; SI as NAME=VALUE (on an 80386, a general register's 32-bit register, eg,
+; EAX), followed in protected mode by a segment register's [base,limit], and
+; then a space.
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI (advanced to the next register)
+;	AX, BX, CX, DX, SI (advanced to the next register), DI
 ;
 DEFPROC	put_regval
 	lodsw
+	xchg	dx,ax			; DX = its name
+	lodsb
+	cbw
+	xchg	bx,ax			; BX = its offset in regs
+	sub	di,di			; DI = its upper half's (none)
+	cmp	si,offset SEG_TABLE	; a general register?
+	ja	pv1			; no
+	call	chk_386			; on an 80386?
+	jc	pv1			; no
+	mov	al,'E'
+	call	put_char
+	mov	di,bx
+	shr	di,1
+	mov	al,HI_TAB[di]
+	cbw
+	xchg	di,ax			; DI = its upper half's (see X_REGS)
+pv1:	xchg	ax,dx
 	call	put_2ch
 	mov	al,'='
 	call	put_char
-	lodsb
-	cbw
-	xchg	bx,ax
-	mov	ax,regs[bx]
+	test	di,di			; an upper half?
+	jz	pv2			; no
+	mov	ax,regs[di]
+	call	hex_word
+pv2:	mov	ax,regs[bx]
 	call	hex_word
 	cmp	si,offset SEG_TABLE	; a segment register (or IP)?
 	jbe	pv9			; no
-	test	[cpu_mode],ADDR_SEL	; protected mode (with no IP)?
+	test	[ip_mode],ADDR_SEL	; protected mode (with no IP)?
 	jz	pv9			; no
 	mov	ax,regs[bx]		; (hex_word changed AX)
 	call	put_desc
@@ -2530,7 +2915,8 @@ ENDPROC	put_regval
 ; put_dtr, put_desc
 ;
 ; Display [base,limit] for the GDTR or IDTR at BX, or for the selector in AX
-; (see CPU_SEGINFO; nothing is displayed if it isn't valid).
+; (see CPU_SEGINFO; nothing is displayed if it isn't valid), with a 24-bit
+; base before an 80386.
 ;
 ; Modifies:
 ;	AX, BX, CX, DX
@@ -2538,20 +2924,24 @@ ENDPROC	put_regval
 DEFPROC	put_dtr
 	mov	ax,[bx]			; AX = limit
 	mov	cx,[bx+2]
-	mov	dl,[bx+4]		; DL:CX = base
+	mov	dx,[bx+4]		; DX:CX = base
 	jmp	short put_bl
 ENDPROC	put_dtr
 
 DEFPROC	put_desc
 	xchg	bx,ax
-	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_SEL
+	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_SEL OR ADDR_LIN
 	call	cpu_call		; DX:CX = base, AX = limit
 	jc	pd9
 	DEFLBL	put_bl,near
 	push	ax
 	mov	al,'['
 	call	put_char
-	mov	al,dl
+	call	chk_386			; an 80386?
+	jc	pd8			; no
+	mov	al,dh
+	call	hex_byte		; (bits 31-24)
+pd8:	mov	al,dl
 	call	hex_byte
 	mov	ax,cx
 	call	hex_word
@@ -2568,22 +2958,34 @@ ENDPROC	put_desc
 ;
 ; put_prompt
 ;
-; Display the prompt, which shows the CPU's mode, as COMMAND's does: '>' in
-; real mode, ']' in protected mode, or '}' in V86 mode.  In program mode,
-; com_main sets prog_char from our PSP's PSP_MODE, since cpu_mode can't tell
-; at ring 3 (or in a V86 machine); a driver uses cpu_mode.
+; Display the prompt, which is the current session's number (see get_sess),
+; in hex, as DL lists it, followed by the CPU's mode, as COMMAND's prompt
+; shows it: '>' in real mode, ']' in protected mode, or '}' in V86 mode.  In
+; program mode, com_main sets prog_char from our PSP's PSP_MODE, since
+; cpu_mode can't tell at ring 3 (or in a V86 machine); a driver uses ip_mode
+; (see get_v86).
 ;
 ; Modifies:
-;	AL
+;	AX, DI
 ;
 DEFPROC	put_prompt
-	mov	al,[prog_char]
+	call	get_sess		; AL = session # (or 0 if none)
+	test	al,al
+	jz	pp1
+	cmp	al,10h			; one hex digit?
+	jb	pp0			; yes
+	call	hex_byte
+	jmp	short pp1
+pp0:	call	hex_digit
+pp1:	mov	al,[prog_char]
 	test	al,al			; program mode?
 	jnz	pp9			; yes
 	mov	al,'>'
-	test	[cpu_mode],ADDR_SEL	; protected mode?
-	jz	pp9			; no
+	cmp	[ip_mode],ADDR_SEL	; real mode?
+	jb	pp9			; yes
 	mov	al,']'
+	je	pp9			; protected mode
+	mov	al,'}'			; V86 mode
 pp9:	jmp	put_char
 ENDPROC	put_prompt
 
@@ -2751,7 +3153,8 @@ ENDPROC	end_command
 ;	AX = register name (2 characters)
 ;
 ; Outputs:
-;	If carry clear, BX = offset of the register in regs
+;	If carry clear, BX = offset of the register in regs (negative for FS
+;	and GS; see X_REGS)
 ;
 DEFPROC	find_reg
 	mov	bx,offset REG_TABLE
@@ -2762,8 +3165,11 @@ fr1:	cmp	ax,[bx]
 	jb	fr1
 	stc
 	ret
-fr2:	mov	bl,[bx+2]		; (carry is clear)
-	mov	bh,0
+fr2:	push	ax
+	mov	al,[bx+2]
+	cbw
+	xchg	bx,ax
+	pop	ax			; (carry is clear)
 	ret
 ENDPROC	find_reg
 
@@ -2795,7 +3201,8 @@ ENDPROC	reg_val
 ; parse_hex
 ;
 ; Parse a hex value, or a 16-bit register name (for the register's value);
-; no register name is also a hex value.
+; no register name is also a hex value.  Terms can be added or subtracted,
+; with + or - (and no spaces; eg, IP+2).
 ;
 ; Inputs:
 ;	SI -> command text
@@ -2808,6 +3215,30 @@ ENDPROC	reg_val
 ;	AX, CX, DX, SI
 ;
 DEFPROC	parse_hex
+	call	hex_term
+	jc	px9
+px1:	mov	cl,[si]
+	cmp	cl,'+'			; another term to add?
+	je	px2			; yes
+	cmp	cl,'-'			; or to subtract?
+	clc
+	jne	px9			; no
+px2:	inc	si
+	push	ax
+	push	cx
+	call	hex_term		; AX = the term
+	pop	cx
+	pop	dx
+	jc	px9
+	cmp	cl,'-'
+	jne	px3
+	neg	ax
+px3:	add	ax,dx
+	jmp	px1
+px9:	ret
+ENDPROC	parse_hex
+
+DEFPROC	hex_term
 	call	skip_space
 	push	bx
 	mov	ax,[si]
@@ -2844,7 +3275,7 @@ ph3:	cmp	cx,si			; CF set if any digits
 	ret
 ph8:	stc
 	ret
-ENDPROC	parse_hex
+ENDPROC	hex_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2854,8 +3285,8 @@ ENDPROC	parse_hex
 ; parse_hex); & means real mode (in protected mode, the active session's V86
 ; machine, if any; see ADDR_V86), and # protected mode (if CPU$ is the 80286
 ; driver), and otherwise the address has the current mode; or parse %address,
-; a physical address of up to 6 hex digits, whose "segment" is bits 16-23
-; (see ADDR_PHYS).
+; a linear address (see ADDR_LIN), or %%address, a physical one (ADDR_PHYS),
+; of up to 8 hex digits, whose "segment" is bits 16-31.
 ;
 ; Inputs:
 ;	SI -> command text
@@ -2871,8 +3302,7 @@ DEFPROC	parse_addr
 	call	skip_space
 	cmp	byte ptr [si],'%'	; a physical address?
 	je	pa4			; yes
-	mov	al,[cpu_mode]
-	and	al,ADDR_SEL		; AL = current mode
+	mov	al,[ip_mode]		; AL = current mode
 	cmp	byte ptr [si],'&'	; real mode?
 	jne	pa1			; no
 	test	al,al			; while in protected mode?
@@ -2910,7 +3340,12 @@ pa3:	mov	[mem_mode],al
 pa8:	clc
 pa9:	ret
 pa4:	inc	si
-	mov	[mem_mode],ADDR_PHYS
+	mov	al,ADDR_LIN
+	cmp	byte ptr [si],'%'	; %% (a physical address)?
+	jne	pa4a			; no
+	inc	si
+	mov	al,ADDR_PHYS
+pa4a:	mov	[mem_mode],al
 	push	bx
 	sub	ax,ax
 	cwd				; DX:AX = address
@@ -2924,7 +3359,7 @@ pa5:	mov	bl,[si]
 	jb	pa7
 	cmp	bl,16
 	jae	pa7
-pa6:	test	dl,0F0h			; room for another digit?
+pa6:	test	dh,0F0h			; room for another digit?
 	stc
 	jnz	pa7a			; no
 	shl	ax,1
@@ -2940,7 +3375,7 @@ pa6:	test	dl,0F0h			; room for another digit?
 	jmp	pa5
 pa7:	cmp	cx,si			; CF set if any digits
 	cmc
-pa7a:	mov	bp,dx			; BP = bits 16-23
+pa7a:	mov	bp,dx			; BP = bits 16-31
 	pop	bx
 	ret
 ENDPROC	parse_addr
@@ -3306,7 +3741,7 @@ dt3a:	cmp	[dtType],'G'		; DG?
 	jz	dt4			; no
 	mov	[dtType],'L'		; yes, so use the active LDT
 	push	ax
-	mov	bx,sys_regs[14]		; BX = LDTR
+	mov	bx,sys_regs[18]		; BX = LDTR
 	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_SEL
 	call	cpu_call		; DX:CX = base, AX = limit
 	call	dt_set

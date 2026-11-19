@@ -602,7 +602,7 @@ ENDPROC	genCommands
 ; genUpper
 ;
 ; Jumps to a generator that isn't part of COMMAND's core (ie, one in a module
-; linked after CONST.ASM; see CMD.LRF and HEAP.ASM).  When there's too little
+; linked after INIT.ASM; see CMD.LRF and HEAP.ASM).  When there's too little
 ; memory for the entire image, the loader loads only the core (see CD_CORESIZE
 ; in dosapi.inc), and PSP_CODESIZE then ends at the core, so a generator at
 ; or beyond it isn't there, and we report "Not enough memory" instead.
@@ -613,7 +613,7 @@ ENDPROC	genCommands
 ; generator chooses between a core function and an upper one (eg, genLine;
 ; see gencon.asm), and for cmdDOS, which calls every built-in command's
 ; handler through here (eg, cmdAuto).  To move more functionality out of the
-; core, link its modules after CONST.OBJ, and make sure nothing in the core
+; core, link its modules after INIT.OBJ, and make sure nothing in the core
 ; calls them except through one of these checks.
 ;
 ; Inputs:

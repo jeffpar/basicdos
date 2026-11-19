@@ -145,6 +145,9 @@ ENDPROC	mem_alloc
 ;
 ; mem_free
 ;
+; Frees a block, and combines free blocks that follow each other (see
+; mem_freeall), as BASIC-DOS does.
+;
 ; Inputs:
 ;	AX = segment
 ;
@@ -159,6 +162,11 @@ DEFPROC	mem_free
 	call	mcb_ptr
 	jc	mf9
 	mov	es:[di].MCB_OWNER,0
+	push	dx
+	sub	dx,dx			; (only the free blocks' owner)
+	call	mem_freeall
+	pop	dx
+	clc
 mf9:	ret
 ENDPROC	mem_free
 
@@ -246,7 +254,9 @@ ENDPROC	mcb_split
 ;
 ; mem_freeall
 ;
-; Frees every block that an owner has.
+; Frees every block that an owner has, and combines free blocks that follow
+; each other (so that the free memory is as it was before the owner's
+; blocks were allocated, as MEM reports it).
 ;
 ; Inputs:
 ;	DX = owner
@@ -261,7 +271,10 @@ mfa1:	call	mcb_ptr
 	cmp	es:[di].MCB_OWNER,dx
 	jne	mfa2
 	mov	es:[di].MCB_OWNER,0
-mfa2:	cmp	es:[di].MCB_SIG,MCBSIG_LAST
+mfa2:	cmp	es:[di].MCB_OWNER,0	; free?
+	jne	mfa3			; no
+	call	mcb_join
+mfa3:	cmp	es:[di].MCB_SIG,MCBSIG_LAST
 	je	mfa9
 	add	ax,es:[di].MCB_PARAS
 	inc	ax

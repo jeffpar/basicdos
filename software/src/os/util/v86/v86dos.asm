@@ -21,7 +21,7 @@ CODE    SEGMENT word public 'CODE'
 	EXTLONG	<dta>
 	EXTNEAR	<run,do_exit,do_ctrlc,seg_ptr,v86_get,v86_put>
 	EXTNEAR	<get_word,put_word,push_word,pop_word>
-	EXTNEAR	<mem_alloc,mem_free,mem_realloc,mem_freeall,load_prog>
+	EXTNEAR	<mem_alloc,mem_free,mem_realloc,mem_freeall,mcb_ptr,load_prog>
 	EXTNEAR	<start_prog,set_dta,fpu_copy>
 	EXTWORD	<ld_cs,ld_ip,ld_ss,ld_sp>
 
@@ -240,8 +240,8 @@ ENDPROC	vec_ptr
 ;
 ; A program's far call to CPU$ (see cpu.inc): we do what a debugger needs, as
 ; the 8086 driver does (CPU_GETINFO, with no free memory, since the machine's
-; is DOS's; CPU_MAP and CPU_UNMAP; CPU_SEGINFO; and CPU_RWMEM), and anything
-; else is invalid (eg, CPU_QUERY, since the machine's blocks aren't CPU$'s).
+; is DOS's; CPU_MAP and CPU_UNMAP; CPU_SEGINFO; CPU_RWMEM; and CPU_QUERY, of
+; the machine's blocks), and anything else is invalid.
 ;
 ; Inputs:
 ;	The machine's registers (AH = function)
@@ -280,7 +280,7 @@ dc2:	cmp	ah,CPU_SEGINFO
 	sbb	ax,ax			; AX = FFFFh (limit) or 0 (no rights)
 	mov	dx,bx
 	sub	cx,cx			; DX:CX = BX:0000
-	test	byte ptr [VARS+VR_EAX],ADDR_PHYS
+	test	byte ptr [VARS+VR_EAX],ADDR_PHYS OR ADDR_LIN
 	jnz	dc8
 	mov	cx,bx
 	shl	cx,4
@@ -288,6 +288,9 @@ dc2:	cmp	ah,CPU_SEGINFO
 	jmp	short dc8
 dc4:	cmp	ah,CPU_RWMEM
 	je	dc10
+	cmp	ah,CPU_QUERY
+	jne	dc7
+	jmp	dd_query
 dc7:	mov	ax,ERR_INVALID
 	or	byte ptr [VARS+VR_EFL],FL_CARRY
 dc8:	mov	word ptr [VARS+VR_EAX],ax
@@ -301,7 +304,7 @@ dc9a:	jmp	run
 ;
 dc10:	test	al,ADDR_SEL		; a selector?
 	jnz	dc7			; yes (there are none)
-	test	al,ADDR_PHYS		; a physical address?
+	test	al,ADDR_PHYS OR ADDR_LIN; a physical (or linear) address?
 	jz	dc11			; no
 	cmp	bx,10h			; below 1Mb?
 	jae	dc7			; no
@@ -363,6 +366,95 @@ DEFPROC	dd_vec
 	xchg	dx,es:[di]._SEG
 	jmp	short dc9
 ENDPROC	dd_vec
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dd_query (CPU_QUERY, for dd_cpu)
+;
+; CPU_QUERY describes the machine's memory as PMBs (eg, for a debugger's DM):
+; PMB 0 is the memory below the first MCB (the vectors, the BIOS data, and our
+; default handlers), and the rest are the machine's blocks, by number (BX); a
+; block of ours (MCBOWNER_SYSTEM, with no name), and PMB 0, are named V86, and
+; a free block has no name (its MCB_NAME is whatever its last owner left).
+;
+DEFPROC	dd_query
+	test	bx,bx			; a PMB # (not -1, for DX:CX's block)?
+	js	dq2			; no
+	cld
+	push	ds
+	pop	es
+	mov	di,offset VARS + V_BUF
+	mov	si,di			; SI -> PMB
+	mov	cx,(size PMB) / 2
+	sub	ax,ax
+	rep	stosw
+	mov	[si].PMB_SIG,PMBSIG_NEXT
+	mov	word ptr [si].PMB_LEN,ARENA_SEG SHL 4
+	mov	dx,MCBOWNER_SYSTEM	; DX = owner
+	mov	ax,ARENA_SEG
+	dec	bx			; PMB 0?
+	js	dq4			; yes
+dq1:	call	mcb_ptr			; ES:DI -> MCB
+	jc	dq2
+	dec	bx			; this one?
+	js	dq3			; yes
+	cmp	es:[di].MCB_SIG,MCBSIG_LAST
+	je	dq2			; there's no such block
+	add	ax,es:[di].MCB_PARAS
+	inc	ax
+	jmp	dq1
+dq2:	jmp	dc7
+dq3:	mov	cl,es:[di].MCB_SIG
+	mov	[si].PMB_SIG,cl
+	mov	cl,es:[di].MCB_TYPE
+	mov	[si].PMB_MCBTYPE,cl
+	inc	ax			; AX = the block's segment
+	mov	dx,ax
+	shl	ax,4
+	shr	dx,12
+	mov	[si].PMB_ADDR.LW,ax
+	mov	[si].PMB_ADDR.HW,dx
+	mov	ax,es:[di].MCB_PARAS
+	mov	dx,ax
+	shl	ax,4
+	shr	dx,12
+	mov	[si].PMB_LEN.LW,ax
+	mov	[si].PMB_LEN.HW,dx
+	push	es:[di].MCB_OWNER
+	cmp	es:[di].MCB_OWNER,0	; free (whose name may be stale)?
+	je	dq3a			; yes
+	push	si
+	push	ds
+	lea	ax,[si].PMB_NAME
+	lea	si,[di].MCB_NAME
+	xchg	di,ax			; ES:SI -> its name, DI -> ours
+	push	es
+	push	ds
+	pop	es
+	pop	ds
+	movsw
+	movsw
+	movsw
+	movsw
+	pop	ds
+	pop	si
+dq3a:	pop	dx			; DX = owner
+dq4:	mov	[si].PMB_OWNER,dx
+	test	dx,dx			; free?
+	jz	dq5			; yes (PMBTYPE_FREE)
+	mov	[si].PMB_TYPE,PMBTYPE_USED
+	cmp	dx,MCBOWNER_SYSTEM	; ours?
+	jne	dq5			; no
+	cmp	[si].PMB_NAME,0		; named?
+	jne	dq5			; yes
+	mov	word ptr [si].PMB_NAME,'8V'
+	mov	byte ptr [si].PMB_NAME+2,'6'
+dq5:	mov	di,word ptr [VARS+VR_EDI]
+	mov	es,word ptr [VARS+VR_ESSEL]	; ES:DI -> the caller's PMB
+	mov	cx,size PMB
+	rep	movsb
+	jmp	dc9a
+ENDPROC	dd_query
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -730,6 +822,8 @@ tp3a:	inc	bx
 	mov	[dta]._SEG,ax
 	cmp	byte ptr [tp_code+1],EXTYPE_KEEP
 	je	tp4
+	mov	ax,[cur_psp]
+	call	vec_rest
 	mov	dx,[cur_psp]
 	call	mem_freeall
 tp4:	mov	ax,[tp_parent]
@@ -785,6 +879,52 @@ ENDPROC	term_prog
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; vec_rest
+;
+; Restores any vector that still points into an ending program's block to its
+; default (see init_mem), as BASIC-DOS does (eg, for DEBUG's INT 00h, 01h, and
+; 03h, when a CTRLC or CTRL-ALT-DEL ends it at its prompt), since otherwise the
+; machine's next INT would run whatever reuses that memory.
+;
+; Inputs:
+;	AX = PSP
+;
+; Modifies:
+;	AX, BX, CX, DX, DI, ES
+;
+DEFPROC	vec_rest
+	mov	bx,ax			; BX = the block's start
+	dec	ax
+	call	mcb_ptr			; ES:DI -> its MCB
+	jc	vt9
+	mov	dx,es:[di].MCB_PARAS
+	add	dx,bx			; DX = the block's end
+	sub	ax,ax
+	sub	di,di
+	call	seg_ptr			; ES:DI -> the vectors
+	sub	cx,cx			; CL = vector #
+vt1:	mov	ax,es:[di]._SEG
+	cmp	ax,bx			; does it point into the block?
+	jb	vt3			; no
+	cmp	ax,dx
+	jae	vt3			; no
+	mov	ax,STUB_TICK
+	cmp	cl,INT_HW_TMR
+	je	vt2
+	mov	ax,STUB_TICK + 3
+	cmp	cl,INT_TICK
+	je	vt2
+	mov	ax,cx			; (the vector's HLT)
+vt2:	mov	es:[di]._OFF,ax
+	mov	es:[di]._SEG,STUB_SEG
+vt3:	add	di,4
+	inc	cl
+	jnz	vt1
+vt9:	ret
+ENDPROC	vec_rest
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; i21retcode
 ;
 ; Returns the exit code (AL) and type (AH) of the last program that ended; if
@@ -804,6 +944,12 @@ rc1:	mov	dl,al
 	mov	ax,[cur_psp]
 	mov	di,PSP_EXCODE
 	call	put_word
+;
+; do_ctrlc saves our handles as the program's (see pft_save), but they're
+; still the ended child's (closed, by term_prog), so they must be the
+; program's own first, or its handles would all be lost.
+;
+	call	pft_load
 	mov	[in_call],1		; (so do_ctrlc restarts the call)
 	jmp	do_ctrlc
 ENDPROC	i21retcode

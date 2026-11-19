@@ -182,14 +182,19 @@ OBJ\FUNCS.OBJ: FUNCS.ASM OBJ\INCS
 OBJ\CONST.OBJ: CONST.ASM OBJ\INCS
 	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
+OBJ\INIT.OBJ: INIT.ASM OBJ\INCS
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
+
 OBJ\HEAP.OBJ: HEAP.ASM OBJ\INCS
 	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 #
-# The link order (see CMD.LRF) matters: every module through CONST.OBJ is the
-# core, the modules after it (less common statements and functions, graphics
-# and MOUSE, sound, the tokenized file loader, PRINTF, AUTO/DELETE/EDIT, file
-# I/O, CHAIN/MERGE, and START) are loaded only when memory allows (see HEAPDEF in CMD.INC), and HEAP.OBJ must be last.
+# The link order (see CMD.LRF) matters: every module through INIT.OBJ is the
+# core (and INIT.OBJ, its startup portion, is discarded after startup when
+# only the core is loaded), the modules after it (less common statements and
+# functions, graphics and MOUSE, sound, the tokenized file loader, PRINTF,
+# AUTO/DELETE/EDIT, file I/O, CHAIN/MERGE, and START) are loaded only when
+# memory allows (see HEAPDEF in CMD.INC), and HEAP.OBJ must be last.
 #
 OBJ\COMMAND.COM: OBJ\RES.OBJ OBJ\CMD.OBJ OBJ\TIME.OBJ OBJ\DIR.OBJ \
 	OBJ\DIRCMD.OBJ OBJ\GENCMD.OBJ OBJ\GENTOK.OBJ \
@@ -204,7 +209,7 @@ OBJ\COMMAND.COM: OBJ\RES.OBJ OBJ\CMD.OBJ OBJ\TIME.OBJ OBJ\DIR.OBJ \
 	OBJ\STR.OBJ OBJ\STRHELP.OBJ OBJ\STRMISC.OBJ OBJ\GENMISC.OBJ \
 	OBJ\GENRGN.OBJ OBJ\UPMISC.OBJ OBJ\SYS.OBJ \
 	OBJ\SND.OBJ OBJ\STRVAR.OBJ OBJ\VAR.OBJ OBJ\FUNCS.OBJ \
-	OBJ\CONST.OBJ OBJ\HEAP.OBJ \
+	OBJ\CONST.OBJ OBJ\INIT.OBJ OBJ\HEAP.OBJ \
 	CMD.LRF
 	$(LINK) @CMD.LRF
 	$(EXE2BIN) OBJ\$*.EXE $@

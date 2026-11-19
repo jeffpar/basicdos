@@ -52,7 +52,7 @@ CODE	segment para public 'CODE'
 ; initialization's, only on an 80386.
 ;
 	EXTERNS	<ddcpu_init>,far
-	EXTNEAR	<v86_func,v86_info>
+	EXTNEAR	<v86_func,v86_info,v86_irqret>
 
 	.286p
 
@@ -689,7 +689,8 @@ ENDPROC	lim_desc
 ; selectors) or the LDT, in either mode.
 ;
 ; Inputs:
-;	AL = ADDR_* flags, BX = segment or selector
+;	AL = ADDR_* flags, BX = segment or selector (and with ADDR_LIN alone,
+;	SI = offset)
 ;
 ; Outputs:
 ;	Carry clear if successful: DX:CX = base address, AX = limit (FFFFh if
@@ -702,25 +703,31 @@ ENDPROC	lim_desc
 ;
 DEFPROC	ddcpu_seginfo
 	test	al,ADDR_V86		; a V86 machine's segment?
-	jnz	sg5			; yes
+	jnz	sg0b			; yes
 	test	al,ADDR_LDT		; an LDT # (see CPU_SETLDT)?
 	jnz	sg4			; yes
 	test	al,ADDR_SEL		; a selector?
 	jnz	sg1			; yes
-	push	ax
-	test	al,ADDR_PHYS		; a physical address (BX:0000)?
+	test	al,ADDR_LIN		; a linear address?
+	jz	sg0			; no
+	jmp	seg_lin
+sg0:	push	ax			; (seg_lin returns here without paging)
+	test	al,ADDR_PHYS OR ADDR_LIN; a physical (or linear) BX:0000?
 	mov	dx,bx
 	mov	cx,0			; DX:CX = BX:0000
-	jnz	sg0			; yes
+	jnz	sg0a			; yes
 	mov	ax,16
 	mul	bx			; DX:AX = the segment's address
 	xchg	cx,ax
-sg0:	pop	ax
+sg0a:	pop	ax
 	and	al,ADDR_RIGHTS
 	cmp	al,1			; carry set if not ADDR_RIGHTS
 	sbb	ax,ax			; AX = FFFFh (limit) or 0 (no rights)
 	clc
 	ret
+sg0b:	cmp	ds:[SYS_VARS].SV_V86SEL,0	; has a machine been created?
+	je	sg8			; no (and none can be on an 80286)
+	jmp	v86_info
 sg1:	mov	si,bx
 	and	si,NOT 7
 	test	bl,SEL_TI		; an LDT selector?
@@ -735,7 +742,10 @@ sg2:	cmp	si,GDT_LIMIT		; is it within the GDT?
 sg3:	test	ds:[si].DESC_ACC,ACC_PRESENT
 	jz	sg8
 	call	desc_addr		; DX:CX = base address
-	test	al,ADDR_RIGHTS		; (carry is clear)
+	test	al,ADDR_LIN		; as a linear address?
+	jz	sg3a			; no
+	mov	dh,byte ptr ds:[si].DESC_EXT+1	; yes (bits 31-24 as they are)
+sg3a:	test	al,ADDR_RIGHTS		; (carry is clear)
 	mov	ax,word ptr ds:[si].DESC_ACC
 	jnz	sg9
 	mov	ax,ds:[si].DESC_LIMIT
@@ -754,10 +764,8 @@ sg4:	cmp	bx,LDT_SESSIONS		; a valid LDT #?
 	mov	dh,0			; DX:CX = its base
 	ret
 sg8:	jmp	cpu_inval
-sg5:	cmp	ds:[SYS_VARS].SV_V86SEL,0	; has a machine been created?
-	je	sg8			; no (and none can be on an 80286)
-	jmp	v86_info
 ENDPROC	ddcpu_seginfo
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -868,18 +876,111 @@ ENDPROC	ddcpu_rwmem
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; seg_lin (CPU_SEGINFO with ADDR_LIN alone; see ddcpu_seginfo)
+;
+; A linear address (BX:SI) without paging is a physical one; with paging, it
+; goes through the page directory in CR3 (eg, a V86 machine's, while one is
+; interrupted) to its page table, and then its page; the base we return is
+; that page's physical address less the offset's page bits, so the base plus
+; SI is the address's physical address, and the limit ends with SI's page.
+;
+DEFPROC	seg_lin
+	cmp	ds:[SYS_VARS].SV_TYPE,CPUTYPE_80386	; paging?
+	jne	sn1			; no
+	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM
+	jnz	sn2			; yes
+sn1:	jmp	sg0			; (the same as physical)
+sn2:	db	0Fh,20h,0D8h		; MOV EAX,CR3
+	db	66h,50h			; PUSH EAX
+	pop	ax
+	pop	dx
+	and	ax,NOT (PG_SIZE - 1)	; DX:AX = page directory
+	mov	cx,bx
+	shr	cx,6			; CX = PDE # (bits 31-22)
+	call	pg_entry		; DX:AX = page table
+	jc	sn8
+	mov	cx,bx
+	and	cx,3Fh
+	push	si
+	shr	si,12
+	shl	cx,4
+	or	cx,si			; CX = PTE # (bits 21-12)
+	pop	si
+	call	pg_entry		; DX:AX = page
+	jc	sn8
+	mov	cx,si
+	and	cx,NOT (PG_SIZE - 1)
+	sub	ax,cx
+	sbb	dx,0
+	xchg	cx,ax			; DX:CX = base
+	mov	ax,si
+	or	ax,PG_SIZE - 1		; AX = limit (and carry is clear)
+	ret
+sn8:	jmp	cpu_inval
+ENDPROC	seg_lin
+
+;
+; pg_entry returns the page that a page directory or table entry maps, or
+; carry set if it's not present, reading it through SEL_TMP2 (which it
+; restores, as ddcpu_rwmem does, in case CPU$ itself was interrupted).
+;
+; Inputs:
+;	DX:AX = page directory or table (physical), CX = entry #
+;
+; Outputs:
+;	Carry clear: DX:AX = page (physical)
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	pg_entry
+	push	bx
+	push	si
+	push	es
+	shl	cx,2
+	add	ax,cx			; DX:AX -> entry (within its page)
+	mov	si,SYS_GDT + SEL_TMP2
+	push	ds:[si].DESC_LIMIT
+	push	ds:[si].DESC_BASE
+	push	word ptr ds:[si].DESC_BASE16
+	push	ds:[si].DESC_EXT
+	mov	bx,SEL_TMP2
+	call	pm_ptr			; BX = selector, AX = offset (zero)
+	mov	es,bx
+	sub	bx,bx
+	mov	ax,es:[bx]
+	mov	dx,es:[bx+2]		; DX:AX = entry
+	pop	ds:[si].DESC_EXT
+	pop	word ptr ds:[si].DESC_BASE16
+	pop	ds:[si].DESC_BASE
+	pop	ds:[si].DESC_LIMIT
+	pop	es
+	pop	si
+	pop	bx
+	test	al,PG_PRESENT		; present?
+	stc
+	jz	pe9			; no
+	and	ax,NOT (PG_SIZE - 1)	; DX:AX = page (and carry is clear)
+pe9:	ret
+ENDPROC	pg_entry
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; ddcpu_sysregs (CPU_SYSREGS)
 ;
 ; Inputs:
-;	ES:DI -> 12-byte buffer
+;	ES:DI -> 16-byte buffer
 ;
 ; Outputs:
-;	Carry clear: GDTR and IDTR stored at ES:DI, AX = MSW, CX = LDTR, and
-;	DX = TR (both zero in real mode, where they can't be read)
+;	Carry clear: GDTR, IDTR, and v86_irqret's address (offset, selector)
+;	stored at ES:DI, AX = MSW, CX = LDTR, and DX = TR (both zero in real
+;	mode, where they can't be read)
 ;
 DEFPROC	ddcpu_sysregs
 	DTREG	sgdt,<es:[di]>
 	DTREG	sidt,<es:[di+6]>
+	mov	word ptr es:[di+12],offset DEV:v86_irqret
+	mov	es:[di+14],cs
 	sub	cx,cx
 	cwd				; (AH is our function number)
 	smsw	ax

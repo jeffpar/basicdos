@@ -100,10 +100,10 @@ If D or Y are omitted, current values are assumed.
 Returns the current date as a string in the form MM-DD-YYYY.
 
 [e]DEBUG [~H] [*program* [*arguments*]] or DEBUG ~*command*
-Loads *program* (a full filename) without starting it, displays its registers, and accepts debugger commands (type ? to list them, CTRL-A to repeat the last one, G to run, and Q to quit).  The DB, DW, and DM commands can also be switches, which DEBUG performs before exiting (eg, DEBUG ~DB 40:0 or DEBUG ~DM).
+Loads *program* (a full filename) without starting it, displays its registers, and accepts debugger commands (type ? to list them, CTRL-A to repeat the last one, G to run, and Q to quit) at a prompt that shows the session number and the processor's mode (eg, 1> or 2]).  The DB, DW, and DM commands can also be switches, which DEBUG performs before exiting (eg, DEBUG ~DB 40:0 or DEBUG ~DM).
 DEBUG.COM can also be loaded as a device driver and used to debug the system from a terminal via a serial port.  For example, this CONFIG.SYS line connects DEBUG.COM to a VT100 terminal on COM2:\
 	DEVICE=EXT\DEBUG.COM COM2:9600,N,8,1,VT100
-Adding ~H after the port settings will cause the debugger to halt; use the G command to continue booting.  In protected mode, the driver's DG, DI, and DL commands display the GDT, the IDT, and a session's LDT (DL alone lists the sessions), and a real-mode address (eg, &1BC:100) is in the running session's V86 machine, if it has one.  CTRL-C stops a command's output.
+Adding ~H after the port settings will cause the debugger to halt; use the G command to continue booting.  In protected mode, the driver's DG, DI, and DL commands display the GDT, the IDT, and a session's LDT (DL alone lists the sessions), and a real-mode address (eg, &1BC:100) is in the running session's V86 machine, if it has one, and a CTRL-C that interrupts the machine stops in it (with a } prompt; G resumes it).  CTRL-C stops a command's output.
 
 [b]DEF *name*[(*parameter*[,*parameter*]...)][=*expression*]
 Defines a function expression or function block.  Function expressions must fit on a single line and can be defined at any time.

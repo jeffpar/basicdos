@@ -7,7 +7,6 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	HEAPDEFS equ 1			; (see HEAPDEF in cmd.inc)
 	GENDEFS equ 1
 	include	cmd.inc
 
@@ -20,8 +19,8 @@
 ; and counting its length with IRPC.  Two passes keep the strings and the
 ; entries from interleaving, which is what allowed the tables to live in CODE
 ; rather than DATA (which LINK places after all the code); that matters now
-; that the modules linked after this one are not part of the core (see
-; CORE_END below, and HEAP.ASM).
+; that the modules linked after the core are not part of it (see
+; CORE_END in INIT.ASM, and HEAP.ASM).
 ;
 TOKSTR	macro	sym,val,func,pub
 	db	"&sym&"
@@ -81,7 +80,6 @@ CODE    SEGMENT
 	DEFSTR	VER_DEBUG,<" DEBUG">
 	DEFSTR	VER_FINAL,<0>		; (also ends VER_DEBUG)
 	DEFSTR	PIPE_NAME,<"PIPE$",0>
-	DEFSTR	FPU_NAME,<"FPU$",0>
 	DEFSTR	STR_ON,<"ON",0>
 	DEFSTR	STR_OFF,<"OFF",0>
 
@@ -356,16 +354,6 @@ TOK_STRS label	byte			; the token strings (see TOKSTR)
 	DEFTOKENS OPTION_TOKENS,OPTION_TOTAL
 	OPTIONS	DEFTOK
 	NUMTOKENS OPTION_TOKENS,OPTION_TOTAL
-
-;
-; This is the end of COMMAND's core.  The modules linked after this one (see
-; CMD.LRF) are omitted when there isn't enough memory for the entire image, so
-; the core ends with its own copy of the heap template (see HEAPDEF in cmd.inc
-; and HEAP.ASM), which is where the heap begins in that case, and CORE_END
-; tells the loader how much to load (see CD_CORESIZE in dosapi.inc).
-;
-	HEAPDEF	CORE_HEAP
-	DEFLBL	CORE_END,word
 
 CODE	ENDS
 

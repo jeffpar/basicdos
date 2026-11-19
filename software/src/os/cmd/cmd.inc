@@ -440,8 +440,8 @@ DOS_REGS	dw    4 dup (?)		; 626h: AX-DX from DOS (see dosCall)
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
 SYM_CHAIN	dw	?		; 62Eh: nulled symbols (see parseDOS)
-STACK		dw  944 dup (?)		; 630h
-CMDHEAP		ends			; D90h
+STACK		dw  688 dup (?)		; 630h
+CMDHEAP		ends			; B90h
 SIG_CMD		equ	'H'
 
 ;
@@ -449,7 +449,7 @@ SIG_CMD		equ	'H'
 ; stack pointer at the end of the heap (a whole number of paragraphs), and the
 ; [heap] equate below assumes that's the end of STACK.
 ;
-	ASSERT	<SIZE CMDHEAP>,EQ,0D90h
+	ASSERT	<SIZE CMDHEAP>,EQ,0B90h
 
 ;
 ; The initial stack frame created by the main function can also be used to
@@ -463,16 +463,16 @@ SIG_CMD		equ	'H'
 heap		equ	byte ptr [bp+4-(STACK + size STACK)]
 
 ;
-; HEAPDEF defines the per-process heap template that ends both the core (see
-; const.asm) and the entire image (see heap.asm): the block chain definitions
-; (see BLKDEF), followed by the COMDATA that the loader reads from the end of
-; the file (see COMHEAP in dosapi.inc), which gives the shared code size (the
-; offset of lbl), the heap inside the image (RES_HEAP), and, for the entire
-; image, the end of the core (core_end), so that the core alone can be loaded
-; when memory is tight (see CD_CORESIZE).
+; HEAPDEF defines the per-process heap template that ends the entire image
+; (see heap.asm): the block chain definitions (see BLKDEF), followed by the
+; COMDATA that the loader reads from the end of the file (see COMHEAP in
+; dosapi.inc), which gives the shared code size (the offset of lbl), the heap
+; inside the image (RES_HEAP), and the end of the core (core_end), so that
+; the core alone can be loaded when memory is tight (see CD_CORESIZE and
+; init.asm, which ends the core with a COMDATA of its own).
 ;
-; Only const.asm and heap.asm need HEAPDEF, and they define HEAPDEFS before
-; including this file; other modules skip it, since MASM's memory is tight.
+; Only heap.asm needs HEAPDEF, and it defines HEAPDEFS before including this
+; file; other modules skip it, since MASM's memory is tight.
 ;
 	IFDEF	HEAPDEFS
 HEAPDEF	macro	lbl,core_end

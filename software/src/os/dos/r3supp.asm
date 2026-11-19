@@ -947,7 +947,10 @@ ENDPROC	r3_sprintf
 ; caller's flags (but TF); otherwise, we enter the previous handler (RV_ORIG)
 ; with the interrupt's frame, as if the gate still went to it, as we also do
 ; if the program can't take the interrupt (the handler can't be entered, or
-; the frame doesn't fit on its stack, where it will fault at ring 3 instead).
+; the frame doesn't fit on its stack, where it will fault at ring 3 instead),
+; or if it's a single-step trap while a debugger (eg, the DEBUG.COM driver)
+; steps the session (SCSTAT_STEP), so the trap goes to the debugger, not to
+; a ring 3 program's INT 1 handler (eg, DEBUG's, run as a program).
 ; If the vector had no previous handler, the interrupt is the caller's fault.
 ;
 ; Inputs:
@@ -970,7 +973,12 @@ DEFPROC	r3_reflect,DOS
 	push	bx
 	mov	bx,[scb_active]
 	mov	ah,[bx].SCB_NUM
-	pop	bx
+	cmp	[si].RV_VEC,INT_DB	; a single-step trap
+	jne	rr0
+	test	[bx].SCB_STATUS,SCSTAT_STEP	; that a debugger caused?
+	jz	rr0			; no
+	mov	ah,-1			; yes (so it isn't the session's)
+rr0:	pop	bx
 	cmp	ah,[si].RV_SESS		; the session whose handler it is?
 	jne	rr8			; no
 	push	cx

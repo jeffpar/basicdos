@@ -471,7 +471,9 @@ ENDPROC	uload
 ;
 ; uqrymem
 ;
-; QRYMEM finds the machine's blocks (see mem_query).
+; QRYMEM finds the machine's blocks (see mem_query).  As in BASIC-DOS, ES:DI
+; changes only for a block that a program owns (eg, MEM keeps a total in DI
+; while it adds up the free blocks).
 ;
 DEFPROC	uqrymem
 	mov	cx,word ptr [VARS+VR_ECX]
@@ -480,13 +482,16 @@ DEFPROC	uqrymem
 	jnc	uq1
 	mov	ax,FL_CARRY
 	jmp	i21f
-uq1:	mov	word ptr [VARS+VR_ES],ax
-	mov	word ptr [VARS+VR_EDI],MCB_NAME
+uq1:	mov	cx,ax
 	inc	ax
 	mov	word ptr [VARS+VR_EBX],ax
 	mov	ax,es:[di].MCB_OWNER
 	mov	word ptr [VARS+VR_EAX],ax
-	mov	ax,es:[di].MCB_PARAS
+	cmp	ax,MCBOWNER_SYSTEM	; owned by a program?
+	jbe	uq2			; no
+	mov	word ptr [VARS+VR_ES],cx
+	mov	word ptr [VARS+VR_EDI],MCB_NAME
+uq2:	mov	ax,es:[di].MCB_PARAS
 	mov	dx,ax
 	shl	ax,4
 	shr	dx,12

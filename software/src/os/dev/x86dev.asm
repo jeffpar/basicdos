@@ -494,7 +494,7 @@ DEFPROC	ddcpu_seginfo
 	test	al,ADDR_SEL		; a selector?
 	jnz	rw8			; yes (there are none)
 	push	ax
-	test	al,ADDR_PHYS		; a physical address (BX:0000)?
+	test	al,ADDR_PHYS OR ADDR_LIN; a physical (or linear) BX:0000?
 	mov	dx,bx
 	mov	cx,0			; DX:CX = BX:0000
 	jnz	sgi1			; yes
@@ -524,7 +524,7 @@ ENDPROC	ddcpu_seginfo
 DEFPROC	ddcpu_rwmem
 	test	al,ADDR_SEL		; a selector?
 	jnz	rw8			; yes (there are none)
-	test	al,ADDR_PHYS		; a physical address?
+	test	al,ADDR_PHYS OR ADDR_LIN; a physical (or linear) address?
 	jz	rw0			; no
 	cmp	bx,10h			; below 1Mb?
 	jae	rw8			; no

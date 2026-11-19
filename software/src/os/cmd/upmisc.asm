@@ -10,7 +10,8 @@
 ; The functions behind the statements in genmisc.asm, CSRLIN, PEEK, POS,
 ; PROMPT$, RND, SCREEN, SGN, TAB, and VIEW PRINT (see gengfx.asm), and the
 ; prompt that PROMPT$ describes.
-; This module is linked after CONST.OBJ, so it's outside COMMAND's core (see
+;
+; This module is linked after INIT.OBJ, so it's outside COMMAND's core (see
 ; CMD.LRF): genFuncExpr reports "Not enough memory" for these functions if
 ; only the core was loaded, and main uses the default prompt.
 ;

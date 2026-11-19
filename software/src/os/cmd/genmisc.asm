@@ -9,7 +9,7 @@
 ;
 ; Generates code for DEF SEG, POKE, PROMPT$ =, RANDOMIZE, SCREEN, SWAP, and
 ; WIDTH, whose runtime functions are in upmisc.asm.  This module is linked
-; after CONST.OBJ, so it's outside COMMAND's core (see CMD.LRF): genCommands
+; after INIT.OBJ, so it's outside COMMAND's core (see CMD.LRF): genCommands
 ; reports "Not enough memory" for these statements if only the core was
 ; loaded, and genDef and genLet check DEF SEG and PROMPT$ with genUpper.
 ;

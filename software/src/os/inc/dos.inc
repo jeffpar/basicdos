@@ -125,6 +125,7 @@ SCSTAT_START	equ	04h	; set if session program can be started
 SCSTAT_ABORT	equ	08h	; set if session abort (CTRL-ALT-DEL) signalled
 SCSTAT_FAULT	equ	10h	; set while a fault ends a program (see r3_end)
 SCSTAT_KILL	equ	20h	; set while a session is ending (see scb_end)
+SCSTAT_STEP	equ	40h	; set while a debugger steps it (r3_reflect)
 ;
 ; The bits that scb_close clears.
 ;

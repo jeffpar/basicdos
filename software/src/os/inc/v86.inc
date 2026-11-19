@@ -30,6 +30,16 @@
 ;	there; the IF bit in VR_EFL is the machine's own (CLI, STI, PUSHF,
 ;	POPF, and IRET use it, but it never stops interrupts).
 ;
+;	CPU_V86 with AL = 2 copies the registers of the machine that ran
+;	last to the V86REGS at ES:DI, and AL = 3 copies them back (only the
+;	flags that the machine can change do), for a debugger that stopped
+;	the machine's hardware interrupt in its handler (see CPU_SYSREGS),
+;	where the machine resumes when the handler returns; at any other time,
+;	they aren't the machine's current registers.  With AL = 3, a nonzero
+;	VR_VEC sends the machine's single-step traps and INT 3s to the
+;	system's INT 01h and 03h handlers (the debugger's) instead of its own
+;	vectors, the same way, until another AL = 3 with VR_VEC zero.
+;
 ; The machine's code can do anything an 8086 program can, except HLT, and
 ; I/O, which exits (V86X_IO), so that the host can do something like it (the
 ; machine never uses a port itself): VR_EIP is past the IN or OUT, the low

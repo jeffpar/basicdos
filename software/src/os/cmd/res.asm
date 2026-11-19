@@ -23,7 +23,7 @@
 ;
 ;
 ; The transient portion ends at PSP_CODESIZE: BEG_HEAP (see heap.asm) when
-; the entire image was loaded, or CORE_HEAP (see const.asm) when the loader
+; the entire image was loaded, or CORE_INIT (see init.asm) when the loader
 ; loaded only COMMAND's core (see CD_CORESIZE in dosapi.inc).
 ;
 	DOSFUNC equ 1

@@ -26,14 +26,15 @@ DEV	group	CODE
 
 CODE	segment byte public 'CODE'
 
-	EXTBYTE	<adapters,bios_lock,max_cols,req_switch,shown_page,one_con>
+	EXTBYTE	<adapters,bios_lock,max_cols,max_rows,req_switch,shown_page>
+	EXTBYTE	<one_con>
 	EXTWORD	<bios_ctx,con_place,ct_focus,ct_head,frame_seg,mode_ctx>
 	extrn	ddcon_int09:far
 	extrn	ddcon_int10:far
 	extrn	ddcon_int29:far
 	extrn	ddcon_req:far
 	EXTNEAR	<draw_border,draw_char,draw_cursor,draw_linefeed,free_buf>
-	EXTNEAR	<get_curpos,hide_cursor,update_cursor,alloc_sys,find_page>
+	EXTNEAR	<get_curpos,hide_cursor,update_cursor,alloc_sys>
 	EXTNEAR	<free_seg>
 	EXTLONG	<kbd_int,video_int,wait_ptr>
 
@@ -75,7 +76,18 @@ scr0a:	cmp	al,ds:[CT_CONDIM].HB
 scr1:	add	cx,ds:[CT_SCRMIN]	; CH = row, CL = col of upper left
 	add	dx,ds:[CT_SCRMAX]	; DH = row, DL = col of lower right
 scr2:	mov	bh,ds:[CT_COLOR].LB	; BH = fill attributes
-	call	chk_graphics		; graphics mode?
+;
+; An MDA underlines a space whose attributes are 01h (or 09h, etc), so if
+; those are the current attributes (eg, after COLOR 1 or COLOR 9), the new
+; lines get 07h (or 0Fh, etc) instead, rather than staying underlined after
+; the attributes change; a CGA's 01h is blue, which a space doesn't show.
+;
+	mov	ah,77h
+	and	ah,bh
+	dec	ah			; underlined (01h)?
+	jnz	scr2a			; no
+	or	bh,06h			; yes, so use 07h
+scr2a:	call	chk_graphics		; graphics mode?
 	jnc	scr3			; no
 	mov	bh,0			; yes, BH = fill pixels (background)
 ;
@@ -378,7 +390,9 @@ ENDPROC	chk_blocked
 ;
 ; Called when the context blocking the others (mode_ctx) returns to its
 ; original mode (or is closed): the borders of the other contexts on the same
-; adapter are redrawn, and every waiting write (or IOCTL) can try again.
+; adapter are redrawn, and every waiting write (or IOCTL) can try again (see
+; release_now).  The only console (see con_opt) blocks nothing, so it just
+; gets its cursor back (and update_mode redraws its border).
 ;
 ; Inputs:
 ;	DS = CONSOLE context (mode_ctx)
@@ -395,128 +409,10 @@ DEFPROC	release_mode
 	ASSUME	ES:CODE
 	mov	[mode_ctx],0
 	ASSUME	ES:NOTHING
-	push	ds
-	mov	ax,ds:[CT_PORT]		; AX = adapter port
-	mov	cx,[ct_head]
-rg1:	jcxz	rg3
-	mov	ds,cx
-	cmp	ds:[CT_PORT],ax		; context on the same adapter?
-	jne	rg2			; no
-	push	ax
-	call	draw_border		; yes, redraw its border (if any)
-	call	show_page		; and display its page (if it has focus)
-;
-; The mode change also moved the cursor and reset its type, so restore those
-; of the context with focus.
-;
-	mov	ax,ds
-	cmp	ax,[ct_focus]
-	jne	rg1a
-	call	show_cursor
-rg1a:	pop	ax
-rg2:	mov	cx,ds:[CT_NEXT]
-	jmp	rg1
-rg3:	pop	ds
-	call	update_slots		; (and give them their video memory)
-;
-; Now end the wait for every waiting packet that isn't a READ packet (ie,
-; every blocked write or IOCTL); each one checks again whether it's blocked
-; (or paused), and if so, simply waits again.  Each packet is removed from
-; the chain before its wait is ended, so that it can safely be added again.
-;
-	push	ds
-	mov	ds,cs:[0].DDH_DATA
-	mov	bx,offset wait_ptr	; DS:BX -> link to the first packet
-	cli
-rg4:	les	di,dword ptr [bx]	; ES:DI -> next packet
-	cmp	di,-1			; end of chain?
-	je	rg9			; yes
-	cmp	es:[di].DDP_CMD,DDC_READ; READ packet?
-	je	rg5			; yes, leave it alone
-	mov	ax,es:[di].DDP_PTR._OFF	; no, so unlink it
-	mov	[bx]._OFF,ax
-	mov	ax,es:[di].DDP_PTR._SEG
-	mov	[bx]._SEG,ax
-	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	mov	ah,DOS_UTL_ENDWAIT
-	call	far ptr DDINT_UTIL	; end the wait on DX:DI (see int_util)
-	cli
-	jmp	rg4			; (DS:BX still -> the same link)
-rg5:	push	es
-	pop	ds
-	lea	bx,[di].DDP_PTR		; DS:BX -> this packet's link
-	jmp	rg4
-rg9:	sti
-	pop	ds
-	ret
+	call	chk_opt			; one console only?
+	jc	show_cursor		; yes
+	jmp	release_now		; no (see con_opt)
 ENDPROC	release_mode
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; update_slots
-;
-; Calls set_slot for every context, after a change to which context is
-; blocking the others (mode_ctx).
-;
-; Modifies:
-;	AX, BX, CX, DX, SI, DI
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	update_slots
-	push	ds
-	mov	cx,[ct_head]
-us1:	jcxz	us9
-	mov	ds,cx
-	call	set_slot
-	mov	cx,ds:[CT_NEXT]
-	jmp	us1
-us9:	pop	ds
-	ret
-ENDPROC	update_slots
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; set_slot
-;
-; In protected mode, a program draws on a context's video memory through an
-; LDT selector that we create for the context (see ddcon_getmode) and decide
-; what it maps (CPU_MAP with MEMF_REMAP), which we change only when the
-; sessions that use it aren't running (eg, when another context's mode change
-; blocks them).  While another context is blocking it (see chk_blocked), the
-; selector is not present, so a program that loads it waits (see SELID_WAIT),
-; as its output does; otherwise, it maps the adapter's video memory, since the
-; context has a region (or page) of its own there.  A design that saved a
-; blocked context's video memory in a buffer could map the buffer instead,
-; and let the program keep running.
-;
-; Inputs:
-;	DS = CONSOLE context
-;
-; Modifies:
-;	AX, BX, CX, DX, SI, DI
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	set_slot
-	mov	bx,ds:[CT_SLOT]
-	test	bx,bx			; does it have a selector?
-	jz	ss9			; no
-	sub	si,si
-	sub	di,di			; SI:DI = 0 (not present)
-	mov	ax,ds
-	call	chk_blocked		; is another context blocking it?
-	jc	ss1			; yes, so take it away
-	call	slot_addr		; no, DX:CX = address, SI:DI = length
-ss1:	mov	ax,(CPU_MAP SHL 8) OR MEMF_REMAP
-	call	far ptr DDINT_CPU
-	test	di,di			; is it present now?
-	jz	ss9			; no
-	mov	dx,SELID_WAIT
-	mov	di,bx			; DX:DI = its wait ID
-ss2:	mov	ah,DOS_UTL_ENDWAIT
-	call	far ptr DDINT_UTIL	; end each wait for it
-	jnc	ss2
-ss9:	ret
-ENDPROC	set_slot
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -794,6 +690,8 @@ um5:	test	si,si			; was the mode set in place?
 	mov	[mode_ctx],ds		; no, so block the other contexts
 	pop	es
 	ASSUME	ES:NOTHING
+	call	chk_opt			; one console only?
+	jc	um7			; yes, so there are no others
 	push	bx
 	call	update_slots		; (and their video memory selectors)
 	pop	bx
@@ -1426,11 +1324,14 @@ ENDPROC	show_page			; fall into show_now (after con_opt)
 ;
 ; Everything from here to ddcon_init is for more than one console: switching
 ; the focus, the virtual pages that consoles beyond an adapter's own pages
-; use, and the text modes that pages can have.  A machine with 64K or less
-; has room for none of it, so ddcon_init ends the resident code here instead,
-; sets one_con, and ddcon_open then refuses a second console; nothing before
-; this calls any of it for the only console (see chk_opt), which always has
-; the focus and a page of its own.
+; use, the text modes that pages can have, unblocking contexts after a mode
+; change (see release_mode), and placing, opening, and closing contexts
+; beside others.  A machine with 64K or less has room for none of it, so
+; ddcon_init ends the resident code here instead, sets one_con, and
+; ddcon_open then refuses a second console; nothing before this calls any of
+; it for the only console (see chk_opt), which always has the focus and a page
+; of its own.  The video memory selectors (see set_slot) are here too, since
+; they exist only in protected mode, which needs more than 64K.
 ;
 	DEFLBL	con_opt,near
 
@@ -2161,6 +2062,340 @@ gvb9:	pop	di
 	pop	ax
 	ret
 ENDPROC	get_vbuf
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; release_now
+;
+; The rest of release_mode, for more than one console.
+;
+; Inputs:
+;	DS = CONSOLE context (mode_ctx)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	release_now
+	push	ds
+	mov	ax,ds:[CT_PORT]		; AX = adapter port
+	mov	cx,[ct_head]
+rg1:	jcxz	rg3
+	mov	ds,cx
+	cmp	ds:[CT_PORT],ax		; context on the same adapter?
+	jne	rg2			; no
+	push	ax
+	call	draw_border		; yes, redraw its border (if any)
+	call	show_page		; and display its page (if it has focus)
+;
+; The mode change also moved the cursor and reset its type, so restore those
+; of the context with focus.
+;
+	mov	ax,ds
+	cmp	ax,[ct_focus]
+	jne	rg1a
+	call	show_cursor
+rg1a:	pop	ax
+rg2:	mov	cx,ds:[CT_NEXT]
+	jmp	rg1
+rg3:	pop	ds
+	call	update_slots		; (and give them their video memory)
+;
+; Now end the wait for every waiting packet that isn't a READ packet (ie,
+; every blocked write or IOCTL); each one checks again whether it's blocked
+; (or paused), and if so, simply waits again.  Each packet is removed from
+; the chain before its wait is ended, so that it can safely be added again.
+;
+	push	ds
+	mov	ds,cs:[0].DDH_DATA
+	mov	bx,offset wait_ptr	; DS:BX -> link to the first packet
+	cli
+rg4:	les	di,dword ptr [bx]	; ES:DI -> next packet
+	cmp	di,-1			; end of chain?
+	je	rg9			; yes
+	cmp	es:[di].DDP_CMD,DDC_READ; READ packet?
+	je	rg5			; yes, leave it alone
+	mov	ax,es:[di].DDP_PTR._OFF	; no, so unlink it
+	mov	[bx]._OFF,ax
+	mov	ax,es:[di].DDP_PTR._SEG
+	mov	[bx]._SEG,ax
+	mov	dx,es			; DX:DI -> packet (aka "wait ID")
+	mov	ah,DOS_UTL_ENDWAIT
+	call	far ptr DDINT_UTIL	; end the wait on DX:DI (see int_util)
+	cli
+	jmp	rg4			; (DS:BX still -> the same link)
+rg5:	push	es
+	pop	ds
+	lea	bx,[di].DDP_PTR		; DS:BX -> this packet's link
+	jmp	rg4
+rg9:	sti
+	pop	ds
+	ret
+ENDPROC	release_now
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; update_slots
+;
+; Calls set_slot for every context, after a change to which context is
+; blocking the others (mode_ctx).
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	update_slots
+	push	ds
+	mov	cx,[ct_head]
+us1:	jcxz	us9
+	mov	ds,cx
+	call	set_slot
+	mov	cx,ds:[CT_NEXT]
+	jmp	us1
+us9:	pop	ds
+	ret
+ENDPROC	update_slots
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; set_slot
+;
+; In protected mode, a program draws on a context's video memory through an
+; LDT selector that we create for the context (see ddcon_getmode) and decide
+; what it maps (CPU_MAP with MEMF_REMAP), which we change only when the
+; sessions that use it aren't running (eg, when another context's mode change
+; blocks them).  While another context is blocking it (see chk_blocked), the
+; selector is not present, so a program that loads it waits (see SELID_WAIT),
+; as its output does; otherwise, it maps the adapter's video memory, since the
+; context has a region (or page) of its own there.  A design that saved a
+; blocked context's video memory in a buffer could map the buffer instead,
+; and let the program keep running.
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	set_slot
+	mov	bx,ds:[CT_SLOT]
+	test	bx,bx			; does it have a selector?
+	jz	ss9			; no
+	sub	si,si
+	sub	di,di			; SI:DI = 0 (not present)
+	mov	ax,ds
+	call	chk_blocked		; is another context blocking it?
+	jc	ss1			; yes, so take it away
+	call	slot_addr		; no, DX:CX = address, SI:DI = length
+ss1:	mov	ax,(CPU_MAP SHL 8) OR MEMF_REMAP
+	call	far ptr DDINT_CPU
+	test	di,di			; is it present now?
+	jz	ss9			; no
+	mov	dx,SELID_WAIT
+	mov	di,bx			; DX:DI = its wait ID
+ss2:	mov	ah,DOS_UTL_ENDWAIT
+	call	far ptr DDINT_UTIL	; end each wait for it
+	jnc	ss2
+ss9:	ret
+ENDPROC	set_slot
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; free_vbuf
+;
+; Frees a context's virtual page buffer if no other context is on that page.
+;
+; Inputs:
+;	ES = CONSOLE context (no longer in our chain)
+;
+; Modifies:
+;	AX, CX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	free_vbuf
+	push	ds
+	push	es
+	pop	ds			; DS = context
+	call	chk_vpage		; is it on a virtual page?
+	jnc	fvb9			; no
+	mov	al,ds:[CT_STATUS]
+	and	al,CTSTAT_ADAPTER
+	mov	ah,ds:[CTO_PAGE]	; AH = page, AL = adapter bit
+	call	find_page		; is another context on the page?
+	push	ds
+	pop	es			; (ES = context again)
+	jnc	fvb9			; yes
+	mov	cx,ds:[CT_SCREEN]._SEG
+	call	free_buf		; no, so free the buffer
+fvb9:	pop	ds
+	ret
+ENDPROC	free_vbuf
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; find_page
+;
+; Inputs:
+;	AL = CTSTAT_ADAPTER bit, AH = page
+;
+; Outputs:
+;	Carry clear if a context in our chain is on that page (ES = context);
+;	carry set if none
+;
+; Modifies:
+;	ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	find_page
+	push	bx
+	mov	bx,[ct_head]
+fp1:	test	bx,bx			; any more contexts?
+	stc
+	jz	fp9			; no
+	mov	es,bx
+	mov	bl,es:[CT_STATUS]
+	and	bl,CTSTAT_ADAPTER
+	mov	bh,es:[CTO_PAGE]
+	cmp	bx,ax			; is this context on the page?
+	je	fp9			; yes (and carry is clear)
+	mov	bx,es:[CT_NEXT]
+	jmp	fp1
+fp9:	pop	bx
+	ret
+ENDPROC	find_page
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; next_page
+;
+; For ddcon_open: a context that starts a page goes on the first page with no
+; contexts, so that the pages of closed contexts (eg, from START) are used
+; again, before any virtual page that would need a buffer.
+;
+; Inputs:
+;	BH = CTSTAT bits, SI = con_place index
+;	DS = CODE
+;
+; Outputs:
+;	Carry set if there's no page left
+;
+; Modifies:
+;	AX, ES
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	next_page
+	cmp	word ptr con_place[si],0	; at the top left of a page?
+	jne	np9				; no (and carry is clear)
+	mov	al,bh
+	and	al,CTSTAT_ADAPTER	; AL = adapter bit
+	mov	ah,-1
+np1:	inc	ah
+	cmp	ah,MAX_PAGES		; any page left?
+	cmc
+	jc	np9			; no
+	call	find_page		; is it in use?
+	jnc	np1			; yes
+	mov	byte ptr con_place[si+2],ah
+	clc
+np9:	ret
+ENDPROC	next_page
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; next_place
+;
+; For ddcon_open: advances the adapter's next position: downward, then
+; rightward, and then to the top left of the next page.
+;
+; Inputs:
+;	CL,CH = context's columns and rows, DL,DH = its position
+;	SI = con_place index
+;	DS = CODE
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	next_place
+	push	ax
+	mov	ax,dx
+	add	ah,ch			; AH = row below the context
+	cmp	ah,[max_rows]		; at the bottom of the page?
+	jb	nx1			; no
+	mov	ah,0			; yes, so back to the top
+	add	al,cl			; AL = column right of the context
+	cmp	al,[max_cols]		; at the right edge of the page?
+	jb	nx1			; no
+	mov	al,0			; yes, so the next page
+	inc	byte ptr con_place[si+2]
+nx1:	mov	con_place[si],ax
+	pop	ax
+	ret
+ENDPROC	next_place
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; open_nofocus
+;
+; For ddcon_open, when the new context doesn't have the focus: its cursor is
+; hidden, the BIOS data is restored from the context with focus, and the
+; focus goes to the new context if it's taking it (see switch_to).
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	open_nofocus
+	call	hide_cursor		; hide its cursor
+	push	ds			; and restore BIOS with data from focus
+	mov	ds,[ct_focus]
+	call	update_biosdata
+	call	draw_cursor		; (whose cursor we may have hidden)
+	pop	ds
+	mov	cx,ds:[CT_PARENT]	; CX = context with focus, if taking it
+	mov	bx,ds			; BX = this context
+	jmp	switch_to
+ENDPROC	open_nofocus
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; close_focus
+;
+; For ddcon_close: any context that took the focus from the closing context
+; takes it back from that context's parent instead (eg, if START made B from
+; A and C from B, and B closes first, then C's focus goes back to A), and if
+; the closing context has focus, it goes back to the parent, if any (or else
+; the next context; see switch_to).
+;
+; Inputs:
+;	CX = ES = CONSOLE context (closing)
+;
+; Modifies:
+;	AX, BX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	close_focus
+	mov	ax,es:[CT_PARENT]	; AX = this context's parent, if any
+	mov	dx,[ct_head]
+	push	ds
+cf1:	mov	ds,dx
+	cmp	ds:[CT_PARENT],cx	; did it take the focus from this one?
+	jne	cf2			; no
+	mov	ds:[CT_PARENT],ax	; yes
+cf2:	mov	dx,ds:[CT_NEXT]
+	test	dx,dx
+	jnz	cf1
+	pop	ds
+	cmp	[ct_focus],cx		; does this context have focus?
+	jne	cf9			; no
+	xchg	bx,ax			; BX = parent, if any
+	jmp	switch_to
+cf9:	ret
+ENDPROC	close_focus
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -32,7 +32,8 @@ CODE	segment para public 'CODE'
 	EXTNEAR	<ddcon_setkeys,kbd_update>
 	EXTNEAR	<update_biosdata,update_context,update_curtype,update_mode>
 	EXTNEAR	<video_ctx,wait_focus,write_char,write_context,write_crtc16>
-	EXTNEAR	<write_curpos,get_vbuf>
+	EXTNEAR	<write_curpos,get_vbuf,free_vbuf,next_page,next_place>
+	EXTNEAR	<open_nofocus,close_focus>
 	extrn	ddcon_init:far
 
 	public	VKD
@@ -1211,22 +1212,14 @@ dco1w:	mov	al,bh
 	shl	ax,1
 	xchg	si,ax			; SI = 0 (primary) or 4 (alternate)
 ;
-; A context that starts a page goes on the first page with no contexts, so
-; that the pages of closed contexts (eg, from START) are used again, before
-; any virtual page that would need a buffer.
+; A context that starts a page goes on the first page with no contexts (see
+; next_page), except the only console (see con_opt), which is always at the
+; top left of page 0, since we don't advance the adapter's position for it.
 ;
-	cmp	word ptr con_place[si],0	; at the top left of a page?
-	jne	dco1v				; no
-	mov	al,bh
-	and	al,CTSTAT_ADAPTER	; AL = adapter bit
-	mov	ah,-1
-dco1r:	inc	ah
-	cmp	ah,MAX_PAGES		; any page left?
-	cmc
-	jc	dco1x			; no
-	call	find_page		; is it in use?
-	jnc	dco1r			; yes
-	mov	byte ptr con_place[si+2],ah
+	call	chk_opt			; one console only?
+	jc	dco1v			; yes
+	call	next_page		; (see con_opt)
+	jc	dco1x			; no page left
 dco1v:	mov	ax,con_place[si+2]	; AL = page, AH = # pages
 	cmp	al,MAX_PAGES		; is there a page left?
 	cmc
@@ -1259,22 +1252,13 @@ dco1u:	cmp	cl,16			; still at least the minimum columns?
 	jnc	dco1a
 dco1x:	jmp	dco7
 ;
-; Advance the adapter's next position: downward, then rightward, and then to
-; the top left of the next page.
+; Advance the adapter's next position (see next_place), unless it's the only
+; console.
 ;
-dco1a:	push	ax
-	mov	ax,dx
-	add	ah,ch			; AH = row below the context
-	cmp	ah,[max_rows]		; at the bottom of the page?
-	jb	dco1b			; no
-	mov	ah,0			; yes, so back to the top
-	add	al,cl			; AL = column right of the context
-	cmp	al,[max_cols]		; at the right edge of the page?
-	jb	dco1b			; no
-	mov	al,0			; yes, so the next page
-	inc	byte ptr con_place[si+2]
-dco1b:	mov	con_place[si],ax
-	pop	ax
+dco1a:	call	chk_opt			; one console only?
+	jc	dco1b			; yes
+	call	next_place		; (see con_opt)
+dco1b:
 	neg	di			; set carry if taking the focus
 	sbb	di,di
 	and	di,[ct_focus]		; DI = context giving it up, if any
@@ -1437,16 +1421,8 @@ dco5:
 
 	mov	ax,ds
 	cmp	ax,[ct_focus]		; does new context have focus?
-	je	dco6			; yes
-	call	hide_cursor		; no, so hide cursor
-	push	ds			; and restore BIOS with data from focus
-	mov	ds,[ct_focus]
-	call	update_biosdata
-	call	draw_cursor		; (whose cursor we may have hidden)
-	pop	ds
-	mov	cx,ds:[CT_PARENT]	; CX = context with focus, if taking it
-	mov	bx,ds			; BX = this context
-	call	switch_to
+	je	dco6			; yes (as the only console always does)
+	call	open_nofocus		; no (see con_opt)
 dco6:	clc
 ;
 ; An unavailable adapter or a failure to allocate memory is an open error,
@@ -1480,7 +1456,7 @@ DEFPROC	ddcon_close
 	mov	es,cx
 	dec	es:[CT_REFS]
 	jz	dcc0a
-dcc0:	jmp	dcc7
+dcc0:	jmp	short dcc7
 dcc0a:
 ;
 ; If the context isn't in its original mode, then the other contexts on the
@@ -1499,35 +1475,15 @@ dcc0a:
 	ASSUME	DS:CODE
 
 ;
-; Any context that took the focus from this one takes it back from this one's
-; parent instead (eg, if START made B from A and C from B, and B closes first,
-; then C's focus goes back to A).
-;
-dcc1:	mov	ax,es:[CT_PARENT]	; AX = this context's parent, if any
-	mov	dx,[ct_head]
-	push	ds
-dcc1a:	mov	ds,dx
-	ASSUME	DS:NOTHING
-	cmp	ds:[CT_PARENT],cx	; did it take the focus from this one?
-	jne	dcc1b			; no
-	mov	ds:[CT_PARENT],ax	; yes
-dcc1b:	mov	dx,ds:[CT_NEXT]
-	test	dx,dx
-	jnz	dcc1a
-	pop	ds
-	ASSUME	DS:CODE
-;
 ; If this context has focus, it goes back to the parent, if any (or else the
-; next context).  If it's our last context, no context has focus now, as when
-; we started (eg, with CON=COM1, after a program's own VKD$ context closes, or
-; a CON=VKD$ console's last session ends), and the next one we open gets it.
+; next context; see close_focus).  If it's our last context, no context has
+; focus now, as when we started (eg, with CON=COM1, after a program's own
+; VKD$ context closes, or a CON=VKD$ console's last session ends), and the
+; next one we open gets it.
 ;
-	cmp	[ct_focus],cx
-	jne	dcc2
-	cmp	[one_con],0		; one console only (see con_opt)?
-	jne	dcc1c			; yes
-	xchg	bx,ax			; BX = parent, if any
-	call	switch_to
+dcc1:	call	chk_opt			; one console only?
+	jc	dcc1c			; yes
+	call	close_focus		; (see con_opt)
 dcc1c:	cmp	[ct_focus],cx		; is there another context?
 	jne	dcc2			; yes, and it has focus
 	sub	ax,ax
@@ -1564,8 +1520,10 @@ dcc4:	mov	cx,es:[CT_NEXT]		; move this context's CT_NEXT
 ; We are now free to free the context segment in ES (and its virtual page's
 ; buffer, if no other context is on that page).
 ;
-	call	free_vbuf
-	call	free_ctx
+	call	chk_opt			; one console only?
+	jc	dcc5			; yes, so it has no virtual page
+	call	free_vbuf		; (see con_opt)
+dcc5:	call	free_ctx
 
 dcc7:	pop	es
 
@@ -1598,38 +1556,6 @@ DEFPROC	free_ctx
 	mov	es,cs:[0].DDH_DATA	; (ES can't hold the block being freed)
 	jmp	short free_buf
 ENDPROC	free_ctx
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; free_vbuf
-;
-; Frees a context's virtual page buffer if no other context is on that page.
-;
-; Inputs:
-;	ES = CONSOLE context (no longer in our chain)
-;
-; Modifies:
-;	AX, CX, DX
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	free_vbuf
-	push	ds
-	push	es
-	pop	ds			; DS = context
-	call	chk_vpage		; is it on a virtual page?
-	jnc	fvb9			; no
-	mov	al,ds:[CT_STATUS]
-	and	al,CTSTAT_ADAPTER
-	mov	ah,ds:[CTO_PAGE]	; AH = page, AL = adapter bit
-	call	find_page		; is another context on the page?
-	push	ds
-	pop	es			; (ES = context again)
-	jnc	fvb9			; yes
-	mov	cx,ds:[CT_SCREEN]._SEG
-	call	free_buf		; no, so free the buffer
-fvb9:	pop	ds
-	ret
-ENDPROC	free_vbuf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1682,39 +1608,6 @@ DEFPROC	free_buf
 	call	far ptr DDINT_CPU
 	ret
 ENDPROC	free_buf
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; find_page
-;
-; Inputs:
-;	AL = CTSTAT_ADAPTER bit, AH = page
-;
-; Outputs:
-;	Carry clear if a context in our chain is on that page (ES = context);
-;	carry set if none
-;
-; Modifies:
-;	ES
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	find_page
-	push	bx
-	mov	bx,[ct_head]
-fp1:	test	bx,bx			; any more contexts?
-	stc
-	jz	fp9			; no
-	mov	es,bx
-	mov	bl,es:[CT_STATUS]
-	and	bl,CTSTAT_ADAPTER
-	mov	bh,es:[CTO_PAGE]
-	cmp	bx,ax			; is this context on the page?
-	je	fp9			; yes (and carry is clear)
-	mov	bx,es:[CT_NEXT]
-	jmp	fp1
-fp9:	pop	bx
-	ret
-ENDPROC	find_page
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

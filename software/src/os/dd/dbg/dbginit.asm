@@ -34,9 +34,10 @@ CODE	segment word public 'CODE'
 	EXTNEAR	<put_char,put_raw,put_string>
 	EXTNEAR	<dc_0f,dc_386,op_sreg>
 	EXTBYTE	<CMD_LN,CMD_Q,CMD_VEC,HELP_MSG,OPTAB,bp_tab,com_flow,command>
-	EXTBYTE	<HELP_END,brk_skip,mute,notstart,prog_char,tracing>
+	EXTBYTE	<HELP_END,brk_skip,cpu_flags,mute,notstart,prog_char,sess_num>
+	EXTBYTE	<tracing>
 	EXTWORD	<VEC_DRV,dump_seg,start_hook>
-	EXTWORD	<com_port,dos_seg,dos_vars,mem_seg,vec_save>
+	EXTWORD	<com_port,dos_scb,dos_seg,dos_vars,mem_seg,vec_save>
 	EXTLONG	<old_com,old_fault>
 	EXTABS	<BP_SET,BP_GO>
 
@@ -323,8 +324,9 @@ ENDPROC	set_jmp
 ;
 ; set_dos
 ;
-; Records DOS's segment (or selector), for DM (see md_sys), and then sets up
-; the disassembler for the processor (see set_cpu).
+; Records DOS's segment (or selector), for DM (see md_sys), and where its
+; active SCB's offset is, for the prompt (see get_sess), and then sets up the
+; disassembler for the processor (see set_cpu).
 ;
 ; Inputs:
 ;	DS = our data (DDH_DATA)
@@ -335,6 +337,7 @@ ENDPROC	set_jmp
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	set_dos
 	push	cx
+	push	dx
 	push	si
 	push	di
 	push	es
@@ -342,9 +345,11 @@ DEFPROC	set_dos
 	int	21h			; ES:BX -> DOS's variables
 	mov	[dos_seg],es
 	mov	[dos_vars],bx
+	mov	[dos_scb],dx		; (DX -> its active SCB's offset)
 	pop	es
 	pop	di			; (CX, SI, DI are DOS's counts)
 	pop	si
+	pop	dx
 	pop	cx
 ENDPROC	set_dos				; fall into set_cpu
 
@@ -357,9 +362,10 @@ ENDPROC	set_dos				; fall into set_cpu
 ; opcodes; on an 8086 or 8088, opcodes 60h-6Fh are copies of 70h-7Fh, C0h-C1h
 ; of C2h-C3h, and C8h-C9h of CAh-CBh, and 0Fh is POP CS.  So if CPU$ says
 ; that's the processor (with CPUF_HWTYPE, which real mode doesn't change), we
-; change the disassembler's OPTAB entries and tests to match.  A program at
-; ring 3, which can't call CPU$, uses set_cpux, with flags from SIDT (see
-; com_main).
+; change the disassembler's OPTAB entries and tests to match, and keep the
+; flags in cpu_flags, since an 80386's registers are displayed in another
+; format (see show_regs).  A program at ring 3, which can't call CPU$, uses
+; set_cpux, with flags from SIDT (see com_main).
 ;
 ; Inputs:
 ;	DS = our data (DDH_DATA)
@@ -378,7 +384,8 @@ DEFPROC	set_cpu
 	DEFLBL	set_cpux,near
 	push	cx
 	push	dx
-sc0:	cmp	ah,CPUTYPE_80386 SHL 6	; an 80386?
+sc0:	mov	[cpu_flags],ah		; (see chk_386)
+	cmp	ah,CPUTYPE_80386 SHL 6	; an 80386?
 	jae	sc9			; yes
 	mov	dl,ah
 	push	si
@@ -562,6 +569,9 @@ cm1:	mov	ds,dx
 	mov	bh,0
 	mov	al,MODE_CHARS[bx]
 	mov	[prog_char],al		; (see put_prompt)
+	DOSUTIL	GETCSN			; CL = our session # (from 0)
+	inc	cx
+	mov	[sess_num],cl
 	mov	[VEC_DRV],-1		; (we hook only INT 00h; see VEC_TAB)
 	mov	[start_hook],offset com_exec2
 	mov	word ptr [CMD_LN+1],offset com_l
@@ -1254,7 +1264,7 @@ rc0:	mov	cx,bx			; CX = PMB #
 	ret
 rc1:	cmp	ah,CPU_SEGINFO
 	jne	rc8
-	test	al,ADDR_PHYS OR ADDR_RIGHTS	; (which we can't tell)
+	test	al,ADDR_PHYS OR ADDR_LIN OR ADDR_RIGHTS	; (we can't tell)
 	jnz	rc8
 	mov	dx,bx
 	or	dl,3

@@ -66,11 +66,11 @@ CPU_FREEALL	equ	0Bh	; BX = owner of the blocks to free
 CPU_SETLIM	equ	0Ch	; BX = selector, SI:DI = new length
 CPU_SEGINFO	equ	0Dh	; AL = ADDR_SEL or 0, BX = segment or selector
 CPU_RWMEM	equ	0Eh	; AL = ADDR_*, BX:SI = address, CX, ES:DI
-CPU_SYSREGS	equ	0Fh	; ES:DI -> 12-byte buffer (GDTR and IDTR)
+CPU_SYSREGS	equ	0Fh	; ES:DI -> 16-byte buffer (GDTR, IDTR, ...)
 CPU_SETFAULT	equ	10h	; DX:CX = fault handler (0:0 for none)
 CPU_SETSTACK	equ	11h	; DX:CX = ring 0 stack (SS:SP)
 CPU_SETLDT	equ	12h	; AL = LDT # (for a session; see SCB_LDT)
-CPU_V86		equ	13h	; AL = 0 (create) or 1 (run); see v86.inc
+CPU_V86		equ	13h	; AL = 0-3 (see v86.inc)
 CPU_MAXFUNC	equ	13h
 
 ;
@@ -126,7 +126,13 @@ SELID_WAIT	equ	0FFFFh	; segment of a selector ID's wait ID
 ; or (likewise) ADDR_V86 is set, in which case the address is a real-mode one
 ; in the V86 machine (see v86.inc) whose memory's first selector is in the
 ; active LDT (an error if there's none), where only its memory and the ROMs
-; are mapped, so the limit ends where they do:
+; are mapped, so the limit ends where they do, or ADDR_LIN is set, in which
+; case it's a linear address (the "segment" holds bits 16-31, and the offset
+; is in SI, even for CPU_SEGINFO), which is the same as a physical address
+; unless paging is on (in protected mode, with the 80386's features), when
+; it's translated through the current page directory (CR3), so the limit ends
+; with its page (and a page that isn't present is an error); with ADDR_SEL,
+; CPU_SEGINFO returns the selector's base as a linear address, too:
 ;
 ;	CPU_SEGINFO returns the segment's base address in DX:CX and its limit
 ;	in AX (FFFFh for a real-mode segment), or with ADDR_RIGHTS, a
@@ -140,8 +146,12 @@ SELID_WAIT	equ	0FFFFh	; segment of a selector ID's wait ID
 ;	real mode, below 1Mb.
 ;
 ;	CPU_SYSREGS stores the GDTR and IDTR (as SGDT and SIDT do) at ES:DI,
-;	and returns the MSW in AX, the LDTR in CX, and the TR in DX (both zero
-;	in real mode); the 8086 driver returns ERR_INVALID instead.
+;	and then the address (offset and selector) that the handler of a
+;	hardware interrupt from a V86 machine returns to, so that a debugger
+;	that stops there knows that it interrupted that handler, and can get
+;	or change the machine's registers (see CPU_V86 in v86.inc); it returns
+;	the MSW in AX, the LDTR in CX, and the TR in DX (both zero in real
+;	mode); the 8086 driver returns ERR_INVALID instead.
 ;
 ; CPU_SETFAULT sets the handler that a fatal protected-mode exception goes to
 ; (eg, a debugger's), before the 80386 driver reports it and stops the
@@ -182,6 +192,7 @@ ADDR_PHYS	equ	04h	; the "segment" is bits 16-31 of an address
 ADDR_RIGHTS	equ	08h	; CPU_SEGINFO: AX = access rights, not limit
 ADDR_LDT	equ	10h	; the "segment" is an LDT #
 ADDR_V86	equ	20h	; the address is in the active LDT's machine
+ADDR_LIN	equ	40h	; the "segment" is bits 16-31 of a linear address
 
 ;
 ; In protected mode, a PSP's CALL 5 (a far call to PSP_FCSEG:PSP_SIZE) can't

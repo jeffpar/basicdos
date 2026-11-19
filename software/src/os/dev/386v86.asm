@@ -65,6 +65,7 @@ VC_SS0		dw	?
 VC_MEM		dd	?	; the machine's memory (physical address)
 VC_LEN		dd	?	; and its length
 VC_VIF		db	?	; the machine's IF (FL_INTS SHR 8, or 0)
+VC_DBG		db	?	; nonzero if a debugger gets traps (v86_refl)
 V86CTX		ends
 
 V86_CTX		equ	0800h	; context's offset (PDEs for 80000000h and up)
@@ -84,16 +85,79 @@ TSS_SS0		equ	SYS_TSS + 8
 ; v86_func (CPU_V86)
 ;
 ; Inputs:
-;	AL = 0 to create a machine (see v86_create), or 1 to run one (see
-;	v86_run)
+;	AL = 0 to create a machine (see v86_create), 1 to run one (see
+;	v86_run), or 2 or 3 to copy registers (see v86_regs)
 ;
 DEFPROC	v86_func
 	cmp	al,1
 	je	v86_run
 	jb	vf1
+	cmp	al,3			; copying registers?
+	jbe	v86_regs		; yes
 	jmp	cpu_inval
 vf1:	jmp	v86_create
 ENDPROC	v86_func
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; v86_regs
+;
+; Copies the registers of the machine that ran last from its context to the
+; caller's V86REGS, as v86_exit does (with the machine's own IF), or from
+; the caller's to its context, as v86_run does (so that only its FL_V86
+; flags change), and with AL = 3, VR_VEC (which isn't a register) is whether
+; the debugger gets the machine's single-step traps and INT 3s (see
+; v86_refl).  They're the machine's current registers only while it's
+; interrupted (eg, while a debugger has stopped the handler that v86_irq
+; called; see CPU_SYSREGS).
+;
+; Inputs:
+;	AL = 2 (copy from the context) or 3 (copy to it)
+;	ES:DI -> V86REGS
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	v86_regs
+	mov	bx,ds:[SYS_VARS].SV_V86SEL	; BX = SEL_V86STK
+	test	bx,bx			; has a machine been created?
+	jz	vk8			; no
+	mov	cx,VR_DSSEL / 2
+	mov	si,V86_CTX
+	push	es
+	cmp	al,2			; copying from the context?
+	jne	vk1			; no
+	mov	es,bx
+	call	v86_flags		; AX = FLAGS, with the machine's IF
+	pop	es
+	push	ds
+	mov	ds,bx
+	push	di
+	rep	movsw
+	pop	di
+	pop	ds
+	mov	word ptr es:[di].VR_EFL,ax
+	ret				; (carry is clear)
+vk1:	push	ds
+	push	es
+	pop	ds
+	xchg	si,di			; DS:SI -> V86REGS, DI -> context
+	mov	es,bx
+	push	word ptr es:[di].VR_EFL+2
+	push	word ptr es:[di].VR_EFL
+	mov	dx,word ptr [si].VR_EFL	; DX = the caller's FLAGS
+	mov	bl,byte ptr [si].VR_VEC	; BL = the debugger's choice
+	rep	movsw
+	mov	es:[V86_CTX].VC_DBG,bl
+	pop	word ptr es:[V86_CTX].VR_EFL
+	pop	word ptr es:[V86_CTX].VR_EFL+2
+	pop	ds
+	xchg	ax,dx
+	call	v86_setfl		; (carry is clear)
+	pop	es
+	ret
+vk8:	jmp	cpu_inval
+ENDPROC	v86_regs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -313,15 +377,16 @@ DEFPROC	v86_irq
 	shl	bx,3			; BX = its gate's offset in the IDT
 	pushf
 	push	cs
-	push	offset DEV:vi9
+	push	offset DEV:v86_irqret
 	push	ds:[SYS_PIDT+bx].DESC_BASE	; the handler's selector
 	push	ds:[SYS_PIDT+bx].DESC_LIMIT	; and offset
 	db	OP_RETF			; "return" to it
-vi9:	pop	ax
+	DEFLBL	v86_irqret,near		; (see CPU_SYSREGS)
+	pop	ax
 	cmp	al,IRQ_MASTER		; a timer tick (IRQ 0)?
-	je	vi10			; yes
+	je	vi9			; yes
 	jmp	v86_resume
-vi10:	mov	al,V86X_TICK
+vi9:	mov	al,V86X_TICK
 	jmp	v86_exit
 ENDPROC	v86_irq
 
@@ -445,7 +510,20 @@ ENDPROC	v86_gp
 ;	DS = SEL_SYS, ES = context
 ;
 DEFPROC	v86_refl
-	sub	dx,dx			; DL = 0 (16-bit pushes)
+;
+; A single-step trap or an INT 3 goes to the system's handler instead (eg, a
+; debugger's, which has set VC_DBG; see v86_regs), as a hardware interrupt
+; does (see v86_irq), with the machine's IP past it.
+;
+	cmp	es:[V86_CTX].VC_DBG,0	; does a debugger get them?
+	je	rf1			; no
+	cmp	al,INT_DB		; a single-step trap?
+	je	rf0			; yes
+	cmp	al,INT_BP		; an INT 3?
+	jne	rf1			; no
+rf0:	mov	word ptr es:[V86_CTX].VR_EIP,si
+	jmp	v86_irq
+rf1:	sub	dx,dx			; DL = 0 (16-bit pushes)
 	mov	bl,al
 	mov	bh,0
 	shl	bx,2			; BX -> the vector

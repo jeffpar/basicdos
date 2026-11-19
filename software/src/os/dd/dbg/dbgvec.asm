@@ -25,9 +25,10 @@
 CODE	segment word public 'CODE'
 
 	EXTNEAR	<ax_mem,cpu_call,end_command,hex_byte,hex_word,newline,pad>
-	EXTNEAR	<parse_hex,peek_b,peek_w,put_char,put_n,skip_space,space>
-	EXTBYTE	<col,trap_21>
-	EXTWORD	<dos_seg,dos_vars,regs,sys_regs>
+	EXTNEAR	<parse_hex,peek_b,peek_w,poke_b,put_char,put_n,skip_space>
+	EXTNEAR	<space>
+	EXTBYTE	<col,cpu_mode,prog_char,sess_num,trap_21>
+	EXTWORD	<dos_scb,dos_seg,dos_vars,regs,sys_regs>
 
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 ;
@@ -80,6 +81,7 @@ V_FVEC		equ	V_BYTE+30
 R_ES		equ	4	; offsets in regs (see REG_TABLE)
 R_DS		equ	6
 R_DX		equ	14
+R_FL		equ	26
 STR_COL		equ	68	; the column where a string's display ends
 FCB_NEWNAME	equ	11h	; the new name in a rename FCB (see fcbio.asm)
 VEC_DOS		equ	INT_DOSFUNC SHL 8
@@ -717,7 +719,7 @@ ls1a:	call	peek_b			; AL = SCB_STATUS
 	mov	dl,' '
 	jz	ls2			; yes
 	push	cx
-	mov	bx,sys_regs[14]		; BX = LDTR
+	mov	bx,sys_regs[18]		; BX = LDTR
 	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_SEL
 	call	cpu_call		; CX = the active LDT's base
 	pop	ax
@@ -837,6 +839,62 @@ cks9:	pop	di
 	pop	ax
 	ret
 ENDPROC	chk_sess
+
+;
+; get_sess returns the current session's # (from 1) in AL, or 0 if there's
+; none yet: in program mode, ours (see com_main), and otherwise, the active
+; SCB's, which DOS_MSC_GETVARS's DX locates (see set_dos).
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	get_sess
+	mov	al,[sess_num]
+	cmp	[prog_char],0		; program mode?
+	jne	gn9			; yes
+	mov	ax,[dos_seg]
+	call	ax_mem
+	mov	di,[dos_scb]
+	call	peek_w			; AX = the active SCB (or 0)
+	test	ax,ax			; is there one?
+	jz	gn9			; no
+	xchg	di,ax
+	add	di,SCB_NUM
+	call	peek_b			; AL = its session # (from 0)
+	inc	ax
+gn9:	ret
+ENDPROC	get_sess
+
+;
+; set_step tells DOS whether the active session's single-step traps are ours
+; (see SCSTAT_STEP): while we step it (TF), a ring 3 program's INT 1 handler
+; in that session (eg, DEBUG's, run as a program) doesn't get them.  Only a
+; driver in protected mode needs it (and only a driver can write DOS's data).
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	set_step
+	cmp	[prog_char],0		; program mode?
+	jne	st9			; yes
+	test	[cpu_mode],ADDR_SEL	; protected mode?
+	jz	st9			; no
+	mov	ax,[dos_seg]
+	call	ax_mem
+	mov	di,[dos_scb]
+	call	peek_w			; AX = the active SCB (or 0)
+	test	ax,ax			; is there one?
+	jz	st9			; no
+	xchg	di,ax
+	ASSERT	<SCB_STATUS>,EQ,0
+	call	peek_b			; AL = its SCB_STATUS
+	and	al,NOT SCSTAT_STEP
+	test	byte ptr regs[R_FL+1],01h	; TF?
+	jz	st1			; no
+	or	al,SCSTAT_STEP
+st1:	call	poke_b
+st9:	ret
+ENDPROC	set_step
 
 CODE	ends
 

@@ -166,6 +166,7 @@ EXT_GRAN	equ	80h	; DESC_EXT: 4K granularity
 LIN_HI		equ	0C0h	; linear map of physical memory: base bits 31-24
 PDE_KERNEL	equ	LIN_HI * 4 * 4	; offset of its first PDE (C0000000h)
 PG_USER		equ	07h	; PDE and PTE bits: present, writable, user
+PG_PRESENT	equ	01h	; PDE and PTE bit: present
 PG_ROM		equ	05h	; PTE bits: present, read-only, user
 PG_SIZE		equ	4096
 

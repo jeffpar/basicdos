@@ -15,7 +15,7 @@ DEBUG.COM is a debugger that can be used in two ways:
 - [As a program](#running-debug-as-a-program), run from the prompt, it debugs a program that it loads, using the session's console
 - [As a device driver](#loading-debug-as-a-driver), loaded by a line in CONFIG.SYS, it debugs the whole system (other drivers, BASIC-DOS itself, and the programs in every session), using a terminal connected to a serial port
 
-Either way, it displays the registers and the next instruction, and then accepts [commands](#commands) at a prompt that shows the processor's mode, as the [command prompt](../../../intro/) does: `>` in real mode, or `]` in protected mode.
+Either way, it displays the registers and the next instruction, and then accepts [commands](#commands) at a prompt that shows the current session's number (in hex, as [DL](#dl) lists it) and the processor's mode, as the [command prompt](../../../intro/) does: eg, `1>` in real mode, `1]` in protected mode, or `1}` in V86 mode (eg, when DEBUG runs in a [V86](../v86/) machine, or the driver has stopped one).  As a program, the session is DEBUG's own; as a driver, it's the session that was running when the machine stopped (and there's no number before the first session starts, eg, at a `/H` stop).
 
 ### Running DEBUG as a Program
 
@@ -55,6 +55,8 @@ Any switches after the port's settings (using the current [SWITCHAR](../../../cf
 
 On the terminal, CTRL-C (or BREAK) stops the machine as soon as it arrives, as do breakpoints, single-steps, any other INT 1 or INT 3, and the exceptions that VT traps.  The debugger then displays the registers and the instruction at CS:IP (preceded by `Assertion failure` if the INT 3 was a failed assertion in a DEBUG build, `V0000: Division error` for a divide error, `V0400: Overflow error` for an overflow, or `Vvv00: CPU fault vv (EC=xxxx) at cccc:iiii` for a protected-mode fault, with its vector and error code), and waits for commands.
 
+When CTRL-C (or BREAK) interrupts a [V86](../v86/) machine, the driver stops in the machine instead of in the system's handler for that interrupt: the registers are the machine's (eg, `&00B3:0111` for its CS:IP), U, D, E, and A use its memory unless given another address, the prompt is `}`, and G resumes the machine, with any register that R changed.  T and P step the machine (T steps through an INT instruction, rather than into it, so a DOS call is one step), and BP and G *address* accept the machine's addresses (eg, `BP CS:IP+2`, or `G &1BC:105`), which BL lists as they were set (eg, `&00B3:0111`) while & means that machine, and otherwise (eg, at a stop in another session) at their physical (`%%`) addresses; while the machine is being stepped, or has a breakpoint, its own single-step traps and INT 3s stop the debugger, too.  A breakpoint in a machine can be set only while it's stopped there.
+
 The driver's device name is DEBUG$, and data written to it is sent to the terminal; DEBUG builds of BASIC-DOS send their diagnostic (DPRINTF) messages there.
 
 See the [DEBUG demo](/demos/debug/at/) for a machine with the driver loaded, and a VT100 terminal.
@@ -63,9 +65,9 @@ See the [DEBUG demo](/demos/debug/at/) for a machine with the driver loaded, and
 
 A command line can have up to 79 characters.  BACKSPACE (or DEL) erases a character, CTRL-C cancels the line, and any other control characters and non-ASCII keys (eg, cursor keys) are ignored.  Letters are converted to upper case, except inside quotes.  A command that isn't valid displays `?`.
 
-All numbers in commands are hexadecimal, and any number may also be a 16-bit register name, such as DS or DX.  An *address* is [*segment*:]*offset* (eg, `DS:DX`), and a *range* is *address* [*end* \| L *count*].  Bytes that can't be read (eg, past the end of a segment) are displayed as `??`.
+All numbers in commands are hexadecimal, and any number may also be a 16-bit register name, such as DS or DX, or a sum or difference of numbers and register names, with no spaces (eg, `IP+2` or `SP-6`).  An *address* is [*segment*:]*offset* (eg, `DS:DX`), and a *range* is *address* [*end* \| L *count*].  Bytes that can't be read (eg, past the end of a segment) are displayed as `??`.
 
-On an 80286 or later, unless real mode is requested (see [CPU](../../../cfg/#cpu)), the debugger works in either of the processor's modes: an *address* may start with `&` for a real-mode segment (eg, `&40:0`) or `#` for a protected-mode selector (eg, `#20:0`), and otherwise has the processor's current mode, and every address it displays starts with `&` or `#`.  In protected mode, when the session that was running has a [V86](../v86/) machine, a real-mode address is in the machine's memory, as its code sees it (eg, `U &1BC:100`), where only its memory and the ROMs are mapped; BP and G don't accept one, since an INT 3 in the machine goes to the machine's own vector.  On any processor, an *address* may also be any 32-bit physical address, preceded by `%` (eg, `%100000`, or on an 8088, any address below 1Mb), which D, E, LN, and U accept (but BP and G don't, since a breakpoint needs a segment).
+On an 80286 or later, unless real mode is requested (see [CPU](../../../cfg/#cpu)), the debugger works in either of the processor's modes: an *address* may start with `&` for a real-mode segment (eg, `&40:0`) or `#` for a protected-mode selector (eg, `#20:0`), and otherwise has the processor's current mode, and every address it displays starts with `&` or `#`.  In protected mode, when the session that was running has a [V86](../v86/) machine, a real-mode address is in the machine's memory, as its code sees it (eg, `U &1BC:100`), where only its memory and the ROMs are mapped; BP and G don't accept one, since an INT 3 in the machine goes to the machine's own vector.  On any processor, an *address* may also be any 32-bit linear address, preceded by `%` (eg, `%C00900E0`), or physical address, preceded by `%%` (eg, `%%100000`, or on an 8088, any address below 1Mb), which D, E, LN, and U accept (but BP and G don't, since a breakpoint needs a segment).  Linear and physical addresses are the same unless paging is on (in protected mode on an 80386), when a linear address goes through the current page directory, as the processor's addresses do (eg, at a V86 machine stop, the machine's memory is at linear 0), and a page that isn't present displays `??`.  The segment bases that R displays, and the GDTR and IDTR (GD and ID), are linear addresses, and the addresses that DM and LN display are physical.
 
 ### Commands
 
@@ -148,7 +150,7 @@ Lists the breakpoints, including the temporary one (0), with the instruction at 
 
 > BP [*n*] *address*
 
-Sets breakpoint *n* (1-9, or 0 for the temporary breakpoint), or the first free one (1-9), at *address*, whose default segment is CS.  If none is free, BP displays `?`.  Breakpoints are stored in memory only while the machine is running, so they don't appear in what D or U displays.
+Sets breakpoint *n* (1-9, or 0 for the temporary breakpoint), or the first free one (1-9), at *address*, whose default segment is CS.  If none is free, BP displays `?`.  Breakpoints are stored in memory only while the machine is running, so they don't appear in what D or U displays.  The driver's breakpoints in ring 3 code are HLT instructions, rather than INT 3s, so that they stop the driver even when a ring 3 program in that session has its own INT 3 handler (eg, DEBUG run as a program), and while the driver steps a session (T or P), its single-step traps come to the driver, not to any ring 3 program's INT 1 handler.
 
 #### D, DB, and DW
 
@@ -206,7 +208,7 @@ Otherwise, displays the entries of a session's LDT that are in use, or just the 
 
 Displays memory in address order, as the CPU$ driver describes it: each block's address, length (in bytes), and owner (a PSP, or in protected mode, a ring 3 program's session number plus 80h, then its program number; eg, 8000 for session 0's COMMAND.COM), and its name (eg, COMMAND, DEBUG, or DEBUG$) or type (eg, FREE, SYS, RSVD for video memory and ROMs, CPU$ for the CPU$ system area at the top of conventional memory, one of COMMAND's VAR, STR, TEXT, or CODE blocks (CODE also being the copy of itself that DEBUG runs at ring 3), ENV for the environment COMMAND builds for programs, or DATA for any other memory a program allocated).  The system's memory is shown as a row for each driver in it (eg, CPU$, VKD$, or FDC$, from the driver chain), DOS for the memory DOS is in, and SYS for the rest, including, on an 8088 (or with [CPU](../../../cfg/#cpu)=8088), the memory below the blocks (the interrupt vectors, the BIOS data, and BASIC-DOS's low memory).  A driver loaded by a DEVICE line owns its block, which is named after its device (eg, DEBUG$) once the driver has been initialized; until then (eg, at a `/H` stop), the block is still SYS.
 
-As a program at [ring 3](#ring-3), DEBUG gets the blocks from DOS, and reads the driver chain by address, so it displays the same rows.
+As a program at [ring 3](#ring-3), DEBUG gets the blocks from DOS, and reads the driver chain by address, so it displays the same rows.  In a [V86](../v86/) machine, DM displays the machine's own memory: the memory below its first block (the vectors, the BIOS data, and V86.COM's default handlers) and V86.COM's own blocks, as V86, and then the machine's programs and their memory, as MEM sees them there.  When the driver has stopped a V86 machine, DM still displays the system's memory.
 
 	-DM
 	Addr   Length Own  Name
@@ -278,16 +280,28 @@ Available only in program mode.  Ends the loaded program, if any, and exits.
 > R *reg* [*value*]  
 > R F
 
-R displays the registers, and the instruction at CS:IP, followed, if it has a memory operand, by the operand's effective address, using any segment override (eg, `; EA = 0AC6:0120`).  On an 80286 or later, unless real mode is requested (see [CPU](../../../cfg/#cpu)), it also displays the MSW, GDTR, and IDTR.  In protected mode, it uses the PCjs Debugger's format: each segment register's base and limit, as `[base,limit]`, A20, the LDTR, GDTR, IDTR, TR, MSW, and the flags as 0 or 1, eg, `Z1`:
+R displays the registers, and the instruction at CS:IP, followed, if it has a memory operand, by the operand's effective address, using any segment override (eg, `; EA = 0AC6:0120`).  On an 8088 (or in real mode on an 80286), it uses DEBUG's format, and on an 80286, unless real mode is requested (see [CPU](../../../cfg/#cpu)), it also displays the MSW, GDTR, and IDTR.  On an 80386 (or in protected mode on an 80286), it uses the PCjs Debugger's format, with the flags as 0 or 1 (eg, `Z1`), and no CS or IP in real (or V86) mode, since the instruction shows them; an 80386's registers are 32-bit (EAX through EDI, and PS, the flags), and include FS and GS:
 
-	-R
-	AX=1000 BX=00A6 CX=4FB0 DX=0128 SP=57FB BP=580D SI=2463 DI=580D
-	DS=0178[00CEC0,2A2F] ES=0130[089890,FFFF] SS=0130[089890,FFFF] A20=ON
-	CS=0180[00CEC0,2A2F] LD=0010[0928E0,02FF] GD=[0900E0,F807] ID=[0908E0,07FF]
-	TR=0068 MS=FFF1 PS=0246 V0 D0 I1 T0 S0 Z1 A0 P1 C0
-	#0180:237F 803E1F2448   CMP     BYTE PTR [241F],48	; EA = #0178:241F
+	1>R
+	EAX=7FFF985E EBX=00005320 ECX=00000001 EDX=0000104A
+	ESP=00000FDA EBP=00001014 ESI=0000103C EDI=00001014
+	SS=104A DS=0601 ES=104A FS=0000 GS=0300 PS=00000202 V0 D0 I1 T0 S0 Z0 A0 P0 C0
+	0601:04E3 83C40A        ADD     SP,+0A
 
-R *reg* changes a register (AX, BX, CX, DX, SP, BP, SI, DI, DS, ES, SS, CS, or IP), displaying it and prompting if there's no *value*; an empty line leaves it unchanged.
+In protected mode, each segment register is followed by its base (a linear address, for `%`) and limit, as `[base,limit]`, and then come the LDTR, GDTR, IDTR, TR, and A20, and on an 80386, CR0, CR2, and CR3 (or on an 80286, the MSW):
+
+	1]R
+	EAX=000868B0 EBX=000068F6 ECX=00000001 EDX=000001A0
+	ESP=0000033A EBP=0000033E ESI=000003B2 EDI=0000038A
+	SS=01A0[C0015300,244F] DS=0110[C00098B0,FFFF] ES=0110[C00098B0,FFFF]
+	CS=0118[C00098B0,FFFF] FS=0000 GS=0000
+	LD=0010[C0099FDE,00FF] GD=[C00900E0,F807] ID=[C00908E0,07FF] TR=0068 A20=ON
+	CR0=FFFFFFF1 CR2=00000000 CR3=0008B000 PS=00000283 V0 D0 I1 T0 S1 Z0 A0 P0 C1
+	#0118:4228 7204         JB      422E
+
+A segment register with no valid selector (eg, FS=0000) has no `[base,limit]`, and on an 80286, the bases have 6 digits.
+
+R *reg* changes a register (AX, BX, CX, DX, SP, BP, SI, DI, DS, ES, SS, CS, IP, FS, or GS), displaying it and prompting if there's no *value*; an empty line leaves it unchanged.  On an 80386, a change to a 16-bit register leaves the upper half of its 32-bit register unchanged.
 
 R F displays the flags and prompts for new flag names (eg, `CY ZR`).  An empty line leaves them unchanged.
 
@@ -417,7 +431,7 @@ Interrupts are disabled while a report is sent, so a slow terminal can make the 
 
 ### Ring 3 {#ring-3}
 
-In protected mode, DEBUG.COM run from the prompt runs at ring 3, as other programs do (unless CONFIG.SYS has [RING](../../../cfg/#ring)=0), and so does the program it loads, so it can't use the CPU$ driver, and it has fewer commands than the driver: it can write only memory that a ring 3 program can (eg, the program's own memory, including its code, but not DOS's, the drivers', or the BIOS data area), though it can also read any selector in the GDT whose memory is below 1Mb (eg, `D 40:0`), R displays the registers as it does in real mode (with no system registers, or segment bases and limits), and there's no GT, LN, VC, VL, or VT, and no `&`, `#`, or `%` addresses.  T steps over an INT instruction, as P does, since the INT's handler runs at ring 0.  The driver has none of these limits, and can debug ring 3 programs, too.
+In protected mode, DEBUG.COM run from the prompt runs at ring 3, as other programs do (unless CONFIG.SYS has [RING](../../../cfg/#ring)=0), and so does the program it loads, so it can't use the CPU$ driver, and it has fewer commands than the driver: it can write only memory that a ring 3 program can (eg, the program's own memory, including its code, but not DOS's, the drivers', or the BIOS data area), though it can also read any selector in the GDT whose memory is below 1Mb (eg, `D 40:0`), R displays the registers as it does in real mode (with no system registers, or segment bases and limits), and there's no GT, LN, VC, VL, or VT, and no `&`, `#`, `%`, or `%%` addresses.  T steps over an INT instruction, as P does, since the INT's handler runs at ring 0.  The driver has none of these limits, and can debug ring 3 programs, too.
 
 Source: [dbgdev.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/dd/dbg/dbgdev.asm), [dbgvec.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/dd/dbg/dbgvec.asm), [dbgdis.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/dd/dbg/dbgdis.asm), and [dbginit.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/dd/dbg/dbginit.asm)
 
