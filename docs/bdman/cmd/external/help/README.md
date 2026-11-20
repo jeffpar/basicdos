@@ -36,7 +36,7 @@ HELP was a COMMAND.COM command (along with KEYS, which is now `HELP KEYS`) until
 
 ### HELP.TXT
 
-The help text comes from HELP.TXT, in the EXT directory of the drive that COMMAND.COM was loaded from (normally the boot drive), so HELP works from any directory.  HELP finds that drive in the COMSPEC environment variable, which COMMAND.COM passes to every program (if there isn't room for the environment, HELP uses the current drive).
+The help text comes from HELP.TXT, in the EXT directory of the drive that COMMAND.COM was loaded from (normally the boot drive), so HELP works from any directory.
 
 In HELP.TXT, each entry begins with a lower-case letter for its category, in brackets (eg, `[b]PRINT` or `[f]MID$`), followed by `+` if it isn't available on low memory systems (eg, `[b+]CIRCLE`), which HELP doesn't display; an entry without a category (eg, CORE or KEYS) is listed only by HELP ALL.  The first line of an entry with a category is its syntax, which HELP displays after `Usage:`, and since no other command contains this text, a command that's used incorrectly displays only `Syntax error`.
 

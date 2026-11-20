@@ -1334,9 +1334,10 @@ ENDPROC	v86_vsel
 ; v86_vid
 ;
 ; Gives the machine's video memory (see v86_vsel) PTEs for its selector's
-; memory, if the selector is present, or else PTEs that aren't present, so
-; that the machine faults if it touches them (see v86_pf); a selector that's
-; been freed takes the video memory away for good.
+; memory, if the selector is present and that memory starts on a page (which
+; a buffer that holds a copy of it may not), or else PTEs that aren't
+; present, so that the machine faults if it touches them (see v86_pf); a
+; selector that's been freed takes the video memory away for good.
 ;
 ; Inputs:
 ;	DS = SEL_SYS, ES = context
@@ -1357,6 +1358,8 @@ DEFPROC	v86_vid
 	jnz	vv1
 	test	ds:[bx].DESC_ACC,ACC_PRESENT
 	jz	vv1
+	test	ds:[bx].DESC_BASE,0FFFh	; does its memory start on a page?
+	jnz	vv1			; no
 	mov	si,bx
 	call	desc_addr		; DX:CX = its address
 	xchg	ax,cx

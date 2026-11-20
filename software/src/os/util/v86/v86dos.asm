@@ -17,7 +17,7 @@
 CODE    SEGMENT word public 'CODE'
 
 	EXTBYTE	<VARS,in_call>
-	EXTWORD	<cur_psp,root_psp,mach_paras,vid_sel,vid_seg>
+	EXTWORD	<cur_psp,root_psp,vid_sel,vid_seg>
 	EXTLONG	<dta>
 	EXTNEAR	<run,do_exit,do_ctrlc,seg_ptr,v86_get,v86_put>
 	EXTNEAR	<get_word,put_word,push_word,pop_word>
@@ -150,7 +150,7 @@ ENDPROC	pft_load
 	db	31h, DOS_MSC_GETVEC, DOS_HDL_CREATE, DOS_HDL_OPEN
 	db	DOS_HDL_CLOSE, DOS_HDL_IOCTL, DOS_MEM_ALLOC, DOS_MEM_FREE
 	db	DOS_MEM_REALLOC, DOS_PSP_EXEC SHR 8, DOS_PSP_RETURN
-	db	DOS_PSP_RETCODE, DOS_PSP_SET, DOS_PSP_GET, DOS_MSC_GETVARS, 62h
+	db	DOS_PSP_RETCODE, DOS_PSP_SET, DOS_PSP_GET, 62h
 	db	DOS_PSP_COPY
 I21_FUNCS_LEN	equ	$ - I21_FUNCS
 	DEFLBL	I21_PROCS,word
@@ -158,7 +158,7 @@ I21_FUNCS_LEN	equ	$ - I21_FUNCS
 	dw	i21keep, i21gv, i21open, i21open
 	dw	i21close, i21ioctl, i21alloc, i21free
 	dw	i21realloc, i21exec, i21exit
-	dw	i21retcode, i21setpsp, i21getpsp, i21vars, i21getpsp
+	dw	i21retcode, i21setpsp, i21getpsp, i21getpsp
 	dw	i21copy
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -210,17 +210,6 @@ i21esbx:mov	word ptr [VARS+VR_EBX],ax
 	mov	ax,[cur_psp]
 	mov	word ptr [VARS+VR_EBX],ax
 	jmp	i21ok
-;
-; DOS_MSC_GETVARS returns the total memory (in Kb) in AX, which for the
-; program is the machine's.
-;
-	DEFLBL	i21vars,near
-	mov	al,INT_DOSFUNC
-	call	call_dos
-	mov	cx,[mach_paras]
-	shr	cx,6
-	mov	word ptr [VARS+VR_EAX],cx
-	jmp	i21f
 ENDPROC	i21sv
 
 ;

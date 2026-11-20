@@ -336,10 +336,7 @@ ENDPROC	set_jmp
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	set_dos
-	push	cx
 	push	dx
-	push	si
-	push	di
 	push	es
 	mov	ah,DOS_MSC_GETVARS
 	int	21h			; ES:BX -> DOS's variables
@@ -347,10 +344,7 @@ DEFPROC	set_dos
 	mov	[dos_vars],bx
 	mov	[dos_scb],dx		; (DX -> its active SCB's offset)
 	pop	es
-	pop	di			; (CX, SI, DI are DOS's counts)
-	pop	si
 	pop	dx
-	pop	cx
 ENDPROC	set_dos				; fall into set_cpu
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -365,7 +359,7 @@ ENDPROC	set_dos				; fall into set_cpu
 ; change the disassembler's OPTAB entries and tests to match, and keep the
 ; flags in cpu_flags, since an 80386's registers are displayed in another
 ; format (see show_regs).  A program at ring 3, which can't call CPU$, uses
-; set_cpux, with flags from SIDT (see com_main).
+; set_cpux, with flags from SYSINFO (see com_main).
 ;
 ; Inputs:
 ;	DS = our data (DDH_DATA)
@@ -582,16 +576,17 @@ cm1:	mov	ds,dx
 	call	set_dos			; (which calls CPU$)
 	jmp	short cm1r
 ;
-; At ring 3 (so on an 80286 or 80386), SIDT, which any ring can use, tells
-; which: an 80286 stores FFh in the base address's high byte.
+; At ring 3, DOS gives us CPU$'s flags (see SYSINFO).
 ;
-cm1a:	mov	bx,offset command
-	db	0Fh,01h,0Fh		; SIDT [BX]
-	mov	ah,CPUTYPE_80386 SHL 6
-	cmp	byte ptr [bx+5],0FFh	; an 80286?
-	jne	cm1b			; no
-	mov	ah,CPUTYPE_80286 SHL 6
-cm1b:	call	set_cpux
+cm1a:	push	es
+	push	ds
+	pop	es
+	mov	di,offset command	; ES:DI -> SYSINFO (in command)
+	mov	cl,-1
+	DOSUTIL	QRYSCB			; get the system's SYSINFO
+	pop	es
+	mov	ah,[di].SI_CPUFLAGS	; AH = CPUF_* flags
+	call	set_cpux
 	mov	cl,COM_NJMPS + R3_NJMPS
 	mov	word ptr [CMD_VEC+1],offset rc8	; (VC, VL, and VT fail)
 cm1r:	lodsw

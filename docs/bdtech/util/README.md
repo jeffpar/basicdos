@@ -144,6 +144,8 @@ Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-
 
 **DOS_UTL_QRYSCB (12h)**: CL = session number, ES:DI -> 8-byte buffer.  Returns AX = the PSP of the session's program (zero if none), SI:DX = the memory the session is using (in bytes): every block owned by its program, and by that program's parent, and so on (eg, a COMMAND.COM and the program it's running), plus any shared code block that one of them is the first to share (so that the code that copies of COMMAND.COM share at ring 3 is counted once, in one session), and fills the buffer with the name (8 characters) of the session's program, all zeros if there isn't one (eg, a session that has never been used) or it can't be found; or carry set if the session number is invalid.  The name is copied, rather than returned as a pointer, since a program at ring 3 can't read the kernel's memory, and a caller can't find it through the PSP: in protected mode, PSP-1 isn't an MCB, and the PSP may be a selector in another session's LDT, so DOS finds the program's blocks by its [owner ID](../mmu/#owners) instead.  COMMAND.COM uses this for START's session list, so that it doesn't depend on the kernel's internal session structures.
 
+With CL = -1, DOS_UTL_QRYSCB fills a [SYSINFO](../data/#sysinfo) structure at ES:DI with facts about the system instead, and changes no registers; carry is set (AX = ERR_BADSESSION) only on a version of BASIC-DOS without it.
+
 ### Scheduling
 
 **DOS_UTL_YIELD (18h)**: Lets another session run, if one is ready.

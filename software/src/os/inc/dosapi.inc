@@ -149,7 +149,7 @@ DOS_UTL_TOKID	equ	0Eh	; convert string (DS:SI) into token ID (AX)
 DOS_UTL_PARSESW	equ	0Fh	; parse TOKBUF (ES:DI) for switches
 DOS_UTL_GETDEV	equ	10h	; get DDH (ES:DI) for device (DS:DX)
 DOS_UTL_GETCSN	equ	11h	; get current session number (CL)
-DOS_UTL_QRYSCB	equ	12h	; query session (CL)
+DOS_UTL_QRYSCB	equ	12h	; query session (CL), or -1: system (SYSINFO)
 DOS_UTL_LOAD	equ	13h	; load program (SPB at ES:BX) into a session
 DOS_UTL_START	equ	14h	; start session (CL)
 DOS_UTL_STOP	equ	15h	; stop session (CL)
@@ -173,6 +173,23 @@ DOS_UTL_SOUND	equ	26h	; sound (DX = PIT divisor) for CX ticks
 DOS_UTL_ALIAS	equ	27h	; code alias (AX) of block (BX) (or reverse)
 DOS_UTL_MAPSEG	equ	28h	; selector (AX) for real-mode segment (BX)
 DOS_UTL_HDLCTL	equ	(DOS_HDL_IOCTL + 80h)
+
+;
+; DOS_UTL_QRYSCB with CL = -1 fills this structure (at ES:DI) with facts
+; about the system, so that a program needn't find them in DOS's tables, the
+; BIOS data area, or CPU$ (which a ring 3 program can't call).
+;
+SYSINFO		struc
+SI_MEMSIZE	dw	?	; 00h: total memory (in Kb)
+SI_BUFFERS	dw	?	; 02h: # of buffers (BUFFERS=)
+SI_FILES	dw	?	; 04h: # of files (FILES=)
+SI_SESSIONS	dw	?	; 06h: # of sessions (SESSIONS=)
+SI_CPUTYPE	db	?	; 08h: CPUTYPE_* (see CPU_GETINFO)
+SI_CPUFLAGS	db	?	; 09h: CPUF_* flags (see CPU_GETINFO)
+SI_HOTKEY	db	?	; 0Ah: HOTKEY= character (0 if none)
+		db	?	; 0Bh: reserved (zero)
+SI_SFBREFS	dw	?	; 0Ch: total references to open files
+SYSINFO		ends
 	ENDIF	; DOSFUNC
 
 ;

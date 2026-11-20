@@ -14,6 +14,7 @@
 	include	bios.inc
 	include	dos.inc
 	include	dosapi.inc
+	include	cpu.inc
 	include	fpu.inc
 
 	.8087
@@ -35,8 +36,8 @@ DOS	segment word public 'CODE'
 ;
 	EXTWORD	<dos_data,fpu_seg>
 	EXTBYTE	<scb_locked,def_drive,bpb_total,prog_user,load_user>
-	EXTWORD	<scb_active,scb_stoked,load_reserve>
-	EXTLONG	<scb_table>
+	EXTWORD	<scb_active,scb_stoked,load_reserve,mem_size,cfg_counts>
+	EXTLONG	<scb_table,sfb_table>
 	EXTNEAR	<dos_check,dos_leave,load_command,psp_termcode,r3_sp0,r3_load>
 	EXTNEAR	<r3_setldt,r3_stage>
 	EXTNEAR	<sfh_add_ref,sfh_context,sfh_close,get_cdir>
@@ -561,9 +562,12 @@ ENDPROC	scb_waitend
 ; any SCB in the table, so that a caller can step past unused sessions (no
 ; program) to the end of the table.
 ;
+; With CL = -1, it fills a SYSINFO structure instead, with facts about the
+; system (see dosapi.inc), and returns no registers.
+;
 ; Inputs:
-;	CL = SCB #
-;	REG_ES:REG_DI -> 8-byte buffer
+;	CL = SCB #, or -1 for the system
+;	REG_ES:REG_DI -> 8-byte buffer (or SYSINFO, if CL is -1)
 ;
 ; Outputs:
 ;	On success, carry clear:
@@ -578,6 +582,9 @@ ENDPROC	scb_waitend
 ;
 DEFPROC	scb_query,DOS
 	ASSUMES	<DS,DOS>,<ES,DOS>
+	inc	cl			; the system (CL = -1)?
+	jz	sq2			; yes
+	dec	cl
 	mov	al,size SCB
 	mul	cl
 	add	ax,[scb_table]._OFF
@@ -594,6 +601,44 @@ sq1:	mov	[bp].REG_AX,ax
 	mov	dh,[bx].SCB_LDT
 	call	mem_session		; its program's name, and its memory
 	clc
+	ret
+;
+; Fill the caller's SYSINFO, calling CPU$ first, since it may change ES.
+;
+sq2:	mov	ah,CPU_GETINFO
+	call	far ptr DDINT_CPU	; AL = CPU type, AH = CPUF_* flags
+	xchg	dx,ax			; DX = same
+	les	di,dword ptr [bp].REG_DI; ES:DI -> the caller's SYSINFO
+	ASSUME	ES:NOTHING
+	mov	ax,[mem_size]
+	stosw				; SI_MEMSIZE
+	mov	si,offset cfg_counts
+	ASSERT	<SI_BUFFERS + 2>,EQ,<SI_FILES>
+	ASSERT	<SI_FILES + 2>,EQ,<SI_SESSIONS>
+	movsw				; SI_BUFFERS
+	movsw				; SI_FILES
+	movsw				; SI_SESSIONS
+	xchg	ax,dx
+	ASSERT	<SI_CPUTYPE + 1>,EQ,<SI_CPUFLAGS>
+	stosw				; SI_CPUTYPE and SI_CPUFLAGS
+	push	ds
+	mov	ax,BIOS
+	mov	ds,ax
+	ASSUME	DS:BIOS
+	mov	al,[HOT_KEY]
+	pop	ds
+	ASSUME	DS:DOS
+	cbw				; (a control character, so AH = 0)
+	stosw				; SI_HOTKEY (and a reserved zero)
+	ASSERT	<SI_HOTKEY + 2>,EQ,<SI_SFBREFS>
+	sub	ax,ax
+	mov	bx,[sfb_table]._OFF
+sq3:	add	al,[bx].SFB_REFS
+	adc	ah,0
+	add	bx,size SFB
+	cmp	bx,[sfb_table]._SEG	; every SFB in the table?
+	jb	sq3			; not yet (carry clear when done)
+	stosw				; SI_SFBREFS
 sq9:	ret
 ENDPROC	scb_query
 

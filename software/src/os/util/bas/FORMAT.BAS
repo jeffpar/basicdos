@@ -2,7 +2,7 @@
 	'
 	'   FORMAT drive: [/S] [/V[:label]] [/F:size] [/1] [/8]
 	'
-	' /S copies the system files (from the root of the current drive), and
+	' /S copies the system files (from the root of the system drive), and
 	' makes them read-only system files (and BASDEV.COM and BASDOS.COM hidden
 	' files, too), and /V gives the volume a label (asking for it, unless
 	' it's given as /V:label).  A diskette's size is 360 (360K), 720 (720K),
@@ -16,7 +16,7 @@
 	' a new hard disk has "unknown media", but can still be opened), and the
 	' diskette driver formats and verifies each track (IOCTL &HF2), after
 	' it's given the new diskette's BPB (IOCTL &HF1); then the boot sector
-	' (copied from the current drive, with the new BPB), the FATs, and the
+	' (copied from the system drive, with the new BPB), the FATs, and the
 	' root directory are written to the volume as one stream of bytes.
 	' Cluster and root directory sizes follow the PC DOS 2.x rules, with
 	' 12-bit FATs, except that 1.2M diskettes get the PC DOS 3.x layout, and
@@ -48,8 +48,11 @@
 	IF D$ = "" THEN GOTO 97
 	IF FS AND FS <> 360 AND FS <> 720 AND FS <> 1200 THEN GOTO 96
 	IF FS > 360 AND (H = 1 OR T = 8) THEN PRINT W$; "1 and "; W$; "8 are only for 360K" : END 1
-	V$ = LEFT$(CURDIR$, 2)
-	IF D$ = V$ THEN PRINT "Cannot format the current drive" : END 1
+	' The system drive (V$, which COMMAND.COM was loaded from) and its path
+	' char (PC$) come from DOS function &H3704 (in DH and DL)
+	DOS &H3704 : A = DOS(3) : V$ = CHR$(A \ 256) + ":" : PC$ = CHR$(A AND 255)
+	IF D$ = LEFT$(CURDIR$, 2) THEN PRINT "Cannot format the current drive" : END 1
+	IF D$ = V$ THEN PRINT "Cannot format the system drive" : END 1
 	Z = 0 : U = 0
 	ON ERROR GOTO 90
 	OPEN D$ FOR OUTPUT AS #1
@@ -110,7 +113,7 @@
 	' entries, and 7-sector FATs
 	IF N = 2400 AND HS = 0 THEN K = 1 : E = 224 : F = 7
 	R = E \ 16 : B = 1 + 2 * F + R
-	' Copy the boot sector from the current drive, replacing its BPB; the BPB
+	' Copy the boot sector from the system drive, replacing its BPB; the BPB
 	' ends with the drive, sectors per cylinder, and first root directory and
 	' data sectors, which the boot code relies on; then give the volume the
 	' BPB (so that it can be written, if its media was unknown)
@@ -155,7 +158,7 @@
 	RESTORE
 	FOR I = 1 TO 3
 	READ N$, A
-	F$ = V$ + MID$(CURDIR$, 3, 1) + N$
+	F$ = V$ + PC$ + N$
 	COPY F$ D$
 	IF ERRORLEVEL THEN PRINT "Unable to copy "; F$ : GOTO 85
 	DOS &H4301, 0, A, D$ + N$ : SC = SC + 1

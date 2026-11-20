@@ -601,18 +601,8 @@ tl0a:	mov	[loadhandle],-1
 	mov	di,offset loadspb.SPB_SFHIN
 	mov	cx,5
 	rep	stosb			; the same SFH must be balanced five times
-	mov	ah,size SFB
-	mul	ah
-	push	ax			; offset of this SFH within the SFB table
-	mov	ah,DOS_MSC_GETVARS
-	int	21h
-	sub	bx,2			; ES:BX -> DOSVARS, including DV_MCB_HEAD
-	pop	ax
-	mov	cx,es
-	jcxz	tl0c			; (a ring 3 program can't read them)
-	add	ax,es:[bx].DV_SFB_TABLE._OFF
-tl0c:	mov	[loadrefs]._OFF,ax
-	mov	[loadrefs]._SEG,es
+	call	get_refs
+	mov	[loadrefs],ax		; AX = open file references (to keep)
 	mov	[loadspb].SPB_CMDLINE._SEG,ds
 	mov	[loadspb].SPB_CMDLINE._OFF,offset testfile
 	mov	bp,32
@@ -653,7 +643,8 @@ ENDPROC	test_load
 ;
 ; load_session / load_refcheck
 ;
-; Load through the session API, or check the fixture's reference count.
+; Load through the session API, or check that the references to open files
+; are back to what they were with only the fixture open (see get_refs).
 ;
 DEFPROC	load_session
 	push	ds
@@ -665,15 +656,36 @@ DEFPROC	load_session
 ENDPROC	load_session
 
 DEFPROC	load_refcheck
-	les	di,[loadrefs]
-	mov	ax,es
-	test	ax,ax			; can we read DOS's tables?
-	jz	lr9			; no (and carry is clear)
-	cmp	es:[di].SFB_REFS,1	; only the caller's handle may remain
-	je	lr9
+	call	get_refs
+	cmp	ax,[loadrefs]		; only the caller's references remain?
+	je	lr9			; yes
 	stc
 lr9:	ret
 ENDPROC	load_refcheck
+
+;
+; get_refs
+;
+; Returns the total number of references to open files in AX (see SYSINFO),
+; without changing any other register.
+;
+DEFPROC	get_refs
+	push	cx
+	push	di
+	push	es
+	sub	sp,size SYSINFO
+	mov	di,sp
+	push	ss
+	pop	es			; ES:DI -> SYSINFO (on the stack)
+	mov	cl,-1
+	DOSUTIL	QRYSCB			; get the system's SYSINFO
+	mov	ax,es:[di].SI_SFBREFS
+	add	sp,size SYSINFO
+	pop	es
+	pop	di
+	pop	cx
+	ret
+ENDPROC	get_refs
 
 ;
 ; test_reserve
@@ -936,7 +948,7 @@ datecases	dw		2023,0201h,0
 		dw		0,0,0
 loadtest	db		"session load test $"
 loadhandle	dw		-1
-loadrefs	dd		0
+loadrefs	dw		0
 loadspb		SPB		<0,0,0FFh,0FFh,0FFh,0FFh,0FFh>
 loadchild	db		"LOADTEST.COM",0
 ;

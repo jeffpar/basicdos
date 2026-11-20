@@ -841,24 +841,18 @@ ENDPROC	ownership_tests
 ; Return the sum of open SFB references in AX without changing SI or ES.
 ;
 DEFPROC	refcount
-	push	si
+	push	di
 	push	es
-	mov	ah,DOS_MSC_GETVARS
-	int	21h			; (which returns FILES in SI)
-	sub	bx,2
-	xor	ax,ax
-	mov	cx,es
-	jcxz	rc2			; (ring 3 can't read DOS's tables)
-	mov	cx,es:[bx].DV_SFB_TABLE._SEG
-	mov	bx,es:[bx].DV_SFB_TABLE._OFF
-rc1:	mov	dl,es:[bx].SFB_REFS
-	xor	dh,dh
-	add	ax,dx
-	add	bx,size SFB
-	cmp	bx,cx			; sum every SFB in the table
-	jb	rc1
-rc2:	pop	es
-	pop	si
+	sub	sp,size SYSINFO
+	mov	di,sp
+	push	ss
+	pop	es			; ES:DI -> SYSINFO (on the stack)
+	mov	cl,-1
+	DOSUTIL	QRYSCB			; get the system's SYSINFO
+	mov	ax,es:[di].SI_SFBREFS
+	add	sp,size SYSINFO
+	pop	es
+	pop	di
 	ret
 ENDPROC	refcount
 

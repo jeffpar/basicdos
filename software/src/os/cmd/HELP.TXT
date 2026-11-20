@@ -200,7 +200,7 @@ Executes the lines up to the matching NEXT repeatedly, adding *step* (default 1)
 If the *start* is already past the *limit*, the lines are skipped.
 
 [e]FORMAT *drive*: [~S] [~V[:*label*]] [~F:*size*] [~1] [~8]
-Formats the diskette or hard disk volume in the specified *drive*.  ~S copies the system files from the current drive (making the volume bootable), and ~V gives the volume a label (asking for one, unless it's given).  A diskette is formatted as 360K, 720K, or 1.2M (~F:360, ~F:720, or ~F:1200; by default, the drive's size, or 360K on a PC or XT); for 360K, ~1 formats one side, and ~8 formats 8 sectors per track (for PC DOS 1.x).
+Formats the diskette or hard disk volume in the specified *drive*.  ~S copies the system files from the system drive (the drive COMMAND.COM was loaded from), making the volume bootable, and ~V gives the volume a label (asking for one, unless it's given).  A diskette is formatted as 360K, 720K, or 1.2M (~F:360, ~F:720, or ~F:1200; by default, the drive's size, or 360K on a PC or XT); for 360K, ~1 formats one side, and ~8 formats 8 sectors per track (for PC DOS 1.x).
 
 [f+]FRE(*x*)
 Compacts string memory and returns the number of bytes available, or if *x* is negative (eg, FRE(-1)), the number of bytes owned by this session, which other sessions can't change.
@@ -504,6 +504,8 @@ Sets the screen mode: 0 (text), 1 (320x200 graphics), or 2 (640x200 graphics).
 A *burst* of 0 disables color in mode 0, and a *burst* of 1 disables color in mode 1.
 Changing the mode clears the screen and removes the console's border, if any;
 in a console without the focus, it waits until the console gets the focus.
+Until the original mode returns, other consoles on the display keep running
+out of sight; switching to one (eg, Shift-Tab) hides this console instead.
 SCREEN(*row*,*col*[,*z*])
 Returns the character code at *row* and *col*, or its attributes if *z* is non-zero.
 
@@ -552,7 +554,7 @@ Returns a string of *n* copies of *char*, which can be either a character code o
 Exchanges the values of two variables (or array elements) of the same type.
 
 [e]SYS *drive*: [~N]
-Copies the system files (BASDEV.COM, BASDOS.COM, and COMMAND.COM) from the root directory of the current drive to the specified *drive*, and gives its boot sector the current drive's boot code, making it bootable without reformatting it.
+Copies the system files (BASDEV.COM, BASDOS.COM, and COMMAND.COM) from the root directory of the system drive (the drive COMMAND.COM was loaded from) to the specified *drive*, and gives its boot sector the system drive's boot code, making it bootable without reformatting it.
 ~N removes the boot message and its wait from *drive*; SYS without ~N restores them.
 
 [f+]TAB(*n*)

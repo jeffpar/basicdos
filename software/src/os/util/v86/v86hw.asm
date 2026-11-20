@@ -55,13 +55,9 @@ DEFPROC	tick
 	sub	ax,ax
 	mov	di,BIOS_DATA + offset TIMER_LOW
 	call	seg_ptr			; ES:DI -> the machine's tick count
-	sub	bx,bx
-	mov	si,BIOS_DATA + offset TIMER_LOW
-	DOSUTIL	MAPSEG,1		; AX = TIMER_LOW
+	DOSUTIL	GETTIME,1		; DX:AX = BIOS tick count
 	stosw
-	inc	si
-	inc	si
-	DOSUTIL	MAPSEG,1		; AX = TIMER_HIGH
+	xchg	ax,dx
 	stosw
 	test	byte ptr [VARS+VR_EFL+1],FL_INTS SHR 8
 	jz	tk9			; its interrupts are off

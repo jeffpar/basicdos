@@ -273,7 +273,7 @@ si5x:	xchg	si,di
 	pop	es
 	mov	bl,10			; BL = base 10
 	DOSUTIL	ATOI16			; DS:SI -> string, ES:DI -> validation
-si5a:	mov	[cfg_counts+4],ax	; AX = new value (for msc_getvars)
+si5a:	mov	[cfg_counts+4],ax	; AX = new value (for SYSINFO)
 	mov	dx,size SCB
 	mov	bx,offset scb_table
 	call	init_table
@@ -482,7 +482,7 @@ si7b:	xchg	si,di
 	pop	es
 	mov	bl,10			; BL = base 10
 	DOSUTIL	ATOI16			; DS:SI -> string, ES:DI -> validation
-si7a:	mov	[cfg_counts+2],ax	; AX = new value (for msc_getvars)
+si7a:	mov	[cfg_counts+2],ax	; AX = new value (for SYSINFO)
 	mov	dx,size SFB
 	mov	bx,offset sfb_table
 	call	init_table
@@ -507,7 +507,7 @@ sb0:	xchg	si,di
 	pop	es
 	mov	bl,10			; BL = base 10
 	DOSUTIL	ATOI16			; DS:SI -> string, ES:DI -> validation
-sb1:	mov	[cfg_counts],ax		; AX = new value (for msc_getvars)
+sb1:	mov	[cfg_counts],ax		; AX = new value (for SYSINFO)
 	sub	ax,2
 	jbe	sb3
 	xchg	cx,ax			; CX = # extra buffers

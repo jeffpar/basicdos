@@ -29,7 +29,7 @@ DOS	segment word public 'CODE'
 	EXTLONG	<err_stack>
 	EXTSTR	<STR_CTRLC>
 
-	EXTWORD	<mcb_head,mem_size,cfg_counts>
+	EXTWORD	<mcb_head>
 	EXTLONG	<clk_ptr>
 	EXTWORD	<scb_active>
 
@@ -660,12 +660,12 @@ ENDPROC	msc_getswc
 ;
 ; Outputs:
 ;	REG_ES:REG_BX-2 -> mcb_head
-;	REG_AX = total memory, in Kb (BASIC-DOS only, since a ring 3 program
-;	can't read the DV_MEM_SIZE that follows mcb_head; see r3supp.asm)
-;	REG_CX, REG_SI, REG_DI = # of buffers, files, and sessions (see
-;	cfg_counts; also BASIC-DOS only, for MEM)
 ;	REG_DX = offset (in REG_ES) of scb_active, the active SCB's offset (or
 ;	zero), for a debugger (eg, DEBUG's prompt shows the session #)
+;
+; A program that wants facts about the system (eg, the total memory, or the
+; number of files) gets them from DOS_UTL_QRYSCB with CL = -1 (see SYSINFO),
+; which a ring 3 program can use, too.
 ;
 ; Modifies:
 ;	None
@@ -674,15 +674,6 @@ DEFPROC	msc_getvars,DOS
 	mov	[bp].REG_ES,ds
 	mov	[bp].REG_BX,offset mcb_head + 2
 	mov	[bp].REG_DX,offset scb_active
-	mov	ax,[mem_size]
-	mov	[bp].REG_AX,ax
-	mov	si,offset cfg_counts
-	lodsw
-	mov	[bp].REG_CX,ax		; CX = BUFFERS
-	lodsw
-	mov	[bp].REG_SI,ax		; SI = FILES
-	lodsw
-	mov	[bp].REG_DI,ax		; DI = SESSIONS
 	ret
 ENDPROC	msc_getvars
 

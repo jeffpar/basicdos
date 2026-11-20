@@ -52,22 +52,17 @@ DEFPROC	main
 	PRINTF	<"CPUTESTS skipped (needs RING=0)",13,10>
 	jmp	m9
 m0:	mov	ah,CPU_GETINFO
-	call	far ptr DDINT_CPU	; AH = CPUF_* flags
+	call	far ptr DDINT_CPU	; AL = CPU type, AH = CPUF_* flags
 	jnc	m1
 	PRINTF	<"CPU$ not loaded",13,10>
 	jmp	m9
 m1:	mov	[pmflag],ah
+	mov	[cputype],al
 	mov	cl,6
 	shr	ah,cl
 	mov	bl,ah
 	mov	bh,0			; BX = CPUF_HWTYPE
-	mov	ax,BIOS
-	mov	es,ax
-	ASSUME	ES:BIOS
-	mov	al,[CPU_TYPE]		; (and AH = 0)
-	push	ds
-	pop	es
-	ASSUME	ES:CODE
+	mov	ah,bh			; AX = CPU type
 	PRINTF	<"CPU type %d (hardware %d)",13,10>,ax,bx
 	call	info
 	mov	[free0].LW,cx
@@ -895,13 +890,7 @@ DEFPROC	bigseg
 	mov	si,1
 	mov	di,86A0h		; SI:DI = 100000
 	mov	ah,CPU_SETLIM
-	push	es
-	mov	cx,BIOS
-	mov	es,cx
-	ASSUME	ES:BIOS
-	cmp	[CPU_TYPE],CPUTYPE_80386	; using the 80386's features?
-	pop	es
-	ASSUME	ES:CODE
+	cmp	[cputype],CPUTYPE_80386	; using the 80386's features?
 	je	bg1			; yes
 	mov	[experr],ERR_INVALID
 	jmp	cpu_err
@@ -1010,6 +999,7 @@ ar9:	ret
 ENDPROC	arena
 
 	DEFBYTE	pmflag,0
+	DEFBYTE	cputype,0
 	DEFWORD	npmbs,0
 	DEFWORD	experr,0
 	DEFWORD	sel2,0

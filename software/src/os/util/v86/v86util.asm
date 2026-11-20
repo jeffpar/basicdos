@@ -22,7 +22,7 @@
 CODE    SEGMENT word public 'CODE'
 
 	EXTBYTE	<in_call>
-	EXTWORD	<cur_psp>
+	EXTWORD	<cur_psp,mach_paras>
 	EXTNEAR	<run,call_dos,pft_load,pft_save,i21f,i21ok,i21err>
 	EXTNEAR	<term_prog,seg_ptr,v86_ptr,v86_get,v86_put,get_word>
 	EXTNEAR	<mem_query>
@@ -59,13 +59,13 @@ ENDPROC	int2b
 	DEFLBL	I2B_FUNCS,byte
 	db	DOS_UTL_STRSTR, DOS_UTL_PRINTF, DOS_UTL_HPRINTF
 	db	DOS_UTL_DPRINTF, DOS_UTL_SPRINTF, DOS_UTL_TPRINTF
-	db	DOS_UTL_TOKID, DOS_UTL_PARSESW, DOS_UTL_LOAD
+	db	DOS_UTL_TOKID, DOS_UTL_PARSESW, DOS_UTL_QRYSCB, DOS_UTL_LOAD
 	db	DOS_UTL_QRYMEM, DOS_UTL_TERM, DOS_UTL_ALIAS, DOS_UTL_MAPSEG
 I2B_FUNCS_LEN	equ	$ - I2B_FUNCS
 	DEFLBL	I2B_PROCS,word
 	dw	ustrstr, uprintf, uprintf
 	dw	uprintf, uprintf, uprintf
-	dw	utokid, uparsesw, uload
+	dw	utokid, uparsesw, uqryscb, uload
 	dw	uqrymem, uterm, ualias, umapseg
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -466,6 +466,32 @@ DEFPROC	uload
 	pop	word ptr [VARS+VR_EBX]
 	jmp	i21f
 ENDPROC	uload
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; uqryscb
+;
+; QRYSCB is BASIC-DOS's, except that the memory and CPU in the system's
+; SYSINFO (CL = -1) are the machine's (as CPU_GETINFO's are; see dd_cpu).
+;
+DEFPROC	uqryscb
+	mov	al,INT_DOSUTIL
+	call	call_dos		; AX = result flags
+	cmp	byte ptr [VARS+VR_ECX],-1	; the system's SYSINFO?
+	jne	us9			; no
+	test	al,FL_CARRY		; did it fail?
+	jnz	us9			; yes
+	xchg	bx,ax			; BX = result flags
+	mov	ax,word ptr [VARS+VR_ES]
+	mov	di,word ptr [VARS+VR_EDI]
+	call	seg_ptr			; ES:DI -> the machine's SYSINFO
+	mov	ax,[mach_paras]
+	shr	ax,6			; AX = the machine's memory, in K
+	mov	es:[di].SI_MEMSIZE,ax
+	mov	word ptr es:[di].SI_CPUTYPE,(CPUF_HWTYPE SHL 8) OR CPUTYPE_8086
+	xchg	ax,bx			; AX = result flags
+us9:	jmp	i21f
+ENDPROC	uqryscb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

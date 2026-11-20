@@ -3,14 +3,15 @@
 	'   SYS drive: [/N]
 	'
 	' Copies BASDEV.COM, BASDOS.COM, and COMMAND.COM from the root directory
-	' of the current drive to the root directory of drive D$ (replacing any
-	' copies already there), makes them read-only system files (and BASDEV
-	' and BASDOS hidden, too), and then gives D$'s boot sector the current
-	' drive's boot code, keeping D$'s BPB (its disk parameters).  The boot
-	' code follows the system files' FAT chains, so they can be anywhere on
-	' D$.  /N removes the boot message and its wait, and without /N, they're
-	' restored.  Options start with the switch char (W$), which is "/" unless
-	' CONFIG.SYS changes it (eg, to "-").
+	' of the system drive (V$, which COMMAND.COM was loaded from) to the root
+	' directory of drive D$ (replacing any copies already there), makes them
+	' read-only system files (and BASDEV and BASDOS hidden, too), and then
+	' gives D$'s boot sector the system drive's boot code, keeping D$'s BPB
+	' (its disk parameters).  The boot code follows the system files' FAT
+	' chains, so they can be anywhere on D$.  /N removes the boot message and
+	' its wait, and without /N, they're restored.  Options start with the
+	' switch char (W$), which is "/" unless CONFIG.SYS changes it (eg, to
+	' "-").
 	'
 	' The BPB ends with the drive, sectors per cylinder, and first root
 	' directory and data sectors, which the boot code relies on, so they're
@@ -29,10 +30,11 @@
 5	I = I + 1 : A$ = UCASE$(ARG$(I))
 	WEND
 	IF D$ = "" THEN GOTO 95
-	V$ = LEFT$(CURDIR$, 2) : PC$ = MID$(CURDIR$, 3, 1)
-	IF D$ = V$ THEN PRINT "Cannot transfer the system to the current drive" : END 1
+	' DOS function &H3704 returns the system drive (DH) and path char (DL)
+	DOS &H3704 : A = DOS(3) : V$ = CHR$(A \ 256) + ":" : PC$ = CHR$(A AND 255)
+	IF D$ = V$ THEN PRINT "Cannot transfer the system to the system drive" : END 1
 	ON ERROR GOTO 90
-	' Read the current drive's boot sector (records of 255, 255, and 2 bytes)
+	' Read the system drive's boot sector (records of 255, 255, and 2 bytes)
 	OPEN V$ AS #1 LEN = 255
 	FIELD #1, 255 AS R$
 	GET #1, 1 : B1$ = R$ : GET #1, 2 : B2$ = R$ : GET #1, 3 : B3$ = LEFT$(R$, 2)
@@ -40,7 +42,7 @@
 	' The boot code must be our version (K$, including any revision letter
 	' that DOS returns in CH), whose number is followed by the CR,LF (Y$)
 	' before the boot message, or by 0,1 (Z$), which ends the string before
-	' the message and makes the boot code wait 1 tick instead; the current
+	' the message and makes the boot code wait 1 tick instead; the system
 	' drive's copy could be either, or could be other boot code, which we
 	' can't use
 	DOS &H3000 : A = DOS(0)

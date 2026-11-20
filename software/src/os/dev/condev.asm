@@ -27,8 +27,8 @@ CODE	segment para public 'CODE'
 ;
 	EXTNEAR	<chk_blocked,chk_context,chk_graphics,chk_vpage,get_frame>
 	EXTNEAR	<get_sesctx,scroll,set_curtype,set_geometry,set_slot>
-	EXTNEAR	<slot_addr,swap_page,switch_focus,switch_to,unlock_bios>
-	EXTNEAR	<chk_opt,set_pmode>
+	EXTNEAR	<slot_addr,save_screen,switch_focus,switch_to,unlock_bios>
+	EXTNEAR	<chk_opt,chk_output,chk_mode,set_pmode,save_ctx>
 	EXTNEAR	<ddcon_setkeys,kbd_update>
 	EXTNEAR	<update_biosdata,update_context,update_curtype,update_mode>
 	EXTNEAR	<video_ctx,wait_focus,write_char,write_context,write_crtc16>
@@ -68,6 +68,8 @@ VKD	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFWORD	ct_head,0	; head of context chain
 	DEFWORD	ct_focus,0	; segment of context with focus
 	DEFWORD	mode_ctx,0	; context not in its original mode
+	DEFWORD	save_seg,0	; copy of the others' memory (see save_screen)
+	DEFWORD	save_addr,<0,0>	; and its block's address
 	DEFWORD	frame_seg,0	; frame buffer segment of PRIMARY adapter
 	DEFBYTE	max_rows,25	; TODO: use this for something...
 	DEFBYTE	max_cols,80	; TODO: set to correct value in ddcon_init
@@ -75,6 +77,7 @@ VKD	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFBYTE	req_switch,0	; non-zero if a context switch is requested
 	DEFBYTE	one_con,0	; non-zero if only one console (see con_opt)
 	DEFBYTE	adapters,0	; video adapters present (see ADAPTER_*)
+	DEFBYTE	mode_hid,0	; FFh if mode_ctx is hidden (see hide_mode)
 	DEFWORD	bios_ctx,0	; context for our own INT 10h call (see scroll)
 ;
 ; Where the next context goes on each adapter (primary, then alternate; see
@@ -148,7 +151,8 @@ dio1:	mov	dx,es:[di].DDP_CONTEXT
 	jae	dio2			; no
 ;
 ; IOCTLs that draw on the screen (eg, a CLS or COLOR from another session)
-; must wait while the context is blocked (see chk_blocked).
+; must wait while the context's output does (see chk_output), and a mode
+; change waits while another context has the screen (see chk_mode).
 ;
 	cmp	bl,IOCTL_SCROLL - (IOCTL_CON - 8)
 	je	dio1a
@@ -159,9 +163,13 @@ dio1:	mov	dx,es:[di].DDP_CONTEXT
 	cmp	bl,IOCTL_SETMODE - (IOCTL_CON - 8)
 	jne	dio3
 dio1a:	mov	ax,ds
-	call	chk_blocked		; is another context blocking us?
-	jnc	dio1b			; no
-	push	bx
+	call	chk_output		; must our output wait?
+	jc	dio1b			; yes
+	cmp	bl,IOCTL_SETMODE - (IOCTL_CON - 8)
+	jne	dio3
+	call	chk_mode		; does another context have the screen?
+	jnc	dio1d			; no
+dio1b:	push	bx
 	call	add_packet		; yes, so wait (as ddcon_write does)
 	pop	bx
 	jnc	dio1a			; check again
@@ -171,9 +179,7 @@ dio1c:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
 ; A mode change affects the entire screen, so it also waits until the context
 ; has focus (see wait_focus).
 ;
-dio1b:	cmp	bl,IOCTL_SETMODE - (IOCTL_CON - 8)
-	jne	dio3
-	mov	cx,es:[di].DDPRW_LENGTH	; CL = mode, CH = rows
+dio1d:	mov	cx,es:[di].DDPRW_LENGTH	; CL = mode, CH = rows
 	call	chk_vmode		; does the screen's mode change?
 	jnc	dio3			; no, so there's no need for focus
 	inc	cl			; (nor does a request of -1 need it,
@@ -291,7 +297,7 @@ ENDPROC	ddcon_getpos
 ;	position is outside the context
 ;
 ; Modifies:
-;	AX, BX, DX, DI, ES
+;	AX, BX, DX, DI
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_getchar
@@ -307,8 +313,10 @@ DEFPROC	ddcon_getchar
 	jnz	dgr5
 	call	get_curpos		; BX = screen offset for (DL,DH)
 	cli				; (see write_curpos)
+	push	es
 	les	di,ds:[CT_SCREEN]	; ES:DI -> screen location
 	mov	dx,es:[di+bx]		; DL = character, DH = attributes
+	pop	es
 	sti
 	clc
 	ret
@@ -594,6 +602,7 @@ DEFPROC	ddcon_setclr
 sc9:	ret
 
 sc5:	mov	ds:[CT_COLOR].HB,cl
+	DEFLBL	set_gfxclr,near		; (see show_mode)
 	mov	bl,cl
 	and	bl,0Fh			; BL = background color
 	mov	bh,0			; BH = 0 (set background)
@@ -1015,14 +1024,15 @@ dcw3:	test	es:[CT_STATUS],CTSTAT_PAUSED
 	jnz	dcw3a
 	push	ax
 	mov	ax,es
-	call	chk_blocked		; is another context blocking us?
+	call	chk_output		; must our output wait?
 	pop	ax
 	jnc	dcw4			; no
 ;
 ; For WRITE requests that cannot be satisfied (because the context is paused
-; or blocked), we add this packet to an internal chain of "writing" packets,
-; and then tell DOS that we're waiting; DOS will suspend the current SCB until
-; we notify DOS that this packet's conditions are satisfied.
+; or its output must wait), we add this packet to an internal chain of
+; "writing" packets, and then tell DOS that we're waiting; DOS will suspend
+; the current SCB until we notify DOS that this packet's conditions are
+; satisfied.
 ;
 dcw3a:	pop	es			; ES:DI -> packet again
 	mov	es:[di].DDPRW_LENGTH,cx
@@ -1394,6 +1404,10 @@ dco4a:	mov	ds:[CT_COLS],ax
 	jc	dco4b			; yes (see get_vbuf)
 	call	get_frame
 	mov	ds:[CT_SCREEN]._SEG,ax
+	mov	ax,ds
+	call	chk_blocked		; is another context blocking it?
+	jnc	dco4b			; no
+	call	save_ctx		; yes (see con_opt)
 dco4b:
 ;
 ; If we're creating a session on a secondary adapter, then like the mode
@@ -1946,7 +1960,7 @@ i10y:	pop	ds
 	jc	i10z			; yes (see con_opt)
 	call	set_pmode		; can the mode be set in place?
 	jnc	i10p			; yes, and it has been
-	call	swap_page		; no (see swap_page)
+	call	save_screen		; no (see save_screen)
 i10z:	call	update_biosdata		; returns current EQUIP_FLAG
 	pop	ds
 
@@ -2296,7 +2310,7 @@ DEFPROC	draw_border
 	test	ds:[CT_STATUS],CTSTAT_BORDER
 	jz	db9
 	mov	ax,ds
-	call	chk_blocked		; is another context blocking us?
+	call	chk_output		; must our output wait?
 	jc	db9			; yes, so leave the screen alone
 	mov	si,offset DBL_BORDER
 	cmp	ax,[ct_focus]

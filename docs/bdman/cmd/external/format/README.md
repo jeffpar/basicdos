@@ -8,9 +8,9 @@ permalink: /docs/bdman/cmd/external/format/
 
 > FORMAT *drive*: [/S] [/V[:*label*]] [/F:*size*] [/1] [/8]
 
-Formats the diskette or hard disk volume in *drive*.  FORMAT can't format the current drive, which also supplies the boot sector and any system files.
+Formats the diskette or hard disk volume in *drive*.  FORMAT can't format the current drive, or the system drive (the drive that COMMAND.COM was loaded from), which supplies the boot sector and any system files.
 
-- `/S` copies BASDEV.COM, BASDOS.COM, and COMMAND.COM from the root directory of the current drive, making the volume bootable, and makes BASDEV.COM and BASDOS.COM read-only hidden system files and COMMAND.COM a read-only system file
+- `/S` copies BASDEV.COM, BASDOS.COM, and COMMAND.COM from the root directory of the system drive, making the volume bootable, and makes BASDEV.COM and BASDOS.COM read-only hidden system files and COMMAND.COM a read-only system file
 - `/V` gives the new volume a label, which FORMAT asks for (pressing ENTER leaves it without one), and `/V:`*label* gives it that label; a label has up to 11 characters, and can't include `* ? / \ | . , ; : + = [ ] < >` or `"`
 - `/F:`*size* selects a diskette's size: `360`, `720`, or `1200`
 - `/1` formats one side of a 360K diskette
@@ -18,7 +18,7 @@ Formats the diskette or hard disk volume in *drive*.  FORMAT can't format the cu
 
 ### Diskettes
 
-FORMAT prompts for the diskette, formats and verifies every track (with the diskette driver's [IOCTL](../../basic/#ioctl) requests), writes the boot sector (a copy of the current drive's, with the new diskette's parameters), the two FATs, and the root directory, reports the space on the diskette, and asks whether to format another.
+FORMAT prompts for the diskette, formats and verifies every track (with the diskette driver's [IOCTL](../../basic/#ioctl) requests), writes the boot sector (a copy of the system drive's, with the new diskette's parameters), the two FATs, and the root directory, reports the space on the diskette, and asks whether to format another.
 
 | Switches | Size | Cylinders | Sides | Sectors per track | Cluster size | Root entries |
 |----------|------|-----------|-------|-------------------|--------------|--------------|
@@ -66,6 +66,7 @@ Hard disk volumes aren't verified, and extended partitions aren't supported.
 ### Messages
 
 - `Cannot format the current drive`
+- `Cannot format the system drive`
 - `Cannot format drive` *drive* `(files are open)`
 - `Drive` *drive* `can't format` *size*`K diskettes`: the drive's size doesn't allow it
 - `Invalid size (use /F:360, /F:720, or /F:1200)`, or for a new hard disk volume, `Invalid size`

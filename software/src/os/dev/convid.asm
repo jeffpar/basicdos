@@ -27,14 +27,15 @@ DEV	group	CODE
 CODE	segment byte public 'CODE'
 
 	EXTBYTE	<adapters,bios_lock,max_cols,max_rows,req_switch,shown_page>
-	EXTBYTE	<one_con>
+	EXTBYTE	<one_con,mode_hid>
 	EXTWORD	<bios_ctx,con_place,ct_focus,ct_head,frame_seg,mode_ctx>
+	EXTWORD	<save_seg,save_addr>
 	extrn	ddcon_int09:far
 	extrn	ddcon_int10:far
 	extrn	ddcon_int29:far
 	extrn	ddcon_req:far
 	EXTNEAR	<draw_border,draw_char,draw_cursor,draw_linefeed,free_buf>
-	EXTNEAR	<get_curpos,hide_cursor,update_cursor,alloc_sys>
+	EXTNEAR	<get_curpos,hide_cursor,update_cursor,alloc_sys,set_gfxclr>
 	EXTNEAR	<free_seg>
 	EXTLONG	<kbd_int,video_int,wait_ptr>
 
@@ -95,7 +96,8 @@ scr2a:	call	chk_graphics		; graphics mode?
 ; and update_mode) or the context's page is displayed
 ; (the mouse driver hides its pointer around a BIOS scroll); otherwise, we
 ; scroll the page ourselves, with no BIOS data to update (and a virtual page
-; is one the BIOS can't reach anyway).
+; is one the BIOS can't reach anyway), as we do for a context that another
+; context is blocking (whose page may be in a buffer; see save_screen).
 ;
 ; A focus switch at interrupt time can change which page is displayed, and
 ; move the context to or from a virtual page (see swap_page), so interrupts
@@ -108,11 +110,15 @@ scr3:	mov	ah,bl
 	mov	bx,ds
 	cmp	bx,[mode_ctx]		; does it have the entire screen?
 	je	scr4			; yes
+	xchg	ax,bx
+	call	chk_blocked		; is another context blocking it?
+	xchg	ax,bx
+	jc	scr3a			; yes
 	call	get_place		; BX = con_place index
 	mov	bl,shown_page[bx]
 	cmp	bl,ds:[CT_PAGE]		; is the context's page displayed?
 	je	scr4			; yes
-	pop	bx
+scr3a:	pop	bx
 	call	scroll_buf
 	jmp	short scr9
 scr4:	pop	bx
@@ -156,7 +162,8 @@ ENDPROC	video_ctx
 ; wait_focus
 ;
 ; Waits until the context has focus, unless it's the context that is blocking
-; the others (mode_ctx), which owns the screen whether it has focus or not.
+; the others (mode_ctx), which owns the screen whether it has focus or not
+; (unless it's hidden; see hide_mode).
 ; The wait ID is the context segment with an offset of 1 (which no packet
 ; has); switch_focus ends the wait.
 ;
@@ -177,8 +184,10 @@ DEFPROC	wait_focus
 	cmp	ax,[ct_focus]		; does the context have focus?
 	je	wf9			; yes
 	cmp	ax,[mode_ctx]		; is it blocking the others?
-	je	wf9			; yes
-	push	dx
+	jne	wf1			; no
+	call	chk_blocked		; yes, unless it's hidden
+	jnc	wf9
+wf1:	push	dx
 	push	di
 	mov	dx,ax
 	mov	di,1			; DX:DI = wait ID
@@ -350,9 +359,14 @@ ENDPROC	chk_graphics
 ; chk_blocked
 ;
 ; While a context is in any mode other than its original mode (see
-; update_mode), every other context on the same adapter is blocked: its
-; output waits (see ddcon_write and ddcon_ioctl) and its border isn't drawn,
-; until that context returns to its original mode (see release_mode).
+; update_mode), every other context on the same adapter is blocked: it can't
+; display its page, move the cursor, or change the mode, and unless its
+; memory is in a buffer (see chk_output), its output waits (see ddcon_write
+; and ddcon_ioctl) and its border isn't drawn, until that context returns to
+; its original mode (see release_mode).  While that context is hidden
+; instead (see hide_mode), it's the only one that's blocked, but chk_mode
+; still says that another context has the screen, since none of the others
+; can change the mode until it returns.
 ;
 ; Inputs:
 ;	AX = CONSOLE context
@@ -364,23 +378,36 @@ ENDPROC	chk_graphics
 ;	None
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	chk_mode
+	push	cx
+	mov	cl,0			; (as if mode_ctx isn't hidden)
+	jmp	short cb0
+ENDPROC	chk_mode
+
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	chk_blocked
-	push	bx
+	push	cx
+	mov	cl,[mode_hid]
+cb0:	push	bx
 	push	ds
 	mov	bx,[mode_ctx]
 	test	bx,bx			; is any context blocking the others?
 	jz	cb9			; no (and carry is clear)
 	cmp	bx,ax			; is it this context?
-	je	cb9			; yes (and carry is clear)
+	je	cb8			; yes (and carry is clear)
 	mov	ds,bx
 	mov	bx,ds:[CT_PORT]
 	mov	ds,ax
 	cmp	bx,ds:[CT_PORT]		; is this context on the same adapter?
 	clc
 	jne	cb9			; no
-	stc				; yes, so it's blocked
+	stc				; yes
+cb8:	sbb	bl,bl			; BL = FFh if it's another context
+	xor	bl,cl			; (or if it's this one, and hidden)
+	shr	bl,1			; carry set if it's blocked
 cb9:	pop	ds
 	pop	bx
+	pop	cx
 	ret
 ENDPROC	chk_blocked
 
@@ -413,6 +440,32 @@ DEFPROC	release_mode
 	jc	show_cursor		; yes
 	jmp	release_now		; no (see con_opt)
 ENDPROC	release_mode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_output
+;
+; The output of a blocked context goes on if its memory is a buffer (a
+; virtual page, or the copy of the adapter's memory that save_screen made);
+; only output to the adapter's memory waits.  The only console is never
+; blocked, so the rest of this is after con_opt.
+;
+; Inputs:
+;	AX = CONSOLE context
+;
+; Outputs:
+;	Carry set if the context's output must wait
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	chk_output
+	call	chk_blocked		; is another context blocking it?
+	jnc	cot9			; no
+	jmp	chk_saved		; yes (see con_opt)
+cot9:	ret
+ENDPROC	chk_output
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -567,6 +620,58 @@ ENDPROC	update_biosdata
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; set_rows
+;
+; If ddcon_setmode asked for more than 25 rows (CT_ROWS, which applies only
+; to this mode set), the BIOS gives us those rows when we load its 8x8 font
+; (while the BIOS data still describes this context).  An EGA's BIOS assumes
+; 14-line characters when it converts cursor types, which would hide the
+; cursor in 8-line characters, so its cursor emulation is turned off as long
+; as the rows are displayed (bit 0 of EGA_MISC_INFO), and a VGA goes back to
+; 400 scan lines at its next mode set, whoever sets it.
+;
+; Inputs:
+;	DS = CONSOLE context (whose mode the BIOS just set)
+;
+; Outputs:
+;	CH = rows
+;
+; Modifies:
+;	CH, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	set_rows
+	mov	ch,25
+	test	[adapters],ADAPTER_EGA
+	jz	sr9
+	push	ax
+	push	bx
+	mov	ax,BIOS
+	mov	es,ax
+	ASSUME	ES:BIOS
+	and	[EGA_MISC_INFO],NOT 1
+	mov	bl,0
+	xchg	bl,ds:[CT_ROWS]
+	test	bl,bl			; more rows?
+	jz	sr8			; no
+	mov	ch,bl
+	or	[EGA_MISC_INFO],1
+	ASSUME	ES:NOTHING
+	mov	ax,VIDEO_FONT8X8
+	mov	bl,0			; (font block 0)
+	pushf
+	call	[video_int]
+	mov	ax,(VIDEO_ALTSEL SHL 8) OR 2
+	mov	bl,VALT_SCANLINES
+	pushf
+	call	[video_int]
+sr8:	pop	bx
+	pop	ax
+sr9:	ret
+ENDPROC	set_rows
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; update_mode
 ;
 ; This is update_context for video mode changes, whether they come from
@@ -604,42 +709,8 @@ DEFPROC	update_mode
 	push	di
 	push	es
 	mov	bl,ds:[CT_MODE]		; BL = previous mode
-;
-; If ddcon_setmode asked for more than 25 rows (CT_ROWS, which applies only
-; to this mode set), the BIOS gives us those rows when we load its 8x8 font
-; (while the BIOS data still describes this context).  An EGA's BIOS assumes
-; 14-line characters when it converts cursor types, which would hide the
-; cursor in 8-line characters, so its cursor emulation is turned off as long
-; as the rows are displayed (bit 0 of EGA_MISC_INFO), and a VGA goes back to
-; 400 scan lines at its next mode set, whoever sets it.
-;
-	mov	ch,25
-	test	[adapters],ADAPTER_EGA
-	jz	um0
-	push	ax
-	push	bx
-	mov	ax,BIOS
-	mov	es,ax
-	ASSUME	ES:BIOS
-	and	[EGA_MISC_INFO],NOT 1
-	mov	bl,0
-	xchg	bl,ds:[CT_ROWS]
-	test	bl,bl			; more rows?
-	jz	um0a			; no
-	mov	ch,bl
-	or	[EGA_MISC_INFO],1
-	ASSUME	ES:NOTHING
-	mov	ax,VIDEO_FONT8X8
-	mov	bl,0			; (font block 0)
-	pushf
-	call	[video_int]
-	mov	ax,(VIDEO_ALTSEL SHL 8) OR 2
-	mov	bl,VALT_SCANLINES
-	pushf
-	call	[video_int]
-um0a:	pop	bx
-	pop	ax
-um0:	call	update_context		; update CT_MODE, CT_COLS, etc
+	call	set_rows		; CH = rows
+	call	update_context		; update CT_MODE, CT_COLS, etc
 	sub	si,si			; SI = 0 (the BIOS set the mode)
 	mov	ah,0			; AH = page 0
 um0c:	mov	cl,ds:[CT_COLS].LB	; CX = full screen
@@ -675,7 +746,9 @@ um1:	mov	ds:[CT_PAGE],ah
 ; A context in any mode other than its original mode occupies the entire
 ; screen (and the BIOS cleared it), so it also blocks every other context on
 ; the same adapter (see chk_blocked), until it returns to its original mode
-; (see release_mode).
+; (see release_mode).  A mode that the BIOS set without that (eg, the same
+; mode, for a context that shares its page) releases the memory of the other
+; contexts that save_screen saved, too.
 ;
 	mov	al,ds:[CT_MODE]
 	cmp	al,ds:[CTO_MODE]	; back to the original mode?
@@ -698,8 +771,10 @@ um5:	test	si,si			; was the mode set in place?
 	jmp	short um7
 um6:	mov	ax,ds
 	cmp	ax,[mode_ctx]		; was this context blocking the others?
-	jne	um7			; no
-	push	bx
+	je	um6a			; yes
+	cmp	[save_seg],0		; or did it save their memory anyway?
+	je	um7			; no
+um6a:	push	bx
 	call	release_mode		; yes, so unblock them
 	pop	bx
 um7:	mov	ax,1003h
@@ -1086,7 +1161,7 @@ ENDPROC	write_context
 ;	None
 ;
 ; Modifies:
-;	AL, DI, ES
+;	AL, DI
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	write_curpos
@@ -1109,12 +1184,16 @@ wcp2:	in	al,dx
 	jz	wcp2			; loop until we're INSIDE horz retrace
 ;
 ; A focus switch at interrupt time can move the context to another page (see
-; swap_page), so CT_SCREEN is loaded with interrupts off.
+; swap_page), so CT_SCREEN is loaded with interrupts off, and ES is restored
+; before they're on again, since a buffer that it holds can be freed while
+; this session waits for another (see restore_screen).
 ;
 wcp3:	cli
+	push	es
 	les	di,ds:[CT_SCREEN]	; ES:DI -> screen location
 	mov	al,cl
 	mov	es:[di+bx],ax		; "write" the character and attributes
+	pop	es
 	sti
 	pop	dx
 	pop	bx
@@ -1381,15 +1460,16 @@ ENDPROC	show_now
 ;
 ; set_hwmode
 ;
-; Sets an adapter's text mode without clearing its memory.  The BIOS of an
-; EGA or VGA does that if bit 7 of the mode is set.  A CGA's BIOS always
-; clears all 16K, so we program a CGA ourselves: the 6845's horizontal
-; timing registers (0-3, the only ones that differ between text modes) and
-; the mode register, along with the BIOS's copy of the latter (which the
-; BIOS writes to the mode register again after it scrolls, for example).
+; Sets an adapter's mode without clearing its memory.  The BIOS of an EGA or
+; VGA does that if bit 7 of the mode is set.  A CGA's BIOS always clears all
+; 16K, so we program a CGA ourselves: the 6845's horizontal timing registers
+; (0-3, which differ between 40 and 80 columns), the vertical ones that
+; differ between text and graphics (4, 6, 7, and 9), and the mode and color
+; select registers, along with the BIOS's copies of those two (the BIOS
+; writes the former to the mode register again after it scrolls, for example).
 ;
 ; Inputs:
-;	AL = text mode (0-3)
+;	AL = mode (0-6)
 ;	DS = CONSOLE context
 ;
 ; Modifies:
@@ -1397,8 +1477,13 @@ ENDPROC	show_now
 ;
 	DEFLBL	CGA_MODES,byte
 	db	2Ch,28h,2Dh,29h		; mode register values for modes 0-3
+	db	2Ah,2Eh,1Eh		; and for modes 4-6
 	db	38h,28h,2Dh,0Ah		; 6845 registers 0-3 for 40 columns
 	db	71h,50h,5Ah,0Ah		; and for 80 columns
+	db	1Fh,7Fh,4		; register 4 for text and for graphics
+	db	19h,64h,6		; and registers 6, 7, and 9
+	db	1Ch,70h,7
+	db	07h,01h,9
 
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	set_hwmode
@@ -1414,11 +1499,12 @@ DEFPROC	set_hwmode
 	call	[video_int]
 	pop	bp
 	ret
-shm1:	push	si
+shm1:	push	cx
+	push	si
 	push	es
 	mov	bx,offset CGA_MODES
 	xlat	CGA_MODES
-	lea	si,[bx+4]		; SI -> values for 40 columns
+	lea	si,[bx+7]		; SI -> values for 40 columns
 	test	al,01h			; 80 columns?
 	jz	shm2			; no
 	add	si,4
@@ -1434,6 +1520,16 @@ shm3:	lods	byte ptr cs:[si]
 	inc	ah
 	cmp	ah,4
 	jb	shm3
+	mov	si,offset CGA_MODES+15
+	mov	cx,4
+shm4:	lods	word ptr cs:[si]	; AL = value for text, AH = graphics
+	test	bh,02h			; a graphics mode?
+	jz	shm5			; no
+	mov	al,ah
+shm5:	mov	ah,cs:[si]		; AH = 6845 register #
+	inc	si
+	call	write_crtc8
+	loop	shm4
 	add	dl,3			; DX = mode register port again
 	mov	al,bh
 	out	dx,al			; new mode, with the display on
@@ -1441,9 +1537,21 @@ shm3:	lods	byte ptr cs:[si]
 	mov	es,bx
 	ASSUME	ES:BIOS
 	mov	[CRT_MODE_SET],al
+;
+; The color select register gets the BIOS's value for the mode, too: no
+; border, and palette 1 (or white pixels, in mode 6).
+;
+	cmp	al,1Eh			; mode 6?
+	mov	al,30h
+	jne	shm6			; no
+	mov	al,3Fh
+shm6:	inc	dx
+	out	dx,al
+	mov	[CRT_PALLETTE],al
 	pop	es
 	ASSUME	ES:NOTHING
 	pop	si
+	pop	cx
 	ret
 ENDPROC	set_hwmode
 
@@ -1578,6 +1686,635 @@ DEFPROC	swap_page
 	pop	ax
 swp10:	ret
 ENDPROC	swap_page
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; save_screen
+;
+; Called by ddcon_int10 before the BIOS sets a mode that set_pmode can't,
+; after swap_page has displayed the context's page.  The BIOS clears the
+; adapter's memory, and the context then has the entire screen (see
+; update_mode), so if no context has it yet, and other contexts on the
+; adapter have their pages (or regions) there, that memory is copied to a
+; buffer (save_seg; see copy_alloc), which they then use instead: their
+; output goes on (see chk_output), their video memory selectors map the
+; buffer (see set_slot), and restore_screen copies it back when the screen
+; is given up.  The context's own region is cleared first, as the BIOS would
+; clear it, so that it comes back empty.  If there's no memory for the
+; buffer, the others are simply blocked.
+;
+; A context that has the screen but is hidden (see hide_mode) sets a mode
+; only when it's closed (its own requests wait until it's displayed again),
+; and the others are on the screen then, so their memory is copied again
+; first (see keep_others).
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	save_screen
+	call	swap_page
+	push	bx
+	push	cx
+	push	dx
+	push	si
+	push	di
+	push	es
+	mov	ax,ds
+	cmp	[mode_ctx],0		; does any context have the screen?
+	je	svs1			; no
+	cmp	[mode_ctx],ax		; this one?
+	jne	svs9			; no
+	call	chk_blocked		; is it hidden?
+	jnc	svs9			; no (so the others are saved already)
+	call	keep_others		; yes, so save them again
+	jmp	short svs9
+svs1:	call	get_frame
+	mov	dx,ax			; (a move to the same memory)
+	call	move_ctxs		; is another context in the adapter's?
+	jnc	svs9			; no
+	call	copy_alloc		; AX = the copy, DI = its length
+	jc	svs9			; (no memory, so they're blocked)
+	push	ax
+	push	ds:[CT_COLOR]
+	mov	ds:[CT_COLOR].LB,07h	; (the attributes the BIOS clears with)
+	mov	cl,0
+	call	scroll			; clear this context (and any border)
+	pop	ds:[CT_COLOR]
+	pop	ax
+	push	ds
+	mov	ds,dx
+	mov	es,ax
+	mov	cx,di
+	shr	cx,1
+	sub	si,si
+	sub	di,di
+	rep	movsw			; copy the adapter's memory
+	pop	ds
+	xchg	ax,dx			; AX = adapter's memory, DX = the copy
+	call	move_ctxs		; and the others use the copy
+svs9:	pop	es
+	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	pop	bx
+	ret
+ENDPROC	save_screen
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; move_ctxs
+;
+; Moves the other contexts on a context's adapter from one copy of its memory
+; to another (eg, from the adapter's memory to save_seg).
+;
+; Inputs:
+;	DS = CONSOLE context (which doesn't move)
+;	AX = memory to move from
+;	DX = memory to move to
+;
+; Outputs:
+;	Carry set if any context was in the memory to move from
+;
+; Modifies:
+;	BX, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	move_ctxs
+	push	cx
+	push	bp
+	sub	bp,bp			; BP = # contexts moved
+	mov	cx,ds:[CT_PORT]		; CX = adapter port
+	mov	bx,[ct_head]
+mvc1:	test	bx,bx
+	jz	mvc8
+	mov	es,bx
+	cmp	es:[CT_PORT],cx		; is it on the same adapter?
+	jne	mvc2			; no
+	cmp	es:[CT_SCREEN]._SEG,ax	; and in the memory to move from?
+	jne	mvc2			; no
+	push	ax
+	mov	ax,ds
+	cmp	ax,bx			; is it the context that doesn't move?
+	pop	ax
+	je	mvc2			; yes
+	mov	es:[CT_SCREEN]._SEG,dx	; no, so it moves
+	inc	bp
+mvc2:	mov	bx,es:[CT_NEXT]
+	jmp	mvc1
+mvc8:	neg	bp			; carry set if any moved
+	pop	bp
+	pop	cx
+	ret
+ENDPROC	move_ctxs
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; copy_alloc
+;
+; Allocates the buffer for a copy of an adapter's memory (save_seg), which
+; holds the other contexts' memory while a context has the screen (see
+; save_screen), or that context's memory while it's hidden (see hide_mode).
+; On an 80386, the buffer starts on a page boundary in the block that holds
+; it (save_addr), so that a V86 machine can have its pages, too (see v86_vid
+; and copy_addr).
+;
+; Inputs:
+;	DS = CONSOLE context (on the adapter)
+;
+; Outputs:
+;	Carry clear if successful: AX = save_seg, DI = length of the copy
+;
+; Modifies:
+;	AX, SI, DI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	copy_alloc
+	push	bx
+	push	cx
+	push	dx
+	push	ds
+	call	slot_addr		; SI:DI = length of adapter's memory
+	mov	ds,cs:[0].DDH_DATA
+	ASSUME	DS:CODE
+	push	di
+	call	chk_paged		; an 80386?
+	jb	cal1			; no
+	add	di,1000h-16		; yes (room for a page boundary)
+cal1:	mov	bx,MCBOWNER_SYSTEM
+	mov	ax,(CPU_ALLOC SHL 8) OR MEMF_NONE
+	call	far ptr DDINT_CPU	; DX:CX = the block's address
+	pop	di			; DI = length of the copy
+	jc	cal9
+	mov	save_addr[0],cx
+	mov	save_addr[2],dx
+	call	copy_addr		; DX:CX = its first page boundary
+	mov	ax,CPU_MAP SHL 8	; (a GDT data selector, SI:DI = length)
+	call	far ptr DDINT_CPU	; AX = its selector (or segment)
+	jc	cal8
+	mov	[save_seg],ax
+	jmp	short cal9
+cal8:	call	free_copy		; (the block)
+	stc
+cal9:	pop	ds
+	ASSUME	DS:NOTHING
+	pop	dx
+	pop	cx
+	pop	bx
+	ret
+ENDPROC	copy_alloc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; save_ctx
+;
+; A context that ddcon_open puts in the adapter's memory while another
+; context is blocking it uses the other contexts' copy (see save_screen), or
+; if there's none yet (eg, the context that has the screen was alone), a new
+; one, which starts blank.
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	save_ctx
+	mov	ax,[save_seg]
+	test	ax,ax			; is there a copy?
+	jnz	svc8			; yes
+	push	cx
+	push	si
+	push	di
+	push	es
+	call	copy_alloc		; AX = the copy, DI = its length
+	jc	svc7
+	mov	es,ax
+	mov	cx,di
+	shr	cx,1
+	sub	di,di
+	push	ax
+	mov	ax,0720h
+	rep	stosw			; clear it
+	pop	ax
+svc7:	pop	es
+	pop	di
+	pop	si
+	pop	cx
+	jc	svc9
+svc8:	mov	ds:[CT_SCREEN]._SEG,ax	; the context uses the copy
+svc9:	ret
+ENDPROC	save_ctx
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; mode_switch
+;
+; A switch to another context on the adapter of the context that has the
+; screen (mode_ctx) hides that context first (see hide_mode), and a switch
+; back to it displays it again (see show_mode).  If there's no buffer to hide
+; it in (see copy_alloc), the switch can't happen.
+;
+; Inputs:
+;	CX = context to switch to
+;
+; Outputs:
+;	Carry set if the switch can't happen
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	mode_switch
+	push	ax
+	mov	ax,[mode_ctx]
+	test	ax,ax			; does any context have the screen?
+	jz	msw9			; no (and carry is clear)
+	push	bx
+	push	cx
+	push	dx
+	push	si
+	push	di
+	push	ds
+	push	es
+	mov	ds,ax			; DS = context with the screen
+	cmp	ax,cx			; switching to it?
+	jne	msw2			; no
+	call	chk_blocked		; yes; is it hidden?
+	jnc	msw8			; no
+	call	show_mode		; yes, so display it again
+	jmp	short msw7
+msw2:	call	chk_blocked		; is it hidden already?
+	jc	msw7			; yes
+	mov	es,cx
+	mov	ax,es:[CT_PORT]
+	cmp	ax,ds:[CT_PORT]		; is the other context on its adapter?
+	jne	msw7			; no
+	cmp	[save_seg],0		; can it be hidden?
+	stc
+	je	msw8			; no
+	call	hide_mode
+msw7:	clc
+msw8:	pop	es
+	pop	ds
+	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	pop	bx
+msw9:	pop	ax
+	ret
+ENDPROC	mode_switch
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; hide_mode
+;
+; Hides the context that has the screen (mode_ctx) so that another context
+; on its adapter can be displayed: the adapter's memory and the other
+; contexts' copy (see save_screen) are exchanged, so the buffer has its
+; memory now (where its video memory selector maps it, so that its programs
+; can keep drawing) and they use the adapter's again, in the other context's
+; mode, which is set without clearing anything (see set_hwmode).  While
+; it's hidden (mode_hid), it's the only context that's blocked (see
+; chk_blocked), so its output waits, and so does any INT 10h call from its
+; session (see wait_focus).
+;
+; Inputs:
+;	DS = CONSOLE context (mode_ctx)
+;	CX = context to display
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	hide_mode
+	push	cx
+	call	xchg_copy		; AX = adapter's memory, DX = the copy
+	pop	bx
+	push	ds
+	mov	ds,bx			; DS = context to display
+	call	set_mode
+	mov	cl,ds:[CT_MODE]
+	pop	ds
+	xchg	ax,dx
+	call	move_ctxs		; the others use the adapter's again
+	mov	al,-1			; AL = new mode_hid
+	DEFLBL	shown_mode,near
+	mov	es,cs:[0].DDH_DATA
+	ASSUME	ES:CODE
+	mov	[mode_hid],al
+	call	get_place		; BX = con_place index
+	mov	shown_page[bx+1],cl	; (the mode being displayed)
+	ASSUME	ES:NOTHING
+	jmp	wake_ctxs		; (and their video memory selectors)
+ENDPROC	hide_mode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; show_mode
+;
+; Displays a hidden context again (see hide_mode): the adapter's memory and
+; the buffer are exchanged again, so the other contexts use their copy and
+; the context has the adapter's, and its mode is set again (see set_mode),
+; with its background and palette in modes 4 and 5.  The rest of what the
+; context's programs set themselves (eg, with OUT) isn't.
+;
+; Inputs:
+;	DS = CONSOLE context (mode_ctx)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	show_mode
+	call	xchg_copy		; AX = adapter's memory, DX = the copy
+	call	move_ctxs		; the others use the copy again
+	call	set_mode
+	mov	al,ds:[CT_MODE]
+	sub	al,4
+	cmp	al,2			; mode 4 or 5?
+	jae	shw2			; no
+	mov	cl,ds:[CT_COLOR].HB
+	call	set_gfxclr		; yes, so set background and palette
+shw2:	mov	al,0			; AL = new mode_hid
+	mov	cl,ds:[CT_MODE]
+	jmp	shown_mode
+ENDPROC	show_mode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; set_mode
+;
+; Sets the adapter's mode to a context's, without clearing its memory (see
+; set_hwmode), and with the context's rows, if it has more than 25 (see
+; set_rows).  An MDA has only one mode.
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Modifies:
+;	BX, CX, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	set_mode
+	cmp	ds:[CT_PORT].LB,0B4h	; monochrome adapter?
+	je	smd9			; yes
+	push	ax
+	push	dx
+	mov	ah,ds:[CT_CONDIM].HB
+	inc	ah			; AH = rows
+	cmp	ah,25			; more than 25?
+	jbe	smd1			; no
+	mov	ds:[CT_ROWS],ah		; yes (see set_rows)
+	mov	al,2			; a VGA displays 400 scan lines for 50
+	cmp	ah,50
+	je	smd0
+	dec	ax			; and 350 for 43
+smd0:	mov	ah,VIDEO_ALTSEL
+	mov	bl,VALT_SCANLINES
+	pushf
+	call	[video_int]
+smd1:	mov	al,ds:[CT_MODE]
+	call	set_hwmode
+	call	set_rows
+	pop	dx
+	pop	ax
+smd9:	ret
+ENDPROC	set_mode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xchg_copy
+;
+; Exchanges an adapter's memory with the buffer (see copy_alloc).
+;
+; Inputs:
+;	DS = CONSOLE context (on the adapter)
+;
+; Outputs:
+;	AX = adapter's memory, DX = save_seg
+;
+; Modifies:
+;	AX, CX, DX, SI, DI, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	xchg_copy
+	call	slot_addr		; SI:DI = length of adapter's memory
+	call	get_frame		; AX = its segment
+	mov	dx,[save_seg]
+	push	ax
+	push	ds
+	mov	es,ax
+	mov	ds,dx
+	mov	cx,di
+	shr	cx,1
+	sub	di,di			; (and SI is zero)
+xc1:	mov	ax,es:[di]
+	movsw
+	mov	[si-2],ax
+	loop	xc1
+	pop	ds
+	pop	ax
+	ret
+ENDPROC	xchg_copy
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; keep_others
+;
+; Before the BIOS sets a mode for a hidden context (ie, when it's closed),
+; which clears the adapter's memory, the other contexts on its adapter go
+; back to their copy (see save_screen), which replaces the context's own.
+;
+; Inputs:
+;	DS = CONSOLE context (mode_ctx)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	keep_others
+	call	slot_addr		; SI:DI = length of adapter's memory
+	call	get_frame		; AX = its segment
+	mov	dx,[save_seg]
+	push	ds
+	mov	ds,ax
+	mov	es,dx
+	mov	cx,di
+	shr	cx,1
+	sub	di,di			; (and SI is zero)
+	rep	movsw			; copy the others' memory
+	pop	ds
+	call	move_ctxs		; and they use the copy again
+	mov	es,cs:[0].DDH_DATA
+	ASSUME	ES:CODE
+	mov	[mode_hid],0		; (the context isn't hidden now)
+	ASSUME	ES:NOTHING
+	ret
+ENDPROC	keep_others
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_saved
+;
+; The rest of chk_output, for a blocked context.
+;
+; Inputs:
+;	AX = CONSOLE context
+;
+; Outputs:
+;	Carry set if the context's memory is the adapter's
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	chk_saved
+	push	ds
+	mov	ds,ax
+	call	chk_mem			; is its memory the adapter's?
+	pop	ds
+	stc
+	je	csv9			; yes
+	clc				; no (it's a buffer)
+csv9:	ret
+ENDPROC	chk_saved
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_mem
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Outputs:
+;	ZF set if the context's memory is the adapter's (not a buffer)
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	chk_mem
+	push	ax
+	call	get_frame
+	cmp	ax,ds:[CT_SCREEN]._SEG
+	pop	ax
+	ret
+ENDPROC	chk_mem
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; restore_screen
+;
+; When the context that had the entire screen gives it up (see release_now),
+; the BIOS has just set a mode for it again, clearing the adapter's memory,
+; so the other contexts' copy (see save_screen) is copied back, they use the
+; adapter's memory again, and the buffer is freed.
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	restore_screen
+	call	slot_addr		; SI:DI = length of adapter's memory
+	call	get_frame
+	xchg	dx,ax			; DX = its segment
+	mov	ax,[save_seg]
+	test	ax,ax			; is there a copy?
+	jz	rss9			; no
+	call	move_ctxs		; the others use the adapter's again
+	push	ds
+	mov	ds,ax
+	mov	es,dx
+	mov	cx,di
+	shr	cx,1
+	sub	di,di			; (and SI is zero)
+	rep	movsw			; copy theirs back
+	mov	ds,dx			; (DS can't hold the one being freed)
+	mov	es,cs:[0].DDH_DATA
+	ASSUME	ES:CODE
+	mov	[save_seg],0
+	ASSUME	ES:NOTHING
+	xchg	bx,ax			; BX = the copy's selector
+	sub	cx,cx			; (CX = 0 for one selector)
+	mov	ah,CPU_UNMAP
+	call	far ptr DDINT_CPU
+	call	free_copy		; and free its block
+	pop	ds
+rss9:	ret
+ENDPROC	restore_screen
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; free_copy
+;
+; Frees the block that holds the copy of an adapter's memory (see
+; copy_alloc).
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	free_copy
+	mov	cx,save_addr[0]
+	mov	dx,save_addr[2]		; DX:CX = the block
+	mov	ah,CPU_FREE
+	call	far ptr DDINT_CPU
+	ret
+ENDPROC	free_copy
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; copy_addr
+;
+; Outputs:
+;	DX:CX = the address of the copy of an adapter's memory (on an 80386,
+;	the first page boundary in its block; see copy_alloc)
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	copy_addr
+	mov	cx,save_addr[0]
+	mov	dx,save_addr[2]
+	call	chk_paged		; an 80386?
+	jb	cad9			; no
+	add	cx,0FFFh
+	adc	dx,0
+	and	cx,0F000h
+cad9:	ret
+ENDPROC	copy_addr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_paged
+;
+; Outputs:
+;	Carry set (ie, below) if the processor is not an 80386, which is the
+;	only one whose driver uses pages
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	chk_paged
+	push	ax
+	push	ds
+	mov	ax,BIOS
+	mov	ds,ax
+	ASSUME	DS:BIOS
+	cmp	[CPU_TYPE],3
+	pop	ds
+	ASSUME	DS:NOTHING
+	pop	ax
+	ret
+ENDPROC	chk_paged
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1737,7 +2474,9 @@ sf0:	mov	cx,ds:[CT_NEXT]
 sf1:	mov	cx,[ct_head]
 	cmp	cx,[ct_focus]
 	je	sf8			; nothing to do
-sf2:	mov	es,cs:[0].DDH_DATA
+sf2:	call	mode_switch		; can the switch happen?
+	jc	sf8			; no
+	mov	es,cs:[0].DDH_DATA
 	ASSUME	ES:CODE
 	xchg	cx,[ct_focus]
 	ASSUME	ES:NOTHING
@@ -1777,7 +2516,9 @@ ENDPROC	switch_focus
 ; Scrolls (or clears) a window of a page that isn't displayed (a virtual
 ; page's buffer, or another page of the adapter), like the BIOS's VIDEO_SCROLL
 ; and VIDEO_SCROLLDN functions do on the screen, with the BIOS locked, so that
-; no swap_page moves the context meanwhile.
+; no swap_page moves the context meanwhile, and unless the page is in a CGA's
+; memory (see below), with the session locked, too, so that no other session
+; moves it or frees its buffer (see save_screen and restore_screen).
 ;
 ; Moving a CGA's memory causes "snow" on the page it's displaying, but unlike
 ; the BIOS, we don't blank the display meanwhile, since the flicker would have
@@ -1801,6 +2542,17 @@ DEFPROC	scroll_buf
 	push	di
 	push	bp
 	push	es
+	call	chk_snow		; is the page in CGA memory?
+	jnc	sb0			; no
+	call	chk_mem			; and not in a buffer?
+	stc
+	je	sb0a			; yes, so the session isn't locked
+sb0:	push	ax
+	mov	ah,DOS_UTL_LOCK
+	call	far ptr DDINT_UTIL	; lock it (and clear carry)
+	pop	ax
+sb0a:	sbb	bp,bp
+	push	bp			; (BP = 0 if the session is locked)
 	push	ds
 	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
@@ -1837,6 +2589,10 @@ sb3:	push	dx
 	mov	di,bx			; DI -> first row
 	call	chk_snow		; is the page in CGA memory?
 	sbb	bh,bh			; BH = -1 if so (see scroll_wait)
+	call	chk_mem			; unless it's in a buffer
+	je	sb3a
+	mov	bh,0
+sb3a:
 	mov	es,ds:[CT_SCREEN]._SEG
 	push	es
 	pop	ds			; DS = ES = buffer
@@ -1871,8 +2627,13 @@ sb7:	call	scroll_wait
 	jnz	sb7
 	sti				; (see scroll_wait)
 	pop	ds
-	pop	es
 	pop	bp
+	pop	es
+	test	bp,bp			; is the session locked?
+	jnz	sb9			; no
+	mov	ah,DOS_UTL_UNLOCK
+	call	far ptr DDINT_UTIL	; yes, so unlock it
+sb9:	pop	bp
 	pop	di
 	pop	si
 	jmp	unlock_bios
@@ -2077,6 +2838,7 @@ ENDPROC	get_vbuf
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	release_now
+	call	restore_screen		; (if save_screen saved anything)
 	push	ds
 	mov	ax,ds:[CT_PORT]		; AX = adapter port
 	mov	cx,[ct_head]
@@ -2099,6 +2861,7 @@ rg1a:	pop	ax
 rg2:	mov	cx,ds:[CT_NEXT]
 	jmp	rg1
 rg3:	pop	ds
+	DEFLBL	wake_ctxs,near		; (see hide_mode)
 	call	update_slots		; (and give them their video memory)
 ;
 ; Now end the wait for every waiting packet that isn't a READ packet (ie,
@@ -2164,12 +2927,11 @@ ENDPROC	update_slots
 ; LDT selector that we create for the context (see ddcon_getmode) and decide
 ; what it maps (CPU_MAP with MEMF_REMAP), which we change only when the
 ; sessions that use it aren't running (eg, when another context's mode change
-; blocks them).  While another context is blocking it (see chk_blocked), the
-; selector is not present, so a program that loads it waits (see SELID_WAIT),
-; as its output does; otherwise, it maps the adapter's video memory, since the
-; context has a region (or page) of its own there.  A design that saved a
-; blocked context's video memory in a buffer could map the buffer instead,
-; and let the program keep running.
+; blocks them).  It maps the adapter's video memory, since the context has a
+; region (or page) of its own there, or while another context is blocking it
+; (see chk_blocked), the copy of that memory that save_screen made, so the
+; program keeps running; if there's no copy, the selector is not present,
+; so a program that loads it waits (see SELID_WAIT), as its output does.
 ;
 ; Inputs:
 ;	DS = CONSOLE context
@@ -2182,12 +2944,18 @@ DEFPROC	set_slot
 	mov	bx,ds:[CT_SLOT]
 	test	bx,bx			; does it have a selector?
 	jz	ss9			; no
-	sub	si,si
-	sub	di,di			; SI:DI = 0 (not present)
+	call	slot_addr		; DX:CX = address, SI:DI = length
 	mov	ax,ds
 	call	chk_blocked		; is another context blocking it?
-	jc	ss1			; yes, so take it away
-	call	slot_addr		; no, DX:CX = address, SI:DI = length
+	jnc	ss1			; no
+	call	copy_addr		; DX:CX = the copy of adapter's memory
+	mov	ax,ds
+	cmp	ax,[mode_ctx]		; is it hidden there (see hide_mode)?
+	je	ss1			; yes
+	mov	ax,ds:[CT_SCREEN]._SEG
+	cmp	ax,[save_seg]		; is its memory the copy?
+	je	ss1			; yes
+	sub	di,di			; no, so take it away (SI:DI = 0)
 ss1:	mov	ax,(CPU_MAP SHL 8) OR MEMF_REMAP
 	call	far ptr DDINT_CPU
 	test	di,di			; is it present now?

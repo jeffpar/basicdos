@@ -54,33 +54,16 @@ m1:	mov	[CON_COLS],dl
 	int	21h			; DL = switch char
 	mov	[SWITCH_CHAR],dl
 	mov	ax,DOS_MSC_GETPCH
-	int	21h			; DL = path char
+	int	21h			; DL = path char, DH = system drive
 	mov	[PATH_CHAR],dl
 ;
-; HELP.TXT is in the EXT folder of the drive that COMMAND.COM was loaded
-; from, which COMMAND puts first in the environment, as COMSPEC (see buildEnv
-; in COMMAND); if there's no COMSPEC, we use the current drive.
+; HELP.TXT is in the EXT folder of the system drive (the drive that
+; COMMAND.COM was loaded from).
 ;
 	mov	di,offset HELP_PATH
 	mov	[di+2],dl
 	mov	[di+6],dl
-	mov	ah,DOS_DSK_GETDRV
-	int	21h
-	add	al,'A'			; AL = current drive letter
-	mov	cx,ds:[PSP_ENVSEG]
-	jcxz	m2			; no environment
-	push	di
-	mov	es,cx
-	sub	di,di			; ES:DI -> environment
-	mov	si,offset COMSPEC
-	mov	cx,COMSPEC_LEN
-	repe	cmpsb			; does it start with COMSPEC?
-	jne	m1a			; no
-	mov	al,es:[di]		; yes, so use its drive letter
-m1a:	push	ds
-	pop	es
-	pop	di
-m2:	mov	[di],al
+	mov	[di],dh
 ;
 ; Find the first argument (SI) and its length (CX).
 ;
@@ -764,8 +747,6 @@ HELP_CATS	db	"ALL",0,"BASIC",0,"CORE",0,"FUNC",0,"CMD",0,"EXT",0,0
 ; up "HELP" in it.
 ;
 HELP_PATH	db	"A:\EXT\HELP.TXT",0
-COMSPEC		db	"COMSPEC="
-COMSPEC_LEN	equ	$ - COMSPEC
 VERB_FIND	db	"find",0
 VERB_READ	db	"read",0
 CON_COLS	db	?

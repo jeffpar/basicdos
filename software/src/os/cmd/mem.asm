@@ -22,10 +22,10 @@ CODE    SEGMENT
 ; cmdMem
 ;
 ; Prints memory usage: the total memory (all of it, including any extended
-; memory; see DOS_MSC_GETVARS) and the available memory (which includes
-; COMMAND's transient portion, if it can be discarded; see transParas).  With
-; /A, it first prints the number of buffers, files, and sessions (also from
-; DOS_MSC_GETVARS), and if the transient can be discarded, it also prints the
+; memory; see SYSINFO) and the available memory (which includes COMMAND's
+; transient portion, if it can be discarded; see transParas).  With /A, it
+; first prints the number of buffers, files, and sessions (also from
+; SYSINFO), and if the transient can be discarded, it also prints the
 ; memory available for BASIC programs.  Then it prints a line for anything
 ; that's unavailable: floating-point, if the FPU$ driver isn't loaded (see
 ; PSP_FPUTBL), and the functions outside COMMAND's core, if only the core was
@@ -41,9 +41,18 @@ CODE    SEGMENT
 ;	Any
 ;
 DEFPROC	cmdMem
-	mov	ah,DOS_MSC_GETVARS
-	int	21h			; AX = total Kb, CX = # buffers,
-	xchg	bx,ax			; SI = # files, DI = # sessions
+	sub	sp,size SYSINFO
+	mov	di,sp
+	push	ss
+	pop	es			; ES:DI -> SYSINFO (on the stack)
+	mov	cl,-1
+	DOSUTIL	QRYSCB			; get the system's SYSINFO
+	ASSERT	<SI_MEMSIZE + 2>,EQ,<SI_BUFFERS>
+	pop	bx			; BX = total Kb
+	pop	cx			; CX = # buffers
+	pop	si			; SI = # files
+	pop	di			; DI = # sessions
+	add	sp,size SYSINFO - 8
 	TESTSW	<'A'>			; /A?
 	jz	mem0			; no
 	PRINTF	<"%8d buffers",13,10,"%8d files",13,10,"%8d sessions",13,10>,cx,si,di

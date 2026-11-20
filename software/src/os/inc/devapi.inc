@@ -97,8 +97,9 @@ IOCTL_FORMAT	equ	0F2h	; FDC: format/verify track (CX = cyl, DX = head)
 IOCTL_GETPART	equ	0F3h	; HDC: store PARTINFO at DS:SI (CX = length)
 IOCTL_SETPART	equ	0F4h	; HDC: write new MBR with table at DS:SI
 ;
-; IOCTL_GETPART fills in a PARTINFO (the FDC driver returns nothing, as
-; diskettes have no partition table).
+; IOCTL_GETPART fills in a PARTINFO; the FDC driver, since diskettes have no
+; partition table, stores only the drive's type (one byte: 1 = 360K, 2 =
+; 1.2M, 3 = 720K, or 4 = 1.44M), or nothing if the BIOS can't tell.
 ;
 PARTINFO	struc
 PI_CYLS		dw	?	; 00h: cylinders

@@ -11,6 +11,7 @@ permalink: /docs/bdtech/data/
 - Session structures: [SPB](#spb), [SCB](#scb)
 - File structures: [FFB](#ffb), [SFB](#sfb), [FCB](#fcb)
 - Memory structures: [MCB](#mcb), [DOSVARS](#dosvars)
+- System structures: [SYSINFO](#sysinfo)
 
 ### PSP
 
@@ -198,7 +199,7 @@ The CPU$ driver manages memory (see [Protected Mode](../mmu/)), and only its 808
 
 ### DOSVARS
 
-DOS_MSC_GETVARS returns ES:BX -> DOSVARS.  As in PC DOS, the word before it is for the first memory segment, but it's always zero, since there's no MCB chain for programs to walk (CPU$ manages memory); the rest of the structure is BASIC-DOS-specific.  A program at ring 3 can't read the kernel's memory, so DOS_MSC_GETVARS also returns DV_MEM_SIZE in AX, and the number of disk buffers, SFBs, and SCBs (the BUFFERS, FILES, and SESSIONS values) in CX, SI, and DI (MEM displays them all), and ES:DX points to the word that holds the active SCB's offset (zero before the first session starts), so that a debugger loaded as a driver can find the current session (SCB_NUM) whenever it stops the machine, without calling DOS.
+DOS_MSC_GETVARS returns ES:BX -> DOSVARS.  As in PC DOS, the word before it is for the first memory segment, but it's always zero, since there's no MCB chain for programs to walk (CPU$ manages memory); the rest of the structure is BASIC-DOS-specific.  A program at ring 3 can't read the kernel's memory, so a program gets facts about the system from [SYSINFO](#sysinfo) instead.  ES:DX points to the word that holds the active SCB's offset (zero before the first session starts), so that a debugger loaded as a driver can find the current session (SCB_NUM) whenever it stops the machine, without calling DOS.
 
 | Offset | Field | Description |
 |--------|-------|-------------|
@@ -208,5 +209,21 @@ DOS_MSC_GETVARS returns ES:BX -> DOSVARS.  As in PC DOS, the word before it is f
 | 06h | DV_SFB_TABLE | Offset and limit of the SFB table |
 | 0Ah | DV_SCB_TABLE | Offset and limit of the SCB table |
 | 0Eh | (none) | Offset and limit of the current directory table (one word per drive for each session) |
+
+### SYSINFO
+
+[DOS_UTL_QRYSCB](../util/#sessions) with CL = -1 fills a SYSINFO structure at ES:DI, so that a program (including one at ring 3, which can't read the kernel's memory or call CPU$) needn't find these facts in DOS's tables, the BIOS data area, or CPU$.  In a [V86 machine](../mmu/#v86), the memory and CPU are the machine's.
+
+| Offset | Field | Description |
+|--------|-------|-------------|
+| 00h | SI_MEMSIZE | Total memory, in Kb (conventional memory plus any extended memory) |
+| 02h | SI_BUFFERS | Number of disk buffers (BUFFERS) |
+| 04h | SI_FILES | Number of SFBs (FILES) |
+| 06h | SI_SESSIONS | Number of SCBs (SESSIONS) |
+| 08h | SI_CPUTYPE | CPU type (CPUTYPE_*), as CPU_GETINFO returns in AL |
+| 09h | SI_CPUFLAGS | CPU flags (CPUF_*), as CPU_GETINFO returns in AH |
+| 0Ah | SI_HOTKEY | The HOTKEY= control character (zero if none) |
+| 0Bh | (none) | Reserved (zero) |
+| 0Ch | SI_SFBREFS | Total references to open files (the sum of every SFB's reference count) |
 
 {% include footer.html prev="Floating-Point Interface:../fpu/" next="Protected Mode:../mmu/" %}

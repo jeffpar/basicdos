@@ -154,12 +154,14 @@ ci5:	pop	bx
 	pop	ds
 
 	test	[bx].CMD_FLAGS,CMD_SINGLE
-	jnz	ci7			; no banner for COMMAND /C
-	PRINTF	<"BASIC-DOS Command Shell",13,10>
+	jz	ci5a
+	jmp	ci7			; no banner for COMMAND /C
+ci5a:	PRINTF	<"BASIC-DOS Command Shell",13,10>
 ;
 ; If this is one of several VKD$ consoles, and the one with focus, mention how
 ; to switch between them (IOCTL_GETMODE with CL = 2 returns the number of VKD$
-; consoles in DL, and DH = 1 if this one has focus).
+; consoles in DL, and DH = 1 if this one has focus): SHIFT-TAB, unless there's
+; a HOTKEY= setting (see SYSINFO).
 ;
 	push	bx
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETMODE
@@ -170,7 +172,18 @@ ci5:	pop	bx
 	jc	ci6			; (STDOUT isn't VKD$)
 	cmp	dx,0102h		; focus and more than one console?
 	jb	ci6			; no
-	PRINTF	<"Press Shift-Tab to switch sessions",13,10>
+	sub	sp,size SYSINFO
+	mov	di,sp			; ES:DI -> SYSINFO (on the stack)
+	mov	cl,-1
+	DOSUTIL	QRYSCB			; get the system's SYSINFO
+	mov	al,es:[di].SI_HOTKEY
+	add	sp,size SYSINFO
+	test	al,al			; is there a HOTKEY= setting?
+	jz	ci5b			; no
+	add	al,'@'			; AL = its letter
+	PRINTF	<"Press Ctrl-%c to switch sessions",13,10>,ax
+	jmp	short ci6
+ci5b:	PRINTF	<"Press Shift-Tab to switch sessions",13,10>
 ci6:	PRINTF	<13,10>
 ci7:
 	call	bootTime		; remove any /Q, and prompt if needed

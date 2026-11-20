@@ -39,11 +39,16 @@ CODE    SEGMENT word public 'CODE'
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 DEFPROC	main
-	sub	bx,bx
-	mov	si,BIOS_DATA + offset CPU_TYPE
-	DOSUTIL	MAPSEG,1		; AL = CPU_TYPE (or in real mode, 0)
-	cmp	al,CPUTYPE_80386	; protected mode with 80386 features?
-	je	m1			; yes
+	sub	sp,size SYSINFO
+	mov	di,sp			; ES:DI -> SYSINFO (on the stack)
+	mov	cl,-1
+	DOSUTIL	QRYSCB			; get the system's SYSINFO
+	ASSERT	<SI_CPUTYPE + 1>,EQ,<SI_CPUFLAGS>
+	mov	ax,word ptr [di].SI_CPUTYPE
+	add	sp,size SYSINFO
+	and	ah,CPUF_PM		; AH = CPUF_PM (or 0), AL = CPU type
+	cmp	ax,(CPUF_PM SHL 8) OR CPUTYPE_80386
+	je	m1			; protected mode with 80386 features
 	PRINTF	<"V86 mode not available",13,10>
 	jmp	m8a
 ;
