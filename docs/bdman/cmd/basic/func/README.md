@@ -416,14 +416,14 @@ Returns (or sets) the format of the command prompt, which is a [PRINTF](../../de
 | Specifier | Displays |
 |---|---|
 | `%s` | The current drive and directory (eg, `A:\DEMOS`), as [CURDIR$](#curdir) returns them |
-| `%g` | `>` in real mode, `]` in protected mode, or `}` in V86 mode (see [V86](../../external/v86/)) |
-| `%l` | The matching left character: `<`, `[`, or `{` |
+| `%g` | `>` in real mode, `]` in protected mode, or `)` in V86 mode (see [V86](../../external/v86/)) |
+| `%l` | The matching left character: `<`, `[`, or `(` |
 | `%d` | The session number, as [START](../../system/#start) lists it |
 | `%n` | A new line |
 | `%M`, `%D`, `%Y`, `%X`, `%F`, `%W` | Today's month, day, year, 2-digit year, month name, and day of the week |
 | `%H`, `%G`, `%N`, `%S`, `%A` | The current hour, 12-hour hour, minute, second, and `a` or `p` |
 
-Widths and precisions work as they do in PRINTF (eg, `PROMPT$ = "%.3W %H:%02N %s%g"` displays a prompt like `Tue 14:05 A:\>`), and `%%` displays a percent sign.  A specifier that would need a value of its own (eg, `%c` or `%f`) is displayed as-is.  PROMPT$ is empty unless it's set, which displays the default prompt, the same as `PROMPT$ = "%s%g"`; `PROMPT$ = ""` restores it.
+Widths and precisions work as they do in PRINTF (eg, `PROMPT$ = "%.3W %H:%02N %s%g"` displays a prompt like `Tue 14:05 A:\>` in real mode), and `%%` displays a percent sign.  A specifier that would need a value of its own (eg, `%c` or `%f`) is displayed as-is.  PROMPT$ is empty unless it's set, which displays the default prompt, the same as `PROMPT$ = "%l%s%g"` (eg, `<A:\>`); `PROMPT$ = ""` restores it.
 
 Like [PATH$](#path), PROMPT$ keeps its value when variables are cleared, each session has its own (a new [COMMAND.COM](../../external/command/) starts with an empty one), and it can be set on a [SHELL](../../../cfg/#shell) line in CONFIG.SYS.  It's limited to 62 characters.  PROMPT$ isn't available on low memory systems, which always display the default prompt.
 

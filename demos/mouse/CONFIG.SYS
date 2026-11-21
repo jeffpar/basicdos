@@ -1,0 +1,2 @@
+REM Demonstration of a serial mouse, running PAINT.BAS
+SHELL=COMMAND.COM PATH$="A:\;A:\EXT;A:\DEMOS" : PAINT

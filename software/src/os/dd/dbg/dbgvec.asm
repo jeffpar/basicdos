@@ -27,8 +27,8 @@ CODE	segment word public 'CODE'
 	EXTNEAR	<ax_mem,cpu_call,end_command,hex_byte,hex_word,newline,pad>
 	EXTNEAR	<parse_hex,peek_b,peek_w,poke_b,put_char,put_n,skip_space>
 	EXTNEAR	<space>
-	EXTBYTE	<col,cpu_mode,prog_char,sess_num,trap_21>
-	EXTWORD	<dos_scb,dos_seg,dos_vars,regs,sys_regs>
+	EXTBYTE	<col,cpu_mode,sess_num,trap_21>
+	EXTWORD	<dos_scb,dos_seg,dos_vars,prog_chars,regs,sys_regs>
 
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 ;
@@ -850,7 +850,7 @@ ENDPROC	chk_sess
 ;
 DEFPROC	get_sess
 	mov	al,[sess_num]
-	cmp	[prog_char],0		; program mode?
+	cmp	[prog_chars],0		; program mode?
 	jne	gn9			; yes
 	mov	ax,[dos_seg]
 	call	ax_mem
@@ -875,7 +875,7 @@ ENDPROC	get_sess
 ;	AX, DI
 ;
 DEFPROC	set_step
-	cmp	[prog_char],0		; program mode?
+	cmp	[prog_chars],0		; program mode?
 	jne	st9			; yes
 	test	[cpu_mode],ADDR_SEL	; protected mode?
 	jz	st9			; no

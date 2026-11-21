@@ -7,9 +7,8 @@ machines:
     type: pcx86
     config: /machines/pcx86/compaq/compaq-deskpro386-vga-1mb.json
     debugger: true
-    autoType: WOLF3D\r
     autoMount:
-      A: "BASIC-DOS HD Real Mode"
+      A: "BASIC-DOS Wolf3D"
 ---
 
 {% include machine.html id="deskpro386" %}

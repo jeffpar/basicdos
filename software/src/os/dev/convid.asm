@@ -29,7 +29,7 @@ CODE	segment byte public 'CODE'
 	EXTBYTE	<adapters,bios_lock,max_cols,max_rows,req_switch,shown_page>
 	EXTBYTE	<one_con,mode_hid>
 	EXTWORD	<bios_ctx,con_place,ct_focus,ct_head,frame_seg,mode_ctx>
-	EXTWORD	<save_seg,save_addr>
+	EXTWORD	<save_seg,save_addr,vga_addr,vga_state>
 	extrn	ddcon_int09:far
 	extrn	ddcon_int10:far
 	extrn	ddcon_int29:far
@@ -1651,7 +1651,8 @@ ENDPROC	set_pmode
 ;
 ; Nothing is exchanged while the context is blocked (see chk_blocked), which
 ; also keeps any context in a mode other than its original mode on the screen
-; (eg, one that uses INT 10h, since the BIOS can't write to a buffer).
+; (eg, one that uses INT 10h, since the BIOS can't write to a buffer).  The
+; contexts' video memory selectors follow their new pages (see set_slot).
 ; The caller has locked the BIOS (see bios_lock), so no switch or other swap
 ; can interrupt this one.
 ;
@@ -1675,6 +1676,7 @@ DEFPROC	swap_page
 	push	ds
 	push	es
 	call	swap_now
+	call	update_slots
 	pop	es
 	pop	ds
 	pop	bp
@@ -1730,6 +1732,7 @@ DEFPROC	save_screen
 	call	chk_blocked		; is it hidden?
 	jnc	svs9			; no (so the others are saved already)
 	call	keep_others		; yes, so save them again
+	call	vga_free		; (and its own state isn't needed now)
 	jmp	short svs9
 svs1:	call	get_frame
 	mov	dx,ax			; (a move to the same memory)
@@ -1915,9 +1918,10 @@ ENDPROC	save_ctx
 ; mode_switch
 ;
 ; A switch to another context on the adapter of the context that has the
-; screen (mode_ctx) hides that context first (see hide_mode), and a switch
-; back to it displays it again (see show_mode).  If there's no buffer to hide
-; it in (see copy_alloc), the switch can't happen.
+; screen (mode_ctx) hides that context first (see hide_mode, or in one of an
+; EGA or VGA's graphics modes, hide_vga), and a switch back to it displays it
+; again (see show_mode and show_vga).  If there's no buffer to hide it in
+; (see copy_alloc and vga_alloc), the switch can't happen.
 ;
 ; Inputs:
 ;	CX = context to switch to
@@ -1946,7 +1950,11 @@ DEFPROC	mode_switch
 	jne	msw2			; no
 	call	chk_blocked		; yes; is it hidden?
 	jnc	msw8			; no
-	call	show_mode		; yes, so display it again
+	cmp	ds:[CT_MODE],0Dh	; yes; in a graphics mode of a VGA?
+	jb	msw1			; no
+	call	show_vga		; yes, so restore its state
+	jmp	short msw7
+msw1:	call	show_mode		; display it again
 	jmp	short msw7
 msw2:	call	chk_blocked		; is it hidden already?
 	jc	msw7			; yes
@@ -1957,7 +1965,18 @@ msw2:	call	chk_blocked		; is it hidden already?
 	cmp	[save_seg],0		; can it be hidden?
 	stc
 	je	msw8			; no
-	call	hide_mode
+;
+; A context in one of an EGA or VGA's graphics modes (0Dh-13h) has more
+; memory than the buffer holds, and its programs set the adapter's registers
+; themselves (see CPU_V86), so it's hidden by saving all of its state (see
+; hide_vga), which only a VGA in protected mode can do.
+;
+	cmp	ds:[CT_MODE],0Dh
+	jb	msw2a
+	call	hide_vga
+	jc	msw8
+	jmp	short msw7
+msw2a:	call	hide_mode
 msw7:	clc
 msw8:	pop	es
 	pop	ds
@@ -2045,6 +2064,299 @@ shw2:	mov	al,0			; AL = new mode_hid
 	mov	cl,ds:[CT_MODE]
 	jmp	shown_mode
 ENDPROC	show_mode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; hide_vga and show_vga
+;
+; hide_vga hides the context that has the screen (mode_ctx) in one of a
+; VGA's graphics modes (0Dh-13h), whose programs set the adapter's registers
+; themselves, so its programs must stop, and the adapter's state must be
+; saved: the BIOS saves its registers, DAC, and BIOS data (VIDEO_STATE), and
+; all four planes are copied (see vga_save), to a block of their own (see
+; vga_alloc); then the other context's mode is set, and the other contexts
+; use the adapter's memory again, with their copy (see save_screen) put back
+; there.  While the context is hidden, its video memory selector isn't
+; present (see set_slot), so its programs wait when they touch it, and a V86
+; machine that had the adapter's ports doesn't run at all (see CPU_V86).
+;
+; show_vga does the reverse: the other contexts go back to their copy, the
+; planes and then the rest of the adapter's state are restored (see
+; vga_restore), and the context's selector is present again, so its programs
+; continue.
+;
+; Inputs:
+;	DS = CONSOLE context (mode_ctx)
+;	CX = context to display (hide_vga)
+;
+; Outputs:
+;	Carry set if it can't be hidden (hide_vga)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	hide_vga
+	push	ds
+	mov	ds,cs:[0].DDH_DATA
+	ASSUME	DS:CODE
+	push	cx
+	call	vga_alloc		; is there a VGA, and memory for it?
+	jc	hg8			; no
+	call	vga_save
+	pop	cx
+	pop	ds
+	ASSUME	DS:NOTHING
+	push	ds
+	mov	ds,cx			; DS = context to display
+	call	set_mode
+	mov	cl,ds:[CT_MODE]
+	pop	ds
+	push	cx
+	call	slot_addr		; SI:DI = length of adapter's memory
+	call	get_frame		; AX = its segment
+	mov	dx,[save_seg]
+	push	ds
+	mov	es,ax
+	mov	ds,dx
+	mov	cx,di
+	shr	cx,1
+	sub	di,di			; (and SI is zero)
+	rep	movsw			; the others' memory goes back
+	pop	ds
+	xchg	ax,dx			; AX = the copy, DX = adapter's memory
+	call	move_ctxs		; and they use the adapter's again
+	pop	cx
+	mov	al,-1			; AL = new mode_hid
+	jmp	shown_mode		; (which clears carry)
+hg8:	pop	cx
+	pop	ds
+	ret
+ENDPROC	hide_vga
+
+DEFPROC	show_vga
+	call	keep_others		; the others use their copy again
+	push	ds
+	mov	ds,cs:[0].DDH_DATA
+	ASSUME	DS:CODE
+	call	vga_restore
+	call	vga_free
+	pop	ds
+	ASSUME	DS:NOTHING
+	mov	al,0			; AL = new mode_hid
+	mov	cl,ds:[CT_MODE]
+	jmp	shown_mode
+ENDPROC	show_vga
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; vga_alloc
+;
+; Allocates the block for a VGA's state (see hide_vga): its four 64K planes,
+; followed by what the BIOS saves (its registers, DAC, and BIOS data; see
+; VIDEO_STATE), which only a VGA's BIOS can (since an EGA's registers can't
+; be read), and only in protected mode, where the block can be anywhere (in
+; real mode, a program would also write the adapter's memory itself).
+;
+; Outputs:
+;	Carry clear if successful (vga_addr and vga_state set)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	vga_alloc
+	mov	ax,BIOS
+	mov	es,ax
+	ASSUME	ES:BIOS
+	cmp	[CPU_TYPE],2		; protected mode? (carry set if not)
+	ASSUME	ES:NOTHING
+	jb	vga9			; no
+	mov	ax,VIDEO_GETDCC
+	pushf
+	call	[video_int]
+	cmp	al,1Ah			; a VGA?
+	jne	vga8			; no
+	mov	ax,VIDEO_STATE SHL 8
+	mov	cx,7			; (registers, BIOS data, and DAC)
+	pushf
+	call	[video_int]		; BX = blocks of 64 bytes
+	cmp	al,VIDEO_STATE		; does the BIOS have the function?
+	jne	vga8			; no
+	mov	cl,6
+	shl	bx,cl
+	mov	[vga_state],bx
+	mov	di,bx
+	mov	si,4			; SI:DI = 4 planes, plus the state
+	mov	bx,MCBOWNER_SYSTEM
+	mov	ax,(CPU_ALLOC SHL 8) OR MEMF_NONE
+	call	far ptr DDINT_CPU	; DX:CX = the block's address
+	jc	vga9
+	mov	vga_addr[0],cx
+	mov	vga_addr[2],dx
+	ret				; (and carry is clear)
+vga8:	stc
+vga9:	ret
+ENDPROC	vga_alloc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; vga_save and vga_restore
+;
+; vga_save has the BIOS save the adapter's state (see VIDEO_STATE), and then
+; sets the registers that let us read each plane in turn (see vga_raw) and
+; copies them; vga_restore copies the planes back, and then has the BIOS
+; restore the state, which includes the registers that vga_raw changed (and
+; the index registers, so that a program interrupted between an index and
+; its data continues as before).
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	vga_save
+	mov	al,1			; save
+	call	vga_bios
+	call	vga_raw
+	sub	bx,bx			; BX = plane
+vgs1:	mov	dx,3CEh
+	mov	ah,bl
+	mov	al,4
+	out	dx,ax			; read map select = this plane
+	push	bx
+	call	vga_map			; AX = selector for its copy
+	mov	es,ax
+	push	ds
+	mov	ax,0A000h
+	mov	ds,ax
+	sub	si,si
+	sub	di,di
+	mov	cx,8000h
+	rep	movsw
+	pop	ds
+	call	vga_unmap
+	pop	bx
+	inc	bx
+	cmp	bl,4
+	jb	vgs1
+	ret
+ENDPROC	vga_save
+
+DEFPROC	vga_restore
+	call	vga_raw
+	sub	bx,bx			; BX = plane
+vgr1:	mov	dx,3C4h
+	mov	cl,bl
+	mov	ah,1
+	shl	ah,cl
+	mov	al,2
+	out	dx,ax			; map mask = this plane
+	push	bx
+	call	vga_map			; AX = selector for its copy
+	push	ds
+	mov	ds,ax
+	mov	ax,0A000h
+	mov	es,ax
+	sub	si,si
+	sub	di,di
+	mov	cx,8000h
+	rep	movsw
+	mov	ax,ds
+	pop	ds
+	mov	es,ax			; ES = the copy's selector
+	call	vga_unmap
+	pop	bx
+	inc	bx
+	cmp	bl,4
+	jb	vgr1
+	mov	al,2			; restore
+	DEFLBL	vga_bios,near
+	push	ax
+	mov	bx,4
+	call	vga_map			; AX = selector for the state
+	mov	es,ax
+	pop	ax
+	mov	ah,VIDEO_STATE
+	mov	cx,7			; (registers, BIOS data, and DAC)
+	sub	bx,bx			; ES:BX -> the state
+	pushf
+	call	[video_int]
+ENDPROC	vga_restore			; fall into vga_unmap
+
+;
+; vga_unmap frees the selector in ES (from vga_map).
+;
+DEFPROC	vga_unmap
+	mov	bx,es
+	push	ds
+	pop	es
+	sub	cx,cx			; (CX = 0 for one selector)
+	mov	ah,CPU_UNMAP
+	call	far ptr DDINT_CPU
+	ret
+ENDPROC	vga_unmap
+
+;
+; vga_map returns a selector (AX) for plane BX's copy (0-3), or the state's
+; (4), in the block (see vga_alloc).  The state's selector covers 64K, too,
+; since the BIOS's restore reads past it (eg, its port address at 463h,
+; while DS is the state's), which real mode allows.
+;
+DEFPROC	vga_map
+	mov	cx,vga_addr[0]
+	mov	dx,vga_addr[2]
+	add	dx,bx			; (64K for each plane)
+	sub	di,di
+	mov	si,1			; SI:DI = 64K
+	mov	ax,CPU_MAP SHL 8	; (a GDT data selector)
+	call	far ptr DDINT_CPU
+	ret
+ENDPROC	vga_map
+
+;
+; vga_raw sets the registers that make each plane a 64K array at A0000h: no
+; chain-4 or odd/even addressing, read mode 0 and write mode 0 (with no
+; set/reset, rotation, or function, and every bit written).
+;
+DEFPROC	vga_raw
+	mov	dx,3C4h
+	mov	ax,0604h		; memory mode
+	out	dx,ax
+	mov	dl,0CEh
+	mov	ax,0001h		; enable set/reset
+	out	dx,ax
+	mov	al,03h			; data rotate
+	out	dx,ax
+	mov	al,05h			; mode
+	out	dx,ax
+	mov	ax,0506h		; miscellaneous
+	out	dx,ax
+	mov	ax,0FF08h		; bit mask
+	out	dx,ax
+	ret
+ENDPROC	vga_raw
+
+;
+; vga_free frees the block (see vga_alloc), if any.
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	vga_free
+	push	ds
+	mov	ds,cs:[0].DDH_DATA
+	ASSUME	DS:CODE
+	sub	cx,cx
+	sub	dx,dx
+	xchg	cx,vga_addr[0]
+	xchg	dx,vga_addr[2]		; DX:CX = the block (or zero)
+	mov	ax,cx
+	or	ax,dx			; is there one?
+	jz	vgf9			; no
+	mov	ah,CPU_FREE
+	call	far ptr DDINT_CPU
+vgf9:	pop	ds
+	ASSUME	DS:NOTHING
+	ret
+ENDPROC	vga_free
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2321,7 +2633,11 @@ ENDPROC	chk_paged
 ; set_bios
 ;
 ; The rest of ddcon_setkeys, for a request with CL bit 1 set, or one that
-; ends the updates.
+; ends the updates, which means that the program whose BIOS data it was (a
+; V86 machine) has ended, normally or not (eg, DOS's reset_keys after a
+; CTRL-ALT-DEL): if it left the context in one of an EGA or VGA's graphics
+; modes (0Dh-13h), whose registers its programs set themselves, the context
+; gets its original mode again, so that it can display text (and be hidden).
 ;
 ; Inputs:
 ;	CL bit 1 = 1 for BIOS data to update (DX = selector), 0 for none
@@ -2344,6 +2660,11 @@ DEFPROC	set_bios
 	sub	cx,cx			; (one selector)
 	mov	ah,CPU_UNMAP
 	call	far ptr DDINT_CPU
+	cmp	ds:[CT_MODE],0Dh	; in one of those graphics modes?
+	jb	sbi9			; no
+	mov	al,ds:[CTO_MODE]
+	mov	ah,VIDEO_SETMODE
+	call	video_ctx		; (see update_mode and release_mode)
 	jmp	short sbi9
 sbi2:	test	bx,bx			; are we updating it already?
 	jnz	sbi9			; yes
@@ -2356,7 +2677,7 @@ sbi2:	test	bx,bx			; are we updating it already?
 	add	cx,BIOS_DATA
 	adc	dx,0
 	sub	si,si
-	mov	di,100h			; SI:DI = length
+	mov	di,300h			; SI:DI = length (see kbd_scan)
 	mov	ax,CPU_MAP SHL 8	; (a GDT data selector)
 	call	far ptr DDINT_CPU	; AX = selector for its BIOS data
 	jc	sbi8
@@ -2367,6 +2688,48 @@ sbi8:	pop	di
 sbi9:	clc
 	ret
 ENDPROC	set_bios
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; kbd_scan
+;
+; If the context with focus has a program with BIOS data of its own (see
+; ddcon_setkeys), adds a scan code to the queue there (see KQ_TAIL in
+; bios.inc), unless the queue is full.  The data is the program's to change,
+; so the selector covers the queue wherever a byte's index puts it.
+;
+; Inputs:
+;	AL = scan code (and interrupts are off)
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	kbd_scan
+	push	bx
+	push	ds
+	mov	bx,[ct_focus]
+	test	bx,bx
+	jz	ks9
+	mov	ds,bx
+	mov	bx,ds:[CT_BIOS]
+	test	bx,bx			; any BIOS data to update?
+	jz	ks9			; no
+	mov	ds,bx
+	mov	bl,ds:[KQ_TAIL - BIOS_DATA]
+	mov	bh,0
+	mov	ds:[bx + KQ_CODES - BIOS_DATA],al
+	inc	bx
+	cmp	bl,KQ_MAX
+	jb	ks1
+	mov	bl,0
+ks1:	cmp	bl,ds:[KQ_HEAD - BIOS_DATA]	; would that fill the queue?
+	je	ks9			; yes
+	mov	ds:[KQ_TAIL - BIOS_DATA],bl
+ks9:	pop	ds
+	pop	bx
+	ret
+ENDPROC	kbd_scan
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2928,7 +3291,13 @@ ENDPROC	update_slots
 ; what it maps (CPU_MAP with MEMF_REMAP), which we change only when the
 ; sessions that use it aren't running (eg, when another context's mode change
 ; blocks them).  It maps the adapter's video memory, since the context has a
-; region (or page) of its own there, or while another context is blocking it
+; region (or page) of its own there, from the start of the context's page in
+; a text mode, so that a program's offset 0 is its own page, as it would be on
+; page 0 (unless the page is virtual, where it's the adapter's first page;
+; see swap_page), or in an EGA or VGA's graphics modes,
+; which have the screen to themselves, that memory, which the 80386 driver
+; also takes to mean that a V86 machine can use the video ports; see
+; CPU_V86), or while another context is blocking it
 ; (see chk_blocked), the copy of that memory that save_screen made, so the
 ; program keeps running; if there's no copy, the selector is not present,
 ; so a program that loads it waits (see SELID_WAIT), as its output does.
@@ -2945,9 +3314,29 @@ DEFPROC	set_slot
 	test	bx,bx			; does it have a selector?
 	jz	ss9			; no
 	call	slot_addr		; DX:CX = address, SI:DI = length
+;
+; An EGA or VGA's graphics modes (0Dh-13h) use the 64K at A0000h instead,
+; and a text mode starts at the context's page (AX = its offset).
+;
+	sub	ax,ax
+	cmp	ds:[CT_MODE],0Dh	; is the context in one of those?
+	jb	ss0			; no
+	mov	dx,000Ah
+	mov	cx,ax			; DX:CX = A0000h
+	mov	di,ax
+	inc	si			; SI:DI = 64K
+ss0:	cmp	ds:[CT_MODE],MODE_CO80	; a text mode (0-3)?
+	jbe	ss0a			; yes
+	cmp	ds:[CT_MODE],MODE_MONO	; or the MDA's?
+	jne	ss0b			; no
+ss0a:	call	get_start		; AX = offset of the context's page
+	sub	di,ax			; SI:DI = length from there
+ss0b:	push	ax
 	mov	ax,ds
 	call	chk_blocked		; is another context blocking it?
 	jnc	ss1			; no
+	cmp	ds:[CT_MODE],0Dh	; hidden in a VGA graphics mode?
+	jae	ss0c			; yes, so its programs wait
 	call	copy_addr		; DX:CX = the copy of adapter's memory
 	mov	ax,ds
 	cmp	ax,[mode_ctx]		; is it hidden there (see hide_mode)?
@@ -2955,10 +3344,14 @@ DEFPROC	set_slot
 	mov	ax,ds:[CT_SCREEN]._SEG
 	cmp	ax,[save_seg]		; is its memory the copy?
 	je	ss1			; yes
+ss0c:	sub	si,si
 	sub	di,di			; no, so take it away (SI:DI = 0)
-ss1:	mov	ax,(CPU_MAP SHL 8) OR MEMF_REMAP
+ss1:	pop	ax
+	add	cx,ax
+	adc	dx,0			; DX:CX = its page (or in the copy)
+	mov	ax,(CPU_MAP SHL 8) OR MEMF_REMAP
 	call	far ptr DDINT_CPU
-	test	di,di			; is it present now?
+	or	si,di			; is it present now?
 	jz	ss9			; no
 	mov	dx,SELID_WAIT
 	mov	di,bx			; DX:DI = its wait ID

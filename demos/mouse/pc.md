@@ -8,11 +8,10 @@ machines:
     config: /machines/pcx86/ibm/ibm-5150-ega-256kb-mouse.json
     debugger: available
     autoMount:
-      A: "BASIC-DOS Single"
-    autoType: PAINT\r
+      A: "BASIC-DOS Mouse"
 ---
 
-The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 256K of memory, an Enhanced Color Display, and two diskette drives, plus a serial mouse on COM2.  It boots the BASIC-DOS Single diskette and runs PAINT.BAS.  Click the screen to capture the mouse, and hold the left button down to draw; press **Esc** twice to exit.
+The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 256K of memory, an Enhanced Color Display, and two diskette drives, plus a serial mouse on COM2.  It boots the BASIC-DOS Mouse diskette, whose CONFIG.SYS runs PAINT.BAS.  Click the screen to capture the mouse, and hold the left button down to draw; press **Esc** twice to exit.
 
 {% include machine.html id="ibm5150" %}
 

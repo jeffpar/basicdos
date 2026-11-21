@@ -43,15 +43,23 @@ ENDIF
 ; The TSS is only for its ring 0 stack (SS0:SP0; see CPU_SETSTACK), which the
 ; processor switches to when an interrupt takes ring 3 code to ring 0; we
 ; never switch tasks, so the rest of it stays zero.  It has room for the
-; 80386 format, which we use on an 80386 (see SV_TYPE), with an I/O map base
-; (TSS_IOMAP) beyond its limit, so that it has no I/O permission bitmap, and
-; every I/O instruction at ring 3 (with IOPL 0) faults, as on an 80286.
-; SV_TSSSP0 is the offset of SP0 (2, or ESP0 at 4), which is also how much
-; further SS0 is (at 4 or 8).
+; 80386 format, which we use on an 80386 (see SV_TYPE), with an I/O
+; permission bitmap (at SYS_IOMAP, which its limit extends to) whose bits
+; are all set, so that every I/O instruction at ring 3 (with IOPL 0) faults,
+; as on an 80286, except while a V86 machine runs: then the bits of any
+; ports that a driver lent it are clear (see v86_ports), and while it has
+; the EGA or VGA's graphics memory, the video ports' bits (IOMAP_VIDEO), so
+; that the machine's code can use them (see v86_resume).  The bitmap ends
+; with the byte after the video ports', and it follows the GDT's last
+; identity selector, since no selector may reach it: a descriptor there
+; would be present, with DPL 3.  SV_TSSSP0 is the offset of SP0 (2, or ESP0
+; at 4), which is also how much further SS0 is (at 4 or 8).
 ;
 SYS_TSS		equ	SYS_PIDT + IDT_MAX * 8
 TSS_IOMAP	equ	66h	; 80386: I/O map base
 TSS_LEN		equ	104	; (an 80286 TSS needs only 44)
+IOMAP_VIDEO	equ	3C0h / 8 ; the bytes for the video ports (3C0h-3DFh)
+IOMAP_LEN	equ	IOMAP_VIDEO + 4 + 1
 SEL_VIDEO	equ	0A000h	; first identity selector (data)
 ;
 ; The rest is a pool for the PMB table and the LDTs: the table grows up from
@@ -88,6 +96,7 @@ LDT_LIMIT	equ	256	; descriptors per LDT
 SEL_ROM		equ	0C000h	; first identity code selector
 SEL_IDSTEP	equ	0800h	; identity selectors are every 800h
 GDT_LIMIT	equ	0F807h	; (through the last identity selector)
+SYS_IOMAP	equ	SYS_GDT + GDT_LIMIT + 1	; 80386: I/O permission bitmap
 
 ;
 ; SYSVARS is at SYS_VARS in the system area, and the PMB table at SYS_PMBS.
@@ -118,6 +127,7 @@ SV_V86SEL	dw	?	; 80386: its two GDT selectors (or 0 if none)
 SV_LDT		dw	?	; active LDT's offset (see CPU_SETLDT)
 SV_LDTTOP	dw	?	; the end of LDT 0 (see ldt_grow)
 SV_LDTS		dw	LDT_SESSIONS dup (?) ; each LDT's offset
+SV_PMBHIT	dw	?	; last PMB found, from SYS_PMBS (see pmb_find)
 SYSVARS		ends
 SV_LDTLOW	equ	SV_LDTS + (LDT_SESSIONS - 1) * 2 ; (the lowest LDT)
 	ASSERT	<SYS_VARS + size SYSVARS>,LE,SYS_GDT

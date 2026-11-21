@@ -70,7 +70,7 @@ CPU_SYSREGS	equ	0Fh	; ES:DI -> 16-byte buffer (GDTR, IDTR, ...)
 CPU_SETFAULT	equ	10h	; DX:CX = fault handler (0:0 for none)
 CPU_SETSTACK	equ	11h	; DX:CX = ring 0 stack (SS:SP)
 CPU_SETLDT	equ	12h	; AL = LDT # (for a session; see SCB_LDT)
-CPU_V86		equ	13h	; AL = 0-3 (see v86.inc)
+CPU_V86		equ	13h	; AL = 0-5 (see v86.inc)
 CPU_MAXFUNC	equ	13h
 
 ;

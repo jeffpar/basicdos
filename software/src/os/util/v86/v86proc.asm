@@ -884,20 +884,25 @@ pb1:	mov	es:[di].PSP_PARENT,ax
 	mov	cx,12
 	call	v86_put			; into PSP_EXIT, PSP_CTRLC, PSP_ERROR
 ;
-; Its handles are its parent's (or for the first program, ours), each one
-; another reference to its SFH (see sfh_ref).
+; Its handles are its parent's (or for the first program, ours, other than
+; our last one; see snd_lend), each one another reference to its SFH (see
+; sfh_ref), and its last one is unused.
 ;
-	mov	si,PSP_PFT		; (ours)
-	mov	ax,[ld_par]
-	test	ax,ax
-	jz	pb2
 	mov	si,PSP_PFT
 	mov	di,offset VARS + V_BUF
-	mov	cx,PFT_LEN
-	call	v86_get
+	mov	cx,MACH_PFT
+	mov	ax,[ld_par]
+	test	ax,ax
+	jz	pb1a
+	call	v86_get			; (its parent's)
+	jmp	short pb1b
+pb1a:	push	ds
+	pop	es
+	rep	movsb			; (ours)
+pb1b:	mov	byte ptr [VARS + V_BUF + MACH_PFT],SFH_NONE
 	mov	si,offset VARS + V_BUF
 pb2:	push	si
-	mov	cx,PFT_LEN
+	mov	cx,MACH_PFT
 pb3:	lodsb
 	cmp	al,SFH_NONE
 	je	pb4

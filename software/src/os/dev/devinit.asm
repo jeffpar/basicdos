@@ -18,7 +18,7 @@
 
 DV_BUFLEN	equ	1024		; scratch buffer size (see DDPI_BUFPTR)
 DV_ROOM		equ	FDC_BUFSECS * 512 ; how far we move up (see chk_cpu)
-DV_SLACK	equ	32		; after DOS_FILE and CFG_FILE (see i9a)
+DV_SLACK	equ	32		; after DOS_FILE and CFG_FILE (see i9b)
 
 DEV	segment para public 'CODE'
 
@@ -300,23 +300,34 @@ i8:	add	si,dx		; SI -> next driver, after adding original size
 i9:	add	sp,DDP_MAXSIZE
 ;
 ; Every driver is initialized, and they end at DI.  We shrink the drivers'
-; block to fit them, free our own block and the block we loaded DOS_FILE into
-; (see chk_cpu), and allocate DOS_FILE's new home, which is the first free
-; block, right after the drivers.
+; block to fit them, and in real mode, where chk_cpu doesn't load DOS_FILE
+; (so that drivers that unloaded or shrank are gone first, which matters with
+; little memory, eg, 64K), we move down to the end of the drivers and load it
+; now (see dv_down and load_dos).  Then we free our own block and the block
+; we loaded DOS_FILE into, and allocate DOS_FILE's new home, which is the
+; first free block, right after the drivers.
 ;
 ; That home overlaps our block, and the 8086 CPU$ puts a free MCB at the end of
 ; it, so the block must reach devinit_end at least, or that MCB could land on
 ; code or data we still need.  We allocate that much first, to learn the
-; block's address, and then lengthen it to hold DOS_FILE (see i9a).
+; block's address, and then lengthen it to hold DOS_FILE (see i9b).
 ;
-	mov	ax,cs:[dv_addr]
-	add	ax,offset devinit_end
-	sub	ax,di
-	push	ax			; AX = length through devinit_end
+	push	di
 	mov	cx,cs:[drv_addr]
 	sub	di,cx			; DI = length of the drivers
 	mov	ah,CPU_REALLOC
 	call	cpu_blk
+	pop	di
+	cmp	cs:[dos_end],0		; did chk_cpu load DOS_FILE?
+	jne	i9a			; yes
+	push	di
+	call	dv_down			; no (real mode), so load it now
+	call	load_dos
+	pop	di			; DI = end of the drivers again
+i9a:	mov	ax,cs:[dv_addr]
+	add	ax,offset devinit_end
+	sub	ax,di
+	push	ax			; AX = length through devinit_end
 	mov	cx,cs:[dv_addr]
 	mov	ah,CPU_FREE
 	call	cpu_blk
@@ -340,19 +351,19 @@ i9:	add	sp,DDP_MAXSIZE
 	mov	dx,cs:[dos_pkt].MV_SRC.HW
 	sub	ax,cx
 	sbb	dx,0			; DX:AX = how far DOS_FILE moves
-	jnz	i9a			; too far to overlap
+	jnz	i9b			; too far to overlap
 	lea	si,[bx+DV_SLACK]
 	cmp	ax,si			; does the MCB land before the data?
-	jae	i9a			; yes
+	jae	i9b			; yes
 	add	bx,ax			; no, so BX = length through the data
-i9a:	cmp	bx,di			; is the block long enough already?
-	jbe	i9b			; yes
+i9b:	cmp	bx,di			; is the block long enough already?
+	jbe	i9c			; yes
 	mov	di,bx
 	push	cx
 	mov	ah,CPU_REALLOC
 	call	cpu_blk
 	pop	cx			; CX = address of the block again
-i9b:	mov	es,cs:[dv_data]
+i9c:	mov	es,cs:[dv_data]
 	ASSUME	ES:DEV
 	mov	es:[dos_pkt].MV_DST.LW,cx
 	mov	si,cx
@@ -384,10 +395,10 @@ ENDPROC	devinit
 ;
 ; Once CPU$ has initialized, it manages all memory, so we claim what we're
 ; using: a block for the drivers that remain (SI through DI), and a block for
-; our code, CFG_FILE data, and scratch buffer.  Then, while we're still in
-; real mode and can use the boot code's read_file, we load DOS_FILE into a
-; block at the top of conventional memory, followed by a copy of the CFG_FILE
-; data, for sysinit (see i9).
+; our code, CFG_FILE data, and scratch buffer.  Then, if protected mode is
+; available, we load DOS_FILE while we're still in real mode and can use the
+; boot code's read_file (see load_dos); otherwise, i9 loads it, once the
+; drivers that unloaded or shrank have made room.
 ;
 ; If protected mode is available, the FDC driver will grow by up to a track
 ; (see ddfdc_init), moving the drivers after it up, so we move up first, and
@@ -428,9 +439,77 @@ cu1:	push	si
 	test	ah,CPUF_PMOK		; is protected mode available?
 	jz	cu1b			; no
 	add	di,DV_ROOM		; yes, so the drivers need more room
-cu1b:	mov	cx,es:[dv_addr]
+cu1b:	call	dv_move			; (and continue with the copy)
+	mov	[bp].DDP_PTR._SEG,cs	; (protected mode replaces it)
+	mov	cx,si
+	sub	di,si			; DI = length of the drivers left
+	call	claim
+	mov	cx,es:[dv_addr]
+	mov	di,es:[buf_off]
+	add	di,DV_BUFLEN		; DI = length of our block
+	call	claim
+	pop	bp
+	pop	ax			; AH = CPUF_* flags
+	test	ah,CPUF_PMOK		; is protected mode available?
+	jz	cu5			; no (so i9 loads DOS_FILE)
+	push	bp
+	call	load_dos
+	pop	bp
+	push	ds
+	pop	es
+	ASSUME	ES:NOTHING
+	mov	ah,CPU_PMODE
+	call	far ptr DDINT_CPU	; AX = data selector for our CS
+;
+; The 80386 CPU$ stays only if it can switch to protected mode, and it fills
+; DDINT_GETVEC and DDINT_SETVEC only when it does, so a failure is fatal.
+;
+	jc	$			; halt
+	mov	es,ax
+	ASSUME	ES:DEV
+	mov	es:[dv_data],ax
+	mov	[bp].DDP_PTR._SEG,ax	; DDP_PTR -> CFG_FILE data
+;
+; The only driver initialized so far is CPU$ (see get_sels), so we relink it.
+;
+cu5:	mov	si,offset BIOS_END + BIOS_DATA
+	call	get_sels		; AX = code selector, DX = data
+	mov	[si].DDH_DATA,dx
+	mov	bx,dx
+	mov	dx,cs:[drv_addr]
+	sub	dx,si			; DX = length of CPU$ (ie, up to us)
+	call	fit_sels
+	mov	dx,BIOS
+	mov	es,dx
+	ASSUME	ES:BIOS
+	mov	es:[DD_LIST]._SEG,ax
+	pop	di
+	pop	si
+	ret
+ENDPROC	chk_cpu
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dv_move and dv_down
+;
+; dv_move moves our code and CFG_FILE data to DI + 16 (the 8086 CPU$ puts our
+; MCB at DI) and continues with the copy, which has our new address; dv_down
+; does that for i9, in real mode, once the drivers' block fits them: it frees
+; our block first, and then claims the new one (with the scratch buffer), so
+; that DOS_FILE's block can start that much lower (see load_dos).
+;
+; Inputs:
+;	DI = end of the drivers
+;	ES = DEV (dv_move)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI (dv_down), DI (dv_down), ES (dv_down)
+;
+	ASSUME	CS:DEV, DS:NOTHING, ES:DEV, SS:NOTHING
+DEFPROC	dv_move
+	mov	cx,es:[dv_addr]
 	mov	es:[mv_pkt].MV_SRC.LW,cx
-	lea	cx,[di+16]		; (the 8086 CPU$ puts our MCB at DI)
+	lea	cx,[di+16]
 	mov	es:[mv_pkt].MV_DST.LW,cx
 	mov	es:[dv_addr],cx		; (the copy has our new address)
 	mov	cx,es:[buf_off]		; CX = our code and CFG_FILE length
@@ -442,20 +521,52 @@ cu1b:	mov	cx,es:[dv_addr]
 	mov	cl,4
 	shr	ax,cl
 	push	ax
-	mov	ax,offset cu1a
+	mov	ax,offset dvm1
 	push	ax
 	db	OP_RETF			; continue with the copy
-cu1a:	push	cs
+dvm1:	push	cs
 	pop	es
-	mov	es:[dv_data],cs		; (protected mode replaces these two)
-	mov	[bp].DDP_PTR._SEG,cs
-	mov	cx,si
-	sub	di,si			; DI = length of the drivers left
-	call	claim
+	mov	es:[dv_data],cs
+	ret
+ENDPROC	dv_move
+
+	ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	dv_down
+	push	di
+	mov	cx,cs:[dv_addr]
+	mov	ah,CPU_FREE
+	call	cpu_blk
+	pop	di
+	push	cs
+	pop	es
+	ASSUME	ES:DEV
+	call	dv_move
 	mov	cx,es:[dv_addr]
 	mov	di,es:[buf_off]
 	add	di,DV_BUFLEN		; DI = length of our block
-	call	claim
+	jmp	claim
+ENDPROC	dv_down
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; load_dos
+;
+; Loads DOS_FILE into a block at the top of conventional memory with the boot
+; code's read_file (so we must still be in real mode), followed by a copy of
+; the CFG_FILE data, for sysinit (see i9): chk_cpu calls it if protected mode
+; is available (before switching to it), and i9 otherwise.
+;
+; Inputs:
+;	DS = the first 64K (the boot code's segment), ES = DEV
+;
+; Outputs:
+;	dos_pkt's source and length, and dos_end (nonzero), set
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, BP, ES
+;
+	ASSUME	CS:DEV, DS:NOTHING, ES:DEV, SS:NOTHING
+DEFPROC	load_dos
 	mov	si,es:[cfg_info]
 	lea	bx,[si-(size DIR_NAME)]	; DS:BX -> DOS_FILE DIR info
 	sub	si,BOOT_CFGFILE		; DS:SI -> BPB
@@ -469,7 +580,7 @@ cu1a:	push	cs
 	and	di,ax			; DI = DOS_FILE size, in whole clusters
 	add	di,es:[cfg_size]	; plus CFG_FILE data
 ;
-; The block also has room for a free MCB (see i9a), and its length is a whole
+; The block also has room for a free MCB (see i9b), and its length is a whole
 ; number of sectors, so that it starts at a sector boundary below the top of
 ; memory, and no sector that read_file reads into it crosses a 64K boundary,
 ; which the ROM can't do (eg, with 80K or 144K of memory).
@@ -503,42 +614,8 @@ cu1a:	push	cs
 	ASSUME	ES:DEV
 	mov	es:[dos_end],dx
 	mov	es:[dos_pkt].MV_LEN.LW,di
-	pop	bp
-	pop	ax			; AH = CPUF_* flags
-	test	ah,CPUF_PMOK		; is protected mode available?
-	jz	cu5			; no
-	push	ds
-	pop	es
-	ASSUME	ES:NOTHING
-	mov	ah,CPU_PMODE
-	call	far ptr DDINT_CPU	; AX = data selector for our CS
-;
-; The 80386 CPU$ stays only if it can switch to protected mode, and it fills
-; DDINT_GETVEC and DDINT_SETVEC only when it does, so a failure is fatal.
-;
-	jc	$			; halt
-	mov	es,ax
-	ASSUME	ES:DEV
-	mov	es:[dv_data],ax
-	mov	[bp].DDP_PTR._SEG,ax	; DDP_PTR -> CFG_FILE data
-;
-; The only driver initialized so far is CPU$ (see get_sels), so we relink it.
-;
-cu5:	mov	si,offset BIOS_END + BIOS_DATA
-	call	get_sels		; AX = code selector, DX = data
-	mov	[si].DDH_DATA,dx
-	mov	bx,dx
-	mov	dx,cs:[drv_addr]
-	sub	dx,si			; DX = length of CPU$ (ie, up to us)
-	call	fit_sels
-	mov	dx,BIOS
-	mov	es,dx
-	ASSUME	ES:BIOS
-	mov	es:[DD_LIST]._SEG,ax
-	pop	di
-	pop	si
 	ret
-ENDPROC	chk_cpu
+ENDPROC	load_dos
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

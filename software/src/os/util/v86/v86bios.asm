@@ -11,10 +11,14 @@
 ; V86 machine can't), so the common video (INT 10h), keyboard (INT 16h), and
 ; printer (INT 17h) functions that its programs ask for are done here, with
 ; the console driver's functions (see IOCTL_CON in devapi.inc) and DOS's,
-; for the current PSP's STDERR (the screen), STDIN (the keys), and STDPRN.
+; for the current PSP's STDERR (the screen), STDIN (the keys), and STDPRN,
+; and so is the BIOS tick count (INT 1Ah).
 ; So they work on any console that those functions do (eg, a terminal), and
 ; only as well: a window is always as wide as the screen, and a character
-; that the console acts on (eg, RETURN) can't be drawn.
+; that the console acts on (eg, RETURN) can't be drawn.  A mode that the
+; console's adapter has but its driver doesn't draw in (an EGA or VGA's
+; graphics modes) is for programs that draw for themselves, in the video
+; memory that the machine has then (and with the video ports; see CPU_V86).
 ;
 	BIOSAPI equ 1
 	include	v86host.inc
@@ -23,7 +27,7 @@ CODE    SEGMENT word public 'CODE'
 
 	EXTBYTE	<VARS>
 	EXTWORD	<machine>
-	EXTNEAR	<run,pft_load>
+	EXTNEAR	<run,pft_load,seg_ptr>
 
 	.286c
 
@@ -49,9 +53,24 @@ DEFPROC	int10
 	mov	di,ax
 	shr	di,8
 	cmp	di,I10_MAX		; one of the functions we know?
-	ja	v9			; no
+	ja	dc1			; no
 	shl	di,1
 	jmp	I10_PROCS[di]
+;
+; Get the display combination (AX = 1A00h), which only a VGA's BIOS has (and
+; is how programs know there's one): AL = 1Ah, and BL = 8 (a VGA with a
+; color display), if the machine's BIOS data says so.
+;
+dc1:	cmp	ax,VIDEO_GETDCC
+	jne	dc9
+	sub	ax,ax
+	mov	di,BIOS_DATA + offset VGA_FLAGS
+	call	seg_ptr
+	test	byte ptr es:[di],1	; is a VGA active?
+	jz	dc9			; no
+	mov	byte ptr [VARS+VR_EAX],1Ah
+	mov	word ptr [VARS+VR_EBX],0008h
+dc9:	jmp	run
 ;
 ; Set the mode (AL), the cursor's type (hidden if CH bit 5 is set), or its
 ; position (DH = row, DL = column).
@@ -388,6 +407,27 @@ p8:	mov	al,90h
 p9:	mov	byte ptr [VARS+VR_EAX+1],al
 	jmp	run
 ENDPROC	int17
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; int1a
+;
+; Does the time function that the machine's program asked for: 00h returns
+; the BIOS tick count in CX:DX (eg, for a C program's startup code), with AL
+; zero, since midnight is DOS's to see; any other returns with carry set, as
+; the real-time clock functions do when there's no clock.
+;
+DEFPROC	int1a
+	cmp	byte ptr [VARS+VR_EAX+1],TIME_GETTICKS
+	jne	t8
+	DOSUTIL	GETTIME,1		; DX:AX = BIOS tick count
+	mov	word ptr [VARS+VR_EDX],ax
+	mov	word ptr [VARS+VR_ECX],dx
+	mov	byte ptr [VARS+VR_EAX],0
+	jmp	short t9
+t8:	or	byte ptr [VARS+VR_EFL],FL_CARRY
+t9:	jmp	run
+ENDPROC	int1a
 
 	DEFWORD	key_ax,0		; the next key (see key_get)
 	DEFBYTE	key_have,0		; nonzero if key_ax has one

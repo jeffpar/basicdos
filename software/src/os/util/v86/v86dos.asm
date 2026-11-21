@@ -116,7 +116,7 @@ cd_int:	int	INT_DOSFUNC		; (or INT_DOSUTIL)
 	mov	ax,[cur_psp]
 	mov	si,PSP_PFT
 	mov	di,si
-	mov	cx,PFT_LEN
+	mov	cx,MACH_PFT
 	call	v86_put
 	pop	ax
 	ret
@@ -128,7 +128,9 @@ ENDPROC	call_dos
 ;
 ; Copies the current PSP's handles (its PSP_PFT) to ours, which is where DOS
 ; finds them, while we do a call for its program (see call_dos), after which
-; pft_save copies them back.
+; pft_save copies them back.  Our last handle is our own (see snd_lend), so
+; only the others (MACH_PFT) are copied, and the machine's programs can't
+; use (or close) it.
 ;
 ; Modifies:
 ;	AX, CX, SI, DI, ES
@@ -137,7 +139,7 @@ DEFPROC	pft_load
 	mov	ax,[cur_psp]
 	mov	si,PSP_PFT
 	mov	di,si
-	mov	cx,PFT_LEN
+	mov	cx,MACH_PFT
 	jmp	v86_get
 ENDPROC	pft_load
 
@@ -463,8 +465,8 @@ DEFPROC	i21open				; (DOS_HDL_CREATE or DOS_HDL_OPEN)
 io9:	jmp	i21f
 	DEFLBL	i21close,near
 	mov	bx,word ptr [VARS+VR_EBX]
-	cmp	bx,PFT_LEN		; a valid handle?
-	jae	ic8			; no (so let DOS say so)
+	cmp	bx,MACH_PFT		; one of the program's handles?
+	jae	ic9a			; no
 	push	bx
 	call	pft_load
 	pop	bx
@@ -472,6 +474,8 @@ io9:	jmp	i21f
 	jnc	ic9			; yes
 ic8:	jmp	pass21			; no, so DOS must close it
 ic9:	jmp	i21ok
+ic9a:	mov	ax,ERR_BADHANDLE
+	jmp	i21err
 ENDPROC	i21open
 
 ;
@@ -799,7 +803,7 @@ tp2:	cmp	byte ptr ds:[PSP_PFT][bx],SFH_NONE
 	int	21h			; no, so close it
 tp3:	pop	bx
 tp3a:	inc	bx
-	cmp	bx,PFT_LEN
+	cmp	bx,MACH_PFT
 	jb	tp2
 	mov	ax,[cur_psp]
 	mov	si,PSP_EXIT
@@ -919,6 +923,8 @@ vt1:	mov	ax,es:[di]._SEG
 	je	vt2
 	mov	ax,STUB_TICK + 3
 	cmp	cl,INT_TICK
+	je	vt2
+	cmp	cl,INT_MOUSE
 	je	vt2
 	mov	ax,cx			; (the vector's HLT)
 vt2:	mov	es:[di]._OFF,ax

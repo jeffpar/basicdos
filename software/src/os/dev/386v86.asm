@@ -21,20 +21,27 @@
 ; free, so the machine's context (V86CTX) is there, too.  A machine that has
 ; a console's video memory (see v86_vsel) gets the selector's memory in its
 ; page table each time it resumes (see v86_vid), or while the selector isn't
-; present, no pages there, so that touching them waits (see v86_pf).
+; present, no pages there, so that touching them waits (see v86_pf); and
+; while that memory is the EGA or VGA's graphics memory, it has the video
+; ports, too (see SYS_IOMAP), along with any ports that a driver has lent it
+; (see v86_ports).
 ;
 ; While the machine runs, its context's V86REGS is the TSS's ring 0 stack
 ; (through SEL_V86STK, the first of SV_V86SEL's selectors), so every
 ; interrupt from the machine stores its registers there, and the machine's
 ; IDT (see v86_setup), whose gates are 80386 interrupt gates (as an interrupt
-; from V86 mode needs), sends each one to a stub (see v86_stubs), which loads
-; the system's IDT, and goes back to the kernel's stack, where it ends the
-; call (v86_exit), runs the system's handler for a hardware interrupt, or
-; for a general protection fault, does what the instruction would have done
-; in real mode (v86_gp); then it runs the machine again (v86_resume), with
-; its own IDT, and its own page directory.  The machine's IOPL is 0, so CLI,
+; from V86 mode needs), sends each one to a stub (see v86_stubs).  For a
+; general protection fault, the stub does what the instruction would have
+; done in real mode (v86_gp), still on the context's stack, and runs the
+; machine again (v86_cont); for anything else (or a fault that exits), it
+; loads the system's IDT, and goes back to the kernel's stack (v86_leave),
+; where it ends the call (v86_exit), or runs the system's handler for a
+; hardware interrupt and then runs the machine again (v86_resume), with its
+; own IDT, and its own page directory.  The machine's IOPL is 0, so CLI,
 ; STI, PUSHF, POPF, INT, and IRET all fault, and so do I/O instructions,
-; since the TSS has no I/O permission bitmap.
+; since the TSS's I/O permission bitmap allows only the ports that the
+; machine has (see v86_ports), and the video ports while it has the graphics
+; memory.
 ;
 	include	macros.inc
 	include	8086.inc
@@ -73,6 +80,13 @@ VC_DBG		db	?	; nonzero if a debugger gets traps (v86_refl)
 VC_VID		dw	?	; its video memory's selector ID (or zero)
 VC_VPG		db	?	; and that memory's first page
 VC_VCNT		db	?	; and # of pages
+VC_VOK		db	?	; nonzero if the memory is there (see v86_vid)
+VC_VIO		db	?	; FFh if it has the video ports, too (or 0)
+VC_VDESC	db	(size DESC) dup (?)	; the selector's descriptor
+VC_IOSET	db	?	; nonzero if a driver has lent it ports
+VC_SUSP		db	?	; nonzero if it's suspended (see v86_susp)
+VC_NOTE		dd	?	; the lending driver's function (see v86_ports)
+VC_IOMAP	db	(IOMAP_LEN - 1) dup (?)	; its bitmap (see v86_ports)
 V86CTX		ends
 
 V86_CTX		equ	0800h	; context's offset (PDEs for 80000000h and up)
@@ -93,7 +107,8 @@ TSS_SS0		equ	SYS_TSS + 8
 ;
 ; Inputs:
 ;	AL = 0 to create a machine (see v86_create), 1 to run one (see
-;	v86_run), or 2 or 3 to copy registers (see v86_regs)
+;	v86_run), 2 or 3 to copy registers (see v86_regs), or 4 or 5 to lend
+;	ports or take them back (see v86_ports)
 ;
 DEFPROC	v86_func
 	cmp	al,1
@@ -101,7 +116,10 @@ DEFPROC	v86_func
 	jb	vf1
 	cmp	al,3			; copying registers?
 	jbe	v86_regs		; yes
-	jmp	cpu_inval
+	cmp	al,5			; lending ports?
+	ja	vf8			; no
+	jmp	v86_ports		; yes
+vf8:	jmp	cpu_inval
 vf1:	jmp	v86_create
 ENDPROC	v86_func
 
@@ -230,6 +248,8 @@ ENDPROC	v86_run
 ; machine's context by now (eg, after a hardware interrupt that switched
 ; sessions), so it's set again, and its video memory may have changed (eg,
 ; during another session's DOS call), so its pages are, too (see v86_vid).
+; A fault that never left the context (see v86_common) goes to v86_cont,
+; since nothing else has run.
 ;
 ; Inputs:
 ;	SS:SP -> the machine's page directory's address, and the caller's
@@ -244,6 +264,50 @@ DEFPROC	v86_resume
 	mov	dx,[bp+2]
 	call	v86_stk			; BX = ES = SEL_V86STK
 	call	v86_vid
+;
+; A machine with the video ports whose video memory isn't there (because its
+; console is hidden) is suspended; once it's there again, it resumes.
+;
+	mov	ax,word ptr es:[V86_CTX].VC_VOK	; AL = VC_VOK, AH = VC_VIO
+	test	ah,ah			; does it have the video ports?
+	jz	vr0a			; no
+	test	al,al			; and not its video memory?
+	jnz	vr0a			; no
+	jmp	v86_susp		; yes, so it's suspended
+vr0a:	cmp	es:[V86_CTX].VC_SUSP,0	; was it suspended?
+	je	vr0b			; no
+	mov	es:[V86_CTX].VC_SUSP,0
+	mov	al,1			; (it resumes)
+	call	v86_note
+vr0b:
+;
+; The bits in the I/O permission bitmap of the ports that the machine has are
+; clear only while it runs (v86_common sets them again): the ports that a
+; driver has lent it, and the video ports.
+;
+	cld
+	cmp	es:[V86_CTX].VC_IOSET,0	; any ports lent to it?
+	je	vr1			; no
+	push	cx			; (DX:CX = its page directory)
+	push	ds
+	push	es
+	push	es
+	push	ds
+	pop	es
+	pop	ds			; DS = context, ES = SEL_SYS
+	mov	si,V86_CTX + VC_IOMAP
+	mov	di,SYS_IOMAP
+	mov	cx,(IOMAP_LEN - 1) / 2
+	rep	movsw
+	pop	es
+	pop	ds
+	pop	cx
+vr1:	mov	al,es:[V86_CTX].VC_VIO
+	not	al
+	cbw
+	db	66h,98h			; CWDE
+	db	66h			; (MOV [...],EAX)
+	mov	ds:[SYS_IOMAP+IOMAP_VIDEO],ax
 	mov	ax,ds:[TSS_ESP0]
 	mov	es:[V86_CTX].VC_SP0,ax
 	mov	word ptr ds:[TSS_ESP0],V86_CTX + VR_DSSEL
@@ -259,6 +323,7 @@ DEFPROC	v86_resume
 	db	66h
 	DTREG	lidt,<ds:[SYS_VARS].SV_V86IDTR>
 	mov	ss,bx
+	DEFLBL	v86_cont,near
 	mov	sp,V86_CTX
 vr_ret:	db	66h,61h			; POPAD
 	add	sp,VR_EIP - VR_VEC	; (past VR_VEC and VR_ERR)
@@ -328,6 +393,41 @@ vc1:	mov	ah,0
 	mov	[bp+VR_VEC],ax		; AL = vector
 	mov	bx,SEL_SYS
 	mov	ds,bx
+	mov	bx,ss
+	mov	es,bx			; ES = context
+;
+; A general protection fault (eg, a CLI or an IRET), and the exceptions that
+; real mode delivers through the vectors (the same ones that it returns from
+; at the same address), which go to the machine's own, are handled right
+; here, on the context's stack, with the machine's IDT, page directory, and
+; ports still in place, and leave the context (see v86_leave) only to exit
+; (see v86_out); anything else leaves it first.
+;
+	cmp	al,INT_GP		; a general protection fault?
+	je	v86_gp			; yes
+	mov	si,word ptr es:[V86_CTX].VR_EIP
+	cmp	al,INT_DB
+	jbe	vc3			; 00h and 01h
+	cmp	al,INT_NMI		; an NMI?
+	je	vc2			; yes
+	cmp	al,INT_BR
+	jb	vc8			; (INT 03h and 04h fault as 0Dh)
+	cmp	al,INT_NM
+	jbe	vc3			; 05h-07h
+	mov	dx,offset DEV:v86_pf
+	cmp	al,INT_PF		; a page fault?
+	je	v86_leave		; yes
+	cmp	al,IRQ_SLAVE		; a hardware interrupt?
+	jb	vc8			; no
+vc2:	mov	dx,offset DEV:v86_irq
+;
+; v86_leave goes back to the kernel's stack, with the system's IDT and the
+; kernel's ring 0 stack in the TSS, and every port's bit set again (see
+; io_close), and then on to DX, with AX unchanged, DS = SEL_SYS, and ES =
+; context.
+;
+	DEFLBL	v86_leave,near
+	call	io_close
 	db	66h
 	DTREG	lidt,<ds:[SYS_VARS].SV_PIDTR>
 	mov	cx,ss:[V86_CTX].VC_SP0
@@ -335,36 +435,18 @@ vc1:	mov	ah,0
 	mov	cx,ss:[V86_CTX].VC_SS0
 	mov	ds:[TSS_SS0],cx
 	mov	bx,ss
-	mov	es,bx			; ES = context
+	mov	es,bx			; ES = context (again)
 	mov	cx,es:[V86_CTX].VC_KSP
 	mov	ss,es:[V86_CTX].VC_KSS
 	mov	sp,cx
-	cmp	al,IRQ_SLAVE		; a hardware interrupt?
-	jae	v86_irq			; yes
-	cmp	al,INT_NMI		; or an NMI?
-	je	v86_irq			; yes
-	cmp	al,INT_GP		; a general protection fault?
-	je	v86_gp			; yes
-	cmp	al,INT_PF		; a page fault?
-	je	v86_pf			; yes
-;
-; The exceptions that real mode delivers through the vectors (the same ones
-; that it returns from at the same address) go to the machine's own.
-;
-	mov	si,word ptr es:[V86_CTX].VR_EIP
-	cmp	al,INT_DB
-	jbe	vc2			; 00h and 01h
-	cmp	al,INT_BR
-	jb	vc8			; (INT 03h and 04h fault as 0Dh)
-	cmp	al,INT_NM
-	ja	vc8
-vc2:	jmp	v86_refl		; 05h-07h
+	jmp	dx
+vc3:	jmp	v86_refl
 vc8:	mov	al,V86X_FAULT
-	jmp	v86_exit
+	jmp	v86_out
 ;
-; Only a debugger's trace (after the LIDT in v86_resume) or an NMI can get
-; here from the kernel, still on its stack and before the machine runs, so
-; the trace ends (as if it were a G) and v86_resume goes on.
+; Only a debugger's trace (after the LIDT in v86_resume) or an NMI (eg,
+; while a fault is handled above) can get here from the kernel, before the
+; machine runs, so the trace ends (as if it were a G) and the code goes on.
 ;
 vc9:	and	byte ptr [bp+VR_EFL+1],NOT (FL_TRAP SHR 8)
 	jmp	vr_ret
@@ -372,11 +454,304 @@ ENDPROC	v86_noerr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; v86_gp
+;
+; A general protection fault in the machine: CLI, STI, PUSHF, POPF, INT,
+; INT3, INTO, and IRET (with an operand-size prefix, too) do what they would
+; in real mode, using the machine's IF; an IN or OUT of a byte or a word exits
+; (V86X_IO), so that the host can do it, except at the interrupt controller's
+; ports (20h and 21h) and the game port (201h), without an exit: the machine
+; gets no hardware interrupts of its own, so an OUT to the controller (eg, an
+; end of interrupt) does nothing, and an IN reads zero, and no driver owns a
+; game adapter, so the port reads FFh (the buttons, bits 4-7, are up, and
+; programs that time the position bits, 0-3, which an OUT would clear, give
+; up at once, eg, BASIC's STICK is 0), and an OUT does nothing; anything
+; else (eg, HLT) exits as a fault.
+;
+; Inputs:
+;	DS = SEL_SYS, ES = context
+;
+DEFPROC	v86_gp
+	mov	ax,word ptr es:[V86_CTX].VR_CS
+	mov	si,word ptr es:[V86_CTX].VR_EIP
+;
+; The processor read the instruction before it faulted, so the bytes read
+; here (no more than 3) are there, unless the fault was reading past the end
+; of the segment.
+;
+	cmp	si,-2			; could it reach the end?
+	jb	vg0			; no
+	mov	cx,2
+	call	v86_chk			; can we read it?
+	jnc	vg0			; yes
+	jmp	vg8
+vg0:	call	v86_seg			; GS = CS
+	sub	dx,dx			; DL = 0 (no operand-size prefix)
+	db	65h			; (GS:)
+	lodsb
+	cmp	al,OP_OPSIZE
+	jne	vg1
+	mov	dl,al			; DL = operand-size prefix
+	db	65h			; (GS:)
+	lodsb
+vg1:	cmp	al,OP_CLI
+	je	vg2
+	cmp	al,OP_STI
+	je	vg3
+	cmp	al,OP_PUSHF
+	je	vg4
+	cmp	al,OP_POPF
+	je	vg5
+	cmp	al,OP_IRET
+	je	vg6
+	mov	ah,INT_BP
+	cmp	al,OP_INT03
+	je	vg7
+	cmp	al,OP_INT
+	jne	vg1a
+	db	65h			; (GS:)
+	lodsb
+	mov	ah,al			; AH = vector
+	jmp	short vg7
+vg1a:	cmp	al,OP_INTO
+	jne	vg10
+	test	byte ptr es:[V86_CTX].VR_EFL+1,FL_OVFL SHR 8
+	jz	vg9			; no overflow, so there's no INT 04h
+	mov	ah,INT_OF
+vg7:	mov	al,ah
+	jmp	v86_refl
+vg2:	mov	es:[V86_CTX].VC_VIF,0
+	jmp	short vg9
+vg3:	mov	es:[V86_CTX].VC_VIF,FL_INTS SHR 8
+	jmp	short vg9
+vg4:	mov	cx,-1
+	call	v86_stkchk		; is there room for its FLAGS?
+	jc	vg8			; no
+	call	v86_flags		; AX = the machine's FLAGS
+	call	v86_pushv
+	jmp	short vg9
+vg5:	mov	cx,1
+	call	v86_stkchk		; are its new FLAGS there?
+	jc	vg8			; no
+	call	v86_popv		; AX = new FLAGS
+	jmp	short vg6a
+vg6:	mov	cx,3
+	call	v86_stkchk		; are its IP, CS, and FLAGS there?
+	jc	vg8			; no
+	call	v86_popv		; AX = IP
+	xchg	si,ax			; SI = IP
+	call	v86_popv		; AX = CS
+	mov	word ptr es:[V86_CTX].VR_CS,ax
+	call	v86_popv		; AX = FLAGS
+vg6a:	call	v86_setfl
+vg9:	mov	word ptr es:[V86_CTX].VR_EIP,si
+	mov	word ptr es:[V86_CTX].VR_EIP+2,0
+	jmp	v86_cont
+vg8:	mov	al,V86X_FAULT
+	jmp	v86_out
+;
+; IN and OUT are E4h-E7h (with the port in the next byte) and ECh-EFh (with
+; the port in DX); bit 0 is set for a word, and bit 1 for OUT.
+;
+vg10:	mov	ah,al
+	and	ah,0F4h
+	cmp	ah,0E4h			; IN or OUT?
+	jne	vg8			; no
+	test	dl,dl			; of a dword?
+	jnz	vg8			; yes
+	mov	bl,al
+	mov	bh,0			; BX = opcode
+	mov	cx,word ptr es:[V86_CTX].VR_EDX
+	test	al,08h			; is the port in DX?
+	jnz	vg11			; yes
+	db	65h			; (GS:)
+	lodsb
+	mov	ah,0
+	xchg	cx,ax			; CX = port
+vg11:	mov	al,0FFh			; AL = what the game port reads
+	cmp	cx,201h			; the game port?
+	je	vg11a			; yes
+	inc	ax			; AL = what the controller's read
+	cmp	cx,21h			; the interrupt controller's port?
+	ja	vg12			; no
+	cmp	cl,20h
+	jb	vg12			; no
+vg11a:	test	bl,2			; OUT?
+	jnz	vg9			; yes, so it does nothing
+	mov	byte ptr es:[V86_CTX].VR_EAX,al
+	test	bl,1			; a word?
+	jz	vg9			; no
+	mov	byte ptr es:[V86_CTX].VR_EAX+1,al
+	jmp	vg9
+vg12:	mov	es:[V86_CTX].VR_ERR.LW,cx
+	mov	es:[V86_CTX].VR_ERR.HW,bx
+	mov	word ptr es:[V86_CTX].VR_EIP,si
+	mov	al,V86X_IO
+	jmp	v86_out
+ENDPROC	v86_gp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; v86_refl
+;
+; Sends an interrupt to the machine's vector, as real mode would (pushing its
+; FLAGS, CS, and IP, and clearing IF and TF), unless the vector's handler
+; starts with a HLT, in which case the machine exits (V86X_INT) instead.
+;
+; Inputs:
+;	AL = vector, SI = IP to return to
+;	DS = SEL_SYS, ES = context
+;
+DEFPROC	v86_refl
+;
+; A single-step trap or an INT 3 goes to the system's handler instead (eg, a
+; debugger's, which has set VC_DBG; see v86_regs), as a hardware interrupt
+; does (see v86_irq), with the machine's IP past it.
+;
+	cmp	es:[V86_CTX].VC_DBG,0	; does a debugger get them?
+	je	rf1			; no
+	cmp	al,INT_DB		; a single-step trap?
+	je	rf0			; yes
+	cmp	al,INT_BP		; an INT 3?
+	jne	rf1			; no
+rf0:	mov	word ptr es:[V86_CTX].VR_EIP,si
+	mov	dx,offset DEV:v86_irq
+	jmp	v86_leave
+rf1:	sub	dx,dx			; DL = 0 (16-bit pushes)
+	mov	bl,al
+	mov	bh,0
+	shl	bx,2			; BX -> the vector
+	push	ax
+	sub	ax,ax
+	call	v86_seg			; GS = 0 (that page is always there)
+	db	65h			; (GS:)
+	mov	cx,[bx]			; CX = handler's offset
+	db	65h			; (GS:)
+	mov	di,[bx+2]		; DI = handler's segment
+	push	si
+	mov	ax,di
+	mov	si,cx
+	push	cx
+	sub	cx,cx
+	call	v86_chk			; can we read its first byte?
+	pop	cx
+	jc	rf2			; no (so it isn't a HLT)
+	call	v86_seg			; GS = handler's segment
+	db	65h			; (GS:)
+	cmp	byte ptr [si],OP_HLT	; a default handler?
+	jne	rf2			; no
+	pop	si			; SI = IP to return to
+	pop	ax			; AL = vector
+	mov	word ptr es:[V86_CTX].VR_EIP,si
+	mov	word ptr es:[V86_CTX].VR_EIP+2,0
+	mov	ah,0
+	mov	es:[V86_CTX].VR_VEC,ax
+	mov	al,V86X_INT
+	jmp	short v86_out
+rf2:	push	cx
+	mov	cx,-3
+	call	v86_stkchk		; is there room for the frame?
+	pop	cx			; CX = handler's offset
+	jc	rf8			; no
+	call	v86_flags		; AX = the machine's FLAGS
+	call	v86_pushv
+	mov	ax,word ptr es:[V86_CTX].VR_CS
+	call	v86_pushv
+	pop	ax			; AX = IP to return to
+	call	v86_pushv
+	pop	ax
+	mov	es:[V86_CTX].VC_VIF,0
+	and	byte ptr es:[V86_CTX].VR_EFL+1,NOT (FL_TRAP SHR 8)
+	mov	word ptr es:[V86_CTX].VR_EIP,cx
+	mov	word ptr es:[V86_CTX].VR_EIP+2,0
+	mov	word ptr es:[V86_CTX].VR_CS,di
+	jmp	v86_cont
+rf8:	pop	ax
+	pop	ax
+	mov	al,V86X_FAULT
+ENDPROC	v86_refl			; fall into v86_out
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; v86_out
+;
+; Leaves the machine's context (see v86_leave) to exit.
+;
+; Inputs:
+;	AL = V86X_*
+;	DS = SEL_SYS, ES = SS = context
+;
+DEFPROC	v86_out
+	mov	dx,offset DEV:v86_exit
+	jmp	v86_leave
+ENDPROC	v86_out
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; v86_exit
+;
+; Ends the call that ran the machine (see v86_run), storing its registers in
+; the caller's V86REGS (with its own IF, and VR_DSSEL and VR_ESSEL updated),
+; and loading the system's page directory again (the machine's can be freed).
+;
+; Inputs:
+;	AL = V86X_*
+;	DS = SEL_SYS, SS:SP -> the machine's page directory's address, and the
+;	caller's V86REGS (see v86_run)
+;
+DEFPROC	v86_exit
+	mov	bp,sp
+	push	ax
+	mov	cx,[bp]
+	mov	dx,[bp+2]
+	call	v86_stk			; ES = context (again, after a tick)
+	pop	ax
+;
+; A hardware interrupt's vector becomes the one that real mode uses for it
+; (IRQs 0-7 are at IRQ_MASTER in protected mode, and at 08h in real mode).
+;
+	cmp	al,V86X_TICK
+	jne	vx1
+	cmp	es:[V86_CTX].VR_VEC,IRQ_MASTER
+	jb	vx1
+	sub	es:[V86_CTX].VR_VEC,IRQ_MASTER - INT_HW_TMR
+vx1:	push	ax
+	call	v86_flags
+	mov	word ptr es:[V86_CTX].VR_EFL,ax
+	mov	ax,word ptr es:[V86_CTX].VR_DS
+	mov	bx,es:[V86_CTX].VR_DSSEL
+	call	v86_alias
+	mov	ax,word ptr es:[V86_CTX].VR_ES
+	mov	bx,es:[V86_CTX].VR_ESSEL
+	call	v86_alias
+	push	ds
+	push	es
+	pop	ds
+	mov	si,V86_CTX
+	les	di,dword ptr [bp+4]	; ES:DI -> V86REGS
+	mov	cx,(size V86REGS) / 2
+	rep	movsw
+	pop	ds
+	push	ds:[SYS_VARS].SV_PDIR.HW
+	push	ds:[SYS_VARS].SV_PDIR.LW
+	db	66h,58h			; POP EAX
+	db	0Fh,22h,0D8h		; MOV CR3,EAX
+	mov	es,[bp+6]		; (the caller's ES)
+	pop	ax			; AL = V86X_*
+	add	sp,8
+	clc
+	ret
+ENDPROC	v86_exit
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; v86_irq
 ;
 ; Runs the system's handler for a hardware interrupt (or an NMI) from the
-; machine, as if it had interrupted us, and then runs the machine again, or
-; after a timer tick, exits.
+; machine, as if it had interrupted us, and then exits (V86X_TICK), so that
+; the host can act on it (eg, give the machine a tick, or an interrupt that a
+; driver counted for it; see SND_IRQS), or after an NMI (or a trap that a
+; debugger gets; see v86_refl), runs the machine again.
 ;
 ; Inputs:
 ;	AL = vector, DS = SEL_SYS
@@ -394,8 +769,8 @@ DEFPROC	v86_irq
 	db	OP_RETF			; "return" to it
 	DEFLBL	v86_irqret,near		; (see CPU_SYSREGS)
 	pop	ax
-	cmp	al,IRQ_MASTER		; a timer tick (IRQ 0)?
-	je	vi9			; yes
+	cmp	al,IRQ_SLAVE		; a hardware interrupt?
+	jae	vi9			; yes
 	jmp	v86_resume
 vi9:	mov	al,V86X_TICK
 	jmp	v86_exit
@@ -439,244 +814,9 @@ DEFPROC	v86_pf
 	call	far ptr DDINT_UTIL
 	jc	vi9			; the wait ended early
 pf1:	jmp	v86_resume
-pf8:	jmp	vc8
+pf8:	mov	al,V86X_FAULT
+	jmp	v86_exit
 ENDPROC	v86_pf
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; v86_gp
-;
-; A general protection fault in the machine: CLI, STI, PUSHF, POPF, INT,
-; INT3, INTO, and IRET (with an operand-size prefix, too) do what they would
-; in real mode, using the machine's IF; an IN or OUT of a byte or a word exits
-; (V86X_IO), so that the host can do it; anything else (eg, HLT) exits as a
-; fault.
-;
-; Inputs:
-;	DS = SEL_SYS, ES = context
-;
-DEFPROC	v86_gp
-	mov	ax,word ptr es:[V86_CTX].VR_CS
-	mov	si,word ptr es:[V86_CTX].VR_EIP
-	mov	cx,2			; (no more than 3 bytes)
-	call	v86_chk			; can we read it?
-	jnc	vg0			; yes
-	jmp	vg8
-vg0:	call	v86_seg			; GS = CS
-	sub	dx,dx			; DL = 0 (no operand-size prefix)
-	db	65h			; (GS:)
-	lodsb
-	cmp	al,OP_OPSIZE
-	jne	vg1
-	mov	dl,al			; DL = operand-size prefix
-	db	65h			; (GS:)
-	lodsb
-vg1:	cmp	al,OP_CLI
-	je	vg2
-	cmp	al,OP_STI
-	je	vg3
-	cmp	al,OP_PUSHF
-	je	vg4
-	cmp	al,OP_POPF
-	je	vg5
-	cmp	al,OP_IRET
-	je	vg6
-	mov	ah,INT_BP
-	cmp	al,OP_INT03
-	je	vg7
-	cmp	al,OP_INT
-	jne	vg1a
-	db	65h			; (GS:)
-	lodsb
-	mov	ah,al			; AH = vector
-	jmp	short vg7
-vg1a:	cmp	al,OP_INTO
-	jne	vg10
-	test	byte ptr es:[V86_CTX].VR_EFL+1,FL_OVFL SHR 8
-	jz	vg9			; no overflow, so there's no INT 04h
-	mov	ah,INT_OF
-vg7:	mov	al,ah
-	jmp	v86_refl
-vg2:	mov	es:[V86_CTX].VC_VIF,0
-	jmp	short vg9
-vg3:	mov	es:[V86_CTX].VC_VIF,FL_INTS SHR 8
-	jmp	short vg9
-vg4:	call	v86_flags		; AX = the machine's FLAGS
-	call	v86_pushv
-	jc	vg8
-	jmp	short vg9
-vg5:	call	v86_popv		; AX = new FLAGS
-	jc	vg8
-	call	v86_setfl
-	jmp	short vg9
-vg6:	call	v86_popv		; AX = IP
-	jc	vg8
-	xchg	si,ax			; SI = IP
-	call	v86_popv		; AX = CS
-	jc	vg8
-	mov	word ptr es:[V86_CTX].VR_CS,ax
-	call	v86_popv		; AX = FLAGS
-	jc	vg8
-	call	v86_setfl
-vg9:	mov	word ptr es:[V86_CTX].VR_EIP,si
-	mov	word ptr es:[V86_CTX].VR_EIP+2,0
-	jmp	v86_resume
-vg8:	mov	al,V86X_FAULT
-	jmp	v86_exit
-;
-; IN and OUT are E4h-E7h (with the port in the next byte) and ECh-EFh (with
-; the port in DX); bit 0 is set for a word, and bit 1 for OUT.
-;
-vg10:	mov	ah,al
-	and	ah,0F4h
-	cmp	ah,0E4h			; IN or OUT?
-	jne	vg8			; no
-	test	dl,dl			; of a dword?
-	jnz	vg8			; yes
-	mov	bl,al
-	mov	bh,0			; BX = opcode
-	mov	cx,word ptr es:[V86_CTX].VR_EDX
-	test	al,08h			; is the port in DX?
-	jnz	vg11			; yes
-	db	65h			; (GS:)
-	lodsb
-	mov	ah,0
-	xchg	cx,ax			; CX = port
-vg11:	mov	es:[V86_CTX].VR_ERR.LW,cx
-	mov	es:[V86_CTX].VR_ERR.HW,bx
-	mov	word ptr es:[V86_CTX].VR_EIP,si
-	mov	al,V86X_IO
-	jmp	v86_exit
-ENDPROC	v86_gp
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; v86_refl
-;
-; Sends an interrupt to the machine's vector, as real mode would (pushing its
-; FLAGS, CS, and IP, and clearing IF and TF), unless the vector's handler
-; starts with a HLT, in which case the machine exits (V86X_INT) instead.
-;
-; Inputs:
-;	AL = vector, SI = IP to return to
-;	DS = SEL_SYS, ES = context
-;
-DEFPROC	v86_refl
-;
-; A single-step trap or an INT 3 goes to the system's handler instead (eg, a
-; debugger's, which has set VC_DBG; see v86_regs), as a hardware interrupt
-; does (see v86_irq), with the machine's IP past it.
-;
-	cmp	es:[V86_CTX].VC_DBG,0	; does a debugger get them?
-	je	rf1			; no
-	cmp	al,INT_DB		; a single-step trap?
-	je	rf0			; yes
-	cmp	al,INT_BP		; an INT 3?
-	jne	rf1			; no
-rf0:	mov	word ptr es:[V86_CTX].VR_EIP,si
-	jmp	v86_irq
-rf1:	sub	dx,dx			; DL = 0 (16-bit pushes)
-	mov	bl,al
-	mov	bh,0
-	shl	bx,2			; BX -> the vector
-	push	ax
-	sub	ax,ax
-	call	v86_seg			; GS = 0 (that page is always there)
-	db	65h			; (GS:)
-	mov	cx,[bx]			; CX = handler's offset
-	db	65h			; (GS:)
-	mov	di,[bx+2]		; DI = handler's segment
-	push	si
-	mov	ax,di
-	mov	si,cx
-	push	cx
-	sub	cx,cx
-	call	v86_chk			; can we read its first byte?
-	pop	cx
-	jc	rf2			; no (so it isn't a HLT)
-	call	v86_seg			; GS = handler's segment
-	db	65h			; (GS:)
-	cmp	byte ptr [si],OP_HLT	; a default handler?
-	jne	rf2			; no
-	pop	si			; SI = IP to return to
-	pop	ax			; AL = vector
-	mov	word ptr es:[V86_CTX].VR_EIP,si
-	mov	word ptr es:[V86_CTX].VR_EIP+2,0
-	mov	ah,0
-	mov	es:[V86_CTX].VR_VEC,ax
-	mov	al,V86X_INT
-	jmp	short v86_exit
-rf2:	call	v86_flags		; AX = the machine's FLAGS
-	call	v86_pushv
-	jc	rf8
-	mov	ax,word ptr es:[V86_CTX].VR_CS
-	call	v86_pushv
-	pop	ax			; AX = IP to return to
-	jc	rf7
-	call	v86_pushv
-	jc	rf7
-	pop	ax
-	mov	es:[V86_CTX].VC_VIF,0
-	and	byte ptr es:[V86_CTX].VR_EFL+1,NOT (FL_TRAP SHR 8)
-	mov	word ptr es:[V86_CTX].VR_EIP,cx
-	mov	word ptr es:[V86_CTX].VR_EIP+2,0
-	mov	word ptr es:[V86_CTX].VR_CS,di
-	jmp	v86_resume
-rf8:	pop	ax
-rf7:	pop	ax
-	mov	al,V86X_FAULT
-ENDPROC	v86_refl			; fall into v86_exit
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; v86_exit
-;
-; Ends the call that ran the machine (see v86_run), storing its registers in
-; the caller's V86REGS (with its own IF, and VR_DSSEL and VR_ESSEL updated),
-; and loading the system's page directory again (the machine's can be freed).
-;
-; Inputs:
-;	AL = V86X_*
-;	DS = SEL_SYS, SS:SP -> the machine's page directory's address, and the
-;	caller's V86REGS (see v86_run)
-;
-DEFPROC	v86_exit
-	mov	bp,sp
-	push	ax
-	mov	cx,[bp]
-	mov	dx,[bp+2]
-	call	v86_stk			; ES = context (again, after a tick)
-	pop	ax
-	cmp	al,V86X_TICK
-	jne	vx1
-	mov	es:[V86_CTX].VR_VEC,INT_HW_TMR
-vx1:	push	ax
-	call	v86_flags
-	mov	word ptr es:[V86_CTX].VR_EFL,ax
-	mov	ax,word ptr es:[V86_CTX].VR_DS
-	mov	bx,es:[V86_CTX].VR_DSSEL
-	call	v86_alias
-	mov	ax,word ptr es:[V86_CTX].VR_ES
-	mov	bx,es:[V86_CTX].VR_ESSEL
-	call	v86_alias
-	push	ds
-	push	es
-	pop	ds
-	mov	si,V86_CTX
-	les	di,dword ptr [bp+4]	; ES:DI -> V86REGS
-	mov	cx,(size V86REGS) / 2
-	rep	movsw
-	pop	ds
-	push	ds:[SYS_VARS].SV_PDIR.HW
-	push	ds:[SYS_VARS].SV_PDIR.LW
-	db	66h,58h			; POP EAX
-	db	0Fh,22h,0D8h		; MOV CR3,EAX
-	mov	es,[bp+6]		; (the caller's ES)
-	pop	ax			; AL = V86X_*
-	add	sp,8
-	clc
-	ret
-ENDPROC	v86_exit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -767,14 +907,14 @@ ENDPROC	v86_setfl
 ; v86_pushv and v86_popv
 ;
 ; Push a word (or with DL set, a dword whose upper half is zero) on the
-; machine's stack, or pop one (ignoring the upper half).
+; machine's stack, or pop one (ignoring the upper half), after v86_stkchk.
 ;
 ; Inputs:
 ;	AX = word (v86_pushv), DL = 0 (or OP_OPSIZE)
-;	DS = SEL_SYS, ES = context
+;	ES = context, GS = the machine's SS (see v86_stkchk)
 ;
 ; Outputs:
-;	AX = word (v86_popv); carry set if the stack isn't there
+;	AX = word (v86_popv)
 ;
 ; Modifies:
 ;	AX
@@ -786,13 +926,22 @@ DEFPROC	v86_pushv
 	sub	ax,ax
 	call	v86_pushw		; (its upper half)
 	pop	ax
-	jnc	v86_pushw
+ENDPROC	v86_pushv			; fall into v86_pushw
+
+DEFPROC	v86_pushw
+	push	si
+	mov	si,word ptr es:[V86_CTX].VR_ESP
+	dec	si
+	dec	si
+	db	65h			; (GS:)
+	mov	[si],ax
+	mov	word ptr es:[V86_CTX].VR_ESP,si
+	pop	si
 	ret
-ENDPROC	v86_pushv
+ENDPROC	v86_pushw
 
 DEFPROC	v86_popv
 	call	v86_popw
-	jc	pv9
 	test	dl,dl			; a dword?
 	jz	pv9			; no
 	push	ax
@@ -801,29 +950,13 @@ DEFPROC	v86_popv
 pv9:	ret
 ENDPROC	v86_popv
 
-DEFPROC	v86_pushw
-	push	si
-	mov	si,word ptr es:[V86_CTX].VR_ESP
-	dec	si
-	dec	si
-	call	v86_stkchk		; GS:SI -> the new top
-	jc	pw9
-	db	65h			; (GS:)
-	mov	[si],ax
-	mov	word ptr es:[V86_CTX].VR_ESP,si
-pw9:	pop	si
-	ret
-ENDPROC	v86_pushw
-
 DEFPROC	v86_popw
 	push	si
 	mov	si,word ptr es:[V86_CTX].VR_ESP
-	call	v86_stkchk		; GS:SI -> the top
-	jc	po9
 	db	65h			; (GS:)
 	lodsw
 	mov	word ptr es:[V86_CTX].VR_ESP,si
-po9:	pop	si
+	pop	si
 	ret
 ENDPROC	v86_popw
 
@@ -831,30 +964,50 @@ ENDPROC	v86_popw
 ;
 ; v86_stkchk
 ;
-; Checks that the word at the machine's SS:SI is there (and not split by the
-; end of the segment), and points GS at SS.
+; Checks that the values about to be popped from the machine's stack (or the
+; room for those about to be pushed) are in pages that the machine has, with
+; no word split by the end of its segment, and points GS at its SS.
 ;
 ; Inputs:
-;	SI = offset
+;	CX = # of values to pop (or if negative, to push)
+;	DL = 0 for words (or OP_OPSIZE for dwords)
 ;	DS = SEL_SYS, ES = context
 ;
 ; Outputs:
 ;	Carry clear if successful (GS = the machine's SS)
 ;
+; Modifies:
+;	CX
+;
 DEFPROC	v86_stkchk
-	cmp	si,0FFFFh		; split by the end of the segment?
-	stc
-	je	sc9			; yes
 	push	ax
-	push	cx
-	mov	ax,word ptr es:[V86_CTX].VR_SS
-	mov	cx,1
+	push	si
+	shl	cx,1
+	test	dl,dl			; dwords?
+	jz	sk1			; no
+	shl	cx,1			; CX = # of bytes (negative to push)
+sk1:	mov	si,word ptr es:[V86_CTX].VR_ESP
+	test	cx,cx			; a push?
+	jns	sk2			; no
+	add	si,cx			; SI = the new top
+	neg	cx
+sk2:	dec	cx			; CX = # of bytes after the first
+;
+; When the first is at an odd offset, a word is split if the last byte wraps
+; to the start of the segment.
+;
+	test	si,1			; an odd offset?
+	jz	sk3			; no
+	mov	ax,si
+	add	ax,cx			; does the last byte wrap?
+	jc	sk9			; yes (and carry is set)
+sk3:	mov	ax,word ptr es:[V86_CTX].VR_SS
 	call	v86_chk
-	jc	sc8
+	jc	sk9
 	call	v86_seg
-sc8:	pop	cx
+sk9:	pop	si
 	pop	ax
-sc9:	ret
+	ret
 ENDPROC	v86_stkchk
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1074,7 +1227,7 @@ vcr1:	call	v86_vsel		; DX = video ID, CX = its pages
 	push	di
 	push	bx
 	mov	al,MEMF_NONE OR MEMF_HIGH
-	call	alloc_page		; DX:CX = address (see v86_tiles)
+	call	alloc_64k		; DX:CX = address (see v86_tiles)
 	pop	bx			; BX = owner
 	pop	di
 	pop	si
@@ -1245,6 +1398,10 @@ vi1:	shl	cx,1
 	mov	es:[V86_CTX].VC_VID,ax
 	mov	ax,[bp+12]
 	mov	word ptr es:[V86_CTX].VC_VPG,ax
+	mov	di,V86_CTX + VC_IOMAP
+	mov	cx,(IOMAP_LEN - 1) / 2
+	mov	ax,-1
+	rep	stosw			; no ports lent to it yet
 	mov	bx,[bp-6]
 	or	bl,3			; (RPL 3, for the ring 3 caller)
 	mov	es:[V86_CTX].VR_DSSEL,bx
@@ -1275,7 +1432,7 @@ ENDPROC	v86_init
 ;
 ; Checks a new machine's video memory selector, if any: a console's (eg, from
 ; VKD$'s IOCTL_GETMODE), so an LDT selector, for whole pages from A0000h to
-; C0000h, which the machine gets where they are (see v86_vid).
+; C0000h, which the machine gets at the start of their frame (see v86_vid).
 ;
 ; Inputs:
 ;	DX = selector (or zero)
@@ -1318,7 +1475,10 @@ DEFPROC	v86_vsel
 	cmp	ah,20h			; does it end by C0000h?
 	ja	vl7			; no
 	add	cl,0A0h			; CL = its first page
-	xchg	ax,bx
+	cmp	cl,0B0h			; in a text frame (B0000h or B8000h)?
+	jb	vl1			; no
+	and	cl,0F8h			; CL = the frame's first page
+vl1:	xchg	ax,bx
 	call	enc_owner		; AX = its ID (and carry is clear)
 	xchg	dx,ax
 	jmp	short vl8
@@ -1339,6 +1499,15 @@ ENDPROC	v86_vsel
 ; present, so that the machine faults if it touches them (see v86_pf); a
 ; selector that's been freed takes the video memory away for good.
 ;
+; The selector's memory can change (eg, when the console's mode does), so while
+; it's the adapter's own (A0000h-BFFFFh), the machine has it at the start of
+; its frame (A0000h, B0000h, or B8000h; eg, a console's text page at B8000h, as
+; page 0 would be), and as much of it; a copy of it somewhere else stays where
+; the adapter's was.  And while it's the EGA or VGA's graphics memory (below
+; B0000h), which only a console that has the screen to itself gets, the machine
+; has the video ports, too (VC_VIO; see v86_resume).  Most of the time, nothing
+; has changed, so VC_VDESC is the descriptor as it was the last time.
+;
 ; Inputs:
 ;	DS = SEL_SYS, ES = context
 ;
@@ -1346,39 +1515,99 @@ ENDPROC	v86_vsel
 ;	ZF clear if the video memory is there, or carry set if it's gone now
 ;
 DEFPROC	v86_vid
-	cmp	es:[V86_CTX].VC_VCNT,0	; does it have video memory?
-	je	vv9			; no
-	pusha
+	cmp	es:[V86_CTX].VC_VID,0	; does it have video memory?
+	jne	vv1			; yes
+	ret
+vv1:	pusha
 	cld
 	mov	bx,es:[V86_CTX].VC_VID
 	call	id_desc			; BX -> its selector's descriptor
-	sbb	bp,bp			; BP = -1 if it's been freed
-	mov	ax,0
-	cwd				; DX:AX = 0 (not present)
-	jnz	vv1
-	test	ds:[bx].DESC_ACC,ACC_PRESENT
-	jz	vv1
-	test	ds:[bx].DESC_BASE,0FFFh	; does its memory start on a page?
-	jnz	vv1			; no
+	jnc	vv1a
+	jmp	vv7			; (it's been freed)
+vv1a:	mov	si,bx
+	mov	di,V86_CTX + VC_VDESC
+	mov	cx,(size DESC) / 2
+	repe	cmpsw			; has it changed?
+	je	vv6			; no
 	mov	si,bx
+	mov	di,V86_CTX + VC_VDESC
+	mov	cx,(size DESC) / 2
+	rep	movsw
+	mov	si,bx
+	sub	bp,bp			; BP = 0 (not there, and no ports)
+	sub	ax,ax
+	cwd				; DX:AX = 0 (PTEs that aren't present)
+	test	ds:[si].DESC_ACC,ACC_PRESENT
+	jnz	vv2
+;
+; While the selector isn't present, a machine that had the video ports keeps
+; them (VC_VIO), which means that it's suspended (see v86_susp), since its
+; console's state is saved somewhere else (eg, see VKD$'s hide_vga).
+;
+	mov	bp,word ptr es:[V86_CTX].VC_VOK
+	and	bp,0FF00h		; (not there, but the same ports)
+	jmp	short vv5
+vv2:	test	ds:[si].DESC_BASE,PG_SIZE - 1	; does it start on a page?
+	jnz	vv5			; no
+	inc	bp			; (it's there)
 	call	desc_addr		; DX:CX = its address
-	xchg	ax,cx
-	or	al,PG_USER		; DX:AX = its first PTE
-vv1:	mov	cx,word ptr es:[V86_CTX].VC_VPG	; CL = first page, CH = count
-	mov	bl,cl
-	mov	bh,0
-	shl	bx,2
-	lea	di,[bx+V86_PT]		; ES:DI -> the first page's PTE
+	xchg	ax,cx			; DX:AX = its address
+	mov	bx,dx
+	sub	bx,0Ah
+	cmp	bx,1			; the adapter's memory (A0000h-BFFFFh)?
+	ja	vv4			; no (a copy of it)
+	shl	bl,4
+	mov	cl,ah
+	shr	cl,4
+	or	bl,cl
+	add	bl,0A0h			; BL = its first page
+	cmp	bl,0B0h			; in a text frame (B0000h or B8000h)?
+	jb	vv2a			; no
+	and	bl,0F8h			; BL = the frame's first page
+vv2a:	mov	bh,byte ptr ds:[si].DESC_LIMIT+1
+	shr	bh,4
+	inc	bh			; BH = # of pages
+	cmp	bx,word ptr es:[V86_CTX].VC_VPG	; is that where it was?
+	je	vv3			; yes
+	push	ax
+	push	dx
+	sub	ax,ax
+	cwd
+	call	vv_ptes			; no, so the old pages are gone
+	pop	dx
+	pop	ax
+	mov	word ptr es:[V86_CTX].VC_VPG,bx
+vv3:	cmp	bl,0B0h			; the graphics memory?
+	jae	vv4			; no
+	or	bp,0FF00h		; yes, so it has the ports, too
+vv4:	or	al,PG_USER		; DX:AX = its first PTE
+vv5:	call	vv_ptes
+	mov	word ptr es:[V86_CTX].VC_VOK,bp	; (and VC_VIO)
+vv6:	cmp	es:[V86_CTX].VC_VOK,0	; (carry is clear)
+	popa
+	ret
+vv7:	sub	ax,ax
+	cwd
+	call	vv_ptes
+	sub	ax,ax
+	mov	es:[V86_CTX].VC_VID,ax
+	mov	word ptr es:[V86_CTX].VC_VPG,ax	; (and VC_VCNT)
+	mov	word ptr es:[V86_CTX].VC_VOK,ax	; (and VC_VIO)
+	stc
+	popa
+	ret
+;
+; vv_ptes stores the video memory's PTEs, starting with DX:AX.
+;
+vv_ptes:
+	mov	cx,word ptr es:[V86_CTX].VC_VPG	; CL = first page, CH = count
+	mov	di,cx
+	and	di,0FFh
+	shl	di,2
+	add	di,V86_PT		; ES:DI -> the first page's PTE
 	mov	cl,ch
 	mov	ch,0
-	call	vi_ptes
-	add	bp,bp			; was it freed?
-	jnc	vv2			; no
-	mov	es:[V86_CTX].VC_VCNT,0	; yes (and carry is set)
-vv2:	inc	al
-	dec	al			; (zero if not present)
-	popa
-vv9:	ret
+	jmp	vi_ptes
 ENDPROC	v86_vid
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1445,11 +1674,13 @@ ENDPROC	v86_tiles
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; alloc_page
+; alloc_page and alloc_64k
 ;
-; Allocates a block that starts on a page (as CPU_ALLOC would allocate one
+; Allocate a block that starts on a page (as CPU_ALLOC would allocate one
 ; that's PG_SIZE - 16 bytes longer, and then the page in it), since the
-; processor maps memory a page at a time.
+; processor maps memory a page at a time, or for a machine's memory, on a 64K
+; boundary (from a block 64K - 16 bytes longer), so that its 64K boundaries
+; are where its programs think they are, as a DMA controller's are.
 ;
 ; Inputs:
 ;	AL = MEMF_* flags, BX = owner, SI:DI = length (a multiple of PG_SIZE)
@@ -1457,16 +1688,28 @@ ENDPROC	v86_tiles
 ; Outputs:
 ;	As for CPU_ALLOC
 ;
+DEFPROC	alloc_64k
+	mov	ah,1
+	jmp	short ap0
+ENDPROC	alloc_64k
+
 DEFPROC	alloc_page
-	mov	ds:[SYS_VARS].SV_ARG,al
+	mov	ah,0
+ap0:	mov	ds:[SYS_VARS].SV_ARG,al
 	mov	ds:[SYS_VARS].SV_OWNER,bx
 	push	si
 	push	di
-	add	di,PG_SIZE - 16
+	mov	cx,PG_SIZE - 16
+	test	ah,ah			; on a 64K boundary?
+	jz	ap1			; no
+	mov	cx,0FFF0h		; (64K - 16)
+ap1:	add	di,cx
 	adc	si,0
 	mov	ds:[SYS_VARS].SV_LEN.LW,di
 	mov	ds:[SYS_VARS].SV_LEN.HW,si
+	push	ax
 	call	pmb_fit			; BX -> free PMB, DX:CX = address
+	pop	ax
 	pop	di
 	pop	si
 	jc	ap8
@@ -1475,10 +1718,163 @@ DEFPROC	alloc_page
 	add	cx,PG_SIZE - 1
 	adc	dx,0
 	and	cx,NOT (PG_SIZE - 1)	; DX:CX = the page
-	jmp	alloc_at
+	test	ah,ah			; on a 64K boundary?
+	jz	ap2			; no
+	add	cx,0FFFFh
+	adc	dx,0
+	sub	cx,cx			; DX:CX = the next 64K boundary
+ap2:	jmp	alloc_at
 ap8:	mov	ax,ERR_NOMEMORY
 	ret
 ENDPROC	alloc_page
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; io_close
+;
+; Sets the bits of a machine's ports in the TSS's I/O permission bitmap
+; again (see v86_resume) when it stops: all of them, if a driver lent it
+; any, or else just the video ports'.
+;
+; Inputs:
+;	DS = SEL_SYS, SS = context
+;
+; Modifies:
+;	CX, DI, ES
+;
+DEFPROC	io_close
+	push	ax
+	push	ds
+	pop	es
+	mov	di,SYS_IOMAP
+	mov	cx,(IOMAP_LEN - 1) / 2
+	cmp	ss:[V86_CTX].VC_IOSET,0	; were any ports lent to it?
+	jne	ioc1			; yes
+	mov	di,SYS_IOMAP + IOMAP_VIDEO
+	mov	cx,2			; no, so just the video ports'
+ioc1:	mov	ax,-1
+	rep	stosw
+	pop	ax
+	ret
+ENDPROC	io_close
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; v86_ports
+;
+; Lends ports to a machine (AL = 4), or takes them back (AL = 5), for a
+; driver that owns a device (eg, SND$): the ports' bits in the machine's I/O
+; permission bitmap (VC_IOMAP), which v86_resume copies into the TSS's while
+; the machine runs, are cleared (or set again).  The bitmap ends below the
+; video ports, which only the machine's video memory gives it (see v86_vid),
+; and it has a byte for every 8 ports, so the ports must be whole bytes.
+;
+; Inputs:
+;	AL = 4 or 5, BX = machine (its memory's first selector)
+;	CX = first port, DX = # of ports (multiples of 8)
+;	ES:DI -> the driver's function to call when the machine is suspended
+;	or resumes (see v86_susp), or 0:0 (AL = 4 only)
+;
+; Outputs:
+;	Carry clear if successful, set if not (AX = ERR_INVALID)
+;
+DEFPROC	v86_ports
+	push	es
+	push	di			; (the driver's function, if any)
+	mov	si,cx
+	or	si,dx
+	test	si,7			; whole bytes of the bitmap?
+	jnz	vp8			; no
+	mov	si,cx
+	add	si,dx
+	jc	vp8
+	cmp	si,IOMAP_VIDEO * 8	; below the video ports?
+	ja	vp8			; no
+	push	ax
+	push	cx
+	push	dx
+	mov	cx,bx
+	mov	dx,-1
+	call	pmb_used		; BX -> PMB
+	pop	si			; SI = # of ports
+	pop	di			; DI = first port
+	pop	ax
+	jc	vp8
+	mov	cx,ds:[bx].PMB_V86
+	jcxz	vp8			; it isn't a machine's memory
+	mov	dx,cx
+	shr	dx,4
+	shl	cx,12			; DX:CX = its page directory
+	push	ax
+	call	v86_stk			; ES = its context
+	pop	ax
+	pop	word ptr es:[V86_CTX].VC_NOTE
+	pop	word ptr es:[V86_CTX].VC_NOTE+2
+	sub	al,5			; AL = 0 to take them back, else FFh
+	jnz	vp1
+	mov	word ptr es:[V86_CTX].VC_NOTE+2,0	; (and no more calls)
+vp1:	not	al			; AL = byte for the bitmap
+	mov	es:[V86_CTX].VC_IOSET,1
+	mov	cx,si
+	shr	cx,3			; CX = # of bytes
+	shr	di,3
+	add	di,V86_CTX + VC_IOMAP	; ES:DI -> the first port's byte
+	cld
+	rep	stosb			; (and carry is clear)
+	ret
+vp8:	pop	di
+	pop	es
+	jmp	cpu_inval
+ENDPROC	v86_ports
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; v86_susp and v86_note
+;
+; v86_susp suspends a machine whose console's state is somewhere else (see
+; v86_resume): it waits for its video memory selector (as a page fault in
+; that memory does; see v86_pf), and then resumes, or if the wait ends early
+; (eg, for a CTRLC or KILL), exits as after an interrupt (VR_VEC = 0Eh), so
+; that DOS can act on it.  The first time, the driver that lent it ports (if
+; it asked; see v86_ports) is told, and told again when it resumes, so that
+; the device can stop and start, too (eg, SND$ pauses a sound card's DMA).
+;
+; v86_note calls that driver's function with AL = 0 (suspended) or 1
+; (resumed), with interrupts off; it can change any register but DS and ES.
+;
+; Inputs:
+;	DS = SEL_SYS, ES = context, SS:SP as for v86_resume
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	v86_susp
+	cmp	es:[V86_CTX].VC_SUSP,0	; suspended already?
+	jne	vu1			; yes
+	mov	es:[V86_CTX].VC_SUSP,1
+	mov	al,0			; (it's suspended)
+	call	v86_note
+vu1:	mov	dx,SELID_WAIT
+	mov	di,es:[V86_CTX].VC_VID	; DX:DI = its wait ID
+	mov	ah,DDUTL_WAIT
+	call	far ptr DDINT_UTIL
+	jc	vu9			; the wait ended early
+	jmp	v86_resume
+vu9:	mov	es:[V86_CTX].VR_VEC,INT_PF
+	mov	al,V86X_TICK
+	jmp	v86_exit
+ENDPROC	v86_susp
+
+DEFPROC	v86_note
+	cmp	word ptr es:[V86_CTX].VC_NOTE+2,0	; a function to call?
+	je	vn9			; no
+	pusha
+	push	ds
+	push	es
+	call	dword ptr es:[V86_CTX].VC_NOTE
+	pop	es
+	pop	ds
+	popa
+vn9:	ret
+ENDPROC	v86_note
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -266,7 +266,18 @@ di3:	mov	ax,[MEMORY_SIZE]
 	cmp	es:[SYS_VARS].SV_TYPE,CPUTYPE_80386	; an 80386 TSS?
 	jb	di3a			; no
 	mov	es:[SYS_GDT+SEL_TSS].DESC_ACC,ACC_TSS386
-	mov	word ptr es:[SYS_TSS+TSS_IOMAP],TSS_LEN	; (no I/O bitmap)
+;
+; The 80386 TSS's limit extends to its I/O permission bitmap, which allows
+; no ports (see SYS_IOMAP).
+;
+	mov	ax,SYS_IOMAP - SYS_TSS
+	mov	es:[SYS_TSS+TSS_IOMAP],ax
+	add	ax,IOMAP_LEN - 1
+	mov	es:[SYS_GDT+SEL_TSS].DESC_LIMIT,ax
+	mov	di,SYS_IOMAP
+	mov	cx,IOMAP_LEN
+	mov	al,0FFh
+	rep	stosb
 di3a:	mov	ax,cs
 	mov	dx,ax
 	shl	ax,4

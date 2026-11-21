@@ -56,6 +56,8 @@ VIDEO_FONT8X8	equ	1112h	; BL=0: load 8x8 font, set rows (EGA and VGA)
 VIDEO_ALTSEL	equ	12h	; BL=function (EGA and VGA only; see VALT_*)
 VALT_EGAINFO	equ	10h	; returns BH=0 if color, BL=memory, CX=switches
 VALT_SCANLINES	equ	30h	; AL=1 for 350 lines, 2 for 400; AL=12h if VGA
+VIDEO_GETDCC	equ	1A00h	; returns AL=1Ah, BL=display code (VGA only)
+VIDEO_STATE	equ	1Ch	; AL=0: size (BX), 1: save, 2: restore at ES:BX
 
 MODE_CO80	equ	03h
 MODE_MONO	equ	07h
@@ -127,6 +129,18 @@ SCAN_CTRL_END	equ	75h	; ctrl-end
 SCAN_CTRL_PGDN	equ	76h	; ctrl-page-down
 SCAN_CTRL_HOME	equ	77h	; ctrl-home
 SCAN_CTRL_PGUP	equ	84h	; ctrl-page-up
+;
+; A V86 machine's host that gives its console the machine's BIOS data (see
+; IOCTL_SETKEYS) also gets every scan code from the keyboard while the
+; console has focus, as the console's driver sees it (eg, for a program with
+; an INT 09h handler of its own), in a queue just below 600h in the machine:
+; the driver adds a code at KQ_TAIL (unless that fills the queue), and the
+; host removes one at KQ_HEAD.
+;
+KQ_HEAD		equ	5F0h	; index of the next code to remove
+KQ_TAIL		equ	5F1h	; index of the next code to add
+KQ_CODES	equ	5F2h	; the codes
+KQ_MAX		equ	14
 	ENDIF	; BIOSKEY
 
 	IFDEF	BIOSAPI
@@ -345,7 +359,8 @@ RESET_WARM	equ	1234h	; RESET_FLAG value: POST skips its memory tests
 		db	13h DUP(?)
 EGA_MISC_INFO	db	?	; 487h: bit 0=cursor emulation, etc.
 EGA_MISC_INFO2	db	?	; 488h: EGA DIP switches and feature bits
-		db    	77h DUP(?)
+VGA_FLAGS	db	?	; 489h: bit 0=VGA active, etc.
+		db    	76h DUP(?)
 ;
 ; Define BASIC-DOS low memory usage, starting at offset 500h.
 ;

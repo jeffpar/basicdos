@@ -28,7 +28,8 @@ CODE    SEGMENT word public 'CODE'
 	EXTBYTE	<VARS>
 	EXTNEAR	<int21,int2b,load_prog,start_prog,mem_init,mem_alloc>
 	EXTNEAR	<term_prog,pft_save,dd_cpu,dd_vec,int10,int16,int17,set_keys>
-	EXTNEAR	<tick,do_io,con_ioctl>
+	EXTNEAR	<tick,do_io,con_ioctl,int1a,virq_ret,snd_lend>
+	EXTBYTE	<kbd_sent>
 ;
 ; Only the CPU check (and its message) must run on an 8086; everything after
 ; it runs on an 80386.
@@ -220,6 +221,7 @@ m4a:	mov	[vid_sel],dx
 	push	ax
 	mov	cl,2
 	call	set_keys		; the console updates its BIOS data
+	call	snd_lend		; (and lend it any sound card)
 	pop	ax
 	xchg	dx,ax			; DX = the environment
 ;
@@ -302,6 +304,9 @@ run1i:	mov	ax,word ptr [VARS+VR_VEC]
 	cmp	ax,STUB_CTRLC		; a CTRLC handler's return?
 	jb	run2			; no, one of the HLTs
 	je	run1a			; yes
+	cmp	ax,STUB_VIRQ		; the return from an interrupt of ours?
+	jne	run1f			; no
+	jmp	virq_ret
 run1f:	jmp	fault			; no, not one of ours
 run1a:	jmp	ctrlc_ret
 ;
@@ -325,9 +330,9 @@ run2:	call	pop_ret
 	pop	ax			; AL = vector
 ;
 ; An INT to a default vector: the DOS ones are ours, as are the BIOS's video,
-; keyboard, and printer functions (see V86BIOS.ASM), and a few others (that
-; only check whether something is installed) do nothing; any other ends the
-; program, as a fault does.
+; keyboard, printer, and time functions (see V86BIOS.ASM), and its equipment
+; and memory size, and a few others (that only check whether something is
+; installed) do nothing; any other ends the program, as a fault does.
 ;
 do_int:	cmp	al,INT_DOSFUNC
 	jne	di1
@@ -351,8 +356,33 @@ di5:	cmp	al,INT_KBD
 di6:	cmp	al,INT_LPT
 	jne	di7
 	jmp	int17
-di7:
-	mov	di,offset NOP_INTS
+di7:	cmp	al,INT_TIME
+	jne	di7a
+	jmp	int1a
+;
+; The equipment (INT 11h) and memory size (INT 12h) are the words in the
+; machine's BIOS data.
+;
+di7a:	mov	di,BIOS_DATA + offset EQUIP_FLAG
+	cmp	al,INT_EQUIP
+	je	di7b
+	cmp	al,INT_MEMORY
+	jne	di8
+	mov	di,BIOS_DATA + offset MEMORY_SIZE
+di7b:	sub	ax,ax
+	call	seg_ptr			; ES:DI -> the word
+	mov	ax,es:[di]
+	mov	word ptr [VARS+VR_EAX],ax
+	jmp	short di9
+;
+; A keyboard interrupt that the program's handler passed on needs nothing
+; (the system's handler has seen it), but the keys are the program's to read
+; (see tick).
+;
+di8:	cmp	al,INT_HW_KBD
+	jne	di8a
+	mov	[kbd_sent],0
+di8a:	mov	di,offset NOP_INTS
 	mov	cx,NOP_INTS_LEN
 	push	ds
 	pop	es
@@ -559,6 +589,7 @@ im1:	xchg	ax,cx
 	mov	word ptr es:[bx+2],(OP_IRET SHL 8) OR OP_IRET
 	mov	word ptr es:[INT_HW_TMR * 4],STUB_TICK
 	mov	word ptr es:[INT_TICK * 4],STUB_TICK + 3
+	mov	word ptr es:[INT_MOUSE * 4],STUB_TICK + 3
 	call	mem_init
 	mov	bx,ENV_PARAS
 	mov	al,MCBTYPE_EBLK
@@ -873,7 +904,7 @@ ENDPROC	stk_ptr
 ; with no debugger).
 ;
 	DEFLBL	NOP_INTS,byte
-	db	INT_BP,INT_DOSIDLE,INT_DOSNET,INT_DOSMULTI,INT_MOUSE
+	db	INT_BP,INT_HW_KBD,INT_DOSIDLE,INT_DOSNET,INT_DOSMULTI
 NOP_INTS_LEN	equ	$ - NOP_INTS
 
 	DEFWORD	our_ds,0		; our DS (for v86_ctrlc)

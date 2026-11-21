@@ -207,7 +207,7 @@ TRACE_OVER	equ	02h	; step over CALL, INT, LOOP, and REP (P)
 	DEFBYTE	trap_21,0		; nonzero if INT 21h has traps
 	DEFBYTE	brk_skip,0		; nonzero to resume past a DBGBRK
 	DEFBYTE	notstart,0		; loaded, not yet started (prog mode)
-	DEFBYTE	prog_char,0		; prompt char in prog mode (put_prompt)
+	DEFWORD	prog_chars,0		; prog mode prompt chars (put_prompt)
 	DEFBYTE	sess_num,0		; our session # in prog mode (from 1)
 	DEFWORD	start_hook,0		; -> com_exec2 (see com_main)
 	DEFBYTE	tracing,0		; 1 for T or P, 2 for G past a BP
@@ -2959,34 +2959,38 @@ ENDPROC	put_desc
 ; put_prompt
 ;
 ; Display the prompt, which is the current session's number (see get_sess),
-; in hex, as DL lists it, followed by the CPU's mode, as COMMAND's prompt
-; shows it: '>' in real mode, ']' in protected mode, or '}' in V86 mode.  In
-; program mode, com_main sets prog_char from our PSP's PSP_MODE, since
-; cpu_mode can't tell at ring 3 (or in a V86 machine); a driver uses ip_mode
-; (see get_v86).
+; in hex, as DL lists it, bracketed by the CPU's mode, as COMMAND's prompt
+; brackets it: '<' and '>' in real mode, '[' and ']' in protected mode, or
+; '(' and ')' in V86 mode.  In program mode, com_main sets prog_chars from our
+; PSP's PSP_MODE, since cpu_mode can't tell at ring 3 (or in a V86 machine);
+; a driver uses ip_mode (see get_v86).
 ;
 ; Modifies:
 ;	AX, DI
 ;
 DEFPROC	put_prompt
+	mov	ax,[prog_chars]		; AL = left, AH = right
+	test	al,al			; program mode?
+	jnz	pp1			; yes
+	mov	ax,('>' SHL 8) OR '<'
+	cmp	[ip_mode],ADDR_SEL	; real mode?
+	jb	pp1			; yes
+	mov	ax,(']' SHL 8) OR '['
+	je	pp1			; protected mode
+	mov	ax,(')' SHL 8) OR '('	; V86 mode
+pp1:	push	ax
+	call	put_char
 	call	get_sess		; AL = session # (or 0 if none)
 	test	al,al
-	jz	pp1
+	jz	pp8
 	cmp	al,10h			; one hex digit?
-	jb	pp0			; yes
+	jb	pp2			; yes
 	call	hex_byte
-	jmp	short pp1
-pp0:	call	hex_digit
-pp1:	mov	al,[prog_char]
-	test	al,al			; program mode?
-	jnz	pp9			; yes
-	mov	al,'>'
-	cmp	[ip_mode],ADDR_SEL	; real mode?
-	jb	pp9			; yes
-	mov	al,']'
-	je	pp9			; protected mode
-	mov	al,'}'			; V86 mode
-pp9:	jmp	put_char
+	jmp	short pp8
+pp2:	call	hex_digit
+pp8:	pop	ax
+	mov	al,ah
+	jmp	put_char
 ENDPROC	put_prompt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

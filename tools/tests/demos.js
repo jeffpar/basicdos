@@ -29,7 +29,7 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const HELLO = /L O V E/, FIBO = /832040/, PRIMES = /TOTAL PRIMES < 1000: +168/;
-const PIPES = /DIRECTORY OF A:/, DIR = /Directory of A:/, PROMPT = /[A-C]:\\[^ ]*[>\]}]/;
+const PIPES = /DIRECTORY OF A:/, DIR = /Directory of A:/, PROMPT = /[A-C]:\\[^ ]*[>\])]/;
 
 /**
  * What each demo should do, by path (less any pc/, xt/, at/, or 386/); each value is a
@@ -40,7 +40,7 @@ const PIPES = /DIRECTORY OF A:/, DIR = /Directory of A:/, PROMPT = /[A-C]:\\[^ ]
  *      debug       serial port with the BASIC-DOS debugger, which must show its banner
  *      keys        false if the keyboard's console isn't at a prompt (or there's no keyboard console)
  *      cycle       true to press SHIFT-TAB while waiting (for consoles that share one video page)
- *      graphics    true if the demo goes from a prompt to a graphics mode
+ *      graphics    true if the demo switches to a graphics mode (eg, from its CONFIG.SYS SHELL line)
  *      pm          true if the demo runs in protected mode (and with paging, on the 386), or false if it
  *                  runs in real mode (default: true on an AT or 386, which run protected mode unless a
  *                  demo's CONFIG.SYS has CPU=8088, and unchecked elsewhere)
@@ -77,7 +77,7 @@ const COMMAND = 'print 61000-4912\r', ANSWER = /56088/;
  * functions used to read and drive the machine.
  */
 const HOOKS = `(() => {
-    const dx = window.__dx = { com: {}, prompted: false };
+    const dx = window.__dx = { com: {} };
     const isText = (m) => m <= 3 || m == 7;
     const all = (t) => (typeof Component == 'undefined'? [] : Component.getComponents().filter((c) => c.type == t));
     setInterval(() => {
@@ -90,14 +90,6 @@ const HOOKS = `(() => {
                 dx.com[n] = (dx.com[n] + String.fromCharCode(b & 0x7f)).slice(-65536);
                 return f.call(this, b);
             };
-        }
-        //
-        // Note the first prompt in a text mode here, since a demo that then starts a
-        // graphics program may not show it for long.
-        //
-        const cpu = all('CPU')[0];
-        if (cpu && !dx.prompted && all('Video').every((v) => isText(v.nMode))) {
-            dx.prompted = ${PROMPT}.test(text(cpu.bus, 0xB0000, 4000) + text(cpu.bus, 0xB8000, 4000));
         }
     }, 50);
     const text = (bus, addr, len) => {
@@ -114,7 +106,7 @@ const HOOKS = `(() => {
         if (!cpu) return null;
         return {
             cycles: cpu.getCycles(), running: cpu.isRunning(), cr0: cpu.regCR0 >>> 0,
-            graphics: dx.prompted && all('Video').some((v) => !isText(v.nMode)),
+            graphics: all('Video').some((v) => !isText(v.nMode)),
             typing: kbd? (kbd.sInjectBuffer || '').length : 0,
             screen: text(cpu.bus, 0xB0000, 4000) + text(cpu.bus, 0xB8000, 0x8000),
             com: dx.com

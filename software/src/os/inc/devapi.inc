@@ -85,6 +85,10 @@ IOCTL_SETKEYS	equ	0DDh	; CON: set raw keys ON (CL=1) or OFF (CL=0)
 
 IOCTL_FPU	equ	0E0h
 IOCTL_GETFPU	equ	0E1h	; FPU$: store FPUTBL far ptr at DS:SI (see fpu.inc)
+;
+; SND$'s IOCTLs (IOCTL_SND, E8h) are in snd.inc, which only SND$ and V86.COM
+; include.
+;
 
 ;
 ; Disk IOCTLs (see fdcdev.asm), selected with DISKIOCTL, since only the FDC

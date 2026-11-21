@@ -8,11 +8,10 @@ machines:
     config: /machines/pcx86/ibm/ibm-5160-ega-640kb-mouse.json
     debugger: available
     autoMount:
-      A: "BASIC-DOS Single"
-    autoType: PAINT\r
+      A: "BASIC-DOS Mouse"
 ---
 
-The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memory, an Enhanced Color Display, two diskette drives, and a 10Mb hard disk, plus a serial mouse on COM2.  It boots the BASIC-DOS Single diskette and runs PAINT.BAS.  Click the screen to capture the mouse, and hold the left button down to draw; press **Esc** twice to exit.  The boot sector first displays `System starting...`; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  The PC XT has no clock to keep the date and time, so PCjs supplies them at startup.
+The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memory, an Enhanced Color Display, two diskette drives, and a 10Mb hard disk, plus a serial mouse on COM2.  It boots the BASIC-DOS Mouse diskette, whose CONFIG.SYS runs PAINT.BAS.  Click the screen to capture the mouse, and hold the left button down to draw; press **Esc** twice to exit.  The boot sector first displays `System starting...`; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  The PC XT has no clock to keep the date and time, so PCjs supplies them at startup.
 
 {% include machine.html id="ibm5160" %}
 

@@ -8,8 +8,7 @@ machines:
     config: /machines/pcx86/ibm/ibm-5160-ega-640kb-mouse.json
     debugger: true
     autoMount:
-      A: "BASIC-DOS Single"
-    autoType: PAINT\r
+      A: "BASIC-DOS Mouse"
 ---
 
 {% include machine.html id="ibm5160" %}

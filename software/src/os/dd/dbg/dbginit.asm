@@ -34,9 +34,9 @@ CODE	segment word public 'CODE'
 	EXTNEAR	<put_char,put_raw,put_string>
 	EXTNEAR	<dc_0f,dc_386,op_sreg>
 	EXTBYTE	<CMD_LN,CMD_Q,CMD_VEC,HELP_MSG,OPTAB,bp_tab,com_flow,command>
-	EXTBYTE	<HELP_END,brk_skip,cpu_flags,mute,notstart,prog_char,sess_num>
+	EXTBYTE	<HELP_END,brk_skip,cpu_flags,mute,notstart,sess_num>
 	EXTBYTE	<tracing>
-	EXTWORD	<VEC_DRV,dump_seg,start_hook>
+	EXTWORD	<VEC_DRV,dump_seg,prog_chars,start_hook>
 	EXTWORD	<com_port,dos_scb,dos_seg,dos_vars,mem_seg,vec_save>
 	EXTLONG	<old_com,old_fault>
 	EXTABS	<BP_SET,BP_GO>
@@ -561,8 +561,9 @@ cm1:	mov	ds,dx
 	mov	[CMD_Q],'Q'
 	mov	bl,es:[CMD_MODE]
 	mov	bh,0
-	mov	al,MODE_CHARS[bx]
-	mov	[prog_char],al		; (see put_prompt)
+	add	bx,bx
+	mov	ax,word ptr MODE_CHARS[bx]
+	mov	[prog_chars],ax		; (see put_prompt)
 	DOSUTIL	GETCSN			; CL = our session # (from 0)
 	inc	cx
 	mov	[sess_num],cl
@@ -782,7 +783,7 @@ cm9e:	mov	ah,DOS_PSP_RETURN
 	int	21h
 ENDPROC	com_main
 
-MODE_CHARS	db	">]}"		; for PSPMODE_REAL, PROT, and V86
+MODE_CHARS	db	"<>[]()"	; for PSPMODE_REAL, PROT, and V86
 
 	DEFLBL	UNABLE_MSG,byte
 	db	"Unable to ",0

@@ -1812,6 +1812,10 @@ ENDPROC	pmb_fit
 ;
 ; pmb_find
 ;
+; The block that it found last (SV_PMBHIT) is checked first, since the same
+; one is often found again (eg, a V86 machine's memory, every time CPU_V86
+; runs the machine).
+;
 ; Inputs:
 ;	DX:CX = address
 ;
@@ -1821,9 +1825,26 @@ ENDPROC	pmb_fit
 ; Modifies:
 ;	AX, BX, SI, DI
 ;
+	ASSERT	<size PMB>,EQ,32
 DEFPROC	pmb_find
-	mov	bx,SYS_PMBS
 	mov	si,ds:[SYS_VARS].SV_NPMBS
+	mov	ax,si
+	shl	ax,5			; AX = the table's length
+	mov	bx,ds:[SYS_VARS].SV_PMBHIT
+	cmp	bx,ax			; is that block still in the table?
+	jae	fd0			; no
+	add	bx,SYS_PMBS		; BX -> its PMB
+	mov	ax,cx
+	mov	di,dx
+	sub	ax,ds:[bx].PMB_ADDR.LW
+	sbb	di,ds:[bx].PMB_ADDR.HW	; DI:AX = offset in the block
+	jb	fd0			; it's below the block
+	cmp	di,ds:[bx].PMB_LEN.HW
+	jb	fd9			; it's in the block
+	ja	fd0
+	cmp	ax,ds:[bx].PMB_LEN.LW
+	jb	fd9			; it's in the block
+fd0:	mov	bx,SYS_PMBS
 fd1:	mov	ax,ds:[bx].PMB_ADDR.LW
 	mov	di,ds:[bx].PMB_ADDR.HW
 	add	ax,ds:[bx].PMB_LEN.LW
@@ -1838,7 +1859,9 @@ fd2:	add	bx,size PMB
 	jnz	fd1
 	stc
 	ret
-fd9:	clc
+fd9:	lea	ax,[bx-SYS_PMBS]
+	mov	ds:[SYS_VARS].SV_PMBHIT,ax
+	clc
 	ret
 ENDPROC	pmb_find
 

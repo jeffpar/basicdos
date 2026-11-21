@@ -9,16 +9,15 @@ machines:
     autoMount:
       A: "BASIC-DOS Single"
       B: "BASIC-DOS Tests"
-    autoType: CD DEMOS\rDIR PRIMES.*\rB:\\TOOLS\\MSBASIC PRIMES\r
 ---
 
 ### Part 2: BASIC Operations
 
-The machine below boots the `BASICDOS-360K-S80` diskette, changes to its **DEMOS** directory, lists the PRIMES files there, and then runs **PRIMES.BAS** with **MSBASIC** (from the `BASICDOS-360K-TESTS` diskette in drive B:), which computes all the primes under 1000 on a 4.77Mhz IBM PC.
+The machine below boots the `BASICDOS-360K-S80` diskette, with the `BASICDOS-360K-TESTS` diskette in drive B:.  Type `CD DEMOS` to change to its **DEMOS** directory, `DIR PRIMES.*` to list the PRIMES files there, and `B:\TOOLS\MSBASIC PRIMES` to run **PRIMES.BAS** with **MSBASIC**, which computes all the primes under 1000 on a 4.77Mhz IBM PC.
 
 {% include machine.html id="ibm5150" %}
 
-**PRIMES.BAS** was the first BASIC program written to run in both BASIC-DOS and **MSBASIC**, so the machine above runs it with **MSBASIC** first.  After it prints:
+**PRIMES.BAS** was the first BASIC program written to run in both BASIC-DOS and **MSBASIC**, so run it with **MSBASIC** first.  After it prints:
 
     TOTAL PRIMES < 1000:  168
 

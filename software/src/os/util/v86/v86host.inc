@@ -9,7 +9,7 @@
 ;
 ; V86.COM's modules: V86.ASM (startup, the machine's memory, and running it),
 ; V86BIOS.ASM (BIOS video, keyboard, and printer functions), V86DOS.ASM (DOS
-; functions), V86HW.ASM (timer ticks and I/O ports), V86PROC.ASM (memory
+; functions), V86HW.ASM (interrupts and I/O ports), V86PROC.ASM (memory
 ; blocks, loading programs, and FPU$), and V86UTIL.ASM (DOSUTIL functions,
 ; which ends with the heap).
 ;
@@ -22,18 +22,22 @@
 	include	dosapi.inc
 	include	cpu.inc
 	include	v86.inc
+	include	snd.inc
 
 ;
 ; The machine's memory starts with its vectors (each pointing to its own HLT,
 ; at STUB_SEG:vector, so that the machine exits when a program's interrupt
 ; or exception goes to a default handler, except for INT 08h and 1Ch, whose
-; default handlers are code at STUB_TICK), then a copy of the BIOS data, the
-; 256 bytes at 500h that DOS and its programs use (eg, BASIC keeps its data
-; segment at 510h), where only DDINT's entry points are set (to HLTs, too;
-; see bios.inc), the vectors' HLTs (and STUB_CTRLC, for the return from a
-; program's CTRLC handler, and STUB_TICK), and then MCBs, from ARENA_SEG to
-; the end of its memory (V86_PARAS, unless the /M switch gave a size, from
-; V86_MINK to V86_MAXK), for the programs' memory.
+; default handlers are code at STUB_TICK, and INT 33h, whose is the IRET
+; there, which is how programs know that there's no mouse).
+;
+; Then a copy of the BIOS data, the 256 bytes at 500h that DOS and its
+; programs use (eg, BASIC keeps its data segment at 510h), where only DDINT's
+; entry points are set (to HLTs, too; see bios.inc) and the console's scan
+; codes (see KQ_HEAD), the vectors' HLTs (and STUB_CTRLC, for the return from
+; a program's CTRLC handler, STUB_TICK, and STUB_VIRQ), and then MCBs, from
+; ARENA_SEG to the end of its memory (V86_PARAS, unless the /M switch gave a
+; size, from V86_MINK to V86_MAXK), for the programs' memory.
 ;
 V86_MINK	equ	4	; least memory a machine can have, in K
 V86_MAXK	equ	640	; and the most
@@ -41,11 +45,13 @@ V86_PARAS	equ	V86_MAXK SHL 6	; the default, in paragraphs
 STUB_SEG	equ	0060h	; the HLTs (one for each vector)
 STUB_CTRLC	equ	0100h	; (at STUB_SEG) a CTRLC handler's return
 STUB_TICK	equ	0101h	; (at STUB_SEG) INT 1Ch, IRET, and IRET
+STUB_VIRQ	equ	0105h	; (at STUB_SEG) an interrupt's return (virq)
 ARENA_SEG	equ	0071h	; the first MCB
 ENV_PARAS	equ	40h	; size of the first program's environment
 COM_MAX		equ	0FF00h - 2	; most of a COM program that can load
 FL_RESULTS	equ	FL_CARRY OR FL_ZERO OR FL_SIGN OR FL_OVFL
 PFT_LEN		equ	20	; (the size of PSP_PFT)
+MACH_PFT	equ	PFT_LEN - 1	; handles the machine's programs get
 
 ;
 ; The heap (VARS, after the image) holds the machine's registers, and then

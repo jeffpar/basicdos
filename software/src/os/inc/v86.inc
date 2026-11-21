@@ -21,18 +21,36 @@
 ;	anything smaller than 32K at linear address L can be reached through
 ;	selector AX + (L SHR 15) * 8.  The machine also maps the ROMs
 ;	(C0000h-FFFFFh, read-only) and wraps the 64K above 1Mb to the first
-;	64K, as an 8086 does.  If DX is a console's video memory selector
-;	(from IOCTL_GETMODE with CL = 1), the machine has that memory, too,
-;	where the selector's memory starts (eg, B8000h), and DX returns its
-;	segment (otherwise, DX is zero, and nothing else is mapped); it's
-;	there while the selector is present, and while it isn't, a machine
-;	that touches it waits (see SELID_WAIT).  Freeing the memory (or its
-;	owner ending) frees the machine.
+;	64K, as an 8086 does.  If DX is a console's video memory selector (from
+;	IOCTL_GETMODE with CL = 1), the machine has that memory, too, at the
+;	start of its frame (eg, a console's text page at B8000h, as page 0
+;	would be), and DX returns that segment (otherwise, DX is zero, and
+;	nothing else is mapped); it's there while the selector is present, and
+;	while it isn't, a machine that touches it waits (see SELID_WAIT).  The
+;	machine's video memory follows the selector's (eg, to A0000h, when the
+;	console sets one of an EGA or VGA's graphics modes), and while it's
+;	below B0000h, which means that the console has the screen to itself,
+;	the machine's code can use the video ports (3C0h-3DFh) as well.
+;	Freeing the memory (or its owner ending) frees the machine.
 ;
 ;	CPU_V86 with AL = 1 runs machine BX, with the registers in the V86REGS
 ;	at ES:DI, until it exits (see V86X_*), and then stores its registers
 ;	there; the IF bit in VR_EFL is the machine's own (CLI, STI, PUSHF,
 ;	POPF, and IRET use it, but it never stops interrupts).
+;
+;	CPU_V86 with AL = 4 lends ports CX through CX + DX - 1 to machine
+;	BX, so that its code uses them itself, and AL = 5 takes them back
+;	(CX and DX must be multiples of 8, and the ports below the video
+;	ports); only a driver that owns the device should (eg, SND$).  With
+;	AL = 4, ES:DI -> a far function of the driver's (or 0:0), which is
+;	called (with interrupts off, AL = 0) when the machine is suspended,
+;	and again (AL = 1) when it resumes.
+;
+;	A machine that has the video ports is suspended while its video
+;	memory selector isn't present (eg, while VKD$ has its console's
+;	state saved elsewhere): it doesn't run at all until the selector is
+;	present again (or the wait ends early, eg, for a CTRLC, and it exits
+;	with V86X_TICK and VR_VEC = 0Eh).
 ;
 ;	CPU_V86 with AL = 2 copies the registers of the machine that ran
 ;	last to the V86REGS at ES:DI, and AL = 3 copies them back (only the
@@ -46,7 +64,10 @@
 ;
 ; The machine's code can do anything an 8086 program can, except HLT, and
 ; I/O, which exits (V86X_IO), so that the host can do something like it (the
-; machine never uses a port itself): VR_EIP is past the IN or OUT, the low
+; only ports that the machine ever uses itself are the video ports, as
+; above, and any that a driver lent it, and CPU$ does the interrupt
+; controller's, 20h and 21h, which read zero, and the game port's, 201h,
+; which reads FFh, without an exit): VR_EIP is past the IN or OUT, the low
 ; word of VR_ERR is the port, and the high word is the opcode (bit 0 is set
 ; for a word, bit 1 for OUT).  String I/O (and I/O of a dword) is a fault.
 ; CLI, STI, PUSHF, POPF, and IRET work as they do in real mode, and an
@@ -60,11 +81,13 @@
 ; the machine's stack).
 ;
 ; Hardware interrupts go to the system's handlers, as they always do, so the
-; machine gets none of its own; it exits after each timer tick (V86X_TICK),
-; so that DOS can switch sessions, and the host can give the machine a tick
-; of its own (eg, by pushing an interrupt frame on its stack, and running it
-; at its INT 08h or 1Ch handler), and the same way when its wait for its
-; video memory ends early (eg, for a CTRLC).
+; machine gets none of its own; it exits after each one (V86X_TICK, with
+; VR_VEC = the interrupt's real-mode vector, eg, 08h for a timer tick), so
+; that DOS can switch sessions, and the host can give the machine an
+; interrupt of its own (eg, by pushing an interrupt frame on its stack, and
+; running it at its INT 08h or 1Ch handler, or for an interrupt that a driver
+; counted for it, its handler for that one), and the same way when its wait
+; for its video memory ends early (eg, for a CTRLC, with VR_VEC = 0Eh).
 ;
 V86REGS		struc
 VR_EDI		dd	?	; 00h: (in PUSHAD order)

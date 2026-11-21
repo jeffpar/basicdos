@@ -15,7 +15,7 @@ DEBUG.COM is a debugger that can be used in two ways:
 - [As a program](#running-debug-as-a-program), run from the prompt, it debugs a program that it loads, using the session's console
 - [As a device driver](#loading-debug-as-a-driver), loaded by a line in CONFIG.SYS, it debugs the whole system (other drivers, BASIC-DOS itself, and the programs in every session), using a terminal connected to a serial port
 
-Either way, it displays the registers and the next instruction, and then accepts [commands](#commands) at a prompt that shows the current session's number (in hex, as [DL](#dl) lists it) and the processor's mode, as the [command prompt](../../../intro/) does: eg, `1>` in real mode, `1]` in protected mode, or `1}` in V86 mode (eg, when DEBUG runs in a [V86](../v86/) machine, or the driver has stopped one).  As a program, the session is DEBUG's own; as a driver, it's the session that was running when the machine stopped (and there's no number before the first session starts, eg, at a `/H` stop).
+Either way, it displays the registers and the next instruction, and then accepts [commands](#commands) at a prompt that shows the current session's number (in hex, as [DL](#dl) lists it), bracketed by the processor's mode, as the [command prompt](../../../intro/) is: eg, `<1>` in real mode, `[1]` in protected mode, or `(1)` in V86 mode (eg, when DEBUG runs in a [V86](../v86/) machine, or the driver has stopped one).  As a program, the session is DEBUG's own; as a driver, it's the session that was running when the machine stopped (and there's no number before the first session starts, eg, at a `/H` stop).
 
 ### Running DEBUG as a Program
 
@@ -55,7 +55,7 @@ Any switches after the port's settings (using the current [SWITCHAR](../../../cf
 
 On the terminal, CTRL-C (or BREAK) stops the machine as soon as it arrives, as do breakpoints, single-steps, any other INT 1 or INT 3, and the exceptions that VT traps.  The debugger then displays the registers and the instruction at CS:IP (preceded by `Assertion failure` if the INT 3 was a failed assertion in a DEBUG build, `V0000: Division error` for a divide error, `V0400: Overflow error` for an overflow, or `Vvv00: CPU fault vv (EC=xxxx) at cccc:iiii` for a protected-mode fault, with its vector and error code), and waits for commands.
 
-When CTRL-C (or BREAK) interrupts a [V86](../v86/) machine, the driver stops in the machine instead of in the system's handler for that interrupt: the registers are the machine's (eg, `&00B3:0111` for its CS:IP), U, D, E, and A use its memory unless given another address, the prompt is `}`, and G resumes the machine, with any register that R changed.  T and P step the machine (T steps through an INT instruction, rather than into it, so a DOS call is one step), and BP and G *address* accept the machine's addresses (eg, `BP CS:IP+2`, or `G &1BC:105`), which BL lists as they were set (eg, `&00B3:0111`) while & means that machine, and otherwise (eg, at a stop in another session) at their physical (`%%`) addresses; while the machine is being stepped, or has a breakpoint, its own single-step traps and INT 3s stop the debugger, too.  A breakpoint in a machine can be set only while it's stopped there.
+When CTRL-C (or BREAK) interrupts a [V86](../v86/) machine, the driver stops in the machine instead of in the system's handler for that interrupt: the registers are the machine's (eg, `&00B3:0111` for its CS:IP), U, D, E, and A use its memory unless given another address, the prompt is in parentheses (eg, `(1)`), and G resumes the machine, with any register that R changed.  T and P step the machine (T steps through an INT instruction, rather than into it, so a DOS call is one step), and BP and G *address* accept the machine's addresses (eg, `BP CS:IP+2`, or `G &1BC:105`), which BL lists as they were set (eg, `&00B3:0111`) while & means that machine, and otherwise (eg, at a stop in another session) at their physical (`%%`) addresses; while the machine is being stepped, or has a breakpoint, its own single-step traps and INT 3s stop the debugger, too.  A breakpoint in a machine can be set only while it's stopped there.
 
 The driver's device name is DEBUG$, and data written to it is sent to the terminal; DEBUG builds of BASIC-DOS send their diagnostic (DPRINTF) messages there.
 
@@ -282,7 +282,7 @@ Available only in program mode.  Ends the loaded program, if any, and exits.
 
 R displays the registers, and the instruction at CS:IP, followed, if it has a memory operand, by the operand's effective address, using any segment override (eg, `; EA = 0AC6:0120`).  On an 8088 (or in real mode on an 80286), it uses DEBUG's format, and on an 80286, unless real mode is requested (see [CPU](../../../cfg/#cpu)), it also displays the MSW, GDTR, and IDTR.  On an 80386 (or in protected mode on an 80286), it uses the PCjs Debugger's format, with the flags as 0 or 1 (eg, `Z1`), and no CS or IP in real (or V86) mode, since the instruction shows them; an 80386's registers are 32-bit (EAX through EDI, and PS, the flags), and include FS and GS:
 
-	1>R
+	<1>R
 	EAX=7FFF985E EBX=00005320 ECX=00000001 EDX=0000104A
 	ESP=00000FDA EBP=00001014 ESI=0000103C EDI=00001014
 	SS=104A DS=0601 ES=104A FS=0000 GS=0300 PS=00000202 V0 D0 I1 T0 S0 Z0 A0 P0 C0
@@ -290,7 +290,7 @@ R displays the registers, and the instruction at CS:IP, followed, if it has a me
 
 In protected mode, each segment register is followed by its base (a linear address, for `%`) and limit, as `[base,limit]`, and then come the LDTR, GDTR, IDTR, TR, and A20, and on an 80386, CR0, CR2, and CR3 (or on an 80286, the MSW):
 
-	1]R
+	[1]R
 	EAX=000868B0 EBX=000068F6 ECX=00000001 EDX=000001A0
 	ESP=0000033A EBP=0000033E ESI=000003B2 EDI=0000038A
 	SS=01A0[C0015300,244F] DS=0110[C00098B0,FFFF] ES=0110[C00098B0,FFFF]

@@ -8,8 +8,7 @@ machines:
     config: /machines/pcx86/compaq/compaq-deskpro386-vga-1mb-mouse.json
     debugger: true
     autoMount:
-      A: "BASIC-DOS Single"
-    autoType: PAINT\r
+      A: "BASIC-DOS Mouse"
 ---
 
 {% include machine.html id="deskpro386" %}

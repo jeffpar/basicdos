@@ -948,8 +948,8 @@ ENDPROC	setPrompt
 ;
 ; Displays the prompt that PROMPT$ describes.  It's a PRINTF format whose
 ; specifiers get their values from their letters: %s is the current drive and
-; directory, %g is the mode character ('>', ']', or '}'; see printPrompt), %l
-; is its left counterpart ('<', '[', or '{'), %d (or %u or %x) is the session
+; directory, %g is the mode character ('>', ']', or ')'; see printPrompt), %l
+; is its left counterpart ('<', '[', or '('), %d (or %u or %x) is the session
 ; number, the date letters (%F, %W, %M, %D, %X, and %Y) use today's date, and
 ; the time letters (%G, %H, %N, %S, and %A) use the current time.  sprintf
 ; has no %g, and its l is a size, so we change both to c in a copy of the
@@ -961,7 +961,7 @@ ENDPROC	setPrompt
 ; value it expects, and none of them reads past the values we pushed.
 ;
 ; Inputs:
-;	AL = mode character (see printPrompt)
+;	AL = mode character, AH = its left counterpart (see printPrompt)
 ;	DS = SS
 ;	LINEBUF = current drive and directory (see getCurDir)
 ;
@@ -975,7 +975,7 @@ DEFPROC	showPrompt
 	push	bx
 	push	bp
 	mov	bp,sp
-	push	ax			; [bp-2] = mode character
+	push	ax			; [bp-2] = mode characters
 	DOSUTIL	GETCSN			; CL = session #
 	mov	ch,0
 	inc	cx			; (from 1, as START lists them)
@@ -1038,8 +1038,7 @@ shp3:	lodsb
 	mov	byte ptr [si-1],'c'	; yes, so sprintf sees %c
 	cmp	cl,18			; %g?
 	je	shp8			; yes
-	dec	di			; the left character is 2 less
-	dec	di			; (eg, '<' for '>')
+	mov	di,[bp-1]		; no, %l (only the low byte matters)
 	jmp	short shp8
 shp4:	mov	di,[bp-4]		; the session #
 	cmp	cl,23			; %d, %u, or %x?

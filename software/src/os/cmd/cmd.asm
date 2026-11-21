@@ -167,17 +167,18 @@ DEFPROC	printPrompt
 	lea	di,[bx].LINEBUF
 	call	getCurDir		; SS:SI -> current drive and directory
 ;
-; The prompt ends with '>' in real mode, ']' in protected mode, or '}' in V86
-; mode (see PSP_MODE).
+; The prompt is bracketed by '<' and '>' in real mode, '[' and ']' in
+; protected mode, or '(' and ')' in V86 mode (see PSP_MODE).
 ;
 	mov	al,ds:[PSP_MODE]
 	cbw
+	add	ax,ax
 	xchg	di,ax
-	mov	al,cs:MODE_CHARS[di]	; AL = mode character
+	mov	ax,word ptr cs:MODE_CHARS[di]	; AL = right, AH = left
 ;
 ; If PROMPT$ has a format (and showPrompt is loaded; see genUpper), it does
 ; the rest; otherwise, we display the default prompt, which is the same as
-; PROMPT$ = "%s%g" (eg, "A:\>").
+; PROMPT$ = "%l%s%g" (eg, "<A:\>").
 ;
 	mov	dx,offset showPrompt
 	cmp	[bx].PROMPT_BUF,0	; does PROMPT$ have a format?
@@ -188,12 +189,13 @@ DEFPROC	printPrompt
 	pop	ds
 	ret
 pp3:	inc	si			; SS:SI -> characters
-	PRINTF	<"%s%c">,si,ax
+	mov	dl,ah
+	PRINTF	<"%c%s%c">,dx,si,ax
 	pop	ds
 	ret
 ENDPROC	printPrompt
 
-MODE_CHARS	db	">]}"		; for PSPMODE_REAL, PROT, and V86
+MODE_CHARS	db	"><][)("	; for PSPMODE_REAL, PROT, and V86
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

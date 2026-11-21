@@ -120,7 +120,7 @@ With *file*, RUN runs that BAS file, as in Microsoft BASIC.  If the file isn't i
 
 `START` alone lists every session that's running a program: its number, how much memory it's using (in K, for all of its programs; eg, a COMMAND.COM and the program it's running), and its current program (or `UNKNOWN`, if that can't be determined), with `*` marking the current session.  Copies of COMMAND.COM share one copy of its code, which is counted in only one session (the first that shares it):
 
-	C:\>START
+	<C:\>START
 	* 1    59K COMMAND
 	  2     4K COMMAND
 	  3   675K V86

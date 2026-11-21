@@ -29,7 +29,7 @@ CODE	segment para public 'CODE'
 	EXTNEAR	<get_sesctx,scroll,set_curtype,set_geometry,set_slot>
 	EXTNEAR	<slot_addr,save_screen,switch_focus,switch_to,unlock_bios>
 	EXTNEAR	<chk_opt,chk_output,chk_mode,set_pmode,save_ctx>
-	EXTNEAR	<ddcon_setkeys,kbd_update>
+	EXTNEAR	<ddcon_setkeys,kbd_update,kbd_scan>
 	EXTNEAR	<update_biosdata,update_context,update_curtype,update_mode>
 	EXTNEAR	<video_ctx,wait_focus,write_char,write_context,write_crtc16>
 	EXTNEAR	<write_curpos,get_vbuf,free_vbuf,next_page,next_place>
@@ -70,6 +70,8 @@ VKD	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFWORD	mode_ctx,0	; context not in its original mode
 	DEFWORD	save_seg,0	; copy of the others' memory (see save_screen)
 	DEFWORD	save_addr,<0,0>	; and its block's address
+	DEFWORD	vga_addr,<0,0>	; a hidden VGA context's block (see hide_vga)
+	DEFWORD	vga_state,0	; and the length of its state
 	DEFWORD	frame_seg,0	; frame buffer segment of PRIMARY adapter
 	DEFBYTE	max_rows,25	; TODO: use this for something...
 	DEFBYTE	max_cols,80	; TODO: set to correct value in ddcon_init
@@ -767,7 +769,8 @@ ENDPROC	ddcon_getmode
 ; ddcon_setmode
 ;
 ; Sets a new video mode (0-6 on a CGA, or 7 on an MDA, where modes 2 and 3
-; are treated as 7 as well) for the context's adapter.  The new mode affects
+; are treated as 7 as well; an EGA or VGA has its own graphics modes, too,
+; 0Dh-13h) for the context's adapter.  The new mode affects
 ; the entire screen, so the context becomes a full-screen context (see
 ; update_mode), unless the mode is virtual (see chk_vmode): then the screen's
 ; mode stays the same, and the context is simply cleared, without its border
@@ -824,8 +827,14 @@ dsm0:	cmp	ds:[CT_PORT].LB,0B4h	; monochrome adapter?
 	ja	dsm8			; no
 	mov	cl,MODE_MONO
 	jmp	short dsm2
-dsm1:	cmp	cl,6			; CGA modes 0-6 only
+dsm1:	cmp	cl,6			; CGA modes 0-6,
+	jbe	dsm2
+	cmp	cl,0Dh			; or the graphics modes (0Dh-13h)
+	jb	dsm8
+	cmp	cl,13h
 	ja	dsm8
+	test	[adapters],ADAPTER_EGA	; of an EGA or VGA (which ignores
+	jz	dsm8			; any mode that it doesn't have)
 ;
 ; ddcon_int10 does the rest for this context, which may not be the session's
 ; context (see video_ctx): it locks the BIOS and the session, displays a
@@ -1731,7 +1740,10 @@ DEFPROC	ddcon_int09,far
 
 	push	ax
 	in	al,60h			; peek at the scan code
-	cmp	al,SCAN_DEL		; DEL key pressed?
+	call	chk_opt			; one console only?
+	jc	i08			; yes
+	call	kbd_scan		; no (see con_opt)
+i08:	cmp	al,SCAN_DEL		; DEL key pressed?
 	jne	i09b			; no
 	push	ds
 	mov	ax,BIOS
