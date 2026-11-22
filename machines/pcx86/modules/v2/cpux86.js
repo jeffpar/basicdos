@@ -3362,11 +3362,13 @@ export default class CPUx86 extends CPU {
      * so paging never faults a ring 3 selector load (eg, an OS/2 2.0 ring 3 call through a GDT call gate) because the
      * table's page is supervisor-only, and any page fault that does occur reports a supervisor access.
      *
+     * fn can also be a closure that performs several accesses (in which case addr and data are omitted).
+     *
      * @this {CPUx86}
-     * @param {function(number,number=)} fn (eg, this.getShort or this.setByte)
-     * @param {number} addr is a linear address
+     * @param {Function} fn (eg, this.getShort or this.setByte, which are called with this CPUx86 as "this")
+     * @param {number} [addr] is a linear address
      * @param {number} [data] (for writes)
-     * @returns {number|undefined}
+     * @returns {number} (whatever fn returns; writes return nothing, so callers ignore the result)
      */
     accessSys(fn, addr, data)
     {

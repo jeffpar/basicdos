@@ -528,7 +528,7 @@ X86.helpIRET = function()
          * Fortunately, X86.TSS286.PREV_TSS and X86.TSS386.PREV_TSS refer to the same TSS offset.
          * TODO: Update switchTS() to assess a cycle cost; currently, all we assess is what's shown above.
          */
-        let sel = this.getShort(addrNew + X86.TSS286.PREV_TSS);
+        let sel = this.accessSys(this.getShort, addrNew + X86.TSS286.PREV_TSS);
         this.segCS.switchTSS(sel, false);
     }
     else {

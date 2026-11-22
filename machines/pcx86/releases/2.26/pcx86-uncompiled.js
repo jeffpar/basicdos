@@ -20166,11 +20166,13 @@ class CPUx86 extends CPU {
      * so paging never faults a ring 3 selector load (eg, an OS/2 2.0 ring 3 call through a GDT call gate) because the
      * table's page is supervisor-only, and any page fault that does occur reports a supervisor access.
      *
+     * fn can also be a closure that performs several accesses (in which case addr and data are omitted).
+     *
      * @this {CPUx86}
-     * @param {function(number,number=)} fn (eg, this.getShort or this.setByte)
-     * @param {number} addr is a linear address
+     * @param {Function} fn (eg, this.getShort or this.setByte, which are called with this CPUx86 as "this")
+     * @param {number} [addr] is a linear address
      * @param {number} [data] (for writes)
-     * @returns {number|undefined}
+     * @returns {number} (whatever fn returns; writes return nothing, so callers ignore the result)
      */
     accessSys(fn, addr, data)
     {
@@ -25635,9 +25637,9 @@ class Segx86 {
     loadDesc6(addrDesc, sel)
     {
         let cpu = this.cpu;
-        let acc = cpu.accessSys(cpu.getShort, addrDesc + 2);
-        let base = cpu.accessSys(cpu.getShort, addrDesc) | ((acc & 0xff) << 16);
-        let limit = cpu.accessSys(cpu.getShort, addrDesc + 4);
+        let acc = cpu.getShort(addrDesc + 2);
+        let base = cpu.getShort(addrDesc) | ((acc & 0xff) << 16);
+        let limit = cpu.getShort(addrDesc + 4);
 
         this.sel = sel;
         this.base = base;
@@ -25720,8 +25722,9 @@ class Segx86 {
         /**
          * Load the descriptor from memory.
          */
-        let limit, limitOrig, acc, base, ext, cpl = cpu.nCPL;
-        cpu.nCPL = 0;                   // descriptor reads are supervisor accesses (see accessSys())
+        let cpl = cpu.nCPL;
+        let limit = 0, limitOrig, acc = 0, base = 0, ext = 0;
+        cpu.nCPL = 0;                  // descriptor reads are supervisor accesses (see accessSys())
         try {
             limit = cpu.getShort(addrDesc + X86.DESC.LIMIT.OFFSET);
             acc = cpu.getShort(addrDesc + X86.DESC.ACC.OFFSET);
@@ -26020,6 +26023,14 @@ class Segx86 {
                     cpu.setDataSize(sizeGate);
                     this.sizeGate = sizeGate;
 
+                    /**
+                     * The pushes onto the new stack (below, and the caller's pushes of the return address or interrupt
+                     * frame) are made at the new privilege level, so update the CPU's cached CPL now, instead of waiting
+                     * for setLIP(); otherwise, paging would check them as user accesses (eg, a ring 3 interrupt or call
+                     * whose ring 0 stack is on a supervisor page).
+                     */
+                    cpu.nCPL = this.cpl;
+
                     this.offIP = limit;
 
                     //
@@ -26295,9 +26306,13 @@ class Segx86 {
         let cpu = this.cpu;
 
 
-        let cplOld = this.cpl;
+        /**
+         * All reads and writes of the old and new TSS are implicit supervisor accesses (see accessSys()); we can't
+         * simply clear nCPL for the duration, because setCSIP() updates it partway through.
+         */
         let selOld = cpu.segTSS.sel;
         let addrOld = cpu.segTSS.base;
+        let typeOld = cpu.segTSS.type;
 
         if (!fNest) {
             /**
@@ -26337,117 +26352,69 @@ class Segx86 {
         cpu.segTSS.type = (cpu.segTSS.type & ~X86.DESC.ACC.TYPE.TSS_BUSY) | (cpu.segTSS.acc & X86.DESC.ACC.TYPE.TSS_BUSY);
 
         /**
-         * Update the old TSS
+         * Save the current state in the old TSS, in the old TSS's format (a task switch can go from an 80286 TSS
+         * to an 80386 TSS, or vice versa).  Both formats store IP, PS, AX, CX, DX, BX, SP, BP, SI, DI, ES, CS, SS,
+         * and DS in that order (an 80386 TSS follows them with FS and GS), in 2-byte or 4-byte fields.  The 80386
+         * doesn't save CR3 (or LDTR) in the old TSS; it only loads them from the new TSS.
          */
-        let offSS;
-        let offSP;
-        if (cpu.segTSS.type == X86.DESC.ACC.TYPE.TSS286 || cpu.segTSS.type == X86.DESC.ACC.TYPE.TSS286_BUSY) {
-            cpu.setShort(addrOld + X86.TSS286.TASK_IP, cpu.getIP());
-            cpu.setShort(addrOld + X86.TSS286.TASK_PS, cpu.getPS());
-            cpu.setShort(addrOld + X86.TSS286.TASK_AX, cpu.regEAX);
-            cpu.setShort(addrOld + X86.TSS286.TASK_CX, cpu.regECX);
-            cpu.setShort(addrOld + X86.TSS286.TASK_DX, cpu.regEDX);
-            cpu.setShort(addrOld + X86.TSS286.TASK_BX, cpu.regEBX);
-            cpu.setShort(addrOld + X86.TSS286.TASK_SP, cpu.getSP());
-            cpu.setShort(addrOld + X86.TSS286.TASK_BP, cpu.regEBP);
-            cpu.setShort(addrOld + X86.TSS286.TASK_SI, cpu.regESI);
-            cpu.setShort(addrOld + X86.TSS286.TASK_DI, cpu.regEDI);
-            cpu.setShort(addrOld + X86.TSS286.TASK_ES, cpu.segES.sel);
-            cpu.setShort(addrOld + X86.TSS286.TASK_CS, cpu.segCS.sel);
-            cpu.setShort(addrOld + X86.TSS286.TASK_SS, cpu.segSS.sel);
-            cpu.setShort(addrOld + X86.TSS286.TASK_DS, cpu.segDS.sel);
-            /**
-             * Reload all registers from the new TSS; it's important to reload the LDTR sooner
-             * rather than later, so that as segment registers are reloaded, any LDT selectors will
-             * will be located in the correct table.
-             */
-            cpu.segLDT.load(cpu.getShort(addrNew + X86.TSS286.TASK_LDT));
-            cpu.setPS(cpu.getShort(addrNew + X86.TSS286.TASK_PS) | (fNest? X86.PS.NT : 0));
-
-            cpu.regEAX = cpu.getShort(addrNew + X86.TSS286.TASK_AX);
-            cpu.regECX = cpu.getShort(addrNew + X86.TSS286.TASK_CX);
-            cpu.regEDX = cpu.getShort(addrNew + X86.TSS286.TASK_DX);
-            cpu.regEBX = cpu.getShort(addrNew + X86.TSS286.TASK_BX);
-            cpu.regEBP = cpu.getShort(addrNew + X86.TSS286.TASK_BP);
-            cpu.regESI = cpu.getShort(addrNew + X86.TSS286.TASK_SI);
-            cpu.regEDI = cpu.getShort(addrNew + X86.TSS286.TASK_DI);
-            cpu.segES.load(cpu.getShort(addrNew + X86.TSS286.TASK_ES));
-            cpu.segDS.load(cpu.getShort(addrNew + X86.TSS286.TASK_DS));
-            cpu.setCSIP(cpu.getShort(addrNew + X86.TSS286.TASK_IP), cpu.getShort(addrNew + X86.TSS286.TASK_CS));
-            offSS = X86.TSS286.TASK_SS;
-            offSP = X86.TSS286.TASK_SP;
-            if (this.cpl < cplOld) {
-                offSP = (this.cpl << 2) + X86.TSS286.CPL0_SP;
-                offSS = offSP + 2;
+        let f386 = I386 && !!(typeOld & X86.DESC.ACC.TYPE.NONSEG_386);
+        let regs = [
+            cpu.getIP(), cpu.getPS(), cpu.regEAX, cpu.regECX, cpu.regEDX, cpu.regEBX, cpu.getSP(), cpu.regEBP,
+            cpu.regESI, cpu.regEDI, cpu.segES.sel, cpu.segCS.sel, cpu.segSS.sel, cpu.segDS.sel
+        ];
+        if (f386) regs.push(cpu.segFS.sel, cpu.segGS.sel);
+        cpu.accessSys(() => {
+            let addr = addrOld + (f386? X86.TSS386.TASK_EIP : X86.TSS286.TASK_IP);
+            for (let i = 0; i < regs.length; i++, addr += (f386? 4 : 2)) {
+                if (f386) cpu.setLong(addr, regs[i]); else cpu.setShort(addr, regs[i]);
             }
-            cpu.setSS(cpu.getShort(addrNew + offSS), true);
-            cpu.setSP(cpu.getShort(addrNew + offSP));
-        } else {
+        });
 
-            cpu.setLong(addrOld + X86.TSS386.TASK_CR3, cpu.regCR3);
-            cpu.setLong(addrOld + X86.TSS386.TASK_EIP, cpu.getIP());
-            cpu.setLong(addrOld + X86.TSS386.TASK_PS,  cpu.getPS());
-            cpu.setLong(addrOld + X86.TSS386.TASK_EAX, cpu.regEAX);
-            cpu.setLong(addrOld + X86.TSS386.TASK_ECX, cpu.regECX);
-            cpu.setLong(addrOld + X86.TSS386.TASK_EDX, cpu.regEDX);
-            cpu.setLong(addrOld + X86.TSS386.TASK_EBX, cpu.regEBX);
-            cpu.setLong(addrOld + X86.TSS386.TASK_ESP, cpu.getSP());
-            cpu.setLong(addrOld + X86.TSS386.TASK_EBP, cpu.regEBP);
-            cpu.setLong(addrOld + X86.TSS386.TASK_ESI, cpu.regESI);
-            cpu.setLong(addrOld + X86.TSS386.TASK_EDI, cpu.regEDI);
-            cpu.setLong(addrOld + X86.TSS386.TASK_ES,  cpu.segES.sel);
-            cpu.setLong(addrOld + X86.TSS386.TASK_CS,  cpu.segCS.sel);
-            cpu.setLong(addrOld + X86.TSS386.TASK_SS,  cpu.segSS.sel);
-            cpu.setLong(addrOld + X86.TSS386.TASK_DS,  cpu.segDS.sel);
+        /**
+         * Read the new TSS's state, in its format, and then load the registers; it's important to load the LDTR
+         * first, so that as segment registers are loaded, any LDT selectors will be located in the correct table.
+         * SS:ESP always comes from the task's own SS and ESP fields (the TSS's CPL0-CPL2 stacks are used only for
+         * privilege changes within a task).
+         */
+        f386 = I386 && !!(cpu.segTSS.type & X86.DESC.ACC.TYPE.NONSEG_386);
+        if (f386) X86.helpLoadCR3.call(cpu, cpu.accessSys(cpu.getLong, addrNew + X86.TSS386.TASK_CR3));
+        let selLDT = 0;
+        regs = [];
+        cpu.accessSys(() => {
+            selLDT = cpu.getShort(addrNew + (f386? X86.TSS386.TASK_LDT : X86.TSS286.TASK_LDT));
+            let addr = addrNew + (f386? X86.TSS386.TASK_EIP : X86.TSS286.TASK_IP);
+            for (let i = 0; i < (f386? 16 : 14); i++, addr += (f386? 4 : 2)) {
+                regs.push(f386? cpu.getLong(addr) : cpu.getShort(addr));
+            }
+        });
+        cpu.segLDT.load(selLDT);
+        cpu.setPS(regs[1] | (fNest? X86.PS.NT : 0));
 
+        cpu.regEAX = regs[2];
+        cpu.regECX = regs[3];
+        cpu.regEDX = regs[4];
+        cpu.regEBX = regs[5];
+        cpu.regEBP = regs[7];
+        cpu.regESI = regs[8];
+        cpu.regEDI = regs[9];
+        cpu.segES.load(regs[10] & 0xffff);
+        cpu.segDS.load(regs[13] & 0xffff);
+        if (f386) {
             /**
              * segFS and segGS exist only on 80386 machines
              */
 
-            cpu.setLong(addrOld + X86.TSS386.TASK_FS,  cpu.segFS.sel);
-            cpu.setLong(addrOld + X86.TSS386.TASK_GS,  cpu.segGS.sel);
-
-            /**
-             * Reload all registers from the new TSS; it's important to reload the LDTR sooner
-             * rather than later, so that as segment registers are reloaded, any LDT selectors will
-             * will be located in the correct table.
-             */
-            X86.helpLoadCR3.call(cpu, cpu.getLong(addrNew + X86.TSS386.TASK_CR3));
-            cpu.segLDT.load(cpu.getShort(addrNew + X86.TSS386.TASK_LDT));
-            cpu.setPS(cpu.getLong(addrNew + X86.TSS386.TASK_PS) | (fNest? X86.PS.NT : 0));
-
-            cpu.regEAX = cpu.getLong(addrNew + X86.TSS386.TASK_EAX);
-            cpu.regECX = cpu.getLong(addrNew + X86.TSS386.TASK_ECX);
-            cpu.regEDX = cpu.getLong(addrNew + X86.TSS386.TASK_EDX);
-            cpu.regEBX = cpu.getLong(addrNew + X86.TSS386.TASK_EBX);
-            cpu.regEBP = cpu.getLong(addrNew + X86.TSS386.TASK_EBP);
-            cpu.regESI = cpu.getLong(addrNew + X86.TSS386.TASK_ESI);
-            cpu.regEDI = cpu.getLong(addrNew + X86.TSS386.TASK_EDI);
-            cpu.segES.load(cpu.getShort(addrNew + X86.TSS386.TASK_ES));
-            cpu.segDS.load(cpu.getShort(addrNew + X86.TSS386.TASK_DS));
-
-            /**
-             * segFS and segGS exist only on 80386 machines
-             */
-
-            cpu.segFS.load(cpu.getShort(addrNew + X86.TSS386.TASK_FS));
-            cpu.segGS.load(cpu.getShort(addrNew + X86.TSS386.TASK_GS));
-
-            cpu.setCSIP(cpu.getLong(addrNew + X86.TSS386.TASK_EIP), cpu.getShort(addrNew + X86.TSS386.TASK_CS));
-            offSS = X86.TSS386.TASK_SS;
-            offSP = X86.TSS386.TASK_ESP;
-            if (this.cpl < cplOld) {
-                offSP = (this.cpl << 3) + X86.TSS386.CPL0_ESP;
-                offSS = offSP + 4;
-            }
-            cpu.setSS(cpu.getShort(addrNew + offSS), true);
-            cpu.setSP(cpu.getLong(addrNew + offSP));
+            cpu.segFS.load(regs[14] & 0xffff);
+            cpu.segGS.load(regs[15] & 0xffff);
         }
+        cpu.setCSIP(regs[0], regs[11] & 0xffff);
+        cpu.setSS(regs[12] & 0xffff, true);
+        cpu.setSP(regs[6]);
 
         /**
          * Fortunately, X86.TSS286.PREV_TSS and X86.TSS386.PREV_TSS refer to the same TSS offset.
          */
-        if (fNest) cpu.setShort(addrNew + X86.TSS286.PREV_TSS, selOld);
+        if (fNest) cpu.accessSys(cpu.setShort, addrNew + X86.TSS286.PREV_TSS, selOld);
 
         cpu.regCR0 |= X86.CR0.MSW.TS;
         return true;
@@ -30720,7 +30687,7 @@ X86.helpIRET = function()
          * Fortunately, X86.TSS286.PREV_TSS and X86.TSS386.PREV_TSS refer to the same TSS offset.
          * TODO: Update switchTS() to assess a cycle cost; currently, all we assess is what's shown above.
          */
-        let sel = this.getShort(addrNew + X86.TSS286.PREV_TSS);
+        let sel = this.accessSys(this.getShort, addrNew + X86.TSS286.PREV_TSS);
         this.segCS.switchTSS(sel, false);
     }
     else {
@@ -86280,9 +86247,9 @@ if (DEBUGGER) {
     /* 0x67 */ [Debuggerx86.INS.AS,    Debuggerx86.TYPE_PREFIX | Debuggerx86.TYPE_80386],
 
     /* 0x68 */ [Debuggerx86.INS.PUSH,  Debuggerx86.TYPE_IMM    | Debuggerx86.TYPE_WORD  | Debuggerx86.TYPE_IN   | Debuggerx86.TYPE_80186],
-    /* 0x69 */ [Debuggerx86.INS.IMUL,  Debuggerx86.TYPE_REG    | Debuggerx86.TYPE_SHORT | Debuggerx86.TYPE_BOTH | Debuggerx86.TYPE_80186, Debuggerx86.TYPE_MODRM | Debuggerx86.TYPE_WORD  | Debuggerx86.TYPE_IN, Debuggerx86.TYPE_IMM | Debuggerx86.TYPE_WORD  | Debuggerx86.TYPE_IN],
+    /* 0x69 */ [Debuggerx86.INS.IMUL,  Debuggerx86.TYPE_REG    | Debuggerx86.TYPE_WORD  | Debuggerx86.TYPE_OUT  | Debuggerx86.TYPE_80186, Debuggerx86.TYPE_MODRM | Debuggerx86.TYPE_WORD  | Debuggerx86.TYPE_IN, Debuggerx86.TYPE_IMM | Debuggerx86.TYPE_WORD  | Debuggerx86.TYPE_IN],
     /* 0x6A */ [Debuggerx86.INS.PUSH,  Debuggerx86.TYPE_IMM    | Debuggerx86.TYPE_SBYTE | Debuggerx86.TYPE_IN   | Debuggerx86.TYPE_80186],
-    /* 0x6B */ [Debuggerx86.INS.IMUL,  Debuggerx86.TYPE_REG    | Debuggerx86.TYPE_SHORT | Debuggerx86.TYPE_OUT  | Debuggerx86.TYPE_80186, Debuggerx86.TYPE_MODRM | Debuggerx86.TYPE_WORD  | Debuggerx86.TYPE_IN, Debuggerx86.TYPE_IMM | Debuggerx86.TYPE_BYTE  | Debuggerx86.TYPE_IN],
+    /* 0x6B */ [Debuggerx86.INS.IMUL,  Debuggerx86.TYPE_REG    | Debuggerx86.TYPE_WORD  | Debuggerx86.TYPE_OUT  | Debuggerx86.TYPE_80186, Debuggerx86.TYPE_MODRM | Debuggerx86.TYPE_WORD  | Debuggerx86.TYPE_IN, Debuggerx86.TYPE_IMM | Debuggerx86.TYPE_SBYTE | Debuggerx86.TYPE_IN],
     /* 0x6C */ [Debuggerx86.INS.INS,   Debuggerx86.TYPE_ESDI   | Debuggerx86.TYPE_BYTE  | Debuggerx86.TYPE_OUT  | Debuggerx86.TYPE_80186, Debuggerx86.TYPE_DX    | Debuggerx86.TYPE_IN],
     /* 0x6D */ [Debuggerx86.INS.INS,   Debuggerx86.TYPE_ESDI   | Debuggerx86.TYPE_WORD  | Debuggerx86.TYPE_OUT  | Debuggerx86.TYPE_80186, Debuggerx86.TYPE_DX    | Debuggerx86.TYPE_IN],
     /* 0x6E */ [Debuggerx86.INS.OUTS,  Debuggerx86.TYPE_DX     | Debuggerx86.TYPE_IN    | Debuggerx86.TYPE_80186, Debuggerx86.TYPE_DSSI | Debuggerx86.TYPE_BYTE  | Debuggerx86.TYPE_IN],
