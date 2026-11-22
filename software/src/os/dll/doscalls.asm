@@ -20,9 +20,10 @@
 ; or an error code) in AX, with every other register preserved.  BASIC-DOS's
 ; error codes are DOS error codes, as OS/2's are.
 ;
-; The functions here are the ones that LINK386 (the Windows 3.1 DDK's linker,
-; an OS/2 1.x program) imports, and the three that search directories (which
-; SRC\SDK's FIND16 uses), all of which are also among those that OS/2's Family
+; The functions here are the ones that LINK386 (the OS/2 2.00 SDK's linker,
+; an OS/2 1.x program) and CL386 (the Microsoft 386 C Compiler) import, and
+; the three that search directories (which SRC\SDK's FIND16 uses), most of
+; which are also among those that OS/2's Family
 ; API provides on DOS; each one's parameters are listed in the order that
 ; OS/2 documents them, with their offsets from BP after api_enter.  The
 ; library's entry point (os2start) is where an OS/2 program starts.
@@ -44,6 +45,8 @@ _DATA	segment word public 'DATA'
 sigfn	dd	0		; the program's CTRL-C signal handler
 sigact	dw	SIGA_KILL	; and what to do with a CTRL-C signal
 sigset	db	0		; nonzero once sigproc is the CTRL-C handler
+envsel	dw	0		; the program's environment (see os2start),
+cmdoff	dw	0		; and the offset there of its command line
 finddta	db	size FFB dup (0); HDIR_SYSTEM's search (see api_find)
 _DATA	ends
 
@@ -80,6 +83,16 @@ DEFPROC	api_enter
 	push	es
 	jmp	ax
 ENDPROC	api_enter
+;
+; DosHugeIncr (ordinal 136) isn't a function: a program imports it for its
+; offset, which is the difference between the selectors of a huge object's
+; segments (8 in OS/2 1.x).  BASIC-DOS has no huge objects, but a program's
+; huge pointer arithmetic may still refer to it (as LINK386's does), so it's
+; a label whose offset is 8: api_enter is the first code in the segment, and
+; this is the middle of it.
+;
+DOSHUGEINCR equ	api_enter + 8
+	public	DOSHUGEINCR
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -202,6 +215,45 @@ ENDPROC	sigproc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; DosGetDateTime (ordinal 33)
+;
+; Inputs:
+;	[BP+6] -> where to store the date and time (far pointer): the hours,
+;	minutes, seconds, hundredths, day, and month (bytes), the year and
+;	the time zone (words; the time zone is -1, for none), and the day of
+;	the week (a byte; 0 is Sunday)
+;
+; Outputs:
+;	AX = 0
+;
+DEFPROC	DOSGETDATETIME,FAR
+	call	api_enter
+	les	di,[bp+6]
+	mov	ah,DOS_MSC_GETTIME
+	int	21h			; CH = hours, CL = minutes
+	xchg	ax,cx
+	xchg	al,ah
+	stosw
+	xchg	ax,dx			; AH = seconds, AL = hundredths
+	xchg	al,ah
+	stosw
+	mov	ah,DOS_MSC_GETDATE
+	int	21h			; DL = day, DH = month, CX = year
+	xchg	ax,dx			; DL = day of the week
+	stosw
+	xchg	ax,cx
+	stosw
+	mov	ax,-1
+	stosw
+	xchg	ax,dx
+	stosb
+	sub	ax,ax
+	mov	si,4
+	jmp	api_exit
+ENDPROC	DOSGETDATETIME
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; DosAllocSeg (ordinal 34) and DosReallocSeg (ordinal 38)
 ;
 ; Inputs (DosAllocSeg):
@@ -303,6 +355,25 @@ ENDPROC	DOSFREESEG
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; DosCreateCSAlias (ordinal 43)
+;
+; A data segment's code alias is the kernel's to make (for a program's own
+; code segments), so this fails.
+;
+; Inputs:
+;	[BP+10] = data segment's selector
+;	[BP+6] -> where to store the code selector (far pointer)
+;
+; Outputs:
+;	AX = ERR_ACCDENIED
+;
+DEFPROC	DOSCREATECSALIAS,FAR
+	mov	ax,ERR_ACCDENIED
+	ret	6
+ENDPROC	DOSCREATECSALIAS
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; DosGetMachineMode (ordinal 49)
 ;
 ; Stores 1, which is OS/2's value for protected mode (0 is the DOS
@@ -326,6 +397,32 @@ DEFPROC	DOSGETMACHINEMODE,FAR
 	mov	si,4
 	jmp	api_exit
 ENDPROC	DOSGETMACHINEMODE
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; DosDevConfig (ordinal 52)
+;
+; Stores a byte of information about the machine's devices (eg, item 3 is
+; whether it has a math coprocessor), which is always zero: a program that's
+; told there's no coprocessor leaves floating point to the system, as any
+; BASIC-DOS program does.
+;
+; Inputs:
+;	[BP+10] -> where to store the byte (far pointer)
+;	[BP+8] = item
+;	[BP+6] = 0 (reserved)
+;
+; Outputs:
+;	AX = 0
+;
+DEFPROC	DOSDEVCONFIG,FAR
+	call	api_enter
+	les	di,[bp+10]
+	sub	ax,ax
+	stosb
+	mov	si,8
+	jmp	api_exit
+ENDPROC	DOSDEVCONFIG
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -423,6 +520,24 @@ DEFPROC	DOSDELETE,FAR
 dl9:	mov	si,8
 	jmp	api_exit
 ENDPROC	DOSDELETE
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; DosDupHandle (ordinal 61)
+;
+; BASIC-DOS has no function that duplicates a handle, so this fails.
+;
+; Inputs:
+;	[BP+10] = file handle
+;	[BP+6] -> the new handle, or -1 for any (far pointer)
+;
+; Outputs:
+;	AX = ERR_INVALID
+;
+DEFPROC	DOSDUPHANDLE,FAR
+	mov	ax,ERR_INVALID
+	ret	6
+ENDPROC	DOSDUPHANDLE
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -801,6 +916,150 @@ ENDPROC	DOSQCURDISK
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; DosQCurDir (ordinal 71)
+;
+; Inputs:
+;	[BP+14] = drive (0 for the current drive, 1 for A:)
+;	[BP+10] -> where to store the directory (far pointer), which has no
+;	drive or leading backslash
+;	[BP+6] -> size of that buffer (far pointer), which is replaced with
+;	the directory's length (including its null)
+;
+; Outputs:
+;	AX = 0 if successful; otherwise, a DOS error code, or
+;	ERROR_BUFFER_OVERFLOW
+;
+DEFPROC	DOSQCURDIR,FAR
+	call	api_enter
+	sub	sp,64			; (DOS_DSK_GETCWD's buffer)
+	mov	si,sp
+	push	ss
+	pop	ds
+	mov	dl,[bp+14]
+	mov	ah,DOS_DSK_GETCWD
+	int	21h
+	jc	qc9
+	mov	di,si
+	push	ss
+	pop	es
+	sub	ax,ax
+	mov	cx,-1
+	repne	scasb
+	not	cx			; CX = length (including the null)
+	les	di,[bp+6]
+	mov	ax,ERROR_BUFFER_OVERFLOW
+	cmp	es:[di],cx		; is the buffer large enough?
+	mov	es:[di],cx
+	jb	qc9			; no
+	les	di,[bp+10]
+	rep	movsb
+	sub	ax,ax
+qc9:	lea	sp,[bp-14]
+	mov	si,10
+	jmp	api_exit
+ENDPROC	DOSQCURDIR
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; DosQFileInfo (ordinal 74) and DosSetFileInfo (ordinal 83)
+;
+; A file's information (level 1, the only level) is a FILEFINDBUF without
+; the name: DosQFileInfo stores the date and time of the last write (the
+; others are zero), the size (which is also the allocated size), and no
+; attributes, and DosSetFileInfo sets the date and time of the last write.
+;
+; Inputs:
+;	[BP+14] = file handle
+;	[BP+12] = level
+;	[BP+8] -> information (far pointer)
+;	[BP+6] = size of the information
+;
+; Outputs:
+;	AX = 0 if successful; otherwise, a DOS error code, or
+;	ERROR_BUFFER_OVERFLOW
+;
+DEFPROC	DOSQFILEINFO,FAR
+	call	api_enter
+	call	api_finfo		; ES:DI -> information, BX = handle
+	jc	qi9
+	mov	ax,DOS_HDL_GETTIME
+	int	21h			; CX = time, DX = date
+	jc	qi9
+	push	cx
+	push	dx
+	sub	cx,cx
+	sub	dx,dx
+	mov	ax,DOS_HDL_SEEKCUR
+	int	21h			; DX:AX = the file's position
+	push	dx
+	push	ax
+	sub	cx,cx
+	sub	dx,dx
+	mov	ax,DOS_HDL_SEEKEND
+	int	21h			; DX:AX = the file's size
+	xchg	si,ax
+	mov	ax,dx			; AX:SI = the size
+	pop	dx
+	pop	cx
+	push	ax
+	mov	ax,DOS_HDL_SEEKBEG
+	int	21h			; restore the file's position
+	sub	ax,ax
+	stosw				; no creation date or time
+	stosw
+	stosw				; and no last access date or time
+	stosw
+	pop	dx			; DX:SI = the size
+	pop	ax
+	stosw				; date
+	pop	ax
+	stosw				; time
+	xchg	ax,si
+	stosw				; the file's size
+	xchg	ax,dx
+	stosw
+	xchg	ax,dx
+	stosw				; and its allocated size
+	xchg	ax,dx
+	stosw
+	sub	ax,ax
+	stosw				; no attributes
+qi9:	mov	si,10
+	jmp	api_exit
+ENDPROC	DOSQFILEINFO
+
+DEFPROC	DOSSETFILEINFO,FAR
+	call	api_enter
+	call	api_finfo		; ES:DI -> information, BX = handle
+	jc	si9
+	mov	dx,es:[di].FF_WDATE
+	mov	cx,es:[di].FF_WTIME
+	mov	ax,DOS_HDL_SETTIME
+	int	21h			; set the handle's time and date
+	jc	si9
+	sub	ax,ax
+si9:	mov	si,10
+	jmp	api_exit
+ENDPROC	DOSSETFILEINFO
+
+;
+; api_finfo returns DosQFileInfo's and DosSetFileInfo's handle (BX) and
+; information (ES:DI), or carry set and an error code.
+;
+DEFPROC	api_finfo
+	mov	bx,[bp+14]
+	les	di,[bp+8]
+;
+; The information must be everything in a FILEFINDBUF up to the name, since
+; we store (or use) all of it.
+;
+	mov	ax,ERROR_BUFFER_OVERFLOW
+	cmp	word ptr [bp+6],FF_NAMELEN
+	ret
+ENDPROC	api_finfo
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; DosQFileMode (ordinal 75)
 ;
 ; Inputs:
@@ -862,6 +1121,32 @@ ENDPROC	DOSQHANDTYPE
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; DosSelectDisk (ordinal 81)
+;
+; Inputs:
+;	[BP+6] = drive (1 for A:)
+;
+; Outputs:
+;	AX = 0 if successful; otherwise, ERR_BADDRIVE
+;
+DEFPROC	DOSSELECTDISK,FAR
+	call	api_enter
+	mov	dl,[bp+6]
+	dec	dx
+	mov	ah,DOS_DSK_SETDRV
+	int	21h
+	mov	ah,DOS_DSK_GETDRV
+	int	21h			; AL = current drive
+	sub	al,dl			; is it that drive?
+	cbw
+	jz	sd9			; yes
+	mov	ax,ERR_BADDRIVE
+sd9:	mov	si,2
+	jmp	api_exit
+ENDPROC	DOSSELECTDISK
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; DosSetMaxFH (ordinal 85)
 ;
 ; A program's file handles are those in its PSP, so their number can't change.
@@ -920,6 +1205,35 @@ ENDPROC	DOSSETVEC
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; DosGetEnv (ordinal 91)
+;
+; Inputs:
+;	[BP+10] -> where to store the environment's selector (far pointer)
+;	[BP+6] -> where to store the offset there of the command line (far
+;	pointer)
+;
+; Outputs:
+;	AX = 0
+;
+DEFPROC	DOSGETENV,FAR
+	call	api_enter
+	mov	ax,DGROUP
+	mov	ds,ax
+	ASSUME	DS:DGROUP
+	les	di,[bp+10]
+	mov	ax,[envsel]
+	stosw
+	les	di,[bp+6]
+	mov	ax,[cmdoff]
+	stosw
+	ASSUME	DS:NOTHING
+	sub	ax,ax
+	mov	si,8
+	jmp	api_exit
+ENDPROC	DOSGETENV
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; DosGetVersion (ordinal 92)
 ;
 ; Inputs:
@@ -971,6 +1285,24 @@ ENDPROC	DOSGETPID
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; DosError (ordinal 120)
+;
+; Turns the system's handling of hard errors and exceptions on or off for
+; the program, which BASIC-DOS doesn't offer, so this does nothing.
+;
+; Inputs:
+;	[BP+6] = flags
+;
+; Outputs:
+;	AX = 0
+;
+DEFPROC	DOSERROR,FAR
+	sub	ax,ax
+	ret	2
+ENDPROC	DOSERROR
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; DosRead (ordinal 137) and DosWrite (ordinal 138)
 ;
 ; Inputs:
@@ -1001,7 +1333,7 @@ dw1:	mov	bx,[bp+16]
 	stosw
 	sub	ax,ax
 dw9:	mov	si,12
-	jmp	short api_exit
+	jmp	api_exit
 ENDPROC	DOSWRITE
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1010,10 +1342,12 @@ ENDPROC	DOSWRITE
 ;
 ; Runs a program and waits for it to end (flags of 0; no other way of running
 ; one is supported).  The arguments are two strings, one after the other: the
-; program's name, and the command tail to give it.  The program shares our
-; environment, as every BASIC-DOS program shares its parent's, so the
-; environment parameter is ignored, and so is the buffer for the name of
-; whatever kept the program from loading.
+; program's name, and the command tail to give it.  The program gets a copy
+; of the environment (a series of strings, the last followed by another null)
+; if there is one, and otherwise shares ours, as a BASIC-DOS program shares
+; its parent's; a compiler's driver, for one, passes its options to each pass
+; in an environment string.  The buffer for the name of whatever kept the
+; program from loading is ignored.
 ;
 ; Inputs:
 ;	[BP+26] -> buffer for a failing module's name (far pointer)
@@ -1033,7 +1367,11 @@ DEFPROC	DOSEXECPGM,FAR
 	call	api_enter
 	mov	ax,ERR_INVALID
 	cmp	word ptr [bp+22],0	; wait for the program?
-	jne	ep9			; no
+	jne	ep0			; no
+	call	api_env			; AX = the environment's copy (or 0)
+	jnc	ep0a
+ep0:	jmp	ep9
+ep0a:	push	ax			; [BP-16] = the environment's copy
 ;
 ; Build a command tail (a length byte, the tail, and a carriage return) and
 ; an EPB on the stack.
@@ -1068,8 +1406,8 @@ ep3:	mov	al,CHR_RETURN
 	stosb
 	mov	es:[bx],cl
 	mov	si,di			; ES:SI -> EPB
-	sub	ax,ax
-	stosw				; EPB_ENVSEG (ours)
+	mov	ax,[bp-16]
+	stosw				; EPB_ENVSEG (0 for ours)
 	mov	ax,bx
 	stosw
 	mov	ax,ss
@@ -1091,7 +1429,15 @@ ep3:	mov	al,CHR_RETURN
 	mov	al,bl
 	stosw
 	sub	ax,ax
-ep8:	lea	sp,[bp-14]		; discard the tail and EPB
+ep8:	mov	bx,[bp-16]
+	test	bx,bx			; did the program have its own copy?
+	jz	ep8a			; no
+	push	ax
+	mov	es,bx
+	mov	ah,DOS_MEM_FREE
+	int	21h			; yes, so free it
+	pop	ax
+ep8a:	lea	sp,[bp-14]		; discard the copy, tail, and EPB
 ep9:	mov	si,24
 ENDPROC	DOSEXECPGM
 
@@ -1127,6 +1473,40 @@ api_exit label near
 	pop	bp
 	ret
 ENDPROC	api_return
+
+;
+; api_env copies DosExecPgm's environment (the strings at [BP+14], up to an
+; empty one) to a segment of its own, and returns its selector in AX (0 if
+; there's no environment), or carry set and an error code.
+;
+DEFPROC	api_env
+	lds	si,[bp+14]
+	mov	ax,ds
+	or	ax,si			; is there an environment?
+	jz	ev9			; no (and carry is clear)
+	mov	dx,si
+ev1:	lodsb
+	test	al,al			; an empty string?
+	jz	ev3			; yes
+ev2:	lodsb				; no, so skip the string
+	test	al,al
+	jnz	ev2
+	jmp	ev1
+ev3:	mov	cx,si
+	mov	si,dx
+	sub	cx,si			; CX = length of the strings
+	mov	bx,cx
+	add	bx,16
+	shr	bx,4			; BX = paras for them, and another null
+	mov	ax,DOS_MEM_ALLOC SHL 8
+	int	21h
+	jc	ev9
+	mov	es,ax
+	sub	di,di
+	rep	movsb
+	mov	es:[di],cl
+ev9:	ret
+ENDPROC	api_env
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1196,6 +1576,12 @@ os3:	mov	bx,di			; BX = offset of the command line
 	rep	movsb
 	sub	ax,ax
 	stosw				; end the tail, and the command line
+	mov	ax,DGROUP
+	mov	ds,ax
+	ASSUME	DS:DGROUP
+	mov	[envsel],es		; (for DosGetEnv)
+	mov	[cmdoff],bx
+	ASSUME	DS:NOTHING
 	mov	ax,es			; AX = environment
 	mov	dx,ss
 	lsl	cx,dx

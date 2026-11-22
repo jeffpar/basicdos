@@ -30,7 +30,7 @@
 #            measure rather than check (MICRO.BAS), or just run (PIPES.BAT,
 #            RANDOM.BAT, and the BAT and EXE versions of PRIMES)
 #   TESTS/SAMPLES  the rest of the PC DOS 1.00 BASIC samples (hard disk only)
-#            (ie, demos/samples/*.BAS except for any file that DEMOS lists)
+#            (ie, demos/dos/basic/*.BAS except for any file that DEMOS lists)
 #   TOOLS    tools used for testing (DISKREAD, DISKWRIT, SYMDEB, and MSBASIC)
 #
 # The software/src/tests folders match: the TESTS files are in tests, and the
@@ -92,8 +92,8 @@ software/src/os/dll/obj/NLS.DLL
 [DEMOS]
 software/src/demos/*.BA?
 software/src/demos/README.md
-demos/samples/DONKEY.BAS
-demos/mouse/PAINT.BAS
+demos/dos/basic/DONKEY.BAS
+demos/bd/mouse/PAINT.BAS
 
 [DEMOS/WOLF3D]
 /harddisks/pcx86/10mb/COMPAQ331-WOLF3D.json/WOLF3D/*
@@ -142,7 +142,7 @@ software/src/tests/misc/PRIMES.BAT
 software/src/tests/misc/RANDOM.BAT
 
 [TESTS/SAMPLES]
-demos/samples/*.BAS
+demos/dos/basic/*.BAS
 
 [TOOLS]
 software/src/tests/tools/OBJ/DISKREAD.COM

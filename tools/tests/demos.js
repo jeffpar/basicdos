@@ -143,7 +143,7 @@ function getDemos()
     for (const line of readFileSync(join(root, 'demos', 'README.md'), 'utf8').split('\n')) {
         if (line[0] != '|') continue;
         for (const m of line.matchAll(/\]\(([^)]+\/)\)/g)) {
-            const parts = m[1].match(/^(.*?)\/?(pc|xt|at|386)?\/$/);
+            const parts = m[1].match(/^(?:bd\/)?(.*?)\/?(pc|xt|at|386)?\/$/);
             demos.push({ path: m[1], key: parts[1], hw: parts[2] || '' });
         }
     }
@@ -151,8 +151,8 @@ function getDemos()
     // The VT100 Terminal demo's pages without the AVO and the pages in other pages' lists of
     // additional demo configurations aren't in the table.
     //
-    for (const hw of ['xt', 'at', '386']) demos.push({ path: `vt100/${hw}/noavo/`, key: 'vt100', hw });
-    for (const path of ['serial', 'parallel', 'mmu/vt100/47mb']) demos.push({ path: path + '/', key: path, hw: '' });
+    for (const hw of ['xt', 'at', '386']) demos.push({ path: `bd/vt100/${hw}/noavo/`, key: 'vt100', hw });
+    for (const path of ['serial', 'parallel', 'mmu/vt100/47mb']) demos.push({ path: `bd/${path}/`, key: path, hw: '' });
     return demos;
 }
 

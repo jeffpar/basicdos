@@ -61,7 +61,7 @@ A stop in a 32-bit (LE) program is similar: when CTRL-C (or BREAK) interrupts on
 
 The driver's device name is DEBUG$, and data written to it is sent to the terminal; DEBUG builds of BASIC-DOS send their diagnostic (DPRINTF) messages there.
 
-See the [DEBUG demo](/demos/debug/at/) for a machine with the driver loaded, and a VT100 terminal.
+See the [DEBUG demo](/demos/bd/debug/at/) for a machine with the driver loaded, and a VT100 terminal.
 
 ### Typing Commands
 

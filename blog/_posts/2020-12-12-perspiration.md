@@ -175,7 +175,7 @@ See the `HELP` command for a list of commands implemented so far.
 
 ### To Be Continued...
 
-In the meantime, check out the [Preview](/preview/), which highlights a few of our original [Demos](/demos/).
+In the meantime, check out the [Preview](/demos/preview/), which highlights a few of our original [Demos](/demos/).
 
 [\*] CASE has since been superseded by TR, a more general filter that can translate, delete, or squeeze any characters.  To upper-case the output of a command, as CASE did, use:
 

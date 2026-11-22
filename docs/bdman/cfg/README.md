@@ -237,6 +237,6 @@ This CONFIG.SYS runs a single console on a terminal connected to COM1, without l
 	CON=COM1:9600,N,8,1
 	SHELL=COMMAND.COM AUTOEXEC.BAT
 
-The Terminal Only demo uses a similar configuration on a 64K [IBM PC](/demos/term/pc/) with no video adapter, where a VT100 on COM1 is the only console, and on a 640K [IBM PC XT](/demos/term/xt/), whose shell starts on its 10Mb hard disk.
+The Terminal Only demo uses a similar configuration on a 64K [IBM PC](/demos/bd/term/pc/) with no video adapter, where a VT100 on COM1 is the only console, and on a 640K [IBM PC XT](/demos/bd/term/xt/), whose shell starts on its 10Mb hard disk.
 
 {% include footer.html prev="BASIC-DOS Programming:../lang/" next="Technical Reference:/docs/bdtech/" %}

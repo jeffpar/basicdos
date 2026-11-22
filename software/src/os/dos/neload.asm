@@ -241,19 +241,22 @@ nl0:	mov	cx,[si].NE_NSEGS	; CX = # segments
 	int	21h			; resize ES to BX paras
 	pop	bx
 	jc	ne_fail
-	jmp	short nl0c
+	jmp	short nl0d
 ;
 ; An OS/2 module needn't be marked NEF_PROTMODE, and its NE_OS is NEOS_OS2
 ; or, from a linker that didn't set NE_OS (eg, LINK4, and the linker of every
-; OS/2 1.0 program), zero.
+; OS/2 1.0 program), zero.  In a module whose NE_OS is NEOS_OS2, NEF_SELFLOAD
+; is OS/2's bit for a "bound" program (one whose stub runs it on DOS, too).
 ;
 nl0a:	or	cl,NEF_PROTMODE
-	cmp	cx,dx			; is that all it lacked?
-	jne	nl0b			; no
 	cmp	[si].NE_OS,NEOS_OS2	; is it an OS/2 module?
-	jbe	nl0			; yes
-nl0b:	jmp	ne_err
-nl0c:
+	ja	nl0c			; no
+	jb	nl0b			; perhaps
+	and	ch,NOT (NEF_SELFLOAD SHR 8)
+nl0b:	cmp	cx,dx			; is that all it lacked?
+	je	nl0			; yes
+nl0c:	jmp	ne_err
+nl0d:
 	mov	si,NEBUF + size NEHDR	; DS:SI -> segment table
 	mov	di,NEBUF + NE_SEGTAB
 	call	ne_tab			; read the segment table
@@ -603,7 +606,16 @@ DEFPROC	ne_fix
 	push	bp
 	mov	bx,es
 	lsl	bx,bx			; BX = limit of segment
-nf1:	mov	al,[si].NER_TYPE
+;
+; A record with both target type bits set is an operating system fixup, which
+; marks a floating-point instruction for a system that would replace it with
+; a call to an emulator; it's skipped, as OS/2 skips it.
+;
+nf1:	mov	al,[si].NER_FLAGS
+	and	al,NERF_TARGET
+	cmp	al,NERF_TARGET		; an operating system fixup?
+	je	nf6b			; yes
+	mov	al,[si].NER_TYPE
 	cmp	al,NERT_SEL
 	je	nf2
 	cmp	al,NERT_FAR

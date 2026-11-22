@@ -9,6 +9,7 @@
 | [dos](dos/) | TOOLS\\BIN | The original tools, unmodified |
 | [dos/include](dos/include/) | TOOLS\\INCLUDE | The C compiler's include files |
 | [dos/lib](dos/lib/) | | The C compiler's libraries, unmodified |
+| [os2](os2/) | TOOLS\\BIN | The Microsoft 386 C Compiler (CL386 and its passes) and LINK386, unmodified |
 | [bd](bd/) | TOOLS\\BIN | BASIC-DOS versions of the tools, and STUB.EXE |
 | [bd/lib](bd/lib/) | TOOLS\\LIB | BASIC-DOS versions of the libraries (and LIBH.LIB from dos/lib) |
 | [bd/crt](bd/crt/) | TOOLS\\CRT | The startup code for C programs (`bdcrt0.asm`) |
@@ -18,7 +19,7 @@
 | [bd/demos/hello](bd/demos/hello/) | TOOLS\\DEMOS\\HELLO | A C sample, with a makefile that explains each step |
 | [bd/demos/sucks](bd/demos/sucks/) | TOOLS\\DEMOS\\SUCKS | Two C programs from 1993 that play Ataxx (see its [README](bd/demos/sucks/README.md)), one makefile builds both with Microsoft C 4.00, and another (`MAKE BDC`) with BDC |
 
-The hard disk's **TOOLS\\BIN** gets the files in `dos`, overlaid with those in `bd`, and **TOOLS\\LIB** gets `dos/lib`, overlaid with `bd/lib` (see [gulpfile.js](../../../gulpfile.js)); `mk.sh` gets the same result by searching `bd` before `dos`.
+The hard disk's **TOOLS\\BIN** gets the files in `dos` and `os2`, overlaid with those in `bd`, and **TOOLS\\LIB** gets `dos/lib`, overlaid with `bd/lib` (see [gulpfile.js](../../../gulpfile.js)); `mk.sh` gets the same result by searching `bd` before `dos`.
 
 ### Protected-Mode Tools
 
@@ -35,6 +36,14 @@ The C compiler (CL, C1, C2, and C3) is converted, too, and compiles the same obj
 - Each pass contains Microsoft's 8087 emulator (for floating-point constants), which uses INT 34h through 3Eh; ring 3 programs can't issue or hook those, so the passes issue INT 3 instead, followed by the second byte of the original INT, and the emulator hooks only INT 3.
 
 [tools/misc/mkne.js](../../../tools/misc/mkne.js) makes all the conversions from their originals: run `node tools/misc/mkne.js` to rebuild them.
+
+### The 386 C Compiler
+
+The compiler comes from the Microsoft OS/2 2.00 SDK (Pre-Release 2, June 1990); images of all 26 of its diskettes are in [software/tools/os2/2.0](../../tools/os2/2.0/), outside this folder because the build puts all of `software/src` on a 30Mb drive.
+
+CL386 (in `os2`) and its passes are 16-bit OS/2 programs, like LINK386, and protected-mode BASIC-DOS runs them the same way: as NE programs that import OS/2's functions from the libraries in EXT\\DLL.  C2_386 and C3_386 run unmodified.  CL386 and C1_386 each import one function (NLS's DosGetDBCSEv) by name, which the NE loader doesn't support, so their versions in `bd` import it by ordinal instead; [tools/misc/os2bd.js](../../../tools/misc/os2bd.js) makes them (`node tools/misc/os2bd.js software/src/tools/os2/CL386.EXE software/src/tools/bd/CL386.EXE`, and likewise for C1_386.EXE), changing only those relocation records.  Running the compiler took a few more DOSCALLS functions, an environment for the programs that DosExecPgm runs (CL386 passes each pass its options in `MSC_CMD_FLAGS`, and finds the passes through `PATH`, which BASIC-DOS's environment has), and a loader that accepts a "bound" OS/2 program and skips its floating-point (operating system) fixups; see the technical reference.
+
+The compiler's library is for OS/2 2.0, so 32-bit C programs for BASIC-DOS are compiled with `/Zl` (and `/Gs`, since there's no stack probe) and linked with their own startup code and functions.  [FIND32](../os/sdk/) in the SDK folder is the example: `find32.c`, with `crt32.asm` (the startup code, which calls `main(argc, argv)`, and a few functions that make DOS calls) and `crt32.h`, built by the SDK makefile on a BASIC-DOS hard disk.  The result is an LE program, which needs an 80386, although the compiler itself runs on an 80286.
 
 ### C Programs
 

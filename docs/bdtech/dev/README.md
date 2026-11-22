@@ -293,7 +293,7 @@ The key that switches the focus to the port's next console is CTRL-\\ (1Ch), or 
 | BREAK key | | Stops the current program |
 | Bell | CTRL-G | `PRINT CHR$(7)` |
 
-The VT100s in the demos have the Advanced Video Option.  A VT100 without it (see the [VT100 Terminal demo without the AVO](/demos/vt100/xt/noavo/)) has a single character attribute, reverse video or underline, depending on its SET-UP cursor selection, and neither bold nor blink, and only 14 rows in 132-column mode.
+The VT100s in the demos have the Advanced Video Option.  A VT100 without it (see the [VT100 Terminal demo without the AVO](/demos/bd/vt100/xt/noavo/)) has a single character attribute, reverse video or underline, depending on its SET-UP cursor selection, and neither bold nor blink, and only 14 rows in 132-column mode.
 
 These VT100 features aren't used by the driver, and have no BASIC statement, although a program can send their sequences itself:
 

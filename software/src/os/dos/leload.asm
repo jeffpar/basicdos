@@ -123,7 +123,8 @@ LE_MSGSEG	equ	26		; and address
 	db	DOS_HDL_SEEK,LEF_PASS,DOS_HDL_SEEK+1,LEF_STR
 	db	DOS_DSK_GETCWD-1,LEF_NONE,DOS_DSK_GETCWD,LEF_CWD
 	db	DOS_MEM_ALLOC,LEF_MEM,DOS_PSP_RETURN-1,LEF_NONE
-	db	DOS_PSP_RETCODE,LEF_PASS,DOS_DSK_RENAME-1,LEF_NONE
+	db	DOS_PSP_RETCODE,LEF_PASS,DOS_DSK_FFIRST,LEF_STR
+	db	DOS_DSK_FNEXT,LEF_PASS,DOS_DSK_RENAME-1,LEF_NONE
 	db	DOS_DSK_RENAME,LEF_REN,DOS_DSK_RENAME+1,LEF_PASS
 	db	0FFh,LEF_NONE
 LE_INITLEN	equ	$ - LE_INIT
@@ -137,10 +138,11 @@ LE_INITLEN	equ	$ - LE_INIT
 ; an LE header (and the processor is an 80386, with programs at ring 3), we
 ; create a flat machine for the program, with enough memory for its objects,
 ; or more if there's plenty: half of the largest free block, up to 256K (it
-; can ask for more; see lh_mem).  Each object's pages are read (or left
-; zeroed) at the object's address, less the lowest object's address, plus the
-; address of the machine's memory, and each page's fixup records are applied:
-; they must all be internal 32-bit offsets, which is what a flat program has.
+; can ask for more; see lh_mem).  The objects are loaded one after another,
+; each starting on a page, from the start of the machine's memory (not at the
+; addresses that the linker gave them): each object's pages are read (or left
+; zeroed), and each page's fixup records are applied, which must all be
+; internal 32-bit offsets, which is what a flat program has.
 ;
 ; The program starts at le_host, with its entry point and stack pointer (from
 ; the LE header) in the machine's registers, along with DS = its data selector
@@ -202,43 +204,31 @@ le1:	mov	ax,LEO_LEN
 	call	le_hread		; read the object table
 	jc	le9
 ;
-; The first object's address is the lowest (rounded down to a page), and the
-; image ends where the highest object does.
+; Pack the objects: each one's address becomes the end of the one before it,
+; rounded up to a page (and the first one's becomes zero), whatever address
+; the linker gave it, since every reference to an object's address is a fixup
+; record with the object's number (see le_fix).  LINK386 1.01, for one, puts
+; each object at a multiple of 64K, which would otherwise be 64K of memory
+; for each of them.
 ;
 	mov	cx,ds:[LE_HDR+LEH_NOBJ]
-	mov	ax,[si+LEO_BASE]
-	and	ax,NOT (LE_PGSIZE - 1)
-	mov	ds:[LEV_DELTA],ax
-	mov	ax,[si+LEO_BASE+2]
-	mov	ds:[LEV_DELTA+2],ax	; (the lowest address, for now)
 	sub	di,di
-	sub	bx,bx			; BX:DI = the highest end so far
-le2:	mov	ax,[si+LEO_BASE]
-	mov	dx,[si+LEO_BASE+2]
-	cmp	dx,ds:[LEV_DELTA+2]	; is it below the first object?
-	jb	le8			; yes
-	ja	le2a
-	cmp	ax,ds:[LEV_DELTA]
-	jb	le8
-le2a:	add	ax,[si+LEO_SIZE]
-	adc	dx,[si+LEO_SIZE+2]	; DX:AX = the object's end
+	sub	bx,bx			; BX:DI = the next object's address
+	mov	ds:[LEV_DELTA],di
+	mov	ds:[LEV_DELTA+2],di	; (the lowest address, for now)
+le2:	mov	[si+LEO_BASE],di
+	mov	[si+LEO_BASE+2],bx
+	add	di,[si+LEO_SIZE]
+	adc	bx,[si+LEO_SIZE+2]	; BX:DI = the object's end
 	jc	le8
-	cmp	dx,bx
-	jb	le2c
-	ja	le2b
-	cmp	ax,di
-	jbe	le2c
-le2b:	mov	di,ax
-	mov	bx,dx
-le2c:	add	si,LEO_LEN
-	loop	le2
 	mov	ds:[LEV_HI],di
-	mov	ds:[LEV_HI+2],bx
-	sub	di,ds:[LEV_DELTA]
-	sbb	bx,ds:[LEV_DELTA+2]
+	mov	ds:[LEV_HI+2],bx	; (the image's end, after the last)
 	add	di,LE_PGSIZE - 1
 	adc	bx,0
+	jc	le8
 	and	di,NOT (LE_PGSIZE - 1)
+	add	si,LEO_LEN
+	loop	le2
 	mov	si,bx			; SI:DI = the image's length, in pages
 	mov	ax,si
 	or	ax,di
@@ -1087,7 +1077,12 @@ DEFPROC	le_one
 	call	le_call
 	pop	ax
 	pop	bx
-	mov	ds:[bx],ax		; (carry is clear)
+	mov	ds:[bx],ax
+;
+; Carry is the DOS call's, which isn't ours to report: the program's flags
+; and EAX already say that it failed.
+;
+	clc
 lo9:	ret
 ENDPROC	le_one
 

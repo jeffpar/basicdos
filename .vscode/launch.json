@@ -20,64 +20,64 @@
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS on an IBM PC",
-      "url": "http://localhost:4040/demos/s80/pc/",
-      "runtimeArgs": ["http://localhost:4040/demos/s80/pc/"],
+      "url": "http://localhost:4040/demos/bd/s80/pc/",
+      "runtimeArgs": ["http://localhost:4040/demos/bd/s80/pc/"],
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS with Dual Monitors",
-      "url": "http://localhost:4040/demos/dual/xt/",
-      "runtimeArgs": ["http://localhost:4040/demos/dual/xt/"],
+      "url": "http://localhost:4040/demos/bd/dual/xt/",
+      "runtimeArgs": ["http://localhost:4040/demos/bd/dual/xt/"],
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS with Dueling Monitors",
-      "url": "http://localhost:4040/demos/dual/multi/xt/",
-      "runtimeArgs": ["http://localhost:4040/demos/dual/multi/xt/"],
+      "url": "http://localhost:4040/demos/bd/dual/multi/xt/",
+      "runtimeArgs": ["http://localhost:4040/demos/bd/dual/multi/xt/"],
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS on a Hard Disk",
-      "url": "http://localhost:4040/demos/hd/xt/",
-      "runtimeArgs": ["http://localhost:4040/demos/hd/xt/"],
+      "url": "http://localhost:4040/demos/bd/hd/xt/",
+      "runtimeArgs": ["http://localhost:4040/demos/bd/hd/xt/"],
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS with a Serial Port",
-      "url": "http://localhost:4040/demos/serial/",
-      "runtimeArgs": ["http://localhost:4040/demos/serial/"],
+      "url": "http://localhost:4040/demos/bd/serial/",
+      "runtimeArgs": ["http://localhost:4040/demos/bd/serial/"],
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS with a VT100 Terminal",
-      "url": "http://localhost:4040/demos/vt100/xt/",
-      "runtimeArgs": ["http://localhost:4040/demos/vt100/xt/"],
+      "url": "http://localhost:4040/demos/bd/vt100/xt/",
+      "runtimeArgs": ["http://localhost:4040/demos/bd/vt100/xt/"],
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS with a Serial Debugger",
-      "url": "http://localhost:4040/demos/debug/at/",
-      "runtimeArgs": ["http://localhost:4040/demos/debug/at/"],
+      "url": "http://localhost:4040/demos/bd/debug/at/",
+      "runtimeArgs": ["http://localhost:4040/demos/bd/debug/at/"],
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS Protected Mode",
-      "url": "http://localhost:4040/demos/mmu/",
-      "runtimeArgs": ["http://localhost:4040/demos/mmu/"],
+      "url": "http://localhost:4040/demos/bd/mmu/",
+      "runtimeArgs": ["http://localhost:4040/demos/bd/mmu/"],
       "webRoot": "${workspaceFolder}"
     },
     {

@@ -1,0 +1,27 @@
+---
+layout: page
+title: BASIC-DOS on an IBM PC with a Single Console
+permalink: /demos/bd/s80/pc/
+machines:
+  - id: ibm5150
+    type: pcx86
+    config: /machines/pcx86/ibm/ibm-5150-cga-128kb-fpu.json
+    debugger: available
+    autoMount:
+      A: "BASIC-DOS Single"
+      B: "PC DOS 1.00"
+---
+
+The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088 with an 8087, 128K of memory, a Color Display, and two diskette drives.  It boots the BASIC-DOS Single diskette and runs a single 80-column console, with DONKEY.BAS (from the PC DOS 1.00 diskette) in its DEMOS directory.
+
+{% include machine.html id="ibm5150" %}
+
+Use the **MEM** command to display current memory usage.
+
+Additional hardware options:
+
+- [Single Console on IBM PC XT](../xt/)
+- [Single Console on IBM PC AT](../at/)
+- [Single Console on COMPAQ DeskPro 386](../386/)
+
+{% include_relative _overview.md hw="pc" %}

@@ -151,7 +151,7 @@
         {
           "name": "BASICDOS-10MB",
           "type": 3,
-          "path": "/software/disks/BASICDOS-10MB.json"
+          "path": "/software/disks/2026/BASICDOS-10MB.json"
         }
       ],
       "controls": [

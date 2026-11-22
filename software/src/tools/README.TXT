@@ -116,27 +116,15 @@ The other tools have small stacks, too (MAPSYM's SP is 80h and LINK's is
 Microsoft Windows 3.1 Device Development Kit (March 1992)
 --------------------------------------------------------
 
-Two files were taken from the DDK's 386\TOOLS folder, which has the tools for
+One file was taken from the DDK's 386\TOOLS folder, which has the tools for
 building Windows 386 enhanced mode virtual devices (VxDs):
 
-    LINK386  EXE    123008  01-05-92   Linear-Executable Linker 1.00.058
     MASM5    EXE    111396  01-05-92   Macro Assembler 5.10B
 
-Both handle 80386 code: MASM5 assembles .386P sources with 32-bit (USE32)
-segments, and LINK386 links them into a "linear executable" (LE) file, of
-4K pages and 32-bit fixups, as a paging loader needs.  A definitions file
-selects the kind of LE file: EXETYPE OS2 (with NAME) makes a program, and
-EXETYPE DEV386 (with LIBRARY) makes a VxD.  LINK386 is an OS/2 1.x program
-whose DOS stub runs it on DOS, too (it has been tried on MS-DOS 3.20), and
-the default stub of the programs it links says that they can't run on DOS.
-
-On BASIC-DOS, LINK386 runs in protected mode as the OS/2 program that it is,
-unmodified (so its banner has no "BD"): the NE loader starts it with OS/2's
-registers, and the OS/2 functions that it imports are in the libraries in
-EXT\DLL (DOSCALLS.DLL, KBDCALLS.DLL, MSG.DLL, and NLS.DLL; see the BASIC-DOS
-technical reference).  It doesn't run on BASIC-DOS in real mode, where its
-DOS stub can't find its file ("SYS2090: The system is unable to load the
-program").
+MASM5 assembles 80386 code: .386P sources with 32-bit (USE32) segments, as
+32-bit object files for LINK386 (see the next section).  The DDK has a
+LINK386 of its own (1.00.058, 123008 bytes, 01-05-92), which BASIC-DOS used
+until the OS/2 SDK's replaced it.
 
 The BASIC-DOS makefiles assemble with MASM5 (ASM=MASM5).  Everything still
 assembles with MASM 4.00 (run MAKE with ASM=MASM), to the same binaries except
@@ -144,6 +132,62 @@ for AND, OR, and XOR with small immediates, which only MASM5 encodes in the
 shorter (sign-extended byte) form.  The 80386 instructions in 16-bit code are
 still DB bytes, because once a module uses .386, MASM5 writes 32-bit OMF
 records, which LINK 3.x and LINK4 reject.
+
+Microsoft OS/2 2.00 Software Development Kit, Pre-Release 2 (June 1, 1990)
+--------------------------------------------------------------------------
+
+These files were taken from the kit's first two "SDK LANG" diskettes (their
+BIN folders), except for LINK386, which is from the first "SDK TK" diskette
+(its OS2BIN folder, where it's the compressed file LINK386.EX@, which the
+kit's UNPACK expands):
+
+    LINK386  EXE    133102  05-30-90   Linear-Executable Linker 1.01.015
+    CL386    EXE     42705  06-01-90   386 C Compiler 1.00.075 (the driver)
+    CL386    ERR      1465  06-01-90   its error messages
+    CL386    MSG      2146  06-01-90   its help text (CL386 /HELP)
+    C1_386   EXE    155328  06-01-90   its first pass (preprocessor, parser)
+    C1_386   ERR     19951  06-01-90   the first pass's error messages
+    C2_386   EXE    256985  06-01-90   its second pass (code generator)
+    C3_386   EXE    132172  06-01-90   its third pass (optimizer, object file)
+    C23_386  ERR      3260  06-01-90   the other passes' error messages
+
+LINK386 links 32-bit object files into a "linear executable" (LE) file, of
+4K pages and 32-bit fixups, as a paging loader needs.  A definitions file
+selects the kind of LE file: EXETYPE OS2 (with NAME) makes a program, and
+NAME's WINDOWCOMPAT says what kind of program, which this LINK386 otherwise
+warns about.  It gives each of a program's objects (its code, data, and
+stack) an address that's a multiple of 64K, where the DDK's LINK386 used
+the next 4K; BASIC-DOS loads a program's objects one after another either
+way, so a program needs no more memory for it.
+
+CL386 is Microsoft's first C compiler for the 80386, which was never released
+as a product: it compiles C to 32-bit code for a flat address space, as 32-bit
+object files that LINK386 links.  LINK386, CL386, and CL386's passes are
+16-bit OS/2 1.x programs (CL386 and its passes have DOS stubs that run them
+on DOS, too; they have been tried on MS-DOS 3.20), and CL386 passes each pass
+its options in an environment string (MSC_CMD_FLAGS), and looks for the
+passes in the current directory and then in PATH.
+
+On BASIC-DOS, they run in protected mode as the OS/2 programs that they are
+(so their banners have no "BD"): the NE loader starts each with OS/2's
+registers, and the OS/2 functions that they import are in the libraries in
+EXT\DLL (DOSCALLS.DLL, KBDCALLS.DLL, MSG.DLL, and NLS.DLL; see the BASIC-DOS
+technical reference).
+
+The kit's C library (LIBC.LIB, on the third "SDK LANG" diskette) is for OS/2
+2.0, so it isn't here: a 32-bit C program for BASIC-DOS is compiled without
+it (/Zl) and linked with startup code and functions of its own, which make
+DOS calls.  SDK\FIND32.C in the BASIC-DOS sources is an example, with its
+library in SDK\CRT32.ASM and CRT32.H:
+
+    CL386 /c /Gs /Zl FIND32.C
+    MASM5 CRT32.ASM,CRT32.OBJ,NUL;
+    LINK386 CRT32.OBJ FIND32.OBJ,FIND32.EXE,NUL,,FIND32.DEF;
+
+The BASIC-DOS repository has images of all 26 of the kit's diskettes, in
+software/tools/os2/2.0 (MSOS2-2.0-PR2-*.img: the system's INSTALL and
+DISK1-8, DEBUG1-2, LANG1-6, TOOLKIT1-5, and NET1-4); they're not on the
+BASIC-DOS disks.
 
 BASIC-DOS Versions
 ------------------
@@ -156,6 +200,13 @@ alternate math libraries in TOOLS\LIB are BASIC-DOS versions as well.  For
 the details, and for how to build C programs, see README.md in the
 software/src/tools folder of the BASIC-DOS repository
 (https://github.com/jeffpar/basicdos), and the sample in TOOLS\DEMOS\HELLO.
+
+CL386 and C1_386 in TOOLS\BIN are BASIC-DOS versions, too, with one change:
+each imported an OS/2 function by name, and the BASIC-DOS program loader
+knows a library's functions only by number, so the file names that number
+instead (their banners are unchanged).  C2_386, C3_386, and LINK386 are the
+originals.  All five run on BASIC-DOS in protected mode only, and they
+run on any 80286 or later, although the programs they compile need an 80386.
 
 BDC.EXE in TOOLS\BIN isn't one of the original tools: it's a small, fast C
 compiler written for BASIC-DOS, with its source in TOOLS\BDC.  Its object

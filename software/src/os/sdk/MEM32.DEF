@@ -8,5 +8,5 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-NAME	MEM32
+NAME	MEM32 WINDOWCOMPAT
 EXETYPE	OS2

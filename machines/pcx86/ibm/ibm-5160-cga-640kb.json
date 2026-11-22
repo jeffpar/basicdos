@@ -133,10 +133,10 @@
           "type": "list",
           "options": {
             "": "None",
-            "/software/disks/PCDOS100.json": "PC DOS 1.00",
-            "/software/disks/PCDOS110.json": "PC DOS 1.10",
-            "/software/disks/PCDOS200-DISK1.json": "PC DOS 2.00 (Disk 1)",
-            "/software/disks/PCDOS200-DISK2.json": "PC DOS 2.00 (Disk 2)"
+            "/software/disks/historical/PCDOS100.json": "PC DOS 1.00",
+            "/software/disks/historical/PCDOS110.json": "PC DOS 1.10",
+            "/software/disks/historical/PCDOS200-DISK1.json": "PC DOS 2.00 (Disk 1)",
+            "/software/disks/historical/PCDOS200-DISK2.json": "PC DOS 2.00 (Disk 2)"
           }
         },
         {
@@ -174,7 +174,7 @@
         {
           "name": "BASICDOS-10MB",
           "type": 3,
-          "path": "/software/disks/BASICDOS-10MB.json"
+          "path": "/software/disks/2026/BASICDOS-10MB.json"
         }
       ],
       "controls": [

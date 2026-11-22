@@ -188,7 +188,7 @@ function diskFolders(disk)
  */
 function diskFiles(diskName, fileSpecs)
 {
-    let diskFile = diskName.endsWith(".json")? diskName : "./software/disks/" + diskName + ".json";
+    let diskFile = diskName.endsWith(".json")? diskName : "./software/disks/historical/" + diskName + ".json";
     let diskDir = "./tools/pc/disks/" + path.basename(diskFile, ".json");
     if (!fs.existsSync(diskDir)) {
         execSync("node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" " + diskFile + " --extract --dest=" + diskDir, { stdio: "ignore" });
@@ -198,31 +198,31 @@ function diskFiles(diskName, fileSpecs)
 
 let disks = {
     "BASICDOS-360K": {
-        config: "./download/CONFIG.SYS",
+        config: "./downloads/CONFIG.SYS",
         label: "BASIC-DOS",
         title: "BASIC-DOS " + VERSION + " (Release)",
         folders: distFolders,
         img: true,
         final: true
     },
-    "BASICDOS-360K-S80": { config: "./demos/s80/CONFIG.SYS", title: "BASIC-DOS Single", tests: [ "FPUTESTS.COM" ] },
-    "BASICDOS-360K-D40": { config: "./demos/d40/CONFIG.SYS", title: "BASIC-DOS 40-Cols" },
-    "BASICDOS-360K-D80": { config: "./demos/d80/CONFIG.SYS", title: "BASIC-DOS 80-Cols" },
-    "BASICDOS-360K-P80": { config: "./demos/p80/CONFIG.SYS", title: "BASIC-DOS Multi-Page" },
-    "BASICDOS-360K-P80PM": { config: "./demos/mmu/CONFIG.SYS", title: "BASIC-DOS Extended Memory" },
-    "BASICDOS-360K-DUAL": { config: "./demos/dual/CONFIG.SYS", title: "BASIC-DOS Dual Monitor" },
-    "BASICDOS-360K-MULTI": { config: "./demos/dual/multi/CONFIG.SYS", title: "BASIC-DOS Multi-Console" },
-    "BASICDOS-360K-SERIAL": { config: "./demos/serial/CONFIG.SYS", title: "BASIC-DOS HD Serial Port" },
-    "BASICDOS-360K-VT100": { config: "./demos/vt100/CONFIG.SYS", title: "BASIC-DOS HD VT100" },
-    "BASICDOS-360K-DEBUG": { config: "./demos/debug/CONFIG.SYS", title: "BASIC-DOS Serial Debugger" },
-    "BASICDOS-360K-MOUSE": { config: "./demos/mouse/CONFIG.SYS", title: "BASIC-DOS Mouse" },
-    "BASICDOS-360K-M64": { config: "./demos/m64/CONFIG.SYS", title: "BASIC-DOS Monochrome", final: true, folders: distFolders },
-    "BASICDOS-360K-REAL": { config: "./demos/m64/hd/CONFIG.SYS", title: "BASIC-DOS HD Real Mode" },
-    "BASICDOS-360K-WOLF3D": { config: "./demos/wolf3d/CONFIG.SYS", title: "BASIC-DOS Wolf3D" },
-    "BASICDOS-360K-TERM": { config: "./demos/term/CONFIG.SYS", title: "BASIC-DOS Terminal", final: true, folders: distFolders },
-    "BASICDOS-360K-TERMHD": { config: "./demos/term/hd/CONFIG.SYS", title: "BASIC-DOS HD Terminal" },
-    "BASICDOS-360K-TERM2": { config: "./demos/term/dual/CONFIG.SYS", title: "BASIC-DOS HD Multi-Terminal" },
-    "BASICDOS-360K-MMU": { config: "./demos/mmu/vt100/CONFIG.SYS", title: "BASIC-DOS Extended Memory VT100" },
+    "BASICDOS-360K-S80": { config: "./demos/bd/s80/CONFIG.SYS", title: "BASIC-DOS Single", tests: [ "FPUTESTS.COM" ] },
+    "BASICDOS-360K-D40": { config: "./demos/bd/d40/CONFIG.SYS", title: "BASIC-DOS 40-Cols" },
+    "BASICDOS-360K-D80": { config: "./demos/bd/d80/CONFIG.SYS", title: "BASIC-DOS 80-Cols" },
+    "BASICDOS-360K-P80": { config: "./demos/bd/p80/CONFIG.SYS", title: "BASIC-DOS Multi-Page" },
+    "BASICDOS-360K-P80PM": { config: "./demos/bd/mmu/CONFIG.SYS", title: "BASIC-DOS Extended Memory" },
+    "BASICDOS-360K-DUAL": { config: "./demos/bd/dual/CONFIG.SYS", title: "BASIC-DOS Dual Monitor" },
+    "BASICDOS-360K-MULTI": { config: "./demos/bd/dual/multi/CONFIG.SYS", title: "BASIC-DOS Multi-Console" },
+    "BASICDOS-360K-SERIAL": { config: "./demos/bd/serial/CONFIG.SYS", title: "BASIC-DOS HD Serial Port" },
+    "BASICDOS-360K-VT100": { config: "./demos/bd/vt100/CONFIG.SYS", title: "BASIC-DOS HD VT100" },
+    "BASICDOS-360K-DEBUG": { config: "./demos/bd/debug/CONFIG.SYS", title: "BASIC-DOS Serial Debugger" },
+    "BASICDOS-360K-MOUSE": { config: "./demos/bd/mouse/CONFIG.SYS", title: "BASIC-DOS Mouse" },
+    "BASICDOS-360K-M64": { config: "./demos/bd/m64/CONFIG.SYS", title: "BASIC-DOS Monochrome", final: true, folders: distFolders },
+    "BASICDOS-360K-REAL": { config: "./demos/bd/m64/hd/CONFIG.SYS", title: "BASIC-DOS HD Real Mode" },
+    "BASICDOS-360K-WOLF3D": { config: "./demos/bd/wolf3d/CONFIG.SYS", title: "BASIC-DOS Wolf3D" },
+    "BASICDOS-360K-TERM": { config: "./demos/bd/term/CONFIG.SYS", title: "BASIC-DOS Terminal", final: true, folders: distFolders },
+    "BASICDOS-360K-TERMHD": { config: "./demos/bd/term/hd/CONFIG.SYS", title: "BASIC-DOS HD Terminal" },
+    "BASICDOS-360K-TERM2": { config: "./demos/bd/term/dual/CONFIG.SYS", title: "BASIC-DOS HD Multi-Terminal" },
+    "BASICDOS-360K-MMU": { config: "./demos/bd/mmu/vt100/CONFIG.SYS", title: "BASIC-DOS Extended Memory VT100" },
     "BASICDOS-360K-TESTS": {
         title: "BASIC-DOS Tests",
         data: true,
@@ -235,13 +235,13 @@ let disks = {
     },
     "BASICDOS-10MB": {
         hd: true,
-        config: "./demos/hd/CONFIG.SYS",
+        config: "./demos/bd/hd/CONFIG.SYS",
         folders: {
             ...distFolders,
             //
             // WOLF3D.BAT runs the game in DEMOS/WOLF3D, so only this disk gets it, and PUBLIC.zip has JIVE.EXE
             //
-            DEMOS: manifest.DEMOS.concat([ "./demos/wolf3d/WOLF3D.BAT", "./software/tests/PUBLIC.zip" ]),
+            DEMOS: manifest.DEMOS.concat([ "./demos/bd/wolf3d/WOLF3D.BAT", "./software/tests/PUBLIC.zip" ]),
             "DEMOS/WOLF3D": manifest["DEMOS/WOLF3D"],
             SRC: SRC + "/os",           // the BASIC-DOS source (with an MK.BAT that builds it on BASIC-DOS)
             TESTS: manifest.TESTS,
@@ -257,7 +257,7 @@ let disks = {
             // only README.TXT.
             //
             TOOLS: [ SRC + "/tools/README.TXT" ],
-            "TOOLS/BIN": toolFiles("dos").concat(toolFiles("bd"), manifest.TOOLS),
+            "TOOLS/BIN": toolFiles("dos").concat(toolFiles("os2"), toolFiles("bd"), manifest.TOOLS),
             //
             // The C compiler's include files and libraries; the BASIC-DOS libraries replace the originals with the
             // same names, just as the BASIC-DOS tools do.
@@ -486,7 +486,7 @@ function writeDiskettes(done)
     let diskettes = {}, configs = {};
     for (let diskName in disks) {
         let disk = disks[diskName];
-        if (disk.title) diskettes["/software/disks/" + diskName + ".json"] = disk.title;
+        if (disk.title) diskettes["/software/disks/2026/" + diskName + ".json"] = disk.title;
         if (disk.config) configs[diskName] = fs.readFileSync(disk.config, "utf8");
     }
     let writeData = function(file, data) {
@@ -561,7 +561,7 @@ for (let diskName in disks) {
     if (disk.mode != MODE && (disk.hd || !fs.existsSync(path.join(SAVED, disk.mode)))) continue;
     if (changed && !isAffected(diskName, changed)) continue;
     let buildTask = "BUILD-" + diskName;
-    let diskImage = "./software/disks/" + diskName + ".json";
+    let diskImage = "./software/disks/2026/" + diskName + ".json";
     gulp.task(buildTask, checkOutput(buildDisk(diskName, diskImage), diskImage));
     demoTasks.push(buildTask);
 }
@@ -584,7 +584,7 @@ if (process.env["BD_CHANGED"]) {
  * While it runs, the watcher's process ID is in WATCHPID, which tells mk.sh and mkdos.sh that they don't need to run
  * "gulp demos" themselves (see watching() in tools/release.sh).
  */
-const WATCHED = WATCHALL.concat([ SRC + "/**", "./demos/**", "./download/**", "./software/tests/**" ]);
+const WATCHED = WATCHALL.concat([ SRC + "/**", "./demos/**", "./downloads/**", "./software/tests/**" ]);
 const WATCHPID = "./tools/pc/disks/watch.pid";
 
 gulp.task("watch", function() {
