@@ -185,7 +185,7 @@ library in SDK\CRT32.ASM and CRT32.H:
     LINK386 CRT32.OBJ FIND32.OBJ,FIND32.EXE,NUL,,FIND32.DEF;
 
 The BASIC-DOS repository has images of all 26 of the kit's diskettes, in
-software/tools/os2/2.0 (MSOS2-2.0-PR2-*.img: the system's INSTALL and
+tools/os2/2.0/pr2/disks (MSOS2-2.0-PR2-*.img: the system's INSTALL and
 DISK1-8, DEBUG1-2, LANG1-6, TOOLKIT1-5, and NET1-4); they're not on the
 BASIC-DOS disks.
 

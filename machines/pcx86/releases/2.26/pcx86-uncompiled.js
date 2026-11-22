@@ -19854,7 +19854,7 @@ class CPUx86 extends CPU {
                 let offIOPM = port >>> 3;
                 let addrIOPM = this.segTSS.addrIOPM + offIOPM;
                 while (bitsPorts && addrIOPM <= this.segTSS.addrIOPMLimit) {
-                    let bits = this.getByte(addrIOPM);
+                    let bits = this.accessSys(this.getByte, addrIOPM);  // the IOPM is part of the TSS
                     if (bits & bitsPorts) break;
                     bitsPorts >>>= 8;
                     addrIOPM++;
@@ -20157,6 +20157,30 @@ class CPUx86 extends CPU {
         this.aMemBlocks[iBlock++].writeByte(off, w & 0xff, addr);
         if (this.opFlags & X86.OPFLAG.FAULT) return;
         this.aMemBlocks[iBlock & this.nBlockMask].writeByte(0, (w >> 8) & 0xff, addr + 1);
+    }
+
+    /**
+     * accessSys(fn, addr, data)
+     *
+     * Descriptor tables and TSSs are always accessed as if CPL were 0 (the 80386's "implicit supervisor" accesses),
+     * so paging never faults a ring 3 selector load (eg, an OS/2 2.0 ring 3 call through a GDT call gate) because the
+     * table's page is supervisor-only, and any page fault that does occur reports a supervisor access.
+     *
+     * @this {CPUx86}
+     * @param {function(number,number=)} fn (eg, this.getShort or this.setByte)
+     * @param {number} addr is a linear address
+     * @param {number} [data] (for writes)
+     * @returns {number|undefined}
+     */
+    accessSys(fn, addr, data)
+    {
+        let cpl = this.nCPL;
+        this.nCPL = 0;
+        try {
+            return fn.call(this, addr, data);
+        } finally {
+            this.nCPL = cpl;
+        }
     }
 
     /**
@@ -25143,6 +25167,12 @@ class Segx86 {
             this.offIP = 0;
             this.fCall = null;
             this.fStackSwitch = false;
+            /**
+             * sizeGate is set to the size (2 or 4) of any call gate that loadProt() goes through; helpCALLF() clears
+             * it before and checks it after loading CS, because a call gate's size (not the operand size of the CALL)
+             * determines the size of the return address.
+             */
+            this.sizeGate = 0;
             this.awParms = new Array(32);
             this.aCallBreaks = [];
         }
@@ -25605,9 +25635,9 @@ class Segx86 {
     loadDesc6(addrDesc, sel)
     {
         let cpu = this.cpu;
-        let acc = cpu.getShort(addrDesc + 2);
-        let base = cpu.getShort(addrDesc) | ((acc & 0xff) << 16);
-        let limit = cpu.getShort(addrDesc + 4);
+        let acc = cpu.accessSys(cpu.getShort, addrDesc + 2);
+        let base = cpu.accessSys(cpu.getShort, addrDesc) | ((acc & 0xff) << 16);
+        let limit = cpu.accessSys(cpu.getShort, addrDesc + 4);
 
         this.sel = sel;
         this.base = base;
@@ -25690,12 +25720,17 @@ class Segx86 {
         /**
          * Load the descriptor from memory.
          */
-        let limit = cpu.getShort(addrDesc + X86.DESC.LIMIT.OFFSET);
-        let limitOrig;
-        let acc = cpu.getShort(addrDesc + X86.DESC.ACC.OFFSET);
+        let limit, limitOrig, acc, base, ext, cpl = cpu.nCPL;
+        cpu.nCPL = 0;                   // descriptor reads are supervisor accesses (see accessSys())
+        try {
+            limit = cpu.getShort(addrDesc + X86.DESC.LIMIT.OFFSET);
+            acc = cpu.getShort(addrDesc + X86.DESC.ACC.OFFSET);
+            base = cpu.getShort(addrDesc + X86.DESC.BASE.OFFSET) | ((acc & X86.DESC.ACC.BASE1623) << 16);
+            ext = cpu.getShort(addrDesc + X86.DESC.EXT.OFFSET);
+        } finally {
+            cpu.nCPL = cpl;
+        }
         let type = (acc & X86.DESC.ACC.TYPE.MASK);
-        let base = cpu.getShort(addrDesc + X86.DESC.BASE.OFFSET) | ((acc & X86.DESC.ACC.BASE1623) << 16);
-        let ext = cpu.getShort(addrDesc + X86.DESC.EXT.OFFSET);
         let selMasked = sel & X86.SEL.MASK;
 
         if (I386 && cpu.model >= X86.MODEL_80386) {
@@ -25938,7 +25973,7 @@ class Segx86 {
                             offSP = (cplNew << 3) + X86.TSS386.CPL0_ESP;
                             lenSP = 4;
                         }
-                        selStack = cpu.getShort(addrTSS + offSP + lenSP);
+                        selStack = cpu.accessSys(cpu.getShort, addrTSS + offSP + lenSP);
 
                         /**
                          * Intel pseudo-code indicates at least FIVE discrete selStack tests that could trigger
@@ -25962,7 +25997,7 @@ class Segx86 {
                          * Both probes succeeded, so we can proceed with "normal" loads for both selCode and
                          * selStack (which should automatically use the values cached by the "probed" loads above).
                          */
-                        offStack = (lenSP == 2)? cpu.getShort(addrTSS + offSP) : cpu.getLong(addrTSS + offSP);
+                        offStack = cpu.accessSys(lenSP == 2? cpu.getShort : cpu.getLong, addrTSS + offSP);
                     }
 
                     /**
@@ -25983,6 +26018,7 @@ class Segx86 {
                     }
 
                     cpu.setDataSize(sizeGate);
+                    this.sizeGate = sizeGate;
 
                     this.offIP = limit;
 
@@ -25995,11 +26031,16 @@ class Segx86 {
                             return X86.ADDR_INVALID;
                         }
 
-                        regSP = cpu.getSP();
+                        /**
+                         * A gate's parameter count is in words (80286 gates) or dwords (80386 gates), and since
+                         * setDataSize(sizeGate) above, getSOWord() and pushWord() both use that size, too.  A 16-bit
+                         * stack segment uses only SP, even if the upper half of ESP is nonzero (eg, OS/2 2.0 thunks).
+                         */
+                        regSP = cpu.getSP() & cpu.segSS.maskAddr;
                         let i = 0, nWords = (acc & 0x1f);
                         while (nWords--) {
                             this.awParms[i++] = cpu.getSOWord(cpu.segSS, regSP);
-                            regSP += 2;
+                            regSP += sizeGate;
                         }
 
                         regSSPrev = cpu.getSS();
@@ -26157,7 +26198,7 @@ class Segx86 {
              */
             this.addrIOPM = 0;
             if (typeTSS == X86.DESC.ACC.TYPE.TSS386) {
-                this.addrIOPM = (base + cpu.getShort(base + X86.TSS386.TASK_IOPM + 2)) >>> 0;
+                this.addrIOPM = (base + cpu.accessSys(cpu.getShort, base + X86.TSS386.TASK_IOPM + 2)) >>> 0;
                 this.addrIOPMLimit = (base + limit) >>> 0;
             }
             break;
@@ -26269,7 +26310,7 @@ class Segx86 {
             /**
              * TODO: Should I be more paranoid about writing our cached ACC value back into the descriptor?
              */
-            cpu.setShort(cpu.segTSS.addrDesc + X86.DESC.ACC.OFFSET, cpu.segTSS.acc &= ~X86.DESC.ACC.TYPE.TSS_BUSY);
+            cpu.accessSys(cpu.setShort, cpu.segTSS.addrDesc + X86.DESC.ACC.OFFSET, cpu.segTSS.acc &= ~X86.DESC.ACC.TYPE.TSS_BUSY);
         }
 
         if (cpu.segTSS.load(selNew) === X86.ADDR_INVALID) {
@@ -26286,7 +26327,7 @@ class Segx86 {
                 X86.helpFault.call(cpu, X86.EXCEPTION.GP_FAULT, selNew & X86.ERRCODE.SELMASK);
                 return false;
             }
-            cpu.setShort(cpu.segTSS.addrDesc + X86.DESC.ACC.OFFSET, cpu.segTSS.acc |= X86.DESC.ACC.TYPE.TSS_BUSY);
+            cpu.accessSys(cpu.setShort, cpu.segTSS.addrDesc + X86.DESC.ACC.OFFSET, cpu.segTSS.acc |= X86.DESC.ACC.TYPE.TSS_BUSY);
         }
 
         /**
@@ -26601,14 +26642,14 @@ class Segx86 {
                      */
                     if ((this.sel & ~X86.SEL.RPL) && this.addrDesc !== X86.ADDR_INVALID) {
                         let addrType = this.addrDesc + X86.DESC.ACC.TYPE.OFFSET;
-                        let bType = this.cpu.getByte(addrType);
+                        let bType = this.cpu.accessSys(this.cpu.getByte, addrType);
                         /**
                          * This code used to ALWAYS call setByte(), but that's a waste of time if ACCESSED is already
                          * set.  TODO: It would also be nice if we could simply use the cached type value, and eliminate
                          * the getByte() call; that seems a bit risky, but I think we should still try it someday.
                          */
                         if (!(bType & (X86.DESC.ACC.TYPE.ACCESSED >> 8))) {
-                            this.cpu.setByte(addrType, bType | (X86.DESC.ACC.TYPE.ACCESSED >> 8));
+                            this.cpu.accessSys(this.cpu.setByte, addrType, bType | (X86.DESC.ACC.TYPE.ACCESSED >> 8));
                         }
                     }
                 }
@@ -26771,7 +26812,7 @@ class Segx86 {
          if (addrDT !== undefined) {
              let addrDesc = (addrDT + (sel & X86.SEL.MASK))|0;
              if (((addrDTLimit - addrDesc)|0) >= 7) {
-                 return cpu.getShort(addrDesc + X86.DESC.ACC.OFFSET);
+                 return cpu.accessSys(cpu.getShort, addrDesc + X86.DESC.ACC.OFFSET);
              }
          }
          X86.helpFault.call(cpu, X86.EXCEPTION.GP_FAULT, sel & X86.ERRCODE.SELMASK);
@@ -27646,9 +27687,11 @@ X86.fnIMUL8 = function(dst, src)
 {
     /**
      * NOTE: getIPDisp() already sign-extends the dst parameter, so fnIMULrw() needlessly sign-extends it again;
-     * a small price to pay for a common function.
+     * a small price to pay for a common function.  With a 32-bit operand size, the product must be 32 bits, not
+     * 16 (eg, OS/2 2.0's IMUL EAX,EAX,1Ch, which indexes its page frame table, fails above 9Mb of memory).
      */
-    let result = X86.fnIMULrw.call(this, this.getIPDisp(), src);
+    let disp = this.getIPDisp();
+    let result = (this.sizeData == 2? X86.fnIMULrw : X86.fnIMULrd).call(this, disp, src);
 
     /**
      * NOTE: The above function already accounted for the 80386 cycle count, so we are simply accounting for the
@@ -30597,7 +30640,14 @@ X86.helpCALLF = function(off, sel)
     this.opLSP = this.regLSP;
     let oldIP = this.getIP();
     let oldSize = (I386? this.sizeData : 2);
+    this.segCS.sizeGate = 0;
     if (this.setCSIP(off, sel, true) != null) {
+        /**
+         * A call through a call gate pushes a return address the size of the gate, whatever the operand size
+         * of the CALL (eg, OS/2 2.0's 16-bit device drivers call DevHlp through an 80386 call gate, and DevHlp
+         * returns with a 32-bit RETF).
+         */
+        if (this.segCS.sizeGate) oldSize = this.segCS.sizeGate;
         /**
          * When the OPERAND size is 32 bits, the 80386 will decrement the stack pointer by 4, write the selector
          * into the 2 lower bytes, and leave the 2 upper bytes untouched; at least, that's the case for all other
@@ -36890,7 +36940,8 @@ X86.opINSw = function()
 /**
  * op=0x6E (OUTSB) (80186/80188 and up)
  *
- * NOTE: Segment overrides are ignored for this instruction, so we must use segDS instead of segData.
+ * NOTE: Unlike INS, whose destination is always ES, the source (DS) can be overridden, so we use segData
+ * (eg, the CS: OUTSB that OS/2 2.0 uses to load the VGA DAC from its own code segment).
  *
  * @this {CPUx86}
  */
@@ -36917,7 +36968,7 @@ X86.opOUTSb = function()
     if (nReps--) {
         let port = this.regEDX & 0xffff;
         if (!this.checkIOPM(port, 1, false)) return;
-        let b = this.getSOByte(this.segDS, this.regESI & maskAddr);
+        let b = this.getSOByte(this.segData, this.regESI & maskAddr);
         /**
          * helpFault() throws exceptions now, so inline checks of X86.OPFLAG.FAULT should no longer be necessary.
          *
@@ -36935,7 +36986,7 @@ X86.opOUTSb = function()
 /**
  * op=0x6F (OUTSW) (80186/80188 and up)
  *
- * NOTE: Segment overrides are ignored for this instruction, so we must use segDS instead of segData.
+ * NOTE: Unlike INS, whose destination is always ES, the source (DS) can be overridden, so we use segData.
  *
  * @this {CPUx86}
  */
@@ -36960,7 +37011,7 @@ X86.opOUTSw = function()
         if (this.opPrefixes & X86.OPFLAG.REPEAT) nCycles = 4;
     }
     if (nReps--) {
-        let w = this.getSOWord(this.segDS, this.regESI & maskAddr);
+        let w = this.getSOWord(this.segData, this.regESI & maskAddr);
         /**
          * helpFault() throws exceptions now, so inline checks of X86.OPFLAG.FAULT should no longer be necessary.
          *
@@ -41490,6 +41541,12 @@ X86.aOps0F[0xA6] = X86.opInvalid;
  * In any case, this means we need to explicitly set the handler for that opcode to opInvalid(), too.
  */
 X86.aOps0F[0xFF] = X86.opInvalid;
+
+/**
+ * Similarly, the DOS kernel in OS/2 2.0's DOS sessions (V86-mode) calls the OS/2 kernel with undefined opcode
+ * 0x0F,0x7F, which must raise a #UD (Invalid Opcode) exception that OS/2's handler recognizes.
+ */
+X86.aOps0F[0x7F] = X86.opInvalid;
 
 /**
  * NOTE: Any other opcode slots NOT explicitly initialized above with either a dedicated function OR opInvalid()
@@ -47238,6 +47295,14 @@ class ChipSet extends Component {
                 if (this.kbd) this.set8042OutBuff(this.kbd.receiveCmd(bOut));
                 break;
             }
+        } else {
+            /**
+             * A data byte that doesn't follow a command goes to the Keyboard, too; eg, the second byte of a two-byte
+             * Keyboard command (like 0xED and its LED bits), which OS/2 2.0's DOS sessions write without any command
+             * in between.
+             */
+            this.set8042CmdData(this.b8042CmdData & ~ChipSet.C8042.DATA.CMD.NO_CLOCK);
+            if (this.kbd) this.set8042OutBuff(this.kbd.receiveCmd(bOut));
         }
         this.b8042InBuff = bOut;
         this.b8042Status &= ~ChipSet.C8042.STATUS.CMD_FLAG;
@@ -47515,6 +47580,12 @@ class ChipSet extends Component {
             } else {
                 this.b8042Status &= ~ChipSet.C8042.STATUS.OUTBUFF_FULL;
                 this.b8042Status |= ChipSet.C8042.STATUS.OUTBUFF_DELAY;
+                /**
+                 * Any data placed in the output buffer generates an interrupt if INT_ENABLE is set, not just
+                 * keyboard scan codes (eg, OS/2 2.0's keyboard driver sends READ_INPORT and reads the response in
+                 * its interrupt handler).
+                 */
+                if (this.b8042CmdData & ChipSet.C8042.DATA.CMD.INT_ENABLE) this.setIRR(ChipSet.IRQ.KBD, 120);
             }
             if (!COMPILED) this.printf(MESSAGE.KBD + MESSAGE.PORT, "chipset.set8042OutBuff(%#04X,delay=%b)\n", b, !fNoDelay);
         }

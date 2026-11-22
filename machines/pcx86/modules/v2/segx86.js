@@ -100,6 +100,12 @@ export default class Segx86 {
             this.offIP = 0;
             this.fCall = null;
             this.fStackSwitch = false;
+            /**
+             * sizeGate is set to the size (2 or 4) of any call gate that loadProt() goes through; helpCALLF() clears
+             * it before and checks it after loading CS, because a call gate's size (not the operand size of the CALL)
+             * determines the size of the return address.
+             */
+            this.sizeGate = 0;
             this.awParms = new Array(32);
             this.aCallBreaks = [];
         }
@@ -562,9 +568,9 @@ export default class Segx86 {
     loadDesc6(addrDesc, sel)
     {
         let cpu = this.cpu;
-        let acc = cpu.getShort(addrDesc + 2);
-        let base = cpu.getShort(addrDesc) | ((acc & 0xff) << 16);
-        let limit = cpu.getShort(addrDesc + 4);
+        let acc = cpu.accessSys(cpu.getShort, addrDesc + 2);
+        let base = cpu.accessSys(cpu.getShort, addrDesc) | ((acc & 0xff) << 16);
+        let limit = cpu.accessSys(cpu.getShort, addrDesc + 4);
 
         this.sel = sel;
         this.base = base;
@@ -647,12 +653,17 @@ export default class Segx86 {
         /**
          * Load the descriptor from memory.
          */
-        let limit = cpu.getShort(addrDesc + X86.DESC.LIMIT.OFFSET);
-        let limitOrig;
-        let acc = cpu.getShort(addrDesc + X86.DESC.ACC.OFFSET);
+        let limit, limitOrig, acc, base, ext, cpl = cpu.nCPL;
+        cpu.nCPL = 0;                   // descriptor reads are supervisor accesses (see accessSys())
+        try {
+            limit = cpu.getShort(addrDesc + X86.DESC.LIMIT.OFFSET);
+            acc = cpu.getShort(addrDesc + X86.DESC.ACC.OFFSET);
+            base = cpu.getShort(addrDesc + X86.DESC.BASE.OFFSET) | ((acc & X86.DESC.ACC.BASE1623) << 16);
+            ext = cpu.getShort(addrDesc + X86.DESC.EXT.OFFSET);
+        } finally {
+            cpu.nCPL = cpl;
+        }
         let type = (acc & X86.DESC.ACC.TYPE.MASK);
-        let base = cpu.getShort(addrDesc + X86.DESC.BASE.OFFSET) | ((acc & X86.DESC.ACC.BASE1623) << 16);
-        let ext = cpu.getShort(addrDesc + X86.DESC.EXT.OFFSET);
         let selMasked = sel & X86.SEL.MASK;
 
         if (I386 && cpu.model >= X86.MODEL_80386) {
@@ -895,7 +906,7 @@ export default class Segx86 {
                             offSP = (cplNew << 3) + X86.TSS386.CPL0_ESP;
                             lenSP = 4;
                         }
-                        selStack = cpu.getShort(addrTSS + offSP + lenSP);
+                        selStack = cpu.accessSys(cpu.getShort, addrTSS + offSP + lenSP);
 
                         /**
                          * Intel pseudo-code indicates at least FIVE discrete selStack tests that could trigger
@@ -919,7 +930,7 @@ export default class Segx86 {
                          * Both probes succeeded, so we can proceed with "normal" loads for both selCode and
                          * selStack (which should automatically use the values cached by the "probed" loads above).
                          */
-                        offStack = (lenSP == 2)? cpu.getShort(addrTSS + offSP) : cpu.getLong(addrTSS + offSP);
+                        offStack = cpu.accessSys(lenSP == 2? cpu.getShort : cpu.getLong, addrTSS + offSP);
                     }
 
                     /**
@@ -940,6 +951,7 @@ export default class Segx86 {
                     }
 
                     cpu.setDataSize(sizeGate);
+                    this.sizeGate = sizeGate;
 
                     this.offIP = limit;
 
@@ -952,11 +964,16 @@ export default class Segx86 {
                             return X86.ADDR_INVALID;
                         }
 
-                        regSP = cpu.getSP();
+                        /**
+                         * A gate's parameter count is in words (80286 gates) or dwords (80386 gates), and since
+                         * setDataSize(sizeGate) above, getSOWord() and pushWord() both use that size, too.  A 16-bit
+                         * stack segment uses only SP, even if the upper half of ESP is nonzero (eg, OS/2 2.0 thunks).
+                         */
+                        regSP = cpu.getSP() & cpu.segSS.maskAddr;
                         let i = 0, nWords = (acc & 0x1f);
                         while (nWords--) {
                             this.awParms[i++] = cpu.getSOWord(cpu.segSS, regSP);
-                            regSP += 2;
+                            regSP += sizeGate;
                         }
 
                         regSSPrev = cpu.getSS();
@@ -1114,7 +1131,7 @@ export default class Segx86 {
              */
             this.addrIOPM = 0;
             if (typeTSS == X86.DESC.ACC.TYPE.TSS386) {
-                this.addrIOPM = (base + cpu.getShort(base + X86.TSS386.TASK_IOPM + 2)) >>> 0;
+                this.addrIOPM = (base + cpu.accessSys(cpu.getShort, base + X86.TSS386.TASK_IOPM + 2)) >>> 0;
                 this.addrIOPMLimit = (base + limit) >>> 0;
             }
             break;
@@ -1226,7 +1243,7 @@ export default class Segx86 {
             /**
              * TODO: Should I be more paranoid about writing our cached ACC value back into the descriptor?
              */
-            cpu.setShort(cpu.segTSS.addrDesc + X86.DESC.ACC.OFFSET, cpu.segTSS.acc &= ~X86.DESC.ACC.TYPE.TSS_BUSY);
+            cpu.accessSys(cpu.setShort, cpu.segTSS.addrDesc + X86.DESC.ACC.OFFSET, cpu.segTSS.acc &= ~X86.DESC.ACC.TYPE.TSS_BUSY);
         }
 
         if (cpu.segTSS.load(selNew) === X86.ADDR_INVALID) {
@@ -1243,7 +1260,7 @@ export default class Segx86 {
                 X86.helpFault.call(cpu, X86.EXCEPTION.GP_FAULT, selNew & X86.ERRCODE.SELMASK);
                 return false;
             }
-            cpu.setShort(cpu.segTSS.addrDesc + X86.DESC.ACC.OFFSET, cpu.segTSS.acc |= X86.DESC.ACC.TYPE.TSS_BUSY);
+            cpu.accessSys(cpu.setShort, cpu.segTSS.addrDesc + X86.DESC.ACC.OFFSET, cpu.segTSS.acc |= X86.DESC.ACC.TYPE.TSS_BUSY);
         }
 
         /**
@@ -1558,14 +1575,14 @@ export default class Segx86 {
                      */
                     if ((this.sel & ~X86.SEL.RPL) && this.addrDesc !== X86.ADDR_INVALID) {
                         let addrType = this.addrDesc + X86.DESC.ACC.TYPE.OFFSET;
-                        let bType = this.cpu.getByte(addrType);
+                        let bType = this.cpu.accessSys(this.cpu.getByte, addrType);
                         /**
                          * This code used to ALWAYS call setByte(), but that's a waste of time if ACCESSED is already
                          * set.  TODO: It would also be nice if we could simply use the cached type value, and eliminate
                          * the getByte() call; that seems a bit risky, but I think we should still try it someday.
                          */
                         if (!(bType & (X86.DESC.ACC.TYPE.ACCESSED >> 8))) {
-                            this.cpu.setByte(addrType, bType | (X86.DESC.ACC.TYPE.ACCESSED >> 8));
+                            this.cpu.accessSys(this.cpu.setByte, addrType, bType | (X86.DESC.ACC.TYPE.ACCESSED >> 8));
                         }
                     }
                 }
@@ -1728,7 +1745,7 @@ export default class Segx86 {
          if (addrDT !== undefined) {
              let addrDesc = (addrDT + (sel & X86.SEL.MASK))|0;
              if (((addrDTLimit - addrDesc)|0) >= 7) {
-                 return cpu.getShort(addrDesc + X86.DESC.ACC.OFFSET);
+                 return cpu.accessSys(cpu.getShort, addrDesc + X86.DESC.ACC.OFFSET);
              }
          }
          X86.helpFault.call(cpu, X86.EXCEPTION.GP_FAULT, sel & X86.ERRCODE.SELMASK);

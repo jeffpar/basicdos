@@ -188,7 +188,7 @@ function diskFolders(disk)
  */
 function diskFiles(diskName, fileSpecs)
 {
-    let diskFile = diskName.endsWith(".json")? diskName : "./software/disks/historical/" + diskName + ".json";
+    let diskFile = diskName.endsWith(".json")? diskName : "./software/disks/historical/dos/" + diskName + ".json";
     let diskDir = "./tools/pc/disks/" + path.basename(diskFile, ".json");
     if (!fs.existsSync(diskDir)) {
         execSync("node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" " + diskFile + " --extract --dest=" + diskDir, { stdio: "ignore" });

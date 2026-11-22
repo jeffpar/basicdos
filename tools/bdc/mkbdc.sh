@@ -3,7 +3,7 @@
 # Usage: tools/bdc/mkbdc.sh
 #
 # Builds software/src/tools/bd/BDC.EXE from the source in software/src/tools/bd/bdc, as its makefile
-# does on a BASIC-DOS hard disk, but on MS-DOS 3.20 (software/disks/historical/MSDOS320-C400.json) running in pc.js, whose
+# does on a BASIC-DOS hard disk, but on MS-DOS 3.20 (software/disks/historical/dos/MSDOS320-C400.json) running in pc.js, whose
 # drive D: is a folder here: Microsoft C 4.00 compiles it, LINK4 (the original, in software/src/tools/dos) links it
 # with the BASIC-DOS libraries (software/src/tools/bd/lib, over software/src/tools/dos/lib), and STUB adds the NE
 # loader stub.  A BASIC-DOS build produces the same file.
@@ -23,7 +23,7 @@ if pgrep -f "pc\.js" > /dev/null; then
 fi
 rm -rf "$work"
 mkdir -p "$dos/LIB" || exit 1
-cp software/disks/historical/MSDOS320-C400.json "$work.json" || exit 1
+cp software/disks/historical/dos/MSDOS320-C400.json "$work.json" || exit 1
 cp $src/*.c $src/*.h $src/bdc.def $tools/dos/LINK4.EXE $tools/bd/STUB.EXE "$dos/" || exit 1
 cp $tools/dos/lib/* "$dos/LIB/" && cp $tools/bd/lib/* "$dos/LIB/" || exit 1
 bat=$dos/MKDOS.BAT

@@ -839,6 +839,167 @@
 								"@source": "http://www.os2museum.com/files/docs/os210sdk/os2-1.0-ddk-upd-1987.pdf"
 							}
 						]
+					},
+					"2.00-PR2": {
+						"@title": "MS OS/2 SDK 2.00 (Pre-Release 2)",
+						"@media": [
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (INSTALL)",
+								"@diskette": "MSOS2-2.0-PR2-INSTALL.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-INSTALL.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (DISK1)",
+								"@diskette": "MSOS2-2.0-PR2-DISK1.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-DISK1.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (DISK2)",
+								"@diskette": "MSOS2-2.0-PR2-DISK2.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-DISK2.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (DISK3)",
+								"@diskette": "MSOS2-2.0-PR2-DISK3.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-DISK3.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (DISK4)",
+								"@diskette": "MSOS2-2.0-PR2-DISK4.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-DISK4.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (DISK5)",
+								"@diskette": "MSOS2-2.0-PR2-DISK5.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-DISK5.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (DISK6)",
+								"@diskette": "MSOS2-2.0-PR2-DISK6.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-DISK6.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (DISK7)",
+								"@diskette": "MSOS2-2.0-PR2-DISK7.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-DISK7.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (DISK8)",
+								"@diskette": "MSOS2-2.0-PR2-DISK8.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-DISK8.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (DEBUG1)",
+								"@diskette": "MSOS2-2.0-PR2-DEBUG1.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-DEBUG1.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (DEBUG2)",
+								"@diskette": "MSOS2-2.0-PR2-DEBUG2.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-DEBUG2.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (LANG1)",
+								"@diskette": "MSOS2-2.0-PR2-LANG1.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-LANG1.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (LANG2)",
+								"@diskette": "MSOS2-2.0-PR2-LANG2.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-LANG2.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (LANG3)",
+								"@diskette": "MSOS2-2.0-PR2-LANG3.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-LANG3.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (LANG4)",
+								"@diskette": "MSOS2-2.0-PR2-LANG4.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-LANG4.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (LANG5)",
+								"@diskette": "MSOS2-2.0-PR2-LANG5.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-LANG5.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (LANG6)",
+								"@diskette": "MSOS2-2.0-PR2-LANG6.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-LANG6.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (TOOLKIT1)",
+								"@diskette": "MSOS2-2.0-PR2-TOOLKIT1.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-TOOLKIT1.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (TOOLKIT2)",
+								"@diskette": "MSOS2-2.0-PR2-TOOLKIT2.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-TOOLKIT2.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (TOOLKIT3)",
+								"@diskette": "MSOS2-2.0-PR2-TOOLKIT3.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-TOOLKIT3.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (TOOLKIT4)",
+								"@diskette": "MSOS2-2.0-PR2-TOOLKIT4.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-TOOLKIT4.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (TOOLKIT5)",
+								"@diskette": "MSOS2-2.0-PR2-TOOLKIT5.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-TOOLKIT5.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (NET1SETUP)",
+								"@diskette": "MSOS2-2.0-PR2-NET1SETUP.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-NET1SETUP.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (NET2WKS1)",
+								"@diskette": "MSOS2-2.0-PR2-NET2WKS1.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-NET2WKS1.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (NET3WKS2)",
+								"@diskette": "MSOS2-2.0-PR2-NET3WKS2.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-NET3WKS2.json",
+								"@format": "PC1200K"
+							},
+							{
+								"@title": "MS OS/2 SDK 2.00 PR2 (NET4DRV)",
+								"@diskette": "MSOS2-2.0-PR2-NET4DRV.json",
+								"@link": "/software/disks/historical/os2/2.0/pr2/MSOS2-2.0-PR2-NET4DRV.json",
+								"@format": "PC1200K"
+							}
+						]
 					}
 				}
 			}
@@ -1786,7 +1947,7 @@
 						"@media": [
 							{
 								"@diskette": "PCDOS100.json",
-								"@link": "/software/disks/historical/PCDOS100.json",
+								"@link": "/software/disks/historical/dos/PCDOS100.json",
 								"@format": "PC160K"
 							}
 						],
@@ -1806,7 +1967,7 @@
 						"@media": [
 							{
 								"@diskette": "PCDOS110.json",
-								"@link": "/software/disks/historical/PCDOS110.json",
+								"@link": "/software/disks/historical/dos/PCDOS110.json",
 								"@format": "PC160K"
 							}
 						],
@@ -1838,13 +1999,13 @@
 							{
 								"@title": "PC DOS 2.00 (Disk 1)",
 								"@diskette": "PCDOS200-DISK1.json",
-								"@link": "/software/disks/historical/PCDOS200-DISK1.json",
+								"@link": "/software/disks/historical/dos/PCDOS200-DISK1.json",
 								"@format": "PC180K"
 							},
 							{
 								"@title": "PC DOS 2.00 (Disk 2)",
 								"@diskette": "PCDOS200-DISK2.json",
-								"@link": "/software/disks/historical/PCDOS200-DISK2.json",
+								"@link": "/software/disks/historical/dos/PCDOS200-DISK2.json",
 								"@format": "PC180K"
 							}
 						],

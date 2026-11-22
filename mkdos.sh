@@ -80,7 +80,7 @@ masm4() {
     touch "$dir/CLEAN"
     [ "$1" = FINAL ] && touch "$dir/MKFINAL"
     echo "Building with MASM 4.00 ($1) in $dir..."
-    tools/pc/pc.js --disk=software/disks/historical/MSDOS320-C400.json --dir="$dir" --normalize --speed=16 --target=30M --fat=16:2048:512 < /dev/null > "$log" 2>&1 &
+    tools/pc/pc.js --disk=software/disks/historical/dos/MSDOS320-C400.json --dir="$dir" --normalize --speed=16 --target=30M --fat=16:2048:512 < /dev/null > "$log" 2>&1 &
     pid=$!
     #
     # A build that runs to the end QUITs, but if a step other than MAKE fails, the batch files stop at
@@ -140,7 +140,7 @@ fi
 if [ -n "$clean" ]; then
     touch $src/CLEAN
 fi
-tools/pc/pc.js --disk=software/disks/historical/MSDOS320-C400.json --dir=$src --normalize --speed=16 --target=30M --fat=16:2048:512
+tools/pc/pc.js --disk=software/disks/historical/dos/MSDOS320-C400.json --dir=$src --normalize --speed=16 --target=30M --fat=16:2048:512
 code=$?
 if [ $code -eq 0 ] && [ -n "$PCJS" ] && ! watching; then
     if ! npx gulp demos --silent > /dev/null; then

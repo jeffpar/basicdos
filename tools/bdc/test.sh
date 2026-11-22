@@ -3,7 +3,7 @@
 # Usage: tools/bdc/test.sh
 #
 # Tests BDC, the BASIC-DOS C compiler, using a copy of it built on this machine and MS-DOS 3.20 with Microsoft C 4.00
-# (software/disks/historical/MSDOS320-C400.json) running in pc.js:
+# (software/disks/historical/dos/MSDOS320-C400.json) running in pc.js:
 #
 #   1. Each test program is compiled here by BDC, and linked and run on MS-DOS.  Its output must match the output of
 #      the same program compiled there by Microsoft C (ints, longs, misc), or the test's .exp file: ansi is a
@@ -37,7 +37,7 @@ if pgrep -f "pc\.js" > /dev/null; then
 fi
 rm -rf "$work"
 mkdir -p "$dos" "$host" || exit 1
-cp software/disks/historical/MSDOS320-C400.json "$work.json" || exit 1
+cp software/disks/historical/dos/MSDOS320-C400.json "$work.json" || exit 1
 cc -std=gnu89 -DHOST -w -o "$host/bdc" $src/*.c || exit 1
 
 upper() { echo "$1" | tr a-z A-Z; }

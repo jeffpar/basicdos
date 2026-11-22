@@ -30,7 +30,7 @@ cp $src/tests/BENCH.BAS $src/msb/OBJ/MSBASIC.EXE "$out/pc/"
 if [ ! -f "$out/pc/BASICA.COM" ]; then
     root=$(pwd)
     pcjs=$(cd "${PCJS:-../pcjs}" 2>/dev/null && pwd)
-    (cd "$out/pc" && node "$pcjs/tools/diskimage/diskimage.js" "$root/software/disks/historical/PCDOS200-DISK1.json" \
+    (cd "$out/pc" && node "$pcjs/tools/diskimage/diskimage.js" "$root/software/disks/historical/dos/PCDOS200-DISK1.json" \
         --extract=BASICA.COM > /dev/null 2>&1)
     if [ ! -f "$out/pc/BASICA.COM" ]; then echo "error: unable to extract BASICA.COM (set PCJS)" >&2; exit 1; fi
 fi
