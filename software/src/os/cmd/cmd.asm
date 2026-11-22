@@ -1436,7 +1436,7 @@ cf5x:	DOSUTIL	STRLEN			; AX = length of filename in LINEBUF
 ; If there are no pipes, and the transient portion can be discarded, let
 ; runTransient load and run the program (see res.asm).
 ;
-	mov	ax,[bp].HDL_INPIPE
+cf5a:	mov	ax,[bp].HDL_INPIPE
 	or	ax,[bp].HDL_OUTPIPE
 	jnz	cf5f
 	call	transParas
@@ -1469,9 +1469,7 @@ cf5f:	call	pipeStages		; CH = commands that follow
 cf5c:	call	cmdStart
 cf5d:	jmp	short cf9
 
-cf5e:	call	freeEnv			; (the program never ran)
-	mov	si,dx
-	jmp	cf8
+cf5e:	jmp	cf10			; (out of line, for the short jumps)
 ;
 ; Use DOS_UTL_LOAD to load the external program into a background session.
 ;
@@ -1482,7 +1480,7 @@ cf6:	mov	di,dx			; DI -> filename in LINEBUF
 	mov	al,0			; regardless how the tail ends,
 	stosb				; null-terminate the new command line
 	pop	si			; SI -> new command line
-	sub	sp,size SPB
+cf6a:	sub	sp,size SPB
 	mov	di,sp			; ES:DI -> SPB on stack
 	sub	ax,ax
 	stosw				; SPB_ENVSEG <- 0
@@ -1514,7 +1512,7 @@ cf7b:	stosb				; SPB_SFHOUT
 	call	pipeStages		; CH = commands that follow
 	DOSUTIL	LOAD,0			; load CMDLINE into an SCB
 	lea	sp,[bx + size SPB]	; clean up the stack
-	jc	cf8
+	jc	cf11
 	call	addPipe			; record the session
 	DOSUTIL	START			; start the SCB # specified in CL
 	jmp	short cf9
@@ -1532,7 +1530,59 @@ cf9a:	pushf
 	popf
 	pop	bp
 	ret
+;
+; If a program couldn't be loaded for lack of memory, and freeVarsRetry
+; freed some, try again: the tail and environment (cf10, from cf5e), or the
+; command line (cf11), are already built.
+;
+cf10:	call	freeVarsRetry
+	jc	cf10a
+	lea	bx,[bp].EXECDATA
+	jmp	cf5a
+cf10a:	call	freeEnv			; (the program never ran)
+	mov	si,dx
+	jmp	cf8
+cf11:	call	freeVarsRetry
+	jc	cf8
+	jmp	cf6a
 ENDPROC	cmdFile
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; freeVarsRetry
+;
+; When a program can't be loaded for lack of memory, and no BAT or BAS file
+; is running (it would need its variables), frees all the variables, as CLEAR
+; does, so that cmdFile can try again.  Since nothing is freed if there are
+; no variables, a second failure is reported.
+;
+; Inputs:
+;	AX = error code
+;	BP -> CMDHEAP
+;
+; Outputs:
+;	Carry clear if variables were freed, set if not
+;
+; Modifies:
+;	CX
+;
+DEFPROC	freeVarsRetry
+	cmp	ax,ERR_NOMEMORY		; not enough memory?
+	jne	fvr8			; no
+	cmp	[bp].CBLKDEF.BDEF_NEXT,0; is a program running?
+	jne	fvr8			; yes
+	mov	cx,[bp].FBLKDEF.BDEF_NEXT
+	or	cx,[bp].VBLKDEF.BDEF_NEXT
+	or	cx,[bp].ABLKDEF.BDEF_NEXT
+	jz	fvr8			; there are no variables to free
+	push	si
+	call	freeAllVars
+	pop	si
+	clc
+	ret
+fvr8:	stc
+	ret
+ENDPROC	freeVarsRetry
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

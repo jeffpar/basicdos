@@ -38,6 +38,7 @@ const PIPES = /DIRECTORY OF A:/, DIR = /Directory of A:/, PROMPT = /[A-C]:\\[^ ]
  *      screen      patterns that must appear in video memory (default: a prompt)
  *      com         serial ports with consoles, which must show a prompt and answer a command
  *      debug       serial port with the BASIC-DOS debugger, which must show its banner
+ *      halt        true if the debugger is loaded with /H, so startup waits at its prompt until we send it a G
  *      keys        false if the keyboard's console isn't at a prompt (or there's no keyboard console)
  *      cycle       true to press SHIFT-TAB while waiting (for consoles that share one video page)
  *      graphics    true if the demo switches to a graphics mode (eg, from its CONFIG.SYS SHELL line)
@@ -285,7 +286,15 @@ async function runDemo(demo)
         // PCjs supplies a PC or XT's date and time, so its first SHELL shouldn't prompt for them, but if one
         // does on a serial console (eg, the Terminal demo), we press Enter.
         //
+        let halted = spec.halt;
         const tick = async (i, s) => {
+            //
+            // A debugger loaded with /H stops the machine as it starts, and waits at its prompt (eg, "[1]") for a G.
+            //
+            if (halted && /BASIC-DOS Debugger[^]*[<\[(]\w*[>\])]$/.test(s.com[spec.debug] || '')) {
+                halted = false;
+                await page.evaluate(`__dx.send(${spec.debug}, "G\\r")`);
+            }
             //
             // Switching consoles (eg, on the IBM PC's Multiple Pages demo, whose MDA shows one at a time) waits
             // for a prompt, so that the first console has finished starting.

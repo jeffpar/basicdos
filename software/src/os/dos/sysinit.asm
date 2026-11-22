@@ -34,6 +34,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<sysinit_tail,fatal_error,set_ddint,set_fault>
 	EXTWORD	<dos_seg,dos_code,cfg_data,cfg_size,dos_addr>
 	EXTLONG	<pCacheInt21,con_fails>
+	EXTBYTE	<lib_path,lib_end>
 	EXTERNS	<cache_int21>,far
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>
 	EXTNEAR	<dos_term,dos_func,dos_exit,dos_ctrlc,dos_error,dos_default>
@@ -255,6 +256,26 @@ si3a:	sub	bx,bx
 	mov	[BOOT_KEY],bx
 	call	dos_size
 	call	set_fault		; AX = end of the resident code
+;
+; In protected mode, the NE loader is resident, so a "LIBPATH=" line gives it
+; the directory that it loads libraries from (see ne_lib).
+;
+	push	ax
+	cmp	ax,offset lib_path	; is the NE loader resident?
+	jbe	si3c			; no
+	mov	si,offset CFG_LIBPATH
+	call	find_cfg		; look for "LIBPATH="
+	jc	si3c
+	mov	bx,offset lib_path
+si3b:	mov	al,ss:[di]
+	inc	di
+	cmp	al,' '			; the end of the directory?
+	jbe	si3c			; yes
+	mov	[bx],al
+	inc	bx
+	cmp	bx,offset lib_end	; any more room?
+	jb	si3b			; yes
+si3c:	pop	ax
 	add	ax,15
 	and	al,0F0h			; AX = DS-relative offset of the table
 	mov	ss:[tbl_next],ax
@@ -943,6 +964,7 @@ CFG_SESSIONS	db	9,"SESSIONS="
 CFG_PATHCHAR	db	9,"PATHCHAR="
 CFG_SWITCHAR	db	9,"SWITCHAR="
 CFG_HOTKEY	db	7,"HOTKEY="
+CFG_LIBPATH	db	8,"LIBPATH="
 
 NUL_DEVICE	db	"NUL",0
 AUX_DEVICE	db	"COM1",0	; default AUX device

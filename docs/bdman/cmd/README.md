@@ -70,7 +70,7 @@ See [BASIC Functions](basic/func/) for the list of functions and predefined cons
 
 The following commands, statements, and functions from PC DOS and IBM PC BASIC aren't supported yet:
 
-- PC DOS commands: DISKCOMP and PRINT (background printing); the other PC DOS 1.00 utilities (eg, CHKDSK, DISKCOPY, FORMAT, and SYS) are BASIC programs in the EXT directory (see [External Commands](external/))
+- PC DOS commands: DISKCOMP and PRINT (background printing); the other PC DOS 1.00 utilities (eg, CHKDSK, DISKCOPY, FORMAT, and SYS) are BASIC programs in the EXT\\BAS directory (see [External Commands](external/))
 - BASIC statements: BEEP, BLOAD, BSAVE, CALL, CHAIN's DELETE option, COMMON, CONT, DEF USR, OUT, PCOPY, RUN *line* (and RUN's R option), TRON, TROFF, WAIT, WIDTH LPRINT, and event trapping (eg, ON TIMER(*n*) GOSUB)
 - BASIC functions: INP, STICK, STRIG, USR, VARPTR, and VARPTR$
 

@@ -1,5 +1,5 @@
 ;
-; BASIC-DOS 80386 Processor (CPU$) Driver: V86 Machines
+; BASIC-DOS 80386 Processor (CPU$) Driver: V86 and Flat Machines
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
 ; @copyright (c) 2026 Jeff Parsons
@@ -42,6 +42,11 @@
 ; since the TSS's I/O permission bitmap allows only the ports that the
 ; machine has (see v86_ports), and the video ports while it has the graphics
 ; memory.
+;
+; A flat machine (see fl_create) runs 32-bit protected-mode code at ring 3
+; the same way: with a page directory and context of its own, the machines'
+; IDT while it runs, and an exit to its host for every interrupt, but with
+; none of the monitor's work, since anything its code can't do is a fault.
 ;
 	include	macros.inc
 	include	8086.inc
@@ -87,6 +92,11 @@ VC_IOSET	db	?	; nonzero if a driver has lent it ports
 VC_SUSP		db	?	; nonzero if it's suspended (see v86_susp)
 VC_NOTE		dd	?	; the lending driver's function (see v86_ports)
 VC_IOMAP	db	(IOMAP_LEN - 1) dup (?)	; its bitmap (see v86_ports)
+VC_FLAT		db	?	; nonzero for a flat machine (see fl_create)
+VC_PEND		db	?	; flat: nonzero for a pending fault (fl_event)
+VC_FSEL		dw	?	; flat: its first selector (the machine)
+VC_TOP		dd	?	; flat: the end of its memory (linear address)
+VC_OWNER	dw	?	; flat: its owner ID (see enc_owner)
 V86CTX		ends
 
 V86_CTX		equ	0800h	; context's offset (PDEs for 80000000h and up)
@@ -96,6 +106,19 @@ V86_NSTUBS	equ	12h	; exception stubs (00h-11h), before the IRQs'
 FL_V86		equ	0DD5h	; flags that the machine can change
 TSS_ESP0	equ	SYS_TSS + 4	; the 80386 TSS's ring 0 stack
 TSS_SS0		equ	SYS_TSS + 8
+;
+; A flat machine (see fl_create) runs 32-bit code at ring 3, in protected
+; mode, with memory that starts at FL_BASE in a linear address space of its
+; own.  Its context has a page to itself, followed by its first page table
+; (at V86_PT, as in a V86 machine) and then its page directory (at FL_PD), so
+; that all of the directory's PDEs below the system's are its own, and the
+; context's stack (which grows down from V86_CTX) isn't in any of them.
+;
+FL_BASE		equ	0001h	; its memory's linear address (bits 31-16)
+FL_PD		equ	2 * PG_SIZE	; its page directory's offset
+FL_NSEL		equ	5	; its selectors (see fl_create)
+FL_CODE		equ	3 * (size DESC)	; its code selector (data is the next)
+EXT_FLAT	equ	0CBh	; DESC_EXT: 4K granularity, 32-bit, limit 19-16
 
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
@@ -117,8 +140,11 @@ DEFPROC	v86_func
 	cmp	al,3			; copying registers?
 	jbe	v86_regs		; yes
 	cmp	al,5			; lending ports?
-	ja	vf8			; no
+	ja	vf2			; no
 	jmp	v86_ports		; yes
+vf2:	cmp	al,8			; a flat machine's function?
+	ja	vf8			; no
+	jmp	fl_func			; yes
 vf8:	jmp	cpu_inval
 vf1:	jmp	v86_create
 ENDPROC	v86_func
@@ -174,6 +200,7 @@ vk1:	push	ds
 	mov	bl,byte ptr [si].VR_VEC	; BL = the debugger's choice
 	rep	movsw
 	mov	es:[V86_CTX].VC_DBG,bl
+	mov	es:[V86_CTX].VC_PEND,0	; (see fl_event)
 	pop	word ptr es:[V86_CTX].VR_EFL
 	pop	word ptr es:[V86_CTX].VR_EFL+2
 	pop	ds
@@ -233,6 +260,22 @@ DEFPROC	v86_run
 	or	ax,FL_DEFAULT		; (IF, and bit 1)
 	mov	word ptr es:[V86_CTX].VR_EFL,ax
 	mov	word ptr es:[V86_CTX].VR_EFL+2,2	; VM (V86 mode)
+	cmp	es:[V86_CTX].VC_FLAT,0	; a flat machine?
+	je	v86_resume		; no
+;
+; A flat machine runs in protected mode, and always with its own code and
+; stack selectors, whatever the caller's V86REGS has, since any others could
+; take it to ring 0.
+;
+	sub	ax,ax
+	mov	word ptr es:[V86_CTX].VR_EFL+2,ax
+	mov	word ptr es:[V86_CTX].VR_CS+2,ax
+	mov	word ptr es:[V86_CTX].VR_SS+2,ax
+	mov	ax,es:[V86_CTX].VC_FSEL
+	add	ax,FL_CODE + 3		; (RPL 3)
+	mov	word ptr es:[V86_CTX].VR_CS,ax
+	add	ax,size DESC
+	mov	word ptr es:[V86_CTX].VR_SS,ax
 	jmp	short v86_resume
 vr8:	jmp	cpu_inval
 vr9:	ret
@@ -316,18 +359,51 @@ vr1:	mov	al,es:[V86_CTX].VC_VIO
 	mov	ds:[TSS_SS0],bx
 	mov	es:[V86_CTX].VC_KSP,sp
 	mov	es:[V86_CTX].VC_KSS,ss
-	push	dx
+;
+; An interrupt from a flat machine pushes no segment registers, so its ring 0
+; stack is that much lower (v86_common stores them), and its page directory
+; follows its context and first page table (see FL_PD).
+;
+	cmp	es:[V86_CTX].VC_FLAT,0	; a flat machine?
+	je	vr1a			; no
+	mov	word ptr ds:[TSS_ESP0],V86_CTX + VR_ES
+	add	cx,FL_PD
+	adc	dx,0			; DX:CX = its page directory
+vr1a:	push	dx
 	push	cx
 	db	66h,58h			; POP EAX
 	db	0Fh,22h,0D8h		; MOV CR3,EAX
 	db	66h
 	DTREG	lidt,<ds:[SYS_VARS].SV_V86IDTR>
 	mov	ss,bx
+	cmp	ss:[V86_CTX].VC_FLAT,0	; a flat machine?
+	jne	fl_go			; yes
 	DEFLBL	v86_cont,near
 	mov	sp,V86_CTX
 vr_ret:	db	66h,61h			; POPAD
 	add	sp,VR_EIP - VR_VEC	; (past VR_VEC and VR_ERR)
-	db	66h,0CFh		; IRETD (to V86 mode)
+	db	66h,0CFh		; IRETD (to V86 mode, or ring 3)
+;
+; A flat machine's data segment registers come from its context, too, each
+; one only if ring 3 could load it (see fl_seg), since loading it here mustn't
+; fault; the stack is the context's, whose page has nothing else below
+; V86_CTX.
+;
+fl_go:	mov	sp,V86_CTX
+	mov	bp,sp
+	mov	ax,word ptr [bp].VR_GS
+	call	fl_seg
+	db	8Eh,0E8h		; MOV GS,AX
+	mov	ax,word ptr [bp].VR_FS
+	call	fl_seg
+	db	8Eh,0E0h		; MOV FS,AX
+	mov	ax,word ptr [bp].VR_ES
+	call	fl_seg
+	mov	es,ax
+	mov	ax,word ptr [bp].VR_DS
+	call	fl_seg
+	mov	ds,ax
+	jmp	vr_ret
 ENDPROC	v86_resume
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -380,8 +456,19 @@ DEFPROC	v86_noerr
 	mov	bp,sp
 	DEFLBL	v86_common,near
 	test	byte ptr [bp+VR_EFL+2],2	; from V86 mode?
-	jz	vc9			; no
-	cld
+	jnz	vc0			; yes
+;
+; An interrupt from a flat machine (at ring 3) pushed no segment registers,
+; so we store them where one from V86 mode would have.
+;
+	test	byte ptr [bp+VR_CS],3	; from a flat machine?
+	jnz	vc0b			; yes
+	jmp	vc9			; no (from the kernel)
+vc0b:	mov	word ptr [bp+VR_ES],es
+	mov	word ptr [bp+VR_DS],ds
+	db	8Ch,66h,VR_FS		; MOV [BP+VR_FS],FS
+	db	8Ch,6Eh,VR_GS		; MOV [BP+VR_GS],GS
+vc0:	cld
 	mov	ax,[bp+VR_VEC]
 	sub	ax,offset DEV:v86_stubs + 3
 	mov	cl,3
@@ -395,6 +482,10 @@ vc1:	mov	ah,0
 	mov	ds,bx
 	mov	bx,ss
 	mov	es,bx			; ES = context
+	cmp	es:[V86_CTX].VC_FLAT,0	; a flat machine?
+	je	vc0a			; no
+	jmp	fl_event		; yes
+vc0a:
 ;
 ; A general protection fault (eg, a CLI or an IRET), and the exceptions that
 ; real mode delivers through the vectors (the same ones that it returns from
@@ -718,13 +809,15 @@ DEFPROC	v86_exit
 vx1:	push	ax
 	call	v86_flags
 	mov	word ptr es:[V86_CTX].VR_EFL,ax
+	cmp	es:[V86_CTX].VC_FLAT,0	; a flat machine?
+	jne	vx2			; yes (see fl_lin for its selectors)
 	mov	ax,word ptr es:[V86_CTX].VR_DS
 	mov	bx,es:[V86_CTX].VR_DSSEL
 	call	v86_alias
 	mov	ax,word ptr es:[V86_CTX].VR_ES
 	mov	bx,es:[V86_CTX].VR_ESSEL
 	call	v86_alias
-	push	ds
+vx2:	push	ds
 	push	es
 	pop	ds
 	mov	si,V86_CTX
@@ -751,7 +844,8 @@ ENDPROC	v86_exit
 ; machine, as if it had interrupted us, and then exits (V86X_TICK), so that
 ; the host can act on it (eg, give the machine a tick, or an interrupt that a
 ; driver counted for it; see SND_IRQS), or after an NMI (or a trap that a
-; debugger gets; see v86_refl), runs the machine again.
+; debugger gets; see v86_refl), runs the machine again, unless it's a flat
+; machine with a fault pending (see fl_event), which exits (V86X_FAULT).
 ;
 ; Inputs:
 ;	AL = vector, DS = SEL_SYS
@@ -771,9 +865,16 @@ DEFPROC	v86_irq
 	pop	ax
 	cmp	al,IRQ_SLAVE		; a hardware interrupt?
 	jae	vi9			; yes
+;
+; A flat machine's fault that no debugger took (see fl_event) exits now.
+;
+	mov	ax,V86X_FAULT		; (AH = 0)
+	xchg	ah,es:[V86_CTX].VC_PEND
+	test	ah,ah			; was one pending?
+	jnz	vi9a			; yes
 	jmp	v86_resume
 vi9:	mov	al,V86X_TICK
-	jmp	v86_exit
+vi9a:	jmp	v86_exit
 ENDPROC	v86_irq
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1131,6 +1232,8 @@ DEFPROC	v86_info
 	mov	bp,ds:[SYS_VARS].SV_NPMBS
 vq1:	cmp	ds:[di].PMB_V86,0	; a machine's memory?
 	je	vq2			; no
+	cmp	ds:[di].PMB_FLAT,0	; a flat machine's context?
+	jne	vq2			; yes
 	push	bx
 	mov	bx,ds:[di].PMB_SEL
 	mov	al,ADDR_SEL
@@ -1341,23 +1444,8 @@ DEFPROC	v86_init
 	rep	stosw
 	mov	ax,[bp-4]
 	mov	dx,[bp-2]
-	add	ax,PG_SIZE + PG_USER
-	adc	dx,0
-	mov	es:[0],ax
-	mov	es:[2],dx		; PDE 0 -> the page table
-	push	ds
-	mov	ax,ds:[SYS_VARS].SV_PDIR.LW
-	mov	dx,ds:[SYS_VARS].SV_PDIR.HW
-	mov	cl,ds:[SYS_VARS].SV_NPT
-	mov	ch,0
-	shl	cx,1			; CX = words of the system's PDEs
-	mov	bx,SEL_TMP2
-	call	pm_ptr
-	mov	ds,bx
-	mov	si,PDE_KERNEL
-	mov	di,si
-	rep	movsw			; the system's PDEs
-	pop	ds
+	sub	di,di
+	call	v86_pdes
 	mov	di,V86_PT
 	mov	ax,[bp+2]
 	mov	dx,[bp+4]
@@ -1425,6 +1513,44 @@ vi_ptes:
 	loop	vi_ptes
 	ret
 ENDPROC	v86_init
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; v86_pdes
+;
+; Fills in a machine's page directory (already zeroed): PDE 0, for its first
+; page table, and the system's PDEs (see LIN_HI).
+;
+; Inputs:
+;	ES:DI -> page directory
+;	DX:AX = address of the page before that page table
+;	DS = SEL_SYS
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+DEFPROC	v86_pdes
+	add	ax,PG_SIZE + PG_USER
+	adc	dx,0
+	mov	es:[di],ax
+	mov	es:[di+2],dx		; PDE 0 -> the page table
+	push	ds
+	push	di
+	mov	ax,ds:[SYS_VARS].SV_PDIR.LW
+	mov	dx,ds:[SYS_VARS].SV_PDIR.HW
+	mov	cl,ds:[SYS_VARS].SV_NPT
+	mov	ch,0
+	shl	cx,1			; CX = words of the system's PDEs
+	mov	bx,SEL_TMP2
+	call	pm_ptr
+	mov	ds,bx
+	mov	si,PDE_KERNEL
+	add	di,si
+	rep	movsw			; the system's PDEs
+	pop	di
+	pop	ds
+	ret
+ENDPROC	v86_pdes
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1943,12 +2069,643 @@ vs4:	stosw
 	mov	cx,2
 	call	desc_alloc		; AX = selector, BX -> descriptor
 	jc	vs9
-	mov	ds:[bx].DESC_LIMIT,2 * PG_SIZE - 1
+	mov	ds:[bx].DESC_LIMIT,3 * PG_SIZE - 1	; (see FL_PD)
 	mov	ds:[bx+size DESC].DESC_LIMIT,0FFFFh
 	mov	ds:[SYS_VARS].SV_V86SEL,ax
 	clc
 vs9:	ret
 ENDPROC	v86_setup
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fl_func (CPU_V86 with AL = 6, 7, or 8)
+;
+; A flat machine's functions (see v86.inc): AL = 6 creates one (fl_create),
+; 7 points one of its two selectors at a linear address (fl_lin), and 8 adds
+; memory to it (fl_grow).  The caller's ES is preserved.
+;
+DEFPROC	fl_func
+	push	es
+	call	ff1
+	pop	es
+	ret
+ff1:	cmp	al,7
+	je	fl_lin
+	ja	ff2
+	jmp	fl_create
+ff2:	jmp	fl_grow
+ENDPROC	fl_func
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fl_lin
+;
+; Points one of a flat machine's two selectors (VR_DSSEL or VR_ESSEL) at a
+; linear address in the machine, so that its host can pass a pointer there to
+; DOS; the selector covers as many of the bytes that follow as are in
+; consecutive physical pages (at most 64K), since DOS and the drivers use it
+; with the system's page directory.
+;
+; Inputs:
+;	BX = machine, DX:CX = linear address, SI = 0 (VR_DSSEL) or 1 (VR_ESSEL)
+;
+; Outputs:
+;	Carry clear: AX = selector, CX = its limit
+;	Carry set: AX = ERR_INVALID (eg, the address has no memory)
+;
+DEFPROC	fl_lin
+	cmp	si,1
+	jbe	fn0b
+fn0:	jmp	cpu_inval
+fn0a:	pop	si
+	jmp	fn0
+fn0b:	push	si
+	push	cx
+	push	dx
+	call	fl_find			; ES = its context
+	pop	dx
+	pop	ax			; DX:AX = linear address
+	pop	si
+	jc	fn0
+	shl	si,3
+	add	si,es:[V86_CTX].VR_DSSEL
+	push	si			; the selector
+	mov	bp,ax
+	and	bp,PG_SIZE - 1		; BP = the address's offset in its page
+	sub	cx,cx			; CH = 0 (no new page tables)
+	call	fl_pte			; ES:BX -> the first page's PTE
+	jc	fn0a
+	mov	si,es:[bx]
+	mov	di,es:[bx+2]		; DI:SI = PTE
+	test	si,PG_PRESENT
+	jz	fn0a
+	and	si,NOT (PG_SIZE - 1)	; DI:SI = the page's address
+	push	di
+	push	si
+	inc	cx			; CL = # of consecutive pages so far
+fn1:	add	ax,PG_SIZE
+	adc	dx,0
+	add	si,PG_SIZE
+	adc	di,0			; DI:SI = the next page, if it follows
+	mov	es,ds:[SYS_VARS].SV_V86SEL
+	call	fl_pte
+	jc	fn2
+	push	ax
+	mov	ax,es:[bx]
+	test	al,PG_PRESENT
+	jz	fn1a
+	and	ax,NOT (PG_SIZE - 1)
+	cmp	ax,si
+	jne	fn1a
+	mov	ax,es:[bx+2]
+	cmp	ax,di			; is it the next physical page?
+	jne	fn1a			; no
+	pop	ax
+	inc	cx
+	cmp	cl,17			; more than 64K yet?
+	jb	fn1			; no
+	jmp	short fn2
+fn1a:	pop	ax
+fn2:	pop	si
+	pop	di			; DI:SI = the first page's address
+	mov	ax,0FFFFh
+	cmp	cl,17			; 64K or more from the address?
+	jae	fn3			; yes
+	mov	ah,cl
+	shl	ah,4
+	mov	al,0			; AX = the pages' length (0 if 64K)
+	sub	ax,bp
+	dec	ax			; AX = limit
+fn3:	add	si,bp			; DI:SI = its physical address
+	pop	bx			; BX = selector
+	push	ax
+	push	si
+	call	sel_desc		; SI -> its descriptor
+	pop	cx
+	pop	dx			; DX = limit
+	jc	fn9
+	mov	ds:[si].DESC_LIMIT,dx
+	mov	ds:[si].DESC_BASE,cx
+	mov	ax,di
+	mov	ds:[si].DESC_BASE16,al
+	add	ah,LIN_HI
+	mov	al,0
+	mov	ds:[si].DESC_EXT,ax
+	xchg	ax,bx			; AX = selector
+	mov	cx,dx			; CX = limit (and carry is clear)
+fn9:	ret
+ENDPROC	fl_lin
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fl_create
+;
+; Creates a flat machine, owned by BX, with SI:DI bytes of memory (rounded up
+; to a multiple of 4K) at linear address FL_BASE, in a block from the top of
+; memory.  Its context, first page table, and page directory are in a block
+; of their own (see FL_PD), whose PMB has PMB_FLAT set, the context's page
+; number (PMB_V86), and the machine's FL_NSEL LDT selectors, so that they're
+; freed with it: one for the context itself (DPL 0), which names the machine,
+; two for its host to point at its memory (VR_DSSEL and VR_ESSEL; see
+; fl_lin), and its code and data selectors (base 0, for every linear address
+; below the system's).  Every block is the owner's, so they're all freed
+; when it ends.
+;
+; Inputs:
+;	BX = owner, SI:DI = length
+;
+; Outputs:
+;	Carry clear: AX = machine, DX:CX = its memory's linear address
+;	Carry set: AX = error code
+;
+DEFPROC	fl_create
+	push	bx
+	push	si
+	push	di
+	call	v86_setup		; the machines' IDT and selectors
+	pop	di
+	pop	si
+	pop	bx
+	jnc	fc0a
+fc0:	ret
+fc0a:	call	fl_round		; SI:DI = length, in pages
+	jnz	fc0b
+	jmp	cpu_inval		; (it's zero)
+fc0b:	push	bx
+	push	si
+	push	di
+	mov	al,MEMF_NONE OR MEMF_HIGH
+	call	alloc_page		; DX:CX = its memory
+	pop	di
+	pop	si
+	pop	bx
+	jc	fc0
+	push	si
+	push	di			; [BP+6]:[BP+4] = length
+	push	dx
+	push	cx			; [BP+2]:[BP] = memory
+	mov	bp,sp
+	push	bp
+	mov	al,MEMF_NONE OR MEMF_HIGH
+	sub	si,si
+	mov	di,3 * PG_SIZE
+	call	alloc_page		; DX:CX = context, BX -> its PMB
+	pop	bp
+	jnc	fc0c
+	jmp	fc7
+fc0c:
+	push	dx
+	push	cx			; [BP-2]:[BP-4] = context
+	push	ds:[bx].PMB_OWNER	; [BP-6] = owner ID
+	mov	al,MEMF_LDT
+	mov	cx,FL_NSEL
+	call	desc_alloc		; AX = first selector, BX -> its DESC
+	jnc	fc0d
+	jmp	fc6
+fc0d:	push	ax			; [BP-8] = the machine
+	mov	cx,[bp-4]
+	mov	dx,[bp-2]
+	call	fc_desc			; the machine (DPL 0): its context
+	mov	cx,[bp]
+	mov	dx,[bp+2]
+	call	fc_desc			; VR_DSSEL: one byte of memory, for now
+	or	ds:[bx - size DESC].DESC_ACC,ACC_DPL3
+	call	fc_desc			; VR_ESSEL: the same
+	or	ds:[bx - size DESC].DESC_ACC,ACC_DPL3
+	mov	al,ACC_CODE OR ACC_DPL3
+	call	fc_flat			; code: all below the system's
+	mov	al,ACC_DATA OR ACC_DPL3
+	call	fc_flat			; and data
+	mov	cx,[bp-4]
+	mov	dx,[bp-2]
+	call	pmb_used		; BX -> the context's PMB
+	mov	ax,[bp-8]
+	mov	ds:[bx].PMB_SEL,ax
+	mov	ds:[bx].PMB_NSEL,FL_NSEL
+	mov	ds:[bx].PMB_FLAT,1
+	mov	ax,[bp-4]
+	mov	dx,[bp-2]
+	shr	ax,12
+	shl	dx,4
+	or	ax,dx			; AX = the context's page #
+	mov	ds:[bx].PMB_V86,ax
+	mov	cx,[bp-4]
+	mov	dx,[bp-2]
+	call	v86_stk			; ES = context
+	sub	di,di
+	mov	cx,3 * PG_SIZE / 2
+	sub	ax,ax
+	cld
+	rep	stosw
+	mov	ax,[bp-4]
+	mov	dx,[bp-2]
+	mov	di,FL_PD
+	call	v86_pdes
+	mov	di,V86_CTX + VC_IOMAP
+	mov	cx,(IOMAP_LEN - 1) / 2
+	mov	ax,-1
+	rep	stosw			; no ports
+	inc	es:[V86_CTX].VC_FLAT
+	mov	ax,[bp-6]
+	mov	es:[V86_CTX].VC_OWNER,ax
+	mov	ax,[bp-8]
+	mov	es:[V86_CTX].VC_FSEL,ax
+	add	ax,size DESC + 3	; (RPL 3, for the ring 3 host)
+	mov	es:[V86_CTX].VR_DSSEL,ax
+	add	ax,size DESC
+	mov	es:[V86_CTX].VR_ESSEL,ax
+	mov	word ptr es:[V86_CTX].VC_TOP+2,FL_BASE
+	mov	cx,[bp]
+	mov	dx,[bp+2]
+	mov	di,[bp+4]
+	mov	si,[bp+6]
+	call	fl_add			; give it its memory
+	jc	fc6
+	mov	ax,[bp-8]		; AX = the machine
+	mov	sp,bp
+	add	sp,8
+	sub	cx,cx
+	mov	dx,FL_BASE		; DX:CX = its memory's linear address
+	ret				; (carry is clear)
+fc6:	mov	cx,[bp-4]
+	mov	dx,[bp-2]
+	call	fc_free			; free the context's block
+fc7:	mov	cx,[bp]
+	mov	dx,[bp+2]
+	call	fc_free			; and the memory's
+	mov	sp,bp
+	add	sp,8
+	mov	ax,ERR_NOMEMORY
+	stc
+fc9:	ret
+fc_free:
+	call	pmb_used
+	jc	fc9
+	jmp	pmb_free
+;
+; fc_desc fills in the descriptor at BX for the byte at DX:CX, and fc_flat
+; for the whole address space, with access rights AL; both advance BX.
+;
+fc_desc:
+	mov	ds:[bx].DESC_LIMIT,0
+	mov	ds:[bx].DESC_BASE,cx
+	mov	ds:[bx].DESC_BASE16,dl
+	mov	ah,dh
+	add	ah,LIN_HI
+	mov	al,0
+	mov	ds:[bx].DESC_EXT,ax
+	jmp	short fc_next
+fc_flat:
+	mov	ds:[bx].DESC_LIMIT,0FFFFh
+	mov	ds:[bx].DESC_BASE,0
+	mov	ds:[bx].DESC_BASE16,0
+	mov	ds:[bx].DESC_ACC,al
+	mov	ds:[bx].DESC_EXT,EXT_FLAT
+fc_next:
+	add	bx,size DESC
+	ret
+ENDPROC	fl_create
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fl_grow
+;
+; Adds SI:DI bytes of memory (rounded up to a multiple of 4K) to a flat
+; machine, in a block of its owner's, at the end of the memory it has.
+;
+; Inputs:
+;	BX = machine, SI:DI = length
+;
+; Outputs:
+;	Carry clear: DX:CX = the new memory's linear address
+;	Carry set: AX = error code
+;
+DEFPROC	fl_grow
+	push	si
+	push	di
+	call	fl_find			; ES = its context
+	pop	di
+	pop	si
+	jc	fg8
+	call	fl_round		; SI:DI = length, in pages
+	jz	fg8			; (it's zero)
+	push	si
+	push	di
+	mov	al,MEMF_NONE OR MEMF_HIGH
+	mov	bx,MCBOWNER_SYSTEM
+	call	alloc_page		; DX:CX = address, BX -> its PMB
+	pop	di
+	pop	si
+	jc	fg9
+	mov	es,ds:[SYS_VARS].SV_V86SEL
+	mov	ax,es:[V86_CTX].VC_OWNER
+	mov	ds:[bx].PMB_OWNER,ax	; (the machine's owner's)
+	push	word ptr es:[V86_CTX].VC_TOP+2
+	push	word ptr es:[V86_CTX].VC_TOP
+	call	fl_add
+	pop	cx
+	pop	dx			; DX:CX = its linear address
+	jnc	fg9
+	mov	ax,ERR_NOMEMORY
+fg9:	ret
+fg8:	jmp	cpu_inval
+ENDPROC	fl_grow
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fl_add
+;
+; Maps a block at the end of a flat machine's memory (VC_TOP).
+;
+; Inputs:
+;	DX:CX = block's address, SI:DI = its length (a multiple of PG_SIZE)
+;	DS = SEL_SYS, ES = context
+;
+; Outputs:
+;	Carry set if there's no memory for a page table
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+DEFPROC	fl_add
+	shr	di,12
+	shl	si,4
+	or	di,si			; DI = # of pages
+	or	cl,PG_USER		; DX:CX = the first page's PTE
+fa1:	push	cx
+	push	dx
+	mov	ax,word ptr es:[V86_CTX].VC_TOP
+	mov	dx,word ptr es:[V86_CTX].VC_TOP+2
+	mov	ch,1			; (with a new page table, if need be)
+	call	fl_pte			; ES:BX -> the page's PTE
+	pop	dx
+	pop	cx
+	jc	fa9
+	mov	es:[bx],cx
+	mov	es:[bx+2],dx
+	mov	es,ds:[SYS_VARS].SV_V86SEL
+	add	word ptr es:[V86_CTX].VC_TOP,PG_SIZE
+	adc	word ptr es:[V86_CTX].VC_TOP+2,0
+	add	cx,PG_SIZE
+	adc	dx,0
+	dec	di
+	jnz	fa1
+	clc
+fa9:	ret
+ENDPROC	fl_add
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fl_pte
+;
+; Finds the PTE of a linear address in a flat machine: in its first page
+; table (after its context), or in one that its page directory points to,
+; which is created if CH is set (in a block of the machine's owner's).
+;
+; Inputs:
+;	DX:AX = linear address, CH = nonzero to create its page table
+;	DS = SEL_SYS, ES = context
+;
+; Outputs:
+;	Carry clear: ES:BX -> PTE (ES is the context's selector or SEL_TMP)
+;	Carry set if there's none
+;
+; Modifies:
+;	BX, ES
+;
+DEFPROC	fl_pte
+	push	ax
+	push	dx
+	push	si
+	mov	bx,dx
+	shr	bx,6			; BX = its PDE's index
+	cmp	bx,LIN_HI * 4		; one of the system's addresses?
+	jae	fp8			; yes
+	shl	bx,2
+	shl	dx,4
+	shr	ax,12
+	or	ax,dx
+	and	ax,03FFh
+	shl	ax,2
+	xchg	si,ax			; SI = its PTE's offset in its table
+	test	bx,bx			; in the first page table?
+	jnz	fp1			; no
+	lea	bx,[si+V86_PT]		; ES:BX -> PTE (and carry is clear)
+	jmp	short fp9
+fp1:	test	byte ptr es:[bx+FL_PD],PG_PRESENT
+	jnz	fp2
+	test	ch,ch			; create its page table?
+	jz	fp8			; no
+	call	fl_newpt
+	jc	fp9
+fp2:	mov	ax,es:[bx+FL_PD]
+	mov	dx,es:[bx+FL_PD+2]
+	and	ax,NOT (PG_SIZE - 1)	; DX:AX = the page table
+	mov	bx,SEL_TMP
+	call	pm_ptr
+	mov	es,bx
+	mov	bx,si			; ES:BX -> PTE
+	clc
+	jmp	short fp9
+fp8:	stc
+fp9:	pop	si
+	pop	dx
+	pop	ax
+	ret
+ENDPROC	fl_pte
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fl_newpt
+;
+; Gives a flat machine another page table, in a block of its owner's.
+;
+; Inputs:
+;	BX = offset of its PDE in the page directory
+;	DS = SEL_SYS, ES = context
+;
+; Outputs:
+;	Carry set if there's no memory for it
+;
+DEFPROC	fl_newpt
+	pusha
+	push	bx
+	mov	al,MEMF_NONE OR MEMF_HIGH
+	mov	bx,MCBOWNER_SYSTEM
+	sub	si,si
+	mov	di,PG_SIZE
+	call	alloc_page		; DX:CX = address, BX -> its PMB
+	pop	di			; DI = the PDE's offset
+	jc	fw9
+	mov	es,ds:[SYS_VARS].SV_V86SEL
+	mov	ax,es:[V86_CTX].VC_OWNER
+	mov	ds:[bx].PMB_OWNER,ax	; (the machine's owner's)
+	mov	ax,cx
+	or	al,PG_USER
+	mov	es:[di+FL_PD],ax
+	mov	es:[di+FL_PD+2],dx
+	xchg	ax,cx			; DX:AX = the page table
+	mov	bx,SEL_TMP
+	call	pm_ptr			; (AX = 0)
+	mov	es,bx
+	sub	di,di
+	mov	cx,PG_SIZE / 2
+	cld
+	rep	stosw
+	mov	es,ds:[SYS_VARS].SV_V86SEL
+	clc
+fw9:	popa
+	ret
+ENDPROC	fl_newpt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fl_find, fl_round, and fl_seg
+;
+; fl_find points ES at a flat machine's context, fl_round rounds a length up
+; to a multiple of PG_SIZE, and fl_seg checks a selector for one of a flat
+; machine's data segment registers: unless ring 3 could load it (readable,
+; with DPL 3, and present), it becomes zero.
+;
+; Inputs:
+;	BX = machine (fl_find), SI:DI = length (fl_round), AX = selector
+;	(fl_seg)
+;
+; Outputs:
+;	Carry clear, ES = SEL_V86STK, or carry set if it's not one (fl_find)
+;	SI:DI = length, ZF set if it's zero (fl_round)
+;	AX = selector, or zero (fl_seg)
+;
+; Modifies:
+;	AX, BX, CX, DX (fl_find); AX (fl_round); CX (fl_seg)
+;
+DEFPROC	fl_find
+	mov	cx,bx
+	mov	dx,-1
+	call	pmb_used		; BX -> PMB
+	jc	ff9
+	cmp	ds:[bx].PMB_FLAT,1	; a flat machine's context?
+	jb	ff9			; no (and carry is set)
+	mov	cx,ds:[bx].PMB_V86
+	mov	dx,cx
+	shr	dx,4
+	shl	cx,12			; DX:CX = the context
+	call	v86_stk			; (carry is clear)
+ff9:	ret
+ENDPROC	fl_find
+
+DEFPROC	fl_round
+	add	di,PG_SIZE - 1
+	adc	si,0
+	and	di,NOT (PG_SIZE - 1)
+	mov	ax,di
+	or	ax,si
+	ret
+ENDPROC	fl_round
+
+DEFPROC	fl_seg
+	or	al,3			; (as ring 3 would load it)
+	verr	ax			; readable at ring 3?
+	jnz	fs8			; no
+	lar	cx,ax
+	jnz	fs8
+	test	ch,ACC_PRESENT		; and present?
+	jnz	fs9			; yes
+fs8:	sub	ax,ax
+fs9:	ret
+ENDPROC	fl_seg
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fl_event
+;
+; An interrupt or exception from a flat machine (see v86_common): a hardware
+; interrupt goes to the system's handler, as a V86 machine's does (see
+; v86_irq), and an INT exits to the host (V86X_INT), with VR_EIP past it;
+; the machine's IDT has no gates that ring 3 can use, so an INT is a general
+; protection fault whose error code names the vector's gate.  An INT 3 goes
+; to the system's handler instead (as a 16-bit program's does: a debugger's,
+; or else DOS's, which ignores it), with VR_VEC = 03h and VR_EIP past it,
+; and so does a single-step trap that a debugger wants (see v86_regs), and
+; then the machine runs again.
+;
+; Anything else is a fault (including INTO), which exits (V86X_FAULT), but
+; first, the system's INT 03h handler is called for it, too, with the fault
+; pending (VC_PEND), so that a debugger there can see it (VR_VEC is its
+; vector, and VR_ERR its error code): if the debugger changes the machine's
+; registers (see v86_regs), the fault is no longer pending, and the machine
+; runs again when the handler returns (see v86_irq).  An INT 3 that follows
+; a NOP (a failed assertion; see ASSERT) is pending, too, so without a
+; debugger, it exits as a fault with vector 03h.
+;
+; Inputs:
+;	AL = vector, DS = SEL_SYS, ES = SS = context
+;
+DEFPROC	fl_event
+	mov	dx,offset DEV:v86_irq
+	cmp	al,IRQ_SLAVE		; a hardware interrupt?
+	jae	fe0			; yes
+	cmp	al,INT_NMI		; an NMI?
+	jne	fe0a			; no
+fe0:	jmp	v86_leave
+fe0a:	cmp	al,INT_DB		; a single-step trap?
+	jne	fe1			; no
+	cmp	es:[V86_CTX].VC_DBG,0	; does a debugger get them?
+	jne	fe0			; yes
+fe1:	cmp	al,INT_GP		; a general protection fault?
+	jne	fe7			; no
+	mov	bx,word ptr es:[V86_CTX].VR_ERR
+	test	bl,1			; from an external event?
+	jnz	fe7			; yes
+	shr	bx,3			; BX = vector, if it was an INT
+;
+; The fault is an INT if its instruction is one, for the vector that the
+; error code names (an INTO is just a fault), so we read it, through
+; SEL_V86MEM (see v86_seg), whose base V86 machines keep below 16Mb, along
+; with the byte before it, unless that's in another page (which may not be
+; there), in which case the instruction's first byte stands in for it.
+;
+	mov	si,ds:[SYS_VARS].SV_V86SEL
+	add	si,size DESC		; SI = SEL_V86MEM
+	mov	ax,word ptr es:[V86_CTX].VR_EIP
+	sub	di,di			; DI = the instruction's offset
+	test	ax,PG_SIZE - 1		; at the start of a page?
+	jz	fe1a			; yes
+	inc	di
+	dec	ax			; (which can't borrow)
+fe1a:	mov	ds:[SYS_GDT+si].DESC_BASE,ax
+	mov	ax,word ptr es:[V86_CTX].VR_EIP+2
+	mov	ds:[SYS_GDT+si].DESC_BASE16,al
+	mov	byte ptr ds:[SYS_GDT+si].DESC_EXT+1,ah
+	db	8Eh,0EEh		; MOV GS,SI
+	db	65h			; (GS:)
+	mov	ax,ds:[di]		; AL = opcode, AH = its vector
+	db	65h			; (GS:)
+	mov	ch,ds:[0]		; CH = the byte before it
+	mov	byte ptr ds:[SYS_GDT+si].DESC_EXT+1,0
+	mov	si,1			; SI = the instruction's length
+	cmp	al,OP_INT03		; the one-byte INT 3?
+	je	fe2			; yes
+	cmp	al,OP_INT
+	jne	fe7
+	cmp	ah,bl
+	jne	fe7
+	inc	si
+fe2:	add	word ptr es:[V86_CTX].VR_EIP,si
+	adc	word ptr es:[V86_CTX].VR_EIP+2,0
+	mov	es:[V86_CTX].VR_VEC,bx
+	mov	al,INT_BP
+	cmp	bl,al			; an INT 3 (of either length)?
+	jne	fe6			; no
+	cmp	ch,OP_NOP		; after a NOP?
+	jne	fe8			; no
+	jmp	short fe7
+fe6:	mov	al,V86X_INT
+	jmp	v86_out
+fe7:	inc	es:[V86_CTX].VC_PEND
+	mov	al,INT_BP
+fe8:	jmp	v86_leave
+ENDPROC	fl_event
 
 CODE	ends
 

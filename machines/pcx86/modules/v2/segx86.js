@@ -725,6 +725,14 @@ export default class Segx86 {
                 if (addrDesc == cpu.addrGDT) type = 0;
             }
 
+            /**
+             * An interrupt's descriptor comes from the IDT (see loadIDTProt(), which passes nIDT * 8 as sel), and
+             * a fault on it has ERRCODE.IDT set in its error code, whatever is wrong with it: a gate that the
+             * caller can't use (see below), or an entry that isn't a gate at all (eg, an empty entry, whose type
+             * is zero), as when ring 3 code issues an INT for a vector that has no gate.
+             */
+            fIDT = (addrDesc == cpu.addrIDT + sel);
+
             if (type >= X86.DESC.ACC.TYPE.CODE_EXECONLY) {
                 /**
                  * There are three basic ways to load a new code segment (ignoring special cases like LOADALL):
@@ -838,7 +846,6 @@ export default class Segx86 {
                  * set (which we assert above).
                  */
                 cplOld = this.cpl;
-                fIDT = (addrDesc == cpu.addrIDT + sel);
 
                 /**
                  * Software interrupts (where fIDT is true and cpu.nFault < 0) require an additional test:

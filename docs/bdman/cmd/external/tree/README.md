@@ -19,6 +19,9 @@ If there are no subdirectories, TREE displays `No subdirectories exist`.
 	Directory PATH listing for Volume BD-10MB
 	C:\
 	+---EXT
+	|   +---BAS
+	|   +---CMD
+	|   \---DLL
 	+---DEMOS
 	|   \---WOLF3D
 	+---SRC

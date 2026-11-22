@@ -7,13 +7,14 @@ machines:
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-dual-128kb.json
     debugger: available
+    sizeRAM: 256
     autoMount:
       A: "BASIC-DOS Dual Monitor"
 ---
 
-The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 128K of memory, two monitors (a Monochrome Display and a Color Display), and two diskette drives.  It boots the BASIC-DOS Dual Monitor diskette and runs one console on each monitor: PRIMES.BAS on the Monochrome Display and PIPES.BAT on the Color Display, which pipes the output of DIR through the TR filter (converting it to upper-case) over and over.
+The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 256K of memory, two monitors (a Monochrome Display and a Color Display), and two diskette drives.  It boots the BASIC-DOS Dual Monitor diskette and runs one console on each monitor: PRIMES.BAS on the Monochrome Display and PIPES.BAT on the Color Display, which pipes the output of DIR through the TR filter (converting it to upper-case) over and over.
 
-{% include machine.html id="ibm5150" %}
+{% include machine.html id="ibm5150" name="IBM PC, 256Kb RAM, Dual Floppy Drives, MDA and CGA" %}
 
 Use **SHIFT-TAB** to move keyboard focus from one console to the next.  For even more consoles, try the [Dueling Monitors](../multi/pc/) demo, which runs FOUR consoles, two on each monitor.
 

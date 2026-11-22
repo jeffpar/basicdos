@@ -70,7 +70,7 @@ CPU_SYSREGS	equ	0Fh	; ES:DI -> 16-byte buffer (GDTR, IDTR, ...)
 CPU_SETFAULT	equ	10h	; DX:CX = fault handler (0:0 for none)
 CPU_SETSTACK	equ	11h	; DX:CX = ring 0 stack (SS:SP)
 CPU_SETLDT	equ	12h	; AL = LDT # (for a session; see SCB_LDT)
-CPU_V86		equ	13h	; AL = 0-5 (see v86.inc)
+CPU_V86		equ	13h	; AL = 0-8 (see v86.inc)
 CPU_MAXFUNC	equ	13h
 
 ;
@@ -296,7 +296,7 @@ PMB_LEN		dd	?	; 08h: length, in bytes
 PMB_SEL		dw	?	; 0Ch: first selector, if any
 PMB_NSEL	dw	?	; 0Eh: number of selectors
 PMB_MCBTYPE	db	?	; 10h: MCBTYPE_*, or 0
-		db	?	; 11h: (reserved)
+PMB_FLAT	db	?	; 11h: nonzero for a flat machine's context
 PMB_CODE	dw	?	; 12h: code alias (see CPU_ALIAS), or 0
 PMB_V86		dw	?	; 14h: V86 machine's page # (see v86.inc), or 0
 PMB_SHARE	dw	?	; 16h: block it shares (see MEMF_SHARE), or 0

@@ -34,6 +34,7 @@ The recognized keywords are:
 - [DEVICE](#device)
 - [FILES](#files)
 - [HOTKEY](#hotkey)
+- [LIBPATH](#libpath)
 - [MEMSIZE](#memsize)
 - [PATHCHAR](#pathchar)
 - [PRN](#prn)
@@ -134,7 +135,7 @@ On an 80286 or later processor, BASIC-DOS runs in protected mode by default, and
 
 Loads an installable device driver, passing it any *arguments*.  DEVICE lines are processed in order, after the first console has been opened (so that any errors can be reported) and before any other consoles (and [AUX](#aux) and [PRN](#prn)) are opened.  If a driver can't be loaded, a warning is displayed (eg, `Warning: unable to find device DEBUG.COM`) and startup continues.
 
-BASIC-DOS includes one installable driver, [DEBUG.COM](../cmd/external/debug/) (in the EXT directory), a debugger that runs on a terminal connected to a serial port; its argument is the port's settings, using the same format as a COM [CON](#con) (eg, `DEVICE=EXT\DEBUG.COM COM2:9600,N,8,1,VT100`), and any switches after them are debugger commands.  The debugger claims the port, so no other program or console can open it.  See [Loading DEBUG as a Driver](../cmd/external/debug/#loading-debug-as-a-driver) for details.
+BASIC-DOS includes one installable driver, [DEBUG.COM](../cmd/external/debug/) (in the EXT\\CMD directory), a debugger that runs on a terminal connected to a serial port; its argument is the port's settings, using the same format as a COM [CON](#con) (eg, `DEVICE=EXT\CMD\DEBUG.COM COM2:9600,N,8,1,VT100`), and any switches after them are debugger commands.  The debugger claims the port, so no other program or console can open it.  See [Loading DEBUG as a Driver](../cmd/external/debug/#loading-debug-as-a-driver) for details.
 
 ### FILES
 
@@ -151,6 +152,12 @@ Each session's console counts as an open device, and a program that needs more f
 Sets the key that switches the focus to the next console, for every console: a caret followed by a character, which together name a control character (eg, `HOTKEY=^T` for **Ctrl-T**, or `HOTKEY=^\` for **Ctrl-\\**).  Any other setting is ignored.  That key then never reaches a program, so choose one that nothing else needs (eg, not `^C`, `^S`, or `^M`, which is ENTER).
 
 Without a HOTKEY line, each kind of console has its own key: **Shift-Tab** on the keyboard (VKD$ consoles), and **Ctrl-\\** on a terminal (COM consoles), since a terminal's TAB key sends the same character with or without SHIFT.  With one, **Shift-Tab** is an ordinary key again.
+
+### LIBPATH
+
+> LIBPATH=*path*
+
+Names the directory that holds libraries (DLL files), which protected-mode EXE programs can import functions from (eg, `LIBPATH=C:\LIB`); BASIC-DOS loads a library along with any program that needs it.  The path can be up to 31 characters, and it's a single directory, not a list.  Without a LIBPATH line, libraries are in **EXT\\DLL** on the system drive (the drive that BASIC-DOS started from).  In real mode, where programs can't import from libraries, the line has no effect.
 
 ### MEMSIZE
 
@@ -188,9 +195,9 @@ Sessions are used not only by consoles, but also by [pipes](../intro/#redirectio
 
 Specifies the program to run in the next session, along with any startup commands.  Each SHELL line starts a session, with a console of its own (see [CON](#con)); the number of SHELL lines can't exceed [SESSIONS](#sessions).  If there are no SHELL lines, COMMAND.COM is run in the first session.  A session starts on the drive specified by its *program* (eg, `SHELL=C:/COMMAND.COM` starts on drive C:), or else on the boot drive.
 
-BASIC-DOS doesn't automatically run an AUTOEXEC.BAT file, so a session's startup commands must be specified on its SHELL line, separated by colons.  Every BASIC-DOS disk's CONFIG.SYS also sets [PATH$](../cmd/basic/func/#path) on each SHELL line, so that every session can find the programs in the EXT and DEMOS directories:
+BASIC-DOS doesn't automatically run an AUTOEXEC.BAT file, so a session's startup commands must be specified on its SHELL line, separated by colons.  Every BASIC-DOS disk's CONFIG.SYS also sets [PATH$](../cmd/basic/func/#path) on each SHELL line, so that every session can find the programs in the EXT\\CMD, EXT\\BAS, and DEMOS directories:
 
-	SHELL=COMMAND.COM PATH$="A:\;A:\EXT;A:\DEMOS":COLOR 7,1:AUTOEXEC.BAT
+	SHELL=COMMAND.COM PATH$="A:\;A:\EXT\CMD;A:\EXT\BAS;A:\DEMOS":COLOR 7,1:AUTOEXEC.BAT
 
 Everything after the *program* name becomes the program's command tail, which can't exceed 126 characters; a longer SHELL line isn't run (its session reports "SHELL line too long", followed by the start of the line), so put longer startup sequences in a batch file.
 

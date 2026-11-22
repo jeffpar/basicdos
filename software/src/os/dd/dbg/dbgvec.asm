@@ -118,6 +118,8 @@ VEC_DOS		equ	INT_DOSFUNC SHL 8
 	db	" Stack fault",0
 	dw	0Dh
 	db	" General protection",0
+	dw	0Eh
+	db	" Page fault",0
 	dw	(INT_FDC SHL 8) OR FDC_READ
 	db	" BIOS disk reads",VEC_RPT
 	db	"Disk ",V_DL," reading ",V_AL," sectors at "

@@ -6,8 +6,14 @@
 #
 #   ROOT     the root directory, in order; "CONFIG.SYS" stands for each disk's own
 #            CONFIG.SYS (followed by AUTOEXEC.BAT, if its SHELL lines run one)
-#   EXT      all the external BASIC-DOS utilities (including BASIC programs) and
-#            device drivers, and HELP.TXT, which HELP displays (distribution)
+#   EXT/CMD  the external BASIC-DOS commands that are assembly language
+#            programs (including DEBUG.COM, which is also an installable
+#            device driver), and HELP.TXT, which HELP displays (distribution)
+#   EXT/BAS  the external BASIC-DOS commands that are BASIC programs (eg,
+#            FORMAT.BAS and LS.BAS) (distribution)
+#   EXT/DLL  the NE libraries (DLL files), which the kernel's NE loader looks
+#            for there, unless a LIBPATH= line in CONFIG.SYS names another
+#            directory (distribution)
 #   DEMOS    demo programs (distribution), including DONKEY.BAS, the only PC
 #            DOS 1.00 BASIC sample on every disk
 #   TESTS    BENCH.BAS, STRESS.BAT, and REGRESS.BAT (which runs the tests in
@@ -36,7 +42,7 @@
 # diskimage.js resolves) followed by the file's path within the image.
 #
 # gulpfile.js builds the BASICDOS-360K distribution diskette and every demo
-# diskette with ROOT, EXT, and DEMOS (and a demo diskette also has, in TESTS,
+# diskette with ROOT, EXT (CMD, BAS, and DLL), and DEMOS (and a demo diskette also has, in TESTS,
 # the test files that its CONFIG.SYS runs, eg, PIPES.BAT, and any that
 # gulpfile.js lists for it, eg, FPUTESTS.COM on the Single diskette, whose
 # machines have a coprocessor), the BASICDOS-360K-TESTS diskette with
@@ -45,7 +51,7 @@
 # in DEMOS, SRC, and the build tools in TOOLS/BIN, with the C compiler's include
 # files and libraries in TOOLS/INCLUDE and TOOLS/LIB, and the C startup,
 # floating-point, STUB, and BDC sources in TOOLS/CRT, FP, STUB, and BDC, and
-# C demos in TOOLS/DEMOS).  tools/tests/prep.sh copies EXT
+# C demos in TOOLS/DEMOS).  tools/tests/prep.sh copies the EXT folders
 # into each test configuration's EXT folder, DEMOS and TESTS into its TESTS
 # folder, TESTS/REGRESS and TESTS/MISC into its TESTS\REGRESS and TESTS\MISC
 # folders, and TOOLS into TOOLS.
@@ -56,11 +62,14 @@ software/src/os/dev/obj/BASDEV.COM
 software/src/os/dos/obj/BASDOS.COM
 software/src/os/cmd/obj/COMMAND.COM
 
-[EXT]
+[EXT/CMD]
 software/src/os/util/misc/obj/*.COM
 software/src/os/util/vi/obj/VI.COM
 software/src/os/util/v86/obj/V86.COM
 software/src/os/dd/dbg/obj/DEBUG.COM
+software/src/os/cmd/HELP.TXT
+
+[EXT/BAS]
 software/src/os/util/bas/ATTRIB.BAS
 software/src/os/util/bas/CHKDSK.BAS
 software/src/os/util/bas/COMP.BAS
@@ -73,10 +82,16 @@ software/src/os/util/bas/MODE.BAS
 software/src/os/util/bas/SYS.BAS
 software/src/os/util/bas/TREE.BAS
 software/src/os/util/bas/VOL.BAS
-software/src/os/cmd/HELP.TXT
+
+[EXT/DLL]
+software/src/os/dll/obj/DOSCALLS.DLL
+software/src/os/dll/obj/KBDCALLS.DLL
+software/src/os/dll/obj/MSG.DLL
+software/src/os/dll/obj/NLS.DLL
 
 [DEMOS]
-software/src/demos/*
+software/src/demos/*.BA?
+software/src/demos/README.md
 demos/samples/DONKEY.BAS
 demos/mouse/PAINT.BAS
 
@@ -91,6 +106,7 @@ software/src/tests/STRESS.BAT
 [TESTS/REGRESS]
 software/src/tests/regress/OBJ/BUFTESTS.COM
 software/src/tests/regress/OBJ/CPUTESTS.COM
+software/src/tests/regress/OBJ/DLLTESTS.EXE
 software/src/tests/regress/OBJ/DOSTESTS.COM
 software/src/tests/regress/OBJ/FCBTESTS.COM
 software/src/tests/regress/OBJ/FPUTESTS.COM

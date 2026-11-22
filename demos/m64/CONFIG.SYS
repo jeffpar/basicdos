@@ -1,4 +1,4 @@
 REM 64K demonstration with one session and no PIPE$ driver
 REM FPU$ and PIPE$ (at 64K) and drivers for missing hardware skip themselves
 BUFFERS=2
-SHELL=COMMAND.COM PATH$="A:\;A:\EXT;A:\DEMOS"
+SHELL=COMMAND.COM PATH$="A:\;A:\EXT\CMD;A:\EXT\BAS;A:\DEMOS"

@@ -24,7 +24,7 @@ CODE	segment word public 'CODE'
 	EXTNEAR	<at_ip,end_command,fetch_word,get_line,hex_addr,hex_byte>
 	EXTNEAR	<hex_word,ip_mem,newline,pad,parse_addr,peek_b,poke_b>
 	EXTNEAR	<put_2ch,put_char,put_reg,put_string,reg_val,skip_space>
-	EXTNEAR	<space,store_list>
+	EXTNEAR	<chk_flat,inc_di,reg_val32,sel_lin,space,store_list>
 	EXTBYTE	<REGNAMES,a_mode,col,command,mem_mode,mute>
 	EXTWORD	<a_off,a_seg,mem_seg>
 
@@ -44,10 +44,11 @@ CODE	segment word public 'CODE'
 	DEFBYTE	fmt_str,0		; 1 if a string follows (see chk_fmt)
 	DEFBYTE	seg_ovr,0		; segment override (as in REGNAMES)
 	DEFBYTE	ea_seg,0		; memory operand's segment, likewise
-	DEFWORD	ea_off,0		; and its offset (see ea_start)
+	DEFWORD	ea_off,0,2		; and its offset (see ea_start)
 
 SZ_OP	equ	01h			; 66h: 32-bit operands (dwords)
 SZ_ADDR	equ	02h			; 67h: 32-bit addressing
+SZ_FLAT	equ	80h			; 32-bit code (see decode)
 
 MUTE_PROBE equ	80h			; mute bit: A is probing (see probe)
 
@@ -520,7 +521,8 @@ PFX_REP	equ	0FFh
 ; Display the address, bytes, and disassembly of an instruction, followed by
 ; a tab and the string that follows it, if any (see skip_fmt), or at CS:IP,
 ; if it has a memory operand, by a tab and the operand's address (eg, "; EA =
-; 0070:0123"), in the current mode (see ea_start).
+; 0070:0123"), in the current mode (see ea_start), which in a flat machine is
+; a linear address.
 ;
 ; Inputs:
 ;	mem_seg:DI -> instruction
@@ -535,16 +537,20 @@ DEFPROC	dis_line
 	push	bx
 	push	dx
 	push	di
+	push	[mem_seg]
 	call	next_insn
+	pop	bx			; BX = mem_seg (see inc_di)
 	pop	si			; SI -> instruction
 	mov	cx,di
 	sub	cx,si			; CX = length
 	mov	di,si
+	mov	[mem_seg],bx
 	call	hex_addr
 dl1:	call	fetch
 	call	hex_byte
 	loop	dl1
 	mov	di,si
+	mov	[mem_seg],bx
 	mov	ah,24
 	call	pad
 	push	di
@@ -559,18 +565,29 @@ dl1:	call	fetch
 	xchg	di,ax
 	call	at_ip			; is it CS:IP?
 	jne	dl8			; no
-	mov	si,offset EA_MSG
-	call	put_string
 	push	[mem_seg]
 	mov	al,[mem_mode]
 	push	ax
 	call	ip_mem			; (for the current mode)
+	call	chk_flat		; in a flat machine?
+	pushf
 	mov	al,[ea_seg]
 	call	reg_val
 	mov	[mem_seg],ax
 	mov	di,[ea_off]
+	popf
+	jz	dl6			; no
+;
+; A flat machine's addresses are linear addresses, so the operand's is its
+; selector's base plus its 32-bit offset.
+;
+	mov	cx,[ea_off+2]
+	call	sel_lin
+	jc	dl7
+dl6:	mov	si,offset EA_MSG
+	call	put_string
 	call	hex_addr
-	pop	ax
+dl7:	pop	ax
 	mov	[mem_mode],al
 	pop	[mem_seg]
 dl8:	pop	di
@@ -656,7 +673,9 @@ ENDPROC	chk_over
 ; 8086, 8088, or 80286, an instruction as it runs there (see set_cpu).  A
 ; segment override is displayed with the memory operand (or after the
 ; instruction, if there isn't one), and 66h and 67h prefixes only change
-; sizes (eg, AX to EAX, or [BX] to [EBX]), as if in a 16-bit code segment.
+; sizes (eg, AX to EAX, or [BX] to [EBX]), as if in a 16-bit code segment,
+; or in a flat machine's code, to 16 bits (and a jump's target there is a
+; linear address).
 ; The mnemonic, the last LOCK or REP prefix, and any memory operand's address
 ; are recorded, too (in mnemonic, pfx, ea_seg, and ea_off).
 ;
@@ -673,8 +692,18 @@ DEFPROC	decode
 	sub	ax,ax
 	mov	word ptr [seg_ovr],ax	; (and ea_seg)
 	mov	[ea_off],ax
+	mov	[ea_off+2],ax
 	mov	word ptr [pfx],ax	; (and fmt_str)
-	mov	[sz],al
+;
+; A flat machine's code (see chk_flat) is 32-bit code, whose sizes are 32
+; bits unless a prefix says otherwise.
+;
+	test	[mute],MUTE_PROBE	; probing for A (see probe)?
+	jnz	dc0			; yes
+	call	chk_flat		; 32-bit code?
+	jz	dc0			; no
+	mov	al,SZ_FLAT OR SZ_OP OR SZ_ADDR
+dc0:	mov	[sz],al
 dc1:	call	fetch
 	mov	[opcode],al
 	mov	[modrm],al		; (see op_s and op_z)
@@ -693,7 +722,7 @@ dc1:	call	fetch
 	je	dc3s			; FS or GS
 	cmp	dh,PFX_SIZE		; operand or address size?
 	jne	dc1a			; no, LOCK or REP
-	or	[sz],dl
+	xor	[sz],dl			; (the other size)
 	jmp	dc1
 dc1a:	mov	al,dl
 	mov	[pfx],al
@@ -1294,21 +1323,28 @@ oe3:	mov	al,[modrm]
 	jmp	short oe_dir
 oe4:	call	fetch
 	cbw
+	cwd
 	add	[ea_off],ax
+	adc	[ea_off+2],dx
 	call	put_sbyte
 	jmp	short oe_end
 op_o:	call	ea_start
 oe_dir:	mov	cl,SZ_ADDR
 	call	fetch_v
-	add	[ea_off],ax
+	test	ch,ch			; a dword?
+	jnz	oe5			; yes
+	sub	dx,dx
+oe5:	add	[ea_off],ax
+	adc	[ea_off+2],dx
 	call	put_v
 oe_end:	mov	al,']'
 	jmp	put_char
 ;
 ; 32-bit addressing: r/m 4 means a SIB byte follows (scale in bits 6-7, index
 ; in bits 3-5, where 4 means none, and base in bits 0-2), and base 5 (EBP)
-; with mod 0 means a 32-bit displacement instead (as with mod 2).  Only the
-; low 16 bits of the address are recorded (see dis_line).
+; with mod 0 means a 32-bit displacement instead (as with mod 2).  All 32
+; bits of the address are recorded, but dis_line displays only the low 16,
+; except in a flat machine.
 ;
 oe32:	and	al,7			; AL = r/m
 	cmp	al,4			; SIB?
@@ -1383,9 +1419,19 @@ ea_idx:	call	oe_sep
 	call	put_ah
 er2:	call	put_reg
 	pop	ax
-	call	reg_val
-	shl	ax,cl
-	add	[ea_off],ax
+	push	dx
+	push	cx
+	call	reg_val32		; DX:AX = the register
+	mov	ch,cl
+er3:	dec	ch
+	js	er4
+	shl	ax,1
+	rcl	dx,1
+	jmp	er3
+er4:	add	[ea_off],ax
+	adc	[ea_off+2],dx
+	pop	cx
+	pop	dx
 	ret
 ;
 ; oe_sep displays a '+' before each part of a memory operand after the first
@@ -1442,8 +1488,14 @@ op_j8:	call	fetch
 	cbw
 	jmp	short oj1
 op_j16:	call	fetch_vo
-oj1:	add	ax,di
-	jmp	hex_word
+	test	ch,ch			; a dword?
+	jnz	oj2			; yes
+oj1:	cwd
+oj2:	add	ax,di
+	adc	dx,[mem_seg]		; DX = bits 16-31 (in a flat machine)
+	mov	ch,[sz]
+	and	ch,SZ_FLAT		; display them?
+	jmp	put_v
 
 op_ap:	call	fetch_vo
 	push	ax
@@ -1608,8 +1660,7 @@ DEFPROC	fetch
 	test	[mute],MUTE_PROBE	; probing for A?
 	jnz	fe1			; yes
 	call	peek_b
-	inc	di
-	ret
+	jmp	inc_di			; (which carries into mem_seg)
 fe1:	mov	al,[di]
 	inc	di
 	ret
@@ -1692,6 +1743,8 @@ SZ_D	equ	3			; dword size (as in OP_SIZE and a_w)
 SZ_SHORT equ	M_SHORT-M_BYTE		; SHORT's size
 SZ_NEAR	equ	M_NEAR-M_BYTE		; NEAR's size
 SZ_CTL	equ	80h			; a_sz: CRn, DRn, or TRn (no 66h)
+SZ_A32	equ	40h			; a_sz: 32-bit code (see asm_line)
+SZ_W16	equ	04h			; a_sz: a 16-bit operand (see al7a)
 	IF	SZ_D NE M_DWORD-M_BYTE
 	ERROR	<DWORD PTR must follow FAR>
 	ENDIF
@@ -1812,6 +1865,9 @@ DEFPROC	asm_line
 	sub	ax,ax
 	mov	word ptr [a_pfx],ax	; no prefixes (and no a_segp)
 	mov	word ptr [a_sz],ax	; (and no a_swap)
+	call	chk_flat		; a flat machine's (32-bit) code?
+	jz	al1			; no
+	mov	[a_sz],SZ_A32
 al1:	call	skip_space
 	mov	[a_err],si
 	cmp	byte ptr [si],0		; only prefixes?
@@ -1861,7 +1917,8 @@ al_db:	mov	di,[a_off]
 	call	store_list
 	jc	al_err
 adw9:	ret
-al_pfx:	mov	di,offset a_best	; prefixes alone
+al_pfx:	mov	[a_sz],0		; prefixes alone (and none for sizes)
+	mov	di,offset a_best
 	call	emit_pfx
 	xchg	ax,di
 	sub	ax,offset a_best
@@ -1906,31 +1963,52 @@ al6:	call	parse_opnd
 	cmp	bx,offset a_ops+3*OP_LEN
 	jb	al6
 al7:	call	end_command		; anything else?
-	jc	al_err			; yes
+	jc	al7g			; yes
+;
+; In 32-bit code, operands are 32-bit unless one is a 16-bit register or
+; has WORD PTR (SZ_W16), or the mnemonic is one that U displays for 16 bits
+; there: CBW, CWD, PUSHA through IRET without a D, and a string op with a W
+; (eg, RET, PUSH 5, and JMP are 32-bit, and PUSHF and MOVSW are 16-bit).
+;
+al7a:	mov	al,[a_sz]
+	test	al,SZ_A32		; 32-bit code?
+	jz	al7c			; no
+	test	al,SZ_W16		; a 16-bit operand?
+	jnz	al7c			; yes
+	mov	ah,[a_mnem]
+	sub	ah,M_CBW
+	cmp	ah,2			; CBW or CWD?
+	jb	al7c			; yes
+	add	ah,M_CBW-M_PUSHA
+	cmp	ah,M_OUTS+1-M_PUSHA	; PUSHA through IRET, or a string op
+	jae	al7b			; no
+	cmp	[a_isize],0		; with a B?
+	jne	al7c			; no
+al7b:	or	al,SZ_OP
+	mov	[a_sz],al
 ;
 ; MOV with CRn, DRn, or TRn never has a 66h prefix (its other operand is
 ; always a 32-bit register), nor does an 80x87 instruction (DWORD PTR is
 ; just its memory's size), and otherwise, a 66h or 67h prefix needs an
 ; 80386.
 ;
-al7a:	mov	al,[a_sz]
-	mov	ah,[a_mnem]
+al7c:	mov	ah,[a_mnem]
 	sub	ah,M_FADD
 	cmp	ah,MNEM_CNT-M_FADD	; an 80x87 instruction?
 	sbb	ah,ah
 	mov	[a_fpu],ah		; (FFh if so)
-	jz	al7c			; no
-	and	al,SZ_ADDR
-	jmp	short al7d
-al7c:	cmp	al,SZ_CTL		; CRn, DRn, or TRn?
-	jb	al7b			; no
+	jz	al7d			; no
+	and	al,SZ_ADDR OR SZ_A32
+	jmp	short al7e
+al7d:	cmp	al,SZ_CTL		; CRn, DRn, or TRn?
+	jb	al7f			; no
 	mov	al,0
-al7d:	mov	[a_sz],al
-al7b:	test	al,al			; a 66h or 67h prefix?
+al7e:	mov	[a_sz],al
+al7f:	test	al,SZ_OP OR SZ_ADDR	; a 66h or 67h prefix?
 	jz	al8			; no
 	cmp	byte ptr OPTAB[(66h-60h)*2+1],PFX_SIZE	; are there any here?
 	je	al8			; yes
-	jmp	asm_err			; no (see set_cpu)
+al7g:	jmp	asm_err			; no (see set_cpu)
 ;
 ; Try every opcode, from FFh down, and then (if this processor has them)
 ; every opcode after 0Fh.
@@ -2171,10 +2249,13 @@ pp4y:	cmp	byte ptr [si],':'	; segment:offset?
 	mov	[bx+OP_SEG],ax
 	call	get_num
 	jc	pp_err
-	call	chk_hw
-	jne	pp_err
-	mov	byte ptr [bx+OP_KIND],K_FAR
+	call	chk_hw			; a 16-bit offset?
+	je	pp4z			; yes
+	test	[a_sz],SZ_A32		; no, so is this 32-bit code?
+	jz	pp_err			; no
+pp4z:	mov	byte ptr [bx+OP_KIND],K_FAR
 	mov	[bx+OP_VAL],ax
+	mov	[bx+OP_NUM],dx		; (bits 16-31; see ae_ap)
 pp9:	ret
 pp_err:	jmp	asm_err
 ;
@@ -2193,8 +2274,8 @@ pp6:	call	skip_space
 	cmp	al,24			; a 32-bit register?
 	jb	pp6b			; no
 	jmp	pr1
-pp6b:	test	[a_sz],SZ_ADDR		; after a 32-bit one?
-	jnz	pp_err			; yes
+pp6b:	test	[a_sz],SZ_ADDR OR SZ_A32	; after a 32-bit one?
+	jnz	pp_err			; yes (or in 32-bit code)
 	sub	al,11
 	cmp	al,4			; BX, SP, BP, SI, or DI?
 	ja	pp_err			; no
@@ -2224,12 +2305,16 @@ pp8:	call	skip_space
 	je	pp7m
 	cmp	al,']'
 	jne	pp_err
-	test	[a_sz],SZ_ADDR		; 32-bit addressing?
+	test	[a_sz],SZ_A32		; 32-bit code?
+	jz	pp8a			; no
+	or	[a_sz],SZ_ADDR		; yes, where memory is always 32-bit
+pp8a:	test	[a_sz],SZ_ADDR		; 32-bit addressing?
 	jz	pq16			; no
 ;
 ; 32-bit addressing: r/m 4 means a SIB follows, and a SIB with base 5 (with
 ; mod 0) means a disp32 and no base; ESP as a base needs a SIB (with index
-; 4, meaning none), and EBP as a base needs a displacement (like BP).
+; 4, meaning none), and EBP as a base needs a displacement (like BP).  With
+; no registers (in 32-bit code), r/m 5 (with mod 0) is a disp32 alone.
 ;
 	mov	ax,word ptr [bx+OP_DLEN]	; AL = 1 (base) + 2 (index)
 	mov	cx,8004h		; (a SIB, and mod 2 means a disp32)
@@ -2237,8 +2322,11 @@ pp8:	call	skip_space
 	jnz	pq6			; yes
 	or	ah,5			; no
 	mov	[bx+OP_SIBB],ah
+	test	al,al			; an index?
 	mov	ax,0404h		; mod 0, r/m 4 (and a disp32)
-	jmp	short pq4
+	jnz	pq4			; yes
+	inc	ax			; no: r/m 5 (a direct address)
+	jmp	pq5a			; (and no SIB)
 pq6:	test	al,2			; an index?
 	mov	al,4			; (r/m 4: a SIB)
 	jnz	pq7			; yes
@@ -2300,7 +2388,7 @@ pq4:	or	ah,ch
 	mov	[bx+OP_DLEN],ah
 	ret
 pq5:	mov	ax,0206h		; mod 0, r/m 6 (and a disp16)
-	mov	ch,0			; (no SIB)
+pq5a:	mov	ch,0			; (no SIB)
 	jmp	pq4
 pq_err:	jmp	asm_err
 ;
@@ -2346,11 +2434,15 @@ pr5:	test	byte ptr [bx+OP_DLEN],2	; an index yet?
 	or	[bx+OP_SIBB],al
 	jmp	pp8
 ;
-; set_size sets the operand's size (AL), and 32-bit operands for a dword.
+; set_size sets the operand's size (AL), and 32-bit operands for a dword
+; (or for a word, SZ_W16; see al7a).
 ;
 set_size:
 	mov	[bx+OP_SIZE],al
-	cmp	al,SZ_D			; a dword?
+	cmp	al,1			; a word?
+	jne	sz1			; no
+	or	[a_sz],SZ_W16
+sz1:	cmp	al,SZ_D			; a dword?
 	jne	sz9			; no
 	or	[a_sz],SZ_OP
 sz9:	ret
@@ -2850,18 +2942,24 @@ DEFPROC	te_opnd
 to1:	mov	cx,[bx+OP_KIND]		; CL = kind, CH = size
 	mov	dx,[bx+OP_VAL]
 	cmp	cl,K_IMM		; an immediate
-	jne	to1a
+	jne	to1b
 	mov	si,[bx+OP_SEG]
 	inc	si
 	shr	si,1			; that fits in 16 bits?
-	jz	to1a			; yes
-	cmp	[a_w],SZ_D		; no, so it must be a dword's
+	jz	to1b			; yes
+	mov	ah,al
+	sub	ah,0Ah
+	cmp	ah,1			; no, so is it a jump's target?
+	ja	to1a			; no
+	test	[a_sz],SZ_A32		; in 32-bit code?
+	jnz	to1b			; yes
+to1a:	cmp	[a_w],SZ_D		; no, so it must be a dword's
 	jne	to_no			; (imm or signed imm8)
 	mov	ah,al
 	sub	ah,6
 	cmp	ah,1
 	ja	to_no			; (ZF is clear)
-to1a:	cmp	al,6			; an immediate (types 6-0Bh)?
+to1b:	cmp	al,6			; an immediate (types 6-0Bh)?
 	jb	to2			; no
 	cmp	al,0Ch
 	jae	to2			; no
@@ -3004,18 +3102,27 @@ ae_i:	xchg	ax,dx			; imm (byte, word, or dword)
 	jz	ae_b			; yes
 	jmp	short ae_sb1		; no, so it must be -80h to -1
 ae_j8:	cmp	ch,SZ_NEAR		; rel8 (unless NEAR)
-	je	ae_no
+	je	ae_nx
 	call	ae_rel
-	dec	ax
-	jmp	short ae_sb1
+	sub	ax,1
+	sbb	dx,0
+	call	chk_sb
+	jne	ae_nx
+	test	[a_sz],SZ_A32		; 32-bit code?
+	jz	ae_b			; no
+	mov	cx,dx
+	cwd
+	cmp	cx,dx			; a signed byte in 32 bits, too?
+	jne	ae_nx			; no
+	jmp	short ae_b
 ae_sib:	xchg	ax,dx			; signed imm8
 ae_sb1:	call	chk_sb
-	jne	ae_no
+	jne	ae_nx
 	cmp	[a_w],SZ_D		; a dword's?
 	jne	ae_b			; no
 	cwd				; yes, so it's a signed byte in 32 bits
 	cmp	dx,[bx+OP_SEG]		; too?
-	jne	ae_no			; no
+	jne	ae_nx			; no
 ae_b:	stosb
 	ret
 ae_iv:	stosw				; imm16 (or imm32)
@@ -3024,21 +3131,40 @@ ae_iv:	stosw				; imm16 (or imm32)
 	mov	ax,[bx+OP_SEG]
 	stosw
 ae_b9:	ret
+;
+; ae_nx is ae_fail, too (see ae_no).
+;
+ae_nx:	mov	sp,[a_sp]
+	ret
 ae_ib:	xchg	ax,dx			; imm8
 	test	ah,ah
 	jz	ae_b
-	jmp	ae_no
+	jmp	ae_nx
 ae_j16:	cmp	ch,SZ_SHORT		; rel16 (unless SHORT)
-	je	ae_no
+	je	ae_nx
 	call	ae_rel
+	test	[a_sz],SZ_A32		; 32-bit code (so rel32)?
+	jnz	aj1			; yes
 	dec	ax
 	dec	ax
 	jmp	short ae_w
+aj1:	sub	ax,4
+	sbb	dx,0
+	stosw
+	xchg	ax,dx
+	jmp	short ae_w
 ae_o:	cmp	cl,K_MEM		; [addr]
-	jne	ae_no
-	cmp	word ptr [bx+OP_NUM],0206h	; a 16-bit direct address?
-ae_on:	jne	ae_no			; no (and see ae_ap)
+	jne	ae_nx
 	mov	ah,[a_w]
+	cmp	word ptr [bx+OP_NUM],0405h	; a 32-bit direct address?
+	jne	ao1			; no
+	call	chk_ms
+	xchg	ax,dx
+	stosw
+	mov	ax,[bx+OP_SEG]
+	jmp	short ae_w
+ao1:	cmp	word ptr [bx+OP_NUM],0206h	; a 16-bit direct address?
+ae_on:	jne	ae_nx			; no (and see ae_ap)
 	call	chk_ms
 ae_iw:	xchg	ax,dx			; imm16
 ae_w:	stosw
@@ -3046,20 +3172,35 @@ ae_w:	stosw
 
 ae_ap:	cmp	cl,K_FAR		; segment:offset
 	jne	ae_on
-	test	[a_sz],SZ_OP		; (not with 32-bit offsets)
-	jnz	ae_on
 	xchg	ax,dx
+	test	[a_sz],SZ_A32		; 32-bit code (and offset)?
+	jz	aap1			; no
 	stosw
+	mov	ax,[bx+OP_NUM]		; (bits 16-31; see pp4y)
+	jmp	short aap2
+aap1:	test	[a_sz],SZ_OP		; (not with 32-bit offsets)
+	jnz	ae_on
+aap2:	stosw
 	mov	ax,[bx+OP_SEG]
 	stosw
 	ret
 
-ae_rel:	test	[a_sz],SZ_OP		; (not with 32-bit offsets)
+;
+; ae_rel returns the jump's distance from the next byte in AX, or in 32-bit
+; code, where the target is a linear address, in DX:AX.
+;
+ae_rel:	test	[a_sz],SZ_A32		; 32-bit code?
+	jnz	ar1			; yes
+	test	[a_sz],SZ_OP		; (not with 32-bit offsets)
 	jnz	ae_on
-	xchg	ax,dx			; AX = the jump's distance from the
-	sub	ax,[a_off]		; next byte
+ar1:	xchg	ax,dx
+	mov	dx,[bx+OP_SEG]		; DX:AX = target
+	sub	ax,[a_off]
+	sbb	dx,[a_seg]
 	sub	ax,di
+	sbb	dx,0
 	add	ax,offset a_cand
+	adc	dx,0
 	ret
 
 ae_st:	mov	ah,0			; ST
@@ -3094,13 +3235,38 @@ DEFPROC	emit_pfx
 	mov	al,ah
 	call	ep1
 	mov	ah,[a_sz]
-	mov	al,66h
-ep0:	shr	ah,1			; SZ_OP (66h), then SZ_ADDR (67h)?
+	test	ah,SZ_A32		; 32-bit code?
+	jz	ep0d			; no
+;
+; In 32-bit code, the prefixes mean 16 bits: 66h for 16-bit operands (but
+; not for an 80x87 instruction, or an opcode for bytes whose 16-bit operand
+; isn't its size, eg, IN AL,DX), and 67h only for JCXZ, since memory always
+; has 32-bit addressing there (see pp8).
+;
+	mov	al,ah
+	not	al
+	and	al,SZ_OP		; AL = SZ_OP for 16-bit operands
+	jz	ep0b
+	cmp	[a_fpu],0		; an 80x87 instruction?
+	jne	ep0a			; yes
+	cmp	[a_w],0			; an opcode for bytes?
+	jne	ep0b			; no
+	cmp	byte ptr [a_ops+OP_KIND],0	; with operands?
+	je	ep0b			; no (eg, CBW)
+ep0a:	mov	al,0
+ep0b:	cmp	[a_mnem],M_JCXZ		; JCXZ?
+	jne	ep0c			; no
+	test	ah,SZ_ADDR		; or JECXZ (see al4a)?
+	jnz	ep0c			; yes
+	or	al,SZ_ADDR
+ep0c:	mov	ah,al
+ep0d:	mov	al,66h
+ep0e:	shr	ah,1			; SZ_OP (66h), then SZ_ADDR (67h)?
 	jnc	ep2			; no
 	stosb
 ep2:	inc	ax
 	cmp	al,68h
-	jb	ep0
+	jb	ep0e
 	ret
 ep1:	test	al,al
 	jz	ep9

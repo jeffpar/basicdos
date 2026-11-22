@@ -1437,7 +1437,7 @@ lpm:	push	ds
 	cmp	ax,[bp].TMP_DX		; can the segment accommodate that?
 	ja	lpm9			; no
 	jmp	lp3a			; yes
-lpm6:	mov	ax,ERR_NOMEMORY
+lpm6:	mov	ax,ERR_BADFORMAT
 lpm7:	pop	si
 lpm8:	jmp	lpc
 lpm9:	jmp	lpc2

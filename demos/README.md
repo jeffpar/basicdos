@@ -14,7 +14,7 @@ Each BASIC-DOS demo runs on up to four generations of PC hardware: the original 
 | 4. Dual 40-Column | [128K, CGA](d40/pc/) | [640K, CGA](d40/xt/) | [640K, CGA](d40/at/) | [1Mb, VGA](d40/386/) |
 | 5. Dual 80-Column | [128K, CGA](d80/pc/) | [640K, CGA](d80/xt/) | [640K, CGA](d80/at/) | [1Mb, VGA](d80/386/) |
 | 6. Multiple Pages | [256K, MDA](p80/pc/) | [640K, CGA](p80/xt/) | [640K, CGA](p80/at/) | [1Mb, VGA](p80/386/) |
-| 7. Dual Monitors | [128K, MDA, CGA](dual/pc/) | [640K, MDA, CGA](dual/xt/) | [640K, MDA, CGA](dual/at/) | [1Mb, MDA, CGA](dual/386/) |
+| 7. Dual Monitors | [256K, MDA, CGA](dual/pc/) | [640K, MDA, CGA](dual/xt/) | [640K, MDA, CGA](dual/at/) | [1Mb, MDA, CGA](dual/386/) |
 | 8. Serial Mouse | [256K, EGA, Mouse](mouse/pc/) | [640K, EGA, Mouse](mouse/xt/) | [640K, EGA, Mouse](mouse/at/) | [1Mb, VGA, Mouse](mouse/386/) |
 | 9. VT100 Debugger | [256K, EGA, VT100](debug/pc/) | [640K, EGA, VT100](debug/xt/) | [640K, EGA, VT100](debug/at/) | [1Mb, VGA, VT100](debug/386/) |
 | 10. 10Mb Drive | | [640K, EGA](hd/xt/) | [640K, EGA](hd/at/) | [1Mb, VGA](hd/386/) |

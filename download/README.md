@@ -16,7 +16,7 @@ machines:
 The BASIC-DOS release diskette is a bootable 360K diskette with everything you need to try BASIC-DOS:
 
 - The root directory contains the system files (BASDEV.COM, BASDOS.COM, and COMMAND.COM) and **CONFIG.SYS**
-- **EXT** contains the external BASIC-DOS utilities (eg, ATTRIB, CHKDSK, COMP, DISKCOPY, FORMAT, HELP, MODE, SYS, TREE, VI, and the [filters](/docs/bdman/cmd/external/#filters)), DEBUG.COM, and HELP.TXT
+- **EXT** contains the external BASIC-DOS utilities: **EXT\\CMD** has the assembly language programs (eg, HELP, VI, DEBUG.COM, and the [filters](/docs/bdman/cmd/external/#filters)) and HELP.TXT, and **EXT\\BAS** has the utilities written in BASIC (eg, ATTRIB, CHKDSK, COMP, DISKCOPY, FORMAT, LS, MODE, SYS, and TREE)
 - **DEMOS** contains a few demo programs (eg, BROGUE.BAS, DIR.BAS, HELLO.BAT, PAINT.BAS, PRIMES.BAS), along with DONKEY.BAS, a BASIC game from the IBM PC DOS 1.00 diskette
 
 Download it as [BASICDOS-360K](/software/disks/BASICDOS-360K.img), a raw 360K diskette image that most PC emulators can boot (and that can be written to a real 5.25-inch 360K diskette).  Every BASIC-DOS demo machine also lists it first in its diskette drive menus, as **{{ site.data.pcx86.basicdos-diskettes["/software/disks/BASICDOS-360K.json"] }}**.

@@ -54,7 +54,7 @@ The same functions work in either mode, so the program needs no mode test or sec
 
 An NE file gives protected mode what a COM file can't: a separate block for each segment, with a limit that fits it exactly, and relocations that refer to segments by number instead of by paragraph.  An NE file also starts with an MZ "stub" for DOS to run, and BASIC-DOS uses this to carry two complete programs in one file:
 
-- **In protected mode**, the kernel loads the NE image, which must be marked PROTMODE, with FIXED segments, no imports, and only internal relocations.
+- **In protected mode**, the kernel loads the NE image, which must be marked PROTMODE, with FIXED segments; its relocations can refer to its own segments and to functions in NE libraries (see [Loading Programs](../mmu/#exec)).
 - **In real mode**, on BASIC-DOS or any other DOS, the stub is an ordinary MZ program, not just a message saying that the program can't run.
 
 The two images can come from the same object file, and both call the same DOS functions, so no compatibility layer is needed.  `TESTS\MISC\PRIMES.EXE` is built this way: LINK makes the MZ program from PRIMES.OBJ, and LINK4 makes the NE program from PRIMES.OBJ, with the MZ program named as the stub in `tests/misc/PRIMES.DEF`.

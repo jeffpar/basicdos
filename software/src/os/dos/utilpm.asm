@@ -28,6 +28,7 @@ DOS	segment word public 'CODE'
 	EXTLONG	<sfb_table>
 	EXTBYTE	<scb_locked,pmb_buf>
 	EXTNEAR	<mem_alias,psp_owner,scb_release,r3_chkblk>
+	EXTNEAR	<le_mapseg>
 	EXTNEAR	<utl_lock,utl_unlock,utl_wait,utl_endwait,utl_hotkey>
 	EXTNEAR	<utl_hprintf,hdl_ioctl,r3_chkstk,r3_chkrd,r3_gpcall>
 	EXTNEAR	<hdl_open,hdl_create,hdl_close,hdl_seek,hdl_time,get_psp>
@@ -118,7 +119,8 @@ ENDPROC	utl_alias
 ; With REG_AL = 2, it creates a V86 machine (see v86.inc), owned by the
 ; current program, whose memory's first selector names it (and which also has
 ; a console's video memory, if REG_DX is its selector), and with REG_AL = 3,
-; it runs one until it exits; both need CPU_TYPE 3 (see CPU_V86).
+; it runs one until it exits; both need CPU_TYPE 3 (see CPU_V86).  REG_AL = 4
+; and 5 are for a flat machine (see le_mapseg).
 ;
 ; Inputs:
 ;	REG_AL = 0, REG_BX = real-mode segment
@@ -202,10 +204,9 @@ ums8:	mov	[bp].REG_AX,ax		; (carry is set)
 	ret
 ums4:	cmp	al,3			; run a machine?
 	je	ums6			; yes
-	mov	ax,ERR_INVALID
-	cmc
-	jc	ums8			; no such option
-	xchg	ax,bx			; AX = paragraphs
+	jb	ums5
+	jmp	le_mapseg		; no, a flat machine's (see leload.asm)
+ums5:	xchg	ax,bx			; AX = paragraphs
 	call	para_len		; SI:DI = length
 	call	get_psp			; AX = owner
 	xchg	bx,ax

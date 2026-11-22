@@ -12,9 +12,9 @@
 	ON ERROR GOTO 90
 	F$ = DIR$(D$ + MID$(CURDIR$, 3, 1) + "*.*", 8)
 	ON ERROR GOTO 0
-	IF F$ = "" THEN PRINT " Volume in drive "; LEFT$(D$, 1); " has no label" : END
+	IF F$ = "" THEN PRINT "Volume in drive "; LEFT$(D$, 1); " has no label" : END
 	N$ = MID$(F$, 10) : I = INSTR(N$, ".")
 	IF I THEN N$ = LEFT$(LEFT$(N$, I - 1) + SPACE$(8), 8) + MID$(N$, I + 1)
-	PRINT " Volume in drive "; LEFT$(D$, 1); " is "; N$
+	PRINT "Volume in drive "; LEFT$(D$, 1); " is "; N$
 	END
 90	PRINT "Invalid drive" : END 1

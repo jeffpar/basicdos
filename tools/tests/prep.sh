@@ -4,11 +4,11 @@
 # (eg, software/src/configs/console/serial/fpe) before boot.sh (in the repository root) or another script in tools/tests boots it.
 #
 # The files come from software/manifest.txt (nothing from ROOT, since pc.js adds the system files, and each configuration
-# has its own CONFIG.SYS and, if needed, AUTOEXEC.BAT): utilities (and HELP.TXT) from EXT in EXT, the DEMOS and TESTS
+# has its own CONFIG.SYS and, if needed, AUTOEXEC.BAT): programs (and HELP.TXT) from EXT/CMD in EXT\CMD, BASIC utilities from EXT/BAS in EXT\BAS, the libraries from EXT/DLL in EXT\DLL, the DEMOS and TESTS
 # files together in TESTS (only TESTS on a diskette; see below),
 # the TESTS/REGRESS files (the regression tests) in TESTS\REGRESS, the TESTS/MISC files (other test programs) in
 # TESTS\MISC, and the TOOLS files (except MSBASIC, and SYMDEB on a diskette) in TOOLS.  A test configuration's CONFIG.SYS sets PATH$ to all of
-# them except TESTS and its subfolders (eg, "A:\;A:\EXT;A:\TOOLS"); the tests are run by path or after CD \TESTS
+# them except TESTS and its subfolders (eg, "A:\;A:\EXT\CMD;A:\EXT\BAS;A:\TOOLS"); the tests are run by path or after CD \TESTS
 # (or CD \TESTS\REGRESS), and those in TESTS\REGRESS by REGRESS.BAT (in TESTS), too.  There's no TESTS\SAMPLES folder, since only the BASIC-DOS
 # hard disk built by gulpfile.js includes the PC DOS BASIC samples (other than DONKEY.BAS, which is in DEMOS).
 #
@@ -33,19 +33,23 @@ manifest() {
         echo "$root"/$f
     done
 }
-files_ext=($(manifest EXT))
+files_cmd=($(manifest EXT/CMD))
+files_bas=($(manifest EXT/BAS))
+files_dll=($(manifest EXT/DLL))
 files_tests=($(manifest DEMOS) $(manifest TESTS))
 files_regress=($(manifest TESTS/REGRESS))
 files_misc=($(manifest TESTS/MISC))
 #
-# A diskette configuration (whose PATH$ is on A:) leaves out the EXT utilities that work on entire volumes (CHKDSK,
-# DISKCOPY, FORMAT, LABEL, and SYS), the DEMOS files (eg, DIR.BAS and PAINT.BAS), and the TESTS files that only run by
+# A diskette configuration (whose PATH$ is on A:) leaves out the EXT/BAS utilities that work on entire volumes (CHKDSK,
+# DISKCOPY, FORMAT, LABEL, and SYS) and EXT/CMD's DEBUG.COM (the largest EXT program, which no diskette test uses), the DEMOS files (eg, DIR.BAS and PAINT.BAS), and the TESTS files that only run by
 # hand (BENCH.BAS, STRESS.BAT, GFXTESTS.BAS, and MICRO.BAS; bench.sh copies its own BENCH.BAS), which no diskette test
 # uses, to keep enough free space on a 360K test floppy for MOVES, FCBTESTS, and HARDERR; use the hd configuration for
-# them.
+# them.  It also has only one of the EXT\DLL libraries, DOSCALLS.DLL (which DLLTESTS needs), since only LINK386 uses the others.
 #
 if grep -q 'PATH\$="A:' "$dir/CONFIG.SYS"; then
-    files_ext=($(printf '%s\n' "${files_ext[@]}" | grep -v -E '/(CHKDSK|DISKCOPY|FORMAT|LABEL|SYS)\.BAS$'))
+    files_bas=($(printf '%s\n' "${files_bas[@]}" | grep -v -E '/(CHKDSK|DISKCOPY|FORMAT|LABEL|SYS)\.BAS$'))
+    files_cmd=($(printf '%s\n' "${files_cmd[@]}" | grep -v '/DEBUG\.COM$'))
+    files_dll=($(printf '%s\n' "${files_dll[@]}" | grep -E '/DOSCALLS\.DLL$'))
     files_tests=($(manifest TESTS | grep -v -E '/(BENCH\.BAS|STRESS\.BAT)$'))
     files_misc=($(printf '%s\n' "${files_misc[@]}" | grep -v -E '/(GFXTESTS|MICRO)\.BAS$'))
 fi
@@ -83,7 +87,9 @@ copy() {
 # may hold utilities that this configuration leaves out.
 #
 rm -rf "${dir:?}/BASIC" "${dir:?}/BIN" "${dir:?}/SAMPLES" "${dir:?}/EXT" "${dir:?}/TESTS" "${dir:?}/TOOLS"
-copy EXT "${files_ext[@]}"
+copy EXT/CMD "${files_cmd[@]}"
+copy EXT/BAS "${files_bas[@]}"
+copy EXT/DLL "${files_dll[@]}"
 copy TESTS "${files_tests[@]}"
 copy TESTS/REGRESS "${files_regress[@]}"
 copy TESTS/MISC "${files_misc[@]}"

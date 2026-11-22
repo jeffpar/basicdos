@@ -11,9 +11,9 @@ permalink: /docs/bdman/cmd/external/vol/
 Displays the volume label of *drive* (or the current drive), as DIR does at the start of a listing.  To change a label, use [LABEL](../label/).
 
 	VOL
-	 Volume in drive A is BD-D40
+	Volume in drive A is BD-D40
 	VOL B:
-	 Volume in drive B has no label
+	Volume in drive B has no label
 
 A drive that doesn't exist displays `Invalid drive`, and an argument that isn't a drive displays `Syntax error`.
 

@@ -8,7 +8,7 @@ permalink: /docs/bdman/cmd/external/debug/
 
 > DEBUG [/H] [*program* [*arguments*]]  
 > DEBUG /*command*  
-> DEVICE=EXT\DEBUG.COM COM*n*:*baud*,*parity*,*databits*,*stopbits*[,*options*] [/H] [/*command*]...
+> DEVICE=EXT\CMD\DEBUG.COM COM*n*:*baud*,*parity*,*databits*,*stopbits*[,*options*] [/H] [/*command*]...
 
 DEBUG.COM is a debugger that can be used in two ways:
 
@@ -19,9 +19,9 @@ Either way, it displays the registers and the next instruction, and then accepts
 
 ### Running DEBUG as a Program
 
-`DEBUG EXT\SLEEP.COM 5` loads the program without starting it (the program's name must be a full filename, including its extension, and PATH$ isn't searched), with the rest of the line as its command tail, and displays the registers as of the program's start:
+`DEBUG \EXT\CMD\SLEEP.COM 5` loads the program without starting it (the program's name must be a full filename, including its extension, and PATH$ isn't searched), with the rest of the line as its command tail, and displays the registers as of the program's start:
 
-	DEBUG EXT\SLEEP.COM 5
+	DEBUG \EXT\CMD\SLEEP.COM 5
 	AX=0000 BX=0000 CX=0000 DX=0000 SP=055E BP=0000 SI=0000 DI=0000
 	DS=0E2F ES=0E2F SS=0E2F CS=0E2F IP=0100 NV UP EI PL ZR NA PE NC
 	0E2F:0100 BE8100        MOV     SI,0081
@@ -41,21 +41,23 @@ Since the console uses DOS, breakpoints in DOS itself should be set only with th
 
 As a driver, DEBUG.COM is loaded by a [DEVICE](../../../cfg/#device) line in CONFIG.SYS.  Its first argument is the settings of the serial port that the terminal is connected to, using the same format as a COM [CON](../../../cfg/#con):
 
-	DEVICE=EXT\DEBUG.COM COM2:9600,N,8,1,VT100
+	DEVICE=EXT\CMD\DEBUG.COM COM2:9600,N,8,1,VT100
 
 The debugger claims the port, so no other program or console can open it.  Once installed, it displays this on the terminal:
 
 	BASIC-DOS Debugger 2.10
 	CTRL-C or BREAK to stop, ? for help
 
-Any switches after the port's settings (using the current [SWITCHAR](../../../cfg/#switchar)) are commands, which the debugger performs on the terminal as soon as it's installed, before startup continues; eg, `DEVICE=EXT\DEBUG.COM COM2:9600,N,8,1,VT100 /BP 70:100` sets a breakpoint.  Breakpoints should be set only in code that's already loaded (eg, in other device drivers or the operating system), since loading a program over one replaces it.
+Any switches after the port's settings (using the current [SWITCHAR](../../../cfg/#switchar)) are commands, which the debugger performs on the terminal as soon as it's installed, before startup continues; eg, `DEVICE=EXT\CMD\DEBUG.COM COM2:9600,N,8,1,VT100 /BP 70:100` sets a breakpoint.  Breakpoints should be set only in code that's already loaded (eg, in other device drivers or the operating system), since loading a program over one replaces it.
 
-- `/H` stops the machine after those commands, instead of continuing startup, so that more commands can be typed (G resumes it), and makes the debugger stop at a DBGBRK, too (an INT 3 that DEBUG builds of BASIC-DOS can use to mark a spot); without `/H`, it stops only at its breakpoints, an assertion failure, an exception that VT traps or that would stop the machine, or a CTRL-C (or BREAK)
+- `/H` stops the machine after those commands, instead of continuing startup, so that more commands can be typed (G resumes it); the banner is then followed by `Startup stopped by /H, G to continue` (with the current switch character), since the stop is neither a fault nor a failed assertion.  `/H` also makes the debugger stop at a DBGBRK (an INT 3 that DEBUG builds of BASIC-DOS can use to mark a spot); without `/H`, it stops only at its breakpoints, an assertion failure, an exception that VT traps or that would stop the machine, or a CTRL-C (or BREAK)
 - `/G` is ignored
 
-On the terminal, CTRL-C (or BREAK) stops the machine as soon as it arrives, as do breakpoints, single-steps, any other INT 1 or INT 3, and the exceptions that VT traps.  The debugger then displays the registers and the instruction at CS:IP (preceded by `Assertion failure` if the INT 3 was a failed assertion in a DEBUG build, `V0000: Division error` for a divide error, `V0400: Overflow error` for an overflow, or `Vvv00: CPU fault vv (EC=xxxx) at cccc:iiii` for a protected-mode fault, with its vector and error code), and waits for commands.
+On the terminal, CTRL-C (or BREAK) stops the machine as soon as it arrives, as do breakpoints, single-steps, any other INT 1 or INT 3, and the exceptions that VT traps.  The debugger then displays the registers and the instruction at CS:IP (preceded by `Startup stopped by /H, G to continue` at a `/H` stop, `Assertion failure` if the INT 3 was a failed assertion in a DEBUG build, `V0000: Division error` for a divide error, `V0400: Overflow error` for an overflow, or `Vvv00: CPU fault vv (EC=xxxx) at cccc:iiii` for a protected-mode fault, with its vector and error code), and waits for commands.
 
 When CTRL-C (or BREAK) interrupts a [V86](../v86/) machine, the driver stops in the machine instead of in the system's handler for that interrupt: the registers are the machine's (eg, `&00B3:0111` for its CS:IP), U, D, E, and A use its memory unless given another address, the prompt is in parentheses (eg, `(1)`), and G resumes the machine, with any register that R changed.  T and P step the machine (T steps through an INT instruction, rather than into it, so a DOS call is one step), and BP and G *address* accept the machine's addresses (eg, `BP CS:IP+2`, or `G &1BC:105`), which BL lists as they were set (eg, `&00B3:0111`) while & means that machine, and otherwise (eg, at a stop in another session) at their physical (`%%`) addresses; while the machine is being stepped, or has a breakpoint, its own single-step traps and INT 3s stop the debugger, too.  A breakpoint in a machine can be set only while it's stopped there.
+
+A stop in a 32-bit (LE) program is similar: when CTRL-C (or BREAK) interrupts one, or it issues an INT 3 (which stops the driver as any other does: one that follows a NOP always, as a failed assertion, and any other only with `/H`), or it causes a fault that VT traps (eg, `VT E` for page faults), the driver stops in the program's 32-bit code.  The registers are the program's, the prompt is the protected-mode one (eg, `[1]`), and since the program's addresses are linear addresses, the instruction at EIP is displayed with one (eg, `%0001009D`), and an *address* with no prefix is a linear address, as if it began with `%`: up to 8 hex digits or a register (including EAX through EDI and EIP), with any terms added or subtracted (eg, `U 10012`, `D ESP+8`, or `BP 100B3`), or *selector*`:`*offset*, which is the selector's base plus the offset (eg, `D ES:80`, or `U CS:EIP`).  U and the instruction that R, T, and P display decode that memory as 32-bit code (operands and addresses are 32-bit unless a 66h or 67h prefix makes them 16-bit, and a jump's target is a linear address), and the effective address of a memory operand is a linear address, too (eg, `; EA = %0001108A`).  T and P step the program (stepping over an INT, so a DOS call is one step), BP and G *address* accept its linear addresses, which BL lists as they were set while the program is the one stopped (and otherwise at their physical addresses), and a breakpoint can be set there only while the driver is stopped in the program.  At a trapped fault, G runs the instruction again (eg, after R changes a register), and GT passes the fault on, which ends the program, as a fault that VT doesn't trap does; without the driver, a failed assertion ends the program, too, as a fault with vector 03h.  A assembles 32-bit code at the program's addresses: operands are 32-bit unless one is a 16-bit register or has WORD PTR (eg, `MOV AX,1234` gets a 66h prefix, and `PUSH 5`, `RET`, and `CALL 102F1` are 32-bit), memory always has 32-bit addressing (eg, `[EBX+ECX*4+10]`, or `[11000]` for a direct address; `[BX]` is an error), a jump's or call's target is a linear address, or *selector*`:`*offset* for a far one (eg, `JMP 67:102F1`), and the mnemonics that U displays for 16 bits there are assembled that way (CBW, CWD, PUSHA, POPA, PUSHF, POPF, IRET, JCXZ, and string instructions ending in W; CWDE, CDQ, PUSHAD, POPAD, PUSHFD, POPFD, IRETD, JECXZ, and those ending in D are 32-bit).
 
 The driver's device name is DEBUG$, and data written to it is sent to the terminal; DEBUG builds of BASIC-DOS send their diagnostic (DPRINTF) messages there.
 
@@ -67,7 +69,7 @@ A command line can have up to 79 characters.  BACKSPACE (or DEL) erases a charac
 
 All numbers in commands are hexadecimal, and any number may also be a 16-bit register name, such as DS or DX, or a sum or difference of numbers and register names, with no spaces (eg, `IP+2` or `SP-6`).  An *address* is [*segment*:]*offset* (eg, `DS:DX`), and a *range* is *address* [*end* \| L *count*].  Bytes that can't be read (eg, past the end of a segment) are displayed as `??`.
 
-On an 80286 or later, unless real mode is requested (see [CPU](../../../cfg/#cpu)), the debugger works in either of the processor's modes: an *address* may start with `&` for a real-mode segment (eg, `&40:0`) or `#` for a protected-mode selector (eg, `#20:0`), and otherwise has the processor's current mode, and every address it displays starts with `&` or `#`.  In protected mode, when the session that was running has a [V86](../v86/) machine, a real-mode address is in the machine's memory, as its code sees it (eg, `U &1BC:100`), where only its memory and the ROMs are mapped; BP and G don't accept one, since an INT 3 in the machine goes to the machine's own vector.  On any processor, an *address* may also be any 32-bit linear address, preceded by `%` (eg, `%C00900E0`), or physical address, preceded by `%%` (eg, `%%100000`, or on an 8088, any address below 1Mb), which D, E, LN, and U accept (but BP and G don't, since a breakpoint needs a segment).  Linear and physical addresses are the same unless paging is on (in protected mode on an 80386), when a linear address goes through the current page directory, as the processor's addresses do (eg, at a V86 machine stop, the machine's memory is at linear 0), and a page that isn't present displays `??`.  The segment bases that R displays, and the GDTR and IDTR (GD and ID), are linear addresses, and the addresses that DM and LN display are physical.
+On an 80286 or later, unless real mode is requested (see [CPU](../../../cfg/#cpu)), the debugger works in either of the processor's modes: an *address* may start with `&` for a real-mode segment (eg, `&40:0`) or `#` for a protected-mode selector (eg, `#20:0`), and otherwise has the processor's current mode, and every address it displays starts with `&` or `#`.  In protected mode, when the session that was running has a [V86](../v86/) machine, a real-mode address is in the machine's memory, as its code sees it (eg, `U &1BC:100`), where only its memory and the ROMs are mapped; BP and G don't accept one, since an INT 3 in the machine goes to the machine's own vector.  On any processor, an *address* may also be any 32-bit linear address, preceded by `%` (eg, `%C00900E0`), or physical address, preceded by `%%` (eg, `%%100000`, or on an 8088, any address below 1Mb), which may be a register or have terms added or subtracted, too (eg, `%ESP+8`), and after `%`, *selector*`:`*offset* is the selector's base plus the offset (eg, `%ES:80`), which D, E, LN, and U accept (but BP and G don't, since a breakpoint needs a segment).  Linear and physical addresses are the same unless paging is on (in protected mode on an 80386), when a linear address goes through the current page directory, as the processor's addresses do (eg, at a V86 machine stop, the machine's memory is at linear 0), and a page that isn't present displays `??`.  The segment bases that R displays, and the GDTR and IDTR (GD and ID), are linear addresses, and the addresses that DM and LN display are physical.
 
 ### Commands
 
@@ -301,7 +303,7 @@ In protected mode, each segment register is followed by its base (a linear addre
 
 A segment register with no valid selector (eg, FS=0000) has no `[base,limit]`, and on an 80286, the bases have 6 digits.
 
-R *reg* changes a register (AX, BX, CX, DX, SP, BP, SI, DI, DS, ES, SS, CS, IP, FS, or GS), displaying it and prompting if there's no *value*; an empty line leaves it unchanged.  On an 80386, a change to a 16-bit register leaves the upper half of its 32-bit register unchanged.
+R *reg* changes a register (AX, BX, CX, DX, SP, BP, SI, DI, DS, ES, SS, CS, IP, FS, or GS), displaying it and prompting if there's no *value*; an empty line leaves it unchanged.  On an 80386, a change to a 16-bit register leaves the upper half of its 32-bit register unchanged, and *reg* can also be a 32-bit register (EAX, EBX, ECX, EDX, ESP, EBP, ESI, EDI, or EIP, which has an upper half only in a 32-bit program), with a *value* of up to 8 hex digits (eg, `R EBX 11000`).
 
 R F displays the flags and prompts for new flag names (eg, `CY ZR`).  An empty line leaves them unchanged.
 
@@ -327,7 +329,7 @@ Executes *count* instructions (default 1), displaying the next instruction after
 
 > U [*range*]
 
-Disassembles instructions as the processor runs them: 80386 instructions on an 80386 or later (even in real mode), 80286 instructions on an 80286, and 8086 instructions on an 8088 or 8086 (where, for example, opcode 0Fh is POP CS).  Code is disassembled as 16-bit code, so a 66h prefix makes operands 32-bit (eg, `EAX`, `PUSHAD`, or `MOVSD`), and a 67h prefix makes addresses 32-bit (eg, `[EBX+ECX*4+10]`); ESC opcodes (D8h-DFh) are 80387 instructions on any processor (eg, `FLD QWORD PTR [BX]` or `FSUB ST(1),ST`, with Intel's operand order), and a WAIT before one is displayed by itself (eg, FINIT is `WAIT` and then `FNINIT`); an effective address shows only the low 16 bits of the offset, and none is shown for an FS or GS override.  U displays 32 bytes by default, continuing from the last U, or from CS:IP.  An INT 2Bh that prints (eg, from the PRINTF macro) is followed by a tab, a semicolon, and its format string in quotes (with `\r`, `\n`, `\t`, or `\x`*nn* for each character that isn't printable), and the next instruction starts after the string.
+Disassembles instructions as the processor runs them: 80386 instructions on an 80386 or later (even in real mode), 80286 instructions on an 80286, and 8086 instructions on an 8088 or 8086 (where, for example, opcode 0Fh is POP CS).  Code is disassembled as 16-bit code (except at a stop in a 32-bit program, whose code is disassembled as 32-bit code; see [Loading DEBUG as a Driver](#loading-debug-as-a-driver)), so a 66h prefix makes operands 32-bit (eg, `EAX`, `PUSHAD`, or `MOVSD`), and a 67h prefix makes addresses 32-bit (eg, `[EBX+ECX*4+10]`); ESC opcodes (D8h-DFh) are 80387 instructions on any processor (eg, `FLD QWORD PTR [BX]` or `FSUB ST(1),ST`, with Intel's operand order), and a WAIT before one is displayed by itself (eg, FINIT is `WAIT` and then `FNINIT`); an effective address shows only the low 16 bits of the offset, and none is shown for an FS or GS override.  U displays 32 bytes by default, continuing from the last U, or from CS:IP.  An INT 2Bh that prints (eg, from the PRINTF macro) is followed by a tab, a semicolon, and its format string in quotes (with `\r`, `\n`, `\t`, or `\x`*nn* for each character that isn't printable), and the next instruction starts after the string.
 
 	-U
 	0E2F:0100 BE8100        MOV     SI,0081
@@ -361,6 +363,7 @@ Lists the vectors that VT can trap, or only what belongs to one *vector* (hex, o
 	  0B:   Segment not present
 	  0C:   Stack fault
 	* 0D:   General protection
+	  0E:   Page fault
 	* 13:   BIOS disk functions (see VL 13)
 	  21:   DOS functions (see VL 21)
 	-VL 13

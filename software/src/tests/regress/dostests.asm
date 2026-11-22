@@ -697,7 +697,7 @@ ENDPROC	get_refs
 ; CH=0 and 1, starting each loaded child with EXEC2.
 ;
 ; In protected mode, where an MZ EXE can't be loaded (see load_ne), the EXEC
-; must refuse the fixture instead, with ERR_NOMEMORY ("Unable to load X"),
+; must refuse the fixture instead, with ERR_BADMODE (a real-mode program),
 ; and leave no memory allocated.
 ;
 DEFPROC	test_reserve
@@ -777,7 +777,7 @@ rv9:	call	max_paras
 	pop	dx			; DX = the largest block before
 	cmc				; carry set if it loaded
 	jc	rv8
-	cmp	ax,ERR_NOMEMORY		; refused as expected?
+	cmp	ax,ERR_BADMODE		; refused as expected?
 	jne	rv7			; no
 	call	max_paras
 	cmp	bx,dx			; with nothing left allocated?

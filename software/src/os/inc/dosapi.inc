@@ -404,6 +404,7 @@ ERR_DISKFULL	equ	39	; disk full
 
 ERR_BADSESSION	equ	100	; invalid session
 ERR_NOSESSION	equ	101	; out of sessions
+ERR_BADMODE	equ	102	; real-mode program (in protected mode)
 
 	IFDEF	DOSPSP
 ;
@@ -512,16 +513,19 @@ SIG_EXE		equ	5A4Dh	; "MZ"
 ; NE ("new executable") File Header, which follows an MS-DOS program (its
 ; "stub") in the file: an EXE header whose EXE_OFFRELOC is at least 40h has
 ; the NE header's file offset (a dword) at EXE_NEHDR.  The kernel loads only
-; NE programs with NEF_PROTMODE set, in protected mode (see load_ne).
+; NE programs with NEF_PROTMODE set (and OS/2 programs; see NEOS_OS2), in
+; protected mode (see load_ne), along
+; with the libraries (modules with NEF_LIBRARY set, too) that they import
+; functions from.
 ;
 EXE_NEHDR	equ	3Ch	; dword: file offset of the NE header
 
 NEHDR		struc
 NE_SIG		dw	?	; 00h: SIG_NE
-		dw	?	; 02h: linker version
-		dw	?	; 04h: offset of entry table
-		dw	?	; 06h: length of entry table
-		dd	?	; 08h: file CRC
+NE_LINKVER	dw	?	; 02h: linker version
+NE_ENTTAB	dw	?	; 04h: offset of entry table
+NE_ENTLEN	dw	?	; 06h: length of entry table
+NE_CRC		dd	?	; 08h: file CRC
 NE_FLAGS	dw	?	; 0Ch: NEF_* flags
 NE_AUTODATA	dw	?	; 0Eh: automatic data segment # (DGROUP)
 NE_HEAP		dw	?	; 10h: heap size (added to DGROUP)
@@ -534,23 +538,52 @@ NE_NMODS	dw	?	; 1Eh: # of module references (imports)
 NE_SEGTAB	dw	?	; 22h: offset of segment table
 		dw	?	; 24h: offset of resource table
 		dw	?	; 26h: offset of resident name table
-		dw	?	; 28h: offset of module reference table
-		dw	?	; 2Ah: offset of imported name table
+NE_MODTAB	dw	?	; 28h: offset of module reference table
+NE_IMPTAB	dw	?	; 2Ah: offset of imported name table
 		dd	?	; 2Ch: file offset of nonresident name table
 		dw	?	; 30h: # of moveable entry points
 NE_SHIFT	dw	?	; 32h: segment alignment shift (0 means 9)
 		dw	?	; 34h: # of resource segments
-		db	?	; 36h: target operating system
+NE_OS		db	?	; 36h: target operating system (NEOS_*)
 		db	?	; 37h: other flags
 		dw	4 dup(?); 38h: (fast-load area and Windows version)
 NEHDR		ends		; 40h
 
 SIG_NE		equ	454Eh	; "NE"
+;
+; LE ("linear executable") File Header: a 32-bit program for a flat address
+; space, whose header is where an NE header would be.  It has an object table
+; (LEO_LEN bytes for each object), an object page map (4 bytes for each of an
+; object's pages), and a fixup page table (a dword for each page in the file,
+; and one more), with each page's offset in the fixup records.  The kernel
+; loads them in protected mode, on an 80386 (see load_le).
+;
+SIG_LE		equ	454Ch	; "LE"
+LEH_ORDER	equ	02h	; word: byte and word order (0)
+LEH_PAGES	equ	14h	; dword: # of pages in the file
+LEH_EIPOBJ	equ	18h	; dword: entry point's object #, then offset
+LEH_ESPOBJ	equ	20h	; dword: stack pointer's object #, then offset
+LEH_PAGESIZE	equ	28h	; dword: page size
+LEH_LASTPAGE	equ	2Ch	; dword: bytes in the file's last page
+LEH_OBJTAB	equ	40h	; dword: offset of the object table
+LEH_NOBJ	equ	44h	; dword: # of objects
+LEH_PAGEMAP	equ	48h	; dword: offset of the object page map
+LEH_FIXPAGE	equ	68h	; dword: offset of the fixup page table
+LEH_FIXREC	equ	6Ch	; dword: offset of the fixup records
+LEH_DATA	equ	80h	; dword: file offset of the pages
+LEH_LEN		equ	84h	; (all of the header that load_le reads)
+LEO_SIZE	equ	00h	; dword: the object's size
+LEO_BASE	equ	04h	; dword: its address
+LEO_MAPIDX	equ	0Ch	; dword: its first page map entry (from 1)
+LEO_NPAGES	equ	10h	; dword: # of page map entries
+LEO_LEN		equ	18h
 
 NEF_PROTMODE	equ	0008h	; protected mode only
 NEF_SELFLOAD	equ	0800h	; self-loading (not supported)
 NEF_ERRORS	equ	2000h	; the linker reported errors
-NEF_LIBRARY	equ	8000h	; library module (not supported)
+NEF_LIBRARY	equ	8000h	; library module (eg, DOSCALLS.DLL)
+
+NEOS_OS2	equ	1	; NE_OS: an OS/2 module (see load_ne)
 
 ;
 ; NE Segment Table Entry, followed in the file (if NESF_RELOCS is set) by
@@ -571,16 +604,26 @@ NESF_RELOCS	equ	0100h	; relocation records follow the data
 
 ;
 ; NE Relocation Record: a target (for an internal reference, a segment #
-; and offset) to store at the source (an offset in the segment): unless
+; and offset; for a function imported by ordinal, a module reference # and
+; the ordinal) to store at the source (an offset in the segment): unless
 ; NERF_ADDITIVE is set, the source contains the offset of the next source
 ; for the same target, and so on, until FFFFh.
+;
+; A module reference is a word: the offset, in the imported name table, of
+; a library's module name (a length byte and the name), which is also the
+; name of its file (eg, DOSCALLS is DOSCALLS.DLL).  The library's entry table
+; gives each ordinal's segment # and offset, in bundles of consecutive
+; ordinals (the first is 1): a count (0 ends the table) and a type (0 if the
+; ordinals are unused; otherwise a segment #, or FFh for moveable entries,
+; which aren't supported), and then, unless they're unused, 3 bytes for each
+; ordinal: NEEF_* flags and the offset.
 ;
 NEREL		struc
 NER_TYPE	db	?	; 00h: NERT_* source type
 NER_FLAGS	db	?	; 01h: NERF_* flags
 NER_SOURCE	dw	?	; 02h: offset of the (first) source
-NER_SEG		dw	?	; 04h: target segment # (internal reference)
-NER_OFFSET	dw	?	; 06h: target offset
+NER_SEG		dw	?	; 04h: target segment # (or module ref. #)
+NER_OFFSET	dw	?	; 06h: target offset (or ordinal)
 NEREL		ends
 
 NERT_SEL	equ	2	; 16-bit selector
@@ -588,7 +631,10 @@ NERT_FAR	equ	3	; 32-bit pointer (offset and selector)
 NERT_OFF	equ	5	; 16-bit offset
 
 NERF_TARGET	equ	03h	; target type (0 for an internal reference)
+NERF_ORDINAL	equ	01h	; target type for a function's ordinal
 NERF_ADDITIVE	equ	04h	; add the target offset to the source
+
+NEEF_EXPORTED	equ	01h	; entry table flag: the entry is exported
 	ENDIF	; DOSNE
 
 	ENDIF	; DOSPSP

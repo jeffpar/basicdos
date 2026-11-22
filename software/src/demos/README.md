@@ -1,6 +1,6 @@
 ## Notes Regarding Selected BASIC Demos
 
-1. BROGUE: We created this demo to compare line/block-drawing capabilities on video adapters vs. terminals (specifically, the VT100).  Whether we decide to turn it into an actual game remains to be seen.
+1. BROGUE: A dungeon of puzzle rooms (blocks and rolling stones) on an 80-column display or VT100. See [BROGUE.md](BROGUE.md) for the rules and every puzzle.
 
 2. CLOCK: From https://github.com/robhagemans/hoard-of-gwbasic/blob/master/PeatSoft/clock/Clock1.asc
 

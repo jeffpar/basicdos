@@ -122,9 +122,16 @@ DEFPROC	memError
 	xchg	ss:[bx].ERR_CODE,al
 	test	al,al			; already reported?
 	jnz	me9			; yes
-	PRINTF	<"Not enough memory",13,10>
+	call	memMsg
 me9:	pop	bx
 	stc
+	ret
+;
+; memMsg just prints the message (eg, for fileError, when a program can't
+; be loaded).
+;
+	DEFLBL	memMsg,near
+	PRINTF	<"Not enough memory",13,10>
 	ret
 ENDPROC	memError
 

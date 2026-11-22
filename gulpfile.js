@@ -54,11 +54,11 @@ function checkOutput(task, outputFile)
 }
 
 /*
- * The files on every BASIC-DOS disk come from software/manifest.txt, which lists the files for each folder (ROOT, EXT,
- * DEMOS, and TESTS).  Every demo diskette gets ROOT (the system files, and its own CONFIG.SYS and
- * AUTOEXEC.BAT, if any), followed by EXT (which includes HELP.TXT) and DEMOS, so each demo diskette
+ * The files on every BASIC-DOS disk come from software/manifest.txt, which lists the files for each folder (ROOT, the EXT
+ * folders, DEMOS, and TESTS).  Every demo diskette gets ROOT (the system files, and its own CONFIG.SYS and
+ * AUTOEXEC.BAT, if any), followed by EXT/CMD (which includes HELP.TXT), EXT/BAS, EXT/DLL (the libraries), and DEMOS, so each demo diskette
  * differs only in its CONFIG.SYS, which sets PATH$ on each SHELL line (eg, SHELL=COMMAND.COM
- * PATH$="A:/;A:/EXT;A:/DEMOS").
+ * PATH$="A:\;A:\EXT\CMD;A:\EXT\BAS;A:\DEMOS").
  *
  * The release diskette, BASICDOS-360K, is the same, but its build also writes a raw image of it (marked "img"),
  * BASICDOS-360K.img, which the home page offers for download, and its title includes the version (eg, "BASIC-DOS 2.01
@@ -102,7 +102,7 @@ const SRC = "./software/src";
 const [MAJOR, MINOR, REV] = JSON.parse(fs.readFileSync("./package.json", "utf8")).version.split(".").map(Number);
 const VERSION = MAJOR + "." + String(MINOR).padStart(2, "0") + (REV ? String.fromCharCode(64 + REV) : "");
 /*
- * The distribution files (the root files, and the files that the manifest lists in EXT and DEMOS) are dated
+ * The distribution files (the root files, and the files that the manifest lists in the EXT folders and DEMOS) are dated
  * September 9, 1986, at a time that matches the version (eg, 2:10 AM for 2.10, whatever its revision), on every
  * disk; the PC DOS 1.00 samples keep their own timestamps (see stageDisk()).
  */
@@ -154,13 +154,14 @@ const toolFiles = (dir) => globSync(SRC + "/tools/" + dir + "/*").sort().filter(
     !fs.statSync(file).isDirectory());
 
 //
-// The distribution diskette and the 64K demo diskettes (whose machines can't run the tests) have only EXT and DEMOS;
+// The distribution diskette and the 64K demo diskettes (whose machines can't run the tests) have only EXT (CMD, BAS,
+// and DLL) and DEMOS;
 // every other demo diskette also has, in TESTS (which its CONFIG.SYS adds to PATH$, since a diskette doesn't need
 // the TESTS subfolders), the test files that its CONFIG.SYS runs (eg, PIPES.BAT on the Dual Monitor diskettes) and
 // any that its entry lists (eg, FPUTESTS.COM on the Single diskette, whose machines have a coprocessor); the rest of
 // the tests are on the TESTS diskette.
 //
-const distFolders = { EXT: manifest.EXT, DEMOS: manifest.DEMOS };
+const distFolders = { "EXT/CMD": manifest["EXT/CMD"], "EXT/BAS": manifest["EXT/BAS"], "EXT/DLL": manifest["EXT/DLL"], DEMOS: manifest.DEMOS };
 const testFiles = [].concat(manifest.TESTS, manifest["TESTS/REGRESS"], manifest["TESTS/MISC"]);
 function diskFolders(disk)
 {
@@ -236,7 +237,7 @@ let disks = {
         hd: true,
         config: "./demos/hd/CONFIG.SYS",
         folders: {
-            EXT: manifest.EXT,
+            ...distFolders,
             //
             // WOLF3D.BAT runs the game in DEMOS/WOLF3D, so only this disk gets it, and PUBLIC.zip has JIVE.EXE
             //
@@ -312,7 +313,7 @@ function stageDisk(diskName)
     fs.rmSync(dirStage, { recursive: true, force: true });
     fs.mkdirSync(dirStage, { recursive: true });
     let entries = [];
-    let distSpecs = new Set(manifest.ROOT.concat(manifest.EXT, manifest.DEMOS));
+    let distSpecs = new Set(manifest.ROOT.concat(manifest["EXT/CMD"], manifest["EXT/BAS"], manifest["EXT/DLL"], manifest.DEMOS));
     let copyFiles = function(fileSpecs, dirTarget, name, dist = false) {
         for (let fileSpec of fileSpecs) {
             let image = fileSpec.match(/^(.*\.json)\/(.*)$/);
@@ -404,7 +405,7 @@ function stageDisk(diskName)
     /*
      * The distribution folders get the distribution date, too, once nothing else will be copied into them.
      */
-    for (let folder of ["EXT", "DEMOS"]) {
+    for (let folder of ["EXT/CMD", "EXT/BAS", "EXT/DLL", "EXT", "DEMOS"]) {
         let dirTarget = path.join(dirStage, folder);
         if (fs.existsSync(dirTarget)) fs.utimesSync(dirTarget, DIST_DATE, DIST_DATE);
     }

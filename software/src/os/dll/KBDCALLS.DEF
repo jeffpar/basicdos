@@ -1,0 +1,16 @@
+;
+; BASIC-DOS KBDCALLS Library: module definitions for LINK4, which builds
+; KBDCALLS.DLL as an NE library (see DOSCALLS.DEF).  It has no data.
+;
+; @author Jeff Parsons <Jeff@pcjs.org>
+; @copyright (c) 2026 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
+;
+; This file is part of PCjs, a computer emulation software project at pcjs.org
+;
+LIBRARY	KBDCALLS
+PROTMODE
+CODE	FIXED
+DATA	NONE
+EXPORTS
+	KBDFLUSHBUFFER	@13

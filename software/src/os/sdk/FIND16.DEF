@@ -1,0 +1,29 @@
+;
+; BASIC-DOS SDK: module definitions for LINK4, which builds FIND16.EXE as
+; an OS/2 1.x program whose stub (FIND16.STB; see the makefile) is a real-mode
+; program that says FIND16 requires protected mode.  IMPORTS names the OS/2
+; functions it calls, by module and ordinal.
+;
+; LINK4 has no EXETYPE statement, so the file's header names no operating
+; system, like those of OS/2 1.0's own programs; without PROTMODE, which marks
+; a BASIC-DOS program, BASIC-DOS starts it as OS/2 does.
+;
+; @author Jeff Parsons <Jeff@pcjs.org>
+; @copyright (c) 2026 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
+;
+; This file is part of PCjs, a computer emulation software project at pcjs.org
+;
+NAME	FIND16
+STUB	'FIND16.STB'
+CODE	FIXED
+DATA	FIXED
+IMPORTS
+	DOSEXIT=DOSCALLS.5
+	DOSCLOSE=DOSCALLS.59
+	DOSFINDCLOSE=DOSCALLS.63
+	DOSFINDFIRST=DOSCALLS.64
+	DOSFINDNEXT=DOSCALLS.65
+	DOSOPEN=DOSCALLS.70
+	DOSREAD=DOSCALLS.137
+	DOSWRITE=DOSCALLS.138

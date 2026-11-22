@@ -10,7 +10,7 @@
 ; Usage: HELP [keyword|ALL|BASIC|CORE|FUNC|CMD|EXT]
 ;
 ; Displays help for a keyword, or lists the keywords in a category, from
-; HELP.TXT in the EXT folder of the drive that COMMAND.COM was loaded from
+; HELP.TXT in the EXT\CMD folder of the drive that COMMAND.COM was loaded from
 ; (normally the boot drive), so HELP works from any directory.  The exit code
 ; is 1 if there's no help for the keyword (or HELP.TXT can't be read).
 ;
@@ -57,12 +57,13 @@ m1:	mov	[CON_COLS],dl
 	int	21h			; DL = path char, DH = system drive
 	mov	[PATH_CHAR],dl
 ;
-; HELP.TXT is in the EXT folder of the system drive (the drive that
+; HELP.TXT is in the EXT\CMD folder of the system drive (the drive that
 ; COMMAND.COM was loaded from).
 ;
 	mov	di,offset HELP_PATH
 	mov	[di+2],dl
 	mov	[di+6],dl
+	mov	[di+10],dl
 	mov	[di],dh
 ;
 ; Find the first argument (SI) and its length (CX).
@@ -537,7 +538,8 @@ DEFPROC	readInput
 	mov	cx,offset VERB_READ
 ;
 ; fileError reports the error (AX) that the operation (CX -> verb) on
-; HELP.TXT returned (eg, "Unable to find A:\EXT\HELP.TXT"), and sets carry.
+; HELP.TXT returned (eg, "Unable to find A:\EXT\CMD\HELP.TXT"), and sets
+; carry.
 ;
 	DEFLBL	fileError,near
 	mov	dx,offset HELP_PATH
@@ -746,7 +748,7 @@ HELP_CATS	db	"ALL",0,"BASIC",0,"CORE",0,"FUNC",0,"CMD",0,"EXT",0,0
 ; main updates HELP_PATH's drive and path chars, and with no argument, looks
 ; up "HELP" in it.
 ;
-HELP_PATH	db	"A:\EXT\HELP.TXT",0
+HELP_PATH	db	"A:\EXT\CMD\HELP.TXT",0
 VERB_FIND	db	"find",0
 VERB_READ	db	"read",0
 CON_COLS	db	?

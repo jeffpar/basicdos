@@ -15,6 +15,7 @@ CODE    SEGMENT
 
 	EXTNEAR	<getFileName,getToken,chkStrVar,newStr>
 	EXTNEAR	<printCRLF,findFile,addString,releaseStr,rtError,syntaxError>
+	EXTNEAR	<v86Hint,memMsg>
 	EXTBYTE	<CMD_PATH>
 	EXTSTR	<DIR_DEF,PIPE_NAME,COM_EXT,BAS_EXT>
 
@@ -1149,7 +1150,7 @@ ENDPROC	freeEnv
 ;
 ; Find the program named at DS:SI, first as specified, and then (if the name
 ; contains no drive or path) in each directory listed in PATH$, separated by
-; semicolons (eg, "A:\;A:\EXT;A:\SAMPLES").  If the name has no extension,
+; semicolons (eg, "A:\;A:\EXT\CMD;A:\DEMOS").  If the name has no extension,
 ; .COM, .EXE, .BAT, and .BAS are tried, in that order, starting with DX (eg,
 ; LOAD starts with .BAT).  A name longer than 64 characters isn't searched.
 ;
@@ -1436,8 +1437,9 @@ ENDPROC	openOutput
 ; Inputs:
 ;	AX = error # (ERR_NOTREADY is reported as "Drive not ready",
 ;	ERR_BADDRIVE as "Invalid drive", ERR_NOSESSION as "No sessions
-;	available to run X", ERR_NOMEMORY as "Unable to load X", and
-;	ERR_NOFILE or ERR_NOPATH as "Unable to find X")
+;	available to run X", ERR_NOMEMORY as "Not enough memory",
+;	ERR_BADFORMAT as "Unable to load X", as is ERR_BADMODE, with a hint
+;	from v86Hint, and ERR_NOFILE or ERR_NOPATH as "Unable to find X")
 ;	DS:SI -> filename
 ;	CS:DX -> verb (fileError only; eg, "delete")
 ;
@@ -1486,8 +1488,14 @@ fer1c:	sub	di,si			; DI = length of name without extension
 	pop	bx
 	jmp	short fer2
 fer3:	cmp	ax,ERR_NOMEMORY		; not enough memory?
+	jne	fer3a			; no
+	call	memMsg			; yes, so report "Not enough memory"
+	jmp	short fer2
+fer3a:	cmp	ax,ERR_BADFORMAT	; a program that can't be loaded?
+	je	fer3b			; yes
+	cmp	ax,ERR_BADMODE		; a real-mode program (see fer2)?
 	jne	fer4			; no
-	mov	dx,offset VERB_LOAD	; yes, so report "Unable to load X"
+fer3b:	mov	dx,offset VERB_LOAD	; yes, so report "Unable to load X"
 fer4:	cmp	ax,ERR_NOFILE		; file not found?
 	je	fer5			; yes
 	cmp	ax,ERR_NOPATH		; path not found?
@@ -1496,7 +1504,20 @@ fer5:	mov	dx,offset VERB_FIND	; yes, so report "Unable to find X"
 fer6:	EPRINTF	<"Unable to %ls %s">,<13,10>,ax,dx,cs,si
 fer2:	pop	dx
 	pop	ax
-	stc
+;
+; Protected mode can't run a real-mode program, but a V86 machine can, so
+; v86Hint (which isn't part of the core; see genUpper) says how, if it's
+; loaded and there can be one.
+;
+	cmp	ax,ERR_BADMODE		; a real-mode program?
+	jne	fer9			; no
+	push	dx
+	mov	dx,offset v86Hint
+	cmp	dx,ds:[PSP_CODESIZE]	; is v86Hint loaded?
+	jae	fer8			; no
+	call	dx
+fer8:	pop	dx
+fer9:	stc
 	ret
 ENDPROC	openError
 

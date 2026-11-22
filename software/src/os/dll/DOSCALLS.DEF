@@ -1,0 +1,44 @@
+;
+; BASIC-DOS DOSCALLS Library: module definitions for LINK4, which builds
+; DOSCALLS.DLL as an NE library (see the DLL makefile).  PROTMODE and FIXED
+; segments are what the NE loader requires (as for a program; see
+; TESTS\MISC\PRIMES.DEF), and DATA SINGLE is the library's one data segment
+; (of which every program that loads the library has its own copy).  Each
+; function is exported at its OS/2 ordinal.
+;
+; @author Jeff Parsons <Jeff@pcjs.org>
+; @copyright (c) 2026 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
+;
+; This file is part of PCjs, a computer emulation software project at pcjs.org
+;
+LIBRARY	DOSCALLS
+PROTMODE
+CODE	FIXED
+DATA	SINGLE FIXED
+EXPORTS
+	DOSEXIT			@5
+	DOSSETSIGHANDLER	@14
+	DOSALLOCSEG		@34
+	DOSREALLOCSEG		@38
+	DOSFREESEG		@39
+	DOSGETMACHINEMODE	@49
+	DOSDEVIOCTL		@53
+	DOSCHGFILEPTR		@58
+	DOSCLOSE		@59
+	DOSDELETE		@60
+	DOSFINDCLOSE		@63
+	DOSFINDFIRST		@64
+	DOSFINDNEXT		@65
+	DOSNEWSIZE		@68
+	DOSOPEN			@70
+	DOSQCURDISK		@72
+	DOSQFILEMODE		@75
+	DOSQHANDTYPE		@77
+	DOSSETMAXFH		@85
+	DOSSETVEC		@89
+	DOSGETVERSION		@92
+	DOSGETPID		@94
+	DOSREAD			@137
+	DOSWRITE		@138
+	DOSEXECPGM		@144

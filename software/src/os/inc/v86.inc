@@ -62,6 +62,47 @@
 ;	system's INT 01h and 03h handlers (the debugger's) instead of its own
 ;	vectors, the same way, until another AL = 3 with VR_VEC zero.
 ;
+; A flat machine runs 32-bit code instead, at ring 3, in protected mode, in a
+; linear address space of its own (every address below C0000000h, where the
+; system's begin), with only the memory that it's been given, which starts at
+; linear address 10000h, so that a null pointer faults.  DOS runs LE programs
+; in them (see load_le), and gives them to their host through DOSUTIL MAPSEG
+; with AL = 4 and 5 (CPU_V86 with AL = 7 and 8):
+;
+;	CPU_V86 with AL = 6 creates a flat machine with SI:DI bytes of memory
+;	(rounded up to a multiple of 4K), owned by BX, and returns the machine
+;	in AX and its memory's linear address in DX:CX.  The machine is the
+;	first of five consecutive LDT selectors: one that only CPU$ uses, two
+;	for its host (as in VR_DSSEL and VR_ESSEL), and its code and data
+;	selectors (32-bit, with base 0), which are the only CS and SS that
+;	it ever runs with.  Its owner ending frees it.
+;
+;	CPU_V86 with AL = 7 points one of machine BX's two selectors for its
+;	host (SI = 0 for VR_DSSEL, or 1 for VR_ESSEL) at linear address DX:CX,
+;	and returns the selector in AX and its limit in CX: it covers as many
+;	of the bytes there as are in consecutive physical pages, up to 64K
+;	(DOS and the drivers use it with the system's page tables, so a
+;	transfer must not go beyond it); an address with no memory is an error.
+;
+;	CPU_V86 with AL = 8 adds SI:DI bytes (rounded up to a multiple of 4K)
+;	to the end of machine BX's memory, and returns their linear address in
+;	DX:CX; the memory isn't zeroed (DOSUTIL MAPSEG zeroes it).
+;
+;	CPU_V86 with AL = 1 runs a flat machine, too, with VR_CS and VR_SS
+;	ignored, and the VR_DS, VR_ES, VR_FS, and VR_GS that ring 3 could load
+;	(any other becomes zero).  An INT exits (V86X_INT, with VR_EIP past
+;	it), a hardware interrupt exits after the system's handler (V86X_TICK),
+;	and anything else is a fault (V86X_FAULT, with VR_EIP at the
+;	instruction): it has no ports, no vectors of its own, and IOPL 0.
+;	An INT 3 doesn't exit: the system's INT 03h handler gets it (eg, a
+;	debugger's, which AL = 2 and 3 give the machine's registers), with
+;	VR_VEC = 03h, and so does a single-step trap after AL = 3 with a
+;	nonzero VR_VEC, and then the machine runs again.  That handler gets
+;	a fault, too, before the exit (with the fault's VR_VEC and VR_ERR),
+;	as it does an INT 3 that follows a NOP (a failed assertion, which
+;	then exits as a fault with VR_VEC = 03h); if it calls AL = 3, the
+;	machine runs again instead (eg, after a debugger's G).
+;
 ; The machine's code can do anything an 8086 program can, except HLT, and
 ; I/O, which exits (V86X_IO), so that the host can do something like it (the
 ; only ports that the machine ever uses itself are the video ports, as

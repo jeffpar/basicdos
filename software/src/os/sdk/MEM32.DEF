@@ -1,0 +1,12 @@
+;
+; BASIC-DOS SDK: module definitions for LINK386, which builds MEM32.EXE as
+; a 32-bit LE program (EXETYPE OS2 makes a program, not a virtual device).
+;
+; @author Jeff Parsons <Jeff@pcjs.org>
+; @copyright (c) 2026 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
+;
+; This file is part of PCjs, a computer emulation software project at pcjs.org
+;
+NAME	MEM32
+EXETYPE	OS2

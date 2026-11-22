@@ -30,7 +30,7 @@ CODE	segment word public 'CODE'
 	EXTNEAR	<arm,cg1,cpu_call,ct1v,ct2a,dbg_brk,dbg_fault,dbgdev_com>
 	EXTNEAR	<cmd_help,cmd_l,disarm,ip_mem,peek_b,resume,skip_space,step>
 	EXTNEAR	<chk_over,end_command,parse_addr,parse_hex,poke_b>
-	EXTNEAR	<get_char,gl1,hex_digit,mon3a,mon4,mon4a,mon_sp,newline>
+	EXTNEAR	<get_char,gl1,hex_digit,mon3b,mon4,mon4a,mon_sp,newline>
 	EXTNEAR	<put_char,put_raw,put_string>
 	EXTNEAR	<dc_0f,dc_386,op_sreg>
 	EXTBYTE	<CMD_LN,CMD_Q,CMD_VEC,HELP_MSG,OPTAB,bp_tab,com_flow,command>
@@ -84,7 +84,7 @@ din0:	lodsb
 	ja	din0			; no
 	mov	byte ptr [si-1],0
 din0a:	test	al,al			; end of the arguments?
-	jz	din0b			; yes
+	jz	din0c			; yes
 	lodsb
 	cmp	al,dl			; a switch?
 	jne	din0a			; no
@@ -104,17 +104,28 @@ din0a:	test	al,al			; end of the arguments?
 	mov	byte ptr [din7],0CCh	; INT 3
 	mov	ds,ax
 	ASSUME	DS:NOTHING
-din0b:	mov	dx,bx			; DS:DX -> COM descriptor
+;
+; Find any later /H now, too (skip_h sets sw_halt), so that we can say why
+; we're stopping (see HALT_MSG).
+;
+din0b:	lodsb
+	test	al,al			; end of the arguments?
+	jz	din0c			; yes
+	cmp	al,dl			; another switch?
+	jne	din0b			; no
+	call	skip_h
+	jmp	din0b
+din0c:	mov	dx,bx			; DS:DX -> COM descriptor
 	mov	ax,DOS_HDL_OPENRW OR MODE_DENY_RW
 	int	21h			; open the port for exclusive access
-	jnc	din0c
+	jnc	din0d
 	jmp	din9
-din0c:	xchg	bx,ax			; BX = handle
+din0d:	xchg	bx,ax			; BX = handle
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_COMDEBUG
 	int	21h
-	jnc	din0d
+	jnc	din0e
 	jmp	din8
-din0d:	mov	ds,cs:[0].DDH_DATA
+din0e:	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	al,dl
 	and	al,COMDBG_XON OR COMDBG_RTS
@@ -168,7 +179,16 @@ din1:	push	dx
 	mov	[old_fault]._SEG,dx
 	mov	si,offset BANNER
 	call	put_string
-	mov	es:[di].DDPI_END._OFF,offset resident_end
+;
+; A /H stop has no other message (it's not a fault or a failed assertion),
+; so say what it is, naming the switch with the current switch char.
+;
+	cmp	[sw_halt],'H'		; was there a /H?
+	jne	din2			; no
+	mov	al,[sw_char]
+	mov	[HALT_SW],al
+	call	put_string		; (SI -> HALT_MSG)
+din2:	mov	es:[di].DDPI_END._OFF,offset resident_end
 	mov	es:[di].DDPI_END._SEG,cs
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 din7:	nop				; (switches change this to INT 3)
@@ -296,6 +316,9 @@ ENDPROC	skip_h
 	db	"BASIC-DOS Debugger "
 	VERSION_STR
 	db	13,10,"CTRL-C or BREAK to stop, ? for help",13,10,0
+	db	"Startup stopped by "	; (HALT_MSG, which must follow BANNER)
+	DEFBYTE	HALT_SW,'/'
+	db	"H, G to continue",13,10,0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -627,7 +650,7 @@ cm3:	cmp	al,' '			; space or CHR_RETURN ends the name
 ;
 ; Copy the switch's command to command, in upper case (a long one spills
 ; into mon_stack, which program mode doesn't use), and change the monitor to
-; perform it in place of displaying the registers (at mon3a), and to exit in
+; perform it in place of displaying the registers (at mon3b), and to exit in
 ; place of prompting for another command (at mon4).  INT 00h, 01h, and 03h
 ; are never hooked, so the exit (at cm9c) skips swap_vecs.
 ;
@@ -644,7 +667,7 @@ cm6a:	cmp	al,CHR_RETURN		; end of the tail?
 	inc	di
 	jmp	cm6
 cm6b:	mov	byte ptr [di],0
-	mov	bx,offset mon3a
+	mov	bx,offset mon3b
 	mov	ax,offset mon4a
 	call	set_jmp
 	mov	bx,offset mon4

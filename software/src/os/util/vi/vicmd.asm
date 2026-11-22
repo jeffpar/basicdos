@@ -167,11 +167,11 @@ sn4:	cmp	al,CHR_LINEFEED		; new line?
 sn4a:	call	markLine
 	jmp	sn2
 ;
-; Erase the previous character (but only if it was inserted, and since the
-; gap is at the cursor, that's done by shrinking the text before the gap).
+; Erase the previous character.  If it was inserted, then since the gap is
+; at the cursor, that's done by shrinking the text before the gap.
 ;
 sn5:	cmp	bx,[bp].V_ISTART
-	jbe	sn2
+	jbe	sn10
 	dec	bx
 	mov	[bp].V_CUR,bx
 	dec	[bp].V_GS
@@ -199,6 +199,37 @@ sn9:	push	ax
 	je	sn9b
 	mov	[bp].V_CUR,bx
 sn9b:	ret
+;
+; If the character to erase wasn't inserted, it's cut as a new change
+; (unless the cursor is at the start of a line), which any characters
+; inserted next become part of.  If a change has already begun here, the
+; text it cut is put back first and cut again, so that undo restores all
+; of it.
+;
+sn10:	call	decB
+	jc	sn11
+	call	getc
+	cmp	al,CHR_LINEFEED		; start of a line?
+	je	sn11			; yes
+	mov	cx,1
+	test	[bp].V_MODE,MODE_CHG	; has a change begun? (carry clear)
+	jnz	sn10a			; no
+	inc	bx
+	mov	ax,[bp].V_USEG
+	mov	cx,[bp].V_ULEN
+	call	insText
+	jc	sn11
+	sub	bx,cx
+	dec	bx
+	inc	cx
+sn10a:	call	beginChange
+	and	[bp].V_MODE,NOT MODE_CHG
+	call	markLine
+	mov	al,0			; (don't yank it)
+	call	cutText
+	jc	sn11
+	jmp	sn1
+sn11:	jmp	sn2
 ENDPROC	startIns
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

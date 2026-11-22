@@ -263,7 +263,7 @@ However a program terminates, any of vectors 00h, 01h, 03h, 04h, 08h, 09h, 1Bh, 
 | 7 | ERR_BADMCB | Invalid MCB |
 | 8 | ERR_NOMEMORY | Out of memory |
 | 9 | ERR_BADADDR | Invalid memory segment |
-| 11 | ERR_BADFORMAT | Invalid format (eg, a DEVICE= file that isn't a driver) |
+| 11 | ERR_BADFORMAT | Invalid format (eg, a DEVICE= file that isn't a driver, or a program that can't be loaded) |
 | 15 | ERR_BADDRIVE | Invalid drive |
 | 16 | ERR_CURDIR | Attempt to remove a current directory |
 | 17 | ERR_NOTSAME | Not the same device |
@@ -283,6 +283,7 @@ However a program terminates, any of vectors 00h, 01h, 03h, 04h, 08h, 09h, 1Bh, 
 | 39 | ERR_DISKFULL | Disk full |
 | 100 | ERR_BADSESSION | Invalid session (BASIC-DOS only) |
 | 101 | ERR_NOSESSION | Out of sessions (BASIC-DOS only) |
+| 102 | ERR_BADMODE | Real-mode program, which protected mode can't load (BASIC-DOS only) |
 
 Errors 19-31 are device errors, as in DOS 3.x; a critical error handler gets the same error minus 19 (see [Critical Errors](#critical-errors)).
 

@@ -7,7 +7,9 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Usage (in CONFIG.SYS): DEVICE=EXT\DEBUG.COM COM2:9600,N,8,1,VT100 [/cmd...]
+; Usage (in CONFIG.SYS):
+;
+;	DEVICE=EXT\CMD\DEBUG.COM COM2:9600,N,8,1,VT100 [/cmd...]
 ;
 ; Each switch is a monitor command, performed once the driver is installed
 ; (eg, /BP 70:100), and then booting continues, unless one of them is /H.
@@ -88,7 +90,7 @@ CODE	segment para public 'CODE'
 	EXTNEAR	<set_step>
 	EXTBYTE	<DIV_MSG,FAULT_MSG,OVF_MSG>
 	EXTNEAR	<put_fmt>
-	public	gl1,mon3a,mon4,mon4a,ct1v,cg1	; (patched by dbginit.asm)
+	public	gl1,mon3b,mon4,mon4a,ct1v,cg1	; (patched by dbginit.asm)
 	public	ct2a
 
 ;
@@ -140,6 +142,7 @@ BP_ARMED	equ	04h	; breakpoint's INT 3 is in memory
 BP_STEP		equ	08h	; temporary breakpoint ends a P step
 BP_GO		equ	10h	; temporary breakpoint resumes (see r3_go)
 BP_HLT		equ	40h	; breakpoint is a HLT in ring 3 code (see arm)
+BP_FLAT		equ	80h	; a flat machine's (with ADDR_V86; see put_bp)
 	public	BP_SET,BP_GO	; (see com_main)
 CPU_DUAL	equ	80h	; cpu_mode: CPU$ is the 80386 driver
 BP_SIZE		equ	10
@@ -281,14 +284,15 @@ FLAG_MASK	equ	0ED5h	; OF, DF, IF, SF, ZF, AF, PF, and CF
 PM_FLAG_MASK	equ	0FD5h	; OF, DF, IF, TF, SF, ZF, AF, PF, and CF
 ;
 ; The offset (from regs) of each general register's upper half (in xregs),
-; by its own offset / 2 (see put_regval), and the offset in regs of each
+; by its own offset / 2 (see put_regval), and IP's (see find_ereg), which is
+; zero except in a flat machine, and the offset in regs of each
 ; V86REGS low word, VR_EDI through VR_EAX (with SP for the unused one) and
 ; VR_EIP through VR_DS (see map_v86).
 ;
 	DEFLBL	HI_TAB,byte
 	db	X_REGS+VR_ESP+2,0,0,0,X_REGS+VR_EDI+2,X_REGS+VR_ESI+2
 	db	X_REGS+VR_EBP+2,X_REGS+VR_EDX+2,X_REGS+VR_ECX+2
-	db	X_REGS+VR_EBX+2,X_REGS+VR_EAX+2
+	db	X_REGS+VR_EBX+2,X_REGS+VR_EAX+2,X_REGS+VR_EIP+2
 	DEFLBL	V86_MAP,byte
 	db	8,10,12,0,18,14,16,20,22,24,26,0,2,4,6
 
@@ -650,6 +654,7 @@ DEFPROC	monitor
 	mov	sp,si
 	mov	ax,word ptr xregs[VR_EBX-2]	; (PUSHAD's ESP)
 	mov	word ptr xregs[VR_ESP+2],ax
+	mov	word ptr xregs[VR_EIP+2],cx	; (zero, outside a machine)
 	db	66h,9Ch			; PUSHFD
 	pop	ax
 	pop	word ptr xregs[VR_EFL+2]
@@ -671,16 +676,17 @@ mon0:	mov	di,offset sys_regs	; ES:DI -> GDTR and IDTR buffer
 mon0a:	mov	[cpu_mode],bl
 	and	bl,ADDR_SEL
 	mov	[ip_mode],bl
-	call	get_v86			; stopped in a V86 machine?
-	cmp	[ip_mode],ADDR_V86	; (whose CS isn't a selector)
-	je	mon0b			; yes
+	call	get_v86			; stopped in a machine?
+	test	[ip_mode],ADDR_V86 OR ADDR_LIN	; (whose frame isn't ours)
+	jnz	mon0b			; yes
 	call	chk_ring		; interrupted at another ring?
 	jz	mon0b			; no
 	les	bx,[frame_ptr]
 	les	ax,es:[bx]
 	mov	regs[R_SP],ax
 	mov	regs[R_SS],es		; yes, so get its SS:SP from the frame
-mon0b:	call	disarm
+mon0b:	call	flat_fault
+	call	disarm
 	mov	dl,0			; DL = nonzero if a T or P step is done
 	mov	al,0
 	xchg	al,[tracing]
@@ -785,19 +791,21 @@ mon2d:	cmp	al,3			; INT 3 other than a breakpoint?
 mon2b:	mov	si,offset ASSERT_MSG
 mon2c:	call	put_string
 	call	newline
-mon3:	mov	ax,regs[R_IP]
-	mov	[u_off],ax		; U and A default to CS:IP
-	mov	[a_off],ax
-	mov	ax,regs[R_CS]
+mon3:	call	ip_mem
+	mov	[u_off],di		; U and A default to CS:IP
+	mov	[a_off],di
+	mov	ax,[mem_seg]
 	mov	[u_seg],ax
 	mov	[a_seg],ax
+	mov	bl,[mem_mode]
+	cmp	bl,ADDR_LIN		; in a flat machine (see get_v86)?
+	je	mon3a			; yes (D defaults to the same 64K)
 	mov	ax,regs[R_DS]
-	mov	[dump_seg],ax		; D defaults to DS
-	mov	al,[ip_mode]
-	mov	[u_mode],al		; in the current mode
-	mov	[a_mode],al
-	mov	[dump_mode],al
-mon3a:	call	show_step		; (com_main changes this, and mon4)
+mon3a:	mov	[dump_seg],ax		; D defaults to DS
+	mov	[u_mode],bl		; in the current mode
+	mov	[a_mode],bl
+	mov	[dump_mode],bl
+mon3b:	call	show_step		; (com_main changes this, and mon4)
 	cmp	[trace_cnt],0		; more T or P steps?
 	je	mon4			; no
 	call	do_trace		; (which never returns)
@@ -874,6 +882,14 @@ ENDPROC	mon_reset
 ; (ip_mode) is ADDR_V86, until resume gives them back.  A breakpoint in CPU$
 ; at that address doesn't (its frame returns past the INT 3).
 ;
+; The machine may be a flat machine instead (see v86.inc), which runs 32-bit
+; code in protected mode: its registers aren't a V86 machine's (VM is clear),
+; so ip_mode is ADDR_SEL and ADDR_LIN, which means that EIP is a linear
+; address (see ip_mem), that an address with no prefix is one, too (see
+; parse_addr), and that the code at one has 32-bit operands and addresses
+; (see decode).  CPU$ sends us its INT 3s (and its single-step traps, when
+; rs3 asks for them) the same way.
+;
 ; Modifies:
 ;	AX, BX, DX, SI, DI, ES
 ;
@@ -891,7 +907,11 @@ DEFPROC	get_v86
 	mov	ax,(CPU_V86 SHL 8) OR 2
 	call	cpu_call
 	jc	mv9			; there's no machine
-	mov	[ip_mode],ADDR_V86
+	mov	al,ADDR_V86
+	test	byte ptr xregs[VR_EFL+2],02h	; is it a V86 machine (VM)?
+	jnz	mv0			; yes
+	mov	al,ADDR_SEL OR ADDR_LIN	; no, a flat machine
+mv0:	mov	[ip_mode],al
 	mov	dl,0
 ENDPROC	get_v86				; fall into map_v86
 
@@ -945,8 +965,8 @@ DEFPROC	resume
 rsa:	call	set_step		; (see SCSTAT_STEP)
 	push	ds
 	pop	es
-	cmp	[ip_mode],ADDR_V86	; resuming a V86 machine?
-	je	rs3			; yes
+	test	[ip_mode],ADDR_V86 OR ADDR_LIN	; resuming a machine?
+	jnz	rs3			; yes
 	call	chk_386			; an 80386?
 	jc	rsb			; no
 	sub	sp,32
@@ -954,11 +974,21 @@ rsa:	call	set_step		; (see SCSTAT_STEP)
 	mov	si,offset xregs
 	mov	cx,16
 	rep	movsw			; (VR_EDI through VR_EAX)
+;
+; FS and GS are loaded only if R changed them: in protected mode, one that
+; was loaded in real mode (eg, by the ROM) may not be a selector at all.
+;
+	db	8Ch,0E0h		; MOV AX,FS
+	cmp	ax,xregs[VR_FS]		; has it changed?
+	je	rsa1			; no
 	db	8Eh,26h			; MOV FS,[xregs+VR_FS]
 	dw	offset xregs+VR_FS
+rsa1:	db	8Ch,0E8h		; MOV AX,GS
+	cmp	ax,xregs[VR_GS]		; has it changed?
+	je	rsa2			; no
 	db	8Eh,2Eh			; MOV GS,[xregs+VR_GS]
 	dw	offset xregs+VR_GS
-	db	66h,61h			; POPAD
+rsa2:	db	66h,61h			; POPAD
 rsb:	les	di,dword ptr regs[R_SP]
 	call	chk_ring		; resuming another ring?
 	jz	rs1			; no
@@ -1007,10 +1037,42 @@ rs3b:	add	bx,BP_SIZE
 	mov	di,offset xregs		; ES:DI -> V86REGS
 	mov	ax,(CPU_V86 SHL 8) OR 3
 	call	cpu_call
+	DEFLBL	rs_pass,near		; (see flat_fault)
 	les	di,[frame_ptr]
 	sub	di,REGS_LEN
 	jmp	rs2
 ENDPROC	resume
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; flat_fault
+;
+; A fault in a flat machine comes to us as an INT 3 from the machine, with
+; its vector in VR_VEC (which is 03h for an INT 3) and its error code in
+; VR_ERR (see CPU_V86 in v86.inc): if VT traps the vector, we stop, as for
+; any trapped fault, and otherwise we return to CPU$ without giving the
+; machine's registers back (at rs_pass), which passes the fault on, as GT
+; does (the machine exits, and DOS ends its program).
+;
+; Modifies:
+;	AX
+;
+DEFPROC	flat_fault
+	test	[ip_mode],ADDR_LIN	; in a flat machine?
+	jz	ff9			; no
+	cmp	[why],3			; from an INT 3?
+	jne	ff9			; no
+	mov	ax,xregs[VR_VEC]
+	cmp	al,3			; an INT 3 of the machine's?
+	je	ff9			; yes
+	call	chk_trap		; is the vector trapped?
+	jnc	rs_pass			; no
+	mov	[fault_vec],al
+	mov	ax,word ptr xregs[VR_ERR]
+	mov	[fault_ec],ax
+	mov	[why],-1
+ff9:	ret
+ENDPROC	flat_fault
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1140,27 +1202,29 @@ ENDPROC	cmd_b
 ;	Carry clear if successful, set if invalid
 ;
 DEFPROC	set_bp
-	mov	bp,regs[R_CS]
+	call	ip_seg
+	xchg	bp,ax			; BP = CS
 	call	parse_addr
 	jc	sb9
 ;
 ; A breakpoint needs a segment, and a V86 machine's only while we're stopped
 ; in that machine (whose INT 3 then comes to us; see rs3), where put_bp also
 ; stores its physical address, which bp_mem uses, since & may mean another
-; session's machine at the next stop (see cmd_bl).
+; session's machine at the next stop (see cmd_bl).  A linear address is a
+; flat machine's (with BP_FLAT), likewise, while we're stopped in one.
 ;
-	test	[mem_mode],ADDR_PHYS OR ADDR_LIN
+	test	[mem_mode],ADDR_PHYS
 	stc
 	jnz	sb9
 	call	end_command
 	jc	sb9
 	DEFLBL	put_bp,near		; (BX -> entry, BP:AX = address)
 	mov	cl,[mem_mode]
-	test	cl,ADDR_V86		; a V86 machine's?
+	test	cl,ADDR_V86 OR ADDR_LIN	; a machine's?
 	jz	sb1			; no
-	cmp	[ip_mode],ADDR_V86	; are we stopped in one?
+	test	[ip_mode],cl		; are we stopped in one like it?
 	stc
-	jne	sb9			; no
+	jz	sb9			; no
 	push	ax
 	push	bx
 	push	di
@@ -1174,7 +1238,10 @@ DEFPROC	set_bp
 	jc	sb9
 	mov	[bx+6],cx
 	mov	[bx+8],dx
-	mov	cl,ADDR_V86
+	mov	cl,[mem_mode]
+	shl	cl,1			; (ADDR_LIN becomes BP_FLAT)
+	and	cl,BP_FLAT
+	or	cl,ADDR_V86
 sb1:	mov	[bx],ax
 	mov	[bx+2],bp
 	or	cl,BP_SET		; (carry is clear)
@@ -1184,8 +1251,9 @@ ENDPROC	set_bp
 
 ;
 ; bl_mem makes breakpoint BX the memory to access, as bp_mem does, except
-; that a V86 machine's is displayed as it was set (&segment:offset), if the
-; machine that & means now has it there, or else at its physical address.
+; that a machine's is displayed as it was set (&segment:offset, or a flat
+; machine's linear address), if the machine that & (or %) means now has it
+; there, or else at its physical address.
 ;
 ; Modifies:
 ;	AX, CX, DI
@@ -1197,10 +1265,10 @@ DEFPROC	bl_mem
 	push	dx
 	push	bx
 	push	di
+	call	bl_mode			; AL = its mode
 	mov	di,[bx]
 	mov	bx,[bx+2]
-	mov	al,ADDR_V86
-	call	lin_addr		; DX:CX = where & has it now
+	call	lin_addr		; DX:CX = where & (or %) has it now
 	pop	di
 	pop	bx
 	jc	bk8			; (there's no machine)
@@ -1211,10 +1279,23 @@ DEFPROC	bl_mem
 	mov	di,[bx]
 	mov	ax,[bx+2]
 	mov	[mem_seg],ax
-	mov	[mem_mode],ADDR_V86
+	call	bl_mode
+	mov	[mem_mode],al
 bk8:	pop	dx
 bk9:	ret
 ENDPROC	bl_mem
+
+;
+; bl_mode returns the mode of a machine's breakpoint as it was set: ADDR_V86,
+; or for a flat machine's (BP_FLAT), ADDR_LIN.
+;
+DEFPROC	bl_mode
+	mov	al,ADDR_V86
+	test	byte ptr [bx+5],BP_FLAT	; a flat machine's?
+	jz	bd9			; no
+	mov	al,ADDR_LIN
+bd9:	ret
+ENDPROC	bl_mode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1363,7 +1444,9 @@ cmd_gt:	call	end_command
 	jb	cg9			; not a fault (nothing to pass on)
 	jne	gt0			; no
 	jmp	mon_sp			; yes, so we stay halted
-gt0:	call	arm			; (one at CS:IP isn't needed)
+gt0:	test	[ip_mode],ADDR_LIN	; a flat machine's fault?
+	jnz	gt9			; yes (see flat_fault)
+	call	arm			; (one at CS:IP isn't needed)
 	mov	di,regs[R_IP]
 	mov	cx,[old_fault]._OFF
 	mov	dx,[old_fault]._SEG	; DX:CX = previous handler
@@ -1395,6 +1478,7 @@ gt1:	call	arm
 	mov	dx,vec_save[bx+2]	; DX:CX = previous handler
 	call	sim_int
 	jmp	resume
+gt9:	jmp	rs_pass
 ENDPROC	cmd_g
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1440,6 +1524,7 @@ ct1:	mov	[trace_cnt],ax
 	jne	ct2			; no
 	cmp	[ip_mode],ADDR_V86	; in a machine (whose INTs keep TF)?
 	je	ct2			; yes, so just trace it
+	ja	ct2a			; a flat machine's exits: step over it
 	mov	al,ah
 ;
 ; Program mode at ring 3 makes this a JMP to ct2a, which steps over an INT n,
@@ -1463,9 +1548,10 @@ ct1e:	mov	cx,vec_save[bx]
 ; Tracing into one of our own handlers would only stop at its first
 ; instruction, so skip the INT instead, as if it had just returned.
 ;
-ct1a:	inc	di
-ct1b:	inc	di
-	mov	regs[R_IP],di
+ct1a:	mov	ax,1
+	call	ip_add
+ct1b:	mov	ax,1
+	call	ip_add
 	jmp	short ct1d
 ct1c:	test	[trace_mode],TRACE_OVER	; P?
 	jnz	ct2a			; yes, so step over the INT
@@ -1536,6 +1622,45 @@ DEFPROC	cmd_r
 	call	show_regs
 	clc
 	ret
+;
+; R with a 32-bit register (eg, EAX, or in a flat machine, EIP) is the same,
+; with a 32-bit value.
+;
+cr0:	mov	dx,[si+1]		; DX = its name (after the E)
+	add	si,3
+	cmp	byte ptr [si],' '	; is the name longer?
+	ja	cr0b			; yes
+	call	end_command		; is there a value?
+	jc	cr0a			; yes
+	mov	al,'E'
+	call	put_char
+	xchg	ax,dx
+	call	put_2ch
+	call	space
+	mov	ax,regs[di]
+	call	hex_word
+	mov	ax,regs[bx]
+	call	hex_word
+	call	newline
+	mov	al,':'
+	call	put_char
+	push	bx
+	push	di
+	call	get_line
+	pop	di
+	pop	bx
+	mov	si,offset command
+	call	end_command		; empty line?
+	jnc	cr0c			; yes
+cr0a:	call	parse_h32
+	jc	cr0c
+	call	end_command
+	jc	cr0c
+	mov	regs[bx],ax
+	mov	regs[di],dx
+	ret
+cr0b:	stc
+cr0c:	ret
 cr1:	mov	ax,[si]
 	cmp	al,'F'
 	jne	cr2
@@ -1545,7 +1670,10 @@ cr1:	mov	ax,[si]
 	call	end_command
 	jnc	rf0
 	ret
-cr2:	call	find_reg
+cr2:	call	find_ereg		; a 32-bit register?
+	jnc	cr0			; yes
+	mov	ax,[si]
+	call	find_reg
 	jc	cr9
 	inc	si
 	inc	si
@@ -2268,7 +2396,8 @@ da1:	sub	bx,BP_SIZE
 	jne	da2			; no
 	call	at_ip			; did it stop here?
 	jne	da2			; no
-	dec	regs[R_IP]
+	mov	ax,-1
+	call	ip_add
 	mov	[why],0			; (only once)
 da2:	cmp	bx,offset bp_tab
 	ja	da1
@@ -2304,8 +2433,9 @@ DEFPROC	at_ip
 	push	dx
 	push	di
 	mov	di,regs[R_IP]
-	mov	bx,regs[R_CS]
-	mov	al,[ip_mode]
+	call	ip_seg			; AX = segment, CL = mode
+	xchg	bx,ax
+	xchg	ax,cx
 	call	lin_addr		; DX:CX = address of CS:IP
 	pop	di
 	pop	bx			; BX:SI = address of mem_seg:DI
@@ -2352,18 +2482,20 @@ ENDPROC	lin_addr
 ;
 ; ip_mem, bp_mem
 ;
-; Make CS:IP (in the current mode), or the breakpoint at BX, the memory to
-; access (mem_seg and mem_mode), with its offset in DI.
+; Make CS:IP (in the current mode; see ip_seg), or the breakpoint at BX, the
+; memory to access (mem_seg and mem_mode), with its offset in DI.
 ;
 ; Modifies:
 ;	AX, DI
 ;
 DEFPROC	ip_mem
+	push	cx
 	mov	di,regs[R_IP]
-	mov	ax,regs[R_CS]
+	call	ip_seg			; AX = segment, CL = mode
 	mov	[mem_seg],ax
-	mov	al,[ip_mode]		; (CS:IP's mode)
-	jmp	short bm1
+	mov	[mem_mode],cl
+	pop	cx
+	ret
 	DEFLBL	ax_mem,near		; (AX = segment, in the system's mode)
 	mov	[mem_seg],ax
 	mov	al,[cpu_mode]
@@ -2386,6 +2518,57 @@ bm1:	and	al,ADDR_SEL OR ADDR_V86 OR ADDR_PHYS
 	mov	[mem_mode],al
 	ret
 ENDPROC	bp_mem
+
+;
+; ip_seg returns CS and its mode, or in a flat machine (see get_v86), bits
+; 16-31 of EIP and ADDR_LIN, since EIP is a linear address there.
+;
+; Outputs:
+;	AX = segment, CL = mode
+;
+;
+; ip_add adds AX (signed) to IP, or in a flat machine, to EIP.
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	ip_add
+	cwd
+	add	regs[R_IP],ax
+	adc	dx,0			; DX = what to add to bits 16-31
+	test	[ip_mode],ADDR_LIN	; in a flat machine?
+	jz	ia9			; no
+	add	regs[X_REGS+VR_EIP+2],dx
+ia9:	ret
+ENDPROC	ip_add
+
+DEFPROC	ip_seg
+	mov	ax,regs[R_CS]
+	mov	cl,[ip_mode]
+	test	cl,ADDR_LIN		; in a flat machine?
+	jz	is9			; no
+	mov	ax,regs[X_REGS+VR_EIP+2]
+	mov	cl,ADDR_LIN
+is9:	ret
+ENDPROC	ip_seg
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_flat
+;
+; Outputs:
+;	ZF clear if the memory to access is a linear address while we're
+;	stopped in a flat machine (see get_v86), whose code is 32-bit code
+;
+; Modifies:
+;	AL
+;
+DEFPROC	chk_flat
+	mov	al,[ip_mode]
+	and	al,[mem_mode]
+	and	al,ADDR_LIN
+	ret
+ENDPROC	chk_flat
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2976,7 +3159,8 @@ DEFPROC	put_prompt
 	cmp	[ip_mode],ADDR_SEL	; real mode?
 	jb	pp1			; yes
 	mov	ax,(']' SHL 8) OR '['
-	je	pp1			; protected mode
+	test	[ip_mode],ADDR_V86	; protected mode (or a flat machine)?
+	jz	pp1			; yes
 	mov	ax,(')' SHL 8) OR '('	; V86 mode
 pp1:	push	ax
 	call	put_char
@@ -3177,6 +3361,41 @@ fr2:	push	ax
 	ret
 ENDPROC	find_reg
 
+;
+; find_ereg finds a 32-bit register's name (EAX through EDI, or EIP), which
+; only an 80386 has.
+;
+; Inputs:
+;	SI -> text
+;
+; Outputs:
+;	If carry clear, BX = the offset of its low word in regs, and DI =
+;	its high word's
+;
+; Modifies:
+;	AX, BX, DI
+;
+DEFPROC	find_ereg
+	cmp	byte ptr [si],'E'
+	jne	fe8
+	call	chk_386			; an 80386?
+	jc	fe9			; no
+	mov	ax,[si+1]
+	call	find_reg
+	jc	fe9
+	cmp	bx,R_IP			; a general register, or IP?
+	ja	fe8			; no
+	mov	di,bx
+	shr	di,1
+	mov	al,HI_TAB[di]
+	cbw
+	xchg	di,ax
+	test	di,di			; does it have a high word?
+	jnz	fe9			; yes (and carry is clear)
+fe8:	stc
+fe9:	ret
+ENDPROC	find_ereg
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; reg_val
@@ -3199,6 +3418,156 @@ DEFPROC	reg_val
 	mov	ax,regs[bx]
 	ret
 ENDPROC	reg_val
+
+;
+; reg_val32 returns the 32-bit general register that includes 16-bit
+; register AL, in DX:AX.
+;
+; Modifies:
+;	AX, BX, DX
+;
+DEFPROC	reg_val32
+	call	reg_val
+	push	ax
+	shr	bx,1
+	mov	al,HI_TAB[bx]
+	cbw
+	xchg	bx,ax
+	mov	dx,regs[bx]
+	pop	ax
+	ret
+ENDPROC	reg_val32
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; parse_h32
+;
+; Parse a 32-bit value: a hex value of up to 8 digits, or a register's name
+; (a 16-bit register's, or on an 80386, a 32-bit one's), and any terms added
+; to it or subtracted from it, with + or - (and no spaces; eg, ESP+8).
+;
+; Inputs:
+;	SI -> command text
+;
+; Outputs:
+;	If carry clear, DX:AX = value, and SI -> next character
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	parse_h32
+	call	h32_term
+	jc	ph39
+ph31:	mov	cl,[si]
+	cmp	cl,'+'			; another term to add?
+	je	ph32			; yes
+	cmp	cl,'-'			; or to subtract?
+	clc
+	jne	ph39			; no
+ph32:	inc	si
+	push	dx
+	push	ax
+	push	cx
+	call	h32_term		; DX:AX = the term
+	pop	cx
+	jc	ph38
+	cmp	cl,'-'
+	jne	ph33
+	neg	dx
+	neg	ax
+	sbb	dx,0
+ph33:	pop	cx
+	add	ax,cx
+	pop	cx
+	adc	dx,cx
+	jmp	ph31
+ph38:	pop	cx
+	pop	cx			; (carry is still set)
+ph39:	ret
+ENDPROC	parse_h32
+
+DEFPROC	h32_term
+	call	skip_space
+	push	bx
+	push	di
+	call	find_ereg		; a 32-bit register?
+	jc	ht1			; no
+	add	si,3
+	mov	ax,regs[bx]
+	mov	dx,regs[di]
+	jmp	short ht8
+ht1:	mov	ax,[si]
+	call	find_reg		; a 16-bit register?
+	jc	ht2			; no
+	inc	si
+	inc	si
+	mov	ax,regs[bx]
+	sub	dx,dx			; (carry is clear)
+	jmp	short ht8
+ht2:	sub	ax,ax
+	cwd				; DX:AX = value
+	mov	cx,si			; CX -> first digit
+ht3:	mov	bl,[si]
+	sub	bl,'0'
+	cmp	bl,10
+	jb	ht4
+	sub	bl,'A'-'0'-10
+	cmp	bl,10
+	jb	ht7
+	cmp	bl,16
+	jae	ht7
+ht4:	test	dh,0F0h			; room for another digit?
+	stc
+	jnz	ht8			; no
+	mov	bh,4
+ht5:	shl	ax,1
+	rcl	dx,1
+	dec	bh
+	jnz	ht5
+	or	al,bl
+	inc	si
+	jmp	ht3
+ht7:	cmp	cx,si			; CF set if any digits
+	cmc
+ht8:	pop	di
+	pop	bx
+	ret
+ENDPROC	h32_term
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; sel_lin
+;
+; Makes the linear address of selector:offset the memory to access.
+;
+; Inputs:
+;	AX = selector, CX:DI = offset
+;
+; Outputs:
+;	Carry clear if the selector is valid: mem_seg:DI = linear address,
+;	and mem_mode = ADDR_LIN
+;
+; Modifies:
+;	AX, CX, DI
+;
+DEFPROC	sel_lin
+	push	bx
+	push	dx
+	push	cx
+	xchg	bx,ax
+	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_SEL OR ADDR_LIN
+	call	cpu_call		; DX:CX = its base (a linear address)
+	pop	ax
+	jc	sn9
+	add	di,cx
+	adc	ax,dx
+	mov	[mem_seg],ax
+	mov	[mem_mode],ADDR_LIN	; (carry is clear)
+	clc
+sn9:	pop	dx
+	pop	bx
+	ret
+ENDPROC	sel_lin
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -3290,7 +3659,9 @@ ENDPROC	hex_term
 ; machine, if any; see ADDR_V86), and # protected mode (if CPU$ is the 80286
 ; driver), and otherwise the address has the current mode; or parse %address,
 ; a linear address (see ADDR_LIN), or %%address, a physical one (ADDR_PHYS),
-; of up to 8 hex digits, whose "segment" is bits 16-31.
+; of up to 8 hex digits, whose "segment" is bits 16-31 (see parse_h32, for
+; what else it may be).  In a flat machine (see get_v86), an address with no
+; prefix is a linear address, too.
 ;
 ; Inputs:
 ;	SI -> command text
@@ -3333,7 +3704,11 @@ pa1:	cmp	byte ptr [si],'#'	; protected mode?
 	jz	pa9			; no
 	mov	al,ADDR_SEL
 pa2:	inc	si
-pa3:	mov	[mem_mode],al
+pa3:	test	al,ADDR_LIN		; in a flat machine (see get_v86)?
+	jz	pa3a			; no
+	mov	al,ADDR_LIN		; yes, so it's a linear address
+	jmp	short pa4a
+pa3a:	mov	[mem_mode],al
 	call	parse_hex
 	jc	pa9
 	cmp	byte ptr [si],':'
@@ -3350,38 +3725,34 @@ pa4:	inc	si
 	inc	si
 	mov	al,ADDR_PHYS
 pa4a:	mov	[mem_mode],al
-	push	bx
-	sub	ax,ax
-	cwd				; DX:AX = address
-	mov	cx,si			; CX -> first digit
-pa5:	mov	bl,[si]
-	sub	bl,'0'
-	cmp	bl,10
-	jb	pa6
-	sub	bl,'A'-'0'-10
-	cmp	bl,10
-	jb	pa7
-	cmp	bl,16
-	jae	pa7
-pa6:	test	dh,0F0h			; room for another digit?
+	call	parse_h32		; DX:AX = address
+	jc	pa7
+;
+; A linear address can also be selector:offset (eg, ES:80, or CS:EIP in a
+; flat machine), which is the selector's base plus the offset.
+;
+	cmp	byte ptr [si],':'
+	jne	pa6
+	cmp	[mem_mode],ADDR_LIN
 	stc
-	jnz	pa7a			; no
-	shl	ax,1
-	rcl	dx,1
-	shl	ax,1
-	rcl	dx,1
-	shl	ax,1
-	rcl	dx,1
-	shl	ax,1
-	rcl	dx,1
-	or	al,bl
+	jne	pa7
 	inc	si
-	jmp	pa5
-pa7:	cmp	cx,si			; CF set if any digits
-	cmc
-pa7a:	mov	bp,dx			; BP = bits 16-31
-	pop	bx
-	ret
+	push	ax
+	call	parse_h32		; DX:AX = offset
+	pop	bp			; BP = selector
+	jc	pa7
+	push	di
+	xchg	di,ax
+	mov	cx,dx
+	xchg	ax,bp
+	call	sel_lin			; mem_seg:DI = linear address
+	xchg	ax,di			; AX = bits 0-15
+	pop	di
+	mov	dx,[mem_seg]
+	jc	pa7
+pa6:	mov	bp,dx			; BP = bits 16-31
+	clc
+pa7:	ret
 ENDPROC	parse_addr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -3580,10 +3951,14 @@ dm7b:	call	put_char
 	cbw				; AX = bytes displayed
 	add	di,ax			; (the offset wraps within the segment)
 	add	si,16
-	sub	cx,ax			; (a word may overshoot the count)
-	jbe	dm7c
+	jnz	dm7c
+	call	mem_carry		; (or carries into a linear address)
+dm7c:	sub	cx,ax			; (a word may overshoot the count)
+	jbe	dm7d
 	jmp	dm6
-dm7c:	mov	[dump_off],di
+dm7d:	mov	[dump_off],di
+	mov	ax,[mem_seg]
+	mov	[dump_seg],ax
 	clc
 	ret
 ENDPROC	dump_memory
@@ -3940,9 +4315,8 @@ ENDPROC	sel_type
 ;
 DEFPROC	fetch_word
 	call	peek_w
-	inc	di
-	inc	di
-	ret
+	call	inc_di
+	jmp	inc_di
 ENDPROC	fetch_word
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -3951,7 +4325,9 @@ ENDPROC	fetch_word
 ;
 ; Read a word (or a byte) at mem_seg:DI, or write AL there (and advance DI),
 ; through CPU$ (see CPU_RWMEM), which checks the address; mem_io reads (or
-; writes) AH bytes (1 or 2) of mem_val, with AL = 0 (or ADDR_WRITE).
+; writes) AH bytes (1 or 2) of mem_val, with AL = 0 (or ADDR_WRITE).  inc_di
+; advances DI, and when it wraps, mem_carry carries into mem_seg, if that's
+; bits 16-31 of a linear or physical address (preserving the flags).
 ;
 ; Outputs:
 ;	Carry clear if successful: AX (or AL) = mem_val
@@ -3974,8 +4350,16 @@ DEFPROC	poke_b
 	mov	byte ptr [mem_val],al
 	mov	ax,100h OR ADDR_WRITE
 	call	mem_io
+	DEFLBL	inc_di,near
 	inc	di
-	ret
+	jnz	pk9
+	DEFLBL	mem_carry,near
+	pushf
+	test	[mem_mode],ADDR_PHYS OR ADDR_LIN
+	jz	pk8
+	inc	[mem_seg]
+pk8:	popf
+pk9:	ret
 ENDPROC	poke_b
 
 DEFPROC	mem_io

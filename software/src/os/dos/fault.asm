@@ -69,7 +69,7 @@ df0a:	mov	es,ax
 	jne	df0c			; no
 	mov	ax,ss:[bx+10]		; AX = vector (and any FAULT_HALTED)
 	sub	ax,0Ah
-	cmp	ax,0Dh-0Ah		; #TS, #NP, #SS, or #GP (and no halt)?
+	cmp	ax,0Eh-0Ah		; #TS, #NP, #SS, #GP, or #PF (no halt)?
 	ja	df9			; no
 	cmp	cs:[int_level],-1	; in a hardware interrupt?
 	jne	df9			; yes

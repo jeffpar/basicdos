@@ -130,6 +130,14 @@ EXETYPE DEV386 (with LIBRARY) makes a VxD.  LINK386 is an OS/2 1.x program
 whose DOS stub runs it on DOS, too (it has been tried on MS-DOS 3.20), and
 the default stub of the programs it links says that they can't run on DOS.
 
+On BASIC-DOS, LINK386 runs in protected mode as the OS/2 program that it is,
+unmodified (so its banner has no "BD"): the NE loader starts it with OS/2's
+registers, and the OS/2 functions that it imports are in the libraries in
+EXT\DLL (DOSCALLS.DLL, KBDCALLS.DLL, MSG.DLL, and NLS.DLL; see the BASIC-DOS
+technical reference).  It doesn't run on BASIC-DOS in real mode, where its
+DOS stub can't find its file ("SYS2090: The system is unable to load the
+program").
+
 The BASIC-DOS makefiles assemble with MASM5 (ASM=MASM5).  Everything still
 assembles with MASM 4.00 (run MAKE with ASM=MASM), to the same binaries except
 for AND, OR, and XOR with small immediates, which only MASM5 encodes in the

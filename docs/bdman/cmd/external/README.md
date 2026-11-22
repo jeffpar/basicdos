@@ -32,7 +32,7 @@ A BAT or BAS file can run other BAT or BAS files (no CALL command is required) a
 
 ### Files Provided with BASIC-DOS
 
-These are the programs provided with BASIC-DOS, each of which has a page of its own.  COMMAND.COM is in the root directory of every BASIC-DOS disk, and the rest are in the **EXT** directory (see [Running Programs](../../intro/#running-programs) for the layout of a BASIC-DOS disk).
+These are the programs provided with BASIC-DOS, each of which has a page of its own.  COMMAND.COM is in the root directory of every BASIC-DOS disk, and the rest are in the **EXT** directory (see [Running Programs](../../intro/#running-programs) for the layout of a BASIC-DOS disk): the COM files (and HELP.TXT) are in **EXT\\CMD**, and the BAS files are in **EXT\\BAS**.
 
 - [ATTRIB.BAS](attrib/): displays or changes the attributes of files
 - [CHKDSK.BAS](chkdsk/): checks a drive's FAT and directories, and reports its space
@@ -40,6 +40,7 @@ These are the programs provided with BASIC-DOS, each of which has a page of its 
 - [COMP.BAS](comp/): compares files
 - [DEBUG.COM](debug/): a debugger, which runs as a program or as a device driver
 - [DISKCOPY.BAS](diskcopy/): copies a diskette
+- DOSCALLS.DLL (in **EXT\\DLL**): a library of OS/2 functions for protected-mode programs that import them (not a command; libraries have a directory of their own, which [LIBPATH](../../cfg/#libpath) can change; see [Loading Programs](../../../bdtech/mmu/#exec))
 - [FIND.COM](find/): a filter that displays the lines containing a string or matching a regular expression
 - [FORMAT.BAS](format/): formats a diskette or hard disk volume
 - [HELP.COM](help/): displays help for commands and functions

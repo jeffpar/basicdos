@@ -68,6 +68,12 @@ A DOS command (eg, DIR, TYPE, or the name of a program) ends at any colon outsid
 
 As in IBM PC BASIC, [LET](../cmd/basic/let/) is optional for assignments, even at the prompt (eg, `A = 1`).
 
+### Playing BROGUE
+
+On an 80-column PC display or VT100 console, run `CD \DEMOS` followed by `BROGUE`. Use the arrow keys or lowercase `h`, `j`, `k`, `l` to move. Each depth is a few rooms joined by hallways, which are drawn as two walls with nothing between them. You start on the stairs up (`<`) in the first room, and the stairs down (`>`) are in the last. Every room is a puzzle: stones (`O`) are in the way, and blocks (shaded squares, or a checkerboard on a VT100) never move. Push a stone by walking into it. It rolls one square at a time until a wall, a block, a door, or another stone stops it (stones never roll into doors or hallways), so a careless push can close off the way through. Walk onto `>` to descend; the puzzles get harder with depth.
+
+Press `R` to put the room you're in back the way it was (you return to the door you came in by), `N` for a new map at the same depth, or `Q` to quit.
+
 ### Entering Programs
 
 A line typed at the prompt that begins with a line number (followed by a space, or nothing at all) isn't a command; it's a line of BASIC that's added to the loaded program, replacing any line with the same number.  Lines are kept in line number order, so they can be typed in any order:
@@ -97,10 +103,10 @@ For example, if a disk contains both DONKEY.COM and DONKEY.BAS, typing `DONKEY` 
 If the program isn't in the current directory, and its name doesn't include a drive or directory, BASIC-DOS searches the directories listed in [PATH$](../cmd/basic/func/#path), in order.  Every bootable BASIC-DOS disk has the same layout:
 
 - The root directory contains BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, and AUTOEXEC.BAT (if any); BASDEV.COM and BASDOS.COM are read-only hidden system files (so only `DIR /A` lists them), and COMMAND.COM is a read-only system file (see [ATTRIB](../cmd/external/attrib/))
-- **EXT** contains the external BASIC-DOS utilities (eg, [FIND, MORE, and SORT](../cmd/external/#filters), [DEBUG.COM](../cmd/external/debug/), and [HELP](../cmd/external/help/); see [Files Provided with BASIC-DOS](../cmd/external/#files-provided-with-basic-dos) for the complete list)
+- **EXT** contains the external BASIC-DOS utilities, in two directories: **EXT\\CMD** has the assembly language programs (eg, [FIND, MORE, and SORT](../cmd/external/#filters), [VI](../cmd/external/vi/), [DEBUG.COM](../cmd/external/debug/), and [HELP](../cmd/external/help/)), and **EXT\\BAS** has the utilities written in BASIC (eg, [FORMAT](../cmd/external/format/), [LS](../cmd/external/ls/), and [MODE](../cmd/external/mode/)); see [Files Provided with BASIC-DOS](../cmd/external/#files-provided-with-basic-dos) for the complete list)
 - **DEMOS** contains demo programs (eg, HELLO.BAT, a colorful greeting, PRIMES.BAS, and DIR.BAS, a DIR written in BASIC, using [DIR$](../cmd/basic/func/#dir)), along with DONKEY.BAS, from the PC DOS 1.00 diskette
 
-and its CONFIG.SYS sets PATH$ to the root, EXT, and DEMOS (eg, `A:\;A:\EXT;A:\DEMOS`), so you can type `PRIMES` or `DIR | SORT` from any directory.
+and its CONFIG.SYS sets PATH$ to the root, both EXT directories, and DEMOS (eg, `A:\;A:\EXT\CMD;A:\EXT\BAS;A:\DEMOS`), so you can type `PRIMES` or `DIR | SORT` from any directory.
 
 Test programs are on a separate diskette, BASIC-DOS Tests: the regression tests are in its **TESTS\REGRESS** directory (eg, DOSTESTS.COM; REGRESS.BAT in **TESTS** runs them all), other test programs (eg, GFXTESTS.BAS) are in **TESTS\MISC**, and BENCH.BAS is in **TESTS**, with MSBASIC.EXE and SYMDEB.EXE in its **TOOLS** directory (the 10Mb hard disk has all of those, too, plus the rest of the PC DOS 1.00 BASIC samples in **TESTS\SAMPLES**); load it in drive B: and type (for example) `B:\TOOLS\MSBASIC`, or `B:`, `CD \TESTS`, and `REGRESS`.  Most of the tests can run while other sessions are busy, but HARDERR skips its tests if any other session is running a program (its disk hook would affect them).
 

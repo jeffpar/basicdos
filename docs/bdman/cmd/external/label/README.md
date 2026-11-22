@@ -15,7 +15,7 @@ Gives *drive* (or the current drive) a volume label of up to 11 characters, whic
 Without a *label*, LABEL displays the current label and asks for a new one; pressing ENTER deletes the current label (after asking):
 
 	LABEL
-	 Volume in drive A is BD-D40
+	Volume in drive A is BD-D40
 	Volume label (11 characters, ENTER for none)?
 	Delete current volume label (Y/N)?
 

@@ -315,7 +315,7 @@ keys_saved	db	':q',13,':q!',13
 keys_end	db	0
 force_quit	db	27,':q!',13,0
 command		db	"A:\COMMAND.COM",0
-vi_program	db	"A:\EXT\VI.COM",0
+vi_program	db	"A:\EXT\CMD\VI.COM",0
 vi_file		db	"VIERR.TMP",0
 exec_parms	EPB	<0,0,PSP_FCB1,PSP_FCB2>
 cmd_tail	db	cmd_end-cmd_text-1

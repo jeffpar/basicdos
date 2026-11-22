@@ -2,7 +2,7 @@
 #
 # Usage: tools/tests/mmutest.sh [8088] [real] [pm] [r3] [386] [r386] [multi] [pool] [tools]
 #
-# Runs quick.sh's floppy tests (FPUTESTS through PRINTF, with CPUTESTS and R3TESTS last), followed by V86TESTS (in V86.COM's
+# Runs quick.sh's floppy tests (FPUTESTS through PRINTF, with CPUTESTS, R3TESTS, and DLLTESTS last), followed by V86TESTS (in V86.COM's
 # V86 machine, which only the "386" and "r386" machines have), on these test machines:
 #
 #   8088    an IBM PC XT (ibm5160), where CPU$ keeps only what an 8088 needs
@@ -21,8 +21,9 @@
 #   pool    the "r3" machine with 9 sessions and a "CPU=80286" line, where MEMTESTS fills the system area's pool of PMBs and LDT descriptors
 #           from 7 sessions at once, and checks that their LDTs can move, and that the system recovers
 #   tools   the "r3" machine with a hard disk, where MAKE rebuilds PRIMES.EXE and SLEEP.COM with the protected-mode build
-#           tools in software/src/tools/bd (see tools/misc/mkne.js), which must match the binaries of the last build, and
-#           runs EXEMOD and MAPSYM, which must succeed
+#           tools in software/src/tools/bd (see tools/misc/mkne.js), which must match the binaries of the last build, runs EXEMOD
+#           and MAPSYM, which must succeed, and builds MEM32.EXE and FIND16.EXE with software/src/os/sdk's makefile (MASM5, and LINK386, an OS/2
+#           program that uses the libraries in EXT\DLL, or LINK4), and runs FIND16 (an OS/2 program, too)
 #
 # By default, it runs all nine.  Every machine except "8088" boots a modified copy of the configuration, in
 # tools/pc/disks/tmp-mmupm, which is deleted afterward.  The exit code is non-zero if any test failed.
@@ -34,12 +35,12 @@ tools/tests/prep.sh $fpe || exit 1
 ok='IF ERRORLEVEL = 0 THEN PRINT "EXITOK" ELSE PRINT "EXITBAD"'
 abort='IF ERRORLEVEL = 255 THEN PRINT "ABORTOK" ELSE PRINT "ABORTBAD"'
 m='\TESTS\REGRESS\'
-cmds="VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}BUFTESTS;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;${m}CPUTESTS;$ok;${m}R3TESTS;$ok;V86 \\TESTS\\MISC\\V86TESTS;SLEEP 1;QUIT"
+cmds="VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}BUFTESTS;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;${m}CPUTESTS;$ok;${m}R3TESTS;$ok;${m}DLLTESTS;$ok;V86 \\TESTS\\MISC\\V86TESTS;SLEEP 1;QUIT"
 log=$(mktemp)
 failed=
 for name in ${@:-8088 real pm r3 386 r386 multi pool tools}; do
     meta="HARDERR metadata passed"; seek="HARDERR seek passed"; above="BUFTESTS passed"; r3t="R3TESTS skipped"
-    v86="V86 mode not available"
+    v86="V86 mode not available"; dll="DLLTESTS skipped"
     case $name in
         8088)   args="ibm5160 $fpe"; cpu="CPU type 0 (hardware 0)" ;;
         real)   rm -rf $tmp
@@ -68,12 +69,13 @@ for name in ${@:-8088 real pm r3 386 r386 multi pool tools}; do
         tools)  rm -rf $tmp
                 src=software/src
                 mkdir -p $tmp/MT/MISC/OBJ $tmp/MT/OBJ $tmp/OS/INC $tmp/TOOLS || exit 1
-                printf 'SKIP=VKD$\nCON=COM1:9600,N,8,1\nSHELL=COMMAND.COM PATH$="C:\\;C:\\EXT;C:\\TOOLS"\n' > $tmp/CONFIG.SYS
+                printf 'SKIP=VKD$\nCON=COM1:9600,N,8,1\nSHELL=COMMAND.COM PATH$="C:\\;C:\\EXT\\CMD;C:\\EXT\\BAS;C:\\TOOLS"\n' > $tmp/CONFIG.SYS
                 tools/tests/prep.sh $tmp || exit 1
                 cp $src/tools/dos/*.EXE $tmp/TOOLS/ && cp $src/tools/bd/*.EXE $tmp/TOOLS/ || exit 1
                 cp $src/os/inc/*.inc $tmp/OS/INC/ && cp $src/tests/misc/primes.asm $src/tests/misc/PRIMES.DEF $tmp/MT/MISC/ &&
                     cp $src/os/util/misc/sleep.asm $tmp/MT/ || exit 1
                 cp $src/tests/misc/OBJ/PRIMES.EXE $tmp/MT/REF.EXE && cp $src/os/util/misc/OBJ/SLEEP.COM $tmp/MT/REF.COM || exit 1
+                mkdir -p $tmp/OS/SDK && cp $src/os/sdk/*.asm $src/os/sdk/*.DEF $src/os/sdk/makefile $tmp/OS/SDK/ || exit 1
                 #
                 # These rules use the same commands and switches as the rules in the TESTS and UTIL\MISC makefiles.
                 #
@@ -95,19 +97,21 @@ M.SYM: OBJ\SLEEP.COM
 	EXEMOD M.EXE /MIN 400
 	MAPSYM M
 EOF
-                tools/pc/pc.js ibm5170 $tmp --ram=2M "VER;CD MT;MAKE REL=$(cat tools/pc/disks/mkmode) MAKEFILE;$ok;COMP MISC\OBJ\PRIMES.EXE REF.EXE;COMP OBJ\SLEEP.COM REF.COM;DIR M.SYM;SLEEP 1;CD \;QUIT" \
+                tools/pc/pc.js ibm5170 $tmp --ram=2M "VER;CD MT;MAKE REL=$(cat tools/pc/disks/mkmode) MAKEFILE;$ok;COMP MISC\OBJ\PRIMES.EXE REF.EXE;COMP OBJ\SLEEP.COM REF.COM;DIR M.SYM;CD \OS\SDK;MAKE MAKEFILE;$ok;DIR MEM32.EXE;FIND16 /C NAME MEM32.DEF;SLEEP 1;CD \;QUIT" \
                     --sys=bd:2 --target=10M --serial --normalize --nosync --speed=8 | tee "$log"
                 if ! grep -q "Assembler Version 5.10BD" "$log" || ! grep -q "Linker  Version 3.05BD" "$log" ||
                    ! grep -q "Linker  Version 5.00.12BD" "$log" || ! grep -q "Utility  Version 4.02BD" "$log" ||
                    ! grep -q "Utility  Version 4.00BD" "$log" || ! grep -q "Generator  Version 4.00BD" "$log" ||
-                   ! grep -q "EXITOK" "$log" || grep -q "EXITBAD" "$log" || grep -q "CPU fault" "$log" ||
-                   [ "$(grep -c "Files compare ok" "$log")" -ne 2 ] || ! grep -q "^M  *SYM " "$log"; then
+                   [ "$(grep -c "^EXITOK" "$log")" -ne 2 ] || grep -q "EXITBAD" "$log" || grep -q "CPU fault" "$log" ||
+                   [ "$(grep -c "Files compare ok" "$log")" -ne 2 ] || ! grep -q "Linker  Version 1.00.058" "$log" ||
+                   ! grep -q "^M  *SYM " "$log" || ! grep -q "^MEM32  *EXE " "$log" || ! grep -q "^---------- MEM32.DEF: 1" "$log"; then
                     failed="$failed $name"
                 fi
                 continue ;;
         pm|r3|386|r386)
                 rm -rf $tmp
                 cp -R $fpe $tmp || exit 1
+                dll="DLLTESTS passed"
                 case $name in
                     *386) args="compaq386 $tmp --ram=2M"; cpu="CPU type 3 (hardware 3)"; v86="V86TESTS passed" ;;
                     *)    args="ibm5170 $tmp --ram=2M"; cpu="CPU type 2 (hardware 2)" ;;
@@ -122,7 +126,7 @@ EOF
     esac
     tools/pc/pc.js $args "$cmds" --sys=bd:2 --floppy --serial --normalize --nosync | tee "$log"
     if grep -q "Floating-point .*installed" "$log" || grep -q "failed" "$log" || grep -q "EXITBAD" "$log" ||
-       [ "$(grep -c "EXITOK" "$log")" -lt 6 ] || ! grep -q "$cpu" "$log" ||
+       [ "$(grep -c "EXITOK" "$log")" -lt 7 ] || ! grep -q "$cpu" "$log" || ! grep -q "$dll" "$log" ||
        ! grep -q "STRFUN passed" "$log" || ! grep -q "STRPOOL passed" "$log" ||
        ! grep -q "ARRAYS passed" "$log" || ! grep -q "FLOW passed" "$log" || ! grep -q "EXPRERR passed" "$log" ||
        ! grep -q "CMDS passed" "$log" || ! grep -q "VARS passed" "$log" ||

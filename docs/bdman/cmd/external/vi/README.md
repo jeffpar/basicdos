@@ -47,7 +47,7 @@ VI starts in command mode, where keys are commands; most commands can be precede
 
 ### Insert Mode
 
-In insert mode, typed characters are inserted, ENTER starts a new line, BACKSPACE erases what was just typed, and ESC (or CTRL-C or Insert) returns to command mode.  On a VKD$ console, insert mode displays a block cursor.
+In insert mode, typed characters are inserted, ENTER starts a new line, BACKSPACE erases the character before the cursor (up to the start of the line), and ESC (or CTRL-C or Insert) returns to command mode.  On a VKD$ console, insert mode displays a block cursor.
 
 ### Colon Commands
 

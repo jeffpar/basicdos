@@ -16,6 +16,7 @@
 ;
 	DOSFUNC equ 1
 	include	cmd.inc
+	include	cpu.inc
 
 CODE    SEGMENT
 
@@ -31,7 +32,7 @@ CODE    SEGMENT
 ;
 ; If the program is COMMAND or V86 (its name includes COMMAND.COM or V86.COM),
 ; append our PATH$ to its name, ahead of any arguments, the way a SHELL line
-; in CONFIG.SYS gives a COMMAND one (eg, COMMAND.COM PATH$="A:\;A:\EXT":X.BAS),
+; in CONFIG.SYS gives a COMMAND one (eg, COMMAND.COM PATH$="A:\;A:\EXT\CMD":X),
 ; since a new session has no environment.
 ;
 ; Inputs:
@@ -242,6 +243,46 @@ st8:	mov	byte ptr [di],0		; the name alone, for openError
 	jmp	openError		; report error AX for program SI
 st9:	ret
 ENDPROC	cmdStartSes
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; v86Hint
+;
+; After fileError reports a real-mode program that protected mode can't load
+; (ERR_BADMODE), add how to run it, if the processor has V86 mode (the same
+; test that V86.COM makes).
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+DEFPROC	v86Hint
+	push	ax
+	push	cx
+	push	di
+	push	es
+	push	ss
+	pop	es
+	sub	sp,size SYSINFO
+	mov	di,sp			; ES:DI -> SYSINFO (on the stack)
+	mov	cl,-1
+	DOSUTIL	QRYSCB			; get the system's SYSINFO
+	mov	al,es:[di].SI_CPUTYPE
+	add	sp,size SYSINFO
+	cmp	al,CPUTYPE_80386	; 80386 features (so V86 mode)?
+	jb	vh9			; no
+	PRINTF	<"Run START V86 first",13,10>
+vh9:	pop	es
+	pop	di
+	pop	cx
+	pop	ax
+	ret
+ENDPROC	v86Hint
 
 ;
 ; For VKD$, an adapter of 2 is the adapter of our own console (see ddcon_open).

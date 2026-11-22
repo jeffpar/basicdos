@@ -7,8 +7,9 @@ machines:
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-dual-128kb.json
     debugger: true
+    sizeRAM: 256
     autoMount:
       A: "BASIC-DOS Dual Monitor"
 ---
 
-{% include machine.html id="ibm5150" %}
+{% include machine.html id="ibm5150" name="IBM PC, 256Kb RAM, Dual Floppy Drives, MDA and CGA" %}

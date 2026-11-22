@@ -20,7 +20,7 @@
 	ON ERROR GOTO 90
 	GOSUB 80
 	IF A$ <> "" THEN GOTO 20
-	PRINT " Volume in drive "; LEFT$(D$, 1);
+	PRINT "Volume in drive "; LEFT$(D$, 1);
 	IF L$ = "" THEN PRINT " has no label" ELSE PRINT " is "; L$
 	LINE INPUT "Volume label (11 characters, ENTER for none)? "; A$
 	A$ = UCASE$(A$)

@@ -28,7 +28,7 @@ If there's no help for *keyword*, HELP displays `No help available`, and ERRORLE
 | `EXT` | External commands, like FORMAT |
 | `KEYS` | The keys for editing command lines (see [Typing Commands](../../../intro/#typing-commands)) |
 
-CMD lists the DOS-style commands built into COMMAND.COM; BASIC's own commands (eg, LIST and SAVE) are listed by BASIC.  EXT lists the commands in the EXT directory, and the build tools in the hard disk's TOOLS directory aren't included.
+CMD lists the DOS-style commands built into COMMAND.COM; BASIC's own commands (eg, LIST and SAVE) are listed by BASIC.  EXT lists the commands in the EXT directories (EXT\\CMD and EXT\\BAS), and the build tools in the hard disk's TOOLS directory aren't included.
 
 A category hides any keyword with the same name, so a new command can't share a category's name.
 
@@ -36,7 +36,7 @@ HELP was a COMMAND.COM command (along with KEYS, which is now `HELP KEYS`) until
 
 ### HELP.TXT
 
-The help text comes from HELP.TXT, in the EXT directory of the drive that COMMAND.COM was loaded from (normally the boot drive), so HELP works from any directory.
+The help text comes from HELP.TXT, in the EXT\\CMD directory of the drive that COMMAND.COM was loaded from (normally the boot drive), so HELP works from any directory.
 
 In HELP.TXT, each entry begins with a lower-case letter for its category, in brackets (eg, `[b]PRINT` or `[f]MID$`), followed by `+` if it isn't available on low memory systems (eg, `[b+]CIRCLE`), which HELP doesn't display; an entry without a category (eg, CORE or KEYS) is listed only by HELP ALL.  The first line of an entry with a category is its syntax, which HELP displays after `Usage:`, and since no other command contains this text, a command that's used incorrectly displays only `Syntax error`.
 

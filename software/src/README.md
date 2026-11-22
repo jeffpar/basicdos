@@ -13,6 +13,8 @@ Sources are divided into the following directories:
   - [DOS](os/dos/)
   - [CMD](os/cmd/)
   - [UTIL](os/util/)
+  - [DLL](os/dll/)
+  - [SDK](os/sdk/)
   - [MSB](msb/)
   - [TESTS](tests/)
 
@@ -29,6 +31,7 @@ The [INC](os/inc/) directory contains all the BASIC-DOS include files:
     dosapi.inc
     fpu.inc
     macros.inc
+    os2.inc
     parser.inc
     uart.inc
     version.inc
@@ -50,6 +53,10 @@ The [DOS](os/dos/) directory contains the BASIC-DOS "kernel" (`BASDOS.COM`), inc
 The [CMD](os/cmd/) directory contains the code for the BASIC-DOS Command Shell (`COMMAND.COM`) and help text (`HELP.TXT`).
 
 The [UTIL](os/util/) directory contains the external utilities: [MISC](os/util/misc/) contains the single-file utilities (the filters `FIND.COM`, `MORE.COM`, `SED.COM`, `SORT.COM`, `TEE.COM`, `TR.COM`, `UNIQ.COM`, and `WC.COM`, along with `SLEEP.COM`), and each larger utility has its own directory, such as [VI](os/util/vi/) (the `VI.COM` text editor) and [V86](os/util/v86/) (`V86.COM`, which runs real-mode programs in a V86 machine).
+
+The [DLL](os/dll/) directory contains the NE libraries that the kernel's NE loader looks for in the system drive's EXT\DLL directory (or the one that a `LIBPATH=` line in CONFIG.SYS names) when a protected-mode NE program imports their functions: `DOSCALLS.DLL` provides OS/2's DOSCALLS functions as DOS calls.
+
+The [SDK](os/sdk/) directory contains programs to build on BASIC-DOS itself (it's SRC\\SDK on the hard disk, and the BASIC-DOS build doesn't build them): `MEM32.EXE` is a 32-bit LE program, which `MAKE MAKEFILE` there assembles with MASM5 (with the system's macros, from SRC\\INC; `MAKE REL=DEBUG MAKEFILE` defines DEBUG, so that DBGBRK and ASSERT assemble their INT 3s) and links with LINK386, in protected mode; and `FIND16.EXE` is a 16-bit OS/2 1.x program, a version of `FIND.COM` (without regular expressions) that calls only OS/2's DOSCALLS functions (with PCALL, from SRC\\INC's `os2.inc`), which MASM5 and LINK4 build, so the same file runs on OS/2 and, in protected mode, on BASIC-DOS (in real mode, its stub says it requires protected mode), where it can be compared with `FIND.COM`.
 
 The [MSB](msb/) directory contains a buildable copy of Microsoft BASIC ("GW-BASIC"), using the open-source files from [GitHub](https://github.com/microsoft/GW-BASIC) and a reverse-engineered OEM source file courtesy of the [OS/2 Museum](msb/OEM.ASM).  The open-source files lack TIMER, so this copy adds it, as in BASICA and later GW-BASIC versions: the TIMER function (seconds since midnight, to hundredths), TIMER ON, OFF, and STOP, and ON TIMER(*n*) GOSUB (*n* = 1 to 86400 seconds).
 

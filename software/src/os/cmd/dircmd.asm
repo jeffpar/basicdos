@@ -46,6 +46,7 @@ CODE    SEGMENT
 ;
 DIRF_SUBS	equ	01h		; /S (list subdirectories, too)
 DIRF_LISTED	equ	02h		; a directory has been listed
+DIRF_EMPTY	equ	04h		; an empty root is being listed
 FFB_SAVE	equ	(size FFB + 1) AND NOT 1
 
 DEFPROC	cmdDir
@@ -107,13 +108,36 @@ di4:	mov	[dirWide],ah
 	jc	di8
 	test	[dirFlags],DIRF_LISTED	; did anything match?
 	jz	di7			; no
-	mov	ax,[dirFree]
+di5:	mov	ax,[dirFree]
 	mul	[dirClus]		; DX:AX = total # bytes free
 	PRINTF	<"%25ld bytes free",13,10>,ax,dx
 	clc
 	jmp	short di9
 di7:	call	dirSpec			; restore the original filespec
-	mov	ax,ERR_NOFILE
+;
+; Nothing matched, but if everything was requested ("*.*"), then this is an
+; empty root directory (every other directory has "." and ".."), which is
+; listed like any other directory, with no files.  Since there's no match,
+; we fill in the FFB's drive and directory for dirHeader ourselves.
+;
+	cmp	word ptr [dirPat],'*' OR ('.' SHL 8)
+	jne	di7b
+	cmp	word ptr [dirPat+2],'*'
+	jne	di7b
+	mov	ax,word ptr [bx].LINEBUF
+	and	al,1Fh
+	dec	ax			; AL = drive # (if AH is ':')
+	cmp	ah,':'			; does the filespec have a drive?
+	je	di7a			; yes
+	mov	ah,DOS_DSK_GETDRV
+	int	21h			; AL = current drive #
+di7a:	mov	ds:[PSP_DTA].FFB_DRIVE,al
+	mov	ds:[PSP_DTA].FFB_DIRCLN,0
+	or	[dirFlags],DIRF_EMPTY
+	call	dirList
+	jnc	di5
+	jmp	short di8
+di7b:	mov	ax,ERR_NOFILE
 di8:	lea	si,[bx].LINEBUF		; DS:SI -> filespec
 	mov	dx,offset VERB_FIND
 	call	fileError
@@ -235,7 +259,8 @@ ENDPROC	dirSpec
 ; dirList
 ;
 ; List the matches of a search (the first of which is in the DTA), after the
-; directory's header (see dirHeader), followed by their totals.
+; directory's header (see dirHeader), followed by their totals.  For an
+; empty root directory (DIRF_EMPTY), there are no matches, only totals.
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -260,6 +285,9 @@ dl1:	push	di
 ;
 	sub	dx,dx
 	sub	cx,cx
+	test	[dirFlags],DIRF_EMPTY	; is there nothing to list?
+	jz	dl4			; no
+	jmp	dl7			; yes
 dl4:	push	cx
 	push	dx
 	call	splitName		; AX = name length, CX, SI, DI
@@ -325,7 +353,7 @@ dl7:	mov	al,[dirCol]
 	call	printCRLF		; yes
 dl7a:	xchg	ax,dx			; AX = total # of clusters used
 	mul	[dirClus]		; DX:AX = total # bytes
-	PRINTF	<"%8d file(s) %8ld bytes",13,10>,cx,ax,dx
+	PRINTF	<"%8d files %10ld bytes",13,10>,cx,ax,dx
 	pop	di
 	clc
 	ret
@@ -335,12 +363,12 @@ ENDPROC	dirList
 ;
 ; dirHeader
 ;
-; Print the DOS 2.x-style header of a directory listing: a blank line, the
-; path of the directory being listed (which the kernel derives from the FFB of
-; the filespec's first match), and a blank line.  Before the first listing,
-; the drive's volume label is printed, too, and the drive's cluster size and
-; available clusters are saved for the totals; searching for the volume label
-; replaces the FFB, so the first match is found again.
+; Print the header of a directory listing: the path of the directory being
+; listed (which the kernel derives from the FFB of the filespec's first
+; match), and a blank line.  Before the first listing, the drive's volume
+; label is printed, too, and the drive's cluster size and available clusters
+; are saved for the totals; searching for the volume label replaces the FFB,
+; so the first match is found again (unless there's none; see DIRF_EMPTY).
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -401,7 +429,7 @@ dh0a:	mov	[dirFree],bx		; available clusters
 	je	dh1			; right (and carry is set)
 	ret				; no, some other error
 dh1:	pushf
-	PRINTF	<13,10," Volume in drive %c ">,[dirDrive]
+	PRINTF	<"Volume in drive %c ">,[dirDrive]
 	popf
 	jnc	dh2
 	PRINTF	<"has no label",13,10>
@@ -410,7 +438,9 @@ dh2:	push	di
 	call	splitName		; AX = name length, SI, DI
 	PRINTF	<"is %-8.*s%s",13,10>,ax,si,di
 	pop	di
-dh2a:	call	dirFirst		; find the first match again
+dh2a:	test	[dirFlags],DIRF_EMPTY	; is there a match to find again?
+	jnz	dh4			; no (a label's FFB is the root's, too)
+	call	dirFirst		; find the first match again
 	jc	dh9
 dh4:	lea	si,[bx].LINEBUF+192	; DS:SI -> 64-byte path buffer
 	mov	dl,0FFh			; DL = 0FFh (the FFB's directory)
@@ -418,7 +448,7 @@ dh4:	lea	si,[bx].LINEBUF+192	; DS:SI -> 64-byte path buffer
 	int	21h
 	jc	dh9
 	mov	dl,[bx].PATH_CHAR
-	PRINTF	<" Directory of %c:%c%s",13,10,13,10>,[dirDrive],dx,si
+	PRINTF	<"Directory of %c:%c%s",13,10,13,10>,[dirDrive],dx,si
 	clc
 dh9:	ret
 ENDPROC	dirHeader

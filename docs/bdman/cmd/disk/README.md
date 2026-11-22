@@ -24,7 +24,7 @@ File names follow PC DOS conventions: an optional drive letter and colon (eg, `B
 
 A file name can also be preceded by a path of directory names, each followed by the path character (`\` by default, or `/` when [PATHCHAR](../../cfg/#pathchar) is `/`).  A path that begins with the path character starts at the root directory (eg, `TYPE \SUBDIR\INSIDE.TXT`); otherwise, it starts at the drive's current directory (see [CD](#cd)), which the prompt displays (eg, `<C:\SUBDIR>`).  A directory name of `.` refers to the same directory, and `..` refers to the parent directory (eg, `TYPE ..\HELLO.TXT`).  Each session has its own current directory for every drive.
 
-DOS commands and external programs can use paths at the prompt and in BAT or BAS files (eg, `DIR \EXT` or `\EXT\SLEEP 1`), including after a colon that separates commands.  In BASIC file statements such as OPEN, supply a path as a quoted string or string variable.
+DOS commands and external programs can use paths at the prompt and in BAT or BAS files (eg, `DIR \EXT` or `\EXT\CMD\SLEEP 1`), including after a colon that separates commands.  In BASIC file statements such as OPEN, supply a path as a quoted string or string variable.
 
 Device names (eg, CON, PRN, AUX, COM1, LPT1, and NUL) can be used in place of file names (eg, `COPY TEST.TXT NUL` or `DIR > NUL`).
 
@@ -66,15 +66,15 @@ Deletes the specified file.  With the wildcards `?` and `*` (as in [DIR](#dir)),
 
 > DIR [*filespec*] [/A] [/S] [/W]
 
-Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).  As in DOS 2.x, the listing begins with a blank line, the drive's volume label (eg, ` Volume in drive A is BD-S80`, or ` Volume in drive A has no label`), the full path of the directory (eg, ` Directory of A:\DEMOS`), and another blank line.  The *filespec* can contain the wildcards `?` (any character) and `*` (any characters to the end of the name or extension).  Subdirectories are listed with `<DIR>` in place of a size, and if *filespec* is a directory (eg, `DIR SUBDIR` or `DIR /`), the files in that directory are listed.  Use `DIR | MORE` to pause after each screenful of output.
+Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).  The listing begins with the drive's volume label (eg, `Volume in drive A is BD-S80`, or `Volume in drive A has no label`), the full path of the directory (eg, `Directory of A:\DEMOS`), and a blank line (unlike DOS 2.x, there's no blank line before the volume label, and neither line is indented), and it ends with the number of files listed, the bytes they occupy, and the bytes free; an empty root directory is listed the same way, with `0 files`.  The *filespec* can contain the wildcards `?` (any character) and `*` (any characters to the end of the name or extension).  Subdirectories are listed with `<DIR>` in place of a size, and if *filespec* is a directory (eg, `DIR SUBDIR` or `DIR /`), the files in that directory are listed.  Use `DIR | MORE` to pause after each screenful of output.
 
-Files with the hidden attribute (eg, BASDEV.COM and BASDOS.COM) are listed only with `/A`, with an asterisk after the name (eg, `BASDEV   COM*`).  Unlike PC DOS, DIR lists system files that aren't hidden (eg, COMMAND.COM); see [ATTRIB](../external/attrib/).  `/S` lists the matching files in every subdirectory, too (in hidden subdirectories only with `/A`): each directory with matches gets its own ` Directory of` line and totals, and the bytes free are displayed at the end.
+Files with the hidden attribute (eg, BASDEV.COM and BASDOS.COM) are listed only with `/A`, with an asterisk after the name (eg, `BASDEV   COM*`).  Unlike PC DOS, DIR lists system files that aren't hidden (eg, COMMAND.COM); see [ATTRIB](../external/attrib/).  `/S` lists the matching files in every subdirectory, too (in hidden subdirectories only with `/A`): each directory with matches gets its own `Directory of` line and totals, and the bytes free are displayed at the end.
 
 `/W` lists only the names, each in a 16-character column, with as many columns as the console has room for (5 on an 80-column screen, or 2 on a 40-column screen).  Unlike PC DOS, each name is shown with its period (eg, `HELP.TXT`), and a subdirectory's name is followed by the path character (eg, `EXT\`) instead of `<DIR>`, even if the subdirectory is hidden; a hidden file's name is followed by an asterisk (eg, `BASDOS.COM*`).  For a Unix-style listing, see [LS](../external/ls/).
 
 	DIR *.BAS
 	DIR /S *.BAS
-	DIR /W \EXT
+	DIR /W \EXT\CMD
 
 ### LOAD
 

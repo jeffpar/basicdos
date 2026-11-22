@@ -30,7 +30,7 @@
 	' Display the volume label and the directory, which is the filespec's
 	' path (up to its last path char), relative to the current directory
 	V$ = DIR$(D$ + C$ + "*.*", 8)
-	PRINT : PRINT " Volume in drive "; LEFT$(D$, 1);
+	PRINT "Volume in drive "; LEFT$(D$, 1);
 	IF V$ = "" THEN PRINT " has no label" ELSE F$ = V$ : GOSUB 50 : PRINTF USING " is %-8s%s"; N$, E$
 	I = 0
 	WHILE INSTR(I + 1, S$, C$) : I = INSTR(I + 1, S$, C$) : WEND
@@ -40,7 +40,7 @@
 	Q$ = MID$(CURDIR$, 3)
 	IF Q$ <> C$ AND P$ <> "" THEN Q$ = Q$ + C$
 	P$ = Q$ + P$
-20	PRINT " Directory of "; D$; P$ : PRINT
+20	PRINT "Directory of "; D$; P$ : PRINT
 	' List each match, with its size (or <DIR>), date, and time
 	F$ = DIR$(S$, A) : N = 0 : T = 0
 	WHILE F$ <> ""
@@ -57,7 +57,7 @@
 	N = N + 1 : T = T + L
 	F$ = DIR$
 	WEND
-	PRINTF USING "%8d file(s) %8d bytes"; N, T
+	PRINTF USING "%8d files %10d bytes"; N, T
 	END
 50	' Split the name in F$ into N$ and E$ ("." and ".." have no extension)
 	N$ = MID$(F$, 10) : E$ = "" : I = INSTR(N$, ".")
