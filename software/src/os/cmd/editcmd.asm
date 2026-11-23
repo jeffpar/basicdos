@@ -12,7 +12,8 @@
 ; text blocks and the other editing functions (eg, LIST) are in edit.asm.
 ; cmdPipe and runLine, which pipe the output of BASIC statements typed at the
 ; prompt, are here, too, as are showUsage, which displays a command's usage
-; after a usage error (see cmdUsage), and setName (see cmdLoad).
+; after a usage error (see cmdUsage), setName (see cmdLoad), and listVars,
+; for LIST VARS (which cmdList reaches through genUpper).
 ;
 ; This module is not part of COMMAND's core (see CMD.LRF and HEAP.ASM): when
 ; only the core is loaded, cmdDOS refuses these commands with "Not enough
@@ -21,12 +22,14 @@
 ;
 	DOSFUNC equ 1
 	include	cmd.inc
+	include	arr.inc
 
 CODE    SEGMENT
 
 	EXTNEAR	<chkProgram,getRange,usageError,freeCache,walkLines,delLine>
 	EXTNEAR	<findLine,putNum,parseLine,storeLine,printCRLF,listLine>
 	EXTNEAR	<chkOut,chkColon,genCode,parseDOS,callDOS,syntaxMsg>
+	EXTNEAR	<getVarLen,writeStr>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -522,6 +525,184 @@ sn5:	mov	al,' '
 	pop	si
 	ret
 ENDPROC	setName
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; listVars
+;
+; List preserved strings, then live scalar variables and array dimensions
+; in allocation order.
+; Dead bytes, function definitions, and temporary parameters are skipped.
+; Type suffixes distinguish variables with the same name but different types.
+;
+; Inputs:
+;	DS:BX -> CMDHEAP
+;
+; Outputs:
+;	Variable names and values written to STDOUT
+;
+; Modifies:
+;	AX, CX, DX, SI, DI, ES
+;
+DEFPROC	listVars
+	push	bx
+	call	listKeep
+	mov	ax,[bx].VBLKDEF.BDEF_NEXT
+lv0:	test	ax,ax
+	jnz	lv0a
+	pop	bx
+	clc
+	ret
+lv0a:	mov	es,ax
+	mov	di,size VBLK
+lv1:	cmp	di,es:[BLK_FREE]	; end of used space?
+	jb	lv1a
+	jmp	lv8
+lv1a:	mov	al,es:[di]
+	inc	di
+	cmp	al,VAR_DEAD
+	je	lv1			; deleted variable byte
+	ja	lv1b			; live variable
+	jmp	lv8
+lv1b:	mov	ah,al
+	and	ah,VAR_TYPE
+	and	al,VAR_NAMELEN
+	mov	cl,al
+	mov	ch,0
+	mov	si,di			; ES:SI -> name
+	add	di,cx			; ES:DI -> value
+	mov	bl,ah
+	call	getVarLen
+	add	ax,di			; AX -> next variable
+	push	ax
+	cmp	bl,VAR_PARM
+	je	lv1c
+	cmp	bl,VAR_FUNC
+	jne	lv1d
+lv1c:	jmp	lv7
+lv1d:	PRINTF	<"%.*ls">,cx,si,es
+	cmp	bl,VAR_ARRAY
+	jne	lv2
+	push	es
+	call	listDims
+	pop	es
+	jmp	short lv7
+lv2:	mov	al,'%'
+	cmp	bl,VAR_LONG
+	je	lv3
+	mov	al,'$'
+	cmp	bl,VAR_STR
+	je	lv3
+	mov	al,'#'
+lv3:	PRINTF	<"%c = ">,ax
+	cmp	bl,VAR_LONG
+	jne	lv4
+	mov	ax,es:[di].LW
+	mov	dx,es:[di].HW
+	PRINTF	<"%ld">,ax,dx
+	jmp	short lv6
+lv4:	cmp	bl,VAR_DOUBLE
+	jne	lv5
+	PRINTF	<"%f">,di,es
+	jmp	short lv6
+lv5:	PRINTF	<34>
+	push	ds
+	lds	si,es:[di]
+	mov	ax,ds
+	test	ax,ax
+	jz	lv5a			; empty string has a null pointer
+	call	writeStr		; do not release the owned string
+lv5a:	pop	ds
+	PRINTF	<34>
+lv6:	call	printCRLF
+lv7:	pop	di			; next variable
+	jmp	lv1
+lv8:	mov	ax,es:[BLK_NEXT]
+	jmp	lv0
+ENDPROC	listVars
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; listKeep
+;
+; List strings stored in CMDHEAP that survive loads and variable resets.
+; Each keepStr entry contains a buffer offset and a null-terminated name;
+; a zero offset ends the table.  Add future preserved strings here.
+;
+; Inputs:
+;	DS:BX -> CMDHEAP
+;
+; Outputs:
+;	Preserved string names and quoted values written to STDOUT
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+DEFPROC	listKeep
+	mov	si,offset keepStr
+lk0:	mov	di,cs:[si]
+	test	di,di
+	jz	lk9
+	add	di,bx			; DS:DI -> length-prefixed value
+	add	si,2			; CS:SI -> variable name
+	PRINTF	<"%ls = ",34>,si,cs
+	push	si
+	mov	si,di
+	call	writeStr
+	pop	si
+	PRINTF	<34,13,10>
+lk1:	cmp	byte ptr cs:[si],0
+	lea	si,[si+1]		; advance without changing flags
+	jne	lk1
+	jmp	lk0
+lk9:	ret
+ENDPROC	listKeep
+
+keepStr	label	word
+	dw	PATH_BUF
+	db	'PATH$',0
+	dw	PROMPT_BUF
+	db	'PROMPT$',0
+	dw	0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; listDims
+;
+; Display array bounds without expanding or changing its elements.
+;
+; Inputs:
+;	ES:DI -> array variable's far pointer
+;
+; Outputs:
+;	Parenthesized lower and upper bounds written to STDOUT
+;
+; Modifies:
+;	AX, CX, DX, DI, ES
+;
+DEFPROC	listDims
+	mov	ax,es:[di]._SEG
+	test	ax,ax
+	jnz	ld0
+	PRINTF	<"() = undimensioned",13,10>
+	ret
+ld0:	les	di,es:[di]
+	mov	cl,es:[ABLK_DIMS]
+	mov	ch,0
+	mov	dx,es:[ABLK_BASE]
+	mov	di,size ABLK
+	PRINTF	<"(">
+ld1:	mov	ax,es:[di]
+	add	ax,dx
+	dec	ax			; upper bound = base + count - 1
+	PRINTF	<"%u TO %u">,dx,ax
+	add	di,2
+	loop	ld2
+	PRINTF	<")",13,10>
+	ret
+ld2:	PRINTF	<", ">
+	jmp	ld1
+ENDPROC	listDims
 
 CODE	ENDS
 

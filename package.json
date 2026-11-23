@@ -1,6 +1,6 @@
 {
   "name": "basicdos",
-  "version": "2.10.4",
+  "version": "2.10.5",
   "config": {
     "release": "debug"
   },

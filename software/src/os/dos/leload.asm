@@ -121,12 +121,12 @@ LE_MSGSEG	equ	26		; and address
 	db	DOS_HDL_OPEN,LEF_STR,DOS_HDL_CLOSE,LEF_PASS
 	db	DOS_HDL_WRITE,LEF_RW,DOS_DSK_DELETE,LEF_STR
 	db	DOS_HDL_SEEK,LEF_PASS,DOS_HDL_SEEK+1,LEF_STR
-	db	DOS_DSK_GETCWD-1,LEF_NONE,DOS_DSK_GETCWD,LEF_CWD
-	db	DOS_MEM_ALLOC,LEF_MEM,DOS_PSP_RETURN-1,LEF_NONE
-	db	DOS_PSP_RETCODE,LEF_PASS,DOS_DSK_FFIRST,LEF_STR
-	db	DOS_DSK_FNEXT,LEF_PASS,DOS_DSK_RENAME-1,LEF_NONE
-	db	DOS_DSK_RENAME,LEF_REN,DOS_DSK_RENAME+1,LEF_PASS
-	db	0FFh,LEF_NONE
+	db	DOS_HDL_IOCTL,LEF_PASS,DOS_DSK_GETCWD-1,LEF_NONE
+	db	DOS_DSK_GETCWD,LEF_CWD,DOS_MEM_ALLOC,LEF_MEM
+	db	DOS_PSP_RETURN-1,LEF_NONE,DOS_PSP_RETCODE,LEF_PASS
+	db	DOS_DSK_FFIRST,LEF_STR,DOS_DSK_FNEXT,LEF_PASS
+	db	DOS_DSK_RENAME-1,LEF_NONE,DOS_DSK_RENAME,LEF_REN
+	db	DOS_DSK_RENAME+1,LEF_PASS,0FFh,LEF_NONE
 LE_INITLEN	equ	$ - LE_INIT
 	ASSERT	<LED_TBL + LE_INITLEN - LE_MSGLEN>,LE,LE_HDR
 
@@ -842,10 +842,12 @@ ENDPROC	le_mapseg
 ; exit but a hardware interrupt's is a fault, which ends the program.
 ;
 ; Functions that aren't in the table (eg, those with FCBs, the DTA, or
-; vectors) return carry set and ERR_INVALID.  DOS_HDL_READ and DOS_HDL_WRITE
-; take a 32-bit count in ECX and return one in EAX, and DOS_MEM_ALLOC takes a
-; number of bytes in EBX, which it adds to the end of the machine's memory,
-; returning its address in EAX.
+; vectors) return carry set and ERR_INVALID.  DOS_HDL_IOCTL passes only
+; registers, so only its requests without a buffer work (eg, IOCTL_GETDATA,
+; which a C library uses to tell devices from files).  DOS_HDL_READ and
+; DOS_HDL_WRITE take a 32-bit count in ECX and return one in EAX, and
+; DOS_MEM_ALLOC takes a number of bytes in EBX, which it adds to the end of
+; the machine's memory, returning its address in EAX.
 ;
 	DEFLBL	le_code,near
 DEFPROC	le_host

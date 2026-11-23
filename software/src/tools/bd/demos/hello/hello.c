@@ -6,6 +6,11 @@
  * BASIC-DOS or any other DOS).  To build it, run:
  *
  *      MAKE MAKEFILE
+ *
+ * or to build HELLOC.EXE, a 32-bit version for an 80386, with the Microsoft
+ * 386 C Compiler, run:
+ *
+ *      MAKE MAKE386
  */
 
 #include <stdio.h>

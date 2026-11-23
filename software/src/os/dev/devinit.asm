@@ -806,6 +806,12 @@ ENDPROC	find_skip
 ; Checks the driver's name against the "SKIP=" lists (eg, "SKIP=VKD$,FPU$"),
 ; each of which is a list of driver names separated by commas.
 ;
+; With 64K or less, the COM and LPT drivers are also skipped unless CONFIG.SYS
+; names one of their ports (eg, CON=COM1:9600,N,8,1, AUX=COM1, or PRN=LPT1),
+; since COM1 alone would leave too little memory for COMMAND.COM.  Each
+; family's first driver has the code that the others use, so the drivers of a
+; family are all kept or all skipped.
+;
 ; Inputs:
 ;	DS:SI -> driver header
 ;
@@ -817,7 +823,39 @@ ENDPROC	find_skip
 ;
 DEFPROC	chk_skip
 	push	di
-	mov	di,cs:[skip_list]	; CS:DI -> list of names (zero if none)
+	mov	ax,word ptr [si].DDH_NAME
+	mov	cl,byte ptr [si].DDH_NAME+2	; AX and CL = first 3 letters
+	cmp	ax,'OC'			; COM driver?
+	jne	ck0			; no
+	cmp	cl,'M'
+	je	ck0a			; yes
+ck0:	cmp	ax,'PL'			; LPT driver?
+	jne	ck0d			; no
+	cmp	cl,'T'
+	jne	ck0d			; no
+ck0a:	push	es
+	mov	bx,BIOS
+	mov	es,bx
+	ASSUME	ES:BIOS
+	cmp	[MEMORY_SIZE],64	; more than 64K?
+	pop	es
+	ASSUME	ES:NOTHING
+	ja	ck0d			; yes
+	mov	di,offset devinit_end	; CS:DI -> CFG_FILE data
+ck0b:	cmp	byte ptr cs:[di],0	; end of the data?
+	stc
+	je	ck9			; yes, so skip the driver
+	cmp	cs:[di],ax
+	jne	ck0c
+	cmp	cs:[di+2],cl
+	jne	ck0c
+	mov	bl,cs:[di+3]
+	sub	bl,'1'
+	cmp	bl,4			; a port name (eg, COM1)?
+	jb	ck0d			; yes
+ck0c:	inc	di
+	jmp	ck0b
+ck0d:	mov	di,cs:[skip_list]	; CS:DI -> list of names (zero if none)
 	test	di,di
 	jz	ck9			; no list (and carry is clear)
 ;

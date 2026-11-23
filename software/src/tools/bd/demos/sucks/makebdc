@@ -4,9 +4,10 @@
 # (the BASIC-DOS C compiler; see TOOLS\BDC) instead of Microsoft C 4.00.  BDC
 # compiles several times faster, but its code is larger and slower.
 #
-# Run "MAKE BDC" in this folder (TOOLS\DEMOS\SUCKS on a BASIC-DOS hard disk),
-# with TOOLS\BIN in PATH$.  The files it creates have different names from
-# the makefile's, so both sets of programs can be built here and compared.
+# Run "MAKE MAKEBDC" in this folder (TOOLS\DEMOS\SUCKS on a BASIC-DOS hard
+# disk), with TOOLS\BIN in PATH$.  The files it creates have different names
+# from the makefile's, so both sets of programs can be built here and
+# compared.
 #
 sucks1b.obj: sucks1.c
 	bdc /I..\..\include /Fosucks1b.obj sucks1.c

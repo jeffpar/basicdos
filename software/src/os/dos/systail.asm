@@ -37,7 +37,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<r3_uhprintf,r3_ioctl,r3_open,r3_create,r3_close,r3_seek>
 	EXTNEAR	<r3_time,r3_sfbfree,next_con>
 	EXTNEAR	<r3_sread,r3_swrite,r3_rread,r3_rwrite,r3_rbread,r3_rbwrite>
-	EXTNEAR	<fcb_code,func_none>
+	EXTNEAR	<fcb_code,func_none,chk_devlist,ms_parent>
 	EXTWORD	<mcb_limit,mem_size>
 	EXTABS	<FUNCTBL_SIZE,UTILTBL_SIZE>
 
@@ -380,11 +380,16 @@ DEFPROC	set_fault
 	jnz	sf0			; yes
 ;
 ; A machine with 64K or less can't spare the memory for the FCB functions,
-; so the resident code ends at fcb_code instead, and every function at or
-; after that becomes "unsupported".
+; or for other consoles' sessions (it has only one console; see multi.asm), so
+; the resident code ends at fcb_code instead, every function at or after that
+; becomes "unsupported", and every jump to multi.asm (each one followed by the
+; label it should fall through to) gets a displacement of zero.
 ;
 	cmp	[mcb_limit],1000h	; more than 64K?
 	ja	sf0b			; yes
+	sub	ax,ax
+	mov	word ptr [chk_devlist-2],ax
+	mov	word ptr [ms_parent-2],ax
 	mov	ax,offset fcb_code
 	push	bx
 	mov	bx,offset FUNCTBL
@@ -702,10 +707,11 @@ ENDPROC	next_line
 ;
 ; Without a "SESSIONS=" line, there's a session for each console (one for
 ; each "SHELL=" line in CFG_FILE, or just one without any; see next_con), plus
-; 4 for the filters of pipelines, unless the PIPE$ driver isn't loaded (eg, it
-; unloads itself with 64K of memory or less, or SKIP=PIPE$), plus 4 more with
-; more than 256K of memory (eg, for START and MEMTESTS), since each one costs
-; only about 80 bytes of the kernel's block (plus a ring 0 stack at ring 3).
+; 4 for the filters of pipelines, unless the PIPE$ driver isn't loaded (eg,
+; SKIP=PIPE$), or only 1 with 64K of memory or less (enough for a pipeline
+; like "DIR | MORE"), plus 4 more with more than 256K of memory (eg, for START
+; and MEMTESTS), since each one costs only about 80 bytes of the kernel's block
+; (plus a ring 0 stack at ring 3).
 ;
 ; Outputs:
 ;	AX = default number of sessions
@@ -738,7 +744,10 @@ ds4:	cmp	di,-1			; end of device list?
 	je	ds7			; and it continues with "PE"
 ds5:	les	di,es:[di]		; on to the next device
 	jmp	ds4
-ds7:	add	bx,4
+ds7:	inc	bx			; 1 for a pipeline's filter
+	cmp	ds:[mem_size],64	; 64K or less?
+	jbe	ds8a			; yes, so that's all
+	add	bx,3			; no, so 3 more
 ds8:	cmp	ds:[mem_size],256	; more than 256K of memory?
 	jbe	ds8a			; no
 	add	bx,4			; yes, so 4 more sessions

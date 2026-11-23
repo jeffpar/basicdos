@@ -1,12 +1,12 @@
 {
-  "name": "IBM PC AT, 2Mb RAM, 10Mb Hard Disk, CGA, Serial Mouse",
+  "name": "IBM PC AT, 2Mb RAM, 20Mb Hard Disk, CGA, Serial Mouse",
   "defaults": {
     "ram": "2Mb",
     "fpu": "None",
     "fdc": "2 1.2Mb diskette drives",
     "parallel": "LPT1",
     "serial": "COM1 (serial mouse), COM2",
-    "hdc": "10Mb hard disk"
+    "hdc": "20Mb hard disk"
   },
   "machine": {
     "type": "pcx86",
@@ -161,9 +161,9 @@
       "type": "AT",
       "drives": [
         {
-          "name": "BASICDOS-10MB",
-          "type": 1,
-          "path": "/software/disks/2026/BASICDOS-10MB.json"
+          "name": "BASICDOS-20MB",
+          "type": 2,
+          "path": "/software/disks/2026/BASICDOS-20MB.json"
         }
       ],
       "controls": [

@@ -323,14 +323,14 @@ These VT100 features aren't used by the driver, and have no BASIC statement, alt
 | CPU$ | Character | Two drivers, loaded first, of which one stays to manage all memory through DDINT_CPU (see [Protected Mode](../mmu/)): the 80386 driver stores the processor type in CPU_HWTYPE (0:513h) and CPU_TYPE (0:512h), which is 0 if real mode is requested (by `CPU=8088`, or **R** at the boot message), and otherwise, on an 80286 or later with at least 256K of conventional memory, manages memory with a PMB table (and protected-mode descriptors); otherwise, it unloads, and the 8086 driver manages memory with an MCB chain.  The one that stays stores its arena's address in CPU_ARENA (0:514h), for debuggers, and provides DDINT_GETVEC and DDINT_SETVEC.  Neither can be skipped |
 | NUL | Character | Null device |
 | CLOCK$ | Character | Timer interrupt, date and time, delays, and sound |
-| PIPE$ | Character | Pipes between sessions (used by the command shell's `|` operator), with a 128-byte buffer; as on UNIX, a read waits only until some data is available, and then returns what's there (up to the requested length), while a write waits until all its data fits; it unloads itself with 64K of memory or less |
+| PIPE$ | Character | Pipes between sessions (used by the command shell's `|` operator), with a 128-byte buffer; as on UNIX, a read waits only until some data is available, and then returns what's there (up to the requested length), while a write waits until all its data fits |
 | FPU$ | Character | Floating-point functions, using an 8087 if present, or software emulation otherwise |
 | MOUSE$ | Character | Serial mouse, with an INT 33h interface (see [MOUSE$](#mouse)); loaded only if a mouse responds on a COM port |
 | SND$ | Character | Sound Blaster, which it lends to one V86 machine at a time (see [SND$](#snd)); loaded only on an 80386 with a card at 220h or 240h |
 | FDC$ | Block | Diskette drives (A: and B:) |
 | HDC$ | Block | Hard disks: FAT12 and FAT16 primary partitions of up to two BIOS hard disks (C:, D:, etc.), and a disk with no FAT partitions (eg, a new disk) as a single unit with unknown media, so that FORMAT can partition it; reads and writes are done by FDC$, so FDC$ must also be loaded |
 
-Drivers that aren't needed (eg, VKD$ in a configuration that uses only serial consoles) can be omitted with [SKIP=](../../bdman/cfg/#skip).
+Drivers that aren't needed (eg, VKD$ in a configuration that uses only serial consoles) can be omitted with [SKIP=](../../bdman/cfg/#skip).  With 64K of memory or less, the driver initialization code (chk_skip, in devinit.asm) also skips the COM and LPT drivers unless the CONFIG.SYS text names one of their ports (COM1-COM4 or LPT1-LPT4, anywhere), all of a family or none, since each family's first driver holds the code that the others use; and CLOCK$, which keeps its timers only for the COM driver, drops them unless COM1 is in the driver list (DD_LIST) when it initializes.
 
 CON, AUX, and PRN aren't drivers, but names that DOS gives the active session's console, AUX, and PRN devices (see [CON=](../../bdman/cfg/#con), [AUX=](../../bdman/cfg/#aux), and [PRN=](../../bdman/cfg/#prn)); opening one of those names (with or without a colon) shares the session's handle for that device (see [Files](../dos/#files)), and `@`*n* does the same for CON in session *n*.
 
@@ -344,7 +344,7 @@ FDC$ and HDC$ share one copy of the INT 13h read and write code (including the h
 
 HDC$ recognizes partition types 01h (FAT12) and 04h (FAT16), with 512-byte sectors and fewer than 65,536 sectors per volume (just under 32MiB). The FAT entry width is determined from the data-cluster count, not the partition label. FAT16 booting, reading, and writing use the same sector buffers as FAT12; the entire FAT does not have to fit in memory. Larger volumes, FAT32, and extended partitions are not supported.
 
-The 30Mb FAT16 source disk created by `mk.sh` (`--target=30M --fat=16:2048:512`) is within these limits. When attaching an existing pc.js image, the emulated controller and BIOS must use the image's geometry.
+The 30Mb FAT16 source disk created by `mk.sh` (`--target=30M --fat=16:2048:512`) is within these limits. When attaching an existing pc.js image, the emulated controller and BIOS must use the image's geometry.  The demos' 20Mb hard disk (BASICDOS-20MB: 615 cylinders, 4 heads, and 17 sectors per track, the PC AT's drive type 2, with a FAT16 volume) also boots on a PC XT, whose controller has no 20Mb drive type: pc.js builds it with a drive parameter table in its MBR, which the MBR installs at boot (pointing INT 41h at it, and then calling INT 13h with AH = 09h), and since HDC$ gets each disk's geometry from INT 13h (AH = 08h), it sees the same geometry on every machine.
 
 ### MOUSE$ {#mouse}
 

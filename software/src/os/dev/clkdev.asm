@@ -496,6 +496,132 @@ ENDPROC	ddclk_none
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; ddclk_interrupt (timer hardware interrupt handler)
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddclk_interrupt,far
+	call	far ptr DDINT_ENTER
+	pushf
+	call	[tmr_int]
+	push	ax
+	push	bx
+	push	dx
+	push	di
+	push	ds
+	push	es
+	mov	ds,cs:[0].DDH_DATA
+	ASSUME	DS:CODE
+
+	add	[ticksToday].LW,1
+	adc	[ticksToday].HW,0
+;
+; The maximum ticks per day (1573040) is 0018:00B0.
+;
+	cmp	[ticksToday].HW,18h
+	jb	ddi0a			; no overflow yet
+	ASSERT	Z
+	ja	ddi0			; large overflow (how'd that happen?)
+	cmp	[ticksToday].LW,00B0h
+	jb	ddi0a
+ddi0:	mov	[ticksToday].LW,0
+	mov	[ticksToday].HW,0
+;
+; We use a DOS utility function to increment the date, since DOS already
+; contains the required calendar data to properly increment a date (ie, it
+; is not a device-specific operation).
+;
+	mov	cx,[dateYear]
+	mov	dx,word ptr [dateDay]
+	DOSUTIL	INCDATE
+	mov	[dateYear],cx
+	mov	word ptr [dateDay],dx
+
+ddi0a:	cmp	[sndTicks],0		; is a sound playing?
+	je	ddi0b			; no
+	dec	[sndTicks]		; yes, has it ended?
+	jnz	ddi0b			; no
+	in	al,61h
+	and	al,0FCh
+	out	61h,al			; yes, turn the speaker off
+ddi0b:	call	run_timers		; (unless ddclk_init skips it)
+	DEFLBL	clk_runtmrs,near
+	mov	bx,offset wait_ptr	; DS:BX -> ptr
+	les	di,[bx]			; ES:DI -> packet, if any
+	ASSUME	ES:NOTHING
+	sti
+
+ddi1:	cmp	di,-1			; end of chain?
+	je	ddi9			; yes
+
+	ASSERT	STRUCT,es:[di],DDP
+;
+; We wait for the double-word decrement to underflow (ie, to go from 0 to -1)
+; since that's the simplest to detect.  And while you might think that means we
+; always wait 1 tick longer than requested -- well, sort of.  We have no idea
+; how much time elapsed between the request's arrival and the first tick; that
+; time could be almost zero, so think of the tick count as "full" ticks.
+;
+	sub	es:[di].DDPRW_LBA,1
+	sbb	es:[di].DDPRW_LENGTH,0
+	jae	ddi6			; keep waiting
+;
+; Notify DOS that the SCB associated with this packet is done waiting.
+;
+ddi2:	mov	dx,es			; DX:DI -> packet (aka "wait ID")
+	mov	ah,DOS_UTL_ENDWAIT
+	call	far ptr DDINT_UTIL	; end the wait on DX:DI (see int_util)
+	jnc	ddi3
+;
+; If ENDWAIT returns an error, we presume that we simply got ahead of the
+; WAIT call, so rewind the count to zero and leave the packet on the list.
+;
+	mov	es:[di].DDPRW_LBA,0
+	mov	es:[di].DDPRW_LENGTH,0
+	jmp	short ddi6
+;
+; WAIT condition has been satisfied, remove packet from wait_ptr list.
+;
+ddi3:	cli
+	mov	ax,es:[di].DDP_PTR._OFF
+	mov	[bx]._OFF,ax
+	mov	ax,es:[di].DDP_PTR._SEG
+	mov	[bx]._SEG,ax
+	sti
+	jmp	short ddi7
+
+ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in DS:BX
+	push	es
+	pop	ds
+
+ddi7:	les	di,es:[di].DDP_PTR
+	jmp	ddi1
+
+ddi9:	pop	es
+	pop	ds
+	pop	di
+	pop	dx
+	pop	bx
+	pop	ax
+	stc				; set carry to indicate yield
+	jmp	far ptr DDINT_LEAVE
+ENDPROC	ddclk_interrupt
+
+;
+; The timers are used only by the COM driver (see CLKX), so ddclk_init ends
+; our resident code here instead, if there are no COM ports (see ddclk_init).
+;
+	DEFLBL	clk_timers,near
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; ddclk_timer (CLKX_TIMER)
 ;
 ; Starts (or cancels) a timer for another driver: after CX milliseconds
@@ -631,126 +757,6 @@ ENDPROC	run_timers
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddclk_interrupt (timer hardware interrupt handler)
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	None
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	ddclk_interrupt,far
-	call	far ptr DDINT_ENTER
-	pushf
-	call	[tmr_int]
-	push	ax
-	push	bx
-	push	dx
-	push	di
-	push	ds
-	push	es
-	mov	ds,cs:[0].DDH_DATA
-	ASSUME	DS:CODE
-
-	add	[ticksToday].LW,1
-	adc	[ticksToday].HW,0
-;
-; The maximum ticks per day (1573040) is 0018:00B0.
-;
-	cmp	[ticksToday].HW,18h
-	jb	ddi0a			; no overflow yet
-	ASSERT	Z
-	ja	ddi0			; large overflow (how'd that happen?)
-	cmp	[ticksToday].LW,00B0h
-	jb	ddi0a
-ddi0:	mov	[ticksToday].LW,0
-	mov	[ticksToday].HW,0
-;
-; We use a DOS utility function to increment the date, since DOS already
-; contains the required calendar data to properly increment a date (ie, it
-; is not a device-specific operation).
-;
-	mov	cx,[dateYear]
-	mov	dx,word ptr [dateDay]
-	DOSUTIL	INCDATE
-	mov	[dateYear],cx
-	mov	word ptr [dateDay],dx
-
-ddi0a:	cmp	[sndTicks],0		; is a sound playing?
-	je	ddi0b			; no
-	dec	[sndTicks]		; yes, has it ended?
-	jnz	ddi0b			; no
-	in	al,61h
-	and	al,0FCh
-	out	61h,al			; yes, turn the speaker off
-ddi0b:	call	run_timers
-	mov	bx,offset wait_ptr	; DS:BX -> ptr
-	les	di,[bx]			; ES:DI -> packet, if any
-	ASSUME	ES:NOTHING
-	sti
-
-ddi1:	cmp	di,-1			; end of chain?
-	je	ddi9			; yes
-
-	ASSERT	STRUCT,es:[di],DDP
-;
-; We wait for the double-word decrement to underflow (ie, to go from 0 to -1)
-; since that's the simplest to detect.  And while you might think that means we
-; always wait 1 tick longer than requested -- well, sort of.  We have no idea
-; how much time elapsed between the request's arrival and the first tick; that
-; time could be almost zero, so think of the tick count as "full" ticks.
-;
-	sub	es:[di].DDPRW_LBA,1
-	sbb	es:[di].DDPRW_LENGTH,0
-	jae	ddi6			; keep waiting
-;
-; Notify DOS that the SCB associated with this packet is done waiting.
-;
-ddi2:	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	mov	ah,DOS_UTL_ENDWAIT
-	call	far ptr DDINT_UTIL	; end the wait on DX:DI (see int_util)
-	jnc	ddi3
-;
-; If ENDWAIT returns an error, we presume that we simply got ahead of the
-; WAIT call, so rewind the count to zero and leave the packet on the list.
-;
-	mov	es:[di].DDPRW_LBA,0
-	mov	es:[di].DDPRW_LENGTH,0
-	jmp	short ddi6
-;
-; WAIT condition has been satisfied, remove packet from wait_ptr list.
-;
-ddi3:	cli
-	mov	ax,es:[di].DDP_PTR._OFF
-	mov	[bx]._OFF,ax
-	mov	ax,es:[di].DDP_PTR._SEG
-	mov	[bx]._SEG,ax
-	sti
-	jmp	short ddi7
-
-ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in DS:BX
-	push	es
-	pop	ds
-
-ddi7:	les	di,es:[di].DDP_PTR
-	jmp	ddi1
-
-ddi9:	pop	es
-	pop	ds
-	pop	di
-	pop	dx
-	pop	bx
-	pop	ax
-	stc				; set carry to indicate yield
-	jmp	far ptr DDINT_LEAVE
-ENDPROC	ddclk_interrupt
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; Driver initialization
 ;
 ; Inputs:
@@ -767,6 +773,33 @@ DEFPROC	ddclk_init,far
 	mov	ds,cs:[0].DDH_DATA
 	ASSUME	DS:CODE
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddclk_req
+;
+; Only the COM driver uses our timers (see CLKX), so without it (eg, with no
+; COM ports, or at 64K, none that CONFIG.SYS names; see chk_skip), the
+; resident code ends at clk_timers instead, and the interrupt handler's call
+; to run_timers becomes a jump over it (JMP $+3, written through DDH_DATA).
+; The drivers before us are in DD_LIST, and COM1 is the first COM driver.
+;
+	push	es
+	mov	ax,BIOS
+	mov	es,ax
+	ASSUME	ES:BIOS
+	lea	di,[DD_LIST]		; ES:DI -> the first link
+	ASSUME	ES:NOTHING
+ci0:	cmp	es:[di].DDH_NEXT_OFF,-1	; end of the list (carry clear)?
+	je	ci0a			; yes
+	les	di,es:[di]
+	mov	es,es:[di].DDH_DATA	; ES:DI -> next driver
+	cmp	word ptr es:[di].DDH_NAME,'OC'
+	jne	ci0
+	cmp	word ptr es:[di].DDH_NAME+2,'1M'
+	jne	ci0
+	stc				; COM1 is loaded
+ci0a:	pop	es
+	jc	ci0b
+	mov	es:[bx].DDPI_END._OFF,offset clk_timers
+	mov	word ptr [clk_runtmrs-3],01EBh
+ci0b:
 ;
 ; Start with the BIOS time of day (which an AT-class BIOS sets from its
 ; real-time clock) and the real-time clock's date, if any.  A PC or XT BIOS
@@ -787,13 +820,13 @@ DEFPROC	ddclk_init,far
 	mov	es,ax
 	ASSUME	ES:BIOS
 	cmp	byte ptr [BOOT_KEY],'A'	; a letter at the boot message?
-	jae	ci0			; yes, so ignore any saved values
+	jae	ci1			; yes, so ignore any saved values
 	mov	al,INT_CLKDATA
 	call	far ptr DDINT_GETVEC	; DX:CX = signature
 	cmp	cx,CLK_SIG1		; did PCjs save a date and time?
-	jne	ci0			; no
+	jne	ci1			; no
 	cmp	dx,CLK_SIG2
-	jne	ci0			; no
+	jne	ci1			; no
 	inc	ax
 	call	far ptr DDINT_GETVEC	; CX = day and month, DX = year
 	mov	bp,cx
@@ -814,17 +847,17 @@ DEFPROC	ddclk_init,far
 ; before DOS is loaded.
 ;
 	cmp	bx,18h			; within 10 seconds of midnight?
-	jae	ci0			; yes
+	jae	ci1			; yes
 	mov	[ticksToday].LW,si
 	mov	[ticksToday].HW,bx
 	mov	word ptr [dateDay],bp
 	mov	[dateYear],di
-	jmp	short ci0a
+	jmp	short ci1a
 
-ci0:	mov	ah,TIME_GETDATE
+ci1:	mov	ah,TIME_GETDATE
 	sub	cx,cx
 	int	INT_TIME		; CX = century/year, DX = month/day
-	jcxz	ci1			; no real-time clock date
+	jcxz	ci2			; no real-time clock date
 	mov	al,cl
 	call	bcd_bin			; AX = year within century
 	xchg	ax,cx			; CX = that year, AH = century (BCD)
@@ -840,8 +873,8 @@ ci0:	mov	ah,TIME_GETDATE
 	mov	al,dl
 	call	bcd_bin
 	mov	[dateDay],al
-ci0a:	inc	[dateRTC]		; (see IOCTL_CLOCK)
-ci1:	ASSUME	ES:NOTHING
+ci1a:	inc	[dateRTC]		; (see IOCTL_CLOCK)
+ci2:	ASSUME	ES:NOTHING
 ;
 ; Install an INT 08h hardware interrupt handler, which we will use to service
 ; WAIT requests, and which will also drive the DOS scheduler as soon as DOS has

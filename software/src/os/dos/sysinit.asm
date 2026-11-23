@@ -282,7 +282,9 @@ si3c:	pop	ax
 ;
 ; The first resident table (scb_table) contains our Session Control Blocks.
 ; Look for a "SESSIONS=" line in CFG_FILE; without one, the default depends on
-; the number of consoles (see def_sessions).
+; the number of consoles (see def_sessions).  With 64K or less, the default is
+; also the limit, since more sessions would only take memory that a BASIC
+; program could use.
 ;
 si5:	mov	si,offset CFG_SESSIONS
 	call	find_cfg		; look for "SESSIONS="
@@ -294,6 +296,13 @@ si5x:	xchg	si,di
 	pop	es
 	mov	bl,10			; BL = base 10
 	DOSUTIL	ATOI16			; DS:SI -> string, ES:DI -> validation
+	cmp	[mem_size],64		; 64K or less?
+	ja	si5a			; no
+	xchg	dx,ax			; DX = setting
+	call	def_sessions		; AX = default
+	cmp	ax,dx			; is the setting smaller?
+	jbe	si5a			; no
+	xchg	ax,dx			; yes, so use it
 si5a:	mov	[cfg_counts+4],ax	; AX = new value (for SYSINFO)
 	mov	dx,size SCB
 	mov	bx,offset scb_table
@@ -520,12 +529,16 @@ si7a:	mov	[cfg_counts+2],ax	; AX = new value (for SYSINFO)
 	call	find_cfg		; look for "BUFFERS="
 	jnc	sb0
 ;
-; Without a "BUFFERS=" line, AX is the default, unless memory is limited (128K
-; or less, as for FILES), where 3 is a better default.
+; Without a "BUFFERS=" line, AX is the default, unless memory is limited, as
+; for FILES: 128K or less gets 3, and 64K or less gets just the two in low
+; memory (each buffer at 64K is memory a BASIC program could use).
 ;
 	cmp	[mem_size],128		; 128K or less?
 	ja	sb1			; no
 	mov	al,3			; yes (AH is already zero)
+	cmp	[mem_size],64		; 64K or less?
+	ja	sb1			; no
+	mov	al,2			; yes
 	jmp	short sb1
 sb0:	xchg	si,di
 	push	cs

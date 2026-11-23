@@ -146,9 +146,12 @@ ci4:	mov	bx,ds:[PSP_HEAP]
 ; code generator uses for all floating-point operations; each copy keeps its
 ; own pointer, in its PSP (PSP_FPUTBL), since shared code can't be written.
 ; If there's no FPU$ driver, PSP_FPUTBL remains zero, which also disables
-; doubles (see getNextToken and genExpr).
+; doubles (see getNextToken and genExpr), and so does loading only the core,
+; which leaves out the generators that doubles need (see gendbl.asm).
 ;
 	push	bx
+	cmp	word ptr ss:[PSP_CODESIZE],offset DGROUP:CORE_INIT
+	jbe	ci5			; only the core was loaded
 	mov	dx,offset FPU_NAME	; DS:DX -> FPU_NAME (DS = CS)
 	mov	ax,DOS_HDL_OPENRO
 	int	21h

@@ -200,6 +200,8 @@ On a machine with too little memory for all of COMMAND.COM (eg, 64K), BASIC-DOS 
 - The DOS statement and function
 - CHAIN, MERGE, RUN *file*, and RUN in a program
 - LOAD of tokenized BAS files (eg, those saved by BASICA or GW-BASIC)
+- LIST VARS
+- Floating-point: constants like 1.5, and the functions ABS, ATN, COS, EXP, FIX, INT, LOG, SIN, SQR, and TAN (all numbers are 32-bit integers)
 
 Everything else, including INPUT and LINE INPUT from the keyboard and WRITE to the screen, is still available.  `HELP CORE` lists the same keywords (HELP.TXT marks each one with a "+" after its category tag).
 

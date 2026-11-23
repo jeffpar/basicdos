@@ -182,13 +182,15 @@ sl5:	mov	[bx].SCB_STACK._OFF,ax	; DX:AX == initial stack
 ;
 ; Undo init_scb's handle references, preserving the original load error.
 ; Sysinit's handles already belonged to the session and were not incremented.
+; The session's I/O isn't ended (see scb_endio), since a pipe would then tell
+; its other end that we're done with it, before our caller can try the load
+; again (eg, cmdFile, after freeing memory).
 ;
 sl6:	push	ax
 	push	bx
 	inc	cx			; was ENVSEG -1 (from sysinit)?
 	jz	sl6a			; yes, leave its handles alone
-	mov	cl,[bx].SCB_NUM
-	call	scb_close
+	call	scb_closeh
 sl6a:	pop	bx
 	pop	ax
 	stc
@@ -425,7 +427,8 @@ ENDPROC	scb_close
 ;
 ; Since this I/O can switch sessions, psp_term calls this before it frees the
 ; memory (and stack) of a session's last program; when scb_close calls it
-; again, the handles are already closed, so it does nothing.
+; again, the handles are already closed, so it does nothing.  scb_closeh only
+; closes the handles (see scb_load).
 ;
 ; Inputs:
 ;	BX -> SCB
@@ -448,6 +451,7 @@ DEFPROC	scb_endio,DOS
 	mov	bl,[bx].SCB_SFHOUT
 	call	end_io
 	pop	bx
+	DEFLBL	scb_closeh,near
 	mov	cx,5			; close this session's system handles
 	push	bx
 	lea	si,[bx].SCB_SFHIN

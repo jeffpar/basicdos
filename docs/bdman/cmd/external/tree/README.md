@@ -16,7 +16,7 @@ Displays the directories below *path* (or the current directory), each one conne
 If there are no subdirectories, TREE displays `No subdirectories exist`.
 
 	TREE C:\ /A
-	Directory PATH listing for Volume BD-10MB
+	Directory PATH listing for Volume BD-20MB
 	C:\
 	+---EXT
 	|   +---BAS

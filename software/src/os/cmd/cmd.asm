@@ -1123,8 +1123,6 @@ CMD_SWITCHES	label	byte
 	dw	NOT ((1 SHL ('D'-'A')) OR (1 SHL ('P'-'A'))),0FFFFh
 	db	7			; KILL /A
 	dw	NOT (1 SHL ('A'-'A')),0FFFFh
-	db	5			; MEM /A
-	dw	NOT (1 SHL ('A'-'A')),0FFFFh
 	db	20			; COPY /B
 	dw	NOT (1 SHL ('B'-'A')),0FFFFh
 	db	TOK_START		; START /B

@@ -614,10 +614,12 @@ ENDPROC	genCommands
 ; genFuncExpr makes it before calling a predefined function, and LOAD makes
 ; it before calling loadTokens (see edit.asm), so this is for keywords whose
 ; generator chooses between a core function and an upper one (eg, genLine;
-; see gencon.asm), and for cmdDOS, which calls every built-in command's
-; handler through here (eg, cmdAuto).  To move more functionality out of the
-; core, link its modules after INIT.OBJ, and make sure nothing in the core
-; calls them except through one of these checks.
+; see gencon.asm), for cmdDOS, which calls every built-in command's handler
+; through here (eg, cmdAuto), for LIST VARS (listVars), and for the double
+; generators that genfpu.asm passes along to gendbl.asm.  It uses SS, since
+; DS may not be ours while generating code.  To move more functionality out
+; of the core, link its modules after INIT.OBJ, and make sure nothing in the
+; core calls them except through one of these checks.
 ;
 ; Inputs:
 ;	DX = address of the generator (or command handler)
@@ -630,7 +632,7 @@ ENDPROC	genCommands
 ;	Whatever the generator modifies
 ;
 DEFPROC	genUpper
-	cmp	dx,ds:[PSP_CODESIZE]	; is the generator loaded?
+	cmp	dx,ss:[PSP_CODESIZE]	; is the generator loaded?
 	jb	gu9			; yes
 	jmp	memError		; no (which sets carry)
 gu9:	jmp	dx

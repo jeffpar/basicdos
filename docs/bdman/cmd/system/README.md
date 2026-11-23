@@ -67,7 +67,7 @@ Exits the command shell (see [COMMAND.COM](../external/command/)), returning to 
 
 Lists all lines of the currently loaded BAS or BAT program, or the specified range of lines (eg, `LIST 100`, `LIST 100-200`, `LIST 100-`, or `LIST -200`).  Lines without line numbers are listed with the numbered line that precedes them.  Each line is listed as [SAVE](../disk/#save) writes it (a line number is followed by one space), so the listing lines up the same way as the saved file does with [TYPE](../disk/#type) (eg, a line indented with a tab starts at the next tab stop).
 
-`LIST VARS` lists preserved string variables such as `PATH$` first, followed by the current session's ordinary variables and their values in allocation order.  Names include `%`, `#`, or `$` to identify their types, and string values are quoted.  Arrays show each dimension's lower and upper bounds (eg, `A%(0 TO 2, 0 TO 3)`), without listing their elements.  Function definitions are omitted.  The listing can be redirected (eg, `LIST VARS > VARS.TXT` at the prompt) or paged with `LIST VARS | MORE`.
+`LIST VARS` lists preserved string variables such as `PATH$` first, followed by the current session's ordinary variables and their values in allocation order.  Names include `%`, `#`, or `$` to identify their types, and string values are quoted.  Arrays show each dimension's lower and upper bounds (eg, `A%(0 TO 2, 0 TO 3)`), without listing their elements.  Function definitions are omitted.  The listing can be redirected (eg, `LIST VARS > VARS.TXT` at the prompt) or paged with `LIST VARS | MORE`.  When BASIC-DOS loads only COMMAND.COM's core (see [Low Memory](../../lang/#low-memory)), LIST VARS displays `Not enough memory`.
 
 ### LLIST
 
@@ -77,11 +77,11 @@ Lists all lines (or the specified range of lines) like [LIST](#list), but to the
 
 ### MEM
 
-> MEM [/A]
+> MEM
 
 Displays the total memory ("bytes total") and the memory available for running external programs ("bytes available").
 
-With /A, MEM first displays the number of disk buffers, files, and sessions that BASIC-DOS set aside (see [BUFFERS](../../cfg/#buffers), [FILES](../../cfg/#files), and [SESSIONS](../../cfg/#sessions)), and after the available memory, the memory available for BASIC programs ("bytes for BASIC") when that's less.  The difference between the two is the transient portion of COMMAND.COM, which is set aside while an external program runs, but which BASIC programs need (it compiles and runs them), and which stays in memory while the programs of a pipeline are loaded (see [Memory Usage](../external/command/#memory-usage)).  When more than one session is running, every session shares the same COMMAND.COM code, so the transient portion can't be set aside (nor can it in protected mode, unless CONFIG.SYS has `RING=0`), and MEM omits the "bytes for BASIC" line, since the available memory is the same for both.
+The available memory includes the transient portion of COMMAND.COM, which is set aside while an external program runs, but which BASIC programs need (it compiles and runs them), and which stays in memory while the programs of a pipeline are loaded (see [Memory Usage](../external/command/#memory-usage)), so BASIC programs have that much less.  When more than one session is running, every session shares the same COMMAND.COM code, so the transient portion can't be set aside (nor can it in protected mode, unless CONFIG.SYS has `RING=0`).
 
 A line follows for anything that's unavailable: `Floating-point disabled` when the FPU$ driver was skipped or couldn't be loaded, and `Core features only (see HELP CORE)` when there wasn't enough memory for all of COMMAND.COM (see [Low Memory](../../lang/#low-memory) for what's left out).
 
@@ -90,13 +90,6 @@ To see every device driver and memory block, use the DM command of [DEBUG.COM](.
 	MEM
 	  262144 bytes total
 	  208080 bytes available
-	MEM /A
-	       4 buffers
-	      20 files
-	       3 sessions
-	  262144 bytes total
-	  208080 bytes available
-	  163568 bytes for BASIC
 
 ### NEW
 

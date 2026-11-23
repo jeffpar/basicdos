@@ -22,7 +22,7 @@
 DOS	segment word public 'CODE'
 
 	EXTWORD	<dos_data>
-	EXTNEAR	<get_psp,scb_release>
+	EXTNEAR	<get_psp,scb_release,bas_name>
 
 	EXTBYTE	<scb_locked,load_user,prog_user>
 
@@ -397,6 +397,7 @@ ms3:	call	mem_pmb			; get PMB # BX
 	push	bx			; yes, so save its PMB #
 ms4:	inc	bx
 	jmp	ms3
+	DEFLBL	ms_done,near		; (see bas_name)
 ms9:	UNLOCK_SCB_RET
 ms5:	pop	bx			; BX = the PSP's PMB #
 	call	mem_pmb			; get its PMB again
@@ -439,23 +440,15 @@ ms5c:
 	sub	bx,bx			; BX = offset in the caller's buffer
 	call	put_name
 ;
-; With REG_AL = 1, the caller's buffer has room for the name of the BASIC
-; program that the session's program is running, if any (see PSP_BASIC).
+; bas_name adds the name of the BASIC program that the session's program is
+; running, if any, except on a machine with 64K or less, which doesn't keep
+; bas_name (set_fault makes the jump fall through, and the name stays zero).
 ;
-	cmp	byte ptr [bp].REG_AL,1
-	jne	ms6
-	mov	ax,PSP_BASIC
-	mov	cx,PSP_FCB1 + 9 - PSP_BASIC
-	call	read_psp		; DS:SI -> PSP_BASIC through its name
-	jc	ms9
-	cmp	byte ptr [si],0		; is it running a BASIC program?
-	je	ms6			; no
-	add	si,PSP_FCB1 + 1 - PSP_BASIC
-	mov	bx,8
-	call	put_name
+	jmp	bas_name
 ;
 ; Read the PSP's PSP_PARENT, to go on to the parent's blocks.
 ;
+	DEFLBL	ms_parent,near		; (see bas_name)
 ms6:	mov	ax,PSP_PARENT
 	mov	cx,2
 	call	read_psp

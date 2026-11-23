@@ -4,7 +4,7 @@
 	REM hard disk with FINAL binaries; CLEAN deletes the programs, and any
 	REM files that a failed build left, for a clean build).
 	REM Builds the SDK programs (MEM32.EXE, FIND16.EXE, and FIND32.EXE) on
-	REM BASIC-DOS (in SRC\SDK on BASICDOS-10MB), in protected mode, with
+	REM BASIC-DOS (in SRC\SDK on BASICDOS-20MB), in protected mode, with
 	REM TOOLS\BIN in PATH$.
 	REM NOTE: MAKE can't tell when the mode changes, so use CLEAN to
 	REM rebuild everything in a new mode.  ERRORLEVEL is 1 if MK fails.

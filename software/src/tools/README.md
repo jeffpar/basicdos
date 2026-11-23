@@ -9,17 +9,20 @@
 | [dos](dos/) | TOOLS\\BIN | The original tools, unmodified |
 | [dos/include](dos/include/) | TOOLS\\INCLUDE | The C compiler's include files |
 | [dos/lib](dos/lib/) | | The C compiler's libraries, unmodified |
-| [os2](os2/) | TOOLS\\BIN | The Microsoft 386 C Compiler (CL386 and its passes) and LINK386, unmodified |
+| [os2](os2/) | TOOLS\\BIN | The Microsoft 386 C Compiler (CL386 and its passes) and LINK386, and MASM386, unmodified |
+| [os2/include](os2/include/) | TOOLS\\INCLUDE\\386 | The 386 C compiler's include files |
+| [os2/lib](os2/lib/) | TOOLS\\LIB\\386 | The 386 C compiler's library (LIBC.LIB), unmodified |
 | [bd](bd/) | TOOLS\\BIN | BASIC-DOS versions of the tools, and STUB.EXE |
 | [bd/lib](bd/lib/) | TOOLS\\LIB | BASIC-DOS versions of the libraries (and LIBH.LIB from dos/lib) |
-| [bd/crt](bd/crt/) | TOOLS\\CRT | The startup code for C programs (`bdcrt0.asm`) |
+| [bd/lib/386](bd/lib/386/) | TOOLS\\LIB\\386 | The startup code for 32-bit C programs (BDCRT386.OBJ) |
+| [bd/crt](bd/crt/) | TOOLS\\CRT | The startup code for C programs (`bdcrt0.asm`, and `bdcrt386.asm` for 32-bit programs) |
 | [bd/fp](bd/fp/) | TOOLS\\FP | Floating point for C programs (`bdfp.asm`, `bdmath.c`), and a test (`fptest.c`) |
 | [bd/stub](bd/stub/) | TOOLS\\STUB | The NE loader stub (`nestub.asm`, `NESTUB.BIN`) and STUB.EXE's source |
 | [bd/bdc](bd/bdc/) | TOOLS\\BDC | The source of BDC.EXE, the BASIC-DOS C compiler (see [BDC](#bdc)) |
-| [bd/demos/hello](bd/demos/hello/) | TOOLS\\DEMOS\\HELLO | A C sample, with a makefile that explains each step |
-| [bd/demos/sucks](bd/demos/sucks/) | TOOLS\\DEMOS\\SUCKS | Two C programs from 1993 that play Ataxx (see its [README](bd/demos/sucks/README.md)), one makefile builds both with Microsoft C 4.00, and another (`MAKE BDC`) with BDC |
+| [bd/demos/hello](bd/demos/hello/) | TOOLS\\DEMOS\\HELLO | A C sample, with a makefile that explains each step (and `MAKE386`, which builds it with the 386 C compiler) |
+| [bd/demos/sucks](bd/demos/sucks/) | TOOLS\\DEMOS\\SUCKS | Two C programs from 1993 that play Ataxx (see its [README](bd/demos/sucks/README.md)), one makefile builds both with Microsoft C 4.00, another (`MAKE MAKEBDC`) with BDC, and a third (`MAKE MAKE386`) with the 386 C compiler |
 
-The hard disk's **TOOLS\\BIN** gets the files in `dos` and `os2`, overlaid with those in `bd`, and **TOOLS\\LIB** gets `dos/lib`, overlaid with `bd/lib` (see [gulpfile.js](../../../gulpfile.js)); `mk.sh` gets the same result by searching `bd` before `dos`.
+The hard disk's **TOOLS\\BIN** gets the files in `dos` and `os2`, overlaid with those in `bd`, **TOOLS\\LIB** gets `dos/lib`, overlaid with `bd/lib`, and **TOOLS\\LIB\\386** gets `os2/lib` and `bd/lib/386` (see [gulpfile.js](../../../gulpfile.js)); `mk.sh` gets the same result by searching `bd` before `dos`.
 
 ### Protected-Mode Tools
 
@@ -43,7 +46,16 @@ The compiler comes from the Microsoft OS/2 2.00 SDK (Pre-Release 2, June 1990); 
 
 CL386 (in `os2`) and its passes are 16-bit OS/2 programs, like LINK386, and protected-mode BASIC-DOS runs them the same way: as NE programs that import OS/2's functions from the libraries in EXT\\DLL.  C2_386 and C3_386 run unmodified.  CL386 and C1_386 each import one function (NLS's DosGetDBCSEv) by name, which the NE loader doesn't support, so their versions in `bd` import it by ordinal instead; [tools/misc/os2bd.js](../../../tools/misc/os2bd.js) makes them (`node tools/misc/os2bd.js software/src/tools/os2/CL386.EXE software/src/tools/bd/CL386.EXE`, and likewise for C1_386.EXE), changing only those relocation records.  Running the compiler took a few more DOSCALLS functions, an environment for the programs that DosExecPgm runs (CL386 passes each pass its options in `MSC_CMD_FLAGS`, and finds the passes through `PATH`, which BASIC-DOS's environment has), and a loader that accepts a "bound" OS/2 program and skips its floating-point (operating system) fixups; see the technical reference.
 
-The compiler's library is for OS/2 2.0, so 32-bit C programs for BASIC-DOS are compiled with `/Zl` (and `/Gs`, since there's no stack probe) and linked with their own startup code and functions.  [FIND32](../os/sdk/) in the SDK folder is the example: `find32.c`, with `crt32.asm` (the startup code, which calls `main(argc, argv)`, and a few functions that make DOS calls) and `crt32.h`, built by the SDK makefile on a BASIC-DOS hard disk.  The result is an LE program, which needs an 80386, although the compiler itself runs on an 80286.
+The compiler's include files ([os2/include](os2/include/)) and library ([os2/lib](os2/lib/)'s LIBC.LIB) come from the kit's third LANG diskette, unmodified.  The library is for OS/2 2.0: its startup module (crt0) expects OS/2's entry state, and its other modules call eight OS/2 2.0 functions (DOS32READ, DOS32WRITE, DOS32SETFILEPTR, DOS32QUERYHTYPE, DOS32ALLOCMEM, DOS32SETMEM, DOS32FREEMEM, and DOS32EXIT) for stdio, the heap, and exiting.  [bdcrt386.asm](bd/crt/bdcrt386.asm) replaces crt0 and provides those functions as DOS calls (and getch, which the library lacks), so a program is linked with BDCRT386.OBJ first, then its own object files, and then the unmodified library:
+
+    CL386 /c /I\TOOLS\INCLUDE\386 HELLO.C
+    LINK386 /NOE \TOOLS\LIB\386\BDCRT386 HELLO,HELLOC,NUL,\TOOLS\LIB\386\,HELLOC.DEF;
+
+`/NOE` keeps LINK386 from loading the library's crt0 anyway (the extended dictionary lists it with the modules that refer to its data).  The startup code makes an OS/2-style environment block (the environment strings, then the program's name, which is "C", and the command tail) for the library's argv and environ code, and gives out the program's memory from its end, which is the only place that it can grow (DOS_MEM_ALLOC adds to it): the heap reserves regions and commits them a piece at a time, so it gets 64K regions instead of the library's 4Mb ones, since memory given out after a region (eg, the heap's own descriptors) needs the whole region to be there first.  A program that calls a library function needing any other OS/2 function (eg, fopen) gets unresolved externals from LINK386.  The demos' `MAKE386` makefiles build them this way (HELLOC.EXE, SUCKS1C.EXE, and SUCKS2C.EXE), and BDCRT386.OBJ was assembled with `MASM5 /MX BDCRT386.ASM,BDCRT386.OBJ,NUL;`.
+
+`os2` also has the kit's assembler, MASM386.EXE (Macro Assembler 5.10A.15, 125,156 bytes, 06-01-90, from the first LANG diskette's BIN folder), which is in **TOOLS\\BIN** too, although MASM5 does everything it does (it has no `.MODEL FLAT` either), in either mode.  It's an OS/2 1.x program that runs unmodified on BASIC-DOS in protected mode (every DOSCALLS function it imports is in DOSCALLS.DLL), and its object file for `bdcrt386.asm` is byte for byte the same as MASM5's; in real mode, its stub only says that it needs OS/2.
+
+[FIND32](../os/sdk/) in the SDK folder is an example of the other approach, without the library: `find32.c` is compiled with `/Zl` (and `/Gs`, since there's no stack probe) and linked with `crt32.asm` (startup code, which calls `main(argc, argv)`, and a few functions that make DOS calls) and `crt32.h`, built by the SDK makefile on a BASIC-DOS hard disk.  Either way, the result is an LE program, which needs an 80386, although the compiler itself runs on an 80286.
 
 ### C Programs
 
@@ -74,7 +86,7 @@ Limitations: the heap can't grow beyond the DEF file's sizes (the library's code
 
 ### BDC
 
-BDC.EXE is a small, fast, single-pass C compiler written for BASIC-DOS.  Microsoft C runs four programs for every source file (CL, C1, C2, and C3), which pass intermediate files to each other; BDC is one 53K program that reads a source file and writes its object file.  On an IBM PC XT, it compiles the two programs in [bd/demos/sucks](bd/demos/sucks/) in 29 seconds, and Microsoft C 4.00 takes about three and a half minutes; with linking, the folder's `bdc` makefile takes 49 seconds, and its Microsoft C makefile four minutes.  Its code is larger and slower than Microsoft C's (those programs' object files are about a third larger), since it does very little optimization.
+BDC.EXE is a small, fast, single-pass C compiler written for BASIC-DOS.  Microsoft C runs four programs for every source file (CL, C1, C2, and C3), which pass intermediate files to each other; BDC is one 53K program that reads a source file and writes its object file.  On an IBM PC XT, it compiles the two programs in [bd/demos/sucks](bd/demos/sucks/) in 29 seconds, and Microsoft C 4.00 takes about three and a half minutes; with linking, the folder's `makebdc` makefile takes 49 seconds, and its Microsoft C makefile four minutes.  Its code is larger and slower than Microsoft C's (those programs' object files are about a third larger), since it does very little optimization.
 
 BDC's object files follow Microsoft C 4.00's small model conventions (the same segments, names, calling sequence, and long arithmetic routines), so a program is linked with the same libraries, in the same way, and can mix object files from both compilers:
 

@@ -1,12 +1,12 @@
 {
-  "name": "COMPAQ DeskPro 386, 1Mb RAM, 80387, 10Mb Hard Disk, VGA",
+  "name": "COMPAQ DeskPro 386, 1Mb RAM, 80387, 20Mb Hard Disk, VGA",
   "defaults": {
     "ram": "1Mb",
     "fpu": "80387",
     "fdc": "1.2Mb and 1.44Mb diskette drives",
     "parallel": "LPT1",
     "serial": "COM1, COM2",
-    "hdc": "10Mb hard disk"
+    "hdc": "20Mb hard disk"
   },
   "machine": {
     "type": "pcx86",
@@ -164,9 +164,9 @@
       "type": "AT",
       "drives": [
         {
-          "name": "BASICDOS-10MB",
-          "type": 1,
-          "path": "/software/disks/2026/BASICDOS-10MB.json"
+          "name": "BASICDOS-20MB",
+          "type": 2,
+          "path": "/software/disks/2026/BASICDOS-20MB.json"
         }
       ],
       "controls": [

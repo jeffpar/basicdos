@@ -73,7 +73,7 @@ run() {
     wait $pid
     tail -c +$((off + 1)) "$log"
 }
-run ibm5160 software/src/configs/console/serial/fpe "VER;MEM /A;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}BUFTESTS;${m}CPUTESTS;$ok;${m}R3TESTS;$ok;${m}DLLTESTS;$ok;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;SLEEP 1;QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync
+run ibm5160 software/src/configs/console/serial/fpe "VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}BUFTESTS;${m}CPUTESTS;$ok;${m}R3TESTS;$ok;${m}DLLTESTS;$ok;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;SLEEP 1;QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync
 run ibm5160 software/src/configs/console/serial/fpu "VER;MEM;${m}FPUTESTS;$ok;${m}VARS;${m}STRFUN;SLEEP 1;QUIT" --fpu --system=bd --version=2 --floppy --serial --normalize --nosync
 run ibm5160 software/src/configs/console/serial/hd "VER;CD TESTS\REGRESS;HARDERR;$abort;IOERR.COM;$ok;SLEEP 1;QUIT" --system=bd --version=2 --target=10M --serial --normalize --nosync
 if grep -q "Assertion failure" "$log" || grep -q "quick.sh: stopped" "$log" ||

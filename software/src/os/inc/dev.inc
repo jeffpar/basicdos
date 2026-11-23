@@ -176,7 +176,8 @@ FDC_BUFSECS	equ	18
 ; The CLOCK$ driver's exports, which immediately follow its DDH, so that other
 ; drivers (which find the CLOCK$ driver with CLOCK_DEVICE) can use its timers
 ; (see ddclk_timer in clkdev.asm), instead of hooking the timer interrupt.
-; Only modules that define CLKTIMER get these definitions.
+; Only the COM driver uses them, so without COM ports, CLOCK$ doesn't keep
+; them.  Only modules that define CLKTIMER get these definitions.
 ;
 	IFDEF	CLKTIMER
 CLKX		struc

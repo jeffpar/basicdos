@@ -37,7 +37,7 @@ When a BAS program ends, its compiled code is kept along with the program, if th
 
 COMMAND.COM has a *resident* portion and a *transient* portion (about 45K).  Before running a COM or EXE program, COMMAND.COM frees any variable blocks it doesn't need and discards its transient portion, leaving more memory for the program.  When the program ends, the transient portion is restored: from a copy that COMMAND.COM saves at the top of free memory, if the program didn't overwrite it, or else by reloading it from COMMAND.COM, in the root directory of the drive it was loaded from (asking for that disk, if it isn't there).
 
-The [MEM](../../system/#mem) command includes the transient portion in its total of available memory.  The programs of a pipeline (eg, `DIR | SORT`) are loaded while COMMAND.COM is still whole, so they have only the smaller amount that `MEM /A` displays as "bytes for BASIC".
+The [MEM](../../system/#mem) command includes the transient portion in its total of available memory.  The programs of a pipeline (eg, `DIR | SORT`) are loaded while COMMAND.COM is still whole, so they have only the memory that BASIC programs have (about 4K on a machine with 64K of memory).
 
 If there isn't enough memory to load a program, COMMAND.COM displays `Not enough memory`.  At the prompt, it first frees all variables, arrays, and user-defined functions (much as [CLEAR](../../basic/#clear) does) and tries again; a loaded program stays loaded, but any values it left behind (or that were set at the prompt) are gone.  That doesn't happen while a BAT or BAS file is running, since it needs its variables.  A program that can't be loaded for any other reason (eg, a file that isn't a program BASIC-DOS can run) is reported as `Unable to load` and its name.
 

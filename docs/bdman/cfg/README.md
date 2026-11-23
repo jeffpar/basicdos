@@ -56,7 +56,7 @@ AUX is opened after any [DEVICE](#device) drivers are loaded, so it can't be a p
 
 > BUFFERS=*n*
 
-Sets the number of disk buffers, each of which holds one 512-byte sector of a FAT, a directory, or a file, so that recently used sectors don't have to be read again.  The default is 8, or 3 with 128K of memory or less, and *n* can range from 2 to 32.  Each buffer beyond the first two uses 528 bytes of memory.  More buffers mainly help systems with multiple sessions (eg, sessions working in different directories).  `BUFFERS=2` saves memory on a 64K machine, but programs that read small amounts from two or more files at once (eg, COMP) become much slower.  For file data, only reads of part of a sector use the buffers; whole sectors and all writes are transferred directly by the disk drivers.
+Sets the number of disk buffers, each of which holds one 512-byte sector of a FAT, a directory, or a file, so that recently used sectors don't have to be read again.  The default is 8, or 3 with 128K of memory or less, or 2 with 64K, and *n* can range from 2 to 32.  Each buffer beyond the first two uses 528 bytes of memory.  More buffers mainly help systems with multiple sessions (eg, sessions working in different directories).  The 64K default of 2 saves memory, but programs that read small amounts from two or more files at once (eg, COMP) become much slower; `BUFFERS=3` avoids that, for another 528 bytes.  For file data, only reads of part of a sector use the buffers; whole sectors and all writes are transferred directly by the disk drivers.
 
 ### CON
 
@@ -185,9 +185,9 @@ A program's interrupt handlers (eg, an INT 21h hook that passes the calls it doe
 
 > SESSIONS=*n*
 
-Sets the maximum number of sessions that can be active at once; *n* can range from 1 to 32.  The default is the number of consoles (the number of [SHELL](#shell) lines, or 1 if there aren't any), plus 4 so that pipelines can have up to 4 filters at once, unless the PIPE$ driver isn't loaded (see [SKIP](#skip)), plus 4 more with more than 256K of memory (eg, for [START](../cmd/system/#start)).  Each session costs only about 80 bytes of the kernel's memory (plus 1K at ring 3), and [MEM](../cmd/system/#mem) displays the number.
+Sets the maximum number of sessions that can be active at once; *n* can range from 1 to 32.  The default is the number of consoles (the number of [SHELL](#shell) lines, or 1 if there aren't any), plus 4 so that pipelines can have up to 4 filters at once (or 1 with 64K of memory), unless the PIPE$ driver isn't loaded (see [SKIP](#skip)), plus 4 more with more than 256K of memory (eg, for [START](../cmd/system/#start)).  Each session costs only about 80 bytes of the kernel's memory (plus 1K at ring 3), and [MEM](../cmd/system/#mem) displays the number.
 
-Sessions are used not only by consoles, but also by [pipes](../intro/#redirection-and-pipes): every command after the first in a pipeline runs in its own session.  So if you set SESSIONS yourself, it should exceed the number of consoles by at least the number of filters you want to run at once.
+Sessions are used not only by consoles, but also by [pipes](../intro/#redirection-and-pipes): every command after the first in a pipeline runs in its own session.  So if you set SESSIONS yourself, it should exceed the number of consoles by at least the number of filters you want to run at once.  With 64K of memory or less, the default is also the limit (eg, `SESSIONS=3` with one console gets 2), since unused sessions would only take memory that BASIC programs could use.
 
 ### SHELL
 
@@ -207,7 +207,7 @@ Everything after the *program* name becomes the program's command tail, which ca
 
 Lists built-in device drivers that should not be loaded, using their exact device names (eg, `SKIP=VKD$,FPU$`); there can be more than one SKIP line.  A skipped driver is never initialized, and its memory is reclaimed.  The CPU$ driver, which manages memory, can't be skipped.
 
-For example, a configuration that uses only serial consoles doesn't need the VKD$ driver, and skipping the FPU$ driver disables floating-point support (so variables default to integers, and `/` and `^` become integer operations).  On a machine with 64K of memory or less, the FPU$ and PIPE$ drivers unload themselves, as if they had been skipped.  Skipping the MOUSE$ driver avoids the time it takes to look for a serial mouse at boot.
+For example, a configuration that uses only serial consoles doesn't need the VKD$ driver, and skipping the FPU$ driver disables floating-point support (so variables default to integers, and `/` and `^` become integer operations).  On a machine with 64K of memory or less, the FPU$ driver unloads itself, as if it had been skipped.  So are the COM and LPT drivers, unless CONFIG.SYS names one of their ports (eg, `CON=COM1:9600,N,8,1`, `AUX=COM1`, or `PRN=LPT1`), since the COM driver alone would leave too little memory for COMMAND.COM; naming any COM port keeps all of them (and likewise for LPT ports).  Skipping the MOUSE$ driver avoids the time it takes to look for a serial mouse at boot.
 
 ### PATHCHAR
 
@@ -237,6 +237,6 @@ This CONFIG.SYS runs a single console on a terminal connected to COM1, without l
 	CON=COM1:9600,N,8,1
 	SHELL=COMMAND.COM AUTOEXEC.BAT
 
-The Terminal Only demo uses a similar configuration on a 64K [IBM PC](/demos/bd/term/pc/) with no video adapter, where a VT100 on COM1 is the only console, and on a 640K [IBM PC XT](/demos/bd/term/xt/), whose shell starts on its 10Mb hard disk.
+The Terminal Only demo uses a similar configuration on a 64K [IBM PC](/demos/bd/term/pc/) with no video adapter, where a VT100 on COM1 is the only console, and on a 640K [IBM PC XT](/demos/bd/term/xt/), whose shell starts on its 20Mb hard disk.
 
 {% include footer.html prev="BASIC-DOS Programming:../lang/" next="Technical Reference:/docs/bdtech/" %}

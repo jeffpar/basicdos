@@ -27,6 +27,7 @@ CODE    SEGMENT
 	EXTNEAR	<allocText,shrinkBlock,freeCache,memError,writeStrCRLF>
 	EXTNEAR	<getToken,getFileName,chkExt,addString,openOutput,findProgram>
 	EXTNEAR	<writeOutput,writeError,openError,noFile,listVars,syntaxMsg>
+	EXTNEAR	<genUpper>
 	EXTNEAR	<freeAllText,openInput,readInput,closeInput,setName>
 	IF DETOK
 	EXTNEAR	<loadTokens>
@@ -300,7 +301,8 @@ DEFPROC	cmdList
 	jmp	usageError
 ls0:	cmp	ax,TOK_VARS
 	jne	ls0b
-	jmp	listVars
+	mov	dx,offset listVars
+	jmp	genUpper		; (listVars isn't in the core)
 ls0b:	jmp	usageError		; (eg, LIST SYSTEM)
 ls1:	mov	al,'-'
 	call	getRange		; AX = 1st line #, DX = last line #

@@ -5,9 +5,10 @@
 #
 # Run "MAKE MAKEFILE" in this folder (TOOLS\DEMOS\SUCKS on a BASIC-DOS hard
 # disk), with TOOLS\BIN in PATH$; see ..\hello\makefile for what the steps do.
-# This makefile uses Microsoft C 4.00; "MAKE BDC" builds the same programs
-# (as SUCKS1B.EXE and SUCKS2B.EXE) with BDC, the BASIC-DOS C compiler, which
-# is several times faster.
+# This makefile uses Microsoft C 4.00; "MAKE MAKEBDC" builds the same
+# programs (as SUCKS1B.EXE and SUCKS2B.EXE) with BDC, the BASIC-DOS C
+# compiler, which is several times faster, and "MAKE MAKE386" builds 32-bit
+# versions (SUCKS1C.EXE and SUCKS2C.EXE) with the Microsoft 386 C Compiler.
 #
 # The C files are the originals, changed only as much as C 4.00 requires:
 # function definitions declare their parameters in the old style, and comments

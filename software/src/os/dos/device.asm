@@ -20,7 +20,7 @@ DOS	segment word public 'CODE'
 
 	EXTWORD	<dos_data>
 	EXTNEAR	<sfb_from_sfh,sfb_read,sfb_write,strlen,upper>
-	EXTNEAR	<scb_release,r3_error,get_scb>
+	EXTNEAR	<scb_release,r3_error,ses_con>
 	EXTWORD	<scb_active>
 	EXTLONG	<err_stack>
 	EXTBYTE	<err_active,scb_locked,prog_user>
@@ -45,7 +45,8 @@ DOS	segment word public 'CODE'
 ;
 ; "@" and a session number (from 1, as START lists them) is the name of that
 ; session's CON (eg, PRINT "Hello" > @2 displays it on session 2's console),
-; for output only (see sfb_open).
+; for output only (see sfb_open), except on a machine with 64K or less (which
+; has only one console), where it's an ordinary name (see ses_con).
 ;
 ; Inputs:
 ;	AH = 10h if DS:SI -> FCB (whose name follows its drive byte)
@@ -109,10 +110,14 @@ cd0d:	inc	di			; skip the 3rd character
 	jnz	cd0c
 
 ;
-; Check for a session's CON (eg, "@2"; see cd10), and then the device list.
+; Check for a session's CON (eg, "@2"; see ses_con, which a machine with 64K
+; or less, and so one console, doesn't keep: set_fault makes the jump fall
+; through), and then the device list.
 ;
 cd0e:	cmp	byte ptr [si],'@'	; a session's CON?
-	je	cd10			; possibly
+	jne	cd0f			; no
+	jmp	ses_con			; possibly
+	DEFLBL	chk_devlist,near
 cd0f:	mov	di,BIOS
 	mov	es,di
 	ASSUME	ES:BIOS
@@ -148,7 +153,8 @@ cd3:	pop	di
 cd7:	push	bx
 	mov	bx,[scb_active]
 	mov	al,[di+1]		; AL = SCB offset of the SFH
-cd7a:	cbw
+	DEFLBL	chk_devsfh,near		; (see ses_con)
+	cbw
 	add	bx,ax
 	mov	bl,[bx]			; BL = session's SFH for the device
 	call	sfb_from_sfh		; BX -> SFB
@@ -169,6 +175,7 @@ cd7a:	cbw
 	cmp	[bx].SFB_DRIVE,0	; a file (eg, redirected output)?
 	jge	cd7b			; yes
 	sub	cx,cx			; CX = 0 (see sfb_open)
+	DEFLBL	chk_devret,near		; (see ses_con)
 cd7b:	pop	bx
 	clc
 	jmp	short cd9
@@ -178,41 +185,6 @@ cd9:	pop	ds
 	pop	si
 	pop	ax
 	ret
-;
-; The name begins with "@", so if only digits follow, it's a session number
-; (1 or 2 digits, since MAX_SESSIONS is 32), and the name is that session's
-; CON; otherwise, it's an ordinary name (eg, "@X").
-;
-cd10:	push	bx
-	push	si
-	inc	si			; SI -> 1st digit
-	sub	cx,cx			; CL = session #, CH = # of digits
-cd10a:	lodsb
-	sub	al,'0'
-	cmp	al,10			; a digit?
-	jae	cd10b			; no
-	mov	ah,cl
-	aad				; AL = session # * 10 + digit
-	mov	cl,al
-	inc	ch
-	jmp	cd10a
-cd10b:	cmp	al,-'0'			; did the name end after the digits?
-	jne	cd12			; no
-	pop	ax			; (discard the saved SI)
-	cmp	ch,2			; more digits than a session # has?
-	ja	cd11			; yes
-	dec	cl			; CL = SCB #
-	js	cd11			; "@0" (or "@") isn't a session
-	call	get_scb			; BX -> SCB
-	jc	cd11			; there's no such session
-	sub	si,4			; [SI+3] = null (no descriptor; cd7)
-	mov	al,SCB_SFHOUT		; AL = SCB offset of the SFH
-	jmp	short cd7a
-cd11:	mov	cx,-1			; CX = -1 (no such device)
-	jmp	short cd7b
-cd12:	pop	si
-	pop	bx
-	jmp	cd0f
 ENDPROC	chk_devname
 
 DEV_ALIASES	db	"CON",SCB_SFHOUT,"AUX",SCB_SFHAUX,"PRN",SCB_SFHPRN

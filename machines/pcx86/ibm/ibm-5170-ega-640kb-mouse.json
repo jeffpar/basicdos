@@ -1,12 +1,12 @@
 {
-  "name": "IBM PC AT, 640Kb RAM, 10Mb Hard Disk, EGA, Serial Mouse",
+  "name": "IBM PC AT, 640Kb RAM, 20Mb Hard Disk, EGA, Serial Mouse",
   "defaults": {
     "ram": "640K",
     "fpu": "None",
     "fdc": "2 1.2Mb diskette drives",
     "parallel": "LPT1",
     "serial": "COM1, COM2 (serial mouse)",
-    "hdc": "10Mb hard disk"
+    "hdc": "20Mb hard disk"
   },
   "machine": {
     "type": "pcx86",
@@ -168,9 +168,9 @@
       "type": "AT",
       "drives": [
         {
-          "name": "BASICDOS-10MB",
-          "type": 1,
-          "path": "/software/disks/2026/BASICDOS-10MB.json"
+          "name": "BASICDOS-20MB",
+          "type": 2,
+          "path": "/software/disks/2026/BASICDOS-20MB.json"
         }
       ],
       "controls": [

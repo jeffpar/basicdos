@@ -1,5 +1,5 @@
 {
-  "name": "COMPAQ DeskPro 386, 2Mb RAM, 10Mb Hard Disk, VGA, Sound Blaster",
+  "name": "COMPAQ DeskPro 386, 2Mb RAM, 20Mb Hard Disk, VGA, Sound Blaster",
   "defaults": {
     "ram": "2Mb",
     "fpu": "None",
@@ -7,7 +7,7 @@
     "parallel": "LPT1",
     "serial": "COM1, COM2",
     "sound": "Sound Blaster 2.0",
-    "hdc": "10Mb hard disk"
+    "hdc": "20Mb hard disk"
   },
   "machine": {
     "type": "pcx86",
@@ -173,9 +173,9 @@
       "type": "AT",
       "drives": [
         {
-          "name": "BASICDOS-10MB",
-          "type": 1,
-          "path": "/software/disks/2026/BASICDOS-10MB.json"
+          "name": "BASICDOS-20MB",
+          "type": 2,
+          "path": "/software/disks/2026/BASICDOS-20MB.json"
         }
       ],
       "controls": [

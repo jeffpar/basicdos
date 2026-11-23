@@ -20,7 +20,7 @@ machines:
       A: "BASIC-DOS HD VT100"
 ---
 
-The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of memory, an Enhanced Color Display, a 1.2Mb and a 1.44Mb diskette drive, and a 10Mb hard disk.  It boots the BASIC-DOS HD VT100 diskette and runs two independent consoles: an 80x25 console on the Enhanced Color Display, and a console on a DEC VT100 terminal connected to COM1.  Unlike the PC and PC XT, the PC AT has a battery-powered real-time clock, so BASIC-DOS starts with the current date and time (type `DATE` or `TIME` to see them).
+The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of memory, an Enhanced Color Display, a 1.2Mb and a 1.44Mb diskette drive, and a 20Mb hard disk.  It boots the BASIC-DOS HD VT100 diskette and runs two independent consoles: an 80x25 console on the Enhanced Color Display, and a console on a DEC VT100 terminal connected to COM1.  Unlike the PC and PC XT, the PC AT has a battery-powered real-time clock, so BASIC-DOS starts with the current date and time (type `DATE` or `TIME` to see them).
 
 {% include vt100-demo.html id="ibm5170" %}
 
@@ -30,7 +30,7 @@ The VT100 has DEC's Advanced Video Option (AVO), which gives it bold, blinking, 
 
 Additional hardware options:
 
-- [10Mb Hard Disk (VT100 Console) on IBM PC XT](../xt/)
-- [10Mb Hard Disk (VT100 Console) on COMPAQ DeskPro 386](../386/)
+- [20Mb Hard Disk (VT100 Console) on IBM PC XT](../xt/)
+- [20Mb Hard Disk (VT100 Console) on COMPAQ DeskPro 386](../386/)
 
 {% include_relative _overview.md hw="at" %}

@@ -1,4 +1,4 @@
-These machines have no diskettes loaded; instead, they boot BASIC-DOS from a 10Mb hard disk (drive C:) and run one full-screen 80x25 console.
+These machines have no diskettes loaded; instead, they boot BASIC-DOS from a 20Mb hard disk (drive C:) and run one full-screen 80x25 console.
 
 The hard disk has the system files and CONFIG.SYS in the root directory, along with these subdirectories:
 
@@ -12,7 +12,7 @@ CONFIG.SYS sets PATH$ to `C:\;C:\EXT\CMD;C:\EXT\BAS;C:\DEMOS;C:\TOOLS\BIN`, so p
 
 Any changes you make to the hard disk are lost when you leave the page, unless you first click **Save HD** to download the hard disk as an IMG file.
 
-### **CONFIG.SYS** from the BASICDOS-10MB Hard Disk
+### **CONFIG.SYS** from the BASICDOS-20MB Hard Disk
 
 ```
 {% include_relative CONFIG.SYS %}
@@ -22,8 +22,8 @@ Any changes you make to the hard disk are lost when you leave the page, unless y
 
 Use the following page parameter to add MSDOS320-C400 as drive D:
 
-    drives: '[{name:"BASICDOS-10MB",type:3,path:"/software/disks/2026/BASICDOS-10MB.json"},{name:"MSDOS320-C400",type:3,path:"/software/disks/historical/dos/MSDOS320-C400.json"}]'
+    drives: '[{name:"BASICDOS-20MB",type:3,path:"/software/disks/2026/BASICDOS-20MB.json"},{name:"MSDOS320-C400",type:3,path:"/software/disks/historical/dos/MSDOS320-C400.json"}]'
 
-(on an IBM PC AT, use drive type 1 for BASICDOS-10MB)
+(on an IBM PC AT or COMPAQ DeskPro 386, use drive type 2 for BASICDOS-20MB)
 
 {% endcomment %}

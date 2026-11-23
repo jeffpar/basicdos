@@ -139,7 +139,8 @@ Microsoft OS/2 2.00 Software Development Kit, Pre-Release 2 (June 1, 1990)
 These files were taken from the kit's first two "SDK LANG" diskettes (their
 BIN folders), except for LINK386, which is from the first "SDK TK" diskette
 (its OS2BIN folder, where it's the compressed file LINK386.EX@, which the
-kit's UNPACK expands):
+kit's UNPACK expands), and the include files and library, which are from the
+third "SDK LANG" diskette:
 
     LINK386  EXE    133102  05-30-90   Linear-Executable Linker 1.01.015
     CL386    EXE     42705  06-01-90   386 C Compiler 1.00.075 (the driver)
@@ -150,6 +151,9 @@ kit's UNPACK expands):
     C2_386   EXE    256985  06-01-90   its second pass (code generator)
     C3_386   EXE    132172  06-01-90   its third pass (optimizer, object file)
     C23_386  ERR      3260  06-01-90   the other passes' error messages
+    MASM386  EXE    125156  06-01-90   Macro Assembler 5.10A.15
+    INCLUDE  <DIR>                     its include files (25, and 5 in SYS)
+    LIBC     LIB    151469  06-01-90   its C library
 
 LINK386 links 32-bit object files into a "linear executable" (LE) file, of
 4K pages and 32-bit fixups, as a paging loader needs.  A definitions file
@@ -174,15 +178,15 @@ registers, and the OS/2 functions that they import are in the libraries in
 EXT\DLL (DOSCALLS.DLL, KBDCALLS.DLL, MSG.DLL, and NLS.DLL; see the BASIC-DOS
 technical reference).
 
-The kit's C library (LIBC.LIB, on the third "SDK LANG" diskette) is for OS/2
-2.0, so it isn't here: a 32-bit C program for BASIC-DOS is compiled without
-it (/Zl) and linked with startup code and functions of its own, which make
-DOS calls.  SDK\FIND32.C in the BASIC-DOS sources is an example, with its
-library in SDK\CRT32.ASM and CRT32.H:
+The include files are in TOOLS\INCLUDE\386 (and its SYS folder), and LIBC.LIB
+is in TOOLS\LIB\386.  The library is for OS/2 2.0: its startup code expects
+OS/2's, and the rest of it calls a few OS/2 2.0 functions, so a program for
+BASIC-DOS is linked with BDCRT386.OBJ (in TOOLS\LIB\386, too) first, which
+replaces the startup code and makes those functions DOS calls (see
+TOOLS\CRT\BDCRT386.ASM, and MAKE386 in TOOLS\DEMOS\HELLO and SUCKS):
 
-    CL386 /c /Gs /Zl FIND32.C
-    MASM5 CRT32.ASM,CRT32.OBJ,NUL;
-    LINK386 CRT32.OBJ FIND32.OBJ,FIND32.EXE,NUL,,FIND32.DEF;
+    CL386 /c /I\TOOLS\INCLUDE\386 PROG.C
+    LINK386 /NOE \TOOLS\LIB\386\BDCRT386 PROG,,NUL,\TOOLS\LIB\386\,PROG.DEF;
 
 The BASIC-DOS repository has images of all 26 of the kit's diskettes, in
 tools/os2/2.0/pr2/disks (MSOS2-2.0-PR2-*.img: the system's INSTALL and
@@ -205,10 +209,12 @@ CL386 and C1_386 in TOOLS\BIN are BASIC-DOS versions, too, with one change:
 each imported an OS/2 function by name, and the BASIC-DOS program loader
 knows a library's functions only by number, so the file names that number
 instead (their banners are unchanged).  C2_386, C3_386, and LINK386 are the
-originals.  All five run on BASIC-DOS in protected mode only, and they
-run on any 80286 or later, although the programs they compile need an 80386.
+originals, as is MASM386, the kit's assembler, which assembles the same
+80386 code as MASM5.  All six run on BASIC-DOS in protected mode only, and
+they run on any 80286 or later, although the programs they build need an
+80386.
 
 BDC.EXE in TOOLS\BIN isn't one of the original tools: it's a small, fast C
 compiler written for BASIC-DOS, with its source in TOOLS\BDC.  Its object
-files link with the Microsoft C libraries, as "MAKE BDC" in
+files link with the Microsoft C libraries, as "MAKE MAKEBDC" in
 TOOLS\DEMOS\SUCKS shows (the makefile there uses Microsoft C).

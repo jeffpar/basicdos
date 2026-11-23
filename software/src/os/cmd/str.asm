@@ -51,7 +51,6 @@ CODE    SEGMENT
 ; into the block, and any string that is referenced is "pinned" (ie, not moved
 ; or freed).  That makes it safe to compact the pool at any time.
 ;
-STR_SLACK	equ	SBLKLEN / 4	; desired free space after compaction
 MAX_PINS	equ	16		; max pinned strings per block
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -60,8 +59,9 @@ MAX_PINS	equ	16		; max pinned strings per block
 ;
 ; Allocates a STR_TEMP string with the given length.  We first look for room
 ; at the end of a block; failing that, we compact the pool, and if that doesn't
-; leave STR_SLACK bytes of room to spare, we allocate a new block (or failing
-; that, settle for any block with enough room).
+; leave a block with a quarter of its size to spare (so that we don't compact
+; again soon), we allocate a new block (or failing that, settle for any block
+; with enough room).
 ;
 ; Inputs:
 ;	CX = length (1-255)
@@ -83,17 +83,19 @@ DEFPROC	allocStr
 	mov	bl,0			; BL = pass #
 al1:	mov	si,ss:[PSP_HEAP]
 	mov	ax,ss:[si].SBLKDEF.BDEF_NEXT
-	mov	cx,dx
-	cmp	bl,1			; pass 1 requires extra room
-	jne	al2
-	add	cx,STR_SLACK
 al2:	test	ax,ax			; end of chain?
 	jz	al4			; yes
 	mov	es,ax
 	mov	ax,es:[BLK_SIZE]
+	mov	cx,ax
 	sub	ax,es:[BLK_FREE]	; AX = room at end of block
-	cmp	ax,cx
-	jae	al6
+	cmp	bl,1			; pass 1 requires extra room
+	jne	al3
+	shr	cx,1
+	shr	cx,1
+	sub	ax,cx			; (a quarter of the block)
+al3:	cmp	ax,dx			; (AX can be negative now)
+	jge	al6
 	mov	ax,es:[BLK_NEXT]
 	jmp	al2
 al4:	inc	bl

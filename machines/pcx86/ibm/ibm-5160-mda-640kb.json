@@ -1,12 +1,12 @@
 {
-  "name": "IBM PC XT, 640Kb RAM, 10Mb Hard Disk, MDA",
+  "name": "IBM PC XT, 640Kb RAM, 20Mb Hard Disk, MDA",
   "defaults": {
     "ram": "640K",
     "fpu": "None",
     "fdc": "2 diskette drives",
     "parallel": "LPT1",
     "serial": "COM1, COM2",
-    "hdc": "10Mb hard disk"
+    "hdc": "20Mb hard disk"
   },
   "machine": {
     "type": "pcx86",
@@ -171,12 +171,12 @@
     {
       "id": "hdcXT",
       "class": "hdc",
-      "type": "XT",
+      "type": "PCJS-XT",
       "drives": [
         {
-          "name": "BASICDOS-10MB",
+          "name": "BASICDOS-20MB",
           "type": 3,
-          "path": "/software/disks/2026/BASICDOS-10MB.json"
+          "path": "/software/disks/2026/BASICDOS-20MB.json"
         }
       ],
       "controls": [

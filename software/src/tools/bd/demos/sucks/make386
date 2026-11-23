@@ -1,0 +1,22 @@
+#
+# Builds SUCKS1C.EXE and SUCKS2C.EXE, which are the programs that the
+# makefile in this folder builds (SUCKS1.EXE and SUCKS2.EXE), but compiled
+# with CL386 (the Microsoft 386 C Compiler) as 32-bit LE programs, which
+# BASIC-DOS runs on an 80386 in protected mode.
+#
+# Run "MAKE MAKE386" in this folder (TOOLS\DEMOS\SUCKS on a BASIC-DOS hard
+# disk), with TOOLS\BIN in PATH$, in protected mode; see ..\hello\make386 for
+# what the steps do.  The files it creates have different names from the
+# makefile's, so all the programs can be built here and compared.
+#
+sucks1c.obj: sucks1.c
+	cl386 /c /I..\..\include\386 /Fosucks1c.obj sucks1.c
+
+sucks1c.exe: sucks1c.obj sucks1c.def
+	link386 /NOE ..\..\lib\386\bdcrt386 sucks1c,sucks1c,nul,..\..\lib\386\,sucks1c.def
+
+sucks2c.obj: sucks2.c
+	cl386 /c /I..\..\include\386 /Fosucks2c.obj sucks2.c
+
+sucks2c.exe: sucks2c.obj sucks2c.def
+	link386 /NOE ..\..\lib\386\bdcrt386 sucks2c,sucks2c,nul,..\..\lib\386\,sucks2c.def

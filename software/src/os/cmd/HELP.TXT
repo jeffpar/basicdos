@@ -296,7 +296,7 @@ Links object modules into a segmented NE executable, in real or protected mode (
 
 [b]LIST [*line*][-[*line*]] or LIST VARS
 Lists all lines (or the specified range of lines) of the currently loaded BAS or BAT program, as SAVE would write them.
-LIST VARS lists the variables and their values.  Use LIST VARS | MORE to page the listing.
+LIST VARS lists the variables and their values (unless only core features are loaded; see HELP CORE).  Use LIST VARS | MORE to page the listing.
 To add a line to the program (or replace the line with the same number), type the line with its line number at the prompt.
 
 [b+]LLIST [*line*][-[*line*]]
@@ -344,8 +344,8 @@ Constant equal to the largest positive integer.
 [c]MD [*drive*:]*path*
 Creates a new directory.
 
-[c]MEM [~A]
-Displays the total and available memory, and any unavailable features (eg, floating-point). ~A adds the number of buffers, files, and sessions, and the memory for BASIC. See HELP CORE for more details.
+[c]MEM
+Displays the total and available memory, and any unavailable features (eg, floating-point). See HELP CORE for more details.
 
 [b+]MERGE *file*
 Adds the numbered lines of the specified BAS file (searching PATH$ if necessary) to the loaded program, replacing any lines with the same numbers.  MERGE can't be used inside a BAS or BAT file; use CHAIN MERGE instead.

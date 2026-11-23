@@ -70,7 +70,7 @@ function checkOutput(task, outputFile)
  *
  * A hard disk image (a demo with no diskettes) is marked "hd", and pc.js builds it (with --sys=bd:2, so it's bootable,
  * and pc.js adds the system files itself, and with --order, so its root entries are in the same order as a diskette's,
- * rather than sorted by name).  A disk can list its own "folders" instead of the diskette folders (see BASICDOS-10MB),
+ * rather than sorted by name).  A disk can list its own "folders" instead of the diskette folders (see BASICDOS-20MB),
  * where each folder is either a list of files or a directory (whose contents are copied, including any OBJ
  * directories).  A folder named FOLDER/SUBFOLDER is a subfolder (eg, DEMOS/WOLF3D), and a file spec of the form IMAGE.json/PATH names a file (or
  * files) inside a disk image, which diskimage.js extracts first (eg, the WOLF3D files come from the COMPAQ331-WOLF3D
@@ -233,7 +233,7 @@ let disks = {
             TOOLS: manifest.TOOLS
         }
     },
-    "BASICDOS-10MB": {
+    "BASICDOS-20MB": {
         hd: true,
         config: "./demos/bd/hd/CONFIG.SYS",
         folders: {
@@ -260,15 +260,20 @@ let disks = {
             "TOOLS/BIN": toolFiles("dos").concat(toolFiles("os2"), toolFiles("bd"), manifest.TOOLS),
             //
             // The C compiler's include files and libraries; the BASIC-DOS libraries replace the originals with the
-            // same names, just as the BASIC-DOS tools do.
+            // same names, just as the BASIC-DOS tools do.  The 386 C compiler's are in their 386 subfolders, where
+            // the library is the original, and the BASIC-DOS startup code (BDCRT386.OBJ) is added to it.
             //
             "TOOLS/INCLUDE": [ SRC + "/tools/dos/include/*" ],
             "TOOLS/INCLUDE/SYS": [ SRC + "/tools/dos/include/SYS/*" ],
+            "TOOLS/INCLUDE/386": [ SRC + "/tools/os2/include/*" ],
+            "TOOLS/INCLUDE/386/SYS": [ SRC + "/tools/os2/include/SYS/*" ],
             "TOOLS/LIB": [ SRC + "/tools/dos/lib/*", SRC + "/tools/bd/lib/*" ],
+            "TOOLS/LIB/386": [ SRC + "/tools/os2/lib/*", SRC + "/tools/bd/lib/386/*" ],
             //
             // The BASIC-DOS C startup code and floating-point library sources (with a test), the source of STUB.EXE,
             // and the C demos (HELLO is the sample that explains each step); all but the first have a makefile that
-            // builds a program there.  SUCKS gets everything in its folder (bdc is its makefile for BDC) but README.md (README.TXT is the
+            // builds a program there, and the demos also have MAKE386, which builds them with the 386 C compiler.
+            // SUCKS gets everything in its folder (MAKEBDC is its makefile for BDC) but README.md (README.TXT is the
             // version for the disk).
             //
             "TOOLS/CRT": [ SRC + "/tools/bd/crt/*" ],
@@ -276,7 +281,7 @@ let disks = {
             "TOOLS/STUB": [ SRC + "/tools/bd/stub/*" ],
             "TOOLS/BDC": [ SRC + "/tools/bd/bdc/*" ],             // the BASIC-DOS C compiler's source (BDC.EXE is in TOOLS/BIN)
             "TOOLS/DEMOS/HELLO": [ SRC + "/tools/bd/demos/hello/*" ],
-            "TOOLS/DEMOS/SUCKS": [ SRC + "/tools/bd/demos/sucks/*.c", SRC + "/tools/bd/demos/sucks/*.def", SRC + "/tools/bd/demos/sucks/makefile", SRC + "/tools/bd/demos/sucks/bdc", SRC + "/tools/bd/demos/sucks/README.TXT" ]
+            "TOOLS/DEMOS/SUCKS": [ SRC + "/tools/bd/demos/sucks/*.c", SRC + "/tools/bd/demos/sucks/*.def", SRC + "/tools/bd/demos/sucks/make*", SRC + "/tools/bd/demos/sucks/README.TXT" ]
         }
     }
 };
@@ -437,7 +442,7 @@ function buildDisk(diskName, diskImage)
             //
             // pc.js adds the system files (and CONFIG.SYS) itself, so it dates them (see DIST_TIME).
             //
-            cmd = "node ./tools/pc/pc.js ibm5160 ./tools/pc/disks/" + diskName + " --sys=bd:2 --sysdate=" + DIST_TIME + " --target=10M --normalize --bare --label=" + label +
+            cmd = "node ./tools/pc/pc.js ibm5160 ./tools/pc/disks/" + diskName + " --sys=bd:2 --sysdate=" + DIST_TIME + " --drivetype=615:4:17 --fat=16:2048 --normalize --bare --label=" + label +
                   " --order=" + entries.map(entry => path.basename(entry)).join(",") + " --save=" + diskNew;
         } else {
             cmd = "node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" --files " + entries.join(",") +
@@ -476,7 +481,7 @@ function buildDisk(diskName, diskImage)
  * Writes the titled diskettes (see "disks" above) to machines/pcx86/basicdos-diskettes.json, which maps each diskette
  * path to its title; since Jekyll's data_dir is "machines", _includes/machine.html adds them to every FDC's list.  It
  * also writes machines/pcx86/basicdos-configs.json, which maps each disk's name to its CONFIG.SYS, for the pages whose
- * machines boot a disk whose CONFIG.SYS is in another folder (eg, {{ site.data.pcx86.basicdos-configs.BASICDOS-10MB }}
+ * machines boot a disk whose CONFIG.SYS is in another folder (eg, {{ site.data.pcx86.basicdos-configs.BASICDOS-20MB }}
  * on the Wolfenstein 3D pages), since include_relative can't reach another folder.
  *
  * @param {function(Error=)} done

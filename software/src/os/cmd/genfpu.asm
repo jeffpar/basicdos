@@ -26,6 +26,10 @@
 ; code block for that purpose.  callFPU calls an FPU$ function immediately
 ; (eg, FPU_ATOD to convert a constant while generating code).
 ;
+; Only genCvtType, genTestDouble, and genBlkData are here, in COMMAND's core,
+; since the core calls them for every type; the rest (including genSlot and
+; callFPU) are in gendbl.asm, which the stubs here reach through genUpper.
+;
 ; See gencmd.asm for an overview of all the gen*.asm files.  Like gencmd.asm,
 ; these functions are called while generating code, with DS:BX -> TOKLETs and
 ; ES:DI -> code block.
@@ -37,45 +41,43 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<genExpr,getNextSymbol,genCallFar,genPushImm>
-	EXTNEAR	<genCallCS,strToChar,compError>
-	EXTABS	<TOK_ABS>
+	EXTNEAR	<genCallCS,strToChar,compError,genUpper>
+	EXTNEAR	<dblConst,dblPushSlot,dblFnCall,dblCallFPUDst2>
+	EXTNEAR	<dblCallFPUDst,dblCallFPU>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genConstDouble
+; genConstDouble, genPushSlot, genFnCall, genCallFPUDst2, genCallFPUDst,
+; genCallFPU
 ;
-; Generate code for a double constant: the constant is converted now (with
-; FPU_ATOD) and stored in a slot in the code block, and since doubles are
-; always passed by reference, the generated code pushes a pointer to the slot.
-;
-; Inputs:
-;	DS:SI -> numeric string
-;	ES:DI -> code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
+; These generators are needed only for doubles, so they're outside COMMAND's
+; core, in gendbl.asm (eg, dblConst for genConstDouble; see there for their
+; inputs and outputs), and we reach them through genUpper, which reports
+; "Not enough memory" if only the core was loaded.
 ;
 ; Modifies:
-;	AX, CX, DX, SI, DI
+;	DX, and whatever the generator modifies
 ;
 DEFPROC	genConstDouble
-	call	genSlot			; DX = offset of slot
-	push	bx
-	push	di
-	mov	di,dx			; ES:DI -> slot
-	mov	cx,FPU_ATOD
-	call	callFPU			; DS:SI -> numeric string
-	mov	dx,di			; DX = offset of slot again
-	pop	di
-	pop	bx
-	jc	gcc9			; conversion error
-	mov	al,OP_PUSH_CS
-	stosb
-	jmp	genPushImm		; push offset of slot (carry clear)
-gcc9:	ret
+	mov	dx,offset dblConst
+	jmp	short gfu
+	DEFLBL	genPushSlot,near
+	mov	dx,offset dblPushSlot
+	jmp	short gfu
+	DEFLBL	genFnCall,near
+	mov	dx,offset dblFnCall
+	jmp	short gfu
+	DEFLBL	genCallFPUDst2,near
+	mov	dx,offset dblCallFPUDst2
+	jmp	short gfu
+	DEFLBL	genCallFPUDst,near
+	mov	dx,offset dblCallFPUDst
+	jmp	short gfu
+	DEFLBL	genCallFPU,near
+	mov	dx,offset dblCallFPU
+gfu:	jmp	genUpper
 ENDPROC	genConstDouble
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -157,177 +159,6 @@ ENDPROC	genTestDouble
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genPushSlot
-;
-; Reserve an 8-byte slot (initialized to zero) in the code block, and generate
-; code to push a pointer to it (eg, for the return value of a VAR_DOUBLE
-; function).
-;
-; Inputs:
-;	ES:DI -> code block
-;
-; Modifies:
-;	AX, CX, DX, DI
-;
-DEFPROC	genPushSlot
-	call	genSlot			; DX = offset of slot
-	push	di
-	mov	di,dx
-	sub	ax,ax
-	mov	cx,4
-	rep	stosw			; zero the slot
-	pop	di
-	mov	ax,OP_PUSH_MEM
-	call	genBlkData		; PUSH CS:[CBLK_DATA]
-	jmp	genPushImm		; push offset of slot
-ENDPROC	genPushSlot
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genFnCall
-;
-; Generate code for a numeric function keyword (eg, "SIN(x)"), which calls
-; the corresponding FPU$ function (see FN_FPUTBL); the argument is converted
-; to a double if necessary, and so is the result.
-;
-; Inputs:
-;	AL = keyword ID (TOK_ABS through TOK_TAN)
-;	DS:BX -> TOKLETs (after the keyword)
-;	ES:DI -> code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
-;
-; Modifies:
-;	AX, BX, CX, DX, SI, DI
-;
-DEFPROC	genFnCall
-	sub	al,TOK_ABS
-	cbw
-	push	ax			; save the function index
-	call	getNextSymbol
-	jbe	gfc8
-	cmp	al,'('
-	jne	gfc8
-	call	genExpr			; generate the argument
-	jc	gfc8
-	cmp	ax,(CLS_SYM SHL 8) OR ')'
-	jne	gfc8			; the argument must end with ')'
-	mov	al,VAR_DOUBLE
-	call	genCvtType		; convert the argument to a double
-	jc	gfc8
-	pop	si
-	mov	cl,cs:[FN_FPUTBL+si]
-	mov	ch,0			; CX = FPUTBL offset of the function
-	jmp	genCallFPUDst
-gfc8:	pop	ax
-	stc
-	ret
-ENDPROC	genFnCall
-
-;
-; FN_FPUTBL contains the FPUTBL offsets of the numeric function keywords, in
-; the same order as their IDs (TOK_ABS through TOK_TAN).
-;
-	DEFLBL	FN_FPUTBL,byte
-	db	FPU_ABS, FPU_ATN, FPU_COS, FPU_ETOX, FPU_FIX
-	db	FPU_INT, FPU_LOG, FPU_SIN, FPU_SQR, FPU_TAN
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genCallFPUDst, genCallFPU
-;
-; Generates a far call to the FPU$ driver's function at the specified
-; FPUTBL offset.
-;
-; Doubles are always passed by reference, so any FPU function that produces
-; a double stores it at ES:DI and returns a pointer to it.  Use genCallFPUDst
-; for those functions; it first reserves an 8-byte result slot in the code
-; block and generates code that points ES:DI at it:
-;
-;	JMP	SHORT $+10
-;	DQ	?		; result slot
-;	PUSH	CS
-;	POP	ES
-;	MOV	DI,offset slot
-;
-; Every call gets its own slot, so a result remains valid until the same code
-; runs again.  This means that any double result that must outlive the code
-; that produced it (eg, a function's return value) must be copied.
-;
-; Inputs:
-;	CX = FPUTBL offset (eg, FPU_ADD)
-;	ES:DI -> code block
-;
-; Outputs:
-;	Carry clear if successful, set if there's no FPUTBL
-;
-; Modifies:
-;	CX, DX, DI
-;
-DEFPROC	genCallFPUDst2
-	push	ax
-	mov	al,16			; FPU_CVT2LD requires 2 slots
-	jmp	short gcd1
-	DEFLBL	genCallFPUDst,near
-	push	ax
-	mov	al,8
-gcd1:	call	genSlotAL		; DX = offset of result slot
-	mov	ax,OP_MOV_ES_MEM
-	call	genBlkData		; MOV ES,CS:[CBLK_DATA]
-	mov	al,OP_MOV_DI
-	stosb
-	xchg	ax,dx
-	stosw
-	pop	ax
-	DEFLBL	genCallFPU,near
-	push	si
-	push	ds
-	lds	si,ss:[PSP_FPUTBL]
-	mov	dx,ds			; DX = FPUTBL segment
-	test	dx,dx			; is there an FPUTBL?
-	stc
-	jz	gcf9			; no
-	add	si,cx
-	mov	cx,[si]			; DX:CX -> FPUTBL function
-	call	genCallFar
-gcf9:	pop	ds
-	pop	si
-	ret
-ENDPROC	genCallFPUDst2
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genSlot
-;
-; Reserves an 8-byte slot (or AL bytes, if using genSlotAL) in the code block,
-; preceded by a short jump around it.
-;
-; Inputs:
-;	ES:DI -> code block
-;
-; Outputs:
-;	DX = offset of slot
-;	ES:DI -> code block (after the slot)
-;
-; Modifies:
-;	AX, DX, DI
-;
-DEFPROC	genSlot
-	mov	al,8
-	DEFLBL	genSlotAL,near
-	mov	ah,al
-	mov	al,OP_JMPS
-	stosw
-	mov	dx,di			; DX = offset of slot
-	mov	al,ah
-	mov	ah,0
-	add	di,ax
-	ret
-ENDPROC	genSlot
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; genBlkData
 ;
 ; Generates an instruction (eg, PUSH or MOV ES) whose operand is the code
@@ -354,42 +185,6 @@ DEFPROC	genBlkData
 	stosw
 	ret
 ENDPROC	genBlkData
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; callFPU
-;
-; Calls the FPU$ driver's function at the specified FPUTBL offset now (eg,
-; FPU_ATOD to convert a constant while generating code).
-;
-; Inputs:
-;	CX = FPUTBL offset (eg, FPU_ATOD)
-;	Other registers as required by the function
-;
-; Outputs:
-;	As returned by the function, or carry set if there's no FPUTBL
-;
-; Modifies:
-;	AX, BX, plus whatever the function modifies
-;
-DEFPROC	callFPU
-	push	ds
-	lds	bx,ss:[PSP_FPUTBL]	; DS:BX -> FPUTBL
-	mov	ax,ds
-	add	bx,cx
-	mov	bx,[bx]			; AX:BX -> FPUTBL function
-	pop	ds
-	test	ax,ax			; is there an FPUTBL?
-	stc
-	jz	cfp9			; no
-	push	ax
-	push	bx
-	mov	bx,sp
-	call	dword ptr ss:[bx]
-	pop	bx			; (POPs don't modify flags)
-	pop	bx
-cfp9:	ret
-ENDPROC	callFPU
 
 CODE	ENDS
 
