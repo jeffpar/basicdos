@@ -16,7 +16,7 @@
 
 VERSION_MAJOR	equ	2	; eg, MS-DOS 3.20 return 3 (03h)
 VERSION_MINOR	equ	10	; eg, MS-DOS 3.20 returns 20 (14h)
-VERSION_REV	equ	5	; 0 (none) or 1-26 (A-Z)
+VERSION_REV	equ	6	; 0 (none) or 1-26 (A-Z)
 
 	IF VERSION_REV
 VERSION_LTR	equ	'@' + VERSION_REV

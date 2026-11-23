@@ -131,6 +131,9 @@ TIME /D > E.TMP
 C$ = "TIME /D" : M$ = "Elapsed time is" : GOSUB 900
 HELP SQR > E.TMP
 C$ = "HELP SQR" : M$ = "Returns the square root" : GOSUB 900
+HELP > E.TMP
+IF ERRORLEVEL THEN PRINT "HELP failed" : FAILS = FAILS + 1
+C$ = "HELP" : M$ = "Displays help for" : GOSUB 900
 REM A colon after a switch of any length doesn't end the command, unlike others
 P$ = "x"
 SLEEP 0 /ALIGN:P$ = "y"

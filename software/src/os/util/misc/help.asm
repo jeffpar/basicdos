@@ -151,7 +151,7 @@ hpc5:	inc	di
 ;
 ; Without an argument, display help for HELP (the name in HELP_PATH).
 ;
-m9:	mov	si,offset HELP_PATH+7
+m9:	mov	si,offset HELP_NAME
 	mov	cx,4
 m8:	call	doHelp
 	mov	ax,DOS_PSP_RETURN SHL 8
@@ -784,9 +784,10 @@ ENDPROC	printEOL
 HELP_CATS	db	"ALL",0,"BASIC",0,"CORE",0,"FUNC",0,"CMD",0,"EXT",0,0
 ;
 ; main updates HELP_PATH's drive and path chars, and with no argument, looks
-; up "HELP" in it.
+; up "HELP" in it (HELP_NAME).
 ;
-HELP_PATH	db	"A:\EXT\CMD\HELP.TXT",0
+HELP_PATH	db	"A:\EXT\CMD\"
+HELP_NAME	db	"HELP.TXT",0
 VERB_FIND	db	"find",0
 VERB_READ	db	"read",0
 CON_COLS	db	?
