@@ -402,9 +402,17 @@ ERR_GENFAIL	equ	31	; general failure
 ERR_SHARE	equ	32	; sharing violation
 ERR_DISKFULL	equ	39	; disk full
 
-ERR_BADSESSION	equ	100	; invalid session
-ERR_NOSESSION	equ	101	; out of sessions
-ERR_BADMODE	equ	102	; real-mode program (in protected mode)
+ERR_BADSESSION	equ	40	; invalid session
+ERR_NOSESSION	equ	41	; out of sessions
+ERR_BADMODE	equ	42	; real-mode program (in protected mode)
+;
+; ERR_USAGE isn't a DOS error: it's the exit code of a command whose arguments
+; are invalid, so that COMMAND displays the command's usage (see cmdUsage).
+; It's outside the range of DOS errors and of Microsoft BASIC's error numbers
+; (BERR_* in cmd.inc, which a BAS utility's END uses as its exit code, and
+; where BERR_USAGE is the same value).
+;
+ERR_USAGE	equ	80	; usage error
 
 	IFDEF	DOSPSP
 ;
@@ -434,7 +442,7 @@ PSP_CHECKSUM	dw	?	; 46h: BASIC-DOS: code checksum (see COMHEAP)
 PSP_HEAPSIZE	dw	?	; 48h: BASIC-DOS: heap size (see COMHEAP)
 PSP_HEAP	dw	?	; 4Ah: BASIC-DOS: heap offset (see COMHEAP)
 PSP_SIGNALS	db	?	; 4Ch: BASIC-DOS: exception signals (see 33h)
-		db	?	; 4Dh
+PSP_BASIC	db	?	; 4Dh: BASIC-DOS: set while running FCB1's BAS
 PSP_EXCODE	db	?	; 4Eh: BASIC-DOS: exit code, if any
 PSP_EXTYPE	db	?	; 4Fh: BASIC-DOS: exit type (see EXTYPE_*)
 PSP_DOSCALL	db	3 dup(?); 50h: INT 21h/RETF

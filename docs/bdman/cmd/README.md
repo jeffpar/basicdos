@@ -19,7 +19,27 @@ In the descriptions that follow, *italics* indicate values that you supply, brac
 
 As in MS-DOS, a DOS command typed as one word with a path (eg, `CD\`, `CD\EXT`, or `DIR\EXT`) doesn't need a space before the path.  Unlike MS-DOS, however, a command followed by a path that begins with `.` (eg, `CD..`) still needs a space (eg, `CD ..`).
 
-A command given a switch it doesn't accept (eg, `DIR /Z` or `CD ../..`), or arguments that aren't valid, displays `Syntax error`, and to see how to use any command, type [HELP](external/help/) followed by its name.
+To see how to use any command, type [HELP](external/help/) followed by its name.
+
+### Usage Errors
+
+A command given a switch it doesn't accept (eg, `DIR /Z` or `CD ../..`), or arguments that aren't valid, displays its usage, the first line of its HELP entry (eg, `Usage: DIR [filespec] [/A] [/S] [/W]`), and ERRORLEVEL is set to 1.  The usage is displayed once the command's own redirections are undone, so `DIR /Z > LIST.TXT` displays it on the screen.  An external command does the same by ending with exit code 80 (eg, a BAS file's `END 80`), which COMMAND.COM turns into its usage and ERRORLEVEL 1.
+
+A usage error on a low memory system, which can't run HELP, displays `Syntax error` instead, as does a syntax error in the line itself (eg, `DIR >`, or an internal command after a pipe, like `VER | DIR`).  A command after the first in a pipeline (eg, `DIR | SORT /Z`) runs in a session of its own, so it displays `Usage error` itself.
+
+### Exit Codes
+
+A command that succeeds sets [ERRORLEVEL](basic/func/#errorlevel) to 0, and an internal command that fails sets it to 1.  The BAS utilities (eg, CHKDSK and FORMAT) set it to the number of the runtime error that stopped them (see [ON ERROR](basic/#on-error)), or to 1 for any other failure, so `IF ERRORLEVEL THEN` checks for any failure, and `IF ERRORLEVEL = 71 THEN` checks for a drive that wasn't ready.  The errors they report most often are:
+
+| ERRORLEVEL | Runtime error | Message |
+|------------|---------------|---------|
+| 53 | File not found | `Unable to find X.TXT` |
+| 70 | Permission denied (eg, a write-protected diskette) | `Write protect error` |
+| 71 | Disk not ready | `Drive not ready` |
+| 72 | Disk media error | (varies; eg, `Unrecoverable read or format error`) |
+| 77 | Invalid drive | `Invalid drive` |
+
+The filters (eg, FIND and SORT) set ERRORLEVEL to 2 if a file couldn't be opened (see each one's page), and FIND sets it to 1 if no lines matched.  A command whose arguments aren't valid ends with exit code 80 instead, which displays its usage and sets ERRORLEVEL to 1 (see [Usage Errors](#usage-errors)).
 
 ### Commands A-Z
 

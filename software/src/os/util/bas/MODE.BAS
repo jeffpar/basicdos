@@ -22,13 +22,13 @@
 	R$ = M$ + ","
 	GOSUB 50 : M$ = I$
 	GOSUB 50 : L$ = I$
-	IF R$ <> "" THEN GOTO 40
+	IF R$ <> "" THEN GOTO 990
 	W$ = RIGHT$(M$, 2)
 	IF M$ = "132" THEN W$ = M$ : M$ = "80"
-	IF W$ <> "40" AND W$ <> "80" AND W$ <> "132" THEN GOTO 40
-	IF LEN(M$) <> 2 AND LEFT$(M$, 2) <> "BW" AND LEFT$(M$, 2) <> "CO" THEN GOTO 40
-	IF L$ <> "" AND L$ <> "25" AND L$ <> "43" AND L$ <> "50" THEN GOTO 40
-	ON ERROR GOTO 60
+	IF W$ <> "40" AND W$ <> "80" AND W$ <> "132" THEN GOTO 990
+	IF LEN(M$) <> 2 AND LEFT$(M$, 2) <> "BW" AND LEFT$(M$, 2) <> "CO" THEN GOTO 990
+	IF L$ <> "" AND L$ <> "25" AND L$ <> "43" AND L$ <> "50" THEN GOTO 990
+	ON ERROR GOTO 900
 	IF LEFT$(M$, 2) = "BW" THEN SCREEN 0, 0
 	IF LEFT$(M$, 2) = "CO" THEN SCREEN 0, 1
 	IF L$ = "" THEN WIDTH VAL(W$) ELSE WIDTH VAL(W$), VAL(L$)
@@ -44,7 +44,7 @@
 	GOSUB 50 : P$ = I$ : IF P$ = "" THEN P$ = "N"
 	GOSUB 50 : D$ = I$ : IF D$ = "" THEN D$ = "8"
 	GOSUB 50 : S$ = I$ : IF S$ = "" THEN S$ = "1"
-	IF B$ = "" OR INSTR("NOE", P$) = 0 THEN GOTO 40
+	IF B$ = "" OR INSTR("NOE", P$) = 0 THEN GOTO 990
 	OPEN LEFT$(M$, 4) + ":" + B$ + "," + P$ + "," + D$ + "," + S$ + ",0" AS #1
 	CLOSE #1
 	END
@@ -60,10 +60,13 @@
 	IF L$ = "6" THEN PRINT #1, CHR$(27); "2";
 	CLOSE #1
 	END
-40	PRINT "Syntax error" : END 1
 50	' Return the next comma-separated item of R$ in I$
 	I = INSTR(R$, ",")
 	IF I = 0 THEN I$ = "" : RETURN
 	I$ = LEFT$(R$, I - 1) : R$ = MID$(R$, I + 1)
 	RETURN
-60	PRINT "Illegal function call" : END 1
+900	' Report a runtime error, whose number (ERR) is the exit code
+	CLOSE
+	IF ERR = 5 THEN PRINT "Illegal function call" : END ERR ' BERR_ILLFUNC
+	PRINT "Unable to set the mode (error"; ERR; ")" : END ERR
+990	END 80 ' BERR_USAGE

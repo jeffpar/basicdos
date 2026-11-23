@@ -16,8 +16,8 @@
 	A$ = UCASE$(ARG$) : D$ = LEFT$(CURDIR$, 2)
 	IF MID$(A$, 2, 1) = ":" THEN D$ = LEFT$(A$, 2) : A$ = MID$(A$, 3)
 	WHILE LEFT$(A$, 1) = " " : A$ = MID$(A$, 2) : WEND
-	DOS &H3700 : IF LEFT$(A$, 1) = CHR$(DOS(3) AND 255) THEN PRINT "Syntax error" : END 1
-	ON ERROR GOTO 90
+	DOS &H3700 : IF LEFT$(A$, 1) = CHR$(DOS(3) AND 255) THEN GOTO 990
+	ON ERROR GOTO 900
 	GOSUB 80
 	IF A$ <> "" THEN GOTO 20
 	PRINT "Volume in drive "; LEFT$(D$, 1);
@@ -31,7 +31,7 @@
 	IF C$ <> "Y" THEN END
 20	IF LEN(A$) > 11 THEN PRINT "Too many characters in volume label" : END 1
 	FOR I = 1 TO LEN(A$)
-	IF INSTR("*?/\|.,;:+=[]<>" + CHR$(34), MID$(A$, I, 1)) THEN GOTO 85
+	IF INSTR("*?/\|.,;:+=[]<>" + CHR$(34), MID$(A$, I, 1)) THEN GOTO 910
 	NEXT
 	IF A$ = "" AND L$ = "" THEN END
 	' Find the root directory (R records into the volume, with NR entries):
@@ -74,11 +74,11 @@
 	L$ = MID$(F$, 10) : I = INSTR(L$, ".")
 	IF I THEN L$ = LEFT$(LEFT$(L$, I - 1) + SPACE$(8), 8) + MID$(L$, I + 1)
 	RETURN
-85	PRINT "Invalid characters in volume label"
-	END 1
-90	CLOSE
-	IF ERR = 70 THEN PRINT "Write protect error" : END 1
-	IF ERR = 71 THEN PRINT "Drive not ready" : END 1
-	IF ERR = 77 THEN PRINT "Invalid drive" : END 1
-	PRINT "Unable to label drive "; D$; " (error"; ERR; ")"
-	END 1
+900	' Report a runtime error, whose number (ERR) is the exit code
+	CLOSE
+	IF ERR = 70 THEN PRINT "Write protect error" : END ERR ' BERR_ACCESS
+	IF ERR = 71 THEN PRINT "Drive not ready" : END ERR ' BERR_NOTREADY
+	IF ERR = 77 THEN PRINT "Invalid drive" : END ERR ' BERR_BADDRIVE
+	PRINT "Unable to label drive "; D$; " (error"; ERR; ")" : END ERR
+910	PRINT "Invalid characters in volume label" : END 1
+990	END 80 ' BERR_USAGE

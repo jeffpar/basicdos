@@ -279,7 +279,8 @@ ENDPROC	freeAllBlocks
 ; Saves (and empties) the selected block chains in a CHAINS frame on the
 ; stack, and makes it the current frame (CMD_CHAINS), so that a BAT or BAS
 ; file run by another can't free any of its caller's blocks.  The caller
-; must remove the frame with restoreChains.
+; must remove the frame with restoreChains.  The frame also saves the name of
+; the BASIC program that's running (see setName), which the file replaces.
 ;
 ; Bit n of the mask is set to save the nth BLKDEF in CMDHEAP (eg, 11h for
 ; CBLKDEF and TBLKDEF, or 3Fh for all six).
@@ -293,12 +294,13 @@ ENDPROC	freeAllBlocks
 ;	SP -> CHAINS frame (on return)
 ;
 ; Modifies:
-;	AX, DI
+;	AX, DI, ES
 ;
 CHAINS		struc
 CH_ARGS		dw	?		; command line (strArg assumes offset 0)
 CH_MASK		dw	?		; bit n set if head n was saved
 CH_PREV		dw	?		; previous CHAINS frame, if any
+CH_NAME		db	8 dup (?)	; saved PSP_FCB1 name (see setName)
 CH_HEADS	dw	6 dup (?)	; saved CBLKDEF through ABLKDEF heads
 CHAINS		ends
 
@@ -315,6 +317,16 @@ DEFPROC	saveChains
 	push	si
 	mov	di,sp
 	add	di,6			; DI -> CHAINS frame
+	push	di
+	add	di,CH_NAME
+	mov	si,PSP_FCB1 + 1
+	push	ds
+	pop	es
+	movsw
+	movsw
+	movsw
+	movsw				; save the program's name
+	pop	di
 	mov	si,ds:[PSP_HEAP]
 	mov	[di].CH_ARGS,bx
 	mov	[di].CH_MASK,ax
@@ -343,8 +355,9 @@ ENDPROC	saveChains
 ;
 ; Removes a CHAINS frame (see saveChains) from the list of frames.  Normally,
 ; we free the blocks of every chain that was saved and then restore the saved
-; chain; but if the program was aborted, we free the saved blocks instead, so
-; that the program that was running remains loaded.
+; chain (and the program's name; see saveChains); but if the program was
+; aborted, we free the saved blocks instead, so that the program that was
+; running remains loaded.
 ;
 ; If AL is 2, the CHAINS frame decides: the high byte of CH_MASK is non-zero
 ; if saveChains was asked to keep the new chains (eg, for a BAS file run from
@@ -359,7 +372,7 @@ ENDPROC	saveChains
 ;	DI -> end of CHAINS frame
 ;
 ; Modifies:
-;	AX, CX, SI, DI
+;	AX, CX, SI, DI, ES
 ;
 DEFPROC	restoreChains
 	cmp	al,2
@@ -368,6 +381,16 @@ DEFPROC	restoreChains
 rc0:	test	al,al			; restoring the saved chains?
 	jnz	rc0a			; no
 	call	freeCache		; yes, so free the file's code, too
+	push	di
+	lea	si,[di].CH_NAME
+	push	ds
+	pop	es
+	mov	di,PSP_FCB1 + 1
+	movsw
+	movsw
+	movsw
+	movsw				; restore the caller's name
+	pop	di
 rc0a:	mov	si,ds:[PSP_HEAP]
 	mov	cx,[di].CH_PREV
 	mov	[si].CMD_CHAINS,cx

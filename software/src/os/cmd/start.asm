@@ -87,7 +87,8 @@ ENDPROC	addPath
 ; the program are its own; see cmdDOS).  Like a session from CONFIG.SYS, it
 ; has its own LDT (see DOS_UTL_LOAD), but its program can end (eg, COMMAND's
 ; EXIT), which closes the session and its console, and the focus goes back to
-; the console that had it.
+; the console that had it.  On success, we display the new session's number
+; (eg, for KILL or "> @n").
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -111,20 +112,22 @@ DEFPROC	cmdStartSes
 	popf
 	pop	cx
 	pop	si
-	jnc	st1
+	jc	lss0			; no program name
+	jmp	st1
 ;
 ; There's no program name, so list every session with a program: its number
-; (from 1, as used by KILL), how much memory it's using (in K), and its
-; program ("UNKNOWN" if DOS can't tell), marking the current session with "*".
+; (from 1, as used by KILL), how much memory it's using (in K), its program
+; ("UNKNOWN" if DOS can't tell), and the BASIC program it's running, if any
+; (eg, "COMMAND DONKEY"), marking the current session with "*".
 ;
-	sub	sp,8
+lss0:	sub	sp,16
 	mov	di,sp
 	push	ss
-	pop	es			; ES:DI -> buffer for the name
+	pop	es			; ES:DI -> buffer for the names
 	DOSUTIL	GETCSN			; CL = current session #
 	mov	bl,cl			; BL = current session #
 	sub	cx,cx			; CL = session # (from 0)
-lss1:	DOSUTIL	QRYSCB			; AX = PSP, SI:DX = bytes, and name
+lss1:	DOSUTIL	QRYSCB,1		; AX = PSP, SI:DX = bytes, and names
 	jc	lss9			; no more sessions
 	test	ax,ax			; does the session have a program?
 	jz	lss8			; no
@@ -150,12 +153,22 @@ lss3:	mov	dx,cx
 ;
 	cmp	byte ptr es:[di],0	; is there a name?
 	jne	lss4			; yes
-	PRINTF	<"UNKNOWN",13,10>
-	jmp	short lss8
-lss4:	PRINTF	<"%.8ls",13,10>,di,es
+	PRINTF	<"UNKNOWN">
+	jmp	short lss5
+lss4:	PRINTF	<"%.8ls">,di,es		; (padded with spaces)
+;
+; The BASIC program's name, if any (zeros if none), is as it was given (eg,
+; LOAD donkey), so it's converted to upper case, like the program names.
+;
+lss5:	lea	si,[di+8]		; SI -> the BASIC program's name
+	push	cx
+	mov	cx,8
+	DOSUTIL	STRUPR
+	pop	cx
+	PRINTF	<"%.8ls",13,10>,si,es
 lss8:	inc	cx
 	jmp	lss1
-lss9:	add	sp,8
+lss9:	add	sp,16
 	ret
 st0:	jmp	openError
 st1:	push	ax
@@ -238,10 +251,14 @@ st4:	lea	sp,[bx + size SPB]
 	popf
 	pop	di			; DI -> the end of the name
 	pop	bx			; BX -> CMDHEAP
-	jnc	st9
+	jc	st8
+	mov	ch,0
+	inc	cx			; CX = session # (from 1)
+	PRINTF	<"Started session %d",13,10>,cx
+	clc
+	ret
 st8:	mov	byte ptr [di],0		; the name alone, for openError
 	jmp	openError		; report error AX for program SI
-st9:	ret
 ENDPROC	cmdStartSes
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

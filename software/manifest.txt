@@ -91,7 +91,6 @@ software/src/os/dll/obj/NLS.DLL
 
 [DEMOS]
 software/src/demos/*.BA?
-software/src/demos/README.md
 demos/dos/basic/DONKEY.BAS
 demos/bd/mouse/PAINT.BAS
 

@@ -280,10 +280,12 @@ ENDPROC	genInit
 ; The message includes the current line # (see getLineNum), or the line # in
 ; CX for compErrLine (eg, the line of a FOR without a NEXT; see checkCtl),
 ; unless the line # is zero (eg, for a command typed at the prompt).
+; compErrMsg just displays the message (eg, for syntaxMsg), leaving ERR_CODE
+; alone.
 ;
 ; Inputs:
-;	AL = error number (eg, 1 for "NEXT without FOR")
-;	CX = line # (compErrLine only)
+;	AL = error number (eg, 1 for "NEXT without FOR"), or DL (compErrMsg)
+;	CX = line # (compErrLine and compErrMsg only)
 ;
 ; Outputs:
 ;	Carry set
@@ -299,6 +301,7 @@ DEFPROC	compError
 	xchg	ss:[si].ERR_CODE,al
 	test	al,al			; was an error already reported?
 	jnz	ce9			; yes
+	DEFLBL	compErrMsg,near
 	call	printErr
 	call	printCRLF
 ce9:	stc

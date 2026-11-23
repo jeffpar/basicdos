@@ -17,8 +17,8 @@
 	' Records are numbered from 1 to 65535, so only the first 14Mb of a
 	' volume can be read, and a directory beyond that isn't checked.  An
 	' array can't have more than about 16370 elements, so a volume with
-	' more clusters can't be checked (error 7).  Each FT element also has
-	' two flags above its FAT entry: 65536 if the cluster is in a chain,
+	' more clusters can't be checked ("Out of memory").  Each FT element also
+	' has two flags above its FAT entry: 65536 if the cluster is in a chain,
 	' and 131072 if a lost cluster leads to it.
 	'
 	DEFINT A-Z
@@ -27,20 +27,20 @@
 	WHILE A$ <> ""
 	IF A$ = W$ + "V" THEN V = 1 : GOTO 5
 	' Any other option, or a second drive (or anything else), is an error
-	IF LEN(A$) <> 2 OR RIGHT$(A$, 1) <> ":" OR D$ <> "" THEN GOTO 95
+	IF LEN(A$) <> 2 OR RIGHT$(A$, 1) <> ":" OR D$ <> "" THEN GOTO 990
 	D$ = A$
 5	I = I + 1 : A$ = UCASE$(ARG$(I))
 	WEND
 	IF D$ = "" THEN D$ = LEFT$(CURDIR$, 2)
 	PC$ = MID$(CURDIR$, 3, 1)
-	ON ERROR GOTO 90
+	ON ERROR GOTO 900
 	' From the BPB: the cluster size (K sectors, CB bytes), the first FAT
 	' sector (F0), FAT sectors (FS), the root directory (R0, with RS
 	' sectors), the first data sector (DB), and the number of clusters (NC)
 	OPEN D$ AS #1 LEN = 32
 	FIELD #1, 32 AS E$
 	GET #1, 1
-	IF CVI(MID$(E$, 12, 2)) <> 512 OR ASC(MID$(E$, 22)) < &HF0 THEN GOTO 85
+	IF CVI(MID$(E$, 12, 2)) <> 512 OR ASC(MID$(E$, 22)) < &HF0 THEN GOTO 910
 	K = ASC(MID$(E$, 14)) : CB = K * 512 : F0 = CVI(MID$(E$, 15, 2))
 	FS = CVI(MID$(E$, 23, 2)) : R0 = F0 + ASC(MID$(E$, 17)) * FS
 	RS = (CVI(MID$(E$, 18, 2)) * 32 + 511) \ 512 : DB = R0 + RS
@@ -155,13 +155,6 @@
 	' Problems found, or an incomplete check, set ERRORLEVEL
 	IF ER OR QX THEN END 1
 	END
-85	PRINT "Drive "; D$; " doesn't have a FAT volume" : END 1
-90	CLOSE
-	IF ERR = 71 THEN PRINT "Drive not ready" : END 1
-	IF ERR = 77 THEN PRINT "Invalid drive" : END 1
-	PRINT "Unable to check drive "; D$; " (error"; ERR; ")"
-	END 1
-95	PRINT "Syntax error" : END 1
 200	' Get the next entry (Q$) of the directory being read (empty at its
 	' end): DC is its current cluster (0 for the root), DS the current
 	' sector, DN the sectors left in DC (or the root), and DJ the next of
@@ -200,3 +193,10 @@
 500	' Remove the trailing spaces of X$
 	WHILE RIGHT$(X$, 1) = " " : X$ = LEFT$(X$, LEN(X$) - 1) : WEND
 	RETURN
+900	' Report a runtime error, whose number (ERR) is the exit code
+	CLOSE
+	IF ERR = 71 THEN PRINT "Drive not ready" : END ERR ' BERR_NOTREADY
+	IF ERR = 77 THEN PRINT "Invalid drive" : END ERR ' BERR_BADDRIVE
+	PRINT "Unable to check drive "; D$; " (error"; ERR; ")" : END ERR
+910	PRINT "Drive "; D$; " doesn't have a FAT volume" : END 1
+990	END 80 ' BERR_USAGE

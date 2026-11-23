@@ -34,9 +34,8 @@ CODE    SEGMENT
 DEFPROC	main
 	mov	bp,ds:[PSP_HEAP]	; BP -> FINDVARS
 	call	getArgs
-	mov	si,offset SYN_ERR
 	cmp	[bp].UV_STR,0		; was a string specified?
-	je	m8			; no
+	je	m7			; no
 	CHKSW	'R'			; is it a regular expression?
 	jz	m0			; no
 	mov	si,[bp].UV_STR
@@ -60,6 +59,7 @@ m1:	mov	[bp].UV_PREFIX,offset COLON
 	call	eachFile
 	jmp	short m9
 
+m7:	jmp	usageError
 m8:	call	writeErr
 	mov	[bp].UV_ERR,2
 m9:	jmp	exit

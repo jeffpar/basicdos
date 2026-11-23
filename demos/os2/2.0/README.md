@@ -10,7 +10,9 @@ machines:
     drives: '[{name:"OS/2 2.0 Pre-Release (47Mb)",type:5,path:"/demos/os2/2.0/MSOS2-2.0-PR2-47MB.json"}]'
 ---
 
-The machine below is a COMPAQ DeskPro 386 with a 16Mhz 80386, 4Mb of memory (640K of conventional memory and 3Mb of extended memory, plus 384K that ends at 16Mb), a VGA Color Display, a 1.2Mb and a 1.44Mb diskette drive, a 47Mb hard disk, and a serial mouse on COM1.  The hard disk has Microsoft's second pre-release of OS/2 2.0 (revision 6.78, May 1990), installed from the diskettes in the Microsoft OS/2 2.00 Software Development Kit, on a single FAT partition.
+The machine below is a COMPAQ DeskPro 386 with a 16Mhz 80386, 4Mb of memory (640K of conventional memory, 3Mb of extended memory, plus 384K of "Shadow RAM" near the 16Mb boundary), a VGA Color Display, a 1.2Mb and a 1.44Mb diskette drive, a 47Mb hard disk, and a serial mouse on COM1.  The hard disk contains Microsoft's second pre-release of OS/2 2.0 (revision 6.78, May 1990), which is running below to help us make some comparisons between BASIC-DOS and OS/2 2.0 capabilities.
+
+While [BASIC-DOS](/demos/bd/mmu/386/) has no graphical user interface (yet), it does have the ability to run 16-bit and 32-bit protected-mode programs, as well as DOS programs in V86-mode.  Take a look at the `SDK` folder in [BASIC-DOS on a COMPAQ DeskPro 386](/demos/bd/mmu/386/) for some examples.
 
 {% include machine.html id="deskpro386" %}
 

@@ -25,15 +25,15 @@
 	WHILE A$ <> ""
 	IF A$ = W$ + "N" THEN C$ = Z$ : GOTO 5
 	' Any other option, or a second drive (or anything else), is an error
-	IF LEN(A$) <> 2 OR RIGHT$(A$, 1) <> ":" OR D$ <> "" THEN GOTO 95
+	IF LEN(A$) <> 2 OR RIGHT$(A$, 1) <> ":" OR D$ <> "" THEN GOTO 990
 	D$ = A$
 5	I = I + 1 : A$ = UCASE$(ARG$(I))
 	WEND
-	IF D$ = "" THEN GOTO 95
+	IF D$ = "" THEN GOTO 990
 	' DOS function &H3704 returns the system drive (DH) and path char (DL)
 	DOS &H3704 : A = DOS(3) : V$ = CHR$(A \ 256) + ":" : PC$ = CHR$(A AND 255)
 	IF D$ = V$ THEN PRINT "Cannot transfer the system to the system drive" : END 1
-	ON ERROR GOTO 90
+	ON ERROR GOTO 900
 	' Read the system drive's boot sector (records of 255, 255, and 2 bytes)
 	OPEN V$ AS #1 LEN = 255
 	FIELD #1, 255 AS R$
@@ -56,7 +56,7 @@
 	FIELD #1, 255 AS R$
 	GET #1, 1 : T$ = R$
 	CLOSE #1
-	IF CVI(MID$(T$, 12, 2)) <> 512 OR ASC(MID$(T$, 22)) < &HF0 THEN GOTO 85
+	IF CVI(MID$(T$, 12, 2)) <> 512 OR ASC(MID$(T$, 22)) < &HF0 THEN GOTO 910
 	' Copy each system file (first clearing the attributes of any copy that's
 	' already there, so it can be replaced), and set its attributes (DOS
 	' function &H4301: 1 = read-only, 2 = hidden, 4 = system)
@@ -85,11 +85,11 @@
 	CLOSE #1
 	PRINT "System transferred"
 	END
-85	PRINT "Drive "; D$; " doesn't have a FAT volume" : END 1
-90	CLOSE
-	IF ERR = 70 THEN PRINT "Write protect error" : END 1
-	IF ERR = 71 THEN PRINT "Drive not ready" : END 1
-	IF ERR = 77 THEN PRINT "Invalid drive" : END 1
-	PRINT "Unable to transfer the system (error"; ERR; ")"
-	END 1
-95	PRINT "Syntax error" : END 1
+900	' Report a runtime error, whose number (ERR) is the exit code
+	CLOSE
+	IF ERR = 70 THEN PRINT "Write protect error" : END ERR ' BERR_ACCESS
+	IF ERR = 71 THEN PRINT "Drive not ready" : END ERR ' BERR_NOTREADY
+	IF ERR = 77 THEN PRINT "Invalid drive" : END ERR ' BERR_BADDRIVE
+	PRINT "Unable to transfer the system (error"; ERR; ")" : END ERR
+910	PRINT "Drive "; D$; " doesn't have a FAT volume" : END 1
+990	END 80 ' BERR_USAGE

@@ -12,9 +12,9 @@ machines:
       B: "PC DOS 2.00 (Disk 1)"
 ---
 
-The machine below is a COMPAQ DeskPro 386 with a 16Mhz 80386, 2Mb of memory (640K of conventional memory and 1Mb of extended memory, plus 384K that ends at 16Mb: the last 128K holds the ROM BIOS's copy of the ROMs, and BASIC-DOS uses the other 256K, at FA0000h), a VGA Color Display, a Sound Blaster, a 1.2Mb and a 1.44Mb diskette drive, and a 10Mb hard disk.  It boots the same BASIC-DOS Extended Memory diskette as the [PC AT](../) version of this demo, which runs three consoles, each on its own page of video memory, with their shells on the hard disk, and DOS can also allocate memory from extended memory.  It runs in protected mode, the default on a DeskPro 386, with the 80386's features: an 80386 TSS, selectors that can cover more than 64K, paging, and V86 machines, which [V86](/docs/bdman/cmd/external/v86/) uses to run real-mode COM programs.  Use **SHIFT-TAB** to switch between consoles.
+The machine below is a COMPAQ DeskPro 386 with a 16Mhz 80386, 2Mb of memory (640K of conventional memory and 1Mb of extended memory, plus 384K that ends at 16Mb: the last 128K holds the ROM BIOS's copy of the ROMs, and BASIC-DOS uses the other 256K, at FA0000h), a VGA Color Display, a Sound Blaster, a 1.2Mb and a 1.44Mb diskette drive, and a 10Mb hard disk.
 
-See [The CPU$ Drivers](/docs/bdtech/mmu/#cpu) and [Protected-Mode Initialization](/docs/bdtech/mmu/#pminit) for more details.
+It boots the same BASIC-DOS diskette as the [PC AT](../) demo, automatically enabling all the enhanced features of the 80386, including 32-bit segments, paging, and V86 machines, which [V86](/docs/bdman/cmd/external/v86/) uses to run real-mode programs.  Use **SHIFT-TAB** to switch between consoles.  See [The CPU$ Drivers](/docs/bdtech/mmu/#cpu) and [Protected-Mode Initialization](/docs/bdtech/mmu/#pminit) for more details.
 
 {% include machine.html id="deskpro386" %}
 

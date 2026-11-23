@@ -22,7 +22,7 @@
 	IF A$ = W$ + "F" THEN F = 1 : GOTO 5
 	IF A$ = W$ + "A" THEN A = 1 : GOTO 5
 	' Any other option, or a second path, is an error
-	IF LEFT$(A$, 1) = W$ OR S$ <> "" THEN GOTO 95
+	IF LEFT$(A$, 1) = W$ OR S$ <> "" THEN GOTO 990
 	S$ = A$
 5	J = J + 1 : A$ = UCASE$(ARG$(J))
 	WEND
@@ -34,7 +34,7 @@
 	PC$ = MID$(CURDIR$, 3, 1)
 	IF S$ = "" THEN S$ = CURDIR$
 	D$ = LEFT$(CURDIR$, 2) : IF MID$(S$, 2, 1) = ":" THEN D$ = LEFT$(S$, 2)
-	ON ERROR GOTO 90
+	ON ERROR GOTO 900
 	V$ = DIR$(D$ + PC$ + "*.*", 8)
 	ON ERROR GOTO 0
 	V$ = MID$(V$, 10) : J = INSTR(V$, ".")
@@ -84,5 +84,6 @@
 	WEND
 	PRINT Y$
 	RETURN
-90	PRINT "Invalid drive" : END 1
-95	PRINT "Syntax error" : END 1
+900	' DIR$ reports only an invalid drive
+	PRINT "Invalid drive" : END 77 ' BERR_BADDRIVE
+990	END 80 ' BERR_USAGE

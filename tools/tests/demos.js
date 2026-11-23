@@ -30,6 +30,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const HELLO = /L O V E/, FIBO = /832040/, PRIMES = /TOTAL PRIMES < 1000: +168/;
 const PIPES = /DIRECTORY OF A:/, DIR = /Directory of A:/, PROMPT = /[A-C]:\\[^ ]*[>\])]/;
+const DONKEY = /Press space bar to continue/;
 
 /**
  * What each demo should do, by path (less any pc/, xt/, at/, or 386/); each value is a
@@ -53,7 +54,7 @@ const DEMOS = {
     'd40':          () => ({ screen: [HELLO, DIR] }),
     'd80':          () => ({ screen: [HELLO, />[^>]*>/] }),
     'p80':          (hw) => ({ screen: [HELLO, FIBO, PRIMES], cycle: hw == 'pc' }),
-    'dual':         () => ({ screen: [PRIMES, PIPES] }),
+    'dual':         () => ({ screen: [PRIMES, DONKEY], keys: false }),
     'dual/multi':   () => ({ screen: [HELLO, FIBO, PRIMES, PIPES] }),
     'mouse':        () => ({ screen: [], keys: false, graphics: true }),
     'debug':        () => ({ screen: [HELLO], debug: 2 }),

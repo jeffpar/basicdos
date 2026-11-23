@@ -54,7 +54,9 @@ IF ERRORLEVEL THEN PRINT "FIND variable failed" : FAILS = FAILS + 1
 FIND hello T.TMP > T2.TMP
 IF ERRORLEVEL THEN PRINT "FIND literal failed" : FAILS = FAILS + 1
 SED "s/[a/b/" T.TMP
-IF ERRORLEVEL = 0 THEN PRINT "SED error failed" : FAILS = FAILS + 1
+IF ERRORLEVEL <> 2 THEN PRINT "SED error failed" : FAILS = FAILS + 1
+FIND hello NOFILE.TMP > T2.TMP
+IF ERRORLEVEL <> 2 THEN PRINT "FIND missing file failed" : FAILS = FAILS + 1
 TR a-z A-Z < T.TMP > T2.TMP
 OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
 IF L$ <> "HELLO,  WORLD" THEN PRINT "input redirection failed" : FAILS = FAILS + 1
@@ -75,8 +77,7 @@ TR a-z A-Z < F$ > "T2.TMP"
 OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
 IF VAL(L$) <> 1 THEN PRINT "redirection string failed" : FAILS = FAILS + 1
 DEL "T1.TMP" + F$ > E.TMP
-IF ERRORLEVEL = 0 THEN PRINT "DEL expression failed" : FAILS = FAILS + 1
-C$ = "DEL expression" : M$ = "Syntax error" : GOSUB 900
+IF ERRORLEVEL <> 1 THEN PRINT "DEL expression failed" : FAILS = FAILS + 1
 DEL T?.TMP
 DIR /W \EXT\CMD\T*.COM > T.TMP
 OPEN "T.TMP" FOR INPUT AS #1
@@ -124,6 +125,7 @@ TYPE Z:X > E.TMP
 IF ERRORLEVEL = 0 THEN PRINT "invalid drive failed" : FAILS = FAILS + 1
 C$ = "TYPE Z:" : M$ = "Invalid drive" : GOSUB 900
 VOL Z: > E.TMP
+IF ERRORLEVEL <> 77 THEN PRINT "VOL invalid drive failed" : FAILS = FAILS + 1
 C$ = "VOL Z:" : M$ = "Invalid drive" : GOSUB 900
 TIME /D > E.TMP
 C$ = "TIME /D" : M$ = "Elapsed time is" : GOSUB 900
@@ -137,32 +139,38 @@ IF P$ <> "x" THEN PRINT "long switch failed" : FAILS = FAILS + 1
 SLEEP 0 /W>TX:P$ = "y"
 IF P$ <> "y" THEN PRINT "colon after switch failed" : FAILS = FAILS + 1
 DEL TX
-REM Invalid switches are syntax errors, in any position, and valid ones work
+REM Invalid switches are syntax errors, in any position, and valid ones work;
+REM a syntax error displays the usage (after the redirections) and sets 1
 OPEN "T.TMP" FOR OUTPUT AS #1 : PRINT #1, "x" : CLOSE #1
 TYPE /Z T.TMP > E.TMP
-IF ERRORLEVEL = 0 THEN PRINT "TYPE /Z failed" : FAILS = FAILS + 1
-C$ = "TYPE /Z" : M$ = "Syntax error" : GOSUB 900
+IF ERRORLEVEL <> 1 THEN PRINT "TYPE /Z failed" : FAILS = FAILS + 1
 COPY T.TMP T1.TMP /Z > E.TMP
-IF ERRORLEVEL = 0 THEN PRINT "COPY /Z failed" : FAILS = FAILS + 1
-C$ = "COPY /Z" : M$ = "Syntax error" : GOSUB 900
+IF ERRORLEVEL <> 1 THEN PRINT "COPY /Z failed" : FAILS = FAILS + 1
 DIR /? T.TMP > E.TMP
-IF ERRORLEVEL = 0 THEN PRINT "DIR /? failed" : FAILS = FAILS + 1
-C$ = "DIR /?" : M$ = "Syntax error" : GOSUB 900
+IF ERRORLEVEL <> 1 THEN PRINT "DIR /? failed" : FAILS = FAILS + 1
 TYPE T.TMP/.. > E.TMP
-IF ERRORLEVEL = 0 THEN PRINT "TYPE /.. failed" : FAILS = FAILS + 1
-C$ = "TYPE /.." : M$ = "Syntax error" : GOSUB 900
+IF ERRORLEVEL <> 1 THEN PRINT "TYPE /.. failed" : FAILS = FAILS + 1
 TYPE T.TMP / > E.TMP
-IF ERRORLEVEL = 0 THEN PRINT "TYPE / failed" : FAILS = FAILS + 1
-C$ = "TYPE /" : M$ = "Syntax error" : GOSUB 900
+IF ERRORLEVEL <> 1 THEN PRINT "TYPE / failed" : FAILS = FAILS + 1
 TYPE T.TMP/1 > E.TMP
-IF ERRORLEVEL = 0 THEN PRINT "TYPE /1 failed" : FAILS = FAILS + 1
-C$ = "TYPE /1" : M$ = "Syntax error" : GOSUB 900
+IF ERRORLEVEL <> 1 THEN PRINT "TYPE /1 failed" : FAILS = FAILS + 1
 HEXDUMP T.TMP /N 1 | MORE > E.TMP
 IF ERRORLEVEL THEN PRINT "BAS switch before pipe failed" : FAILS = FAILS + 1
 C$ = "HEXDUMP | MORE" : M$ = "0000:0000 78" : GOSUB 900
 DIR /W>T1.TMP
 IF ERRORLEVEL THEN PRINT "DIR /W> failed" : FAILS = FAILS + 1
 DEL T1.TMP
+PRINT "Displayed by :> @1" :> @1
+IF ERRORLEVEL THEN PRINT ":> @1 failed" : FAILS = FAILS + 1
+PRINT "Displayed by > @1">@1
+IF ERRORLEVEL THEN PRINT "> @1 failed" : FAILS = FAILS + 1
+COPY E.TMP @99
+IF ERRORLEVEL = 0 THEN PRINT "COPY @99 failed" : FAILS = FAILS + 1
+TYPE @1
+IF ERRORLEVEL = 0 THEN PRINT "TYPE @1 failed" : FAILS = FAILS + 1
+PRINT "x" :> @X
+OPEN "@X" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1 : DEL @X
+IF L$ <> "x" THEN PRINT ":> @X failed" : FAILS = FAILS + 1
 KILL 99 > E.TMP
 IF ERRORLEVEL = 0 THEN PRINT "KILL 99 failed" : FAILS = FAILS + 1
 C$ = "KILL 99" : M$ = "Invalid session" : GOSUB 900
@@ -179,14 +187,14 @@ KILL /A 1 > E.TMP
 IF ERRORLEVEL = 0 THEN PRINT "KILL /A 1 failed" : FAILS = FAILS + 1
 C$ = "KILL /A 1" : M$ = "Invalid session" : GOSUB 900
 KILL /Z > E.TMP
-IF ERRORLEVEL = 0 THEN PRINT "KILL /Z failed" : FAILS = FAILS + 1
-C$ = "KILL /Z" : M$ = "Syntax error" : GOSUB 900
+IF ERRORLEVEL <> 1 THEN PRINT "KILL /Z failed" : FAILS = FAILS + 1
 KILL > E.TMP
-IF ERRORLEVEL = 0 THEN PRINT "KILL failed" : FAILS = FAILS + 1
-C$ = "KILL" : M$ = "Syntax error" : GOSUB 900
+IF ERRORLEVEL <> 1 THEN PRINT "KILL failed" : FAILS = FAILS + 1
 START > E.TMP
 IF ERRORLEVEL THEN PRINT "START failed" : FAILS = FAILS + 1
-C$ = "START" : M$ = "COMMAND" : GOSUB 900
+REM The list names the BAS or BAT file a session is running (CMDS, even though
+REM LS and VOL ran before this; see saveChains)
+C$ = "START" : M$ = "COMMAND CMDS" : GOSUB 900
 COPY /B T.TMP T1.TMP
 IF ERRORLEVEL THEN PRINT "COPY /B failed" : FAILS = FAILS + 1
 DEL T1.TMP
@@ -197,20 +205,29 @@ COPY \EXT\CMD\SLEEP.COM /B
 IF NOT EXISTS("SLEEP.COM") THEN PRINT "COPY trailing /B failed" : FAILS = FAILS + 1
 DEL SLEEP.COM
 FIND /Z x T.TMP
-IF ERRORLEVEL <> 2 THEN PRINT "FIND /Z failed" : FAILS = FAILS + 1
+IF ERRORLEVEL <> 1 THEN PRINT "FIND /Z failed" : FAILS = FAILS + 1
 TR /Z a b < T.TMP
-IF ERRORLEVEL <> 2 THEN PRINT "TR /Z failed" : FAILS = FAILS + 1
+IF ERRORLEVEL <> 1 THEN PRINT "TR /Z failed" : FAILS = FAILS + 1
 SORT /R+1 T.TMP > T1.TMP
 IF ERRORLEVEL THEN PRINT "SORT switches failed" : FAILS = FAILS + 1
 DEL T1.TMP
 REM An internal command, like a BAS file, can't be the target of a pipe
 VER | DIR
 IF ERRORLEVEL = 0 THEN PRINT "internal pipe target failed" : FAILS = FAILS + 1
-TREE /Z > T1.TMP
-OPEN "T1.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
-IF L$ <> "Syntax error" THEN PRINT "TREE /Z failed" : FAILS = FAILS + 1
-IF ERRORLEVEL <> 1 THEN PRINT "TREE ERRORLEVEL failed" : FAILS = FAILS + 1
-DEL T1.TMP
+TREE /Z > E.TMP
+IF ERRORLEVEL <> 1 THEN PRINT "TREE /Z failed" : FAILS = FAILS + 1
+REM The usage of an internal or COM command goes to the BAT's output (a BAS
+REM utility in T2.BAT would nest too deeply to compile; see genMore)
+OPEN "T2.BAT" FOR OUTPUT AS #1 : PRINT #1, "TYPE /Z" : PRINT #1, "FIND /Z x"
+CLOSE #1
+T2 > E.TMP
+IF ERRORLEVEL <> 1 THEN PRINT "usage ERRORLEVEL failed" : FAILS = FAILS + 1
+C$ = "TYPE /Z" : M$ = "Usage: TYPE" : GOSUB 900
+C$ = "FIND /Z" : M$ = "Usage: FIND" : GOSUB 900
+DEL T2.BAT
+HELP /U VOL > E.TMP
+IF ERRORLEVEL THEN PRINT "HELP /U failed" : FAILS = FAILS + 1
+C$ = "HELP /U" : M$ = "Usage: VOL" : GOSUB 900
 REM END sets ERRORLEVEL (0 by default), and falling off the end leaves it alone
 OPEN "T1.BAS" FOR OUTPUT AS #1 : PRINT #1, "IF 1 THEN END 7 ELSE PRINT 1" : CLOSE #1
 T1

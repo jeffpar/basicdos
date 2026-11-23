@@ -85,10 +85,9 @@ CODE    SEGMENT
 DEFPROC	main
 	mov	bp,ds:[PSP_HEAP]	; BP -> SEDVARS
 	call	getArgs
-	mov	si,offset SYN_ERR
 	mov	di,[bp].UV_STR
 	test	di,di			; was there a script?
-	jz	m8			; no
+	jz	m9a			; no
 	mov	bx,di
 	add	bx,[bp].UV_STRLEN
 	mov	byte ptr [bx],0		; null-terminate it
@@ -99,6 +98,7 @@ DEFPROC	main
 m8:	call	writeErr
 	mov	[bp].UV_ERR,2
 m9:	jmp	exit
+m9a:	jmp	usageError
 m2:	cmp	[bp].UV_NFILES,0	; was a file specified?
 	je	m3			; no
 	mov	dx,[bp].UV_FILES

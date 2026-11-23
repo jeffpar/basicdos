@@ -41,12 +41,12 @@
 	IF LEFT$(O$, 2) = "V:" THEN V = 1 : VC$ = MID$(O$, 3) : GOTO 5
 	IF LEFT$(O$, 2) = "F:" THEN FS = VAL(MID$(O$, 3)) : GOTO 5
 	' Any other option, or a second drive (or anything else), is an error
-	IF LEN(A$) <> 2 OR RIGHT$(A$, 1) <> ":" OR D$ <> "" THEN GOTO 97
+	IF LEN(A$) <> 2 OR RIGHT$(A$, 1) <> ":" OR D$ <> "" THEN GOTO 990
 	D$ = A$
 5	I = I + 1 : A$ = UCASE$(ARG$(I))
 	WEND
-	IF D$ = "" THEN GOTO 97
-	IF FS AND FS <> 360 AND FS <> 720 AND FS <> 1200 THEN GOTO 96
+	IF D$ = "" THEN GOTO 990
+	IF FS AND FS <> 360 AND FS <> 720 AND FS <> 1200 THEN GOTO 920
 	IF FS > 360 AND (H = 1 OR T = 8) THEN PRINT W$; "1 and "; W$; "8 are only for 360K" : END 1
 	' The system drive (V$, which COMMAND.COM was loaded from) and its path
 	' char (PC$) come from DOS function &H3704 (in DH and DL)
@@ -54,7 +54,7 @@
 	IF D$ = LEFT$(CURDIR$, 2) THEN PRINT "Cannot format the current drive" : END 1
 	IF D$ = V$ THEN PRINT "Cannot format the system drive" : END 1
 	Z = 0 : U = 0
-	ON ERROR GOTO 90
+	ON ERROR GOTO 900
 	OPEN D$ FOR OUTPUT AS #1
 	P$ = IOCTL$(1, &HF3)
 	IF LEN(P$) > 1 THEN GOTO 100
@@ -64,8 +64,8 @@
 	IF FS = 0 AND DT = 2 THEN FS = 1200
 	IF FS = 0 AND DT >= 3 THEN FS = 720
 	IF FS = 0 THEN FS = 360
-	IF DT AND ((FS = 1200 AND DT <> 2) OR (FS = 720 AND DT < 3)) THEN GOTO 95
-	IF FS = 360 AND DT >= 3 THEN GOTO 95
+	IF DT AND ((FS = 1200 AND DT <> 2) OR (FS = 720 AND DT < 3)) THEN GOTO 910
+	IF FS = 360 AND DT >= 3 THEN GOTO 910
 	' Diskette geometry: CY cylinders, H heads, T sectors per track, and N
 	' sectors; the media ID is FE (1 head, 8 sectors), FF (2, 8), FC (1, 9),
 	' FD (2, 9), or F9 (720K or 1.2M)
@@ -175,19 +175,6 @@
 	IF S THEN PRINT U; "bytes used by system"
 	PRINT L - U; "bytes available on disk"
 	RETURN
-90	' Report the error (eg, a write-protected diskette) and stop
-	CLOSE
-	PRINT
-	IF ERR = 55 THEN PRINT "Cannot format drive "; D$; " (files are open)" : END 1
-	IF ERR = 70 THEN PRINT "Write protect error" : END 1
-	IF ERR = 71 THEN PRINT "Drive not ready" : END 1
-	IF ERR = 72 AND Z THEN PRINT "Track"; C; "bad - disk unusable" : END 1
-	IF ERR = 77 THEN PRINT "Invalid drive" : END 1
-	PRINT "Format failed (error"; ERR; ")"
-	END 1
-95	PRINT "Drive "; D$; " can't format" + STR$(FS) + "K diskettes" : END 1
-96	PRINT "Invalid size (use "; W$; "F:360, "; W$; "F:720, or "; W$; "F:1200)" : END 1
-97	PRINT "Syntax error" : END 1
 100	' Hard disk: P$ holds the disk's cylinders, heads, and sectors per track,
 	' its BIOS drive number, whether its MBR is valid, the drive letter of
 	' each partition (0 if it isn't a volume), and the partition table, so
@@ -291,3 +278,16 @@
 	CLOSE #2
 	RETURN
 410	VL$ = "" : GOTO 401
+900	' Report a runtime error (eg, a write-protected diskette), whose number
+	' (ERR) is the exit code
+	CLOSE
+	PRINT
+	IF ERR = 55 THEN PRINT "Cannot format drive "; D$; " (files are open)" : END ERR ' BERR_FILEOPEN
+	IF ERR = 70 THEN PRINT "Write protect error" : END ERR ' BERR_ACCESS
+	IF ERR = 71 THEN PRINT "Drive not ready" : END ERR ' BERR_NOTREADY
+	IF ERR = 72 AND Z THEN PRINT "Track"; C; "bad - disk unusable" : END ERR ' BERR_MEDIA
+	IF ERR = 77 THEN PRINT "Invalid drive" : END ERR ' BERR_BADDRIVE
+	PRINT "Format failed (error"; ERR; ")" : END ERR
+910	PRINT "Drive "; D$; " can't format" + STR$(FS) + "K diskettes" : END 1
+920	PRINT "Invalid size (use "; W$; "F:360, "; W$; "F:720, or "; W$; "F:1200)" : END 1
+990	END 80 ' BERR_USAGE

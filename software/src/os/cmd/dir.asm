@@ -14,7 +14,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<getFileName,getToken,chkStrVar,newStr>
-	EXTNEAR	<printCRLF,findFile,addString,releaseStr,rtError,syntaxError>
+	EXTNEAR	<printCRLF,findFile,addString,releaseStr,rtError,usageError>
 	EXTNEAR	<v86Hint,memMsg>
 	EXTBYTE	<CMD_PATH>
 	EXTSTR	<DIR_DEF,PIPE_NAME,COM_EXT,BAS_EXT>
@@ -504,7 +504,7 @@ rn2:	lea	dx,[bx].LINEBUF+128
 rn7:	mov	si,dx
 	mov	dx,offset VERB_REN
 	jmp	fileError
-rn8:	jmp	syntaxError
+rn8:	jmp	usageError
 ENDPROC	cmdRen
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

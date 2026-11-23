@@ -392,19 +392,27 @@ so9b:	stc
 ; If the name is CON, AUX, or PRN, then share the session's SFB for that
 ; device (see chk_devname), which may be any device (eg, COM1 for CON).
 ;
-so0:	jcxz	so0a			; not one of the session's devices
+; A session's CON by number (eg, "@2") is for output only, so that another
+; session can't read its console's input.
+;
+so0:	jcxz	so0b			; not one of the session's devices
 	inc	cx			; does the session have the device?
 	jz	so9a			; no
 	dec	cx
-	xchg	bx,cx			; BX -> session's SFB
 	mov	ds,cs:[dos_data]	; (so9 restores DS)
 	ASSUME	DS:DOS
+	mov	di,[scb_active]
+	cmp	[di].SCB_FILENAME+1,'@'
+	jne	so0a			; not a session's CON by number
+	test	bl,MODE_ACC_WO OR MODE_ACC_RW
+	jz	so9r			; it's being opened for reading only
+so0a:	xchg	bx,cx			; BX -> session's SFB
 	inc	[bx].SFB_REFS		; add a reference
 	mov	dx,[bx].SFB_CONTEXT	; DX = context (and carry is clear)
 	jmp	so9
 	ASSUME	DS:NOTHING
 
-so0a:	call	chk_devopen		; can it be opened in this mode?
+so0b:	call	chk_devopen		; can it be opened in this mode?
 	jc	so9b			; no (AX = error code)
 	cmp	ah,10h			; FCB?
 	jne	so1			; no

@@ -8,8 +8,8 @@
 	'
 	DEFINT A-Z
 	D$ = UCASE$(ARG$(1)) : IF D$ = "" THEN D$ = LEFT$(CURDIR$, 2)
-	IF LEN(D$) <> 2 OR RIGHT$(D$, 1) <> ":" THEN PRINT "Syntax error" : END 1
-	ON ERROR GOTO 90
+	IF LEN(D$) <> 2 OR RIGHT$(D$, 1) <> ":" THEN GOTO 990
+	ON ERROR GOTO 900
 	F$ = DIR$(D$ + MID$(CURDIR$, 3, 1) + "*.*", 8)
 	ON ERROR GOTO 0
 	IF F$ = "" THEN PRINT "Volume in drive "; LEFT$(D$, 1); " has no label" : END
@@ -17,4 +17,6 @@
 	IF I THEN N$ = LEFT$(LEFT$(N$, I - 1) + SPACE$(8), 8) + MID$(N$, I + 1)
 	PRINT "Volume in drive "; LEFT$(D$, 1); " is "; N$
 	END
-90	PRINT "Invalid drive" : END 1
+900	' DIR$ reports only an invalid drive
+	PRINT "Invalid drive" : END 77 ' BERR_BADDRIVE
+990	END 80 ' BERR_USAGE

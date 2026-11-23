@@ -105,7 +105,7 @@ of0:	lodsb
 	jb	of0a			; no
 	cmp	byte ptr [si+4],':'	; a device name (eg, "COM1:")?
 	jne	of0a			; no
-	mov	byte ptr [wMode+1],68	; yes (for "Device unavailable")
+	mov	byte ptr [wMode+1],BERR_NODEVICE ; yes ("Device unavailable")
 of0a:	rep	movsb			; copy the filename to LINEBUF
 of1:	xchg	ax,cx
 	stosb				; and null-terminate it
@@ -116,7 +116,7 @@ of1:	xchg	ax,cx
 	mov	ax,[wMode]
 	push	ax
 	call	openMode		; AX = handle
-	pop	cx			; CL = mode (and CH = 68 for a device)
+	pop	cx			; CL = mode (CH set if a device)
 	jc	of8
 	cmp	cl,3			; random access?
 	jne	of2			; no
@@ -141,7 +141,7 @@ of2:	mov	ah,cl
 	pop	ds
 	LEAVE
 	RETURN
-of8:	mov	cl,ch			; CL = 68 for a device name
+of8:	mov	cl,ch			; CL = BERR_NODEVICE for a device name
 	test	cl,cl			; a device name?
 	jnz	of8a			; yes ("Device unavailable")
 	mov	cl,BERR_FILEOPEN	; "File already open" (elsewhere)

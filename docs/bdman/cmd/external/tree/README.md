@@ -31,7 +31,7 @@ If there are no subdirectories, TREE displays `No subdirectories exist`.
 	|   |   \---OBJ
 	...
 
-If a tree is too wide or too deep for TREE to follow, it lists what it can, then displays `Too many subdirectories`, and ERRORLEVEL is set to 1.  A drive that doesn't exist displays `Invalid drive`, and an unknown switch, or a second path, displays `Syntax error`.
+If a tree is too wide or too deep for TREE to follow, it lists what it can, then displays `Too many subdirectories`, and ERRORLEVEL is set to 1.  A drive that doesn't exist displays `Invalid drive`, and an unknown switch, or a second path, is a [usage error](../../#usage-errors).
 
 Source: [TREE.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/TREE.BAS)
 

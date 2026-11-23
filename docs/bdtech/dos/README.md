@@ -67,7 +67,7 @@ The line editing keys that 0Ah supports are described in [Typing Commands](../..
 | 44h | DOS_HDL_IOCTL | AL = IOCTL code, BX = handle, CX and DX = IOCTL data, DS:SI -> optional IOCTL data | DX = result |
 | 57h | DOS_HDL_GETTIME, DOS_HDL_SETTIME | AL = 0 (get) or 1 (set), BX = handle, CX = time (`hour*2048 + minute*32 + second/2`) and DX = date (`(year-1980)*512 + month*32 + day`) (set only) | CX = time and DX = date (get only); a time and date that are set are kept when the file is closed, instead of the time of its last write (setting them for a device or volume does nothing) |
 
-Handles 0-4 are the predefined handles STDIN, STDOUT, STDERR, STDAUX, and STDPRN.  Filenames can also be device names (eg, `NUL` or `COM1`), optionally followed by a colon and device-specific parameters (eg, `VKD$:40,25`).  `CON`, `AUX`, and `PRN` (with or without a colon) are the session's console, AUX, and PRN devices (see [CON=](../../bdman/cfg/#con), [AUX=](../../bdman/cfg/#aux), and [PRN=](../../bdman/cfg/#prn)), and opening one shares the session's handle for it; if the session has no such device (eg, PRN on a machine without a parallel port), the open fails with ERR_NOFILE, and STDAUX or STDPRN contains SFH_NODEV (FEh), which keeps the handle in use, so that reads and writes fail with ERR_BADHANDLE.  For the same reason, [FILES=](../../bdman/cfg/#files) can't exceed 254.
+Handles 0-4 are the predefined handles STDIN, STDOUT, STDERR, STDAUX, and STDPRN.  Filenames can also be device names (eg, `NUL` or `COM1`), optionally followed by a colon and device-specific parameters (eg, `VKD$:40,25`).  `CON`, `AUX`, and `PRN` (with or without a colon) are the session's console, AUX, and PRN devices (see [CON=](../../bdman/cfg/#con), [AUX=](../../bdman/cfg/#aux), and [PRN=](../../bdman/cfg/#prn)), and opening one shares the session's handle for it (`@`*n* is likewise CON in session *n*, which is how one session displays output on another's console, eg, `PRINT "Hello" > @2`, but opening it without write access fails with ERR_ACCDENIED, so that its input can't be read; any other name that begins with `@` is an ordinary file name); if the session has no such device (eg, PRN on a machine without a parallel port), the open fails with ERR_NOFILE, and STDAUX or STDPRN contains SFH_NODEV (FEh), which keeps the handle in use, so that reads and writes fail with ERR_BADHANDLE.  For the same reason, [FILES=](../../bdman/cfg/#files) can't exceed 254.
 
 Each write to a device through a handle is whole, as far as other sessions are concerned: a session that writes to a handle (eg, a console or a pipe that several sessions share, as a program's children do) while another session's write to it is in progress waits until that write is done, so their output never interleaves within a write (although a program's output can still interleave between its writes).  A pending CTRL-C or ABORT ends the wait.
 
@@ -176,7 +176,9 @@ BASIC-DOS also stores additional information in the PSP, in fields that PC DOS l
 
 Environments aren't copied: a new program's PSP_ENVSEG is simply EPB_ENVSEG, or if that's zero, its parent's environment (which is safe to share, since the parent outlives the program).  COMMAND.COM gives every program it runs an environment (a block of its own, which exists only while the program runs) containing COMSPEC (the path of COMMAND.COM) and PATH (the current [PATH$](../../bdman/cmd/basic/func/#path)), mainly for older programs (eg, MAKE) that use them to find and run other programs; and when COMMAND.COM itself is given an environment containing PATH, it sets PATH$ from it.
 
-For the same reason, COMMAND.COM supports `COMMAND /C command`, which is how the C runtime's system() function runs a command: the command is run, and then COMMAND.COM exits, with ERRORLEVEL as its exit code.  Unlike PC DOS, whose COMMAND /C always returns 0, this lets a program like MAKE stop when a command fails.  Without /C, any commands following COMMAND are run as startup commands (see [COMMAND](../../bdman/cmd/external/command/)), and COMMAND.COM keeps running.
+For the same reason, COMMAND.COM supports `COMMAND /C command`, which is how the C runtime's system() function runs a command: the command is run, and then COMMAND.COM exits, with ERRORLEVEL as its exit code.  Unlike PC DOS, whose COMMAND /C always returns 0, this lets a program like MAKE stop when a command fails.
+
+A command whose arguments are invalid doesn't display `Syntax error` itself: it ends with exit code 80 (ERR_USAGE, which isn't a DOS error; a BAS file uses `END 80`), and COMMAND.COM then runs `HELP /U name` (name without any path or extension), which displays the `Usage:` line of the command's HELP.TXT entry, and sets ERRORLEVEL to 1 (see [Usage Errors](../../bdman/cmd/#usage-errors)).  A program with no parent (PSP_PARENT is zero), such as a pipeline stage after the first, which runs in a session of its own, displays `Usage error` itself instead, since no COMMAND.COM sees its exit code.  Without /C, any commands following COMMAND are run as startup commands (see [COMMAND](../../bdman/cmd/external/command/)), and COMMAND.COM keeps running.
 
 #### Files
 
@@ -281,10 +283,12 @@ However a program terminates, any of vectors 00h, 01h, 03h, 04h, 08h, 09h, 1Bh, 
 | 31 | ERR_GENFAIL | General failure (any other device error) |
 | 32 | ERR_SHARE | Sharing violation (the file is already open) |
 | 39 | ERR_DISKFULL | Disk full |
-| 100 | ERR_BADSESSION | Invalid session (BASIC-DOS only) |
-| 101 | ERR_NOSESSION | Out of sessions (BASIC-DOS only) |
-| 102 | ERR_BADMODE | Real-mode program, which protected mode can't load (BASIC-DOS only) |
+| 40 | ERR_BADSESSION | Invalid session (BASIC-DOS only) |
+| 41 | ERR_NOSESSION | Out of sessions (BASIC-DOS only) |
+| 42 | ERR_BADMODE | Real-mode program, which protected mode can't load (BASIC-DOS only) |
 
 Errors 19-31 are device errors, as in DOS 3.x; a critical error handler gets the same error minus 19 (see [Critical Errors](#critical-errors)).
+
+These codes aren't BASIC's error numbers: COMMAND.COM converts a DOS error to one of Microsoft BASIC's runtime errors (eg, ERR_NOTREADY is "Disk not ready", 71), which [ERR](../../bdman/cmd/basic/func/#err) returns, and which the BAS utilities use as their exit codes (see [Exit Codes](../../bdman/cmd/#exit-codes)).
 
 {% include footer.html prev="Architecture:../arch/" next="Utility Functions:../util/" %}

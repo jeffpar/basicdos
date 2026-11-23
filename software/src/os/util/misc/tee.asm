@@ -23,9 +23,8 @@ CODE    SEGMENT
 DEFPROC	main
 	mov	bp,ds:[PSP_HEAP]	; BP -> UTILVARS
 	call	getArgs
-	mov	si,offset SYN_ERR
 	cmp	[bp].UV_NFILES,0	; was a file specified?
-	je	m8			; no
+	je	m6			; no
 	mov	dx,[bp].UV_FILES	; DX -> file name
 	mov	ax,DOS_HDL_OPENWO
 	CHKSW	'A'			; appending?
@@ -37,7 +36,7 @@ m1:	sub	cx,cx			; CX = attributes (none)
 	int	21h
 	jnc	m2
 	call	openErr			; report the error (AX)
-	jmp	short m9
+	jmp	short m5
 m2:	xchg	si,ax			; SI = file handle
 	mov	bx,si
 	sub	cx,cx
@@ -50,9 +49,9 @@ m3:	lea	dx,[bp].UV_INBUF
 	mov	bx,STDIN
 	mov	ah,DOS_HDL_READ
 	int	21h
-	jc	m9
+	jc	m5
 	xchg	cx,ax			; CX = # bytes read
-	jcxz	m9			; no more input
+	jcxz	m5			; no more input
 	mov	di,dx
 	mov	al,CHR_CTRLZ
 	repne	scasb			; CTRL-Z ends input
@@ -65,21 +64,22 @@ m4:	sub	cx,dx			; CX = # bytes to write
 	mov	bx,si
 	mov	ah,DOS_HDL_WRITE
 	int	21h
-	jc	m6
+	jc	m7
 	cmp	ax,cx			; was everything written (eg, disk full)?
-	jb	m6			; no
+	jb	m7			; no
 	test	di,di			; end of input?
 	jnz	m3			; no
-m9:	jmp	exit
+m5:	jmp	exit
+m6:	jmp	usageError
 
-m6:	mov	si,offset WRITE_ERR
+m7:	mov	si,offset WRITE_ERR
 	call	writeErr
 	mov	si,[bp].UV_FILES
 	call	writeErr
 	mov	si,offset CRLF
 m8:	call	writeErr
 	mov	[bp].UV_ERR,2
-	jmp	m9
+	jmp	m5
 ENDPROC	main
 
 SW_LIST	db	"A"

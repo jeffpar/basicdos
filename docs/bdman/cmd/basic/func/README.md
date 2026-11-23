@@ -346,7 +346,7 @@ Returns the line number of the last error (see [ON ERROR](../#on-error)), or 0 i
 
 > ERR
 
-Returns the number of the last error (see [ON ERROR](../#on-error)).
+Returns the number of the last error (see [ON ERROR](../#on-error)).  The numbers are Microsoft BASIC's (eg, 71 for "Disk not ready"), not DOS error codes, and the BAS utilities end with them (see [Exit Codes](../../#exit-codes)).
 
 #### FRE {#fre}
 
@@ -449,7 +449,7 @@ Returns the number of seconds since midnight, with hundredths (eg, 45296.17), fr
 
 #### ERRORLEVEL {#errorlevel}
 
-Equal to the return code from the last program executed, for an internal command (eg, COPY or DEL), 0 if it succeeded or 1 if it failed (eg, `IF ERRORLEVEL THEN PRINT "Failed"`), or the value given by [END](../#end) in a BAS program.
+Equal to the return code from the last program executed (see [Exit Codes](../../#exit-codes)), for an internal command (eg, COPY or DEL), 0 if it succeeded or 1 if it failed (eg, `IF ERRORLEVEL THEN PRINT "Failed"`), or the value given by [END](../#end) in a BAS program.
 
 #### MAXINT {#maxint}
 

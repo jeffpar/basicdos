@@ -6,11 +6,12 @@ machines:
   - id: ibm5150
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
+    autoType: LOAD \\DEMOS\\FIBO.BAT\rLIST\rRUN\r
 ---
 
 ### Part 3: BASIC Files vs. Batch Files
 
-The machine below boots the `BASICDOS-360K-S80` diskette; type `LOAD \DEMOS\FIBO.BAT` to load the **FIBO.BAT** batch file from its **DEMOS** directory, `LIST` to list it, and `RUN` to run it.
+The machine below boots the `BASICDOS-360K-S80` diskette, loads the **FIBO.BAT** batch file from its **DEMOS** directory, lists it, and then runs it.
 
 {% include machine.html id="ibm5150" %}
 

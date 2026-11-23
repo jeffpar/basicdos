@@ -126,7 +126,7 @@ Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-
 
 ### Devices
 
-**DOS_UTL_GETDEV (10h)**: DS:DX -> device name.  Returns ES:DI -> device driver header, or carry set if not found.  For CON, AUX, or PRN, it's the driver of the session's device (carry set if the session has no such device).
+**DOS_UTL_GETDEV (10h)**: DS:DX -> device name.  Returns ES:DI -> device driver header, or carry set if not found.  For CON, AUX, or PRN (or `@`*n*, session *n*'s CON), it's the driver of the session's device (carry set if the session has no such device).
 
 ### Sessions
 
@@ -142,7 +142,7 @@ Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-
 
 **DOS_UTL_WAITEND (17h)**: CL = session number.  Waits for all programs in the session to end.
 
-**DOS_UTL_QRYSCB (12h)**: CL = session number, ES:DI -> 8-byte buffer.  Returns AX = the PSP of the session's program (zero if none), SI:DX = the memory the session is using (in bytes): every block owned by its program, and by that program's parent, and so on (eg, a COMMAND.COM and the program it's running), plus any shared code block that one of them is the first to share (so that the code that copies of COMMAND.COM share at ring 3 is counted once, in one session), and fills the buffer with the name (8 characters) of the session's program, all zeros if there isn't one (eg, a session that has never been used) or it can't be found; or carry set if the session number is invalid.  The name is copied, rather than returned as a pointer, since a program at ring 3 can't read the kernel's memory, and a caller can't find it through the PSP: in protected mode, PSP-1 isn't an MCB, and the PSP may be a selector in another session's LDT, so DOS finds the program's blocks by its [owner ID](../mmu/#owners) instead.  COMMAND.COM uses this for START's session list, so that it doesn't depend on the kernel's internal session structures.
+**DOS_UTL_QRYSCB (12h)**: CL = session number, ES:DI -> 8-byte buffer (or with AL = 1, a 16-byte buffer; callers pass AL = 0 otherwise).  Returns AX = the PSP of the session's program (zero if none), SI:DX = the memory the session is using (in bytes): every block owned by its program, and by that program's parent, and so on (eg, a COMMAND.COM and the program it's running), plus any shared code block that one of them is the first to share (so that the code that copies of COMMAND.COM share at ring 3 is counted once, in one session), and fills the buffer with the name (8 characters) of the session's program, all zeros if there isn't one (eg, a session that has never been used) or it can't be found, and with AL = 1, followed by the name of the BAS or BAT file that the program is running, if [PSP_BASIC](../data/#psp) is set in its PSP (eg, DONKEY, for COMMAND.COM running DONKEY.BAS), or zeros; or carry set if the session number is invalid.  The name is copied, rather than returned as a pointer, since a program at ring 3 can't read the kernel's memory, and a caller can't find it through the PSP: in protected mode, PSP-1 isn't an MCB, and the PSP may be a selector in another session's LDT, so DOS finds the program's blocks by its [owner ID](../mmu/#owners) instead.  COMMAND.COM uses this for START's session list, so that it doesn't depend on the kernel's internal session structures.
 
 With CL = -1, DOS_UTL_QRYSCB fills a [SYSINFO](../data/#sysinfo) structure at ES:DI with facts about the system instead, and changes no registers; carry is set (AX = ERR_BADSESSION) only on a version of BASIC-DOS without it.
 

@@ -567,14 +567,16 @@ ENDPROC	scb_waitend
 ;
 ; Inputs:
 ;	CL = SCB #, or -1 for the system
-;	REG_ES:REG_DI -> 8-byte buffer (or SYSINFO, if CL is -1)
+;	REG_AL = 0 for an 8-byte buffer, or 1 for 16 bytes (see utl_qryscb)
+;	REG_ES:REG_DI -> buffer (or SYSINFO, if CL is -1)
 ;
 ; Outputs:
 ;	On success, carry clear:
 ;		REG_AX = PSP of the session's program (zero if none)
 ;		REG_SI:REG_DX = the session's memory (in bytes)
 ;		REG_ES:REG_DI buffer: the name of its program (zero-filled
-;		if there's none, or it's unknown)
+;		if there's none, or it's unknown), and with REG_AL = 1, the
+;		name of the BASIC program it's running (zeros if none)
 ;	On failure, carry set (ie, invalid SCB #)
 ;
 ; Modifies:
@@ -597,9 +599,10 @@ DEFPROC	scb_query,DOS
 	test	[bx].SCB_STATUS,SCSTAT_LOAD
 	jz	sq1			; no program loaded
 	mov	ax,[bx].SCB_PSP
-sq1:	mov	[bp].REG_AX,ax
+sq1:	push	ax
 	mov	dh,[bx].SCB_LDT
 	call	mem_session		; its program's name, and its memory
+	pop	[bp].REG_AX		; (after mem_session reads REG_AL)
 	clc
 	ret
 ;

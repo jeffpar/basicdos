@@ -19,11 +19,11 @@ CODE    SEGMENT
 	EXTNEAR	<pipeStages>
 	ENDIF
 	EXTNEAR	<freeAllText,genCode,keepCode,freeAllVars,cmdLoad,chkProgram>
-	EXTNEAR	<freeIdleVars,resetVars,findVar,cmdPipe,runLine,syntaxError>
+	EXTNEAR	<freeIdleVars,resetVars,findVar,cmdPipe,runLine,usageError>
 	EXTNEAR	<enterLine,editPrompt,genUpper,runFile,showPrompt,readCmd>
 	EXTNEAR	<saveChains,restoreChains,compactStrs,cmdInit>
 	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resSum,resParas>
-	EXTNEAR	<showCursor,hideCursor,rtError>
+	EXTNEAR	<showCursor,hideCursor,rtError,compErrMsg,showUsage>
 	EXTNEAR	<buildEnv,freeEnv>
 	EXTWORD	<CMD_REFS,CODE_DS,TRANS_SUM>
 	EXTWORD	<KEYWORD_TOKENS>
@@ -47,6 +47,7 @@ DEFPROC	main
 m1:	test	[bx].CMD_FLAGS,CMD_SINGLE
 	jnz	m9			; COMMAND /C is done
 	and	[bx].CMD_FLAGS,NOT CMD_NOECHO
+	mov	ds:[PSP_BASIC],0	; no BASIC program (see setName)
 ;
 ; If there's a program line to edit (see cmdAuto and cmdEdit), editPrompt
 ; displays it for editing instead of prompting for a command.  editPrompt is
@@ -522,9 +523,9 @@ ENDPROC	parseCmd
 ;	CS:DX -> offset of handler, if any
 ;
 ; Outputs:
-;	Carry set if a command failed (after reporting the error); EXIT_CODE
-;	(ie, ERRORLEVEL) is 1 if so, the program's return code if an external
-;	program ran, and 0 otherwise
+;	EXIT_CODE (ie, ERRORLEVEL) is 1 if a command failed (after reporting
+;	the error), the program's return code if an external program ran, and
+;	0 otherwise (carry isn't meaningful)
 ;
 ; Modifies:
 ;	Any
@@ -535,10 +536,13 @@ DEFPROC	parseDOS
 ; process it, replace it with a null, call cmdDOS, and then restore it and
 ; continue scanning TOKENBUF.
 ;
-; We start by saving the STD handles and open handles (on the stack, below
-; BP), so that when we're done, cleanUpTo can restore them.
+; We start by saving the first command (SI and CX), for cmdUsage, and the STD
+; handles and open handles (on the stack, below BP), so that when we're done,
+; cleanUpTo can restore them.
 ;
 	push	bp
+	push	si
+	push	cx
 	push	ax
 	push	dx
 	call	getHandles		; AX = STD handles, DX = open handles
@@ -809,7 +813,7 @@ pd8:	add	bx,size TOKLET
 ;
 pd5x:	mov	dx,word ptr [bp].SFH_STDIN
 	mov	word ptr ds:[PSP_PFT][STDIN],dx
-	call	syntaxError
+	call	syntaxMsg
 	jmp	pd6a			; (carry is set)
 
 
@@ -903,14 +907,56 @@ pd9c:	pop	cx			; discard end of TOKLETs
 	pop	dx			; DX = handles to leave open
 	pop	ax			; AX = STD handles to restore
 	call	cleanUpTo		; BX -> CMDHEAP (carry preserved)
-	jnc	pd9d
-	mov	[bx].EXIT_CODE,1	; a failure sets ERRORLEVEL to 1
+	pop	cx
+	pop	si			; SI -> first command, CX = length
+	jnc	pd9h
+;
+; A failure sets ERRORLEVEL to 1, unless it set ERR_USAGE (a usage error in
+; a command's arguments; see usageError).  ERR_USAGE, or a program that ended
+; with that exit code (eg, a BAS file's END 80), displays the command's usage
+; instead, now that the redirections are gone.
+;
+	cmp	[bx].EXIT_CODE,1	; is the exit code 0?
+	adc	[bx].EXIT_CODE,0	; if so (carry set), it's 1 now
+pd9h:	cmp	[bx].EXIT_CODE,ERR_USAGE
+	jne	pd9d
+	call	cmdUsage		; (ERRORLEVEL becomes 1)
 pd9d:	pop	bp
 	ret
 
-pd9x:	call	syntaxError
+pd9x:	call	syntaxMsg
 	jmp	pd9c			; bail on error
 ENDPROC	parseDOS
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdUsage
+;
+; Displays the usage of a command with a usage error (see parseDOS) with
+; showUsage, if it's loaded; otherwise (or with syntaxMsg, for a syntax error
+; in the line itself, like a misplaced symbol), just "Syntax error".
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	DS:SI -> command (may be preceded by whitespace)
+;	CX = length of command
+;
+; Outputs:
+;	Carry set (and EXIT_CODE is 1)
+;
+; Modifies:
+;	Any but BX
+;
+DEFPROC	cmdUsage
+	mov	[bx].EXIT_CODE,1
+	cmp	word ptr ds:[PSP_CODESIZE],offset showUsage
+	jbe	syntaxMsg		; showUsage isn't loaded
+	jmp	showUsage
+	DEFLBL	syntaxMsg,near
+	mov	dl,BERR_SYNTAX
+	sub	cx,cx			; (no line #)
+	jmp	compErrMsg
+ENDPROC	cmdUsage
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1060,7 +1106,7 @@ csw4:	or	cx,dx			; anything left? (carry is clear)
 	pop	cx
 	pop	ax
 	jz	csw9			; no
-csw8:	jmp	syntaxError
+csw8:	jmp	usageError
 csw9:	ret
 ENDPROC	chkSwitches
 
@@ -2025,6 +2071,7 @@ DEFPROC	cmdRun
 ru1:	mov	dx,offset runFile
 	jmp	genUpper		; (see runFile)
 	DEFLBL	cmdRunFlags,near
+	mov	ds:[PSP_BASIC],al	; AL is nonzero (see setName)
 	sub	si,si
 	ASSERT	STRUCT,[bx],CMD
 	cmp	al,GEN_BASIC

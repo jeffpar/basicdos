@@ -18,7 +18,8 @@
 ; and it must be quoted if it contains spaces (or starts with the switch char
 ; and a letter).  For example, "TR a-z A-Z" converts input to upper-case, and
 ; "TR -D \r" removes carriage returns.
-; The exit code is 0, or 2 if no set (or only one, without -D or -S) was given.
+; The exit code is 0, or ERR_USAGE if no set (or only one, without -D or -S)
+; was given.
 ;
 	DOSFUNC equ 1
 	DOSPSP equ 1
@@ -141,12 +142,19 @@ a9:	mov	cx,[bp].TV_LEN1
 	jnz	b1
 	cmp	[bp].TV_LEN2,0
 	jne	b1
-a10:	mov	dx,offset SYN_ERR
-	mov	cx,SYN_ERR_LEN
+;
+; A usage error ends with exit code ERR_USAGE, so that COMMAND displays
+; our usage, unless we have no parent (eg, we're a pipeline stage after the
+; first, which runs in a session of its own), so we report it ourselves.
+;
+a10:	cmp	word ptr ds:[PSP_PARENT],0	; do we have a parent?
+	jne	a11			; yes
+	mov	dx,offset USAGE_ERR
+	mov	cx,USAGE_ERR_LEN
 	mov	bx,STDERR
 	mov	ah,DOS_HDL_WRITE
 	int	21h
-	mov	ax,(DOS_PSP_RETURN SHL 8) OR 2
+a11:	mov	ax,(DOS_PSP_RETURN SHL 8) OR ERR_USAGE
 	int	21h
 ;
 ; Mark the characters in set1 (F_DEL), and if -C, replace set1 with all the
@@ -418,8 +426,8 @@ ms9:	ret
 ENDPROC	markSet
 
 SW_CHARS	db	"CDS"
-SYN_ERR		db	"Syntax error",13,10
-SYN_ERR_LEN	equ	$ - SYN_ERR
+USAGE_ERR	db	"Usage error",13,10
+USAGE_ERR_LEN	equ	$ - USAGE_ERR
 
 	COMHEAP	<size TRVARS + STACK_LEN>
 

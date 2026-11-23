@@ -26,8 +26,8 @@ CODE    SEGMENT
 
 	EXTNEAR	<allocText,shrinkBlock,freeCache,memError,writeStrCRLF>
 	EXTNEAR	<getToken,getFileName,chkExt,addString,openOutput,findProgram>
-	EXTNEAR	<writeOutput,writeError,openError,noFile,listVars>
-	EXTNEAR	<freeAllText,openInput,readInput,closeInput>
+	EXTNEAR	<writeOutput,writeError,openError,noFile,listVars,syntaxMsg>
+	EXTNEAR	<freeAllText,openInput,readInput,closeInput,setName>
 	IF DETOK
 	EXTNEAR	<loadTokens>
 	ENDIF
@@ -88,7 +88,10 @@ lf1a:	call	openInput		; open the specified file
 lf1b:	call	openError		; report error (AX) opening file (SI)
 	jmp	lf13
 
-lf1c:	call	freeAllText		; free any pre-existing blocks
+lf1c:	cmp	word ptr ds:[PSP_CODESIZE],offset setName
+	jbe	lf1d			; setName isn't loaded (see genUpper)
+	call	setName			; record the program's name
+lf1d:	call	freeAllText		; free any pre-existing blocks
 	call	allocText		; ES:DI -> new text block
 	jc	lf4y
 	mov	ax,es:[BLK_SIZE]
@@ -294,11 +297,11 @@ DEFPROC	cmdList
 	call	getToken		; the option must be the last argument
 	pop	ax
 	jc	ls0
-	jmp	syntaxError
+	jmp	usageError
 ls0:	cmp	ax,TOK_VARS
 	jne	ls0b
 	jmp	listVars
-ls0b:	jmp	syntaxError		; (eg, LIST SYSTEM)
+ls0b:	jmp	usageError		; (eg, LIST SYSTEM)
 ls1:	mov	al,'-'
 	call	getRange		; AX = 1st line #, DX = last line #
 	jnc	ls2
@@ -494,19 +497,26 @@ ENDPROC	saveLine
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; syntaxError
+; usageError
+;
+; Reports a usage error in a command's arguments, by setting EXIT_CODE to
+; ERR_USAGE, so that parseDOS displays the command's usage once the command
+; line's redirections are undone (see cmdUsage).
 ;
 ; Outputs:
 ;	Carry set
 ;
 ; Modifies:
-;	AX
+;	None
 ;
-DEFPROC	syntaxError
-	PRINTF	<"Syntax error",13,10>
+DEFPROC	usageError
+	push	bx
+	mov	bx,ss:[PSP_HEAP]
+	mov	ss:[bx].EXIT_CODE,ERR_USAGE
+	pop	bx
 	stc
 	ret
-ENDPROC	syntaxError
+ENDPROC	usageError
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -554,10 +564,10 @@ gr1:	add	cx,si			; CX -> end of token
 	mov	dx,-1			; no, so there's no limit
 gr2:	pop	ax
 	cmp	si,cx			; was the entire token used?
-	jne	syntaxError		; no
+	jne	usageError		; no
 	ret				; (carry clear, CX non-zero)
 gr3:	cmp	si,cx			; was the entire token used?
-	jne	syntaxError		; no
+	jne	usageError		; no
 	sub	cx,cx			; CX = 0 (no separator, carry clear)
 	ret
 ENDPROC	getRange
@@ -772,7 +782,7 @@ sl2:	jcxz	sl7			; nothing to insert
 	jmp	short insLine
 sl7:	clc
 sl9:	ret
-sl8:	jmp	syntaxError
+sl8:	jmp	syntaxMsg
 ENDPROC	storeLine
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

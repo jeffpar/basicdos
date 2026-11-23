@@ -332,7 +332,7 @@ These VT100 features aren't used by the driver, and have no BASIC statement, alt
 
 Drivers that aren't needed (eg, VKD$ in a configuration that uses only serial consoles) can be omitted with [SKIP=](../../bdman/cfg/#skip).
 
-CON, AUX, and PRN aren't drivers, but names that DOS gives the active session's console, AUX, and PRN devices (see [CON=](../../bdman/cfg/#con), [AUX=](../../bdman/cfg/#aux), and [PRN=](../../bdman/cfg/#prn)); opening one of those names (with or without a colon) shares the session's handle for that device (see [Files](../dos/#files)).
+CON, AUX, and PRN aren't drivers, but names that DOS gives the active session's console, AUX, and PRN devices (see [CON=](../../bdman/cfg/#con), [AUX=](../../bdman/cfg/#aux), and [PRN=](../../bdman/cfg/#prn)); opening one of those names (with or without a colon) shares the session's handle for that device (see [Files](../dos/#files)), and `@`*n* does the same for CON in session *n*.
 
 ### CLOCK$ Timers {#clock-timers}
 

@@ -23,7 +23,7 @@
 ;
 ; A switch that isn't in the utility's list (SW_LIST, with SW_LEN characters,
 ; defined before this file is included), or more than MAXFILES file names, is
-; a syntax error, which ends the utility.  A utility with no switches has a
+; a usage error, which ends the utility.  A utility with no switches has a
 ; list containing only a null.
 ;
 ; Inputs:
@@ -52,7 +52,7 @@ ga1:	lodsb
 	lea	bx,[si-1]		; BX -> file name
 	mov	di,[bp].UV_NFILES
 	cmp	di,MAXFILES*2		; room for another?
-	jae	ga3a			; no, so it's a syntax error
+	jae	ga3a			; no, so it's a usage error
 	mov	[bp].UV_FILES[di],bx
 	inc	di
 	inc	di
@@ -122,10 +122,19 @@ ga3:	lodsb				; consume switch chars
 	ja	ga3			; yes
 	jmp	ga1
 
-ga3a:	mov	si,offset SYN_ERR
+;
+; A usage error (here, or a utility's own; see usageError) ends the utility
+; with exit code ERR_USAGE, so that COMMAND displays our usage, unless we
+; have no parent (eg, we're a pipeline stage after the first, which runs in a
+; session of its own; see psp_term), in which case we report it ourselves.
+;
+	DEFLBL	usageError,near
+ga3a:	mov	[bp].UV_ERR,ERR_USAGE
+	cmp	word ptr ds:[PSP_PARENT],0	; do we have a parent?
+	jne	ga3b			; yes
+	mov	si,offset USAGE_ERR
 	call	writeErr
-	mov	[bp].UV_ERR,2
-	jmp	exit
+ga3b:	jmp	exit
 
 ga4:	lodsb				; consume digits
 	sub	al,'0'
@@ -795,5 +804,5 @@ ENDPROC	exit
 OPEN_ERR	db	"Unable to open ",0
 FIND_ERR	db	"Unable to find ",0
 DRIVE_ERR	db	"Invalid drive",0
-SYN_ERR		db	"Syntax error",13,10,0
+USAGE_ERR	db	"Usage error",13,10,0
 CRLF		db	13,10,0

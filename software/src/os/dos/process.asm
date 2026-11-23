@@ -253,12 +253,13 @@ pcp1:	call	psp_init		; returns ES:DI -> PSP_PARENT
 	mov	cx,(size PSP - PSP_PARENT) SHR 1
 	rep	movsw
 ;
-; The copy hasn't enabled raw keys or exception signals, and it isn't a SHELL
-; (see scb_load).
+; The copy hasn't enabled raw keys or exception signals, it isn't a SHELL
+; (see scb_load), and it isn't running a BASIC program (see PSP_BASIC).
 ;
 	ASSERT	<PSP_RAWKEYS + 1>,EQ,<PSP_SHELL>
 	mov	word ptr es:[PSP_RAWKEYS],0
-	mov	es:[PSP_SIGNALS],0
+	ASSERT	<PSP_SIGNALS + 1>,EQ,<PSP_BASIC>
+	mov	word ptr es:[PSP_SIGNALS],0
 	ret
 ENDPROC	psp_copy
 

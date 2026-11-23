@@ -31,9 +31,9 @@ The results are:
 - `Unable to open both files (the same file?)`: a file that isn't read-only can't be compared with itself, since it can't be opened twice for random access
 - `Unable to compare (error` *n*`)`, for any other error
 
-A switch, a missing file name, or a third file name displays `Syntax error`.
+A switch, a missing file name, or a third file name is a [usage error](../../#usage-errors).
 
-ERRORLEVEL is set to 0 if every file compares ok, and otherwise to 1.
+ERRORLEVEL is set to 0 if every file compares ok, to the [runtime error](../../#exit-codes) number if a file couldn't be found or read (eg, 53 for `Unable to find X.TXT`), and otherwise to 1.
 
 Source: [COMP.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/COMP.BAS)
 

@@ -9,8 +9,9 @@
 ;
 ; Usage: SLEEP seconds
 ;
-; Waits the specified number of seconds (CTRL-C stops it early).  If no
-; number is specified, a usage message is displayed and the exit code is 1.
+; Waits the specified number of seconds (CTRL-C stops it early).  Without a
+; valid number, the exit code is ERR_USAGE, so that COMMAND displays our
+; usage.
 ;
 	DOSPSP equ 1
 	DOSFUNC equ 1
@@ -45,9 +46,8 @@ s1:	lodsb
 	DOSUTIL	SLEEP
 	int	20h
 
-s8:	PRINTF	<"Syntax error",13,10>
-	mov	ax,(DOS_PSP_RETURN SHL 8) OR 1
-	int	21h
+s8:	mov	ax,(DOS_PSP_RETURN SHL 8) OR ERR_USAGE
+	int	21h			; (COMMAND displays our usage)
 ENDPROC	main
 
 ;

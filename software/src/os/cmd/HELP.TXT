@@ -30,7 +30,7 @@ Replaces the running program with the specified BAS file (searching PATH$ if nec
 
 [e]CHKDSK [*drive*:] [~V]
 Checks the FAT and directories of *drive* (or the current drive), reports any problems (eg, cross-linked chains, file sizes that don't match, and lost clusters), and then the space used and available.  ~V lists every file.  Problems are reported, not fixed.
-ERRORLEVEL is set to 0 if the entire volume was checked and no problems were found, and otherwise to 1.
+ERRORLEVEL is set to 0 if the entire volume was checked and no problems were found, to the runtime error number if the drive couldn't be read (eg, 71 if it isn't ready), and otherwise to 1.
 
 [f]CHR$(*code*)
 Returns a one-character string containing the character with the specified *code* (0-255).
@@ -62,7 +62,7 @@ Starts another copy of the Command Shell, which runs any *commands* first; ~C ru
 
 [e]COMP *file1* *file2*
 Compares each file matching *file1* (which can contain wildcards, but doesn't match hidden files) with *file2* (or if *file2* is a drive or directory, with the file there that has the same name), and reports the offset (in hex) and bytes of each difference, up to 10 differences.
-ERRORLEVEL is set to 0 if every file compares ok, and otherwise to 1.
+ERRORLEVEL is set to 0 if every file compares ok, to the runtime error number if a file couldn't be found or read (eg, 53), and otherwise to 1.
 
 [c]COPY *input* [*output*]
 Copies the contents of the input file or device to the output file or device (a file keeps its date and time), or with wildcards (? and *), every matching file to the output drive or directory (eg, COPY B:\*.BAS).  If *output* is omitted, the current directory is used.  Input files separated by + are combined into the output file (eg, COPY A.BIN+B.BIN C.BIN).
@@ -218,8 +218,8 @@ Calls the subroutine at the line with the specified label number; the subroutine
 [b]GOTO *label*
 Transfers program control to the line with the specified label number.
 
-[e]HELP [*keyword*|ALL|BASIC|CORE|FUNC|CMD|EXT]
-Displays help for *keyword* (eg, HELP MID$), or lists the keywords in a category: ALL (every keyword), BASIC (BASIC statements and commands), FUNC (functions, like MID$), CMD (internal commands, like DIR), or EXT (external commands, like FORMAT).  HELP CORE lists the keywords that low memory systems don't support, and HELP KEYS lists the keys for editing command lines.
+[e]HELP [[~U] *keyword*|ALL|BASIC|CORE|FUNC|CMD|EXT]
+Displays help for *keyword* (eg, HELP MID$), or lists the keywords in a category: ALL (every keyword), BASIC (BASIC statements and commands), FUNC (functions, like MID$), CMD (internal commands, like DIR), or EXT (external commands, like FORMAT).  HELP CORE lists the keywords that low memory systems don't support, and HELP KEYS lists the keys for editing command lines.  ~U displays only the keyword's Usage line, as a command with a syntax error does.
 
 [f+]HEX$(*n*)
 Returns the hexadecimal representation of the integer *n*.  Negative values are treated as unsigned 32-bit values (eg, HEX$(-1) is FFFFFFFF).
@@ -423,7 +423,7 @@ Returns the cursor's column, starting at 1 (*n* is ignored).  See also CSRLIN.
 Same as PSET, except that the default color is the background color.
 
 [b]PRINT [#*n*,][*expression*][*separator*][*expression*]...
-Prints a series of values (or with #*n*, writes them to file *n*).  Each *separator* is a semicolon (the next value follows immediately), a comma (a tab), or a space or tab (like a semicolon), and a semicolon or comma at the end keeps the cursor on the same line.  To send the output of a line to a file instead, end the line with :> *file* (or :>> *file* to append).  At the prompt, a line can also end with a pipe to other commands (eg, | MORE), except on low memory systems.  For formatted output, use PRINTF USING (PRINT USING isn't supported).
+Prints a series of values (or with #*n*, writes them to file *n*).  Each *separator* is a semicolon (the next value follows immediately), a comma (a tab), or a space or tab (like a semicolon), and a semicolon or comma at the end keeps the cursor on the same line.  To send the output of a line to a file instead, end the line with :> *file* (or :>> *file* to append), or to display it on session *n*'s console, > @*n* (eg, PRINT "Hello" > @2, which needs no colon).  At the prompt, a line can also end with a pipe to other commands (eg, | MORE), except on low memory systems.  For formatted output, use PRINTF USING (PRINT USING isn't supported).
 
 [b+]PRINTF [#*n*,]USING *format*;[*value*][*separator*][*value*]...
 Writes values to the screen (or, with #*n*, to file *n*) using format codes:
@@ -514,7 +514,7 @@ Returns the character code at *row* and *col*, or its attributes if *z* is non-z
 
 [e]SED [~I] [~N] *script* [*file*]
 Runs the commands in *script* (separated by ;) on each line of input (or *file*), and then displays the line, unless ~N is given (eg, DIR | SED s/BAS/BAK/).  *script* needs quotes only if it contains spaces.  A command can start with an address (a line number, $, or /*regex*/), or with two addresses separated by a comma for a range of lines, and ! after the addresses selects the other lines.  The commands are s/*regex*/*text*/ (replaces the first match, or every match with g after the last /; \n in *text* starts a new line), d (deletes the line), p (displays the line), q (quits), and = (displays the line number).  ~I ignores case.  The user manual describes the regular expressions, which FIND ~R also uses.
-ERRORLEVEL is set to 0, or 2 if *script* is missing or invalid, or *file* couldn't be opened.
+ERRORLEVEL is set to 0, or 2 if *script* is invalid, or *file* couldn't be opened.
 
 [f+]SGN(*x*)
 Returns -1 if *x* is negative, 0 if *x* is zero, or 1 if *x* is positive.
@@ -542,7 +542,7 @@ Same as SPACE$ (eg, PRINT "A"; SPC(5); "B").
 Returns the square root of *x*, which must not be negative.
 
 [c+]START [~B] [*program* [*arguments*]]
-START alone lists the session number, memory in use (in K), and current program of every active session.  START *program* runs *program* (a COM or EXE file) in a new session, on a new full-screen console (on a serial console, another console on the same terminal), which gets the focus (press Shift-Tab to switch, or CTRL-\ on a terminal), unless ~B (background) comes before *program*.  When the program ends (eg, EXIT, for a new COMMAND), its session and console close, and the focus goes back to the console that had it.  A new COMMAND (or V86) gets this session's PATH$.
+START alone lists the session number, memory in use (in K), and current program of every active session, along with the BAS or BAT file it's running, if any (eg, COMMAND DONKEY).  START *program* runs *program* (a COM or EXE file) in a new session (and displays its number, eg, Started session 3), on a new full-screen console (on a serial console, another console on the same terminal), which gets the focus (press Shift-Tab to switch, or CTRL-\ on a terminal), unless ~B (background) comes before *program*.  When the program ends (eg, EXIT, for a new COMMAND), its session and console close, and the focus goes back to the console that had it.  A new COMMAND (or V86) gets this session's PATH$.  Output sent to @*n* is displayed on session *n*'s console (eg, TYPE NOTE.TXT > @2).
 
 [b]STOP [*n*]
 Same as END.
@@ -583,7 +583,6 @@ Returns the number of seconds since midnight, with hundredths (eg, 45296.17); wi
 
 [e]TR [~C] [~D] [~S] *set1* [*set2*]
 Copies input to output, replacing each character in *set1* with the matching character in *set2* (eg, DIR | TR a-z A-Z converts to upper-case); if *set2* is shorter, its last character repeats.  ~D deletes the characters in *set1* instead, ~C uses every character NOT in *set1*, and ~S squeezes each run of a character in the last set into one (eg, TR ~S " ").  A set can contain ranges (eg, a-z) and the escapes \t, \n, \r, and \ before any other character (eg, \-); quote a set that contains spaces.
-ERRORLEVEL is set to 0, or 2 if a set is missing.
 
 [e]TREE [*drive*:][*path*] [~F] [~A]
 Displays the directories below *path* (or the current directory), connected by line-drawing characters (or ASCII characters, with ~A); ~F also lists each directory's files.

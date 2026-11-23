@@ -24,7 +24,7 @@
 	IF LEFT$(A$, 1) <> S$ THEN NA = NA + 1 : GOTO 10
 	FOR J = 2 TO LEN(A$)
 	C = INSTR("1alRrSt", MID$(A$, J, 1))
-	IF C = 0 THEN GOTO 90
+	IF C = 0 THEN GOTO 990
 	IF C < 6 THEN Z(C) = -1
 	IF C = 6 THEN K = 10
 	IF C = 7 THEN K = 6
@@ -35,9 +35,9 @@
 	' Columns fit the console's width (W); output that isn't to a console
 	' (eg, a file or pipe, which don't support IOCTL &HD1) gets one name
 	' per line
-	ON ERROR GOTO 95
+	ON ERROR GOTO 910
 	DOS &H44D1, 1 : W = DOS(3) AND 255
-20	ON ERROR GOTO 96
+20	ON ERROR GOTO 900
 	' Dates after T0 (6 months before today, TD) up to today show the time
 	T$ = DATE$ : M = VAL(T$)
 	TD = (VAL(MID$(T$, 7)) - 1980) * 512 + M * 32 + VAL(MID$(T$, 4))
@@ -150,9 +150,10 @@
 	IF K THEN FOR J = 1 TO 4 : K$ = K$ + CHR$(255 - ASC(MID$(F$, K - J))) : NEXT
 	K$(N) = K$ + MID$(E$(N), 10) : P(N) = N
 	RETURN
-90	PRINT "Syntax error" : END 1
-95	O = -1 : RESUME 20
-96	IF ERR = 77 THEN PRINT "Invalid drive" : END 1
+900	' Report a runtime error, whose number (ERR) is the exit code
+	IF ERR = 77 THEN PRINT "Invalid drive" : END ERR ' BERR_BADDRIVE
 	' A subscript is out of range only if E$ or D$ is full
-	IF ERR = 9 THEN PRINT "Too many matching files" : END 1
-	ERROR ERR
+	IF ERR = 9 THEN PRINT "Too many matching files" : END ERR ' BERR_SUBSCRIPT
+	PRINT "Unable to list files (error"; ERR; ")" : END ERR
+910	O = -1 : RESUME 20
+990	END 80 ' BERR_USAGE

@@ -1336,7 +1336,7 @@ crf4:	mov	ax,es:[BLK_NEXT]
 	DEFLBL	undefLine,near		; (AX = label #; see genRegion)
 crf8:	PRINTF	<"Undefined line number %u",13,10>,ax
 	mov	si,ss:[PSP_HEAP]
-	mov	ss:[si].ERR_CODE,8	; (so genCode reports nothing more)
+	mov	ss:[si].ERR_CODE,BERR_NOLINE ; (so genCode reports no more)
 	stc
 crf9:	ret
 ENDPROC	checkRefs

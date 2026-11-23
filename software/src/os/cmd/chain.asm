@@ -365,8 +365,19 @@ DEFPROC	mergeFile
 	sub	ax,ax
 	xchg	ax,[bx].TBLKDEF.BLK_NEXT; set the program's text aside
 	push	ax
+;
+; cmdLoad records the file's name (see setName), but the program keeps its own.
+;
+	push	word ptr ds:[PSP_FCB1+1]
+	push	word ptr ds:[PSP_FCB1+3]
+	push	word ptr ds:[PSP_FCB1+5]
+	push	word ptr ds:[PSP_FCB1+7]
 	mov	dx,offset BAS_EXT
 	call	cmdLoad			; and load the file
+	pop	word ptr ds:[PSP_FCB1+7]
+	pop	word ptr ds:[PSP_FCB1+5]
+	pop	word ptr ds:[PSP_FCB1+3]
+	pop	word ptr ds:[PSP_FCB1+1]
 	mov	bx,ds:[PSP_HEAP]
 	pop	ax
 	xchg	ax,[bx].TBLKDEF.BLK_NEXT; AX = the file's text

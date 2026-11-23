@@ -11,7 +11,8 @@
 ; when AUTO or EDIT has set a line to edit (see EDIT_STATE).  The program's
 ; text blocks and the other editing functions (eg, LIST) are in edit.asm.
 ; cmdPipe and runLine, which pipe the output of BASIC statements typed at the
-; prompt, are here, too.
+; prompt, are here, too, as are showUsage, which displays a command's usage
+; after a usage error (see cmdUsage), and setName (see cmdLoad).
 ;
 ; This module is not part of COMMAND's core (see CMD.LRF and HEAP.ASM): when
 ; only the core is loaded, cmdDOS refuses these commands with "Not enough
@@ -23,9 +24,9 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<chkProgram,getRange,syntaxError,freeCache,walkLines,delLine>
+	EXTNEAR	<chkProgram,getRange,usageError,freeCache,walkLines,delLine>
 	EXTNEAR	<findLine,putNum,parseLine,storeLine,printCRLF,listLine>
-	EXTNEAR	<chkOut,chkColon,genCode,parseDOS>
+	EXTNEAR	<chkOut,chkColon,genCode,parseDOS,callDOS,syntaxMsg>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -130,7 +131,7 @@ DEFPROC	cmdDelete
 	jnz	de1			; yes
 	test	ax,ax			; was a 1st line # specified?
 	jnz	de1			; yes
-	jmp	syntaxError		; no
+	jmp	usageError		; no
 de1:	dec	dx
 	call	freeCache		; (the program must be recompiled)
 	mov	si,offset delLine
@@ -381,6 +382,146 @@ DEFPROC	runLine
 	mov	[si].INP_CNT,cl		; restore the line's length
 	ret
 ENDPROC	runLine
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; showUsage
+;
+; Displays the usage of a command with a usage error (see cmdUsage) by
+; running "HELP /U name" (with the current switch char), where name is the
+; command's name without any path or extension (eg, LS for A:\EXT\BAS\LS.BAS),
+; or if HELP can't display it, "Syntax error".
+;
+; Inputs:
+;	DS:SI -> command (may be preceded by whitespace)
+;	CX = length of command
+;
+; Outputs:
+;	Carry set
+;
+; Modifies:
+;	Any but BX
+;
+SU_NAMELEN	equ	12		; longest name we give HELP
+SU_BUFLEN	equ	8 + SU_NAMELEN	; room for "HELP /U " and the name
+
+DEFPROC	showUsage
+	push	bx
+	sub	sp,SU_BUFLEN
+	mov	di,sp
+	push	ss
+	pop	es			; ES:DI -> buffer
+	mov	ax,DOS_MSC_GETSWC
+	int	21h			; DL = switch char
+	mov	ax,('E' SHL 8) OR 'H'
+	stosw
+	mov	ax,('P' SHL 8) OR 'L'
+	stosw
+	mov	al,' '
+	mov	ah,dl
+	stosw
+	mov	ax,(' ' SHL 8) OR 'U'
+	stosw				; "HELP /U "
+	mov	bx,di			; BX -> name
+su1:	lodsb
+	cmp	al,CHR_SPACE		; whitespace?
+	jbe	su1			; yes
+	dec	si
+	mov	dx,SU_NAMELEN		; DL = room left, DH = 0 (no extension)
+su2:	lodsb
+	cmp	al,'\'			; a path separator?
+	je	su3			; yes
+	cmp	al,'/'
+	je	su3
+	cmp	al,':'			; or a drive?
+	jne	su4			; no
+su3:	mov	di,bx			; yes, so the name starts after it
+	mov	dx,SU_NAMELEN
+	jmp	short su6
+su4:	cmp	al,'.'			; an extension?
+	jne	su5			; no
+	inc	dh			; yes, so the name ends here
+su5:	test	dh,dh			; in the extension?
+	jnz	su6			; yes
+	test	dl,dl			; any room left?
+	jz	su6			; no
+	dec	dx
+	stosb
+su6:	loop	su2
+	cmp	di,bx			; is there a name?
+	je	su8			; no
+	mov	cx,di
+	mov	di,sp
+	sub	cx,di			; CX = length of the command
+	sub	ax,ax
+	push	ax			; no handler
+	push	ax			; or keyword ID
+	push	cx
+	push	ss
+	push	di
+	push	cs
+	call	callDOS			; run "HELP /U name"
+	mov	bx,ss:[PSP_HEAP]
+	mov	al,1			; a usage error sets ERRORLEVEL to 1
+	xchg	al,ss:[bx].EXIT_CODE
+	test	al,al			; did HELP display the usage?
+	jz	su9			; yes
+su8:	call	syntaxMsg
+su9:	add	sp,SU_BUFLEN
+	pop	bx
+	stc
+	ret
+ENDPROC	showUsage
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; setName
+;
+; Record the name of the program being loaded (eg, DONKEY for a filespec of
+; C:\DEMOS\DONKEY.BAS) in our PSP_FCB1, padded with spaces, which DOS reports
+; (eg, in START's list) while PSP_BASIC is set (see cmdRunFlags).  It's not
+; part of COMMAND's core, so if only the core was loaded, cmdLoad skips it,
+; and the name stays zero (see init.asm).  A BAS or BAT file run by another
+; restores its caller's name when it ends (see saveChains).
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	DS:SI -> filespec (ending with a null)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, CX, DI, ES
+;
+DEFPROC	setName
+	push	si
+	mov	di,si			; DI -> name (so far)
+sn1:	lodsb
+	cmp	al,':'			; the end of a drive?
+	je	sn2			; yes
+	cmp	al,[bx].PATH_CHAR	; or of a directory?
+	jne	sn3			; no
+sn2:	mov	di,si			; DI -> name after it
+sn3:	test	al,al
+	jnz	sn1
+	mov	si,di
+	push	ss
+	pop	es
+	mov	di,PSP_FCB1 + 1		; ES:DI -> name in PSP_FCB1
+	mov	cx,8
+sn4:	lodsb
+	cmp	al,'.'			; the end of the name?
+	je	sn5			; yes
+	test	al,al			; or of the filespec?
+	jz	sn5			; yes
+	stosb
+	loop	sn4
+sn5:	mov	al,' '
+	rep	stosb			; pad the rest with spaces
+	pop	si
+	ret
+ENDPROC	setName
 
 CODE	ENDS
 

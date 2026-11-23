@@ -46,9 +46,9 @@ CHKDSK can't check a drive if it finds one of these problems:
 - `Drive` *drive* `doesn't have a FAT volume`
 - `Unable to check drive` *drive* `(error` *n*`)`, for any other error
 
-Any argument other than a drive and `/V`, or more than one drive, displays `Syntax error`.
+Any argument other than a drive and `/V`, or more than one drive, is a [usage error](../../#usage-errors).
 
-ERRORLEVEL is set to 0 if CHKDSK checked the entire volume and found no problems, and otherwise to 1.
+ERRORLEVEL is set to 0 if CHKDSK checked the entire volume and found no problems, to the [runtime error](../../#exit-codes) number if the drive couldn't be read (eg, 71 for `Drive not ready`), and otherwise to 1.
 
 Source: [CHKDSK.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/CHKDSK.BAS)
 

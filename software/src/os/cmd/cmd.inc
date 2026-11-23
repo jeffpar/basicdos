@@ -242,7 +242,9 @@ CMD_SINGLE	equ	02h		; set if /C (exit after the command)
 
 ;
 ; BASIC error numbers (the same as MSBASIC's), which rtError and compError
-; raise, ERR returns, and ERR_MSGS (see findMsg) has a message for.
+; raise, ERR returns, and ERR_MSGS (see findMsg) has a message for; they're
+; not DOS error codes (ERR_* in dosapi.inc), which COMMAND converts to these
+; (see DOS_ERRS), and a BAS utility ends with one as its exit code.
 ;
 BERR_NOFOR	equ	1		; NEXT without FOR
 BERR_SYNTAX	equ	2		; Syntax error
@@ -280,6 +282,7 @@ BERR_NOTREADY	equ	71		; Disk not ready
 BERR_MEDIA	equ	72		; Disk media error
 BERR_PATHFILE	equ	75		; Path/File access error
 BERR_BADDRIVE	equ	77		; Invalid drive
+BERR_USAGE	equ	80		; usage error (same as ERR_USAGE)
 
 ;
 ; Graphics and mouse state (see GFX_DATA in CMDHEAP), which only the modules

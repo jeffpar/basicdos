@@ -14,7 +14,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<askSure,getToken,syntaxError>
+	EXTNEAR	<askSure,getToken,usageError>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
@@ -50,7 +50,7 @@ DEFPROC	cmdKill
 
 kl1:	call	getToken		; DS:SI -> argument, CX = length
 	jnc	kl2
-	jmp	syntaxError		; there's no session number
+	jmp	usageError		; there's no session number
 kl2:	push	si
 	inc	dx
 	call	getToken		; any other argument?

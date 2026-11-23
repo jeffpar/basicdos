@@ -52,11 +52,13 @@ CODE    SEGMENT
 ; requested range.
 ;
 ; Metadata tests then fail writes to each FAT copy and to the directory,
-; returning FAIL from INT 24h.  A second disk reset must try the write again.
-; After a successful reset, BIOS reads verify the saved metadata on disk (in
-; real mode only, since in protected mode, the diskette BIOS can't reach our
-; memory), and reopening the file verifies its size, cluster chain, and
-; contents.
+; returning FAIL from INT 24h.  Each FAT test first extends the file by one
+; cluster (up to RW_SIZE), which is all it takes to change the FAT, so on a
+; diskette with 1K clusters, the file needs 6K of disk space, not 12K.  A
+; second disk reset must try the write again.  After a successful reset, BIOS reads verify
+; the saved metadata on disk (in real mode only, since in protected mode, the
+; diskette BIOS can't reach our memory), and reopening the file verifies its
+; size, cluster chain, and contents.
 ;
 ; Finally, fail FAT reads while locating a cluster after a seek.  The read
 ; must return the error without changing the destination or advancing the
@@ -89,7 +91,7 @@ DEFPROC	main
 	mov	bl,cl			; (QRYSCB changes DX and SI)
 	sub	cx,cx			; CL = session # (from 0)
 	mov	di,ds:[PSP_HEAP]	; ES:DI -> buffer for program names
-m0:	DOSUTIL	QRYSCB			; AX = session's PSP (zero if none)
+m0:	DOSUTIL	QRYSCB,0		; AX = session's PSP (zero if none)
 	jc	m1			; no more sessions
 	cmp	cl,bl			; is it our session?
 	je	m0a			; yes
@@ -483,10 +485,23 @@ ENDPROC	volume_writes
 ; Extend the file for each FAT test, then close it for the directory test.
 ; BP selects the first FAT (0), second FAT (1), or directory (2).
 ;
+; Each extension is one cluster (EXTSIZE), which allocates a cluster, but
+; no more than RW_SIZE (a 4K hard disk cluster), the size of the data.
+;
 ; Outputs:
 ;	Carry set if a failed metadata write could not be recovered
 ;
 DEFPROC	metadata_retries
+	mov	ah,DOS_DSK_GETINFO
+	mov	dl,0			; DL = 0 (current drive)
+	int	21h			; AX = sectors, CX = bytes/sector
+	mul	cx			; DX:AX = bytes per cluster
+	test	dx,dx			; (a cluster can be 64K)
+	jnz	mr0
+	cmp	ax,RW_SIZE		; no larger than the data?
+	jbe	mr0a			; yes
+mr0:	mov	ax,RW_SIZE
+mr0a:	mov	[extsize],ax
 	mov	ah,DOS_DSK_RESET
 	int	21h			; start with clean disk buffers
 	jc	mr8
@@ -527,11 +542,11 @@ DEFPROC	metadata_case
 	int	21h
 	jc	mc9
 	mov	dx,ds:[PSP_HEAP]
-	mov	cx,RW_SIZE
+	mov	cx,[extsize]
 	mov	ah,DOS_HDL_WRITE
-	int	21h			; allocate more clusters, dirtying the FAT
+	int	21h			; allocate a cluster, dirtying the FAT
 	jc	mc9
-	cmp	ax,RW_SIZE		; the extension must be written in full
+	cmp	ax,cx			; the extension must be written in full
 	jne	mc8
 mc1:
 	call	arm_metadata
@@ -662,7 +677,8 @@ ENDPROC	metadata_sector
 ; metadata_readback
 ;
 ; Reopen the file after the directory flush and cache invalidation, and
-; verify the original data and both appended copies of it.
+; verify the original data and both appended copies of its first EXTSIZE
+; bytes.
 ;
 DEFPROC	metadata_readback
 	mov	dx,offset rwname
@@ -678,27 +694,30 @@ DEFPROC	metadata_readback
 	jc	mb9
 	cmp	dx,0			; the size must fit in the low word
 	jne	mb8
-	cmp	ax,3*RW_SIZE		; both FAT extensions and size must persist
+	mov	si,[extsize]
+	shl	si,1
+	add	si,RW_SIZE
+	cmp	ax,si			; both FAT extensions and size must persist
 	jne	mb8
-	xor	dx,dx
+	xor	dx,dx			; CX:DX = 0 (CX is still 0)
 	mov	ax,DOS_HDL_SEEKBEG
 	int	21h
 	jc	mb9
 	mov	bp,3
+	mov	cx,RW_SIZE		; CX = size of the data (then EXTSIZE)
 mb1:
 	mov	dx,ds:[PSP_HEAP]
 	add	dx,RW_SIZE
-	mov	cx,RW_SIZE
 	mov	ah,DOS_HDL_READ
 	int	21h
 	jc	mb9
-	cmp	ax,RW_SIZE		; all clusters in this copy must be readable
+	cmp	ax,cx			; all clusters in this copy must be readable
 	jne	mb8
 	mov	si,ds:[PSP_HEAP]
 	mov	di,dx
-	mov	cx,RW_SIZE
 	repe	cmpsb
 	jne	mb8			; verify the data reached through the FAT chain
+	mov	cx,[extsize]
 	dec	bp
 	jnz	mb1
 	clc
@@ -762,7 +781,7 @@ sf2:
 	cmp	ax,128			; recovery must return the complete request
 	jne	sf8
 	mov	si,ds:[PSP_HEAP]
-	inc	si			; expected bytes at offset 2*RW_SIZE+1
+	inc	si			; expected bytes at the 3rd copy + 1
 	mov	di,dx
 	mov	cx,128
 	repe	cmpsb
@@ -774,7 +793,9 @@ sf2:
 	jc	sf8
 	cmp	dx,0			; file position must still fit in the low word
 	jne	sf8
-	cmp	ax,2*RW_SIZE+1+128	; only the successful read may advance it
+	mov	cx,[extsize]
+	add	cx,RW_SIZE+1+128
+	cmp	ax,cx			; only the successful read may advance it
 	jne	sf8
 	mov	dx,offset seekpassed
 	call	print
@@ -802,7 +823,8 @@ DEFPROC	seek_setup
 	mov	[rwhandle],ax
 	mov	bx,ax
 	xor	cx,cx
-	mov	dx,2*RW_SIZE+1
+	mov	dx,[extsize]
+	add	dx,RW_SIZE+1		; DX = offset of the 3rd copy + 1
 	mov	ax,DOS_HDL_SEEKBEG
 	int	21h
 	jc	ss9
@@ -1025,6 +1047,7 @@ skipped		db	"HARDERR skipped (other sessions are running)",13,10,'$'
 old_disk	dd	0
 data_seg	dw	0
 rwhandle	dw	0
+extsize		dw	0
 hooked		db	0
 rwcmd		db	0
 rwskip		db	0

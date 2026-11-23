@@ -115,8 +115,17 @@ m1b:	lodsb
 	jne	m1a			; no
 	inc	si
 	jmp	m1a
-m1e:	PRINTF	<"Syntax error",13,10>
+;
+; A usage error ends with exit code ERR_USAGE, so that COMMAND displays
+; our usage, unless we have no parent (eg, START V86 /M), so we report it
+; ourselves.
+;
+m1e:	mov	al,ERR_USAGE
+	cmp	word ptr ds:[PSP_PARENT],0	; do we have a parent?
+	jne	m1h			; yes
+	PRINTF	<"Usage error",13,10>
 	jmp	m8a
+m1h:	jmp	do_exit
 m1c:	mov	si,bx
 	mov	di,offset VARS + V_NAME
 	cmp	al,CHR_RETURN		; no program?

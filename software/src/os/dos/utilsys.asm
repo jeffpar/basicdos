@@ -404,8 +404,9 @@ ENDPROC	utl_qrymem
 ; Query info about a session (see scb_query).
 ;
 ; Inputs:
+;	REG_AL = 0 for an 8-byte buffer, or 1 for a 16-byte buffer
 ;	REG_CL = session (SCB) #
-;	REG_ES:REG_DI -> 8-byte buffer
+;	REG_ES:REG_DI -> buffer
 ;
 ; Outputs:
 ;	On success, carry clear:
@@ -413,7 +414,10 @@ ENDPROC	utl_qrymem
 ;		REG_SI:REG_DX = the session's memory (in bytes)
 ;		REG_ES:REG_DI buffer filled with the name of the session's
 ;		program (zeros if none, or unknown), which can't be found
-;		through its PSP: the PSP may be in another session's LDT
+;		through its PSP: the PSP may be in another session's LDT;
+;		with REG_AL = 1, followed by the name of the BAS or BAT file
+;		it's running (zeros if none), which COMMAND.COM records in
+;		its PSP_FCB1 while PSP_BASIC is set
 ;	On failure, carry set (ie, invalid session #)
 ;
 DEFPROC	utl_qryscb,DOS

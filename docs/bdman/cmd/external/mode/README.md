@@ -10,7 +10,7 @@ permalink: /docs/bdman/cmd/external/mode/
 > MODE COM*n*:*baud*[,*parity*[,*data*[,*stop*]]]  
 > MODE LPT*n*:[*cols*][,*lines*]
 
-Sets the display, a serial port, or a printer.  Any other argument, or none at all, displays `Syntax error`.
+Sets the display, a serial port, or a printer.  Any other argument, or none at all, is a [usage error](../../#usage-errors).
 
 ### Display
 
@@ -28,7 +28,7 @@ In a console that shares the screen with others (eg, one of two 40-column consol
 | VGA | 40 or 80 | 25, 43, or 50 |
 | VT100 terminal | 40, 80, or 132 | 24 (14 with 132 columns and no Advanced Video Option) |
 
-For example, `MODE CO80,43` selects 80 columns and 43 rows, and `MODE 80,25` returns to 25 rows.  Without *rows*, the rows change only if the columns or color do (to 25).  Any other number of rows displays `Syntax error`, and a combination that the adapter doesn't support (eg, `MODE 80,50` on an EGA, or `MODE 40` on an MDA) displays `Illegal function call`.  See [WIDTH](../../device/screen/#width), which MODE uses, for details.
+For example, `MODE CO80,43` selects 80 columns and 43 rows, and `MODE 80,25` returns to 25 rows.  Without *rows*, the rows change only if the columns or color do (to 25).  Any other number of rows is a [usage error](../../#usage-errors), and a combination that the adapter doesn't support (eg, `MODE 80,50` on an EGA, or `MODE 40` on an MDA) displays `Illegal function call`.  See [WIDTH](../../device/screen/#width), which MODE uses, for details.
 
 ### Serial Ports
 

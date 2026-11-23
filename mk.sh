@@ -18,7 +18,8 @@
 # BASIC-DOS runs os/mk.bat (which builds BOOT, DD, DEV, DOS, CMD, UTIL, and DLL),
 # then the TESTS and MSB makefiles, and then QUIT, after which pc.js writes
 # every new or modified file back to software/src.  If a build step fails,
-# type QUIT to keep any changes or use pc.js's "abort" command to discard them.
+# the build stops at the prompt; type QUIT to keep any changes or use pc.js's
+# "abort" command to discard them.
 #
 # The machine (COMPAQ DeskPro 386) and C: (30Mb, FAT16, 2K clusters, 512 root
 # entries) match mkdos.sh.
@@ -59,7 +60,13 @@ if [ -n "$clean" ]; then
         'TOOLS\OBJ\*.COM')
     msb=$(del 'OBJ\*.OBJ' 'OBJ\*.EXE' 'OBJ\*.MAP' 'OBJ\*.SYM' 'OBJ\*.LST')
 fi
-tools/pc/pc.js compaq386 $src "CD OS;$mk;CD ..\TESTS$tests;$make;CD ..\MSB$msb;$make;QUIT" \
+#
+# Each step that fails sets ERRORLEVEL (see os/mk.bat), and since a failed
+# command doesn't stop a BAT file, chk ends AUTOEXEC.BAT then, leaving the
+# error on the screen, at the prompt, instead of running the later steps.
+#
+chk=";IF ERRORLEVEL THEN END 1"
+tools/pc/pc.js compaq386 $src "CD OS;$mk$chk;CD ..\TESTS$tests;$make$chk;CD ..\MSB$msb;$make$chk;QUIT" \
     --sys=bd:2 --target=30M --fat=16:2048:512 --ram=640K --speed=16 --serial --normalize
 code=$?
 if [ $code -eq 0 ] && [ -n "$PCJS" ] && ! watching; then

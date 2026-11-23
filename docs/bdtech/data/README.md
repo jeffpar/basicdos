@@ -41,6 +41,7 @@ The Program Segment Prefix is compatible with PC DOS, but BASIC-DOS uses several
 | 46h | PSP_CHECKSUM | * Code checksum |
 | 48h | PSP_HEAPSIZE | * Heap size |
 | 4Ah | PSP_HEAP | * Heap offset |
+| 4Dh | PSP_BASIC | * Non-zero while COMMAND.COM is running a BAS or BAT file, whose name (8 characters, padded with spaces) is in its PSP_FCB1 (after the drive byte), for DOS_UTL_QRYSCB with AL = 1 (eg, START's list); DOS clears it in a PSP that function 26h copies |
 | 4Eh | PSP_EXCODE | * Exit code |
 | 4Fh | PSP_EXTYPE | * Exit type (see [Exit Types](../dos/#exit-types)) |
 | 50h | PSP_DOSCALL | INT 21h / RETF |

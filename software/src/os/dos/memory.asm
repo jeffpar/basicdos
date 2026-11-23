@@ -356,7 +356,10 @@ DEFPROC	mem_session,DOS
 	mov	[bp].REG_DX,ax
 	mov	[bp].REG_SI,ax		; no memory yet
 	mov	cx,4
-	rep	stosw			; and no name
+	cmp	byte ptr [bp].REG_AL,1	; 8 more bytes (see utl_qryscb)?
+	jne	ms0			; no
+	shl	cx,1
+ms0:	rep	stosw			; and no names
 	push	ds
 	pop	es
 	mov	di,offset pmb_buf	; ES:DI -> PMB buffer
@@ -432,33 +435,98 @@ ms5d:	pop	bx
 ms5c:
 	cmp	dl,MAX_PARENTS		; the session's program?
 	jne	ms6			; no, one of its parents
-	push	di
-	push	es
 	lea	si,[di].PMB_NAME
-	les	di,dword ptr [bp].REG_DI
-	mov	cx,4
-	rep	movsw			; DS:SI (its name) -> ES:DI (caller)
-	pop	es
-	pop	di
+	sub	bx,bx			; BX = offset in the caller's buffer
+	call	put_name
 ;
-; Read the PSP's PSP_PARENT (into the PMB buffer, which we're done with) at
-; the block's physical address.
+; With REG_AL = 1, the caller's buffer has room for the name of the BASIC
+; program that the session's program is running, if any (see PSP_BASIC).
 ;
-ms6:	mov	si,[di].PMB_ADDR.LW
-	mov	bx,[di].PMB_ADDR.HW
-	add	si,PSP_PARENT
-	adc	bx,0			; BX:SI = address of PSP_PARENT
-	mov	cx,2
-	push	dx
-	mov	ax,(CPU_RWMEM SHL 8) OR ADDR_PHYS
-	call	far ptr DDINT_CPU
-	pop	dx
+	cmp	byte ptr [bp].REG_AL,1
+	jne	ms6
+	mov	ax,PSP_BASIC
+	mov	cx,PSP_FCB1 + 9 - PSP_BASIC
+	call	read_psp		; DS:SI -> PSP_BASIC through its name
 	jc	ms9
-	mov	si,[di]			; SI = the parent's PSP (zero if none)
+	cmp	byte ptr [si],0		; is it running a BASIC program?
+	je	ms6			; no
+	add	si,PSP_FCB1 + 1 - PSP_BASIC
+	mov	bx,8
+	call	put_name
+;
+; Read the PSP's PSP_PARENT, to go on to the parent's blocks.
+;
+ms6:	mov	ax,PSP_PARENT
+	mov	cx,2
+	call	read_psp
+	jc	ms9
+	mov	si,[si]			; SI = the parent's PSP (zero if none)
 	dec	dl			; any more parents allowed?
 	jz	ms9			; no
 	jmp	ms1
 ENDPROC	mem_session
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; put_name
+;
+; Copy an 8-byte name to the caller's buffer (see mem_session).
+;
+; Inputs:
+;	DS:SI -> name
+;	BX = offset in the caller's buffer (REG_ES:REG_DI)
+;
+; Modifies:
+;	CX, SI
+;
+DEFPROC	put_name,DOS
+	push	di
+	push	es
+	les	di,dword ptr [bp].REG_DI
+	add	di,bx
+	mov	cx,4
+	rep	movsw			; DS:SI (the name) -> ES:DI (caller)
+	pop	es
+	pop	di
+	ret
+ENDPROC	put_name
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; read_psp
+;
+; Read bytes of a PSP at its block's physical address (since the PSP may be
+; in another session's LDT; see mem_session), into the end of the PMB buffer,
+; which leaves PMB_ADDR intact for the next read.
+;
+; Inputs:
+;	DS:DI -> the PSP block's PMB (in pmb_buf), and ES = DS
+;	AX = offset in the PSP
+;	CX = number of bytes (up to size PMB - PMB_LEN)
+;
+; Outputs:
+;	On success, carry clear, and DS:SI -> the bytes
+;	On failure, carry set
+;
+; Modifies:
+;	AX, BX, CX, SI
+;
+DEFPROC	read_psp,DOS
+	mov	si,[di].PMB_ADDR.LW
+	mov	bx,[di].PMB_ADDR.HW
+	add	si,ax
+	adc	bx,0			; BX:SI = address in the PSP
+	push	dx
+	push	di
+	add	di,size PMB
+	sub	di,cx			; ES:DI -> end of the PMB buffer
+	mov	ax,(CPU_RWMEM SHL 8) OR ADDR_PHYS
+	call	far ptr DDINT_CPU
+	mov	si,di			; DS:SI -> the bytes
+	pop	di
+	pop	dx
+	ret
+ENDPROC	read_psp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

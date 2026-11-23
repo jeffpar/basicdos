@@ -7,9 +7,10 @@
 #
 # This file is part of PCjs, a computer emulation software project at pcjs.org
 #
-# Run "MAKE MAKEFILE" in this directory (SRC\SDK on a BASIC-DOS hard disk),
-# with TOOLS\BIN in PATH$, in protected mode.  The BASIC-DOS build doesn't
-# build these programs: they're here to be built on BASIC-DOS.
+# Run MK in this directory (SRC\SDK on a BASIC-DOS hard disk), with TOOLS\BIN
+# in PATH$, in protected mode; MK.BAT takes the same arguments as SRC's MK.BAT
+# ([FINAL or DEBUG] [CLEAN]) and runs "MAKE REL=mode MAKEFILE".  The BASIC-DOS
+# build doesn't build these programs: they're here to be built on BASIC-DOS.
 #
 # MEM32.EXE is a 32-bit LE program (see MEM32.DEF).  MASM5 (MASM 5.10B)
 # assembles 80386 code, which MASM 4.00 can't, and LINK386 links it; LINK386

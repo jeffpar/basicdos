@@ -131,6 +131,8 @@ As with other file names, a redirection file name can be quoted or a string vari
 
 Since `>` is also BASIC's "greater than" operator, BASIC statements use `:>` (or `:>>`) at the end of a line instead, which redirects the output of every statement on the line (eg, `PRINT "hello world" :> TEST` or `FOR I=1 TO 3:PRINT I:NEXT :>> TEST`).  `:>` works with any command, at the prompt and in BAT and BAS files, and its file name can be a string variable (eg, `PRINT X :> F$`), but it must come last on the line; for DOS commands, put a space before it (eg, `DIR :> FILES.TXT`), since `A:>FILE` still means drive A:.
 
+A redirection file name can also be `@` and a session number (a number that [START](../cmd/system/#start) lists), for that session's console, which is how one session displays a message on another (eg, `TYPE NOTE.TXT > @2`).  Since an `@` can't begin any part of a BASIC expression, a `>` followed by `@` is always a redirection, so BASIC statements don't need the colon there (eg, `PRINT "Lunch is ready" > @2`, the same as `:> @2`); see [Sessions](#sessions).
+
 The output of one command can also be sent to the input of another command, using a pipe (`|`):
 
 	DIR | TR a-z A-Z
@@ -148,6 +150,8 @@ BASIC-DOS can run several programs at once, each in its own *session*.  A sessio
 Every console needs a session, and so does every command after the first in a [pipeline](#redirection-and-pipes), so a system usually has more sessions than consoles; the extra sessions determine how many filters can run at once.
 
 Press **Shift-Tab** to switch the focus to the next console (on a serial terminal with more than one console, press **Ctrl-\\**; a [HOTKEY=](../cfg/#hotkey) line in CONFIG.SYS sets one key for both).  When there's more than one console on the video adapters, COMMAND.COM says so when it starts on the console with the focus, after its `BASIC-DOS Command Shell` message: `Press Shift-Tab to switch sessions` (or, with a HOTKEY= line, that key, eg, `Press Ctrl-T to switch sessions`).
+
+To display a message on another session's console, send output to `@` and that session's number, which [START](../cmd/system/#start) lists (eg, `PRINT "Back in 5 minutes" > @2`).  `@`*n* works wherever an output file name does (eg, `COPY NOTE.TXT @2`, or `OPEN "@2" FOR OUTPUT AS #1` and then `PRINT #1`), but it's for output only, so another session's keyboard input can't be read (eg, `TYPE @2` reports `Unable to open @2`), and it's the session's console even when that console doesn't have the focus.  The output appears at that console's cursor, as the output of a program running there would, so if the console is at its prompt, the prompt isn't displayed again until its next command (eg, press ENTER).  A number that isn't an active session is reported as `Unable to find @9` (for example), and `@` followed by anything else (eg, `@X`) is an ordinary file name.
 
 CONFIG.SYS defines the number and size of the consoles (see [CON=](../cfg/#con)) and the number of sessions (see [SESSIONS=](../cfg/#sessions)).
 

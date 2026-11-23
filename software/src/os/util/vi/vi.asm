@@ -142,7 +142,7 @@ ENDPROC	ctrlC
 ; getName
 ;
 ; Copies the only file name in the command tail, if any, to V_FNAME, and sets
-; MODE_WS for a /WS switch anywhere in the tail.  Anything else is a syntax
+; MODE_WS for a /WS switch anywhere in the tail.  Anything else is a usage
 ; error.
 ;
 ; Modifies:
@@ -185,7 +185,16 @@ gn3:	dec	si			; re-examine the last char
 	jmp	gn1
 gn9:	mov	byte ptr [di],0
 	ret
-gn8:	mov	si,offset SYN_ERR	; any other switch is a syntax error
+;
+; Any other switch is a usage error, which ends with exit code ERR_USAGE,
+; so that COMMAND displays our usage, unless we have no parent (eg, START VI
+; /Z), so we report it ourselves.
+;
+gn8:	mov	ax,(DOS_PSP_RETURN SHL 8) OR ERR_USAGE
+	cmp	word ptr ds:[PSP_PARENT],0	; do we have a parent?
+	je	gn8a			; no
+	int	21h
+gn8a:	mov	si,offset USAGE_ERR
 	jmp	m8
 ENDPROC	getName
 
@@ -936,7 +945,7 @@ NEW_MSG		db	" [New File]",0
 LINES_MSG	db	" lines, ",0
 BYTES_MSG	db	" bytes",0
 CON_ERR		db	"Console required",0
-SYN_ERR		db	"Syntax error",0
+USAGE_ERR	db	"Usage error",0
 BIG_ERR		db	"File too large",0
 READ_ERR	db	"Read error",0
 	DEFLBL	MEM_ERR,byte

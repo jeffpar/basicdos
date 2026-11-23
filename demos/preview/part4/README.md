@@ -13,11 +13,12 @@ machines:
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
     autoMount:
       A: "BASIC-DOS 80-Cols"
+    autoType: START\r
 ---
 
 ### Part 4: Pipes and Sessions
 
-The two machines below each run two *foreground* sessions on the same screen.  The first boots the `BASICDOS-360K-D40` diskette, whose CONFIG.SYS defines two 40-column sessions side by side; use **SHIFT-TAB** to toggle keyboard focus between them, and notice how the border changes to indicate which session has focus (the second session runs `DIR` and then waits for a command; try `DIR | TR a-z A-Z`).  The second boots the `BASICDOS-360K-D80` diskette, whose CONFIG.SYS defines two 80-column sessions, one above the other; type `KILL` to list both sessions.
+The two machines below each run two *foreground* sessions on the same screen.  The first boots the `BASICDOS-360K-D40` diskette, whose CONFIG.SYS defines two 40-column sessions side by side; use **SHIFT-TAB** to toggle keyboard focus between them, and notice how the border changes to indicate which session has focus (the second session runs `DIR` and then waits for a command; try `DIR | TR a-z A-Z`).  The second boots the `BASICDOS-360K-D80` diskette, whose CONFIG.SYS defines two 80-column sessions, one above the other, and runs `START` to list both sessions.
 
 {% include machine.html id="ibm5150-2" %}
 

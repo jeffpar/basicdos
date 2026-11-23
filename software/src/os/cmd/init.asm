@@ -113,6 +113,17 @@ ci4:	mov	bx,ds:[PSP_HEAP]
 	mov	[bx].SWITCH_CHAR,dl
 	call	initEnv			; set up the environment (and check /C)
 ;
+; Our PSP_FCB1 has no BASIC program's name yet (see setName), only whatever
+; DOS parsed from our command line, and if only the core is loaded, it never
+; will, so DOS should find zeros there (see utl_qryscb).
+;
+	push	ds
+	pop	es
+	mov	di,PSP_FCB1 + 1		; ES:DI -> name in PSP_FCB1
+	mov	cx,4
+	sub	ax,ax
+	rep	stosw
+;
 ; Install CTRLC handler.  DS = CS only for the first instance; additional
 ; instances of this processor will have their own DS but share a common CS.
 ;

@@ -19,9 +19,9 @@
 	S$ = UCASE$(ARG$(1)) : T$ = UCASE$(ARG$(2))
 	IF S$ = "" THEN S$ = LEFT$(CURDIR$, 2)
 	IF T$ = "" THEN T$ = S$
-	IF LEN(S$) <> 2 OR RIGHT$(S$, 1) <> ":" THEN GOTO 95
-	IF LEN(T$) <> 2 OR RIGHT$(T$, 1) <> ":" THEN GOTO 95
-	ON ERROR GOTO 90
+	IF LEN(S$) <> 2 OR RIGHT$(S$, 1) <> ":" THEN GOTO 990
+	IF LEN(T$) <> 2 OR RIGHT$(T$, 1) <> ":" THEN GOTO 990
+	ON ERROR GOTO 900
 10	PRINT "Insert SOURCE diskette in drive "; S$
 	IF S$ <> T$ THEN PRINT "Insert TARGET diskette in drive "; T$
 	PRINT "Press any key when ready..."
@@ -30,7 +30,7 @@
 	' byte), while a diskette's returns at most its drive type
 	OPEN S$ AS #1 LEN = 128
 	FIELD #1, 128 AS A$
-	IF LEN(IOCTL$(1, &HF3)) > 1 THEN GOTO 85
+	IF LEN(IOCTL$(1, &HF3)) > 1 THEN GOTO 910
 	' Get the source's sectors per track (T), heads (H), total sectors (N),
 	' media ID (M), sectors per cluster (K), root entries (E), and sectors
 	' per FAT (F), and build the target's parameters (P$), as FORMAT does
@@ -46,7 +46,7 @@
 	READ Y, H, T, K, E, F
 	IF Y = M THEN GOTO 15
 	NEXT
-	GOTO 85
+	GOTO 910
 15	N = 40 * H * T
 	DATA &HFE, 1, 8, 1, 64, 1, &HFF, 2, 8, 2, 112, 1
 	DATA &HFC, 1, 9, 1, 64, 2, &HFD, 2, 9, 2, 112, 2
@@ -60,7 +60,7 @@
 	' Two drives: format and copy each track
 	OPEN T$ AS #2 LEN = 128
 	FIELD #2, 128 AS C$
-	IF LEN(IOCTL$(2, &HF3)) > 1 THEN GOTO 85
+	IF LEN(IOCTL$(2, &HF3)) > 1 THEN GOTO 910
 	IOCTL #2, &HF1, P$
 	FOR J = 0 TO NT - 1
 	IOCTL #2, &HF2, J \ H, J MOD H
@@ -73,7 +73,7 @@
 40	' One drive: read as many tracks (TP) as memory allows, then write them
 	CLOSE #1
 	TP = (FRE(0) - 8192) \ (RT * 140)
-	IF TP < 1 THEN PRINT "Not enough memory" : END 1
+	IF TP < 1 THEN PRINT "Not enough memory" : END 7 ' BERR_NOMEMORY
 	IF TP > NT THEN TP = NT
 	DIM B$(TP * RT)
 	FOR J0 = 0 TO NT - 1 STEP TP
@@ -109,13 +109,13 @@
 	K$ = ""
 	WHILE K$ = "" : K$ = UCASE$(INKEY$) : WEND
 	RETURN
-85	CLOSE
+900	' Report a runtime error, whose number (ERR) is the exit code
+	CLOSE
+	IF ERR = 70 THEN PRINT "Write protect error" : END ERR ' BERR_ACCESS
+	IF ERR = 71 THEN PRINT "Drive not ready" : END ERR ' BERR_NOTREADY
+	IF ERR = 72 THEN PRINT "Unrecoverable read or format error" : END ERR ' BERR_MEDIA
+	IF ERR = 77 THEN PRINT "Invalid drive" : END ERR ' BERR_BADDRIVE
+	PRINT "Copy failed (error"; ERR; ")" : END ERR
+910	CLOSE
 	PRINT "DISKCOPY works only with diskettes in a known format" : END 1
-90	CLOSE
-	IF ERR = 70 THEN PRINT "Write protect error" : END 1
-	IF ERR = 71 THEN PRINT "Drive not ready" : END 1
-	IF ERR = 72 THEN PRINT "Unrecoverable read or format error" : END 1
-	IF ERR = 77 THEN PRINT "Invalid drive" : END 1
-	PRINT "Copy failed (error"; ERR; ")"
-	END 1
-95	PRINT "Syntax error" : END 1
+990	END 80 ' BERR_USAGE

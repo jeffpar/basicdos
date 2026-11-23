@@ -491,12 +491,16 @@ si7:	mov	si,offset CFG_FILES
 	call	find_cfg		; look for "FILES="
 	jnc	si7b
 ;
-; Without a "FILES=" line, AX is the default, unless memory is so limited (128K
-; or less) that the minimum is a better default.
+; Without a "FILES=" line, AX is the default, unless memory is limited: 128K or
+; less gets 8, and 64K or less gets the minimum (each SFB at 64K is memory a
+; BASIC program could use).
 ;
 	cmp	[mem_size],128		; 128K or less?
 	ja	si7a			; no
 	mov	al,8			; yes (AH is already zero)
+	cmp	[mem_size],64		; 64K or less?
+	ja	si7a			; no
+	mov	al,6			; yes
 	jmp	short si7a
 si7b:	xchg	si,di
 	push	cs
@@ -951,10 +955,10 @@ CFG_BUFFERS	db	8,"BUFFERS="
 		dw	8,2,32
 ;
 ; FILES can't exceed 254, since SFH 0FEh is SFH_NODEV.  It defaults to 20, or
-; with 128K or less of memory, to the minimum (see si7).
+; with 128K or less of memory, to 8, and with 64K, to the minimum (see si7).
 ;
 CFG_FILES	db	6,"FILES="
-		dw	20,8,254
+		dw	20,6,254
 ;
 ; The default here applies only to a SESSIONS value that isn't valid; without
 ; a SESSIONS line, it depends on the number of consoles (see def_sessions).

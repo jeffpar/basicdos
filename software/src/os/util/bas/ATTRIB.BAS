@@ -14,14 +14,14 @@
 	I = 1 : A$ = UCASE$(ARG$(1))
 	WHILE A$ <> ""
 	C$ = LEFT$(A$, 1)
-	IF C$ <> "+" AND C$ <> "-" THEN IF C$ = W$ OR F THEN GOTO 90
+	IF C$ <> "+" AND C$ <> "-" THEN IF C$ = W$ OR F THEN GOTO 990
 	IF C$ <> "+" AND C$ <> "-" THEN S$ = A$ : F = 1 : GOTO 10
-	IF LEN(A$) = 1 THEN GOTO 90
+	IF LEN(A$) = 1 THEN GOTO 990
 	FOR J = 2 TO LEN(A$)
 	' The attribute bits are 1 (R), 2 (H), 4 (S), and 32 (A)
 	B = INSTR("RHS", MID$(A$, J, 1)) : IF B = 3 THEN B = 4
 	IF MID$(A$, J, 1) = "A" THEN B = 32
-	IF B = 0 THEN GOTO 90
+	IF B = 0 THEN GOTO 990
 	IF C$ = "+" THEN SM = SM OR B ELSE CM = CM OR B
 	NEXT
 10	I = I + 1 : A$ = UCASE$(ARG$(I))
@@ -33,10 +33,10 @@
 	NEXT
 20	P$ = LEFT$(S$, I)
 	DEF FNA$(M, L$) = MID$(" " + L$, 1 - ((A AND M) <> 0), 1)
-	ON ERROR GOTO 80
+	ON ERROR GOTO 900
 	F$ = DIR$(S$, 6)
 	ON ERROR GOTO 0
-	IF F$ = "" THEN PRINT "Unable to find "; S$ : END 1
+	IF F$ = "" THEN PRINT "Unable to find "; S$ : END 53 ' BERR_NOFILE
 30	A = ASC(F$) : N$ = MID$(F$, 10)
 	B = (A AND NOT CM) OR SM
 	IF B <> A THEN DOS &H4301, 0, B, P$ + N$ : A = B
@@ -45,5 +45,6 @@
 	F$ = DIR$
 	IF F$ <> "" THEN GOTO 30
 	END
-80	PRINT "Invalid drive" : END 1
-90	PRINT "Syntax error" : END 1
+900	' DIR$ reports only an invalid drive
+	PRINT "Invalid drive" : END 77 ' BERR_BADDRIVE
+990	END 80 ' BERR_USAGE

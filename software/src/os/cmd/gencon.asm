@@ -274,6 +274,10 @@ ENDPROC	genPrint
 ; genDOS), and we generate a call to redirOut, along with a word in the code
 ; for redirOut to record the redirection; genRedirEnd ends it.
 ;
+; A ">" (or ">>") followed by "@" (a session's console, eg, PRINT "hello" > @2)
+; is the same as ":>", since no BASIC expression has an operand that begins
+; with "@" (whereas in PRINT 2 > X, the ">" is a comparison).
+;
 ; Inputs:
 ;	DS:BX -> TOKLETs
 ;	ES:DI -> code block
@@ -301,9 +305,23 @@ gr1:	add	bx,size TOKLET
 	jne	gr1
 	mov	cx,[bx].TOKLET_OFF	; CX -> symbol in LINEBUF
 	xchg	bx,cx
+	mov	dx,2			; DX = length of ":>"
 	cmp	word ptr [bx],'>:'	; ":>"?
-	xchg	bx,cx
-	jne	gr1
+	je	gr1b			; yes
+	dec	dx			; DX = length of ">"
+	cmp	byte ptr [bx],'>'	; ">"?
+	jne	gr1b			; no
+	push	bx
+gr1a:	inc	bx
+	mov	al,[bx]
+	cmp	al,' '			; skip any spaces
+	je	gr1a
+	cmp	al,'>'			; and a 2nd ">" (ie, ">>")
+	je	gr1a
+	cmp	al,'@'			; does "@" follow?
+	pop	bx
+gr1b:	xchg	bx,cx
+	jne	gr1			; no
 ;
 ; The line's commands end at the ":>" (at CX).
 ;
@@ -313,10 +331,11 @@ gr1:	add	bx,size TOKLET
 	xchg	cx,[si].LINE_LEN	; CX = original length
 	push	cx			; save it for the caller
 	add	cx,bx			; CX -> end of line
-	add	bx,[si].LINE_LEN	; BX -> ":>"
-	lea	si,[bx+2]		; SI -> after ":>"
+	add	bx,[si].LINE_LEN	; BX -> ":>" (or ">")
+	mov	si,bx
+	add	si,dx			; SI -> after it
 	mov	ax,1			; AX = 1 (create)
-	cmp	byte ptr [si],'>'	; ":>>"?
+	cmp	byte ptr [si],'>'	; ":>>" (or ">>")?
 	jne	gr2			; no
 	inc	ax			; AX = 2 (append)
 	inc	si

@@ -27,14 +27,14 @@
 	IF C$ = W$ + "S" THEN I = I + 1 : S = VAL(ARG$(I)) : GOTO 10
 	IF C$ = W$ + "N" THEN I = I + 1 : N = VAL(ARG$(I)) : GOTO 10
 	' Any other option, or a second file, is an error
-	IF LEFT$(C$, 1) = W$ OR P$ <> "" THEN GOTO 90
+	IF LEFT$(C$, 1) = W$ OR P$ <> "" THEN GOTO 990
 	P$ = C$
 10	I = I + 1 : A$ = ARG$(I)
 	WEND
 	' So is a negative offset (but a negative length means the rest)
-	IF P$ = "" OR S < 0 THEN GOTO 90
-	ON ERROR GOTO 80
-	IF DIR$(P$, &H16) = "" THEN PRINT "Unable to find "; P$ : END 1
+	IF P$ = "" OR S < 0 THEN GOTO 990
+	ON ERROR GOTO 900
+	IF DIR$(P$, &H16) = "" THEN PRINT "Unable to find "; P$ : END 53 ' BERR_NOFILE
 	ON ERROR GOTO 0
 	OPEN P$ AS #1 LEN = 128 : FIELD #1, 128 AS R$
 	' E is the offset after the last byte to display (0 if there are none)
@@ -62,5 +62,6 @@
 	NEXT
 	CLOSE
 	END
-80	PRINT "Invalid drive" : END 1
-90	PRINT "Syntax error" : END 1
+900	' DIR$ reports only an invalid drive
+	PRINT "Invalid drive" : END 77 ' BERR_BADDRIVE
+990	END 80 ' BERR_USAGE

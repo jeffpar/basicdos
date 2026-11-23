@@ -13,7 +13,7 @@ machines:
 
 ### Part 5: Were Dual Monitors Ever This Cool?
 
-The machine below is an IBM PC XT with 640K of memory and two monitors: a Monochrome Display and a Color Display.  It boots the `BASICDOS-360K-DUAL` diskette, but since the machine also has the BASIC-DOS hard disk (drive C:), the boot sector first displays `System starting...` on the Monochrome Display; press any key to boot from the diskette.  BASIC-DOS then runs one session on each monitor: **PRIMES.BAS** on the Monochrome Display, while the Color Display switches to the hard disk's **SRC** directory and runs **MK** to build BASIC-DOS itself, with MAKE, MASM, and LINK.  Use SHIFT-TAB to switch focus between the two displays, and appreciate how well an IBM PC could actually run two programs simultaneously.
+The machine below is an IBM PC XT with 640K of memory and two monitors: a Monochrome Display and a Color Display.  It boots the `BASICDOS-360K-DUAL` diskette, but since the machine also has the BASIC-DOS hard disk (drive C:), the boot sector first displays `System starting...` on the Monochrome Display; press any key to boot from the diskette.  BASIC-DOS then runs one console on each monitor: **PRIMES.BAS** on the Monochrome Display, while the Color Display runs **DONKEY.BAS**, the BASIC game from the PC DOS 1.00 diskette.  The Color Display starts with the keyboard focus, so press the space bar to start DONKEY (and again to switch lanes), use SHIFT-TAB to switch focus between the two displays, and appreciate how well an IBM PC could actually run two programs simultaneously.
 
 {% include machine.html id="ibm5150-4" %}
 
@@ -23,7 +23,7 @@ There's also a "[Dueling Monitors](../../bd/dual/multi/xt/)" demo featuring FOUR
 
 It's important to note that BASIC-DOS is *not* attempting to emulate a "virtual machine" within each session.  That would require swapping global memory (eg, ROM BIOS Data) on every context-switch, which would be error-prone and slow.  And it's completely unnecessary, as long as BASIC-DOS apps rely exclusively on BASIC-DOS APIs.  Realistically, ROM BIOS APIs and data should only be used by BASIC-DOS itself (ie, BASIC-DOS device drivers).
 
-PC DOS applications that rely on DOS APIs, like the MASM, LINK, and MAKE tools building BASIC-DOS above, generally work.  Those that don't usually 1) use interfaces that BASIC-DOS has not implemented (and may *never* implement), 2) use BIOS interfaces that only BASIC-DOS should be using, or 3) have a stack so small that crashing is inevitable.
+PC DOS applications that rely on DOS APIs, like the MASM, LINK, and MAKE tools that build BASIC-DOS (see the hard disk's **SRC** directory), generally work.  Those that don't usually 1) use interfaces that BASIC-DOS has not implemented (and may *never* implement), 2) use BIOS interfaces that only BASIC-DOS should be using, or 3) have a stack so small that crashing is inevitable.
 
 The fact that **MSBASIC** works, despite the fact that it's "breaking the rules" and accessing the BIOS and hardware directly, is a happy coincidence.  By no means is it working perfectly.  For example, if you type CTRL-BREAK while the Monochrome Display has focus, **MSBASIC** will intercept it, because it's relying on the BIOS rather than BASIC-DOS "hot key" notifications.
 
