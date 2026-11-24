@@ -35,6 +35,6 @@ A switch, a missing file name, or a third file name is a [usage error](../../#us
 
 ERRORLEVEL is set to 0 if every file compares ok, to the [runtime error](../../#exit-codes) number if a file couldn't be found or read (eg, 53 for `Unable to find X.TXT`), and otherwise to 1.
 
-Source: [COMP.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/COMP.BAS)
+Source: [COMP.BAS](https://github.com/jeffpar/basicdos/blob/main/src/os/util/bas/COMP.BAS)
 
 {% include footer.html prev="COMMAND.COM:../command/" next="DEBUG:../debug/" %}

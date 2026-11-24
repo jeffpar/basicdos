@@ -9,15 +9,15 @@
 # three; once config.release is "final", a FINAL build updates them all, and a
 # DEBUG build updates all but those three (see gulpfile.js).
 #
-# pc.js builds a bootable BASIC-DOS hard disk (C:) directly from software/src,
+# pc.js builds a bootable BASIC-DOS hard disk (C:) directly from src,
 # using the system files from the previous build (os/*/OBJ, so run mkdos.sh at
-# least once first), software/src/CONFIG.SYS (a serial console, with PATH$
-# set to C:\, C:\TOOLS\BD, and C:\TOOLS\DOS, so a tool in software/src/tools/bd
-# overrides its counterpart in software/src/tools/dos, as on a BASIC-DOS disk).
+# least once first), src/CONFIG.SYS (a serial console, with PATH$
+# set to C:\, C:\TOOLS\BD, and C:\TOOLS\DOS, so a tool in src/tools/bd
+# overrides its counterpart in src/tools/dos, as on a BASIC-DOS disk).
 #
 # BASIC-DOS runs os/mk.bat (which builds BOOT, DD, DEV, DOS, CMD, UTIL, and DLL),
 # then the TESTS and MSB makefiles, and then QUIT, after which pc.js writes
-# every new or modified file back to software/src.  If a build step fails,
+# every new or modified file back to src.  If a build step fails,
 # the build stops at the prompt; type QUIT to keep any changes or use pc.js's
 # "abort" command to discard them.
 #
@@ -45,7 +45,7 @@ case "$(echo "$2" | tr a-z A-Z)" in
     CLEAN) clean=1 ;;
     *) usage ;;
 esac
-src=software/src
+src=src
 setMode $mode
 for f in os/boot/OBJ/BOOT.COM os/dev/OBJ/BASDEV.COM os/dos/OBJ/BASDOS.COM os/cmd/OBJ/COMMAND.COM; do
     if [ ! -f "$src/$f" ]; then echo "error: $src/$f not found (run mkdos.sh first)" >&2; exit 1; fi

@@ -1,0 +1,38 @@
+---
+layout: page
+title: Preview
+permalink: /machines/demos/preview/part3/
+redirect_from:
+  - /demos/preview/part3/
+  - /preview/part3/
+machines:
+  - id: ibm5150
+    type: pcx86
+    config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
+    autoType: LOAD \\DEMOS\\FIBO.BAT\rLIST\rRUN\r
+---
+
+### Part 3: BASIC Files vs. Batch Files
+
+The machine below boots the `BASICDOS-360K-S80` diskette, loads the **FIBO.BAT** batch file from its **DEMOS** directory, lists it, and then runs it.
+
+{% include machine.html id="ibm5150" %}
+
+There are three versions of the **PRIMES** program: the **BAS** file previously demonstrated, which is in the **DEMOS** directory of the `BASICDOS-360K-S80` diskette, and in the **TESTS\MISC** directory of the `BASICDOS-360K-TESTS` diskette, a **BAT** version that uses line numbers only as needed (as labels), and an **EXE** version that was written in assembly language.  The source code for the assembly language version can be found in the BASIC-DOS [Repository]({{ site.github.repository_url }}/blob/master/src/tests/primes/primes.asm), and on the [hard disk demo](/machines/demos/bd/hd/at/), whose **SRC** directory contains the rest of the BASIC-DOS source code.
+
+When processing an external filename, BASIC-DOS searches for extensions in the same order as PC DOS: **COM**, **EXE**, and **BAT**.  And if none of those are found, it also searches for a **BAS** file.  And unlike PC DOS, you can override the search order with an *explicit* file extension.  As in PC DOS 2.00, the directories searched are listed in a path, although in BASIC-DOS the path is just another string variable, PATH$.
+
+As in PC DOS 2.00, an `ECHO` command has been added to control the echoing of lines in a batch file, although every BASIC-DOS batch file starts with echoing *OFF*.  The only `ECHO` options are *ON* and *OFF*, because if you want to echo something else, well, BASIC already has a command for that: `PRINT`.
+
+Variables, including function definitions, remain in memory after a batch file (or BASIC program) has been run.  So the ADD function defined by **FIBO.BAT** is still available, and can be used by any BASIC command or expression typed directly at the command prompt.  For example:
+
+    PRINT ADD(123456,654321)
+
+will print `777777`.  All the standard BASIC numerical, logical, and relational operators are available as well.
+
+Notice that BASIC-DOS 1) doesn't require function names to begin with "FN",
+2) it allows them to be defined at the command prompt (ie, what IBM PC BASIC calls "Direct Mode", aka Immediate Mode), and 3) it allows multi-line function definitions within BASIC files, enabling the creation of more sophisticated functions.
+
+Also take this opportunity to experiment with BASIC-DOS line-editing, which combines all the editing features of both PC DOS and PC BASIC, improving the PC DOS editing experience.  Use the BASIC-DOS `HELP` command to list available editing keys (`HELP KEYS`).
+
+### Next: [Part 4: Pipes and Sessions](../part4/)

@@ -10,14 +10,14 @@ machines:
     autoMount:
       A:
         name: "BASIC-DOS2 (2021)"
-        path: "/software/disks/2021/BASIC-DOS2.json"
+        path: "/disks/2021/BASIC-DOS2.json"
 ---
 
-In 2021, my final BASIC-DOS [Preview](/demos/preview/) highlighted an IBM PC running two DOS sessions side by side, each in its own 40-column half of a CGA screen.  That was May 2021, three months before the PC's 40th anniversary, at which point I had run out of steam.  The demo fit on a single-sided 160K diskette, the same kind that PC DOS 1.00 shipped on, and the machine was a 4.77Mhz IBM PC with 128K of memory and a Color Display.
+In 2021, my final BASIC-DOS [Preview](/machines/demos/preview/) highlighted an IBM PC running two DOS sessions side by side, each in its own 40-column half of a CGA screen.  That was May 2021, three months before the PC's 40th anniversary, at which point I had run out of steam.  The demo fit on a single-sided 160K diskette, the same kind that PC DOS 1.00 shipped on, and the machine was a 4.77Mhz IBM PC with 128K of memory and a Color Display.
 
 The left session is running `DIR` in a loop (type CTRL-C to stop it), while the right session waits at a prompt.  Use **SHIFT-TAB** to move keyboard focus between them; the session with focus has the double-wide border.  In the right session, try `PRIMES.BAS`, or `TYPE PRIMES.BAS | CASE` to send the program through a pipe to the CASE filter, which upper-cases it, or type `HELP` to see every command that the 2021 version of BASIC-DOS understood.
 
-For comparison, here is a [similar demo](/demos/bd/d40/pc/) running the latest version of BASIC-DOS.
+For comparison, here is a [similar demo](/machines/demos/bd/d40/pc/) running the latest version of BASIC-DOS.
 
 {% include machine.html id="ibm5150" %}
 
@@ -37,6 +37,6 @@ The multitasking was real, and the device driver model and overall system archit
 
  6. **Screen sessions had to be laid out by hand.**  The 2021 CONFIG.SYS (type `TYPE CONFIG.SYS` in either session to see it) had to give each console's exact screen position, and every session lasted until the system was restarted.  Today a CON= line names a driver and a size, and BASIC-DOS places the consoles itself, whether that's two halves of a screen, separate video pages, multiples monitors, or VT100 terminals on serial ports.  Sessions start and end as programs come and go, and KILL lists them and ends any one of them.
 
- 7. **It was strictly a real-mode operating system.**  That was always the initial target, and BASIC-DOS still boots in a [64K machine](/demos/bd/m64/pc/).  But on an 80286 or 80386, BASIC-DOS can now run in protected mode, using extended memory and running COMMAND.COM and its programs at ring 3, where a misbehaving program can't overwrite memory that isn't its own.
+ 7. **It was strictly a real-mode operating system.**  That was always the initial target, and BASIC-DOS still boots in a [64K machine](/machines/demos/bd/m64/pc/).  But on an 80286 or 80386, BASIC-DOS can now run in protected mode, using extended memory and running COMMAND.COM and its programs at ring 3, where a misbehaving program can't overwrite memory that isn't its own.
 
 There are still a few items on the [Project Status](/#project-status) list, but compared to the machine above, that list is short.  The 2021 preview showed what BASIC-DOS *could* be, and I'm happy to report that it's now very close to being exactly that.

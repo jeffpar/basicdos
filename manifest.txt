@@ -1,0 +1,152 @@
+#
+# BASIC-DOS Distribution Manifest
+#
+# Each [section] lists the files (relative to the repository root, with optional
+# wildcards) that belong in the corresponding folder of a BASIC-DOS disk:
+#
+#   ROOT     the root directory, in order; "CONFIG.SYS" stands for each disk's own
+#            CONFIG.SYS (followed by AUTOEXEC.BAT, if its SHELL lines run one)
+#   EXT/CMD  the external BASIC-DOS commands that are assembly language
+#            programs (including DEBUG.COM, which is also an installable
+#            device driver), and HELP.TXT, which HELP displays (distribution)
+#   EXT/BAS  the external BASIC-DOS commands that are BASIC programs (eg,
+#            FORMAT.BAS and LS.BAS) (distribution)
+#   EXT/DLL  the NE libraries (DLL files), which the kernel's NE loader looks
+#            for there, unless a LIBPATH= line in CONFIG.SYS names another
+#            directory (distribution)
+#   DEMOS    demo programs (distribution), including DONKEY.BAS, the only PC
+#            DOS 1.00 BASIC sample on every disk (the demos in
+#            src/demos/other, eg, CLOCK.BAS and TETRIS.BAS, are only
+#            in the hard disk's DEMOS; see gulpfile.js)
+#   TESTS    BENCH.BAS, STRESS.BAT, and REGRESS.BAT (which runs the tests in
+#            TESTS/REGRESS)
+#   TESTS/REGRESS  the regression tests: each checks its own results (printing
+#            "passed" or "failed", and setting an exit code if it's a program),
+#            runs unattended in one session on any machine and in either mode
+#            (skipping what it can't test there), and is run by REGRESS.BAT and
+#            tools/tests/quick.sh
+#   TESTS/MISC  every other test program: those that need something more (eg,
+#            GFXTESTS.BAS needs a CGA, V86TESTS needs V86.COM, DBGTESTS needs a
+#            debugger, and MEMTESTS needs a protected-mode machine with several
+#            sessions), cause a fault or failure on purpose (FAULT, ASSERT),
+#            measure rather than check (MICRO.BAS), or just run (PIPES.BAT,
+#            RANDOM.BAT, and the BAT and EXE versions of PRIMES)
+#   TESTS/SAMPLES  the rest of the PC DOS 1.00 BASIC samples (hard disk only)
+#            (ie, machines/demos/dos/basic/*.BAS except for any file that DEMOS lists)
+#   TOOLS    tools used for testing (DISKREAD, DISKWRIT, SYMDEB, and MSBASIC)
+#
+# The src/tests folders match: the TESTS files are in tests, and the
+# sources of the TESTS/REGRESS, TESTS/MISC, and TOOLS files are in tests/regress,
+# tests/misc, and tests/tools, with the programs built in their OBJ folders.
+#
+# A section named FOLDER/SUBFOLDER (eg, DEMOS/WOLF3D) is a subfolder of FOLDER,
+# and a file inside a disk image can be listed as the image's path (which PCJS's
+# diskimage.js resolves) followed by the file's path within the image.
+#
+# gulpfile.js builds the BASICDOS-360K distribution diskette and every demo
+# diskette with ROOT, EXT (CMD, BAS, and DLL), and DEMOS (and a demo diskette also has, in TESTS,
+# the test files that its CONFIG.SYS runs, eg, PIPES.BAT, and any that
+# gulpfile.js lists for it, eg, FPUTESTS.COM on the Single diskette, whose
+# machines have a coprocessor), the BASICDOS-360K-TESTS diskette with
+# TESTS (and its REGRESS and MISC subfolders) and TOOLS, and the BASICDOS-20MB
+# hard disk with all of them (plus TESTS/SAMPLES, DEMOS/WOLF3D, the WOLF3D.BAT, JIVE, and src/demos/other files that only it has
+# in DEMOS, SRC, and the build tools in TOOLS/BIN, with the C compiler's include
+# files and libraries in TOOLS/INCLUDE and TOOLS/LIB, and the C startup,
+# floating-point, STUB, and BDC sources in TOOLS/CRT, FP, STUB, and BDC, and
+# C demos in TOOLS/DEMOS).  tools/tests/prep.sh copies the EXT folders
+# into each test configuration's EXT folder, DEMOS and TESTS into its TESTS
+# folder, TESTS/REGRESS and TESTS/MISC into its TESTS\REGRESS and TESTS\MISC
+# folders, and TOOLS into TOOLS.
+#
+[ROOT]
+CONFIG.SYS
+src/os/dev/obj/BASDEV.COM
+src/os/dos/obj/BASDOS.COM
+src/os/cmd/obj/COMMAND.COM
+
+[EXT/CMD]
+src/os/util/misc/obj/*.COM
+src/os/util/vi/obj/VI.COM
+src/os/util/v86/obj/V86.COM
+src/os/dd/dbg/obj/DEBUG.COM
+src/os/cmd/HELP.TXT
+
+[EXT/BAS]
+src/os/util/bas/ATTRIB.BAS
+src/os/util/bas/CHKDSK.BAS
+src/os/util/bas/COMP.BAS
+src/os/util/bas/DISKCOPY.BAS
+src/os/util/bas/FORMAT.BAS
+src/os/util/bas/HEXDUMP.BAS
+src/os/util/bas/LABEL.BAS
+src/os/util/bas/LS.BAS
+src/os/util/bas/MODE.BAS
+src/os/util/bas/SYS.BAS
+src/os/util/bas/TREE.BAS
+src/os/util/bas/VOL.BAS
+
+[EXT/DLL]
+src/os/dll/obj/DOSCALLS.DLL
+src/os/dll/obj/KBDCALLS.DLL
+src/os/dll/obj/MSG.DLL
+src/os/dll/obj/NLS.DLL
+
+[DEMOS]
+src/demos/*.BA?
+machines/demos/dos/basic/DONKEY.BAS
+machines/demos/bd/mouse/PAINT.BAS
+
+[DEMOS/WOLF3D]
+/harddisks/pcx86/10mb/COMPAQ331-WOLF3D.json/WOLF3D/*
+
+[TESTS]
+src/tests/BENCH.BAS
+src/tests/REGRESS.BAT
+src/tests/STRESS.BAT
+
+[TESTS/REGRESS]
+src/tests/regress/OBJ/BUFTESTS.COM
+src/tests/regress/OBJ/CPUTESTS.COM
+src/tests/regress/OBJ/DLLTESTS.EXE
+src/tests/regress/OBJ/DOSTESTS.COM
+src/tests/regress/OBJ/FCBTESTS.COM
+src/tests/regress/OBJ/FPUTESTS.COM
+src/tests/regress/OBJ/HARDERR.COM
+src/tests/regress/OBJ/IOERR.COM
+src/tests/regress/OBJ/PRINTF.COM
+src/tests/regress/OBJ/R3TESTS.COM
+src/tests/regress/ARRAYS.BAS
+src/tests/regress/ATTRS.BAS
+src/tests/regress/CMDS.BAT
+src/tests/regress/EXPRERR.BAS
+src/tests/regress/FILEIO.BAS
+src/tests/regress/FLOW.BAS
+src/tests/regress/IOERR.BAS
+src/tests/regress/MOVES.BAS
+src/tests/regress/PRTUSING.BAS
+src/tests/regress/RUNFILE.BAS
+src/tests/regress/STRFUN.BAS
+src/tests/regress/STRPOOL.BAS
+src/tests/regress/VARS.BAS
+
+[TESTS/MISC]
+src/tests/misc/OBJ/ASSERT.COM
+src/tests/misc/OBJ/DBGTESTS.COM
+src/tests/misc/OBJ/FAULT.COM
+src/tests/misc/OBJ/MEMTESTS.COM
+src/tests/misc/OBJ/V86TESTS.COM
+src/tests/misc/OBJ/PRIMES.EXE
+src/tests/misc/GFXTESTS.BAS
+src/tests/misc/MICRO.BAS
+src/tests/misc/PIPES.BAT
+src/tests/misc/PRIMES.BAT
+src/tests/misc/RANDOM.BAT
+
+[TESTS/SAMPLES]
+machines/demos/dos/basic/*.BAS
+
+[TOOLS]
+src/tests/tools/OBJ/DISKREAD.COM
+src/tests/tools/OBJ/DISKWRIT.COM
+src/tools/dos/SYMDEB.EXE
+src/msb/OBJ/MSBASIC.EXE

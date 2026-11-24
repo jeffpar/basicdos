@@ -48,6 +48,6 @@ HELP wraps words to the console's width, displays each line of an entry as a par
 - `\` is displayed as the current path character
 - `*` around a word (eg, `*file*`) isn't displayed, but a `*` used as a wildcard (eg, `B:\*.BAS`) is
 
-Source: [help.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/help.asm) and [HELP.TXT](https://github.com/jeffpar/basicdos/blob/main/software/src/os/cmd/HELP.TXT)
+Source: [help.asm](https://github.com/jeffpar/basicdos/blob/main/src/os/util/misc/help.asm) and [HELP.TXT](https://github.com/jeffpar/basicdos/blob/main/src/os/cmd/HELP.TXT)
 
 {% include footer.html prev="FORMAT:../format/" next="HEXDUMP:../hexdump/" %}

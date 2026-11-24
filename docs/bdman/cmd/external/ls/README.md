@@ -35,6 +35,6 @@ Files with the same size or time are sorted by name.  If there are more names th
 	-rwx     578 Nov 21 16:57 \EXT\CMD\TEE.COM
 	-rwx     570 Nov 21 16:57 \EXT\CMD\TR.COM
 
-Source: [LS.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/LS.BAS)
+Source: [LS.BAS](https://github.com/jeffpar/basicdos/blob/main/src/os/util/bas/LS.BAS)
 
 {% include footer.html prev="LINK4:../link4/" next="MODE:../mode/" %}

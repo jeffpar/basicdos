@@ -23,6 +23,6 @@ As with DB, lines begin at multiples of 16, so the first and last lines can be p
 
 If *file* doesn't exist, HEXDUMP displays `Unable to find` and its name, or if its drive doesn't exist, `Invalid drive`.  A missing file name, a second file name, an unknown switch, or a negative *offset* is a [usage error](../../#usage-errors), and a negative *length* is the same as no `/N`.
 
-Source: [HEXDUMP.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/HEXDUMP.BAS)
+Source: [HEXDUMP.BAS](https://github.com/jeffpar/basicdos/blob/main/src/os/util/bas/HEXDUMP.BAS)
 
 {% include footer.html prev="HELP:../help/" next="LABEL:../label/" %}

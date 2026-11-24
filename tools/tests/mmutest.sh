@@ -21,8 +21,8 @@
 #   pool    the "r3" machine with 9 sessions and a "CPU=80286" line, where MEMTESTS fills the system area's pool of PMBs and LDT descriptors
 #           from 7 sessions at once, and checks that their LDTs can move, and that the system recovers
 #   tools   the "r3" machine with a hard disk, where MAKE rebuilds PRIMES.EXE and SLEEP.COM with the protected-mode build
-#           tools in software/src/tools/bd (see tools/misc/mkne.js), which must match the binaries of the last build, runs EXEMOD
-#           and MAPSYM, which must succeed, and builds MEM32.EXE, FIND16.EXE, and FIND32.EXE with software/src/os/sdk's MK.BAT and makefile (MASM5, LINK386 and
+#           tools in src/tools/bd (see tools/misc/mkne.js), which must match the binaries of the last build, runs EXEMOD
+#           and MAPSYM, which must succeed, and builds MEM32.EXE, FIND16.EXE, and FIND32.EXE with src/os/sdk's MK.BAT and makefile (MASM5, LINK386 and
 #           CL386, which are OS/2 programs that use the libraries in EXT\DLL, and LINK4), and runs FIND16 (an OS/2 program, too; the 32-bit
 #           programs need an 80386)
 #
@@ -30,7 +30,7 @@
 # tools/pc/disks/tmp-mmupm, which is deleted afterward.  The exit code is non-zero if any test failed.
 #
 cd "$(dirname "$0")/../.." || exit 1
-fpe=software/src/configs/console/serial/fpe
+fpe=src/configs/console/serial/fpe
 tmp=tools/pc/disks/tmp-mmupm
 tools/tests/prep.sh $fpe || exit 1
 ok='IF ERRORLEVEL = 0 THEN PRINT "EXITOK" ELSE PRINT "EXITBAD"'
@@ -68,7 +68,7 @@ for name in ${@:-8088 real pm r3 386 r386 multi pool tools}; do
                 fi
                 continue ;;
         tools)  rm -rf $tmp
-                src=software/src
+                src=src
                 mkdir -p $tmp/MT/MISC/OBJ $tmp/MT/OBJ $tmp/OS/INC $tmp/TOOLS || exit 1
                 printf 'SKIP=VKD$\nCON=COM1:9600,N,8,1\nSHELL=COMMAND.COM PATH$="C:\\;C:\\EXT\\CMD;C:\\EXT\\BAS;C:\\TOOLS"\n' > $tmp/CONFIG.SYS
                 tools/tests/prep.sh $tmp || exit 1

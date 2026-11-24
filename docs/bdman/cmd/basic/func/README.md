@@ -85,7 +85,7 @@ Returns a random number from 0 up to (but not including) 1.  *n* has the same ef
 
 > RND%[(*n*)]
 
-Returns a random integer between 0 and [MAXINT](#maxint), inclusive.  If *n* is negative, the generator is reseeded first, and if *n* is zero, the previous random integer is returned.
+Returns a random integer between 0 and [MAXINT](#maxint), inclusive.  If *n* is negative, the generator is reseeded first, and if *n* is zero, the previous random integer is returned.  The numbers come from a 32-bit xorshift generator, which repeats only after 4,294,967,295 numbers.
 
 #### SGN {#sgn}
 
@@ -253,7 +253,7 @@ Commands that search for files (eg, DIR, or COPY, DEL, and TYPE with wildcards) 
 
 > EOF(*n*)
 
-Returns -1 (true) if file *n*, which must be open for INPUT or RANDOM (see [OPEN](../#open)), is at its end (or at a CTRL-Z), or 0 (false) if not (eg, `WHILE NOT EOF(1)`).  For a serial port opened without FOR (eg, `OPEN "COM1:" AS #1`), it's true if no characters are waiting to be read, as in Microsoft BASIC.
+Returns -1 (true) if file *n*, which must be open for INPUT or RANDOM (see [OPEN](../#open)), is at its end (or at a CTRL-Z), or 0 (false) if not (eg, `WHILE NOT EOF(1)`).  For a serial port or named pipe opened without FOR (eg, `OPEN "COM1:" AS #1`; see [OPEN](../#open)), it's true if no characters are waiting to be read, as in Microsoft BASIC.
 
 #### EXISTS {#exists}
 
@@ -284,7 +284,7 @@ Sends an IOCTL request with the specified *code* (and *value* in DX) to the devi
 
 > LOC(*n*)
 
-Returns the last record number used by [GET #](../#get) or [PUT #](../#put) for file *n*, or for a sequential file, its position divided by 128.  For a serial port opened without FOR (eg, `OPEN "COM1:" AS #1`), it returns the number of characters waiting to be read (up to 255), as in Microsoft BASIC, so `A$ = INPUT$(LOC(1),#1)` reads them all.
+Returns the last record number used by [GET #](../#get) or [PUT #](../#put) for file *n*, or for a sequential file, its position divided by 128.  For a serial port or named pipe opened without FOR (eg, `OPEN "COM1:" AS #1`), it returns the number of characters waiting to be read (up to 255), as in Microsoft BASIC, so `A$ = INPUT$(LOC(1),#1)` reads them all.
 
 #### LOF {#lof}
 

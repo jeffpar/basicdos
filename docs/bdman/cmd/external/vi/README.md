@@ -94,6 +94,6 @@ In insert mode, typed characters are inserted, ENTER starts a new line, BACKSPAC
 | `Pattern not found` | The search or `:s` didn't find the text |
 | `No previous pattern` | `n` or `N` has nothing to repeat |
 
-Source: [software/src/os/util/vi](https://github.com/jeffpar/basicdos/tree/main/software/src/os/util/vi)
+Source: [src/os/util/vi](https://github.com/jeffpar/basicdos/tree/main/src/os/util/vi)
 
 {% include footer.html prev="V86:../v86/" next="VOL:../vol/" %}

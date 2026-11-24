@@ -52,6 +52,6 @@ Sends an IBM/Epson printer its print codes:
 
 Any other value, or a value that's omitted, sends nothing for that setting (eg, `MODE LPT1:,8` sets only the lines per inch).
 
-Source: [MODE.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/MODE.BAS)
+Source: [MODE.BAS](https://github.com/jeffpar/basicdos/blob/main/src/os/util/bas/MODE.BAS)
 
 {% include footer.html prev="LS:../ls/" next="MORE:../more/" %}

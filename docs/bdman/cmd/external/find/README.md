@@ -32,6 +32,6 @@ When files are specified, the lines from each file follow a blank line and a lin
 
 ERRORLEVEL is set to 0 if any lines were displayed (or counted), 1 if none (or after a [usage error](../../#usage-errors), such as a switch that isn't valid or a missing *string*), and 2 if the regular expression is invalid (`Invalid expression`) or a file couldn't be opened (eg, `Unable to find X.TXT`).
 
-Source: [find.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/find.asm)
+Source: [find.asm](https://github.com/jeffpar/basicdos/blob/main/src/os/util/misc/find.asm)
 
 {% include footer.html prev="DISKCOPY:../diskcopy/" next="FORMAT:../format/" %}

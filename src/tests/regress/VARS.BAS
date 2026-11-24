@@ -1,0 +1,33 @@
+10 REM VARS.BAS: LIST VARS must not change values or array bounds
+15 K$ = PATH$
+20 I% = -2147483647 : I# = 1.25 : S$ = "hello" : E$ = ""
+30 DIM A%(2,3), B$(4), C#(1)
+40 A%(2,3) = 42 : B$(4) = "last" : C#(1) = 2.5
+50 DEF FNT%(P%) = P% + 1
+60 IF FNT%(3) <> 4 THEN PRINT "function failed" : FAILS = FAILS + 1
+70 OPTION BASE 1 : DIM Q%(3) : Q%(3) = 9
+80 ERASE C#
+90 LIST VARS
+100 LIST 20-30
+110 IF I% <> -2147483647 OR I# <> 1.25 THEN PRINT "LIST numeric failed" : FAILS = FAILS + 1
+120 IF S$ <> "hello" OR E$ <> "" THEN PRINT "LIST string failed" : FAILS = FAILS + 1
+130 IF A%(2,3) <> 42 OR B$(4) <> "last" THEN PRINT "LIST array failed" : FAILS = FAILS + 1
+140 IF Q%(3) <> 9 OR FNT%(3) <> 4 THEN PRINT "LIST bounds/function failed" : FAILS = FAILS + 1
+150 LIST VARS :> VARS.TMP
+160 OPEN "VARS.TMP" FOR INPUT AS #1
+170 LINE INPUT #1, L$
+175 IF L$ <> "PATH$ = " + CHR$(34) + K$ + CHR$(34) THEN PRINT "LIST PATH failed" : FAILS = FAILS + 1
+176 LINE INPUT #1, L$ : IF L$ <> "PROMPT$ = " + CHR$(34) + CHR$(34) THEN PRINT "LIST PROMPT failed" : FAILS = FAILS + 1
+177 LINE INPUT #1, L$
+178 LINE INPUT #1, M$ : IF M$ <> "FNT%(1) = function" AND NOT EOF(1) THEN GOTO 178
+179 CLOSE #1 : IF M$ <> "FNT%(1) = function" THEN PRINT "LIST function failed" : FAILS = FAILS + 1
+180 IF L$ <> "K$ = " + CHR$(34) + K$ + CHR$(34) THEN PRINT "LIST redirection failed" : FAILS = FAILS + 1
+185 IF PATH$ <> K$ THEN PRINT "LIST preserved value failed" : FAILS = FAILS + 1
+190 DEL VARS.TMP
+191 REM Lookups: predefined names of each length (including MAXINT, a value,
+192 REM and RND%, which follows RND), and names that are lower-case, longer than
+193 REM any predefined name, or that share a first letter or prefix with one
+194 IF LEFT$("ab",1) <> "a" OR MID$("ab",2) <> "b" OR INSTR("ab","b") <> 2 OR STRING$(2,"x") <> "xx" OR MAXINT <> 2147483647 OR ERRORLEVEL < 0 OR RND(1) >= 1 OR RND%(1) < 1 THEN PRINT "predefined lookup failed" : FAILS = FAILS + 1
+195 VERYLONGNAME = 1 : counter = 5 : COUNTER = counter + 1 : LENGTH$ = "x" : LE = 2 : LF = 3
+196 IF VERYLONGNAME + COUNTER <> 7 OR LENGTH$ <> "x" OR LE + LF <> 5 OR LEN(LENGTH$) <> 1 THEN PRINT "variable lookup failed" : FAILS = FAILS + 1
+200 IF FAILS THEN PRINT "VARS failed" ELSE PRINT "VARS passed"

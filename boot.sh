@@ -2,7 +2,7 @@
 #
 # Usage: ./boot.sh [config] [pc.js arguments...]
 #
-# Builds and boots BASIC-DOS with one of the configurations in software/src/configs/console, after
+# Builds and boots BASIC-DOS with one of the configurations in src/configs/console, after
 # tools/tests/prep.sh copies the test binaries into it.  Any additional arguments are passed to pc.js
 # (eg, --halt, or a list of commands to run, such as "VER;MEM", which pc.js adds to CONFIG.SYS's SHELL
 # line, or if they don't fit, to AUTOEXEC.BAT).  Changes to the boot disk are NOT saved back to the
@@ -28,7 +28,7 @@ case "$name" in
     hd)     cfg=serial/hd;  opts="--target=10M --serial" ;;
     *)      echo "usage: $0 [fpe|fpu|hd] [pc.js arguments...]" >&2; exit 1 ;;
 esac
-cfg=software/src/configs/console/$cfg
+cfg=src/configs/console/$cfg
 ram=--ram=2M
 case " $* " in *" --ram="*) ram= ;; esac
 tools/tests/prep.sh $cfg || exit 1

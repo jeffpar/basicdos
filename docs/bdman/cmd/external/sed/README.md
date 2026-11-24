@@ -51,6 +51,6 @@ As in every filter, a line longer than 254 characters is split, and if an `s` co
 
 A switch that isn't valid, or a missing *script*, is a [usage error](../../#usage-errors).  Otherwise, ERRORLEVEL is set to 0, or 2 if *script* is invalid (`Invalid script`) or *file* couldn't be opened (eg, `Unable to find X.TXT`).
 
-Source: [sed.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/sed.asm)
+Source: [sed.asm](https://github.com/jeffpar/basicdos/blob/main/src/os/util/misc/sed.asm)
 
 {% include footer.html prev="MORE:../more/" next="SLEEP:../sleep/" %}

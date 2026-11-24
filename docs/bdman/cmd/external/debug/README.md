@@ -61,7 +61,7 @@ A stop in a 32-bit (LE) program is similar: when CTRL-C (or BREAK) interrupts on
 
 The driver's device name is DEBUG$, and data written to it is sent to the terminal; DEBUG builds of BASIC-DOS send their diagnostic (DPRINTF) messages there.
 
-See the [DEBUG demo](/demos/bd/debug/at/) for a machine with the driver loaded, and a VT100 terminal.
+See the [DEBUG demo](/machines/demos/bd/debug/at/) for a machine with the driver loaded, and a VT100 terminal.
 
 ### Typing Commands
 
@@ -436,6 +436,6 @@ Interrupts are disabled while a report is sent, so a slow terminal can make the 
 
 In protected mode, DEBUG.COM run from the prompt runs at ring 3, as other programs do (unless CONFIG.SYS has [RING](../../../cfg/#ring)=0), and so does the program it loads, so it can't use the CPU$ driver, and it has fewer commands than the driver: it can write only memory that a ring 3 program can (eg, the program's own memory, including its code, but not DOS's, the drivers', or the BIOS data area), though it can also read any selector in the GDT whose memory is below 1Mb (eg, `D 40:0`), R displays the registers as it does in real mode (with no system registers, or segment bases and limits), and there's no GT, LN, VC, VL, or VT, and no `&`, `#`, `%`, or `%%` addresses.  T steps over an INT instruction, as P does, since the INT's handler runs at ring 0.  The driver has none of these limits, and can debug ring 3 programs, too.
 
-Source: [dbgdev.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/dd/dbg/dbgdev.asm), [dbgvec.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/dd/dbg/dbgvec.asm), [dbgdis.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/dd/dbg/dbgdis.asm), and [dbginit.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/dd/dbg/dbginit.asm)
+Source: [dbgdev.asm](https://github.com/jeffpar/basicdos/blob/main/src/os/dd/dbg/dbgdev.asm), [dbgvec.asm](https://github.com/jeffpar/basicdos/blob/main/src/os/dd/dbg/dbgvec.asm), [dbgdis.asm](https://github.com/jeffpar/basicdos/blob/main/src/os/dd/dbg/dbgdis.asm), and [dbginit.asm](https://github.com/jeffpar/basicdos/blob/main/src/os/dd/dbg/dbginit.asm)
 
 {% include footer.html prev="COMP:../comp/" next="DISKCOPY:../diskcopy/" %}

@@ -6,7 +6,7 @@ permalink: /blog/2026/10/17/
 preview: /assets/images/BASIC-DOS-Cover.gif
 ---
 
-The last post here was written in early 2021, a month after the first [Preview](/demos/preview/) of BASIC-DOS.  That preview demonstrated the potential of BASIC-DOS, but it also demonstrated the limits of what one person, building an operating system one assembly-language instruction at a time, could realistically hope to finish.
+The last post here was written in early 2021, a month after the first [Preview](/machines/demos/preview/) of BASIC-DOS.  That preview demonstrated the potential of BASIC-DOS, but it also demonstrated the limits of what one person, building an operating system one assembly-language instruction at a time, could realistically hope to finish.
 
 Then AI agents like Claude Code arrived, and suddenly it *was* possible for a single person to complete what used to require a small team.  So I decided to revisit my old thought experiment: given enough time, foresight, and programming power, how much better could PC DOS have been in 1981, when the original IBM PC rolled out?
 
@@ -14,7 +14,7 @@ Here's one possible answer to that question.  Introducing BASIC-DOS: Version 2.1
 
 ### A Unified Command Processor
 
-COMMAND.COM was always intended to be a single, interactive DOS and BASIC command interpreter, and now it is one.  Every BASIC program is compiled into 8086 code before it runs, which is why PRIMES.BAS runs about 10 times faster in BASIC-DOS than in BASICA or GW-BASIC.  The [benchmarks](/demos/preview/part6/) have the other results.
+COMMAND.COM was always intended to be a single, interactive DOS and BASIC command interpreter, and now it is one.  Every BASIC program is compiled into 8086 code before it runs, which is why PRIMES.BAS runs about 10 times faster in BASIC-DOS than in BASICA or GW-BASIC.  The [benchmarks](/machines/demos/preview/part6/) have the other results.
 
 The BASIC-DOS language now supports 32-bit integers, strings, arrays, FOR/NEXT, WHILE/WEND, GOSUB, DATA and READ, sequential and random access files, ON ERROR, the SCREEN, PSET, LINE, CIRCLE, PAINT, DRAW, GET, and PUT graphics statements, PLAY and SOUND, and even MOUSE statements.  It runs DONKEY.BAS and the rest of the PC DOS 1.00 sample programs, drawing the same pixels that BASICA draws, and it loads the *tokenized* files that BASICA and GW-BASIC saved, converting them back to text on the way in.
 
@@ -34,7 +34,7 @@ Hard disks are supported, too.  BASIC-DOS reads and writes the FAT12 and FAT16 v
 
 ### Device Drivers
 
-The CON and COM drivers are still interrupt-driven and asynchronous, and installable drivers (DEVICE= in CONFIG.SYS) finally exist.  CLOCK$ reads the PC AT's real-time clock, SKIP= unloads any built-in driver you don't want, and the drivers for hardware that isn't present (serial and parallel ports, mice, hard disks) unload themselves, which is how BASIC-DOS still boots in a [64K machine](/demos/bd/m64/pc/).
+The CON and COM drivers are still interrupt-driven and asynchronous, and installable drivers (DEVICE= in CONFIG.SYS) finally exist.  CLOCK$ reads the PC AT's real-time clock, SKIP= unloads any built-in driver you don't want, and the drivers for hardware that isn't present (serial and parallel ports, mice, hard disks) unload themselves, which is how BASIC-DOS still boots in a [64K machine](/machines/demos/bd/m64/pc/).
 
 Two drivers deserve special mention.  MOUSE$ detects a Microsoft-compatible serial mouse at boot, draws a pointer in text and graphics modes, implements the core of the INT 33h interface, and feeds the BASIC MOUSE statements.  And DEBUG.COM is a dual-mode binary: run it as a program and it's a conventional debugger that can load and step through another program; load it with DEVICE= on a serial port and it becomes a *kernel* debugger, with an 8086 disassembler, breakpoints, single-stepping, and SYMDEB-style memory dumps, all available from a terminal while BASIC-DOS keeps running.
 
@@ -48,13 +48,13 @@ VI, incidentally, is a subset of the UNIX editor, and it works on serial termina
 
 ### Building BASIC-DOS
 
-BASIC-DOS can now build itself.  The `mk.sh` script boots BASIC-DOS from a hard disk and runs MAKE, MASM 4.0, and LINK, producing binaries identical to the ones built on MS-DOS, and the [Dual Monitors](/demos/bd/dual/xt/) demo does exactly that on its Color Display while PRIMES.BAT runs on the Monochrome Display.  That's as good a compatibility test as I could ask for: PC DOS programs that confine themselves to DOS APIs generally just work.
+BASIC-DOS can now build itself.  The `mk.sh` script boots BASIC-DOS from a hard disk and runs MAKE, MASM 4.0, and LINK, producing binaries identical to the ones built on MS-DOS, and the [Dual Monitors](/machines/demos/bd/dual/xt/) demo does exactly that on its Color Display while PRIMES.BAT runs on the Monochrome Display.  That's as good a compatibility test as I could ask for: PC DOS programs that confine themselves to DOS APIs generally just work.
 
 ### Everything Else
 
-There's an unattended test suite that boots BASIC-DOS with and without an 8087 and runs a dozen test programs.  There's a [BASIC-DOS Manual](/docs/bdman/) and a [Technical Reference](/docs/bdtech/), and HELP finds every command and function by searching HELP.TXT.  And the [Demos](/demos/) now run on an IBM PC, PC XT, PC AT, and COMPAQ DeskPro 386.
+There's an unattended test suite that boots BASIC-DOS with and without an 8087 and runs a dozen test programs.  There's a [BASIC-DOS Manual](/docs/bdman/) and a [Technical Reference](/docs/bdtech/), and HELP finds every command and function by searching HELP.TXT.  And the [Demos](/machines/demos/) now run on an IBM PC, PC XT, PC AT, and COMPAQ DeskPro 386.
 
-What's left?  Not much.  The [Project Status](/#project-status) on the home page has the complete list, but the project has crossed the line from a demonstration of what *could* have been to a system that actually does those things, which is a milestone I honestly wasn't sure I'd reach.  The [Preview](/demos/preview/) pages have been updated accordingly, so if you haven't looked at BASIC-DOS in a while, now would be a good time.
+What's left?  Not much.  The [Project Status](/#project-status) on the home page has the complete list, but the project has crossed the line from a demonstration of what *could* have been to a system that actually does those things, which is a milestone I honestly wasn't sure I'd reach.  The [Preview](/machines/demos/preview/) pages have been updated accordingly, so if you haven't looked at BASIC-DOS in a while, now would be a good time.
 
 [\*] CASE has since been superseded by TR, a more general filter that can translate, delete, or squeeze any characters.  To upper-case the output of a command, as CASE did, use:
 

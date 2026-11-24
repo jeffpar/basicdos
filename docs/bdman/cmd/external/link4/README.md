@@ -24,7 +24,7 @@ runs at ring 3 in protected mode, and through an NE loader stub in real mode,
 and its banner ends in `Version 5.00.12BD`.
 
 The unmodified Microsoft executable is
-[LINK4.EXE](https://github.com/jeffpar/basicdos/blob/main/software/src/tools/dos/LINK4.EXE),
+[LINK4.EXE](https://github.com/jeffpar/basicdos/blob/main/src/tools/dos/LINK4.EXE),
 and [mkne.js](https://github.com/jeffpar/basicdos/blob/main/tools/misc/mkne.js)
 creates the BASIC-DOS conversion.
 

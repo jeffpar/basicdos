@@ -3,7 +3,7 @@
 #
 #   "version"   the major, minor, and patch numbers (eg, 2, 10, and 1 of "2.10.1") are the BASIC-DOS version and
 #               revision, which this script copies to VERSION_MAJOR (0-9), VERSION_MINOR (0-99), and VERSION_REV (0-26)
-#               in software/src/os/inc/version.inc whenever they change (only then, since the makefiles depend on it,
+#               in src/os/inc/version.inc whenever they change (only then, since the makefiles depend on it,
 #               so any change rebuilds everything); the minor number is displayed with two digits, and a nonzero
 #               revision as a letter (1 is A, 26 is Z), so "2.1.0" is BASIC-DOS 2.01, and "2.10.1" is 2.10A
 #   "config"    its "release" property ("final" or "debug") is the default build mode, which this script sets $release to
@@ -23,7 +23,7 @@ if [ "$release" != FINAL ] && [ "$release" != DEBUG ]; then
     echo "error: package.json config.release must be \"final\" or \"debug\"" >&2
     exit 1
 fi
-inc=software/src/os/inc/version.inc
+inc=src/os/inc/version.inc
 if ! grep -q "^VERSION_MAJOR	equ	$major	" $inc || ! grep -q "^VERSION_MINOR	equ	$minor	" $inc ||
         ! grep -q "^VERSION_REV	equ	$rev	" $inc; then
     sed -e "s/^\(VERSION_MAJOR	equ	\)[0-9]*/\1$major/" -e "s/^\(VERSION_MINOR	equ	\)[0-9]*/\1$minor/" \
@@ -60,7 +60,7 @@ watching() {
 # SWITCHING, so the next switch treats the last mode as unknown.
 #
 setMode() {
-    local mode=$1 last dir src=software/src saved=tools/pc/disks/objs
+    local mode=$1 last dir src=src saved=tools/pc/disks/objs
     last=$(cat tools/pc/disks/mkmode 2>/dev/null)
     [ "$last" = "$mode" ] && return
     mkdir -p tools/pc/disks

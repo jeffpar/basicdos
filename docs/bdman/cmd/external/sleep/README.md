@@ -12,6 +12,6 @@ Waits the specified number of *seconds*, a whole number in decimal (eg, `SLEEP 5
 
 If *seconds* is missing, or negative, it's a [usage error](../../#usage-errors).
 
-Source: [sleep.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/sleep.asm)
+Source: [sleep.asm](https://github.com/jeffpar/basicdos/blob/main/src/os/util/misc/sleep.asm)
 
 {% include footer.html prev="SED:../sed/" next="SORT:../sort/" %}

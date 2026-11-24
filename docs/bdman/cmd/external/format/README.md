@@ -82,6 +82,6 @@ Hard disk volumes aren't verified, and extended partitions aren't supported.
 
 A missing drive, an unknown switch, or a second drive is a [usage error](../../#usage-errors).
 
-Source: [FORMAT.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/FORMAT.BAS)
+Source: [FORMAT.BAS](https://github.com/jeffpar/basicdos/blob/main/src/os/util/bas/FORMAT.BAS)
 
 {% include footer.html prev="FIND:../find/" next="HELP:../help/" %}

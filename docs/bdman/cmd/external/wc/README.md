@@ -27,6 +27,6 @@ Without any of them, all three are displayed.  Lines are counted by their line f
 
 A switch that isn't valid, or too many file names, is a [usage error](../../#usage-errors).  Otherwise, ERRORLEVEL is set to 0, or 2 if a file couldn't be opened (eg, `Unable to find X.TXT`).
 
-Source: [wc.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/wc.asm)
+Source: [wc.asm](https://github.com/jeffpar/basicdos/blob/main/src/os/util/misc/wc.asm)
 
 {% include footer.html prev="VOL:../vol/" next="System Commands:../../system/" %}

@@ -54,7 +54,7 @@ function checkOutput(task, outputFile)
 }
 
 /*
- * The files on every BASIC-DOS disk come from software/manifest.txt, which lists the files for each folder (ROOT, the EXT
+ * The files on every BASIC-DOS disk come from manifest.txt, which lists the files for each folder (ROOT, the EXT
  * folders, DEMOS, and TESTS).  Every demo diskette gets ROOT (the system files, and its own CONFIG.SYS and
  * AUTOEXEC.BAT, if any), followed by EXT/CMD (which includes HELP.TXT), EXT/BAS, EXT/DLL (the libraries), and DEMOS, so each demo diskette
  * differs only in its CONFIG.SYS, which sets PATH$ on each SHELL line (eg, SHELL=COMMAND.COM
@@ -90,10 +90,10 @@ function checkOutput(task, outputFile)
  * DEBUG binaries), and otherwise DEBUG while package.json's config.release is "debug", or the current build mode (the
  * mode of the last mkdos.sh or mk.sh build, which tools/pc/disks/mkmode records) once it's "final".  A diskette whose
  * mode isn't the current one gets that mode's saved binaries (see SAVED), so any change to a diskette's files (eg, its
- * CONFIG.SYS) updates it in either mode; the hard disk, whose system files pc.js adds from software/src itself (and
+ * CONFIG.SYS) updates it in either mode; the hard disk, whose system files pc.js adds from src itself (and
  * whose SRC has the current mode's OBJ folders), is updated only by a build of its mode.
  */
-const SRC = "./software/src";
+const SRC = "./src";
 /*
  * The BASIC-DOS version comes from package.json's version (see tools/release.sh): its major number, its minor
  * number as two digits, and a letter for a nonzero patch number, its revision (eg, "2.1.0" is BASIC-DOS 2.01, and
@@ -111,7 +111,7 @@ const DIST_DATE = new Date(DIST_TIME);         // (a date-time string without a 
 const MKMODE = "./tools/pc/disks/mkmode";
 /*
  * Each build mode's outputs are saved here while the other mode is current, in the same folders that they have in
- * software/src (see setMode in tools/release.sh).
+ * src (see setMode in tools/release.sh).
  */
 const SAVED = "./tools/pc/disks/objs";
 /*
@@ -138,7 +138,7 @@ const DIQUIET = VERBOSE? "" : " --quiet";
 const SYSATTRS = "BASDEV.COM:RHS,BASDOS.COM:RHS,COMMAND.COM:RS";
 const manifest = {};
 let section;
-for (let line of fs.readFileSync("./software/manifest.txt", "utf8").split(/\r?\n/)) {
+for (let line of fs.readFileSync("./manifest.txt", "utf8").split(/\r?\n/)) {
     line = line.replace(/#.*/, "").trim();
     let match = line.match(/^\[([\w\/]+)\]$/);
     if (match) {
@@ -148,7 +148,7 @@ for (let line of fs.readFileSync("./software/manifest.txt", "utf8").split(/\r?\n
     }
 }
 /*
- * toolFiles(dir) returns the files (not the folders) in software/src/tools/dir.
+ * toolFiles(dir) returns the files (not the folders) in src/tools/dir.
  */
 const toolFiles = (dir) => globSync(SRC + "/tools/" + dir + "/*").sort().filter((file) =>
     !fs.statSync(file).isDirectory());
@@ -188,7 +188,7 @@ function diskFolders(disk)
  */
 function diskFiles(diskName, fileSpecs)
 {
-    let diskFile = diskName.endsWith(".json")? diskName : "./software/disks/historical/dos/" + diskName + ".json";
+    let diskFile = diskName.endsWith(".json")? diskName : "./disks/historical/dos/" + diskName + ".json";
     let diskDir = "./tools/pc/disks/" + path.basename(diskFile, ".json");
     if (!fs.existsSync(diskDir)) {
         execSync("node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" " + diskFile + " --extract --dest=" + diskDir, { stdio: "ignore" });
@@ -198,31 +198,31 @@ function diskFiles(diskName, fileSpecs)
 
 let disks = {
     "BASICDOS-360K": {
-        config: "./downloads/CONFIG.SYS",
+        config: "./disks/downloads/CONFIG.SYS",
         label: "BASIC-DOS",
         title: "BASIC-DOS " + VERSION + " (Release)",
         folders: distFolders,
         img: true,
         final: true
     },
-    "BASICDOS-360K-S80": { config: "./demos/bd/s80/CONFIG.SYS", title: "BASIC-DOS Single", tests: [ "FPUTESTS.COM" ] },
-    "BASICDOS-360K-D40": { config: "./demos/bd/d40/CONFIG.SYS", title: "BASIC-DOS 40-Cols" },
-    "BASICDOS-360K-D80": { config: "./demos/bd/d80/CONFIG.SYS", title: "BASIC-DOS 80-Cols" },
-    "BASICDOS-360K-P80": { config: "./demos/bd/p80/CONFIG.SYS", title: "BASIC-DOS Multi-Page" },
-    "BASICDOS-360K-P80PM": { config: "./demos/bd/mmu/CONFIG.SYS", title: "BASIC-DOS Extended Memory" },
-    "BASICDOS-360K-DUAL": { config: "./demos/bd/dual/CONFIG.SYS", title: "BASIC-DOS Dual Monitor" },
-    "BASICDOS-360K-MULTI": { config: "./demos/bd/dual/multi/CONFIG.SYS", title: "BASIC-DOS Multi-Console" },
-    "BASICDOS-360K-SERIAL": { config: "./demos/bd/serial/CONFIG.SYS", title: "BASIC-DOS HD Serial Port" },
-    "BASICDOS-360K-VT100": { config: "./demos/bd/vt100/CONFIG.SYS", title: "BASIC-DOS HD VT100" },
-    "BASICDOS-360K-DEBUG": { config: "./demos/bd/debug/CONFIG.SYS", title: "BASIC-DOS Serial Debugger" },
-    "BASICDOS-360K-MOUSE": { config: "./demos/bd/mouse/CONFIG.SYS", title: "BASIC-DOS Mouse" },
-    "BASICDOS-360K-M64": { config: "./demos/bd/m64/CONFIG.SYS", title: "BASIC-DOS Monochrome", final: true, folders: distFolders },
-    "BASICDOS-360K-REAL": { config: "./demos/bd/m64/hd/CONFIG.SYS", title: "BASIC-DOS HD Real Mode" },
-    "BASICDOS-360K-WOLF3D": { config: "./demos/bd/wolf3d/CONFIG.SYS", title: "BASIC-DOS Wolf3D" },
-    "BASICDOS-360K-TERM": { config: "./demos/bd/term/CONFIG.SYS", title: "BASIC-DOS Terminal", final: true, folders: distFolders },
-    "BASICDOS-360K-TERMHD": { config: "./demos/bd/term/hd/CONFIG.SYS", title: "BASIC-DOS HD Terminal" },
-    "BASICDOS-360K-TERM2": { config: "./demos/bd/term/dual/CONFIG.SYS", title: "BASIC-DOS HD Multi-Terminal" },
-    "BASICDOS-360K-MMU": { config: "./demos/bd/mmu/vt100/CONFIG.SYS", title: "BASIC-DOS Extended Memory VT100" },
+    "BASICDOS-360K-S80": { config: "./machines/demos/bd/s80/CONFIG.SYS", title: "BASIC-DOS Single", tests: [ "FPUTESTS.COM" ] },
+    "BASICDOS-360K-D40": { config: "./machines/demos/bd/d40/CONFIG.SYS", title: "BASIC-DOS 40-Cols" },
+    "BASICDOS-360K-D80": { config: "./machines/demos/bd/d80/CONFIG.SYS", title: "BASIC-DOS 80-Cols" },
+    "BASICDOS-360K-P80": { config: "./machines/demos/bd/p80/CONFIG.SYS", title: "BASIC-DOS Multi-Page" },
+    "BASICDOS-360K-P80PM": { config: "./machines/demos/bd/mmu/CONFIG.SYS", title: "BASIC-DOS Extended Memory" },
+    "BASICDOS-360K-DUAL": { config: "./machines/demos/bd/dual/CONFIG.SYS", title: "BASIC-DOS Dual Monitor" },
+    "BASICDOS-360K-MULTI": { config: "./machines/demos/bd/dual/multi/CONFIG.SYS", title: "BASIC-DOS Multi-Console" },
+    "BASICDOS-360K-SERIAL": { config: "./machines/demos/bd/serial/CONFIG.SYS", title: "BASIC-DOS HD Serial Port" },
+    "BASICDOS-360K-VT100": { config: "./machines/demos/bd/vt100/CONFIG.SYS", title: "BASIC-DOS HD VT100" },
+    "BASICDOS-360K-DEBUG": { config: "./machines/demos/bd/debug/CONFIG.SYS", title: "BASIC-DOS Serial Debugger" },
+    "BASICDOS-360K-MOUSE": { config: "./machines/demos/bd/mouse/CONFIG.SYS", title: "BASIC-DOS Mouse" },
+    "BASICDOS-360K-M64": { config: "./machines/demos/bd/m64/CONFIG.SYS", title: "BASIC-DOS Monochrome", final: true, folders: distFolders },
+    "BASICDOS-360K-REAL": { config: "./machines/demos/bd/m64/hd/CONFIG.SYS", title: "BASIC-DOS HD Real Mode" },
+    "BASICDOS-360K-WOLF3D": { config: "./machines/demos/bd/wolf3d/CONFIG.SYS", title: "BASIC-DOS Wolf3D" },
+    "BASICDOS-360K-TERM": { config: "./machines/demos/bd/term/CONFIG.SYS", title: "BASIC-DOS Terminal", final: true, folders: distFolders },
+    "BASICDOS-360K-TERMHD": { config: "./machines/demos/bd/term/hd/CONFIG.SYS", title: "BASIC-DOS HD Terminal" },
+    "BASICDOS-360K-TERM2": { config: "./machines/demos/bd/term/dual/CONFIG.SYS", title: "BASIC-DOS HD Multi-Terminal" },
+    "BASICDOS-360K-MMU": { config: "./machines/demos/bd/mmu/vt100/CONFIG.SYS", title: "BASIC-DOS Extended Memory VT100" },
     "BASICDOS-360K-TESTS": {
         title: "BASIC-DOS Tests",
         data: true,
@@ -235,13 +235,14 @@ let disks = {
     },
     "BASICDOS-20MB": {
         hd: true,
-        config: "./demos/bd/hd/CONFIG.SYS",
+        config: "./machines/demos/bd/hd/CONFIG.SYS",
         folders: {
             ...distFolders,
             //
-            // WOLF3D.BAT runs the game in DEMOS/WOLF3D, so only this disk gets it, and PUBLIC.zip has JIVE.EXE
+            // WOLF3D.BAT runs the game in DEMOS/WOLF3D, so only this disk gets it; the demos in src/demos/other
+            // (eg, CLOCK.BAS, TETRIS.BAS, and PUBLIC.zip's JIVE.EXE) are on this disk only, too
             //
-            DEMOS: manifest.DEMOS.concat([ "./demos/bd/wolf3d/WOLF3D.BAT", "./software/tests/PUBLIC.zip" ]),
+            DEMOS: manifest.DEMOS.concat([ "./machines/demos/bd/wolf3d/WOLF3D.BAT", "./src/demos/other/*.BA?", "./src/demos/other/PUBLIC.zip" ]),
             "DEMOS/WOLF3D": manifest["DEMOS/WOLF3D"],
             SRC: SRC + "/os",           // the BASIC-DOS source (with an MK.BAT that builds it on BASIC-DOS)
             TESTS: manifest.TESTS,
@@ -249,8 +250,8 @@ let disks = {
             "TESTS/MISC": manifest["TESTS/MISC"],
             "TESTS/SAMPLES": manifest["TESTS/SAMPLES"],
             //
-            // The tools in software/src/tools/dos (see software/src/tools/README.TXT), overlaid with the BASIC-DOS versions in
-            // software/src/tools/bd (eg, MASM, MAKE, and LINK4; mk.sh gets the same result from the order of its PATH$), and then
+            // The tools in src/tools/dos (see src/tools/README.TXT), overlaid with the BASIC-DOS versions in
+            // src/tools/bd (eg, MASM, MAKE, and LINK4; mk.sh gets the same result from the order of its PATH$), and then
             // the manifest's TOOLS (eg, MSBASIC).
             //
             // All of those go in TOOLS/BIN (which the hard disk configurations add to PATH$); TOOLS itself has
@@ -289,7 +290,7 @@ let disks = {
 /**
  * binPath(disk, fileSpec)
  *
- * Returns the path of a build output (a file spec for an OBJ or BIN folder in software/src) for the disk's build mode
+ * Returns the path of a build output (a file spec for an OBJ or BIN folder in src) for the disk's build mode
  * (see disk.mode), which is the saved copy (see SAVED) if that mode isn't the current one; any other spec is unchanged.
  *
  * @param {Object} disk
@@ -298,7 +299,7 @@ let disks = {
  */
 function binPath(disk, fileSpec)
 {
-    let match = path.normalize(fileSpec).match(/^software\/src\/(.*\/(obj|bin)\/[^\/]+)$/i);
+    let match = path.normalize(fileSpec).match(/^src\/(.*\/(obj|bin)\/[^\/]+)$/i);
     return match && disk.mode && disk.mode != MODE? path.join(SAVED, disk.mode, match[1]) : fileSpec;
 }
 
@@ -328,7 +329,7 @@ function stageDisk(diskName)
             for (let file of files) {
                 /*
                  * A wildcard doesn't include folders (eg, the C compiler's lib and include folders in
-                 * software/src/tools/dos), which a disk lists as folders of their own.
+                 * src/tools/dos), which a disk lists as folders of their own.
                  */
                 if (fileSpec.indexOf('*') >= 0 && fs.statSync(file).isDirectory()) continue;
                 let target = path.join(dirTarget, name || path.basename(file));
@@ -491,7 +492,7 @@ function writeDiskettes(done)
     let diskettes = {}, configs = {};
     for (let diskName in disks) {
         let disk = disks[diskName];
-        if (disk.title) diskettes["/software/disks/2026/" + diskName + ".json"] = disk.title;
+        if (disk.title) diskettes["/disks/current/" + diskName + ".json"] = disk.title;
         if (disk.config) configs[diskName] = fs.readFileSync(disk.config, "utf8");
     }
     let writeData = function(file, data) {
@@ -542,7 +543,7 @@ function diskSources(diskName)
 function isAffected(diskName, files)
 {
     return diskSources(diskName).some(source => {
-        let re = new RegExp("^" + path.resolve(source).replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*\*/g, "\0").replace(/\*/g, "[^/]*").replace(/\0/g, ".*") + "$", "i");
+        let re = new RegExp("^" + path.resolve(source).replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*\*/g, "\0").replace(/\*/g, "[^/]*").replace(/\?/g, "[^/]").replace(/\0/g, ".*") + "$", "i");
         return files.some(file => re.test(file));
     });
 }
@@ -552,7 +553,7 @@ function isAffected(diskName, files)
  * were too many to list), so that only the disks built from those files are rebuilt; a change to one of WATCHALL
  * (the files that define what's on every disk) rebuilds them all.
  */
-const WATCHALL = [ "./software/manifest.txt", "./gulpfile.js", "./package.json" ];
+const WATCHALL = [ "./manifest.txt", "./gulpfile.js", "./package.json" ];
 let changed = process.env["BD_CHANGED"]? process.env["BD_CHANGED"].split("\n").map(file => path.resolve(file)) : null;
 if (changed && (process.env["BD_CHANGED"] == "*" || WATCHALL.some(file => changed.includes(path.resolve(file))))) {
     changed = null;
@@ -566,7 +567,7 @@ for (let diskName in disks) {
     if (disk.mode != MODE && (disk.hd || !fs.existsSync(path.join(SAVED, disk.mode)))) continue;
     if (changed && !isAffected(diskName, changed)) continue;
     let buildTask = "BUILD-" + diskName;
-    let diskImage = "./software/disks/2026/" + diskName + ".json";
+    let diskImage = "./disks/current/" + diskName + ".json";
     gulp.task(buildTask, checkOutput(buildDisk(diskName, diskImage), diskImage));
     demoTasks.push(buildTask);
 }
@@ -582,14 +583,14 @@ if (process.env["BD_CHANGED"]) {
  * and version, and if files change during an update, another one follows it.
  *
  * WATCHED covers more than the disks use, since the manifest can list any file in those folders; the test
- * configurations (software/src/configs, which tools/tests/prep.sh fills) aren't on any disk, so they're ignored,
- * as are hidden files.  A pc.js build writes its outputs back to software/src only when it exits, so an update never
+ * configurations (src/configs, which tools/tests/prep.sh fills) aren't on any disk, so they're ignored,
+ * as are hidden files.  A pc.js build writes its outputs back to src only when it exits, so an update never
  * sees a build that's still running.
  *
  * While it runs, the watcher's process ID is in WATCHPID, which tells mk.sh and mkdos.sh that they don't need to run
  * "gulp demos" themselves (see watching() in tools/release.sh).
  */
-const WATCHED = WATCHALL.concat([ SRC + "/**", "./demos/**", "./downloads/**", "./software/tests/**" ]);
+const WATCHED = WATCHALL.concat([ SRC + "/**", "./machines/demos/**", "./disks/downloads/**" ]);
 const WATCHPID = "./tools/pc/disks/watch.pid";
 
 gulp.task("watch", function() {
@@ -623,7 +624,7 @@ gulp.task("watch", function() {
     };
     let watcher = gulp.watch(WATCHED, {
         delay: 2000,
-        ignored: (file) => /(^|\/)\.[^\/.]/.test(file) || /(^|\/)software\/src\/configs\//.test(file)
+        ignored: (file) => /(^|\/)\.[^\/.]/.test(file) || /(^|\/)src\/configs\//.test(file)
     }, update);
     watcher.on("all", (event, file) => files.add(file));
     return watcher;

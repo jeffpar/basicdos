@@ -17,6 +17,7 @@ github:
 
 plugins:
   - jekyll-feed
+  - jekyll-redirect-from
 
 exclude:
   - CNAME
@@ -25,7 +26,7 @@ exclude:
   - gulpfile.js
   - package.json
   - package-lock.json
-  - /software/src
+  - /src
   - /tools
   - "*.sh"
   - /.history

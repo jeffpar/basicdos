@@ -14,6 +14,6 @@ MORE gets the screen's size from the console, and counts the rows each line will
 
 ERRORLEVEL is set to 0, or 2 if *file* couldn't be opened (eg, `Unable to find X.TXT`).
 
-Source: [more.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/more.asm)
+Source: [more.asm](https://github.com/jeffpar/basicdos/blob/main/src/os/util/misc/more.asm)
 
 {% include footer.html prev="MODE:../mode/" next="SED:../sed/" %}

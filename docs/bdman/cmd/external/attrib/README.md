@@ -32,6 +32,6 @@ If no file matches, ATTRIB displays `Unable to find` and the *filespec*, or if i
 
 ATTRIB sets attributes with DOS function 4301h (see [DOS](../../basic/#dos)), so a file whose attributes can't be changed (eg, while its volume is open) is a "Permission denied" error.
 
-Source: [ATTRIB.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/ATTRIB.BAS)
+Source: [ATTRIB.BAS](https://github.com/jeffpar/basicdos/blob/main/src/os/util/bas/ATTRIB.BAS)
 
 {% include footer.html prev="External Commands:../" next="CHKDSK:../chkdsk/" %}

@@ -1,0 +1,17 @@
+---
+layout: page
+title: BASIC-DOS on a COMPAQ DeskPro 386 with Dueling Monitors and Debugger
+permalink: /machines/demos/bd/dual/multi/386/debugger/
+redirect_from:
+  - /demos/bd/dual/multi/386/debugger/
+  - /demos/dual/multi/386/debugger/
+machines:
+  - id: deskpro386
+    type: pcx86
+    config: /machines/pcx86/compaq/compaq-deskpro386-dual-1mb.json
+    debugger: true
+    autoMount:
+      A: "BASIC-DOS Multi-Console"
+---
+
+{% include machine.html id="deskpro386" %}

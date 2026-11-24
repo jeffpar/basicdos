@@ -1,9 +1,9 @@
 #!/bin/bash
 #
 # Copies the BASIC-DOS test binaries and batch files into the specified configuration folder
-# (eg, software/src/configs/console/serial/fpe) before boot.sh (in the repository root) or another script in tools/tests boots it.
+# (eg, src/configs/console/serial/fpe) before boot.sh (in the repository root) or another script in tools/tests boots it.
 #
-# The files come from software/manifest.txt (nothing from ROOT, since pc.js adds the system files, and each configuration
+# The files come from manifest.txt (nothing from ROOT, since pc.js adds the system files, and each configuration
 # has its own CONFIG.SYS and, if needed, AUTOEXEC.BAT): programs (and HELP.TXT) from EXT/CMD in EXT\CMD, BASIC utilities from EXT/BAS in EXT\BAS, the libraries from EXT/DLL in EXT\DLL, the DEMOS and TESTS
 # files together in TESTS (only TESTS on a diskette; see below),
 # the TESTS/REGRESS files (the regression tests) in TESTS\REGRESS, the TESTS/MISC files (other test programs) in
@@ -12,11 +12,11 @@
 # (or CD \TESTS\REGRESS), and those in TESTS\REGRESS by REGRESS.BAT (in TESTS), too.  There's no TESTS\SAMPLES folder, since only the BASIC-DOS
 # hard disk built by gulpfile.js includes the PC DOS BASIC samples (other than DONKEY.BAS, which is in DEMOS).
 #
-# Only CONFIG.SYS and AUTOEXEC.BAT are tracked in those folders (see software/src/configs/.gitignore);
+# Only CONFIG.SYS and AUTOEXEC.BAT are tracked in those folders (see src/configs/.gitignore);
 # everything else is copied here, so build the sources first (see mk.sh) to make sure the copies are current.
 #
 root=$(cd "$(dirname "$0")/../.." && pwd)
-src="$root/software/src"
+src="$root/src"
 dir="$1"
 if [ ! -f "$dir/CONFIG.SYS" ]; then
     echo "usage: $0 [configuration folder containing CONFIG.SYS]" >&2
@@ -25,11 +25,11 @@ fi
 #
 # manifest [section]
 #
-# Prints the files in a section of software/manifest.txt, with wildcards expanded.
+# Prints the files in a section of manifest.txt, with wildcards expanded.
 #
 manifest() {
     local f
-    for f in $(awk -v s="[$1]" '/^\[/ {on = ($1 == s); next} on && NF && $1 !~ /^#/ {print $1}' "$root/software/manifest.txt"); do
+    for f in $(awk -v s="[$1]" '/^\[/ {on = ($1 == s); next} on && NF && $1 !~ /^#/ {print $1}' "$root/manifest.txt"); do
         echo "$root"/$f
     done
 }

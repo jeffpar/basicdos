@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Demo exerciser: boots every machine on the Demos page (demos/README.md) in headless Chrome
+ * Demo exerciser: boots every machine on the Demos page (machines/demos/README.md) in headless Chrome
  * and checks that each one starts BASIC-DOS, runs its demo programs, and answers a command on
  * every console (keyboard and serial ports).
  *
@@ -141,7 +141,7 @@ const children = new Set();
 function getDemos()
 {
     const demos = [];
-    for (const line of readFileSync(join(root, 'demos', 'README.md'), 'utf8').split('\n')) {
+    for (const line of readFileSync(join(root, 'machines', 'demos', 'README.md'), 'utf8').split('\n')) {
         if (line[0] != '|') continue;
         for (const m of line.matchAll(/\]\(([^)]+\/)\)/g)) {
             const parts = m[1].match(/^(?:bd\/)?(.*?)\/?(pc|xt|at|386)?\/$/);
@@ -240,7 +240,7 @@ async function runDemo(demo)
     const spec = DEMOS[demo.key]?.(demo.hw);
     if (!spec) return { failures: [`no entry for "${demo.key}" in the DEMOS table`], seconds: 0 };
     const start = Date.now(), failures = [];
-    const page = await openPage(`${opts.url}/demos/${demo.path}`);
+    const page = await openPage(`${opts.url}/machines/demos/${demo.path}`);
     let state = null;
     const strip = (s) => (s || '').replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '');
     const getState = async () => {
@@ -364,9 +364,9 @@ if (!chromePath) {
     process.exit(2);
 }
 try {
-    if (!(await fetch(`${opts.url}/demos/`)).ok) throw new Error();
+    if (!(await fetch(`${opts.url}/machines/demos/`)).ok) throw new Error();
 } catch (e) {
-    console.error(`${opts.url}/demos/ isn't responding; start the Jekyll server first`);
+    console.error(`${opts.url}/machines/demos/ isn't responding; start the Jekyll server first`);
     process.exit(2);
 }
 for (const sig of ['SIGINT', 'SIGTERM']) {

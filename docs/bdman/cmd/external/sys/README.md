@@ -34,6 +34,6 @@ The boot code still checks once for a key, so **Esc**, `P`, `R`, or `-` still wo
 
 A missing drive, an unknown switch, or any other argument that isn't a single drive is a [usage error](../../#usage-errors).
 
-Source: [SYS.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/SYS.BAS)
+Source: [SYS.BAS](https://github.com/jeffpar/basicdos/blob/main/src/os/util/bas/SYS.BAS)
 
 {% include footer.html prev="SORT:../sort/" next="TEE:../tee/" %}

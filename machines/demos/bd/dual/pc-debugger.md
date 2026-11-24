@@ -1,0 +1,18 @@
+---
+layout: page
+title: BASIC-DOS on an IBM PC with Dual Monitors and Debugger
+permalink: /machines/demos/bd/dual/pc/debugger/
+redirect_from:
+  - /demos/bd/dual/pc/debugger/
+  - /demos/dual/pc/debugger/
+machines:
+  - id: ibm5150
+    type: pcx86
+    config: /machines/pcx86/ibm/ibm-5150-dual-128kb.json
+    debugger: true
+    sizeRAM: 256
+    autoMount:
+      A: "BASIC-DOS Dual Monitor"
+---
+
+{% include machine.html id="ibm5150" name="IBM PC, 256Kb RAM, Dual Floppy Drives, MDA and CGA" %}

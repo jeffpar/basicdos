@@ -3,12 +3,12 @@
 # Usage: tools/bdc/test.sh
 #
 # Tests BDC, the BASIC-DOS C compiler, using a copy of it built on this machine and MS-DOS 3.20 with Microsoft C 4.00
-# (software/disks/historical/dos/MSDOS320-C400.json) running in pc.js:
+# (disks/historical/dos/MSDOS320-C400.json) running in pc.js:
 #
 #   1. Each test program is compiled here by BDC, and linked and run on MS-DOS.  Its output must match the output of
 #      the same program compiled there by Microsoft C (ints, longs, misc), or the test's .exp file: ansi is a
 #      self-checking test of things that Microsoft C doesn't accept, and sucks1 and sucks2 are the programs in
-#      software/src/tools/dos/demos (the originals of the ones in bd/demos/sucks), changed only to end when their input (the test's .in file) does; their .exp files are the
+#      src/tools/dos/demos (the originals of the ones in bd/demos/sucks), changed only to end when their input (the test's .in file) does; their .exp files are the
 #      output of those programs when Microsoft C compiled versions of them that it accepts.
 #
 #   2. BDC is built on MS-DOS twice: by Microsoft C (BDCM.EXE), and from the object files that the BDC built here
@@ -22,9 +22,9 @@
 # BDC.EXE itself is built by mkbdc.sh.
 #
 root=$(cd "$(dirname "$0")/../.." && pwd)
-src=$root/software/src/tools/bd/bdc
+src=$root/src/tools/bd/bdc
 tdir=$root/tools/bdc
-inc=$root/software/src/tools/dos/include
+inc=$root/src/tools/dos/include
 work=$root/tools/pc/disks/tmp-bdctest
 dos=$work/d                             # MS-DOS drive D:
 host=$work/host                         # the BDC built here, and what it compiles
@@ -37,7 +37,7 @@ if pgrep -f "pc\.js" > /dev/null; then
 fi
 rm -rf "$work"
 mkdir -p "$dos" "$host" || exit 1
-cp software/disks/historical/dos/MSDOS320-C400.json "$work.json" || exit 1
+cp disks/historical/dos/MSDOS320-C400.json "$work.json" || exit 1
 cc -std=gnu89 -DHOST -w -o "$host/bdc" $src/*.c || exit 1
 
 upper() { echo "$1" | tr a-z A-Z; }

@@ -50,6 +50,6 @@ Any argument other than a drive and `/V`, or more than one drive, is a [usage er
 
 ERRORLEVEL is set to 0 if CHKDSK checked the entire volume and found no problems, to the [runtime error](../../#exit-codes) number if the drive couldn't be read (eg, 71 for `Drive not ready`), and otherwise to 1.
 
-Source: [CHKDSK.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/CHKDSK.BAS)
+Source: [CHKDSK.BAS](https://github.com/jeffpar/basicdos/blob/main/src/os/util/bas/CHKDSK.BAS)
 
 {% include footer.html prev="ATTRIB:../attrib/" next="COMMAND.COM:../command/" %}

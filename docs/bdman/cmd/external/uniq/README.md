@@ -27,6 +27,6 @@ For example:
 
 ERRORLEVEL is set to 0, or 2 if *file* couldn't be opened (eg, `Unable to find X.TXT`).
 
-Source: [uniq.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/uniq.asm)
+Source: [uniq.asm](https://github.com/jeffpar/basicdos/blob/main/src/os/util/misc/uniq.asm)
 
 {% include footer.html prev="TREE:../tree/" next="V86:../v86/" %}

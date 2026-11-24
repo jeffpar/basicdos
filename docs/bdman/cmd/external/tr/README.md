@@ -29,6 +29,6 @@ A set that contains spaces, or starts with the switch character and a letter, mu
 
 A switch that isn't valid, or a missing set (or only *set1*, without `/D` or `/S`), is a [usage error](../../#usage-errors).
 
-Source: [tr.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/tr.asm)
+Source: [tr.asm](https://github.com/jeffpar/basicdos/blob/main/src/os/util/misc/tr.asm)
 
 {% include footer.html prev="TEE:../tee/" next="TREE:../tree/" %}

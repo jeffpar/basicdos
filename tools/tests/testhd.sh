@@ -6,7 +6,7 @@
 #   tools/tests/testhd.sh [hard disk directory] [config folder]
 #
 # The hard disk directory defaults to tools/pc/disks/hdsrc (created with a few sample files if it doesn't
-# exist), and the config folder defaults to software/src/configs/console/serial/fpe, whose console is on
+# exist), and the config folder defaults to src/configs/console/serial/fpe, whose console is on
 # COM1 (pc.js's --serial), so the session runs in this terminal.  The hard disk is formatted by MS-DOS 3.20
 # (so it also contains MS-DOS system files, and a DOS subdirectory).
 #
@@ -16,7 +16,7 @@
 #
 cd "$(dirname "$0")/../.." || exit 1
 hdir="${1:-tools/pc/disks/hdsrc}"
-cfg="${2:-software/src/configs/console/serial/fpe}"
+cfg="${2:-src/configs/console/serial/fpe}"
 if [ ! -d "$cfg" ]; then
     echo "error: $cfg not found" >&2
     exit 1
@@ -25,7 +25,7 @@ if [ ! -d "$hdir" ]; then
     mkdir -p "$hdir/SUBDIR" || exit 1
     printf 'Hello from the hard disk\r\n' > "$hdir/HELLO.TXT"
     printf 'This file is in a subdirectory\r\n' > "$hdir/SUBDIR/INSIDE.TXT"
-    cp software/src/demos/PRIMES.BAS "$hdir/"
+    cp src/demos/PRIMES.BAS "$hdir/"
 fi
 tools/tests/prep.sh "$cfg" || exit 1
 #

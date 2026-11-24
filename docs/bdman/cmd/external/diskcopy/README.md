@@ -38,6 +38,6 @@ DISKCOPY stops if it displays any of these messages:
 
 An argument that isn't a drive is a [usage error](../../#usage-errors).
 
-Source: [DISKCOPY.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/DISKCOPY.BAS)
+Source: [DISKCOPY.BAS](https://github.com/jeffpar/basicdos/blob/main/src/os/util/bas/DISKCOPY.BAS)
 
 {% include footer.html prev="DEBUG:../debug/" next="FIND:../find/" %}

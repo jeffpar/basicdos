@@ -70,9 +70,27 @@ As in IBM PC BASIC, [LET](../cmd/basic/let/) is optional for assignments, even a
 
 ### Playing BROGUE
 
-On an 80-column PC display or VT100 console, run `CD \DEMOS` followed by `BROGUE`. Use the arrow keys or lowercase `h`, `j`, `k`, `l` to move. Each depth is a few rooms joined by hallways, which are drawn as two walls with nothing between them. You start on the stairs up (`<`) in the first room, and the stairs down (`>`) are in the last. Every room is a puzzle: stones (`O`) are in the way, and blocks (shaded squares, or a checkerboard on a VT100) never move. Push a stone by walking into it. It rolls one square at a time until a wall, a block, a door, or another stone stops it (stones never roll into doors or hallways), so a careless push can close off the way through. Walk onto `>` to descend; the puzzles get harder with depth.
+On an 80-column PC display or VT100 console, run `CD \DEMOS` followed by `BROGUE`. Each depth is a few rooms joined by hallways, which are drawn as two walls with nothing between them. You (`u`) start on the stairs up (`<`) in the first room, and the stairs down (`>`) are in the last. Walk onto `>` to descend.
 
-Press `R` to put the room you're in back the way it was (you return to the door you came in by), `N` for a new map at the same depth, or `Q` to quit.
+Move with the arrow keys (and Home, PgUp, End, and PgDn for the diagonals) or lowercase `h`, `j`, `k`, `l` (and `y`, `u`, `b`, `n` for the diagonals). The rooms are full of stones (`O`): push one by walking into it, and it rolls until something stops it. Bricks (shaded squares, or a checkerboard on a VT100) never move.
+
+The top row shows the depth and the map's seed. Press `R` to start the depth over (the same map), `N` for a new map at the same depth, or `Q` to quit. To play a map again later, run BROGUE with its seed, followed by its depth if it isn't 1 (eg, `BROGUE 36AF971E 4`).
+
+To play with others, run `BROGUE /M` in two or more sessions (eg, consoles that [START](../cmd/system/#start) opens). The first one makes the map, and each one that starts later plays the same map as it is then (with the stones where they are), starting on a random cell of the first room; a player who takes the stairs (or presses `R`) on a map that another player is already on gets that map as it is, too. Your player is always `u`, and the other players are shown by their session numbers (`1`-`9`, then `A`-`W`), wherever they are on the same map; a player who presses `N` (or quits) disappears from the others' maps. Players who take the stairs down meet again on the next map, since the stairs choose the next map from the current one. A stone that one player pushes rolls on every player's map, and if it rolls into another player, that player is squashed.
+
+### Playing DALEKS
+
+On an 80-column PC display or VT100 console, run `CD \DEMOS` followed by `DALEKS`. Each level is one large room, with a door on one side, where you (`u`) come in, and a door on the opposite side, which is the way out. Every time you move, each Dalek (`D`) moves one cell toward you, and if one reaches you, you're exterminated. Daleks that move into the same cell, or onto a heap of scrap (`#`), become scrap themselves. Reach the way out to go on to the next level, which has more Daleks.
+
+Move with the same keys as BROGUE; `.` waits a turn, `T` teleports you to a random place in the room (which may be next to a Dalek), and `Z` uses a sonic screwdriver, which destroys every Dalek next to you. You get one screwdriver at each level, and keep the ones you don't use. The top row shows the level, and the bottom row shows the keys and how many screwdrivers you have. Press `R` to start the level over (the same room), or `Q` to quit; after you're exterminated, `N` starts a new game at level 1.
+
+### Playing ATAXX
+
+On any PC display or VT100 console with 40 or more columns, run `CD \DEMOS` followed by `ATAXX`. The board has 7 rows of 7 cells, centered on the screen, with the score above it and messages below it. You (solid pieces) and the computer (hollow pieces, drawn with double lines on a PC) start with two pieces each, in opposite corners, and take turns moving. A move is to an empty cell: a cell next to one of your pieces (in any of the 8 directions) grows a new piece there, and a cell 2 away jumps the piece there instead, leaving its old cell empty. Either way, every one of the other player's pieces next to that cell becomes yours. When the player whose turn it is can't move, the game ends, the other player gets every empty cell, and whoever has more pieces wins.
+
+Move the cursor (a highlighted cell) with the same keys as BROGUE. `Space` (or `Enter`) on an empty cell next to one of your pieces grows a piece there. On one of your pieces, it picks that piece, which blinks, and marks the empty cells it can grow into (with a dot) and jump to (with 4 dots); `Space` on one of those moves it there, and `Space` on the piece again, or `Esc`, puts it back.
+
+The computer looks a number of moves ahead (its level, shown on the top row): press `1`-`4` to change it, or run ATAXX with a level (eg, `ATAXX 3`); it's 2 otherwise. On a 4.77 MHz PC, level 2 takes a few seconds a move, and level 3 can take a minute or more; level 4 is for faster machines. Press `N` for a new game (the players take turns moving first), or `Q` to quit.
 
 ### Entering Programs
 
@@ -110,7 +128,7 @@ and its CONFIG.SYS sets PATH$ to the root, both EXT directories, and DEMOS (eg, 
 
 Test programs are on a separate diskette, BASIC-DOS Tests: the regression tests are in its **TESTS\REGRESS** directory (eg, DOSTESTS.COM; REGRESS.BAT in **TESTS** runs them all), other test programs (eg, GFXTESTS.BAS) are in **TESTS\MISC**, and BENCH.BAS is in **TESTS**, with MSBASIC.EXE and SYMDEB.EXE in its **TOOLS** directory (the 20Mb hard disk has all of those, too, plus the rest of the PC DOS 1.00 BASIC samples in **TESTS\SAMPLES**); load it in drive B: and type (for example) `B:\TOOLS\MSBASIC`, or `B:`, `CD \TESTS`, and `REGRESS`.  Most of the tests can run while other sessions are busy, but HARDERR skips its tests if any other session is running a program (its disk hook would affect them).
 
-The [hard disk demo](/demos/bd/hd/at/) adds three more directories: **TESTS** (the same tests as the BASIC-DOS Tests diskette), **SRC** (the BASIC-DOS source code), and **TOOLS** (MASM and the other build tools, plus MSBASIC.EXE and SYMDEB.EXE, in **TOOLS\BIN**).  **MASM.EXE**, **MASM5.EXE**, **MAKE.EXE**, **LINK.EXE**, **LINK4.EXE**, **EXEMOD.EXE**, **MAPSYM.EXE**, and **EXE2BIN.EXE** in **TOOLS\BIN** are protected-mode versions of those programs: they run at ring 3, and in real mode, too.  Except for EXE2BIN, which has no banner, their banners end in **BD** (eg, **4.00BD**).  The other tools in **TOOLS\BIN** remain real-mode programs.
+The [hard disk demo](/machines/demos/bd/hd/at/) adds three more directories: **TESTS** (the same tests as the BASIC-DOS Tests diskette), **SRC** (the BASIC-DOS source code), and **TOOLS** (MASM and the other build tools, plus MSBASIC.EXE and SYMDEB.EXE, in **TOOLS\BIN**).  **MASM.EXE**, **MASM5.EXE**, **MAKE.EXE**, **LINK.EXE**, **LINK4.EXE**, **EXEMOD.EXE**, **MAPSYM.EXE**, and **EXE2BIN.EXE** in **TOOLS\BIN** are protected-mode versions of those programs: they run at ring 3, and in real mode, too.  Except for EXE2BIN, which has no banner, their banners end in **BD** (eg, **4.00BD**).  The other tools in **TOOLS\BIN** remain real-mode programs.
 
 Use `LIST VARS` to inspect the current session's variable values and array dimensions; see [LIST](../cmd/system/#list).
 
@@ -145,7 +163,7 @@ The input of a command can also come from a file instead of the keyboard (eg, `S
 
 ### Sessions
 
-BASIC-DOS can run several programs at once, each in its own *session*.  A session can have a *console*, which can occupy the entire screen or just part of it (eg, the left and right halves of the screen, as in the [BASIC-DOS Demos](/demos/)); the console with a double-line border is the one that has *focus*, which means that it receives keyboard input.
+BASIC-DOS can run several programs at once, each in its own *session*.  A session can have a *console*, which can occupy the entire screen or just part of it (eg, the left and right halves of the screen, as in the [BASIC-DOS Demos](/machines/demos/)); the console with a double-line border is the one that has *focus*, which means that it receives keyboard input.
 
 Every console needs a session, and so does every command after the first in a [pipeline](#redirection-and-pipes), so a system usually has more sessions than consoles; the extra sessions determine how many filters can run at once.
 

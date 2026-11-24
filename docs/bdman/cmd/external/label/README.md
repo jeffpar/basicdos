@@ -34,6 +34,6 @@ The label is a root directory entry with the volume attribute, which LABEL write
 - `Invalid drive`
 - `Unable to label drive` *drive* `(error` *n*`)`, for any other error
 
-Source: [LABEL.BAS](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/bas/LABEL.BAS)
+Source: [LABEL.BAS](https://github.com/jeffpar/basicdos/blob/main/src/os/util/bas/LABEL.BAS)
 
 {% include footer.html prev="HEXDUMP:../hexdump/" next="LINK4:../link4/" %}

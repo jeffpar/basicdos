@@ -43,7 +43,7 @@ The BASIC-DOS Technical Reference describes BASIC-DOS's internal architecture an
 	- [Advantages](ext/#advantages)
 	- [Disadvantages](ext/#disadvantages)
 
-The definitions referred to throughout are found in the BASIC-DOS source code, primarily in these include files (in `software/src/os/inc`):
+The definitions referred to throughout are found in the BASIC-DOS source code, primarily in these include files (in `src/os/inc`):
 
 - **dosapi.inc**: interrupt vectors, the basic FCB, open modes, MCB, standard handles, error codes, and the other DOS interfaces; optional sections are enabled by defining DOSFUNC (DOS and utility function numbers), DOSPSP (the PSP, EPB, SPB, and EXE header structures, which also enables DOSHEAP), DOSHEAP (just COMDATA/COMHEAP for COM files that can't afford DOSPSP, eg DEBUG.COM), DOSFCB (the full and extended FCB structures), or DOSFFB (the FFB) before including it
 - **devapi.inc**: device driver headers, attributes, and IOCTL codes

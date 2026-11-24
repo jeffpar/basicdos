@@ -1,0 +1,18 @@
+---
+layout: page
+title: BASIC-DOS on an IBM PC with 64K, a Monochrome Display, and Debugger
+permalink: /machines/demos/bd/m64/pc/debugger/
+redirect_from:
+  - /demos/bd/m64/pc/debugger/
+  - /demos/m64/pc/debugger/
+machines:
+  - id: ibm5150
+    type: pcx86
+    config: /machines/pcx86/ibm/ibm-5150-mda-64kb.json
+    debugger: true
+    autoMount:
+      A: "BASIC-DOS Monochrome"
+      B: "PC DOS 1.00"
+---
+
+{% include machine.html id="ibm5150" %}

@@ -88,6 +88,6 @@ SED's addresses and `s` command, and FIND's `/R` switch, use the regular express
 
 An empty regular expression in SED (eg, `//` or `s//text/`) reuses the previous one.  The newer `+`, `?`, `|`, and `\{m,n\}` aren't supported.
 
-Source: the `UTILRE` section of [utilproc.inc](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/utilproc.inc)
+Source: the `UTILRE` section of [utilproc.inc](https://github.com/jeffpar/basicdos/blob/main/src/os/util/misc/utilproc.inc)
 
 {% include footer.html prev="Disk Commands:../disk/" next="ATTRIB:attrib/" %}

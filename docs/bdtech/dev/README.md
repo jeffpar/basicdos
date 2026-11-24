@@ -293,7 +293,7 @@ The key that switches the focus to the port's next console is CTRL-\\ (1Ch), or 
 | BREAK key | | Stops the current program |
 | Bell | CTRL-G | `PRINT CHR$(7)` |
 
-The VT100s in the demos have the Advanced Video Option.  A VT100 without it (see the [VT100 Terminal demo without the AVO](/demos/bd/vt100/xt/noavo/)) has a single character attribute, reverse video or underline, depending on its SET-UP cursor selection, and neither bold nor blink, and only 14 rows in 132-column mode.
+The VT100s in the demos have the Advanced Video Option.  A VT100 without it (see the [VT100 Terminal demo without the AVO](/machines/demos/bd/vt100/xt/noavo/)) has a single character attribute, reverse video or underline, depending on its SET-UP cursor selection, and neither bold nor blink, and only 14 rows in 132-column mode.
 
 These VT100 features aren't used by the driver, and have no BASIC statement, although a program can send their sequences itself:
 
@@ -323,7 +323,7 @@ These VT100 features aren't used by the driver, and have no BASIC statement, alt
 | CPU$ | Character | Two drivers, loaded first, of which one stays to manage all memory through DDINT_CPU (see [Protected Mode](../mmu/)): the 80386 driver stores the processor type in CPU_HWTYPE (0:513h) and CPU_TYPE (0:512h), which is 0 if real mode is requested (by `CPU=8088`, or **R** at the boot message), and otherwise, on an 80286 or later with at least 256K of conventional memory, manages memory with a PMB table (and protected-mode descriptors); otherwise, it unloads, and the 8086 driver manages memory with an MCB chain.  The one that stays stores its arena's address in CPU_ARENA (0:514h), for debuggers, and provides DDINT_GETVEC and DDINT_SETVEC.  Neither can be skipped |
 | NUL | Character | Null device |
 | CLOCK$ | Character | Timer interrupt, date and time, delays, and sound |
-| PIPE$ | Character | Pipes between sessions (used by the command shell's `|` operator), with a 128-byte buffer; as on UNIX, a read waits only until some data is available, and then returns what's there (up to the requested length), while a write waits until all its data fits |
+| PIPE$ | Character | Pipes between sessions (used by the command shell's `|` operator), with a 128-byte buffer; as on UNIX, a read waits only until some data is available, and then returns what's there (up to the requested length), while a write waits until all its data fits.  `PIPE$:`*name* opens a named pipe instead, which every open of the same name (its first 8 characters, in any case) joins: each open has its own buffer, a write goes to every other open whose buffer has room for all of it (and never waits), and IOCTL_INSTATUS returns the number of bytes waiting (yielding once and checking again if the buffer is empty); its contexts are system-owned (CPU_ALLOC), since a named pipe outlives the program that opened it |
 | FPU$ | Character | Floating-point functions, using an 8087 if present, or software emulation otherwise |
 | MOUSE$ | Character | Serial mouse, with an INT 33h interface (see [MOUSE$](#mouse)); loaded only if a mouse responds on a COM port |
 | SND$ | Character | Sound Blaster, which it lends to one V86 machine at a time (see [SND$](#snd)); loaded only on an 80386 with a card at 220h or 240h |

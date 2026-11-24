@@ -29,6 +29,6 @@ The program can do anything an 8086 program can, except I/O (other than the port
 
 ERRORLEVEL is set to the program's exit code, or 1 if V86 couldn't run it.  When V86 is the first program of its session (eg, `START V86`), its console closes when it ends, so if V86 or its program fails (a non-zero exit code), V86 first displays `Press any key` and waits for one, so that the messages can be read.
 
-Source: [software/src/os/util/v86](https://github.com/jeffpar/basicdos/tree/main/software/src/os/util/v86)
+Source: [src/os/util/v86](https://github.com/jeffpar/basicdos/tree/main/src/os/util/v86)
 
 {% include footer.html prev="UNIQ:../uniq/" next="VI:../vi/" %}

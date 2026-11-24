@@ -2,7 +2,7 @@
 #
 # This command creates a drive [D:] containing the BASIC-DOS source code.  To
 # build the source, at the "C:\>" prompt, type "D:", then "MKDOS", then "QUIT".
-# Any modifications will be written back to the software/src directory.
+# Any modifications will be written back to the src directory.
 #
 # NOTE: While early BASIC-DOS builds were performed in a browser using a PCjs
 # PC XT with PC DOS 2.00, our command-line build environment uses PC.js with a
@@ -59,7 +59,7 @@
 # copies the source directory to tools/pc/disks/tmp-masm4 and does a clean
 # build there, with each component's MKDOS.BAT running "MAKE /I ASM=MASM", so
 # that the ASM macro overrides the makefile's (ASM=MASM5) and one failure
-# doesn't stop the rest (software/src, its build outputs, and the disk images
+# doesn't stop the rest (src, its build outputs, and the disk images
 # aren't touched).  It then lists every module that failed
 # to assemble or has less than MINFREE bytes of symbol space free, saves the
 # build's output in tools/pc/disks/masm4.log, and removes the copy, exiting
@@ -70,7 +70,7 @@ cd "$(dirname "$0")" || exit 1
 usage() { echo "Usage: $0 [FINAL or DEBUG] [CLEAN], or $0 MASM4 [FINAL or DEBUG]" >&2; exit 1; }
 [ $# -le 2 ] || usage
 . tools/release.sh
-src=software/src
+src=src
 MINFREE=2048
 masm4() {
     local dir=tools/pc/disks/tmp-masm4 log=tools/pc/disks/masm4.log start=$SECONDS pid idle=0 size=-1 code
@@ -80,7 +80,7 @@ masm4() {
     touch "$dir/CLEAN"
     [ "$1" = FINAL ] && touch "$dir/MKFINAL"
     echo "Building with MASM 4.00 ($1) in $dir..."
-    tools/pc/pc.js --disk=software/disks/historical/dos/MSDOS320-C400.json --dir="$dir" --normalize --speed=16 --target=30M --fat=16:2048:512 < /dev/null > "$log" 2>&1 &
+    tools/pc/pc.js --disk=disks/historical/dos/MSDOS320-C400.json --dir="$dir" --normalize --speed=16 --target=30M --fat=16:2048:512 < /dev/null > "$log" 2>&1 &
     pid=$!
     #
     # A build that runs to the end QUITs, but if a step other than MAKE fails, the batch files stop at
@@ -140,7 +140,7 @@ fi
 if [ -n "$clean" ]; then
     touch $src/CLEAN
 fi
-tools/pc/pc.js --disk=software/disks/historical/dos/MSDOS320-C400.json --dir=$src --normalize --speed=16 --target=30M --fat=16:2048:512
+tools/pc/pc.js --disk=disks/historical/dos/MSDOS320-C400.json --dir=$src --normalize --speed=16 --target=30M --fat=16:2048:512
 code=$?
 if [ $code -eq 0 ] && [ -n "$PCJS" ] && ! watching; then
     if ! npx gulp demos --silent > /dev/null; then

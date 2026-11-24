@@ -24,6 +24,6 @@ Lines that differ only in case, or that match from column *n* on, can be display
 
 Up to 64K of text can be sorted, including 2 bytes for each line.  If there's more than that, or more than memory allows, SORT displays `Not enough memory`, and ERRORLEVEL is set to 1.  ERRORLEVEL is set to 2 if *file* couldn't be opened (eg, `Unable to find X.TXT`), and otherwise to 0.
 
-Source: [sort.asm](https://github.com/jeffpar/basicdos/blob/main/software/src/os/util/misc/sort.asm)
+Source: [sort.asm](https://github.com/jeffpar/basicdos/blob/main/src/os/util/misc/sort.asm)
 
 {% include footer.html prev="SLEEP:../sleep/" next="SYS:../sys/" %}

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Converts the MZ tools in software/src/tools/dos to NE executables in
- * software/src/tools/bd.  BASIC-DOS loads the NE image, a restricted form of
+ * Converts the MZ tools in src/tools/dos to NE executables in
+ * src/tools/bd.  BASIC-DOS loads the NE image, a restricted form of
  * NE, in protected mode, and in real mode, NESTUB.BIN (see
- * software/src/tools/bd/stub/nestub.asm), an NE loader that replaces the MZ image, does
+ * src/tools/bd/stub/nestub.asm), an NE loader that replaces the MZ image, does
  * the same, so one image runs in either mode, including under other versions of
  * DOS.  All of a program's patches must therefore be safe in real mode, using
  * only 8086 instructions, since these tools run on an 8088, too.
@@ -39,7 +39,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 
-const TOOLS = new URL("../../software/src/tools/", import.meta.url);
+const TOOLS = new URL("../../src/tools/", import.meta.url);
 
 const word = (buffer, offset) => buffer.readUInt16LE(offset);
 const hex = value => value.toString(16);

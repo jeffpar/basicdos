@@ -21,9 +21,9 @@
 # at the end of a session may be truncated by QUIT, the last test is followed by SLEEP 1 (SLEEP.COM from os/util/misc).
 #
 cd "$(dirname "$0")/../.." || exit 1
-tools/tests/prep.sh software/src/configs/console/serial/fpe || exit 1
-tools/tests/prep.sh software/src/configs/console/serial/fpu || exit 1
-tools/tests/prep.sh software/src/configs/console/serial/hd || exit 1
+tools/tests/prep.sh src/configs/console/serial/fpe || exit 1
+tools/tests/prep.sh src/configs/console/serial/fpu || exit 1
+tools/tests/prep.sh src/configs/console/serial/hd || exit 1
 log=$(mktemp)
 #
 # Since only DEBUG builds of COMMAND.COM display "Return code" after a program ends, we check
@@ -73,9 +73,9 @@ run() {
     wait $pid
     tail -c +$((off + 1)) "$log"
 }
-run ibm5160 software/src/configs/console/serial/fpe "VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}BUFTESTS;${m}CPUTESTS;$ok;${m}R3TESTS;$ok;${m}DLLTESTS;$ok;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;SLEEP 1;QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync
-run ibm5160 software/src/configs/console/serial/fpu "VER;MEM;${m}FPUTESTS;$ok;${m}VARS;${m}STRFUN;SLEEP 1;QUIT" --fpu --system=bd --version=2 --floppy --serial --normalize --nosync
-run ibm5160 software/src/configs/console/serial/hd "VER;CD TESTS\REGRESS;HARDERR;$abort;IOERR.COM;$ok;SLEEP 1;QUIT" --system=bd --version=2 --target=10M --serial --normalize --nosync
+run ibm5160 src/configs/console/serial/fpe "VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}BUFTESTS;${m}CPUTESTS;$ok;${m}R3TESTS;$ok;${m}DLLTESTS;$ok;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}RUNFILE;${m}PRTUSING;${m}MOVES;${m}ATTRS;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;SLEEP 1;QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync
+run ibm5160 src/configs/console/serial/fpu "VER;MEM;${m}FPUTESTS;$ok;${m}VARS;${m}STRFUN;SLEEP 1;QUIT" --fpu --system=bd --version=2 --floppy --serial --normalize --nosync
+run ibm5160 src/configs/console/serial/hd "VER;CD TESTS\REGRESS;HARDERR;$abort;IOERR.COM;$ok;SLEEP 1;QUIT" --system=bd --version=2 --target=10M --serial --normalize --nosync
 if grep -q "Assertion failure" "$log" || grep -q "quick.sh: stopped" "$log" ||
    grep -q "Floating-point .*installed" "$log" || grep -q "failed" "$log" || grep -q "EXITBAD" "$log" || [ "$(grep -c "EXITOK" "$log")" -lt 10 ] ||
    [ "$(grep -c "STRFUN passed" "$log")" -lt 2 ] || ! grep -q "STRPOOL passed" "$log" ||
