@@ -81,6 +81,7 @@ export default class PC extends PCJSLib {
     localDir = ".";             // local directory used to build localDisk
     localDisk = "harddisk.json";
     localDiskette = "floppy.json";
+    configFile = "";            // file to use as the drive's CONFIG.SYS (from --config)
     diskLabel = "default";
     diskOrder = "";             // root entries that come first, from --order (eg, "EXT,DEMOS")
     machineDrive = "";          // current drive *inside* the machine
@@ -2006,12 +2007,15 @@ export default class PC extends PCJSLib {
                 /**
                  * If CONFIG.SYS or another text file from the system's list also exists in the directory we're
                  * building, the directory's copy wins (taking the system file's place in the root), so that a directory
-                 * (eg, configs/console/serial/fpe) can provide its own CONFIG.SYS.
+                 * (eg, configs/console/serial/fpe) can provide its own CONFIG.SYS; a --config file takes precedence
+                 * over both.
                  */
                 let baseName = node.path.basename(name);
                 let fConfig = baseName.toUpperCase() == "CONFIG.SYS";
                 let fText = fConfig || diskLib.isTextFile(name);
-                if (fText && diskLib.existsFile(node.path.join(sDir, baseName))) {
+                if (fConfig && this.configFile) {
+                    name = this.configFile;
+                } else if (fText && diskLib.existsFile(node.path.join(sDir, baseName))) {
                     name = node.path.join(sDir, baseName);
                 } else {
                     name = node.path.join(sSystemDisk, name);
@@ -2058,6 +2062,7 @@ export default class PC extends PCJSLib {
                     }
                     date = this.systemDate || node.fs.statSync(name).mtime;
                     desc = diskLib.makeFileDesc(node.path.dirname(name), node.path.basename(name), dbFile, attr, date);
+                    desc[DiskInfo.FILEDESC.NAME] = baseName;    // in case a --config file has another name
                     if (fText && !fConfig) {
                         aDeferred.push(desc);
                     } else {
@@ -2165,11 +2170,21 @@ export default class PC extends PCJSLib {
         }
 
         /**
-         * Create a CONFIG.SYS as needed.
+         * Create a CONFIG.SYS as needed.  A --config file that the system's list didn't already use (eg, for
+         * BASIC-DOS) takes the place of any CONFIG.SYS in the directory, and of the machine's default.
          */
         let text;
         let configSYS = configJSON['defaults'] && configJSON['defaults']['config'];
-        if (configSYS && configSYS.length) {
+        if (this.configFile) {
+            if (!driveInfo.files.some((desc) => desc[DiskInfo.FILEDESC.NAME].toUpperCase() == "CONFIG.SYS")) {
+                text = await diskLib.readFileAsync(this.configFile, "utf8", true);
+                if (!text) return "unable to read config file: " + this.configFile;
+                if (this.normalize) text = text.replace(/\r?\n/g, "\r\n");
+                let desc = diskLib.makeFileDesc(node.path.dirname(this.configFile), node.path.basename(this.configFile), text, DiskInfo.ATTR.ARCHIVE, node.fs.statSync(this.configFile).mtime);
+                desc[DiskInfo.FILEDESC.NAME] = "CONFIG.SYS";
+                driveInfo.files.push(desc);
+            }
+        } else if (configSYS && configSYS.length) {
             text = await diskLib.readFileAsync(node.path.join(sDir, "CONFIG.SYS"), "utf8", true);
             if (!text) {
                 text = configSYS.join("\r\n") + "\r\n";
@@ -3665,6 +3680,11 @@ export default class PC extends PCJSLib {
         this.noSync = PC.removeFlag(argv, 'nosync', this.noSync);
         this.floppy = PC.removeFlag(argv, 'floppy', this.floppy);
         this.diskLabel = PC.removeArg(argv, 'label', defaults['label'] || this.diskLabel);
+        let sConfig = PC.removeArg(argv, 'config');
+        if (sConfig) {
+            this.configFile = node.path.resolve(diskLib.getLocalPath(sConfig));
+            if (!diskLib.existsFile(this.configFile, false)) return "invalid config file: " + sConfig;
+        }
         this.diskOrder = PC.removeArg(argv, 'order', defaults['order'] || this.diskOrder);
         this.normalize = PC.removeFlag(argv, 'normalize', defaults['normalize'] || this.normalize);
         this.systemType = PC.removeArg(argv, ['system','sys'], defaults['sys'] || this.systemType).toLowerCase();
@@ -4198,6 +4218,7 @@ export default class PC extends PCJSLib {
                 "--dir=[directory]":        "use drive directory (default is " + this.localDir + ")",
                 "--disk=[filename]":        "use drive disk image (instead of directory)",
                 "--diskette=[filename]":    "load diskette image into drive A",
+                "--config=[filename]":      "use file as drive's CONFIG.SYS (instead of directory's)",
                 "--controller=[id]":        "set drive controller (XT, AT, COMPAQ, or PCJS)",
                 "--drivetype=[value]":      "set drive type or C:H:S (eg, 306:4:17)",
                 "--fat=[value(s)]":         "set FAT type (12 or 16) [:cluster size[:root size]]",

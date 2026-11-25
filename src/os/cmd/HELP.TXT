@@ -45,10 +45,6 @@ Returns *x* rounded to an integer (eg, CINT(2.6) is 3), as assigning it to an in
 Draws a circle (or ellipse) with radius *r* in a graphics mode, or an arc from the *start* to the *end* angle (in radians), with lines to the center for negative angles.  Any point (*x*,*y*) in a graphics command can be STEP (*x*,*y*) instead, which is relative to the last point.
 If *aspect* (the ratio of the y radius to the x radius) is omitted, the circle looks round on a standard display.
 
-[e]CLAUDE [~N] [*question*]
-Asks Claude *question* and displays the answer, or with no *question*, prompts (with >) for one question after another, until an empty line.  Each question continues the conversation, unless ~N starts a new one.  CLAUDE needs the Claude gateway, a program on another computer that has a Claude API key, connected to COM2 (in PCjs, pc.js --com2 runs it, and on the 20Mb Drive and PC XT Terminal demo pages, the page is the gateway, using your own API key).  A *question* on the command line is limited to about 120 characters; at the > prompt, it can be any length, and ENTER sends it (BACKSPACE erases only on the cursor's row).
-ERRORLEVEL is set to 0 if Claude answered, to 24 if the gateway didn't respond, to 68 if there's no COM2, and otherwise to 1 (eg, the gateway reported an error).
-
 [b]CLEAR [[*n*][,[*m*][,*k*]]]
 Resets all numeric variables to zero and all string variables to empty strings, and erases all arrays.  The values are ignored.
 

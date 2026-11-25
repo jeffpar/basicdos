@@ -11,9 +11,10 @@
 #
 # pc.js builds a bootable BASIC-DOS hard disk (C:) directly from src,
 # using the system files from the previous build (os/*/OBJ, so run mkdos.sh at
-# least once first), src/CONFIG.SYS (a serial console, with PATH$
-# set to C:\, C:\TOOLS\BD, and C:\TOOLS\DOS, so a tool in src/tools/bd
-# overrides its counterpart in src/tools/dos, as on a BASIC-DOS disk).
+# least once first), and src/configs/mk/CONFIG.SYS (--config; a serial
+# console, with PATH$ set to C:\, C:\TOOLS\BD, and C:\TOOLS\DOS, so a tool in
+# src/tools/bd overrides its counterpart in src/tools/dos, as on a BASIC-DOS
+# disk).
 #
 # BASIC-DOS runs os/mk.bat (which builds BOOT, DD, DEV, DOS, CMD, UTIL, and DLL),
 # then the TESTS and MSB makefiles, and then QUIT, after which pc.js writes
@@ -67,7 +68,7 @@ fi
 #
 chk=";IF ERRORLEVEL THEN END 1"
 tools/pc/pc.js compaq386 $src "CD OS;$mk$chk;CD ..\TESTS$tests;$make$chk;CD ..\MSB$msb;$make$chk;QUIT" \
-    --sys=bd:2 --target=30M --fat=16:2048:512 --ram=640K --speed=16 --serial --normalize
+    --sys=bd:2 --config=$src/configs/mk/CONFIG.SYS --target=30M --fat=16:2048:512 --ram=640K --speed=16 --serial --normalize
 code=$?
 if [ $code -eq 0 ] && [ -n "$PCJS" ] && ! watching; then
     if ! npx gulp demos --silent > /dev/null; then

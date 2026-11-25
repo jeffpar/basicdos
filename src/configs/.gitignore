@@ -1,7 +1,9 @@
 # Only each configuration's CONFIG.SYS and AUTOEXEC.BAT are tracked; everything else
-# (eg, test binaries and batch files) is copied in by tools/tests/prep.sh.
+# (eg, test binaries and batch files) is copied in by tools/tests/prep.sh, except
+# this folder's README.md.
 *
 !*/
 !.gitignore
 !CONFIG.SYS
 !AUTOEXEC.BAT
+!/README.md

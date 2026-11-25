@@ -375,12 +375,13 @@ function stageDisk(diskName)
         if (typeof files == "string") {
             /*
              * Copy the directory (including its OBJ directories, so that MK rebuilds only what changes), except
-             * for hidden files and the MS-DOS build's mkdos.bat files (which chain from one subdirectory to the
-             * next); the mk.bat at the top builds everything.
+             * for hidden files, README.md files (which describe each folder in the repository), and the MS-DOS
+             * build's mkdos.bat files (which chain from one subdirectory to the next); the mk.bat at the top builds
+             * everything.
              */
             fs.cpSync(files, dirTarget, { recursive: true, filter: (src) => {
-                let name = path.basename(src);
-                return name[0] != '.' && name.toUpperCase() != "MKDOS.BAT";
+                let name = path.basename(src).toUpperCase();
+                return name[0] != '.' && name != "README.MD" && name != "MKDOS.BAT";
             }, preserveTimestamps: true });
         } else {
             fs.mkdirSync(dirTarget, { recursive: true });   // a folder may have no entry for its parent (eg, TOOLS/DEMOS)
