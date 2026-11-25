@@ -41,7 +41,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<genLong,genStr,genArrayVar,getNextToken,getNextSymbol>
+	EXTNEAR	<genLong,findArray,genPushVarPtr,getNextToken,getNextSymbol>
 	EXTNEAR	<peekNextSymbol,genCallCS,genPushImmLong,genExpr,genCvtType>
 	EXTNEAR	<gfxDraw,gfxGet,gfxLastPt,gfxLine,gfxPaint,gfxPset,gfxPut>
 	EXTNEAR	<gfxCircle,skipToken,mouseOn,mouseOff,peekNextToken>
@@ -846,6 +846,71 @@ gmo8:	GENCALL	cx
 gmo9:	stc
 	ret
 ENDPROC	genMouse
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genArrayVar
+;
+; Generate code to push a far pointer to an integer or double array variable
+; (eg, the CAR% in "PUT (X,Y),CAR%"), for statements that use an entire array.
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+DEFPROC	genArrayVar
+	mov	al,CLS_VAR
+	call	getNextToken
+	jbe	gav9
+	and	ah,VAR_TYPE		; convert CLS_VAR_* to VAR_*
+	cmp	ah,VAR_LONG
+	je	gav1
+	cmp	ah,VAR_DOUBLE
+	jne	gav9
+gav1:	mov	al,1
+	call	findArray		; DX:SI -> array variable
+	jc	gav9
+	call	genPushVarPtr
+	clc
+	ret
+gav9:	stc
+	ret
+ENDPROC	genArrayVar
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genStr
+;
+; Generate code for a required string expression.
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;	AX = last result from getNextToken (see genExpr)
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genStr
+	call	genExpr
+	jbe	gst9			; error or no expression
+	push	ax
+	mov	al,VAR_STR
+	call	genCvtType
+	pop	ax
+	ret
+gst9:	stc
+	ret
+ENDPROC	genStr
 
 CODE	ENDS
 

@@ -172,20 +172,23 @@ ci5:	pop	bx
 	jmp	ci7			; no banner for COMMAND /C
 ci5a:	PRINTF	<"BASIC-DOS Command Shell",13,10>
 ;
-; If this is one of several VKD$ consoles, and the one with focus, mention how
-; to switch between them (IOCTL_GETMODE with CL = 2 returns the number of VKD$
-; consoles in DL, and DH = 1 if this one has focus): SHIFT-TAB, unless there's
-; a HOTKEY= setting (see SYSINFO).
+; If this is one of several consoles, and the one with focus, mention how to
+; switch between them (IOCTL_GETMODE with CL = 2 returns the number of
+; consoles in DL, and DH = 0 if this one doesn't have focus, 1 if it's a VKD$
+; console, or a serial terminal's key, CTRL-\): the HOTKEY= setting, if any
+; (see SYSINFO), or else the driver's key (SHIFT-TAB for VKD$).
 ;
 	push	bx
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETMODE
 	mov	bx,STDOUT
 	mov	cl,2
-	int	21h			; DL = consoles, DH = 1 if focus
+	int	21h			; DL = consoles, DH = key if focus
 	pop	bx
-	jc	ci6			; (STDOUT isn't VKD$)
-	cmp	dx,0102h		; focus and more than one console?
+	jc	ci6			; (STDOUT isn't a console)
+	cmp	dl,2			; more than one console?
 	jb	ci6			; no
+	test	dh,dh			; and this one has focus?
+	jz	ci6			; no
 	sub	sp,size SYSINFO
 	mov	di,sp			; ES:DI -> SYSINFO (on the stack)
 	mov	cl,-1
@@ -193,11 +196,14 @@ ci5a:	PRINTF	<"BASIC-DOS Command Shell",13,10>
 	mov	al,es:[di].SI_HOTKEY
 	add	sp,size SYSINFO
 	test	al,al			; is there a HOTKEY= setting?
-	jz	ci5b			; no
-	add	al,'@'			; AL = its letter
+	jnz	ci5b			; yes
+	mov	al,dh			; no, so the driver's key
+	cmp	al,1			; SHIFT-TAB?
+	je	ci5c			; yes
+ci5b:	add	al,'@'			; AL = its letter
 	PRINTF	<"Press Ctrl-%c to switch sessions",13,10>,ax
 	jmp	short ci6
-ci5b:	PRINTF	<"Press Shift-Tab to switch sessions",13,10>
+ci5c:	PRINTF	<"Press Shift-Tab to switch sessions",13,10>
 ci6:	PRINTF	<13,10>
 ci7:
 	call	bootTime		; remove any /Q, and prompt if needed

@@ -22,7 +22,7 @@
 
 CODE	SEGMENT
 
-	EXTNEAR	<getArgs,getMode,ioctlCon,mouseCall,strIllegal,allocStr>
+	EXTNEAR	<getArgs,ioctlCon,mouseCall,strIllegal,allocStr>
 	EXTNEAR	<rtError,strKeep,setKeep,markCursor,screenCursor>
 	EXTWORD	<CODE_DS>
 
@@ -144,6 +144,37 @@ ss9a:	ret
 ENDPROC	setScreen
 
 MODE_TBL	db	1,3,0,2,4,6,5,6,6,6,6,6
+MODE_INFO	db	2,0,3,1,4,6,9,1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getMode
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	If carry clear (ie, STDOUT supports video modes):
+;	BH = current video mode (or 3 if it's 7, the MDA's 80-column mode)
+;	BL = index of BH in MODE_TBL (see setScreen)
+;
+; Modifies:
+;	AX, BX, CL, DX
+;
+DEFPROC	getMode
+	mov	al,IOCTL_GETMODE
+	mov	cl,0			; CL = 0 for the video mode
+	call	ioctlCon		; DL = video mode
+	jc	gm9
+	cmp	dl,7			; MDA mode?
+	jne	gm1			; no
+	mov	dl,3			; yes, treat it like mode 3
+gm1:	mov	bl,dl
+	and	bx,7
+	mov	bl,cs:MODE_INFO[bx]
+	mov	bh,dl
+gm9:	ret
+ENDPROC	getMode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

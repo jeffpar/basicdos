@@ -14,7 +14,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<parseDOS,splitCmd,releaseStr,strIllegal,ctrlc,openVar>
-	EXTNEAR	<mouseCall,mouseReset,allocStr,rtError,endLine>
+	EXTNEAR	<mouseReset,allocStr,rtError,endLine>
 	EXTSTR	<STR_ON,STR_OFF>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -340,36 +340,6 @@ ga8:	mov	si,sp			; SS:SI -> saved BP
 	ret
 ga9:	jmp	strIllegal
 ENDPROC	getArgs
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; getMode
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	If carry clear (ie, STDOUT supports video modes):
-;	BH = current video mode (or 3 if it's 7, the MDA's 80-column mode)
-;	BL = index of BH in MODE_TBL (see setScreen)
-;
-; Modifies:
-;	AX, BX, CL, DX
-;
-DEFPROC	getMode
-	mov	al,IOCTL_GETMODE
-	mov	cl,0			; CL = 0 for the video mode
-	call	ioctlCon		; DL = video mode
-	jc	gm9
-	cmp	dl,7			; MDA mode?
-	jne	gm1			; no
-	mov	dl,3			; yes, treat it like mode 3
-gm1:	mov	bl,dl
-	and	bx,7
-	mov	bl,cs:MODE_INFO[bx]
-	mov	bh,dl
-gm9:	ret
-ENDPROC	getMode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -915,8 +885,6 @@ sp4:	mov	al,IOCTL_SETPOS
 sp9:	ret
 sp8:	jmp	strIllegal
 ENDPROC	setPos
-
-MODE_INFO	db	2,0,3,1,4,6,9,1
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

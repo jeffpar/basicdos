@@ -545,9 +545,12 @@ dio11a:	jmp	dio4
 ;
 ; IOCTL_GETMODE: a VT100 is in "video mode" 3 (80 columns), 1 (40 columns),
 ; or MODE_WIDE (132 columns; see set_mode).  That's all we report (CL = 0),
-; and only for a VT100.
+; and only for a VT100.  Any terminal reports its number of consoles (CL = 2),
+; as VKD$ does.
 ;
-dio13:	cmp	ds:[CT_TERM],TERM_VT100
+dio13:	cmp	cl,2			; the number of consoles?
+	je	dio13c			; yes
+	cmp	ds:[CT_TERM],TERM_VT100
 	jne	dio13a
 	test	cl,cl			; is it the mode they want?
 	jnz	dio13a			; no
@@ -563,6 +566,26 @@ dio13:	cmp	ds:[CT_TERM],TERM_VT100
 	adc	dl,dl			; DL = 3 if 80 columns, 1 if 40
 dio13b:	jmp	dio7
 dio13a:	jmp	dio8a
+;
+; DL = the number of consoles on the port (the contexts in its ring), and if
+; this one has focus, DH = SWITCH_KEY (VKD$ returns 1, for SHIFT-TAB), which
+; COMMAND.COM names unless there's a HOTKEY setting; otherwise, DH = 0.
+;
+dio13c:	push	ds
+	mov	ax,ds			; AX = this context
+	sub	dx,dx
+	mov	ds,ds:[CT_DRV]
+	cmp	ax,ds:[ct_seg]		; does it have focus?
+	jne	dio13d			; no
+	mov	dh,SWITCH_KEY
+dio13d:	mov	ds,ax
+dio13e:	inc	dx			; count each context in the ring
+	mov	ds,ds:[CT_NEXT]
+	mov	bx,ds
+	cmp	bx,ax			; back to this one?
+	jne	dio13e			; no
+	pop	ds
+	jmp	dio13b
 ;
 ; IOCTL_SETMODE: see set_mode, which a machine with 64K or less doesn't keep
 ; (see con_opt), so it has no modes to set.

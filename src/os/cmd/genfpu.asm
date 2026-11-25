@@ -26,9 +26,9 @@
 ; code block for that purpose.  callFPU calls an FPU$ function immediately
 ; (eg, FPU_ATOD to convert a constant while generating code).
 ;
-; Only genCvtType, genTestDouble, and genBlkData are here, in COMMAND's core,
-; since the core calls them for every type; the rest (including genSlot and
-; callFPU) are in gendbl.asm, which the stubs here reach through genUpper.
+; Only genCvtType and genTestDouble are here, in COMMAND's core, since the
+; core calls them for every type; the rest (including genSlot, callFPU, and
+; genBlkData) are in gendbl.asm, which the stubs here reach through genUpper.
 ;
 ; See gencmd.asm for an overview of all the gen*.asm files.  Like gencmd.asm,
 ; these functions are called while generating code, with DS:BX -> TOKLETs and
@@ -156,35 +156,6 @@ DEFPROC	genTestDouble
 	jmp	genCallFPU		; and compare the double to it
 gtd9:	ret
 ENDPROC	genTestDouble
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genBlkData
-;
-; Generates an instruction (eg, PUSH or MOV ES) whose operand is the code
-; block's data segment, CS:[CBLK_DATA], for code that writes a slot: in
-; protected mode, CS is the block's code alias, which can't be written.
-;
-; Inputs:
-;	AX = opcode and ModRM byte (eg, OP_PUSH_MEM)
-;	ES:DI -> code block
-;
-; Outputs:
-;	ES:DI -> code block (after the instruction)
-;
-; Modifies:
-;	AX, DI
-;
-DEFPROC	genBlkData
-	push	ax
-	mov	al,OP_SEG_CS
-	stosb
-	pop	ax
-	stosw
-	mov	ax,CBLK_DATA		; (FBLKs have it, too)
-	stosw
-	ret
-ENDPROC	genBlkData
 
 CODE	ENDS
 

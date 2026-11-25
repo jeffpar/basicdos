@@ -74,15 +74,23 @@ SEL_VIDEO	equ	0A000h	; first identity selector (data)
 ; limit is in the LDTR's descriptor (SEL_LDTD).
 ;
 ; Since the GDT's limit covers everything up to the identity selectors, the
-; processor can also read the pool as descriptors, through selectors below
-; A000h, each of whose access bytes is at an offset of 5 mod 8.  So the PMBs
-; and LDTs must start at an offset of 6 mod 8 (and everything in them moves by
-; multiples of 8), which puts those access bytes on byte 7 of every 8 bytes of
-; a table, none of which ever has its present bit set: the top of a
-; descriptor's base; and in a PMB, the top of PMB_ADDR, the high byte of
-; PMB_NSEL, a reserved byte, and the last byte of PMB_NAME (see ddcpu_setblk).
-; Otherwise, a ring 3 program could load another LDT's descriptors, or a PMB,
-; as its own.
+; processor can also read the IDT, the TSS, and the pool as descriptors,
+; through selectors below A000h, each of whose access bytes is at an offset
+; of 5 mod 8.  The IDT's are its gates' own access bytes (system descriptors,
+; which can't be loaded as segments), and the TSS's first is the high byte of
+; SS0 (a GDT selector) on an 80286, or of SP0 on an 80386 (whose ring 0
+; stacks end at MAX_SESSIONS * R3_STACK_SIZE or below), so it's 80h or less.
+; The PMBs and LDTs must start at an offset of 6 mod 8 (and everything in them
+; moves by multiples of 8), which puts those access bytes on byte 7 of every
+; 8 bytes of a table: the top of a descriptor's base; and in a PMB, the top
+; of PMB_ADDR, the high byte of PMB_NSEL, a reserved byte, and the last byte
+; of PMB_NAME (see ddcpu_setblk).  On an 80286, none of those has its present
+; bit set.  On an 80386, a descriptor's base includes LIN_HI, so its top byte
+; is C0h to C3h: present, but a DPL 2 system descriptor, which ring 3 can't
+; load, call through, or switch to.  That holds only while physical memory
+; ends below 512Mb, which CAS_GETEXTMEM ensures (see 386init.asm); from E0h
+; up, the byte would be a DPL 3 gate, TSS, or segment.  Otherwise, a ring 3
+; program could load another LDT's descriptors, or a PMB, as its own.
 ;
 SYS_PMBS	equ	((SYS_TSS + TSS_LEN + 1) OR 7) - 1 ; (the next 6 mod 8)
 SYS_LDTTOP	equ	SYS_GDT + SEL_VIDEO - 2

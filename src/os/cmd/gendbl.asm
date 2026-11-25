@@ -24,7 +24,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<genExpr,getNextSymbol,genCallFar,genPushImm>
-	EXTNEAR	<genCvtType,genBlkData>
+	EXTNEAR	<genCvtType>
 	EXTABS	<TOK_ABS>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -270,6 +270,35 @@ DEFPROC	callFPU
 	pop	bx
 cfp9:	ret
 ENDPROC	callFPU
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genBlkData
+;
+; Generates an instruction (eg, PUSH or MOV ES) whose operand is the code
+; block's data segment, CS:[CBLK_DATA], for code that writes a slot: in
+; protected mode, CS is the block's code alias, which can't be written.
+;
+; Inputs:
+;	AX = opcode and ModRM byte (eg, OP_PUSH_MEM)
+;	ES:DI -> code block
+;
+; Outputs:
+;	ES:DI -> code block (after the instruction)
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	genBlkData
+	push	ax
+	mov	al,OP_SEG_CS
+	stosb
+	pop	ax
+	stosw
+	mov	ax,CBLK_DATA		; (FBLKs have it, too)
+	stosw
+	ret
+ENDPROC	genBlkData
 
 CODE	ENDS
 

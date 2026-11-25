@@ -12,8 +12,8 @@
 ; and POINT, PMAP, and WINDOW are in gfxpt.asm), which draw directly into CGA
 ; video memory in video modes 4 and 5 (320x200, 4 colors) and 6 (640x200, 2
 ; colors); in any other mode, they report an "Illegal function call" error.
-; The MOUSE statement and function are here, too (except for mouseReset and
-; mouseCall, which are in sys.asm).
+; The MOUSE statement and function are here, too (except for mouseReset,
+; which is in sys.asm).
 ;
 ; Coordinates are clamped to -8192 through 8191 (so that LINE's arithmetic
 ; can't overflow), and pixels outside the screen (or the viewport that VIEW
@@ -29,7 +29,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<ioctlCon,strIllegal,rtError,mouseCall,mouseReset,mapPoint>
+	EXTNEAR	<ioctlCon,strIllegal,rtError,mouseReset,mapPoint>
 	EXTNEAR	<setScale,releaseStr>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -1262,6 +1262,36 @@ ma9:	pop	bx
 	pop	cx
 	ret
 ENDPROC	mouseArea
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; mouseCall
+;
+; Issues an INT 33h function, if MOUSE ON found a mouse (see mouseOn).
+;
+; Inputs:
+;	AX = function (and BX, CX, DX as required)
+;
+; Outputs:
+;	Same as the function; if the mouse isn't on, carry is set and AX, BX,
+;	CX, and DX are zero
+;
+DEFPROC	mouseCall
+	push	bx
+	mov	bx,ss:[PSP_HEAP]
+	test	byte ptr ss:[bx].GFX_DATA.MOUSE_STATE,MS_ON
+	pop	bx
+	jz	mc8
+	int	INT_MOUSE
+	clc
+	ret
+mc8:	sub	ax,ax
+	cwd
+	mov	bx,ax
+	mov	cx,ax
+	stc
+	ret
+ENDPROC	mouseCall
 
 CODE	ENDS
 

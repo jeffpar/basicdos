@@ -17,6 +17,9 @@
 ; EOF and LOC use).  Contexts are owned by the system, since a pipe outlives
 ; the program that opened it.
 ;
+; A machine with 64K or less has no named pipes (see ddpipe_init): the driver
+; ends at pipe_opt, and a name is ignored.
+;
 	DOSFUNC equ 1
 	include	macros.inc
 	include	bios.inc
@@ -102,113 +105,18 @@ DEFPROC	ddpipe_read
 	jcxz	ddr8
 
 	call	pull_data
-	jnc	ddpipe_done_jump
+	jnc	ddpipe_done
 	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_RDFAULT
 	ret
 
 ddr8:	or	ds:[CT_STATUS],CTSTAT_DONE
 	test	ds:[CT_STATUS],CTSTAT_FWAIT
-	jz	ddpipe_done_jump		; no writer is waiting for room
+	jz	ddpipe_done			; no writer is waiting for room
 	and	ds:[CT_STATUS],NOT CTSTAT_FWAIT
 	call	endwait_data
 
-	jmp	short ddpipe_done_jump
+	jmp	short ddpipe_done
 ENDPROC	ddpipe_read
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; ddpipe_write
-;
-; Inputs:
-;	ES:DI -> DDPRW
-;	DS = device context
-;
-; Outputs:
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	ddpipe_write
-	ASSERT	STRUCT,ds:[0],CT
-	mov	cx,es:[di].DDPRW_LENGTH
-	jcxz	ddw8
-	test	ds:[CT_STATUS],CTSTAT_NAMED
-	jnz	ddw10
-
-	call	push_data
-	jnc	ddpipe_done_jump
-ddw7:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
-	ret
-
-ddw8:	or	ds:[CT_STATUS],CTSTAT_TRUNC
-
-	test	ds:[CT_STATUS],CTSTAT_EWAIT
-	jz	ddpipe_done_jump
-	and	ds:[CT_STATUS],NOT CTSTAT_EWAIT
-	call	endwait_data
-
-	DEFLBL	ddpipe_done_jump,near
-	jmp	ddpipe_done
-;
-; A write to a named pipe goes to the buffer of every other context with
-; the same name (ES) that has room for all of it.  Hold the session lock
-; through each copy and wakeup so no recipient can close and have its
-; context reused before ENDWAIT.  A write no buffer could ever hold fails.
-;
-ddw10:	cmp	cx,size CT_DATA		; can a buffer hold the write?
-	jae	ddw7			; no
-	push	es
-	push	di
-	mov	bp,ds			; BP = our context
-	lds	si,es:[di].DDPRW_ADDR	; DS:SI -> data
-	DOSUTIL	LOCK
-	mov	ax,cs:[pipe_list]
-ddw11:	test	ax,ax			; any more contexts?
-	jz	ddw14			; no
-	mov	es,ax			; ES = next context
-	cmp	ax,bp			; is it ours?
-	je	ddw13			; yes
-	push	cx
-	push	si
-	push	ds
-	mov	ds,bp
-	mov	si,offset CT_NAME
-	mov	di,si
-	mov	cl,size CT_NAME SHR 1	; CH is zero for an accepted length
-	repe	cmpsw			; does its name match?
-	pop	ds
-	pop	si
-	pop	cx
-	jne	ddw13			; no
-	mov	ax,es:[CT_HEAD]
-	mov	bx,es:[CT_TAIL]
-	sub	ax,bx
-	dec	ax
-	and	al,size CT_DATA - 1	; AL = room in its buffer
-	cmp	al,cl			; is there room for the write?
-	jb	ddw13			; no
-	push	cx
-	push	si
-ddw12:	lodsb
-	mov	es:[CT_DATA][bx],al
-	inc	bx
-	and	bx,size CT_DATA - 1
-	loop	ddw12
-	pop	si
-	pop	cx
-	mov	es:[CT_TAIL],bx
-	test	es:[CT_STATUS],CTSTAT_EWAIT
-	jz	ddw13
-	and	es:[CT_STATUS],NOT CTSTAT_EWAIT
-	mov	dx,es			; DX = recipient's wait ID
-	mov	ah,DOS_UTL_ENDWAIT
-	call	wait_id
-ddw13:	mov	ax,es:[CT_NEXT]
-	jmp	ddw11
-ddw14:	DOSUTIL	UNLOCK
-	pop	di
-	pop	es
-	mov	es:[di].DDPRW_LENGTH,0	; it's all written
-	jmp	ddpipe_done		; DEBUG adds code in ddpipe_open
-ENDPROC	ddpipe_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -249,36 +157,12 @@ ddo1:	push	es
 	mov	es:[CT_HEAD],ax
 	mov	es:[CT_TAIL],ax
 ;
-; If a name follows "PIPE$:", copy it to CT_NAME, and add the context to
-; the list of named pipes.
+; If a name follows "PIPE$:", pipe_name makes it a named pipe.
 ;
 	cmp	byte ptr [si+5],':'	; a colon after "PIPE$"?
+	DEFLBL	pipe_colon,near		; (a JMP at 64K; see ddpipe_init)
 	jne	ddo7			; no
-	cmp	[si+6],al		; and a name after the colon?
-	je	ddo7			; no
-	add	si,6
-	or	es:[CT_STATUS],CTSTAT_NAMED
-	mov	di,offset CT_NAME
-	mov	cx,size CT_NAME
-ddo2:	lodsb
-	test	al,al			; end of the name?
-	jz	ddo4			; yes
-	cmp	al,'a'			; lower-case letter?
-	jb	ddo3			; no
-	cmp	al,'z'
-	ja	ddo3			; no
-	sub	al,'a'-'A'
-ddo3:	stosb
-	loop	ddo2
-	jmp	short ddo5
-ddo4:	mov	al,' '
-	rep	stosb			; pad the name with spaces
-ddo5:	mov	ds,cs:[0].DDH_DATA
-	cli
-	mov	ax,es
-	xchg	ax,ds:[pipe_list]
-	mov	es:[CT_NEXT],ax
-	sti
+	call	pipe_name
 ddo7:	mov	ax,es			; AX = context
 	pop	di
 	pop	es
@@ -292,8 +176,8 @@ ENDPROC	ddpipe_open
 ;
 ; ddpipe_close
 ;
-; A named pipe's context is removed from the list first.  CPU$ reloads DS
-; and ES, so neither can hold the context when it's freed.
+; A named pipe's context is removed from the list first (see pipe_unlink).
+; CPU$ reloads DS and ES, so neither can hold the context when it's freed.
 ;
 ; Inputs:
 ;	ES:DI -> DDP
@@ -311,70 +195,17 @@ DEFPROC	ddpipe_close
 	jcxz	ddc9			; no context
 	push	es
 	test	ds:[CT_STATUS],CTSTAT_NAMED
-	mov	dx,ds:[CT_NEXT]		; DX = next context (if named)
-	mov	ax,cs:[0].DDH_DATA
+	jz	ddc3			; not named
+	call	pipe_unlink
+ddc3:	mov	ax,cs:[0].DDH_DATA
 	mov	ds,ax
 	mov	es,ax
-	jz	ddc3			; not named
-	mov	bx,offset pipe_list	; DS:BX -> first link
-	cli
-ddc1:	cmp	[bx],cx			; does it link to our context?
-	je	ddc2			; yes
-	mov	ds,[bx]
-	mov	bx,offset CT_NEXT
-	jmp	ddc1
-ddc2:	mov	[bx],dx			; unlink our context
-	sti
-	mov	ds,ax
-ddc3:	mov	dx,-1			; DX = -1 means CX is a segment
+	mov	dx,-1			; DX = -1 means CX is a segment
 	mov	ah,CPU_FREE
 	call	far ptr DDINT_CPU	; free the context
 	pop	es
 ddc9:	jmp	short ddpipe_done
 ENDPROC	ddpipe_close
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; ddpipe_ioctl
-;
-; Only named pipes support IOCTL_INSTATUS, which returns the number of bytes
-; waiting; when there are none, give other sessions a turn and count again,
-; since the caller is likely waiting (eg, BASIC's EOF or LOC in a loop).
-; Other pipes don't, so that EOF still reads a pipeline's input.
-;
-; Inputs:
-;	ES:DI -> DDP
-;	DS = device context
-;
-; Outputs:
-;	DDP_CONTEXT = # bytes waiting
-;
-; Modifies:
-;	AX
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	ddpipe_ioctl
-	test	ds:[CT_STATUS],CTSTAT_NAMED
-	jz	ddpipe_none
-	cmp	es:[di].DDP_CODE,IOCTL_INSTATUS
-	jne	ddpipe_none
-	call	pipe_count
-	jnz	ddi9
-	DOSUTIL	YIELD
-	call	pipe_count
-ddi9:	mov	es:[di].DDP_CONTEXT,ax
-	jmp	short ddpipe_done
-ENDPROC	ddpipe_ioctl
-
-;
-; Return the number of bytes waiting in AX, with ZF set if empty.
-;
-DEFPROC	pipe_count
-	mov	ax,ds:[CT_TAIL]
-	sub	ax,ds:[CT_HEAD]
-	and	ax,size CT_DATA - 1
-	ret
-ENDPROC	pipe_count
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -576,6 +407,229 @@ ENDPROC	endwait_data
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; ddpipe_write
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;	DS = device context
+;
+; Outputs:
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddpipe_write
+	ASSERT	STRUCT,ds:[0],CT
+	mov	cx,es:[di].DDPRW_LENGTH
+	jcxz	ddw8
+	test	ds:[CT_STATUS],CTSTAT_NAMED
+	jnz	ddw10
+
+	call	push_data
+	jnc	ddpipe_done_jump
+ddw7:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
+	ret
+
+ddw8:	or	ds:[CT_STATUS],CTSTAT_TRUNC
+
+	test	ds:[CT_STATUS],CTSTAT_EWAIT
+	jz	ddpipe_done_jump
+	and	ds:[CT_STATUS],NOT CTSTAT_EWAIT
+	call	endwait_data
+
+	DEFLBL	ddpipe_done_jump,near
+	jmp	ddpipe_done
+;
+; Everything from here on supports named pipes, which a machine with 64K or
+; less doesn't keep (see ddpipe_init).
+;
+	DEFLBL	pipe_opt,near
+;
+; A write to a named pipe goes to the buffer of every other context with
+; the same name (ES) that has room for all of it.  Hold the session lock
+; through each copy and wakeup so no recipient can close and have its
+; context reused before ENDWAIT.  A write no buffer could ever hold fails.
+;
+ddw10:	cmp	cx,size CT_DATA		; can a buffer hold the write?
+	jae	ddw7			; no
+	push	es
+	push	di
+	mov	bp,ds			; BP = our context
+	lds	si,es:[di].DDPRW_ADDR	; DS:SI -> data
+	DOSUTIL	LOCK
+	mov	ax,cs:[pipe_list]
+ddw11:	test	ax,ax			; any more contexts?
+	jz	ddw14			; no
+	mov	es,ax			; ES = next context
+	cmp	ax,bp			; is it ours?
+	je	ddw13			; yes
+	push	cx
+	push	si
+	push	ds
+	mov	ds,bp
+	mov	si,offset CT_NAME
+	mov	di,si
+	mov	cl,size CT_NAME SHR 1	; CH is zero for an accepted length
+	repe	cmpsw			; does its name match?
+	pop	ds
+	pop	si
+	pop	cx
+	jne	ddw13			; no
+	mov	ax,es:[CT_HEAD]
+	mov	bx,es:[CT_TAIL]
+	sub	ax,bx
+	dec	ax
+	and	al,size CT_DATA - 1	; AL = room in its buffer
+	cmp	al,cl			; is there room for the write?
+	jb	ddw13			; no
+	push	cx
+	push	si
+ddw12:	lodsb
+	mov	es:[CT_DATA][bx],al
+	inc	bx
+	and	bx,size CT_DATA - 1
+	loop	ddw12
+	pop	si
+	pop	cx
+	mov	es:[CT_TAIL],bx
+	test	es:[CT_STATUS],CTSTAT_EWAIT
+	jz	ddw13
+	and	es:[CT_STATUS],NOT CTSTAT_EWAIT
+	mov	dx,es			; DX = recipient's wait ID
+	mov	ah,DOS_UTL_ENDWAIT
+	call	wait_id
+ddw13:	mov	ax,es:[CT_NEXT]
+	jmp	ddw11
+ddw14:	DOSUTIL	UNLOCK
+	pop	di
+	pop	es
+	mov	es:[di].DDPRW_LENGTH,0	; it's all written
+	jmp	ddpipe_done		; DEBUG adds code in ddpipe_open
+ENDPROC	ddpipe_write
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddpipe_ioctl
+;
+; Only named pipes support IOCTL_INSTATUS, which returns the number of bytes
+; waiting; when there are none, give other sessions a turn and count again,
+; since the caller is likely waiting (eg, BASIC's EOF or LOC in a loop).
+; Other pipes don't, so that EOF still reads a pipeline's input.
+;
+; Inputs:
+;	ES:DI -> DDP
+;	DS = device context
+;
+; Outputs:
+;	DDP_CONTEXT = # bytes waiting
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddpipe_ioctl
+	test	ds:[CT_STATUS],CTSTAT_NAMED
+	jz	ddi9
+	cmp	es:[di].DDP_CODE,IOCTL_INSTATUS
+	jne	ddi9
+	call	pipe_count
+	jnz	ddi8
+	DOSUTIL	YIELD
+	call	pipe_count
+ddi8:	mov	es:[di].DDP_CONTEXT,ax
+	jmp	ddpipe_done
+ddi9:	jmp	ddpipe_none
+ENDPROC	ddpipe_ioctl
+
+;
+; Return the number of bytes waiting in AX, with ZF set if empty.
+;
+DEFPROC	pipe_count
+	mov	ax,ds:[CT_TAIL]
+	sub	ax,ds:[CT_HEAD]
+	and	ax,size CT_DATA - 1
+	ret
+ENDPROC	pipe_count
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; pipe_name
+;
+; If a name follows the colon, copy it to CT_NAME, and add the context to the
+; list of named pipes.
+;
+; Inputs:
+;	DS:SI -> context descriptor (eg, "PIPE$:name")
+;	ES = new context
+;	AX = 0
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, CX, SI, DI, DS
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	pipe_name
+	cmp	[si+6],al		; is there a name after the colon?
+	je	pn9			; no
+	add	si,6
+	or	es:[CT_STATUS],CTSTAT_NAMED
+	mov	di,offset CT_NAME
+	mov	cx,size CT_NAME
+pn1:	lodsb
+	test	al,al			; end of the name?
+	jz	pn3			; yes
+	cmp	al,'a'			; lower-case letter?
+	jb	pn2			; no
+	cmp	al,'z'
+	ja	pn2			; no
+	sub	al,'a'-'A'
+pn2:	stosb
+	loop	pn1
+	jmp	short pn4
+pn3:	mov	al,' '
+	rep	stosb			; pad the name with spaces
+pn4:	mov	ds,cs:[0].DDH_DATA
+	cli
+	mov	ax,es
+	xchg	ax,ds:[pipe_list]
+	mov	es:[CT_NEXT],ax
+	sti
+pn9:	ret
+ENDPROC	pipe_name
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; pipe_unlink
+;
+; Removes a named pipe's context from the list of named pipes.
+;
+; Inputs:
+;	CX = DS = context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	BX, DX, DS
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	pipe_unlink
+	mov	dx,ds:[CT_NEXT]		; DX = next context
+	mov	ds,cs:[0].DDH_DATA
+	mov	bx,offset pipe_list	; DS:BX -> first link
+	cli
+pu1:	cmp	[bx],cx			; does it link to our context?
+	je	pu2			; yes
+	mov	ds,[bx]
+	mov	bx,offset CT_NEXT
+	jmp	pu1
+pu2:	mov	[bx],dx			; unlink our context
+	sti
+	ret
+ENDPROC	pipe_unlink
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; Driver initialization
 ;
 ; Inputs:
@@ -587,9 +641,25 @@ ENDPROC	endwait_data
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 DEFPROC	ddpipe_init,far
-	mov	es:[bx].DDPI_END._OFF,offset ddpipe_init
 	mov	ds,cs:[0].DDH_DATA
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddpipe_req
+	mov	ax,offset ddpipe_init	; AX = the end of the driver
+;
+; With 64K or less, end the driver at pipe_opt, so there are no named pipes:
+; IOCTLs are unsupported, and ddpipe_open jumps past its pipe_name call.
+;
+	push	es
+	mov	cx,BIOS
+	mov	es,cx
+	ASSUME	ES:BIOS
+	cmp	es:[MEMORY_SIZE],64	; more than 64K of memory?
+	ASSUME	ES:NOTHING
+	pop	es
+	ja	pi9			; yes
+	mov	word ptr ds:[CMDTBL+DDC_IOCTLIN*2],offset ddpipe_none
+	mov	byte ptr ds:[pipe_colon],0EBh	; (JNE becomes JMP SHORT)
+	mov	ax,offset pipe_opt
+pi9:	mov	es:[bx].DDPI_END._OFF,ax
 	ret
 ENDPROC	ddpipe_init
 

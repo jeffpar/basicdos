@@ -10,8 +10,7 @@
 ; Runtime functions for DEF SEG, PEEK, and POKE (see gensys.asm), and for
 ; READ and RESTORE (see gendef.asm); CHAIN is in chain.asm, and PLAY and SOUND
 ; are in snd.asm.  The MOUSE runtime functions are in gfx.asm, except for
-; mouseReset and mouseCall, which stay in COMMAND's core for SCREEN and
-; restoreMode (see libc.asm).
+; mouseReset, which stays in COMMAND's core for restoreMode (see libc.asm).
 ;
 	DOSFUNC equ 1
 	GFXDEFS equ 1
@@ -359,36 +358,6 @@ DEFPROC	mouseReset
 	mov	byte ptr ss:[bx].GFX_DATA.MOUSE_STATE,0
 	ret
 ENDPROC	mouseReset
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; mouseCall
-;
-; Issues an INT 33h function, if MOUSE ON found a mouse (see mouseOn).
-;
-; Inputs:
-;	AX = function (and BX, CX, DX as required)
-;
-; Outputs:
-;	Same as the function; if the mouse isn't on, carry is set and AX, BX,
-;	CX, and DX are zero
-;
-DEFPROC	mouseCall
-	push	bx
-	mov	bx,ss:[PSP_HEAP]
-	test	byte ptr ss:[bx].GFX_DATA.MOUSE_STATE,MS_ON
-	pop	bx
-	jz	mc8
-	int	INT_MOUSE
-	clc
-	ret
-mc8:	sub	ax,ax
-	cwd
-	mov	bx,ax
-	mov	cx,ax
-	stc
-	ret
-ENDPROC	mouseCall
 
 CODE	ENDS
 

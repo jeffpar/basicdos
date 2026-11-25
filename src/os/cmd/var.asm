@@ -547,25 +547,6 @@ ENDPROC	shrinkBlock
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; freeCode
-;
-; Inputs:
-;	ES -> code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
-;
-; Modifies:
-;	AX, CX, SI, DI, ES
-;
-DEFPROC	freeCode
-	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].CBLKDEF
-	jmp	freeBlock
-ENDPROC	freeCode
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; freeAllCode
 ;
 ; Frees all code blocks and resets the CBLK chain.

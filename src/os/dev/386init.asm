@@ -170,6 +170,10 @@ di2e:	mov	[CPU_TYPE],al
 ; wrap-around alias in low memory (and if it is, the write has no effect there,
 ; whether or not there's any memory at that address).
 ;
+; CAS_GETEXTMEM reports at most 65535K, so physical memory ends below 512Mb,
+; which the pool's descriptors on an 80386 depend on (see SYS_PMBS in
+; 386dev.inc); a way to find more memory would have to keep that limit.
+;
 	mov	ah,CAS_GETEXTMEM
 	int	INT_CASSETTE
 	jnc	di2d
