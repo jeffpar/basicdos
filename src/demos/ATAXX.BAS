@@ -19,8 +19,9 @@
 	' ahead; it's 2 unless the command line gives one), N starts a new game
 	' (the players take turns moving first), and Q quits.
 	'
-	' The board is 29 columns by 22 rows (each cell is 4 columns by 3 rows,
-	' sharing its borders with the cells around it, so a piece is 3 by 2),
+	' The board is 22 rows by 29 columns, or 43 on a console of 80 or more
+	' columns (each cell is 3 rows by 4 or 6 columns, sharing its borders
+	' with the cells around it, so a piece is 2 rows by 3 or 5 columns),
 	' centered on the console, whose size IOCTL &HD1 gives, with the score
 	' on the row above it and messages on the row below it, so it fits on
 	' any console of 40 or more columns and 24 or more rows (eg, a 40-column
@@ -48,30 +49,35 @@
 	DATA -12, -11, -10, -1, 1, 10, 11, 12
 	DATA -24, -23, -22, -21, -20, -13, -9, -2, 2, 9, 13, 20, 21, 22, 23, 24
 	FOR I = 1 TO 49 : Q(I) = 24 + 11 * ((I - 1) \ 7) + (I - 1) MOD 7 : NEXT
+	' Center the board (its top left corner is at row R0, column C0) and
+	' the messages (39 columns, from column MC) on the console; with 80 or
+	' more columns, whose characters are half as wide, the inside of a cell
+	' is 5 columns wide instead of 3 (IW), and a cell is CW columns
+	DOS &H44D1, 1 : W = DOS(3) AND 255 : H = DOS(3) \ 256
+	IF W < 40 OR H < 24 THEN PRINT "ATAXX needs 40 columns and 24 rows" : END 1
+	IW = 3 - 2 * (W >= 80) : CW = IW + 1
+	C0 = (W - 7 * CW - 1) \ 2 + 1 : R0 = (H - 24) \ 2 + 2 : MC = (W - 39) \ 2 + 1
 	' The top and bottom rows of each kind of cell (K): empty, yours, the
 	' computer's, and empty cells that the picked piece can grow into (3)
 	' or jump to (4), and their colors (PC)
-	G1$(0) = "   " : G2$(0) = G1$(0) : PC(0) = 7
-	G1$(1) = CHR$(220) + CHR$(219) + CHR$(220) : PC(1) = 12
-	G2$(1) = CHR$(223) + CHR$(219) + CHR$(223)
-	G1$(2) = CHR$(201) + CHR$(205) + CHR$(187) : PC(2) = 11
-	G2$(2) = CHR$(200) + CHR$(205) + CHR$(188)
-	G1$(3) = " . " : G2$(3) = " ' " : PC(3) = 14
-	G1$(4) = ". ." : G2$(4) = "' '" : PC(4) = 14
+	T$ = STRING$(IW - 2, 219) : U$ = SPACE$((IW - 3) \ 2)
+	G1$(0) = SPACE$(IW) : G2$(0) = G1$(0) : PC(0) = 7
+	G1$(1) = CHR$(220) + T$ + CHR$(220) : PC(1) = 12
+	G2$(1) = CHR$(223) + T$ + CHR$(223)
+	T$ = STRING$(IW - 2, 205)
+	G1$(2) = CHR$(201) + T$ + CHR$(187) : PC(2) = 11
+	G2$(2) = CHR$(200) + T$ + CHR$(188)
+	G1$(3) = U$ + " . " + U$ : G2$(3) = U$ + " ' " + U$ : PC(3) = 14
+	G1$(4) = U$ + ". ." + U$ : G2$(4) = U$ + "' '" + U$ : PC(4) = 14
 	' The board's rows (FR$): the top, the rows between cells, the bottom,
 	' and the rows inside cells, each made from its left, middle, and right
 	' characters in F$
 	F$ = CHR$(218) + CHR$(194) + CHR$(191) + CHR$(195) + CHR$(197)
 	F$ = F$ + CHR$(180) + CHR$(192) + CHR$(193) + CHR$(217) + STRING$(3, 179)
-	FOR K = 0 TO 3 : T$ = STRING$(3, 196) : IF K = 3 THEN T$ = "   "
+	FOR K = 0 TO 3 : T$ = STRING$(IW, 196) : IF K = 3 THEN T$ = SPACE$(IW)
 	U$ = MID$(F$, 3 * K + 1, 1)
 	FOR I = 1 TO 7 : U$ = U$ + T$ + MID$(F$, 3 * K + 2 - (I = 7), 1) : NEXT
 	FR$(K) = U$ : NEXT
-	' Center the board (its top left corner is at row R0, column C0) and
-	' the messages (39 columns, from column MC) on the console
-	DOS &H44D1, 1 : W = DOS(3) AND 255 : H = DOS(3) \ 256
-	IF W < 40 OR H < 24 THEN PRINT "ATAXX needs 40 columns and 24 rows" : END 1
-	C0 = (W - 29) \ 2 + 1 : R0 = (H - 24) \ 2 + 2 : MC = (W - 39) \ 2 + 1
 	RANDOMIZE : FS = 1 : CX = 3 : CY = 3
 	' Start a new game: S is the player whose turn it is (1 or 32), and FS
 	' moves first in the next game
@@ -89,7 +95,7 @@
 	' Your move: the cursor (CX,CY) is the highlighted cell P, and SL is
 	' the picked piece (or 0)
 30	M$ = "Your move (Space picks, N new, Q quits)" : GOSUB 700
-35	P = 24 + 11 * CY + CX : HL = 1 : GOSUB 500 : HL = 0 : LOCATE Y, X + 1
+35	P = 24 + 11 * CY + CX : HL = 1 : GOSUB 500 : HL = 0 : LOCATE Y, X + IW \ 2
 	K$ = INPUT$(1) : IF K$ = CHR$(0) THEN K$ = K$ + INPUT$(1)
 	D = INSTR("hjklyubn", K$) + INSTR(C$, K$)
 	IF ASC(K$) = 0 THEN D = INSTR("KPHMGIOQ", RIGHT$(K$, 1))
@@ -261,7 +267,7 @@
 	IF DS < 3 THEN K = 2 + DS
 505	A = PC(K) : IF P = SL THEN A = A + 16
 	IF HL THEN COLOR 0, 7 ELSE COLOR A, 0
-	X = C0 + 4 * (P MOD 11) - 7 : Y = R0 + 3 * (P \ 11) - 5
+	X = C0 + CW * (P MOD 11 - 2) + 1 : Y = R0 + 3 * (P \ 11) - 5
 	LOCATE Y, X : PRINT G1$(K); : LOCATE Y + 1, X : PRINT G2$(K);
 	COLOR 7, 0 : RETURN
 	' Put the picked piece back (550), or pick SL (560), and display it

@@ -16,7 +16,7 @@ machines:
 
 ### Part 5: Were Dual Monitors Ever This Cool?
 
-The machine below is an IBM PC XT with 640K of memory and two monitors: a Monochrome Display and a Color Display.  It boots the `BASICDOS-360K-DUAL` diskette, but since the machine also has the BASIC-DOS hard disk (drive C:), the boot sector first displays `System starting...` on the Monochrome Display; press any key to boot from the diskette.  BASIC-DOS then runs one console on each monitor: **PRIMES.BAS** on the Monochrome Display, while the Color Display runs **DONKEY.BAS**, the BASIC game from the PC DOS 1.00 diskette.  The Color Display starts with the keyboard focus, so press the space bar to start DONKEY (and again to switch lanes), use SHIFT-TAB to switch focus between the two displays, and appreciate how well an IBM PC could actually run two programs simultaneously.
+The machine below is an IBM PC XT with 640K of memory and two monitors: a Monochrome Display and a Color Display.  It boots the `BASICDOS-360K-DUAL` diskette, but since the machine also has the BASIC-DOS hard disk (drive C:), the boot sector first displays `Diskette loading...` on the Monochrome Display; press any key to boot from the diskette.  BASIC-DOS then runs one console on each monitor: **PRIMES.BAS** on the Monochrome Display, while the Color Display runs **DONKEY.BAS**, the BASIC game from the PC DOS 1.00 diskette.  The Color Display starts with the keyboard focus, so press the space bar to start DONKEY (and again to switch lanes), use SHIFT-TAB to switch focus between the two displays, and appreciate how well an IBM PC could actually run two programs simultaneously.
 
 {% include machine.html id="ibm5150-4" %}
 

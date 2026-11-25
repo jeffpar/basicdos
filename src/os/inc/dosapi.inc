@@ -108,6 +108,7 @@ DOS_HDL_SEEKEND	equ   4202h	; seek from end
 DOS_DSK_GETATTR	equ   4300h	; get attributes (CX) of file (DS:DX)
 DOS_DSK_SETATTR	equ   4301h	; set attributes (CX) of file (DS:DX)
 DOS_HDL_IOCTL	equ   	44h	; send device request (AL) for handle (BX)
+DOS_HDL_DUP	equ	45h	; duplicate handle (BX) (returns handle AX)
 DOS_DSK_GETCWD	equ	47h	; get current dir of drive (DL) at (DS:SI)
 DOS_MEM_ALLOC	equ	48h	; allocate (BX) paras (returns segment AX)
 DOS_MEM_FREE	equ	49h	; free segment (ES)

@@ -31,8 +31,8 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<le_mapseg>
 	EXTNEAR	<utl_lock,utl_unlock,utl_wait,utl_endwait,utl_hotkey>
 	EXTNEAR	<utl_hprintf,hdl_ioctl,r3_chkstk,r3_chkrd,r3_gpcall>
-	EXTNEAR	<hdl_open,hdl_create,hdl_close,hdl_seek,hdl_time,get_psp>
-	EXTNEAR	<para_len>
+	EXTNEAR	<hdl_open,hdl_create,hdl_close,hdl_seek,hdl_dup,hdl_time>
+	EXTNEAR	<get_psp,para_len>
 
 	.286p
 
@@ -329,7 +329,8 @@ ENDPROC	r3_ioctl
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; r3_close (REG_AH = 3Eh), r3_seek (REG_AH = 42h), and r3_time (REG_AH = 57h)
+; r3_close (REG_AH = 3Eh), r3_seek (REG_AH = 42h), r3_dup (REG_AH = 45h), and
+; r3_time (REG_AH = 57h)
 ;
 ; With ring 3 programs, set_fault puts these in FUNCTBL, in place of the
 ; functions they name: a program can write anything in its PSP_PFT, so a ring 3
@@ -345,6 +346,9 @@ DEFPROC	r3_close,DOS
 	jmp	short rh1
 	DEFLBL	r3_seek,near
 	mov	si,offset hdl_seek
+	jmp	short rh1
+	DEFLBL	r3_dup,near
+	mov	si,offset hdl_dup
 	jmp	short rh1
 	DEFLBL	r3_time,near
 	mov	si,offset hdl_time

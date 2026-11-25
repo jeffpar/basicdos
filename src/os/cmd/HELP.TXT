@@ -564,7 +564,7 @@ Exchanges the values of two variables (or array elements) of the same type.
 
 [e]SYS *drive*: [~N]
 Copies the system files (BASDEV.COM, BASDOS.COM, and COMMAND.COM) from the root directory of the system drive (the drive COMMAND.COM was loaded from) to the specified *drive*, and gives its boot sector the system drive's boot code, making it bootable without reformatting it.
-~N removes the boot message and its wait from *drive*; SYS without ~N restores them.
+~N removes the boot message ("Diskette loading..." or "Hard disk loading...") and its wait from *drive*; SYS without ~N restores them.
 
 [f+]TAB(*n*)
 Returns enough spaces to move the cursor to column *n* (1-254), for PRINT; if the cursor is already past column *n*, the spaces start on the next line.

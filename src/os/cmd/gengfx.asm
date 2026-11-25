@@ -8,7 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 ; Generates code for these graphics statements, whose runtime functions are
-; in gfx.asm (and gfxc.asm, for CIRCLE):
+; in gfx.asm (and gfxc.asm, for CIRCLE, and gfxpaint.asm, for PAINT):
 ;
 ;	CIRCLE				(genCircle)
 ;	DRAW				(genDraw)

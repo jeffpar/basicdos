@@ -437,11 +437,11 @@ ip1:	cmp	cl,3			; a command?
 	jne	ip2			; no
 	test	al,0C0h			; for counter 0?
 	jnz	ip9			; no
-	mov	[pit_high],0		; yes, so its low byte is next
+	mov	byte ptr [pit_high],0	; yes, so its low byte is next
 	jmp	short ip9
 ip2:	jcxz	ip3			; counter 0's divisor
 	jmp	short ip9
-ip3:	xor	[pit_high],1		; is this the low byte?
+ip3:	xor	byte ptr [pit_high],1	; is this the low byte?
 	jz	ip4			; no
 	mov	[pit_low],al
 	jmp	short ip9
@@ -473,7 +473,7 @@ DEFPROC	io_kbd
 	jnz	ik2			; yes
 	mov	al,[kbd_data]
 	jcxz	ik9			; port 60h
-	xor	[port_61],10h
+	xor	byte ptr [port_61],10h
 	mov	al,[port_61]
 	dec	cx
 	jz	ik9			; port 61h

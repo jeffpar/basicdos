@@ -38,7 +38,6 @@
 ; ends as if it had caused the fault itself (see r3_gp).
 ;
 	DOSPSP equ 1
-	DOSFUNC equ 1
 	include	macros.inc
 	include	8086.inc
 	include	bios.inc

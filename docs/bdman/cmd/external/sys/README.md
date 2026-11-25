@@ -14,7 +14,7 @@ Since the boot code follows the system files' cluster chains, they don't have to
 
 ### Removing the Boot Message
 
-`/N` makes *drive* boot without displaying `System starting...` or waiting 2 seconds for a key.  It's the only way to do this, since the message appears before CONFIG.SYS is read.  SYS without `/N` restores the message and the wait, regardless of what the system drive's boot code does.
+`/N` makes *drive* boot without displaying its boot message (`Diskette loading...`, or `Hard disk loading...` on a hard disk volume, which SYS sets either way) or waiting 2 seconds for a key.  It's the only way to do this, since the message appears before CONFIG.SYS is read.  SYS without `/N` restores the message and the wait, regardless of what the system drive's boot code does.
 
 The boot code still checks once for a key, so **Esc**, `P`, `R`, or `-` still work if you press one while the machine is starting up, after its keyboard test.  Pressing a key too early, or holding one down from the start, stops the self-test with a `301` keyboard error.  For settings that apply to every boot, use [CPU=](../../../cfg/#cpu) and [SWITCHAR=](../../../cfg/#switchar) instead.
 

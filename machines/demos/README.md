@@ -26,7 +26,7 @@ Each BASIC-DOS demo runs on up to four generations of PC hardware: the original 
 
 To compare BASIC-DOS v2 overhead to OS/2 v2, we also have [Microsoft OS/2 2.0 (Pre-Release 2)](os2/2.0/) installed on a 4Mb COMPAQ DeskPro 386, using the 1990 Microsoft OS/2 2.00 Software Development Kit diskettes.
 
-The boot sector first displays `System starting...`; press any key (or wait 2 seconds) to continue.  The PC XT, PC AT, and DeskPro 386 machines also have the 20Mb BASIC-DOS hard disk (drive C:), so when they boot a diskette, you can press **Esc** to boot from the hard disk instead.  On a PC AT or DeskPro 386, the demos run in protected mode (and on the DeskPro 386, with the 80386's features), except Wolfenstein 3D, which needs real mode; press **R** to run any other demo in real mode instead.
+The boot sector first displays `Diskette loading...`; press any key (or wait 2 seconds) to continue.  The PC XT, PC AT, and DeskPro 386 machines also have the 20Mb BASIC-DOS hard disk (drive C:), so when they boot a diskette, you can press **Esc** to boot from the hard disk instead.  On a PC AT or DeskPro 386, the demos run in protected mode (and on the DeskPro 386, with the 80386's features), except Wolfenstein 3D, which needs real mode; press **R** to run any other demo in real mode instead.
 
 A *VT100 Console* is a BASIC-DOS session on a DEC VT100 terminal, which you can type commands at, while a *VT100 Debugger* is DEBUG.COM, BASIC-DOS's own debugger, running on a VT100 connected to COM2 (most demos also have a page with the PCjs debugger, which is part of the emulator).
 

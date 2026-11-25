@@ -155,7 +155,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<msc_getvars,psp_exec,psp_return,psp_retcode>
 	EXTNEAR	<psp_copy,psp_set,psp_get,psp_create>
 	EXTNEAR	<hdl_create,hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek>
-	EXTNEAR	<hdl_ioctl,hdl_time>
+	EXTNEAR	<hdl_ioctl,hdl_dup,hdl_time>
 	EXTNEAR	<mem_alloc,mem_free,mem_realloc>
 	EXTNEAR	<utl_strlen,utl_strstr,utl_strupr>
 	EXTNEAR	<utl_atoi16,utl_atoi32,utl_atoi32d>
@@ -188,7 +188,7 @@ DOS	segment word public 'CODE'
 	dw	func_none,   dsk_mkdir,   dsk_rmdir,   dsk_chdir	;38-3B
 	dw	hdl_create,  hdl_open,    hdl_close,   hdl_read		;3C-3F
 	dw	hdl_write,   dsk_delete,  hdl_seek,    dsk_attr		;40-43
-	dw	hdl_ioctl,   func_none,   func_none,   dsk_getcwd	;44-47
+	dw	hdl_ioctl,   hdl_dup,     func_none,   dsk_getcwd	;44-47
 	dw	mem_alloc,   mem_free,    mem_realloc, psp_exec		;48-4B
 	dw	psp_return,  psp_retcode, dsk_ffirst,  dsk_fnext	;4C-4F
 	dw	psp_set,     psp_get,     msc_getvars, func_none	;50-53

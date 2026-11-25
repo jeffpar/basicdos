@@ -23,12 +23,14 @@ LST=NUL
 # Every module depends on OBJ\INCS, an empty file that's re-created whenever
 # any include file changes, so that every module is rebuilt then, too (MAKE
 # has no pseudo-targets, and MS-DOS's COPY would keep the old file's time).
+# The exception is VERSION.INC: only the modules that include it depend on
+# it, so that a new version rebuilds only those.
 #
 OBJ\INCS: ..\..\INC\8086.INC ..\..\INC\BIOS.INC ..\..\INC\CPU.INC \
 	..\..\INC\DEV.INC ..\..\INC\DEVAPI.INC ..\..\INC\DISK.INC \
 	..\..\INC\DOS.INC ..\..\INC\DOSAPI.INC ..\..\INC\FPU.INC \
 	..\..\INC\MACROS.INC ..\..\INC\PARSER.INC ..\..\INC\UART.INC \
-	..\..\INC\UTIL.INC ..\..\INC\V86.INC ..\..\INC\VERSION.INC
+	..\..\INC\UTIL.INC ..\..\INC\V86.INC
 	TYPE NUL > OBJ\INCS
 
 OBJ\DBGDEV.OBJ: DBGDEV.ASM OBJ\INCS
@@ -40,14 +42,18 @@ OBJ\DBGVEC.OBJ: DBGVEC.ASM OBJ\INCS
 OBJ\DBGDIS.OBJ: DBGDIS.ASM OBJ\INCS
 	$(ASM) $(AFLAGS) DBGDIS.ASM,$@,$(LST);
 
-OBJ\DBGINIT.OBJ: DBGINIT.ASM OBJ\INCS
+OBJ\DBGCMD.OBJ: DBGCMD.ASM OBJ\INCS
+	$(ASM) $(AFLAGS) DBGCMD.ASM,$@,$(LST);
+
+OBJ\DBGINIT.OBJ: DBGINIT.ASM OBJ\INCS ..\..\INC\VERSION.INC
 	$(ASM) $(AFLAGS) DBGINIT.ASM,$@,$(LST);
 
 #
 # DBGINIT.OBJ must come last, since a driver keeps only the code of the
 # modules before it (up to resident_end).
 #
-OBJ\DEBUG.COM: OBJ\DBGDEV.OBJ OBJ\DBGVEC.OBJ OBJ\DBGDIS.OBJ OBJ\DBGINIT.OBJ
-	$(LINK) OBJ\DBGDEV.OBJ+OBJ\DBGVEC.OBJ+OBJ\DBGDIS.OBJ+OBJ\DBGINIT.OBJ,OBJ\DBGDEV.EXE,OBJ\DBGDEV.MAP/MAP;
+OBJ\DEBUG.COM: OBJ\DBGDEV.OBJ OBJ\DBGVEC.OBJ OBJ\DBGDIS.OBJ OBJ\DBGCMD.OBJ \
+	OBJ\DBGINIT.OBJ
+	$(LINK) OBJ\DBGDEV.OBJ+OBJ\DBGVEC.OBJ+OBJ\DBGDIS.OBJ+OBJ\DBGCMD.OBJ+OBJ\DBGINIT.OBJ,OBJ\DBGDEV.EXE,OBJ\DBGDEV.MAP/MAP;
 	$(EXE2BIN) OBJ\DBGDEV.EXE $@
 	DEL OBJ\DBGDEV.EXE

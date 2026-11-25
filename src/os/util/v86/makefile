@@ -23,11 +23,13 @@ LST=NUL
 # Every module depends on OBJ\INCS, an empty file that's re-created whenever
 # any include file changes, so that every module is rebuilt then, too (MAKE
 # has no pseudo-targets, and MS-DOS's COPY would keep the old file's time).
+# The exception is VERSION.INC: only the modules that include it depend on
+# it, so that a new version rebuilds only those.
 #
 OBJ\INCS: V86HOST.INC ..\..\INC\8086.INC ..\..\INC\BIOS.INC \
 	..\..\INC\CPU.INC ..\..\INC\DEVAPI.INC ..\..\INC\DOSAPI.INC \
 	..\..\INC\FPU.INC ..\..\INC\MACROS.INC ..\..\INC\PARSER.INC \
-	..\..\INC\SND.INC ..\..\INC\V86.INC ..\..\INC\VERSION.INC
+	..\..\INC\SND.INC ..\..\INC\V86.INC
 	TYPE NUL > OBJ\INCS
 
 #

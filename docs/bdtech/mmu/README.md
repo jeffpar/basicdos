@@ -284,7 +284,7 @@ In protected mode, the DOS_PSP_EXEC functions run COM and NE programs, and on an
 | 52 | DosDevConfig | (CL386) Every item is 0 (eg, no math coprocessor, so a program leaves floating point to the system) |
 | 53 | DosDevIOCtl | Always fails: OS/2's device control functions aren't supported |
 | 58, 59, 60 | DosChgFilePtr, DosClose, DosDelete | DOS_HDL_SEEK, DOS_HDL_CLOSE, and DOS_DSK_DELETE |
-| 61 | DosDupHandle | (CL386) Always fails: BASIC-DOS doesn't duplicate handles |
+| 61 | DosDupHandle | (CL386) Always fails |
 | 63, 64, 65 | DosFindClose, DosFindFirst, DosFindNext | DOS_DSK_FFIRST and DOS_DSK_FNEXT, with a find block for each directory handle, so a program can have several searches: the system's handle (1), or a new one (the selector of a small segment, which DosFindClose frees); each call finds one file, whatever number is asked for, a file's allocated size is its size, and when there are no files (or no more), the error is OS/2's ERROR_NO_MORE_FILES (18) |
 | 68 | DosNewSize | A zero-length write at the new size; the file's position doesn't change |
 | 70 | DosOpen | Opens, creates, or replaces a file, as the open flags say; only the open mode's access bits are used, and opening a drive is refused |

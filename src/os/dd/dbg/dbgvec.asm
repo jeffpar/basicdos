@@ -10,7 +10,8 @@
 ; VEC_TAB, what VT can trap, and the VT, VC, and VL commands, along with the
 ; reports of the software interrupt functions that VT traps (see dbg_int13 and
 ; dbg_int21 in dbgdev.asm).  It's resident, and it's separate because VEC_TAB
-; needs DOS function numbers, which dbgdev.asm has no symbol space for.
+; needs DOS function numbers, which dbgdev.asm has no symbol space for, which
+; is also why the DG, DI, and DL table dumps (see dump_tbl) are here.
 ;
 	BIOSAPI equ 1
 	DOSFUNC equ 1
@@ -26,8 +27,8 @@ CODE	segment word public 'CODE'
 
 	EXTNEAR	<ax_mem,cpu_call,end_command,hex_byte,hex_word,newline,pad>
 	EXTNEAR	<parse_hex,peek_b,peek_w,poke_b,put_char,put_n,skip_space>
-	EXTNEAR	<space>
-	EXTBYTE	<col,cpu_mode,sess_num,trap_21>
+	EXTNEAR	<space,put_string>
+	EXTBYTE	<CMD_Q,col,cpu_mode,sess_num,trap_21>
 	EXTWORD	<dos_scb,dos_seg,dos_vars,prog_chars,regs,sys_regs>
 
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
@@ -897,6 +898,346 @@ DEFPROC	set_step
 st1:	call	poke_b
 st9:	ret
 ENDPROC	set_step
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dsl_show
+;
+; Displays what a descriptor holds (see dump_tbl), as the PCjs Debugger's DS
+; command does: its base and limit (or for a gate, its selector, offset, and
+; parameter count), its type and what that means, its extended byte's 80386
+; flags, and its DPL.
+;
+; Inputs:
+;	DX:CX = base (or DL = count, CX = selector), AX = limit (or offset)
+;	BL = access rights, BH = extended byte
+;
+; Outputs:
+;	Carry clear
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+DEFPROC	dsl_show
+	push	ax			; save the limit (or offset)
+	mov	si,offset SELS_BASE	; "base=" and " limit="
+	test	bl,10h			; a code or data segment?
+	jnz	dsl1			; yes
+	test	bl,04h			; a gate (types 4-7 and 0Ch-0Fh)?
+	jz	dsl1			; no
+	mov	si,offset SELS_GATE	; "seg=" and " off="
+	call	put_string
+	jmp	short dsl2
+dsl1:	call	put_string
+	mov	ax,dx
+	call	hex_word		; (bits 16-31 of the base)
+dsl2:	xchg	ax,cx
+	call	hex_word
+	call	put_string		; " limit=" or " off="
+	pop	ax
+	call	hex_word
+	cmp	si,offset SELS_GATE	; a gate?
+	je	dsl3			; no
+	call	put_string		; " cnt="
+	mov	al,dl
+	call	hex_byte
+dsl3:	mov	si,offset SELS_TYPE
+	call	put_string		; " type="
+	mov	al,bl
+	and	al,1Fh
+	call	hex_byte
+	call	put_string		; " ("
+	push	si
+	call	sel_type
+	pop	si
+	call	put_string		; ") ext="
+	mov	al,bh
+	and	ax,0F0h			; (just the 80386 flags)
+	call	hex_word
+	call	put_string		; " dpl="
+	mov	al,bl
+	mov	cl,5
+	shr	al,cl
+	and	al,3
+	call	hex_byte
+	call	newline
+	clc
+	ret
+ENDPROC	dsl_show
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dump_tbl
+;
+; Parse DG [selector], DI [vector], or DL [session [selector]], and display
+; the GDT, the IDT, or a session's LDT (DL alone lists the sessions instead;
+; see list_sess; and one with no program displays nothing), or just one of its
+; entries, as a line with the entry's selector (or vector) and then what
+; dsl_show displays; DG finds an LDT selector in the active LDT.  A table ends
+; with the number of entries in use, the number of entries, and its size in
+; bytes.  An entry is in use if it's present; and since the GDT's limit also
+; covers the IDT (see CPU$'s system area), not if it's an interrupt or trap
+; gate, which is valid only in an IDT.
+;
+; These are driver commands, in protected mode only, so program mode (where
+; CMD_Q is set) doesn't have them.
+;
+; Inputs:
+;	AL = command letter, SI -> command text after it
+;
+; Outputs:
+;	Carry clear if successful, set if invalid
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	dump_tbl
+	LOCVAR	dtType,byte		; (first, so the frame's size is even)
+	LOCVAR	dtBase,dword
+	LOCVAR	dtLen,word
+	LOCVAR	dtUsed,word
+	LOCVAR	dtW3,word		; the entry that we read (see dt_line)
+	LOCVAR	dtW2,word
+	LOCVAR	dtW1,word
+	LOCVAR	dtW0,word
+	cmp	[CMD_Q],0		; program mode?
+	jne	dt0			; yes
+	test	[cpu_mode],ADDR_SEL	; protected mode?
+	jnz	dt0a			; yes
+dt0:	stc
+	ret
+dt0a:	ENTER
+	mov	[dtType],al
+	mov	bx,offset sys_regs	; BX -> GDTR
+	cmp	al,'L'
+	je	dt2
+	cmp	al,'G'
+	je	dt1
+	add	bx,6			; BX -> IDTR
+dt1:	mov	ax,[bx]			; AX = limit
+	mov	cx,[bx+2]
+	mov	dl,[bx+4]
+	mov	dh,0			; DX:CX = base
+	jmp	short dt3
+dt2:	call	end_command		; is there a session #?
+	jc	dt2a			; yes
+	call	list_sess		; no, so list the sessions
+	jmp	short dt9
+dt2a:	call	parse_hex		; AX = session # (from 1, as in KILL)
+	jc	dt8
+	dec	ax			; (so zero isn't a valid session #)
+	xchg	bx,ax			; BX = session # (from 0)
+	call	chk_sess		; is that session in use?
+	jc	dt8			; there's no such session
+	jz	dt9			; no, so there's nothing to display
+	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_LDT
+	call	cpu_call		; DX:CX = base, AX = limit (LDT # BX)
+	jc	dt8
+dt3:	call	dt_set
+	mov	[dtUsed],0
+	call	end_command		; just one entry?
+	jnc	dt5			; no
+	call	parse_hex		; AX = selector or vector
+	jc	dt9
+	push	ax
+	call	end_command
+	pop	ax
+	jc	dt9
+	cmp	[dtType],'I'		; a vector?
+	jne	dt3a			; no
+	test	ah,ah			; does it fit in a byte?
+	jnz	dt8			; no
+	mov	cl,3
+	shl	ax,cl			; AX = its offset
+	jmp	short dt4
+dt3a:	cmp	[dtType],'G'		; DG?
+	jne	dt4			; no
+	test	al,4			; an LDT selector?
+	jz	dt4			; no
+	mov	[dtType],'L'		; yes, so use the active LDT
+	push	ax
+	mov	bx,sys_regs[18]		; BX = LDTR
+	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_SEL
+	call	cpu_call		; DX:CX = base, AX = limit
+	call	dt_set
+	pop	ax
+dt4:	and	al,NOT 7		; AX = offset of the entry
+	cmp	ax,[dtLen]		; is it within the table?
+	jae	dt8			; no
+	call	dt_line			; (carry set if it's not in use)
+	jmp	short dt9
+dt8:	stc
+dt9:	LEAVE
+	ret
+dt5:	sub	di,di			; DI = offset of the next entry
+dt6:	cmp	di,[dtLen]		; any more?
+	jae	dt7			; no
+	mov	ax,di
+	call	dt_line
+	jc	dt6a
+	inc	[dtUsed]
+dt6a:	add	di,8
+	jmp	dt6
+dt7:	mov	ax,[dtUsed]
+	call	hex_word
+	mov	si,offset DT_TOTALS
+	call	put_string		; " of "
+	mov	ax,[dtLen]
+	mov	cl,3
+	shr	ax,cl
+	call	hex_word
+	call	put_string		; " entries in use, "
+	mov	ax,[dtLen]
+	call	hex_word
+	call	put_string		; " bytes" (and carry is clear)
+	jmp	dt9
+ENDPROC	dump_tbl
+
+;
+; dt_set (for dump_tbl, whose frame it uses) records the table at DX:CX, with
+; limit AX, as the number of bytes in its whole entries, since an empty LDT's
+; limit is 0 or FFFFh.
+;
+; Modifies:
+;	AX
+;
+DEFPROC	dt_set
+	mov	[dtBase].LW,cx
+	mov	[dtBase].HW,dx
+	inc	ax
+	and	al,NOT 7
+	mov	[dtLen],ax
+	ret
+ENDPROC	dt_set
+
+;
+; dt_line (for dump_tbl, whose frame it uses) displays the entry at offset AX,
+; if it's in use, and otherwise returns carry set.
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, ES
+;
+DEFPROC	dt_line
+	push	di
+	push	ax
+	xchg	si,ax
+	mov	bx,[dtBase].HW
+	add	si,[dtBase].LW
+	adc	bx,0			; BX:SI = the entry's address
+	push	ss
+	pop	es
+	lea	di,[dtW0]		; ES:DI -> our copy of it
+	mov	cx,8
+	mov	ax,(CPU_RWMEM SHL 8) OR ADDR_PHYS
+	call	cpu_call
+	pop	ax			; AX = offset
+	jc	dtl9
+	mov	dx,[dtW2]		; DL = byte 4, DH = access rights
+	test	dh,dh			; present (the top bit)?
+	jns	dtl8			; no
+	cmp	[dtType],'I'
+	jne	dtl1
+	mov	cl,3
+	shr	ax,cl			; AX = vector
+	jmp	short dtl3
+dtl1:	mov	bl,dh
+	and	bl,16h
+	cmp	bl,06h			; an interrupt or trap gate?
+	je	dtl8			; yes
+	cmp	[dtType],'L'
+	jne	dtl3
+	or	al,4			; AX = selector (with the LDT bit)
+dtl3:	call	hex_word
+	mov	al,':'
+	call	put_char
+	call	space
+	mov	ax,[dtW0]		; AX = limit (or offset)
+	mov	cx,[dtW1]		; CX = base (or selector)
+	mov	bx,[dtW3]		; BL = extended, BH = top of the base
+	xchg	dh,bh			; DH = top of the base
+	xchg	bl,bh			; BL = access rights, BH = extended
+	call	dsl_show		; (and carry is clear)
+	jmp	short dtl9
+dtl8:	stc
+dtl9:	pop	di
+	ret
+ENDPROC	dt_line
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; sel_type
+;
+; Displays what the type in a descriptor's access rights (BL) means, using
+; the PCjs Debugger's names (eg, "code,readable,accessed").
+;
+; Modifies:
+;	AX, SI
+;
+DEFPROC	sel_type
+	mov	al,bl
+	and	al,0Fh			; AL = type
+	test	bl,10h			; a code or data segment?
+	jnz	sy1			; yes
+	cmp	al,8			; a type that we have a name for?
+	jae	sy9			; no
+	mov	si,offset SDT_NAMES
+	jmp	short put_nth
+sy1:	mov	ah,al
+	and	ah,08h			; AH = 8 for code, 0 for data
+	mov	al,ah
+	shr	al,1
+	shr	al,1
+	shr	al,1			; AL = 1 for code, 0 for data
+	call	sy8			; "code" or "data"
+	mov	al,bl
+	and	al,02h			; readable (or writable)?
+	shr	al,1
+	add	al,2			; AL = 2 or 3 (data)
+	test	ah,ah
+	jz	sy2
+	add	al,2			; AL = 4 or 5 (code)
+sy2:	call	sy8
+	test	bl,04h			; conforming (or expand-down)?
+	jz	sy3
+	mov	al,6
+	test	ah,ah
+	jz	sy2a
+	inc	ax
+sy2a:	call	sy8
+sy3:	test	bl,01h			; accessed?
+	jz	sy9
+	mov	al,8
+sy8:	mov	si,offset SEG_NAMES
+	DEFLBL	put_nth,near		; display string AL in the list at SI
+	push	cx
+	mov	cl,al
+sn1:	dec	cl
+	js	sn3
+sn2:	lodsb
+	test	al,al
+	jnz	sn2
+	jmp	sn1
+sn3:	pop	cx
+	jmp	put_string
+sy9:	ret
+ENDPROC	sel_type
+
+	DEFLBL	SELS_BASE,byte
+	db	"base=",0," limit=",0
+	DEFLBL	SELS_GATE,byte
+	db	"seg=",0," off=",0," cnt=",0
+	DEFLBL	SELS_TYPE,byte
+	db	" type=",0," (",0,") ext=",0," dpl=",0
+	DEFLBL	DT_TOTALS,byte
+	db	" of ",0," entries in use, ",0," bytes",13,10,0
+	DEFLBL	SEG_NAMES,byte
+	db	"data",0,"code",0,",readonly",0,",writable",0
+	db	",execonly",0,",readable",0,",expdown",0
+	db	",conforming",0,",accessed",0
+	DEFLBL	SDT_NAMES,byte
+	db	"?",0,"tss286",0,"ldt",0,"busy tss286",0
+	db	"call gate",0,"task gate",0,"int gate286",0
+	db	"trap gate286",0
 
 CODE	ends
 

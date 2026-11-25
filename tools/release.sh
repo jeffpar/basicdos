@@ -3,8 +3,8 @@
 #
 #   "version"   the major, minor, and patch numbers (eg, 2, 10, and 1 of "2.10.1") are the BASIC-DOS version and
 #               revision, which this script copies to VERSION_MAJOR (0-9), VERSION_MINOR (0-99), and VERSION_REV (0-26)
-#               in src/os/inc/version.inc whenever they change (only then, since the makefiles depend on it,
-#               so any change rebuilds everything); the minor number is displayed with two digits, and a nonzero
+#               in src/os/inc/version.inc whenever they change (only then, since the modules that include it
+#               depend on it, so any change rebuilds them); the minor number is displayed with two digits, and a nonzero
 #               revision as a letter (1 is A, 26 is Z), so "2.1.0" is BASIC-DOS 2.01, and "2.10.1" is 2.10A
 #   "config"    its "release" property ("final" or "debug") is the default build mode, which this script sets $release to
 #               (in upper case); it's in "config" because VS Code's package.json schema expects a top-level "release"

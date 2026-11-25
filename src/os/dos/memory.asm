@@ -559,11 +559,14 @@ ENDPROC	psp_owner
 ;
 ; mcb_setname
 ;
-; Makes the PSP at DX the owner of its block, and gives the block a name.
+; Makes the PSP at DX the owner of its block, and gives the block a name;
+; mcb_setenv makes the PSP the owner of its environment block (CX) instead,
+; without a name (see load_program).
 ;
 ; Inputs:
 ;	DX = PSP segment
-;	DS:SI -> name (8 characters), or SI = 0 for none
+;	DS:SI -> name (8 characters), or SI = 0 for none (mcb_setname only)
+;	CX = environment block (mcb_setenv only)
 ;
 ; Outputs:
 ;	None
@@ -577,15 +580,27 @@ DEFPROC	mcb_setname,DOS
 	push	bx
 	push	cx
 	push	dx
-	push	es
+	push	si
+	mov	cx,dx			; CX = the PSP's block
+	mov	al,MCBTYPE_NONE
+	jmp	short sn1
+	DEFLBL	mcb_setenv,near
+	push	ax
+	push	bx
+	push	cx
+	push	dx
+	push	si
+	sub	si,si			; no name
+	mov	al,MCBTYPE_EBLK
+sn1:	push	es
 	push	ds
 	pop	es			; ES:SI -> name
 	mov	bx,dx			; BX = owner
-	mov	cx,dx
 	mov	dx,-1			; DX:CX = block
-	mov	ax,(CPU_SETBLK SHL 8) OR MCBTYPE_NONE
+	mov	ah,CPU_SETBLK
 	call	far ptr DDINT_CPU
 	pop	es
+	pop	si
 	pop	dx
 	pop	cx
 	pop	bx

@@ -2281,6 +2281,16 @@ export default class PC extends PCJSLib {
             }
         }
 
+        /**
+         * The BASIC-DOS boot message names the boot media, so as SYS and FORMAT do, replace the diskette message
+         * with the hard disk message (both are 20 characters, since the diskette message starts with a CR) when
+         * building a hard disk.
+         */
+        if (this.systemType == "bd" && !this.floppy) {
+            let off = dbBoot.toString("latin1").indexOf("\rDiskette loading...");
+            if (off >= 0) dbBoot.write("Hard disk loading...", off, 20);
+        }
+
         let pc = this;
         driveInfo.driveManifest = null;
 

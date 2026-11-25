@@ -15,7 +15,7 @@ machines:
       B: "PC DOS 1.00"
 ---
 
-The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memory, a Monochrome Display, two diskette drives, and a 20Mb hard disk.  It boots the BASIC-DOS HD Real Mode diskette and runs a single 80-column console, which starts on drive C:, the hard disk, with the BASIC-DOS source code, tests, and tools.  The boot sector first displays `System starting...`; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  The PC XT has no clock to keep the date and time, so PCjs supplies them at startup.
+The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memory, a Monochrome Display, two diskette drives, and a 20Mb hard disk.  It boots the BASIC-DOS HD Real Mode diskette and runs a single 80-column console, which starts on drive C:, the hard disk, with the BASIC-DOS source code, tests, and tools.  The boot sector first displays `Diskette loading...`; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  The PC XT has no clock to keep the date and time, so PCjs supplies them at startup.
 
 {% include machine.html id="ibm5160" %}
 

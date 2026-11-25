@@ -29,8 +29,8 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<mem_alias,mem_pmode,load_ne,r3_start,r3_resume>
 	EXTNEAR	<r3_setldt,r3_endvec,r3_share,get_scb,mcb_findsize>
 	EXTNEAR	<dos_check,dos_leave,dos_leave2,dos_ctrlc,dos_error>
-	EXTNEAR	<mcb_setname,scb_getnum,scb_release,scb_close,scb_yield>
-	EXTNEAR	<msc_sigctrlc,msc_retctrlc,scb_abort>
+	EXTNEAR	<mcb_setname,mcb_setenv,scb_getnum,scb_release,scb_close>
+	EXTNEAR	<msc_sigctrlc,msc_retctrlc,scb_abort,scb_yield>
 	EXTWORD	<ivt_save>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -267,11 +267,8 @@ ENDPROC	psp_copy
 ;
 ; psp_exec (REG_AX = 4Bh)
 ;
-; NOTE: If REG_BX = -1, then load_command is used instead of load_program.
-;
-; Unlike PC DOS, the environment isn't copied; the new PSP simply refers to
-; the caller's environment (EPB_ENVSEG), or if that's zero, to the parent's
-; environment (see load_args).
+; As in PC DOS, the new program gets a copy of the caller's environment
+; (EPB_ENVSEG), or if that's zero, of the parent's (see load_program).
 ;
 ; Inputs:
 ;	REG_AL = subfunction
@@ -280,7 +277,7 @@ ENDPROC	psp_copy
 ;		2: start program
 ;		6: load program w/o starting (BASIC-DOS only; see REG_CH)
 ;	REG_ES:REG_BX -> Exec Parameter Block (EPB)
-;	REG_DS:REG_DX -> program name or command line
+;	REG_DS:REG_DX -> program name
 ;	REG_CH = number of programs the caller will load next (eg, the rest
 ;	of a pipeline), for subfunction 6 only (see load_program)
 ;
@@ -310,27 +307,10 @@ px0:	mov	[load_reserve],cx
 
 	mov	ds,[bp].REG_DS
 	ASSUME	DS:NOTHING
-	mov	si,dx			; DS:SI -> program/command (from DS:DX)
-	inc	bx			; BX = -1?
-	jnz	px3			; no
-;
-; No EPB was provided, so treat DS:SI as a command line.
-;
-	call	load_command		; load the program and parse the tail
-	jc	pxx			; AX should contain an error code
-;
-; This was a DOS_PSP_EXEC call, and unlike scb_load, it's a synchronous
-; operation, meaning we launch the program directly from this call.
-;
-px1:	cmp	cs:[prog_user],0	; ring 3 programs?
-	je	px1a			; no
-	jmp	r3_start		; (which may start it at ring 3)
-px1a:	cli
-	mov	ss,dx			; switch to the new program's stack
-	mov	sp,ax
-	jmp	dos_leave		; and let dos_leave turn interrupts on
-
-px3:	dec	bx			; restore BX pointer to EPB
+	mov	si,dx			; DS:SI -> program (from DS:DX)
+	mov	es,[bp].REG_ES
+	mov	bx,[bp].REG_BX		; ES:BX -> EPB
+	mov	ax,es:[bx].EPB_ENVSEG	; AX = environment to copy
 	call	load_program		; load the program
 	ASSUME	ES:NOTHING
 	jc	pxx			; AX should contain an error code
@@ -341,7 +321,7 @@ px3:	dec	bx			; restore BX pointer to EPB
 	mov	bx,[bp].REG_BX		; DS:BX -> EPB (from ES:BX)
 	call	load_args		; DX:AX -> new stack
 	cmp	byte ptr [bp].REG_AL,0	; was AL zero?
-	je	px1			; no
+	je	px3			; yes, so start the program
 ;
 ; This is a DOS_PSP_EXEC1 call: an undocumented call that only loads the
 ; program, fills in the undocumented EPB_INIT_SP and EPB_INIT_IP fields,
@@ -356,7 +336,7 @@ px3:	dec	bx			; restore BX pointer to EPB
 ; new stack is supposed to contain only the initial value for REG_AX, which
 ; we take care of below.
 ;
-px4:	push	ds
+	push	ds
 	mov	ds,cs:[dos_data]
 	ASSUME	DS:DOS
 	mov	[load_user],0		; (see mem_alias)
@@ -377,6 +357,17 @@ px4:	push	ds
 	mov	[bx].EPB_INIT_IP._SEG,es; return the program's CS:IP
 	clc
 	ret
+;
+; This was a DOS_PSP_EXEC call, and unlike scb_load, it's a synchronous
+; operation, meaning we launch the program directly from this call.
+;
+px3:	cmp	cs:[prog_user],0	; ring 3 programs?
+	je	px3a			; no
+	jmp	r3_start		; (which may start it at ring 3)
+px3a:	cli
+	mov	ss,dx			; switch to the new program's stack
+	mov	sp,ax
+	jmp	dos_leave		; and let dos_leave turn interrupts on
 pxx:	jmp	short px9
 ;
 ; This is a DOS_PSP_EXEC2 "start" request.  ES:BX must point to a previously
@@ -425,7 +416,7 @@ px7:	xchg	ax,si			; DX:AX -> REG_FRAME
 	IF REG_CHECK
 	sub	ax,REG_CHECK
 	ENDIF
-	jmp	px1
+	jmp	px3
 
 px9:	mov	[bp].REG_AX,ax		; return any error code in REG_AX
 	mov	ds,cs:[dos_data]
@@ -623,6 +614,7 @@ lc1:	lodsb
 	push	bx
 	push	ds
 	push	si
+	sub	ax,ax			; copy the caller's environment
 	call	load_program		; DS:SI -> program name
 	pop	si
 	pop	ds
@@ -673,9 +665,8 @@ ENDPROC	load_command
 ; doesn't bother, because it knows load_args will copy only the specified
 ; number of tail characters and then output CHR_RETURN.
 ;
-; The new PSP's environment is EPB_ENVSEG, or if that's zero, the parent's
-; environment (if any), which, since the parent outlives the new program,
-; can be shared instead of copied.
+; load_program has already given the new PSP its environment (a copy of
+; EPB_ENVSEG's), so EPB_ENVSEG is ignored here.
 ;
 ; Inputs:
 ;	DS:BX -> EPB
@@ -697,17 +688,6 @@ DEFPROC	load_args,DOS
 	push	si
 	call	get_psp
 	mov	es,ax			; ES -> PSP
-
-	push	ds
-	mov	ax,[bx].EPB_ENVSEG
-	test	ax,ax			; environment specified?
-	jnz	la0			; yes
-	or	ax,es:[PSP_PARENT]	; no, so is there a parent?
-	jz	la0			; no
-	mov	ds,ax
-	mov	ax,ds:[PSP_ENVSEG]	; AX = parent's environment
-la0:	mov	es:[PSP_ENVSEG],ax
-	pop	ds
 	push	ds			; DS:BX -> EPB again
 	mov	di,PSP_FCB1		; ES:DI -> PSP_FCB1
 ;
@@ -759,6 +739,7 @@ ENDPROC	load_args
 ; load_program
 ;
 ; Inputs:
+;	AX = environment to copy (zero for the caller's, if any)
 ;	DS:SI -> name of program
 ;
 ; Outputs:
@@ -787,7 +768,53 @@ DEFPROC	load_program,DOS
 	ASSUME	ES:DOS
 	LOCK_SCB
 	ASSUME	ES:NOTHING
-	mov	bx,0FFFFh		; alloc a PSP segment
+;
+; As PC DOS does, give the program a copy of its environment (AX, or if that's
+; zero, the caller's), since a program may resize or free its environment (eg,
+; a bound OS/2 program's DOS stub does), and the caller's may not even be a
+; block of its own (eg, CL386 builds one in its data segment).  The copy goes
+; at the top of memory, out of the program's way, and the new PSP owns it (see
+; lp1); DI = its segment, or zero if there's no environment.
+;
+	sub	di,di			; DI = 0 (no environment)
+	test	ax,ax			; environment specified?
+	jnz	lpe1			; yes
+	call	get_psp			; no, so the caller's
+	jz	lpe9			; there's no caller
+	mov	es,ax
+	mov	ax,es:[PSP_ENVSEG]
+	test	ax,ax			; does the caller have one?
+	jz	lpe9			; no
+lpe1:	mov	es,ax			; ES:DI -> environment
+	mov	cx,8000h		; (an environment can be up to 32K)
+	mov	al,0
+lpe2:	scasb				; the empty string (its end)?
+	je	lpe4			; yes, so DI = its length
+	repne	scasb			; no, so skip the rest of the string
+	je	lpe2
+	mov	ax,ERR_BADFORMAT	; there's no end within 32K
+	stc
+lpe3:	jmp	lp9
+lpe4:	mov	bx,di
+	add	bx,15
+	mov	cl,4
+	shr	bx,cl			; BX = paras
+	mov	ax,(DOS_MEM_ALLOC SHL 8) OR MCBTYPE_EBLK OR MCBTYPE_HIGH
+	int	21h			; AX = segment for the copy
+	jc	lpe3
+	mov	cx,di			; CX = length
+	push	ds
+	push	si
+	push	es
+	pop	ds
+	sub	si,si			; DS:SI -> environment
+	mov	es,ax
+	sub	di,di			; ES:DI -> copy
+	rep	movsb
+	xchg	di,ax			; DI = the copy's segment
+	pop	si
+	pop	ds			; DS:SI -> name of program again
+lpe9:	mov	bx,0FFFFh		; alloc a PSP segment
 	mov	ax,DOS_MEM_ALLOC SHL 8	; with the largest size possible,
 	int	21h			; or failing that, get max paras avail
 	jnc	lp1			; (a block that big may be free)
@@ -796,12 +823,26 @@ DEFPROC	load_program,DOS
 	mov	ax,DOS_MEM_ALLOC SHL 8	; BX = max paras avail
 	int	21h			; returns a new segment in AX
 	jnc	lp1
-lp0:	jmp	lp9			; abort
+lp0:	push	ax			; abort
+	mov	es,di
+	mov	ah,DOS_MEM_FREE		; free the environment's copy, if any
+	test	di,di
+	jz	lp0a
+	int	21h
+lp0a:	pop	ax			; AX = error code
+	stc
+	jmp	lp9
 
 lp1:	mov	[bp].TMP_DX,bx		; TMP_DX = size of segment (in paras)
 	xchg	dx,ax			; DX = segment for new PSP
 	mov	ah,DOS_PSP_CREATE
 	int	21h			; create new PSP at DX
+	mov	es,dx
+	mov	es:[PSP_ENVSEG],di	; its environment (or zero)
+	mov	cx,di
+	jcxz	lp1a
+	call	mcb_setenv		; which the new PSP owns
+lp1a:
 ;
 ; Let's update the PSP_STACK field in the current PSP before we switch to
 ; the new PSP, since we rely on it to gracefully return to the caller when

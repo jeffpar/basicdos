@@ -32,7 +32,7 @@ See [Protected-Mode Initialization](/docs/bdtech/mmu/#pminit) for more details.
 
 To set up the hard disk, type `FORMAT C: /S`: since the disk has no partition table, FORMAT offers to create one, with a single volume of up to 32Mb, and then formats the volume and copies the system files to it.  Then reset the machine and press **Esc** at the boot message to boot from the hard disk.  Changes to the hard disk are lost when you leave the page; use **Save HD** to download a copy as an IMG file.
 
-The boot sector first displays `System starting...`; press any key (or wait 2 seconds) to boot from the diskette.
+The boot sector first displays `Diskette loading...`; press any key (or wait 2 seconds) to boot from the diskette.
 
 Additional hardware options:
 

@@ -76,10 +76,35 @@ ho0:	call	pfh_alloc		; ES:DI = free handle entry (DX preserved)
 	call	dx			; open or create
 	pop	di			; restore handle entry
 	jc	ho9
-	call	pfh_set			; update handle entry
+ho8:	call	pfh_set			; update handle entry
 ho9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
 	ret
 ENDPROC	hdl_open
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; hdl_dup (REG_AH = 45h)
+;
+; The new handle is another reference to the same SFB, so the file stays open
+; until the last of its handles is closed (see sfb_close).
+;
+; Inputs:
+;	REG_BX = PFH (Process File Handle)
+;
+; Outputs:
+;	On success, carry clear, REG_AX = new PFH (or SFH if no active PSP)
+;	On failure, carry set, REG_AX = error code
+;
+DEFPROC	hdl_dup,DOS
+	call	pfh_alloc		; ES:DI = free handle entry
+	ASSUME	ES:NOTHING
+	jc	ho9
+	mov	bx,[bp].REG_BX		; BX = Process File Handle
+	call	sfb_get			; BX -> SFB
+	jc	ho9
+	inc	[bx].SFB_REFS		; add the new handle's reference
+	jmp	ho8
+ENDPROC	hdl_dup
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

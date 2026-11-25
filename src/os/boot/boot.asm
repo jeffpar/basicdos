@@ -399,10 +399,15 @@ ENDPROC	find_dirent
 ; can't be 0, since the wait loop looks for an exact match, and a tick arriving
 ; first would make it wait 256 ticks.
 ;
+; The message names the boot media: SYS and FORMAT replace it with "Hard disk
+; loading..." on a hard disk (as does pc.js), so the diskette message starts
+; with a CR (which does nothing, since the CR,LF before it leaves the cursor
+; in column 0), and both are 20 characters.
+;
 product		db	"BASIC-DOS "
 		VERSION_STR
 		db	13,10
-message		db	"System starting...",0
+message		db	13,"Diskette loading...",0
 		db	TWAIT * 182 / 10
 crlf		db	13,10,0
 errmsg1		db	"System boot error, halted",0
@@ -419,6 +424,10 @@ errmsg2		db	"System file(s) missing, halted",0
 ; 255-byte record.
 ;
 	ASSERT	<offset message - 6 - offset start>,GE,255
+;
+; SYS, FORMAT, and pc.js replace the message's 20 characters.
+;
+	ASSERT	<offset crlf - offset message>,EQ,22
 
 	org 	BOOT_SECTOR_LO + 510
 	dw	0AA55h

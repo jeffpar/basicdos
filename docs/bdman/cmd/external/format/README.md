@@ -47,7 +47,7 @@ A write-protected diskette, an empty drive, or a track that can't be formatted (
 
 For a hard disk drive, FORMAT first displays the disk's geometry and partition table (each partition's type, starting sector, size, and drive letter, if it's a FAT volume).
 
-If the disk has FAT volumes, FORMAT formats the drive named on the command line (or if that drive is the whole disk, asks which volume to format), after a warning that all data on the drive will be lost.  If the disk has no FAT volumes, there's nothing to format, which FORMAT reports.
+If the disk has FAT volumes, FORMAT formats the drive named on the command line (or if that drive is the whole disk, asks which volume to format), after a warning that all data on the drive will be lost.  The volume's boot sector displays `Hard disk loading...` instead of a diskette's `Diskette loading...` (see [Starting BASIC-DOS](../../../intro/#starting-basic-dos)).  If the disk has no FAT volumes, there's nothing to format, which FORMAT reports.
 
 If the disk has no partition table (eg, a new hard disk, which BASIC-DOS gives a drive letter anyway, with "unknown media"), FORMAT offers to create one, with a single volume (starting at the second track and ending at a cylinder boundary) of the size you choose in Mb, up to 32Mb (65535 sectors) or the size of the disk; it then writes a master boot record (with the hard disk driver's boot code) and formats the new volume.
 

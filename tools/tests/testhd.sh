@@ -10,7 +10,7 @@
 # COM1 (pc.js's --serial), so the session runs in this terminal.  The hard disk is formatted by MS-DOS 3.20
 # (so it also contains MS-DOS system files, and a DOS subdirectory).
 #
-# After the "System starting..." message, BASIC-DOS boots from the diskette (since this terminal's keys go
+# After the "Diskette loading..." message, BASIC-DOS boots from the diskette (since this terminal's keys go
 # to COM1, there's no way to press ESC there to boot MS-DOS from the hard disk instead).  Changes to the hard
 # disk are NOT saved back to the directory.
 #

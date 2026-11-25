@@ -57,6 +57,12 @@
 	GET #1, 1 : T$ = R$
 	CLOSE #1
 	IF CVI(MID$(T$, 12, 2)) <> 512 OR ASC(MID$(T$, 22)) < &HF0 THEN GOTO 910
+	' The 20-character boot message after the CR,LF (or 0,1) names D$'s
+	' media, so a hard disk volume (media ID F8h) gets the hard disk message
+	' (the diskette message starts with a CR, to make it 20 characters, too)
+	M$ = CHR$(13) + "Diskette loading..."
+	IF ASC(MID$(T$, 22)) = &HF8 THEN M$ = "Hard disk loading..."
+	MID$(B2$, P + LEN(K$) + 2) = M$
 	' Copy each system file (first clearing the attributes of any copy that's
 	' already there, so it can be replaced), and set its attributes (DOS
 	' function &H4301: 1 = read-only, 2 = hidden, 4 = system)

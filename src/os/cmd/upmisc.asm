@@ -19,7 +19,6 @@
 	GFXDEFS equ 1
 	include	cmd.inc
 	include	str.inc
-	include	8086.inc
 
 CODE	SEGMENT
 

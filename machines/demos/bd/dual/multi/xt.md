@@ -14,7 +14,7 @@ machines:
       A: "BASIC-DOS Multi-Console"
 ---
 
-The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memory, two monitors (a Monochrome Display and a Color Display), two diskette drives, and a 20Mb hard disk.  It boots the BASIC-DOS Multi-Console diskette and runs FOUR consoles, two on each monitor.  The boot sector first displays `System starting...` on the Monochrome Display; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  The PC XT has no clock to keep the date and time, so PCjs supplies them at startup.
+The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memory, two monitors (a Monochrome Display and a Color Display), two diskette drives, and a 20Mb hard disk.  It boots the BASIC-DOS Multi-Console diskette and runs FOUR consoles, two on each monitor.  The boot sector first displays `Diskette loading...` on the Monochrome Display; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  The PC XT has no clock to keep the date and time, so PCjs supplies them at startup.
 
 {% include machine.html id="ibm5160" %}
 

@@ -127,6 +127,13 @@
 	P$ = P$ + MKI$(N) + CHR$(M) + MKI$(F) + MKI$(T) + MKI$(H) + MKL$(HS) + MKL$(0)
 	P$ = P$ + CHR$(0) + MKI$(H * T) + MKI$(1 + 2 * F) + MKI$(B)
 	B1$ = LEFT$(B1$, 3) + P$ + MID$(B1$, 44)
+	' The boot message (either of these 20-character strings, since the
+	' diskette message starts with a CR) names the volume's media, so a hard
+	' disk volume (media ID F8h) gets J$
+	G$ = CHR$(13) + "Diskette loading..." : J$ = "Hard disk loading..."
+	J = INSTR(B2$, G$) + INSTR(B2$, J$)
+	IF M = &HF8 THEN G$ = J$
+	IF J THEN B2$ = LEFT$(B2$, J - 1) + G$ + MID$(B2$, J + 20)
 	IOCTL #1, &HF1, P$
 	RETURN
 60	' Wait for a key (in A$), discarding any keys already typed

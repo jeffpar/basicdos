@@ -23,9 +23,7 @@
 	DOSPSP equ 1
 	DOSFUNC equ 1
 	include	macros.inc
-	include	8086.inc
 	include	bios.inc
-	include	devapi.inc
 	include	dos.inc
 	include	dosapi.inc
 	include	cpu.inc
@@ -702,10 +700,11 @@ ENDPROC	r3_pspset
 ; r3_exec (REG_AH = 4Bh)
 ;
 ; With ring 3 programs, set_fault puts this in FUNCTBL, in place of psp_exec.
-; The pointers in a ring 3 caller's EPB aren't in segment registers, so the
-; processor hasn't checked them, and they could be anything the kernel can use,
-; so they all get RPL 3, which keeps the kernel from using a ring 0 selector
-; (if one of them is otherwise invalid, it's just a fault; see r3_end).
+; The pointers in a ring 3 caller's EPB (and its environment, which
+; load_program copies) aren't in segment registers, so the processor hasn't
+; checked them, and they could be anything the kernel can use, so they all get
+; RPL 3, which keeps the kernel from using a ring 0 selector (if one of them
+; is otherwise invalid, it's just a fault; see r3_end).
 ;
 ; An EXEC2 must start a program that was loaded and hasn't started, and its
 ; initial stack and address must be usable, since we write the one and return
@@ -754,7 +753,10 @@ xe0:	call	get_psp
 	or	byte ptr [si].EPB_FCB2._SEG,ah
 	or	byte ptr [si].EPB_INIT_SP._SEG,ah
 	or	byte ptr [si].EPB_INIT_IP._SEG,ah
-	cmp	al,DOS_PSP_EXEC2 AND 0FFh
+	cmp	[si].EPB_ENVSEG,0	; an environment to copy?
+	je	xe5			; no (zero means the caller's)
+	or	byte ptr [si].EPB_ENVSEG,ah
+xe5:	cmp	al,DOS_PSP_EXEC2 AND 0FFh
 	jne	xe6			; not an EXEC2
 	push	ds
 	mov	ds,cs:[dos_data]

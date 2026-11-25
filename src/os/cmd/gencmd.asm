@@ -48,7 +48,6 @@
 ;					line first; see genMore), outside the
 ;					core
 ;
-	DOSFUNC equ 1
 	GFXDEFS equ 1
 	include	cmd.inc
 	include	gen.inc
