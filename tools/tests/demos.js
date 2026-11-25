@@ -46,10 +46,13 @@ const DONKEY = /Press space bar to continue/;
  *      pm          true if the demo runs in protected mode (and with paging, on the 386), or false if it
  *                  runs in real mode (default: true on an AT or 386, which run protected mode unless a
  *                  demo's CONFIG.SYS has CPU=8088, and unchecked elsewhere)
+ *      claude      true if the page connects COM2 to Claude (see _includes/claude.html); the page is opened
+ *                  with #claudeecho, so that the gateway answers CLAUDE with the question itself (no API key),
+ *                  and CLAUDE is typed on the keyboard's console, or if there isn't one, on the first com console
  */
 const DEMOS = {
     'm64':          () => ({}),
-    'term':         (hw) => ({ screen: [], keys: false, com: hw == 'at' ? [1, 2] : [1] }),
+    'term':         (hw) => ({ screen: [], keys: false, com: hw == 'at' ? [1, 2] : [1], claude: hw == 'xt' }),
     's80':          () => ({ screen: [HELLO] }),
     'd40':          () => ({ screen: [HELLO, DIR] }),
     'd80':          () => ({ screen: [HELLO, />[^>]*>/] }),
@@ -60,7 +63,7 @@ const DEMOS = {
     'debug':        () => ({ screen: [HELLO], debug: 2 }),
     'serial':       () => ({ screen: [HELLO], com: [1] }),
     'parallel':     () => ({ screen: [HELLO] }),
-    'hd':           () => ({ screen: [HELLO] }),
+    'hd':           () => ({ screen: [HELLO], claude: true }),
     'vt100':        () => ({ screen: [HELLO], com: [1] }),
     'wolf3d':       () => ({ screen: [], keys: false, graphics: true, pm: false }),
     'mmu':          () => ({ screen: [HELLO, FIBO, PRIMES], pm: true }),
@@ -70,9 +73,11 @@ const DEMOS = {
 
 /**
  * The command typed on every console, and the answer it should display (the command has
- * no shifted characters, which are the ones most likely to be mistyped by key injection).
+ * no shifted characters, which are the ones most likely to be mistyped by key injection), and
+ * the question asked on a claude demo, whose answer (with #claudeecho) repeats the question.
  */
 const COMMAND = 'print 61000-4912\r', ANSWER = /56088/;
+const QUESTION = 'claude zebra quokka\r', ECHO = /zebra quokka[^]*zebra quokka/;
 
 /**
  * Runs in each page: records what the PC sends to its serial ports, and provides the
@@ -240,7 +245,7 @@ async function runDemo(demo)
     const spec = DEMOS[demo.key]?.(demo.hw);
     if (!spec) return { failures: [`no entry for "${demo.key}" in the DEMOS table`], seconds: 0 };
     const start = Date.now(), failures = [];
-    const page = await openPage(`${opts.url}/machines/demos/${demo.path}`);
+    const page = await openPage(`${opts.url}/machines/demos/${demo.path}${spec.claude? '#claudeecho' : ''}`);
     let state = null;
     const strip = (s) => (s || '').replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '');
     const getState = async () => {
@@ -321,6 +326,13 @@ async function runDemo(demo)
                 await page.evaluate(`__dx.send(${n}, ${JSON.stringify(COMMAND)})`);
                 if ((await waitFor([{ test: (s) => ANSWER.test(s.com[n]) }], 45)).length) {
                     failures.push(`no answer to a command sent to COM${n}`);
+                }
+            }
+            if (spec.claude) {
+                const n = keys? 0 : spec.com[0], q = JSON.stringify(QUESTION);
+                await page.evaluate(n? `__dx.send(${n}, ${q})` : `__dx.type(${q})`);
+                if ((await waitFor([{ test: (s) => ECHO.test(n? s.com[n] : s.screen) }], 60)).length) {
+                    failures.push('no answer from CLAUDE');
                 }
             }
             const cycles = state.cycles;

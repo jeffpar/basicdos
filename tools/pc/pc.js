@@ -60,6 +60,7 @@ export default class PC extends PCJSLib {
     bootSector = "";
     bootSelect = "";
     serial = false;             // true if --serial specified
+    com2 = "";                  // host program to connect to COM2 (from --com2)
     speed = 0;                  // CPU speed multiplier from --speed (0 to use the machine's own setting)
     fpu = false;                // true if --fpu specified (install an 8087)
     kbRAM = 0;                  // RAM size (in Kb) from --ram (0 to use the machine's own setting)
@@ -544,6 +545,13 @@ export default class PC extends PCJSLib {
                         }
                     }
                 }
+            }
+
+            /**
+             * Connect COM2 to a host program if --com2 was specified.
+             */
+            if (this.com2) {
+                this.connectPort(Component, 2, this.com2);
             }
 
             /**
@@ -1047,6 +1055,50 @@ export default class PC extends PCJSLib {
         }
         printf(s);
         this.useSerial = true;
+    }
+
+    /**
+     * connectPort(Component, adapter, command)
+     *
+     * Connects a serial port (eg, adapter 2 for COM2) to a host program (eg, --com2="node tools/claude/gateway.js"):
+     * bytes the machine sends to the port go to the program's standard input, and the program's standard output
+     * goes to the port.  The program is started only once, so if the machine is reloaded, the new machine's port
+     * is connected to the same program.
+     *
+     * @this {PC}
+     * @param {Object} Component
+     * @param {number} adapter
+     * @param {string} command
+     */
+    connectPort(Component, adapter, command)
+    {
+        let port = null;
+        while ((port = Component.getComponentByType("SerialPort", undefined, port)) && port.iAdapter != adapter);
+        if (!port) {
+            printf("COM%d not found\n", adapter);
+            return;
+        }
+        let pc = this;
+        if (!this.portProgram) {
+            this.portProgram = node.child_process.spawn(command, {shell: true, stdio: ["pipe", "pipe", "inherit"]});
+            this.portProgram.stdin.on("error", function() {});
+            this.portProgram.stdout.on("data", function(data) {
+                if (pc.portTarget) pc.portTarget['exports']['receiveData'].call(pc.portTarget, Array.from(data));
+            });
+            this.portProgram.on("exit", function(code) {
+                printf("COM%d program ended (%d)\n", adapter, code);
+                pc.portProgram = null;
+            });
+        }
+        let fnSend = function(b) {
+            if (pc.portProgram) pc.portProgram.stdin.write(Buffer.from([b]));
+            return true;
+        };
+        if (!port['exports']['bind'].call(port, this, fnSend)) {
+            printf("COM%d is already connected\n", adapter);
+            return;
+        }
+        this.portTarget = port;
     }
 
     /**
@@ -3718,6 +3770,7 @@ export default class PC extends PCJSLib {
             this.bootSector = boot;
         }
         this.serial = PC.removeFlag(argv, 'serial', defaults['serial'] || this.serial);
+        this.com2 = PC.removeArg(argv, 'com2', defaults['com2'] || this.com2);
         if (checkRemaining) {
             this.checkRemainingArgs(argv);
         }
@@ -4136,6 +4189,7 @@ export default class PC extends PCJSLib {
             let optionsMain = {
                 "--boot=[drive]":           "\tselect boot drive (A, C, or none)",
                 "--commands[=...]":         "execute commands, separated by semicolons",
+                "--com2=[command]":         "connect COM2 to a program's input and output",
                 "--select=[machine]":       "select machine configuration file",
                 "--speed=[multiplier]":     "set CPU speed multiplier (eg, 4 for 4x)",
                 "--ram=[nK]":               "\tset RAM size in 16K steps, or 64K on a PC AT (eg, 640K or 2M)",

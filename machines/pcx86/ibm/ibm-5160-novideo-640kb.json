@@ -1,10 +1,10 @@
 {
-  "name": "IBM PC XT, 640Kb RAM, 20Mb Hard Disk, COM1, No Video",
+  "name": "IBM PC XT, 640Kb RAM, 20Mb Hard Disk, COM1, COM2, No Video",
   "defaults": {
     "ram": "640K",
     "fpu": "None",
     "fdc": "2 diskette drives",
-    "serial": "COM1",
+    "serial": "COM1, COM2",
     "hdc": "20Mb hard disk"
   },
   "machine": {
@@ -49,6 +49,11 @@
       "id": "com1",
       "class": "serial",
       "adapter": 1
+    },
+    {
+      "id": "com2",
+      "class": "serial",
+      "adapter": 2
     },
     {
       "id": "fdcNEC",

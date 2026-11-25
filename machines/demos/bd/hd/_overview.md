@@ -10,6 +10,8 @@ The hard disk has the system files and CONFIG.SYS in the root directory, along w
 
 CONFIG.SYS sets PATH$ to `C:\;C:\EXT\CMD;C:\EXT\BAS;C:\DEMOS;C:\TOOLS\BIN`, so programs in those directories can be run from anywhere, and the session's SHELL line runs `HELLO.BAT` to display a colorful greeting.
 
+Type `CLAUDE` to ask Claude questions; the page asks for your Claude API key, or you can add it to the page's address as `#claudekey=` followed by the key (see [CLAUDE](/docs/bdman/cmd/external/claude/)).
+
 Any changes you make to the hard disk are lost when you leave the page, unless you first click **Save HD** to download the hard disk as an IMG file.
 
 ### **CONFIG.SYS** from the BASICDOS-20MB Hard Disk

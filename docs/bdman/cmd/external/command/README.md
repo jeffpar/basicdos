@@ -41,4 +41,4 @@ The [MEM](../../system/#mem) command includes the transient portion in its total
 
 If there isn't enough memory to load a program, COMMAND.COM displays `Not enough memory`.  At the prompt, it first frees all variables, arrays, and user-defined functions (much as [CLEAR](../../basic/#clear) does) and tries again; a loaded program stays loaded, but any values it left behind (or that were set at the prompt) are gone.  That doesn't happen while a BAT or BAS file is running, since it needs its variables.  A program that can't be loaded for any other reason (eg, a file that isn't a program BASIC-DOS can run) is reported as `Unable to load` and its name.
 
-{% include footer.html prev="CHKDSK:../chkdsk/" next="COMP:../comp/" %}
+{% include footer.html prev="CLAUDE:../claude/" next="COMP:../comp/" %}

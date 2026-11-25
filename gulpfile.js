@@ -162,6 +162,11 @@ const toolFiles = (dir) => globSync(SRC + "/tools/" + dir + "/*").sort().filter(
 // the tests are on the TESTS diskette.
 //
 const distFolders = { "EXT/CMD": manifest["EXT/CMD"], "EXT/BAS": manifest["EXT/BAS"], "EXT/DLL": manifest["EXT/DLL"], DEMOS: manifest.DEMOS };
+//
+// The demo diskettes (every diskette except the distribution diskette) leave out CLAUDE.BAS, which needs a gateway
+// on COM2 that the demo pages don't have, so that they have room for everything else.
+//
+const demoFolders = { ...distFolders, "EXT/BAS": manifest["EXT/BAS"].filter(file => !/(^|\/)CLAUDE\.BAS$/i.test(file)) };
 const testFiles = [].concat(manifest.TESTS, manifest["TESTS/REGRESS"], manifest["TESTS/MISC"]);
 function diskFolders(disk)
 {
@@ -173,7 +178,7 @@ function diskFolders(disk)
         if (!file) throw new Error("test file " + name + " isn't in the manifest");
         if (!tests.includes(file)) tests.push(file);
     }
-    return { ...distFolders, TESTS: tests };
+    return { ...demoFolders, TESTS: tests };
 }
 /**
  * diskFiles(diskName, fileSpecs)
@@ -216,10 +221,10 @@ let disks = {
     "BASICDOS-360K-VT100": { config: "./machines/demos/bd/vt100/CONFIG.SYS", title: "BASIC-DOS HD VT100" },
     "BASICDOS-360K-DEBUG": { config: "./machines/demos/bd/debug/CONFIG.SYS", title: "BASIC-DOS Serial Debugger" },
     "BASICDOS-360K-MOUSE": { config: "./machines/demos/bd/mouse/CONFIG.SYS", title: "BASIC-DOS Mouse" },
-    "BASICDOS-360K-M64": { config: "./machines/demos/bd/m64/CONFIG.SYS", title: "BASIC-DOS Monochrome", final: true, folders: distFolders },
+    "BASICDOS-360K-M64": { config: "./machines/demos/bd/m64/CONFIG.SYS", title: "BASIC-DOS Monochrome", final: true, folders: demoFolders },
     "BASICDOS-360K-REAL": { config: "./machines/demos/bd/m64/hd/CONFIG.SYS", title: "BASIC-DOS HD Real Mode" },
     "BASICDOS-360K-WOLF3D": { config: "./machines/demos/bd/wolf3d/CONFIG.SYS", title: "BASIC-DOS Wolf3D" },
-    "BASICDOS-360K-TERM": { config: "./machines/demos/bd/term/CONFIG.SYS", title: "BASIC-DOS Terminal", final: true, folders: distFolders },
+    "BASICDOS-360K-TERM": { config: "./machines/demos/bd/term/CONFIG.SYS", title: "BASIC-DOS Terminal", final: true, folders: demoFolders },
     "BASICDOS-360K-TERMHD": { config: "./machines/demos/bd/term/hd/CONFIG.SYS", title: "BASIC-DOS HD Terminal" },
     "BASICDOS-360K-TERM2": { config: "./machines/demos/bd/term/dual/CONFIG.SYS", title: "BASIC-DOS HD Multi-Terminal" },
     "BASICDOS-360K-MMU": { config: "./machines/demos/bd/mmu/vt100/CONFIG.SYS", title: "BASIC-DOS Extended Memory VT100" },

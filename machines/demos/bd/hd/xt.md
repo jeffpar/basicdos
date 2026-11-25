@@ -15,6 +15,7 @@ machines:
 The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memory, an Enhanced Color Display, two diskette drives, and a 20Mb hard disk.  It has no diskettes loaded; instead, it boots BASIC-DOS from its hard disk (drive C:) and runs one full-screen 80x25 console.  The PC XT has no clock to keep the date and time, so PCjs supplies them at startup.
 
 {% include machine.html id="ibm5160" %}
+{% include claude.html id="ibm5160" %}
 
 Any changes you make to the hard disk are lost when you leave the page, unless you first click **Save HD** to download the hard disk as an IMG file.
 

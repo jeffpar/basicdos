@@ -13,3 +13,4 @@ machines:
 ---
 
 {% include machine.html id="ibm5170" %}
+{% include claude.html id="ibm5170" %}

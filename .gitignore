@@ -9,6 +9,7 @@ bin/
 obj/
 tmp/
 package-lock.json
+private.md
 /_site
 /node_modules
 /tools/pc/disks/

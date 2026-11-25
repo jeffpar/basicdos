@@ -23,11 +23,14 @@ machines:
       A: "BASIC-DOS HD Terminal"
 ---
 
-The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memory, two diskette drives, a 20Mb hard disk, a serial port, and no video adapter: its only display is a DEC VT100 terminal connected to COM1 at 9600 baud.  It boots the BASIC-DOS HD Terminal diskette and runs a single console on the VT100, which starts on drive C:, the hard disk, with the BASIC-DOS source code, tests, and tools.
+The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memory, two diskette drives, a 20Mb hard disk, two serial ports, and no video adapter: its only display is a DEC VT100 terminal connected to COM1 at 9600 baud.  It boots the BASIC-DOS HD Terminal diskette and runs a single console on the VT100, which starts on drive C:, the hard disk, with the BASIC-DOS source code, tests, and tools.
 
 {% include vt100-demo.html id="ibm5160" headless=true %}
+{% include claude.html id="ibm5160" %}
 
 Wait a few seconds for the BASIC-DOS banner to appear on the VT100 (with no display, the boot sector's `Diskette loading...` message isn't visible, so it waits 2 seconds before booting the diskette), then type a command, such as `DIR` or `PRINT "Hello from the VT100"` (the VT100 has keyboard focus when the page loads; click its screen to give it focus again).  The PC XT has no clock to keep the date and time, so PCjs supplies them at startup.  The PC has no screen of its own, so its diskette drive, hard disk, and Reset controls are below the VT100.
+
+Type `CLAUDE` to ask Claude questions; the page connects COM2 to Claude, and asks for your Claude API key, or you can add it to the page's address as `#claudekey=` followed by the key (see [CLAUDE](/docs/bdman/cmd/external/claude/)).
 
 Any changes you make to the hard disk are lost when you leave the page, unless you first click **Save HD** to download the hard disk as an IMG file.
 

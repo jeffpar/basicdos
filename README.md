@@ -202,6 +202,9 @@ Utilities live in the EXT directory of every BASIC-DOS disk: assembly language p
 - [x] MODE.BAS: display columns and color (MODE 40, 80, BW40, BW80, CO40, CO80, which always clear the display with the default colors, even if the mode is unchanged) and rows (eg, MODE CO80,43 on an EGA or VGA, or MODE CO80,50 on a VGA, which WIDTH 80,43 and WIDTH 80,50 do in BASIC, using the adapter's 8x8 font), serial ports (eg, MODE COM1:9600,N,8,1, which sets the port by opening it with those parameters and no input buffer), and printer columns and lines per inch (MODE LPT1:132,8)
 - [x] HELP.COM: HELP is an external command, which reads HELP.TXT from the EXT\\CMD directory of the drive COMMAND.COM was loaded from (normally the boot drive), so that COMMAND.COM's core is 963 bytes smaller and low memory systems have more room for BASIC programs; KEYS is now `HELP KEYS`
 - [x] [VI.COM](docs/bdman/cmd/external/vi/): a full-screen text editor with a subset of the commands of the UNIX *vi* editor (and WordStar keys with /WS), for VKD$ consoles and ANSI or VT100 serial consoles, and files of up to 64K
+- [x] [CLAUDE.BAS](docs/bdman/cmd/external/claude/): asks Claude a question (or with no question, prompts for one after another, each of any length), continuing the conversation unless /N starts a new one, through a gateway on COM2 ([tools/claude/gateway.js](tools/claude/gateway.js), which holds the API key and sends the answer in acknowledged chunks that fit the COM driver's input buffer, wrapped to the console in code page 437); pc.js's new --com2 option connects a machine's COM2 to it, and on a real PC, a null-modem cable and socat do
+- [x] CLAUDE on the 20Mb Drive demo pages and the PC XT Terminal page (whose no-video XT now has a COM2): the page is the gateway (assets/js/claude-gateway.js, which tools/claude/gateway.js shares), binding the machine's COM2 and calling the Claude API from the browser with the visitor's own key, taken from the URL fragment (#claudekey=..., removed from the address bar at once) or a prompt, and kept in sessionStorage; tools/tests/demos.js checks it with #claudeecho
+- [ ] CLAUDE tools: letting Claude run commands at the prompt (with confirmation)
 - [ ] Additional FORMAT features: adding volumes to a partitioned disk, verifying hard disk sectors, and marking bad clusters
 - [ ] Other PC DOS-inspired utilities possibly written in BASIC: DISKCOMP and PRINT (background printing, using a session), and CHKDSK /F (ASSIGN, BACKUP, EDLIN, JOIN, RESTORE, and SUBST are currently NOT under consideration for inclusion in BASIC-DOS)
 - [ ] Additional third-party tools (eg, PKZIP and PKUNZIP) added to the TOOLS directory
@@ -393,6 +396,8 @@ These are the next steps, roughly in priority order:
 5. 80386 sessions: the rest of the BIOS for V86.COM's V86 machine, and the rest of the DOS functions for 32-bit LE programs, and the OS/2 2.0 functions that the rest of the 386 C library calls (eg, DOS32OPEN for fopen)
 
 For BROGUE, the next steps are other elements and challenges (it now has only stones and bricks), rooms with 3 or 4 doors, and in multiplayer, removing a player whose BROGUE is stopped with CTRL-C (which sends no last message). See [BROGUE](src/demos/BROGUE.md) for the rules, multiplayer, and an example level.
+
+For CLAUDE, the next step is tools that let Claude run commands at the prompt, with confirmation before anything that changes a disk.
 
 For ATAXX, the next steps are a computer opponent that weighs more than pieces gained (eg, the holes a jump leaves), and boards with blocked cells.
 

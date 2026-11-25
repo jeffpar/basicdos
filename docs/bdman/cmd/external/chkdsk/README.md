@@ -52,4 +52,4 @@ ERRORLEVEL is set to 0 if CHKDSK checked the entire volume and found no problems
 
 Source: [CHKDSK.BAS](https://github.com/jeffpar/basicdos/blob/main/src/os/util/bas/CHKDSK.BAS)
 
-{% include footer.html prev="ATTRIB:../attrib/" next="COMMAND.COM:../command/" %}
+{% include footer.html prev="ATTRIB:../attrib/" next="CLAUDE:../claude/" %}

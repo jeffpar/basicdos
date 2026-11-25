@@ -74,6 +74,7 @@ src/os/cmd/HELP.TXT
 [EXT/BAS]
 src/os/util/bas/ATTRIB.BAS
 src/os/util/bas/CHKDSK.BAS
+src/os/util/bas/CLAUDE.BAS
 src/os/util/bas/COMP.BAS
 src/os/util/bas/DISKCOPY.BAS
 src/os/util/bas/FORMAT.BAS

@@ -36,6 +36,7 @@ These are the programs provided with BASIC-DOS, each of which has a page of its 
 
 - [ATTRIB.BAS](attrib/): displays or changes the attributes of files
 - [CHKDSK.BAS](chkdsk/): checks a drive's FAT and directories, and reports its space
+- [CLAUDE.BAS](claude/): asks Claude a question, through a gateway on COM2
 - [COMMAND.COM](command/): the BASIC-DOS Command Shell
 - [COMP.BAS](comp/): compares files
 - [DEBUG.COM](debug/): a debugger, which runs as a program or as a device driver

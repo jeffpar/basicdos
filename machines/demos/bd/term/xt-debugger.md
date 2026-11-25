@@ -24,3 +24,4 @@ machines:
 ---
 
 {% include vt100-demo.html id="ibm5160" headless=true %}
+{% include claude.html id="ibm5160" %}

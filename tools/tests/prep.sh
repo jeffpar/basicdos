@@ -41,13 +41,13 @@ files_regress=($(manifest TESTS/REGRESS))
 files_misc=($(manifest TESTS/MISC))
 #
 # A diskette configuration (whose PATH$ is on A:) leaves out the EXT/BAS utilities that work on entire volumes (CHKDSK,
-# DISKCOPY, FORMAT, LABEL, and SYS) or that no diskette test runs (ATTRIB, COMP, and MODE), and EXT/CMD's DEBUG.COM (the largest EXT program, which no diskette test uses), the DEMOS files (eg, DIR.BAS and PAINT.BAS), and the TESTS files that only run by
+# DISKCOPY, FORMAT, LABEL, and SYS) or that no diskette test runs (ATTRIB, CLAUDE, COMP, and MODE), and EXT/CMD's DEBUG.COM (the largest EXT program, which no diskette test uses), the DEMOS files (eg, DIR.BAS and PAINT.BAS), and the TESTS files that only run by
 # hand (BENCH.BAS, STRESS.BAT, GFXTESTS.BAS, and MICRO.BAS; bench.sh copies its own BENCH.BAS), which no diskette test
 # uses, to keep enough free space on a 360K test floppy for MOVES, FCBTESTS, and HARDERR; use the hd configuration for
 # them.  It also has only one of the EXT\DLL libraries, DOSCALLS.DLL (which DLLTESTS needs), since only LINK386 uses the others.
 #
 if grep -q 'PATH\$="A:' "$dir/CONFIG.SYS"; then
-    files_bas=($(printf '%s\n' "${files_bas[@]}" | grep -v -E '/(ATTRIB|CHKDSK|COMP|DISKCOPY|FORMAT|LABEL|MODE|SYS)\.BAS$'))
+    files_bas=($(printf '%s\n' "${files_bas[@]}" | grep -v -E '/(ATTRIB|CHKDSK|CLAUDE|COMP|DISKCOPY|FORMAT|LABEL|MODE|SYS)\.BAS$'))
     files_cmd=($(printf '%s\n' "${files_cmd[@]}" | grep -v '/DEBUG\.COM$'))
     files_dll=($(printf '%s\n' "${files_dll[@]}" | grep -E '/DOSCALLS\.DLL$'))
     files_tests=($(manifest TESTS | grep -v -E '/(BENCH\.BAS|STRESS\.BAT)$'))

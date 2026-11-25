@@ -1,0 +1,8 @@
+{%- comment -%}
+Connects COM2 of machine include.id to Claude, so that CLAUDE.BAS works on the page (see assets/js/claude-gateway.js):
+the visitor's API key comes from the URL fragment (#claudekey=...) or a prompt, and stays in the browser tab.
+{%- endcomment %}
+<script type="module">
+import { connectPage } from "{{ site.baseurl }}/assets/js/claude-gateway.js";
+connectPage("{{ include.id }}");
+</script>
