@@ -23,7 +23,7 @@ To see how to use any command, type [HELP](external/help/) followed by its name.
 
 ### Usage Errors
 
-A command given a switch it doesn't accept (eg, `DIR /Z` or `CD ../..`), or arguments that aren't valid, displays its usage, the first line of its HELP entry (eg, `Usage: DIR [filespec] [/A] [/S] [/W]`), and ERRORLEVEL is set to 1.  The usage is displayed once the command's own redirections are undone, so `DIR /Z > LIST.TXT` displays it on the screen.  An external command does the same by ending with exit code 80 (eg, a BAS file's `END 80`), which COMMAND.COM turns into its usage and ERRORLEVEL 1.
+A command given a switch it doesn't accept (eg, `DIR /Z` or `CD ../..`), or arguments that aren't valid, displays its usage: its HELP entry, starting with a `Usage:` line (eg, `Usage: DIR [filespec] [/A] [/S] [/W]`), as `HELP DIR` does, and ERRORLEVEL is set to 1.  The usage is displayed once the command's own redirections are undone, so `DIR /Z > LIST.TXT` displays it on the screen.  An external command does the same by ending with exit code 80 (eg, a BAS file's `END 80`), which COMMAND.COM turns into its usage and ERRORLEVEL 1.
 
 A usage error on a low memory system, which can't run HELP, displays `Syntax error` instead, as does a syntax error in the line itself (eg, `DIR >`, or an internal command after a pipe, like `VER | DIR`).  A command after the first in a pipeline (eg, `DIR | SORT /Z`) runs in a session of its own, so it displays `Usage error` itself.
 

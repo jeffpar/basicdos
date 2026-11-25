@@ -6,7 +6,7 @@ permalink: /docs/bdman/cmd/external/help/
 
 {% include header.html %}
 
-> HELP [[/U] *keyword*\|ALL\|BASIC\|CORE\|FUNC\|CMD\|EXT]
+> HELP [*keyword*\|ALL\|BASIC\|CORE\|FUNC\|CMD\|EXT]
 
 Displays help for *keyword* (eg, `HELP MID$`), or lists the keywords in a category.  HELP alone displays help for HELP.  Help for a keyword, or a list of keywords, is displayed with a blank line before and after it, and help for a command or function begins with a `Usage:` line, which is followed by a blank line and the rest of its description:
 
@@ -16,7 +16,7 @@ Displays help for *keyword* (eg, `HELP MID$`), or lists the keywords in a catego
 
 	Displays the volume label of drive (or the current drive).
 
-With `/U`, HELP displays only the `Usage:` line, without blank lines (eg, `HELP /U VOL` displays `Usage: VOL [drive:]`), which is how a command with a [usage error](../../#usage-errors) displays its usage.  `/U` with a category, any other switch, or a second argument is a syntax error.
+This is also how a command with a [usage error](../../#usage-errors) displays its usage: COMMAND.COM runs HELP for the command (eg, `VOL /X` displays the same help as `HELP VOL`).  A switch or a second argument is a usage error for HELP, too, so it displays help for HELP.
 
 If there's no help for *keyword*, HELP displays `No help available`, and ERRORLEVEL is set to 1.
 
@@ -40,7 +40,7 @@ HELP was a COMMAND.COM command (along with KEYS, which is now `HELP KEYS`) until
 
 The help text comes from HELP.TXT, in the EXT\\CMD directory of the drive that COMMAND.COM was loaded from (normally the boot drive), so HELP works from any directory.
 
-In HELP.TXT, each entry begins with a lower-case letter for its category, in brackets (eg, `[b]PRINT` or `[f]MID$`), followed by `+` if it isn't available on low memory systems (eg, `[b+]CIRCLE`), which HELP doesn't display; an entry without a category (eg, CORE or KEYS) is listed only by HELP ALL.  The first line of an entry with a category is its syntax, which HELP displays after `Usage:`, and since no other command contains this text, a command that's used incorrectly displays this line (with `HELP /U`).
+In HELP.TXT, each entry begins with a lower-case letter for its category, in brackets (eg, `[b]PRINT` or `[f]MID$`), followed by `+` if it isn't available on low memory systems (eg, `[b+]CIRCLE`), which HELP doesn't display; an entry without a category (eg, CORE or KEYS) is listed only by HELP ALL.  The first line of an entry with a category is its syntax, which HELP displays after `Usage:`, and since no other command contains this text, a command that's used incorrectly displays its entry, starting with this line.
 
 HELP wraps words to the console's width, displays each line of an entry as a paragraph (followed by a blank line) unless it ends with `\`, and indents a line that starts with a tab.  It also adapts the text as it displays it:
 

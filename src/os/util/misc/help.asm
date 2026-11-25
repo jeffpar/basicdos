@@ -7,13 +7,13 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Usage: HELP [[/U] keyword|ALL|BASIC|CORE|FUNC|CMD|EXT]
+; Usage: HELP [keyword|ALL|BASIC|CORE|FUNC|CMD|EXT]
 ;
-; Displays help for a keyword (or with /U, only its usage line), or lists the
-; keywords in a category, from HELP.TXT in the EXT\CMD folder of the drive
-; that COMMAND.COM was loaded from (normally the boot drive), so HELP works
-; from any directory.  The exit code is 1 if there's no help for the keyword
-; (or HELP.TXT can't be read).
+; Displays help for a keyword (as COMMAND does for a command with a usage
+; error; see showUsage), or lists the keywords in a category, from HELP.TXT
+; in the EXT\CMD folder of the drive that COMMAND.COM was loaded from
+; (normally the boot drive), so HELP works from any directory.  The exit
+; code is 1 if there's no help for the keyword (or HELP.TXT can't be read).
 ;
 	DOSPSP equ 1
 	DOSFUNC equ 1
@@ -67,11 +67,9 @@ m1:	mov	[CON_COLS],dl
 	mov	[di+10],dl
 	mov	[di],dh
 ;
-; Find the argument (DI) and its length (CX), and any switches, which can be
-; anywhere: /U (USAGE_ONLY) displays only a keyword's usage line (as COMMAND
-; does for a command with a usage error; see showUsage).  Any other switch,
-; or a second argument, is a usage error, and like any other command's, it
-; ends with exit code ERR_USAGE, so that COMMAND displays our usage.
+; Find the argument (DI) and its length (CX).  A switch (anywhere) or a
+; second argument is a usage error, and like any other command's, it ends
+; with exit code ERR_USAGE, so that COMMAND displays our help.
 ;
 	sub	di,di			; DI -> argument (none yet)
 	mov	si,PSP_CMDTAIL+1
@@ -81,16 +79,8 @@ m3:	lodsb
 	cmp	al,CHR_SPACE		; whitespace?
 	jbe	m3			; yes
 	cmp	al,[SWITCH_CHAR]	; a switch?
-	jne	m4			; no
-	lodsb
-	and	al,0DFh			; (upper-case it)
-	cmp	al,'U'			; usage only?
-	jne	m6			; no
-	mov	[USAGE_ONLY],al
-	cmp	byte ptr [si],CHR_SPACE	; does the switch end here?
-	ja	m6			; no
-	jmp	m3
-m4:	test	di,di			; do we already have an argument?
+	je	m6			; yes
+	test	di,di			; do we already have an argument?
 	jnz	m6			; yes
 	lea	di,[si-1]		; DI -> argument
 m5:	lodsb
@@ -125,8 +115,6 @@ hpc2:	lodsb
 	jne	hpc4			; no
 	pop	si
 	pop	cx
-	cmp	[USAGE_ONLY],0		; usage only (it's not a keyword)?
-	jne	m6			; yes, so it's a usage error
 	or	ah,20h			; AH = tag (eg, "b")
 	cmp	ah,'a'			; ALL?
 	jne	hpc3			; no
@@ -213,15 +201,12 @@ h1:	push	cx
 	inc	si			; SI -> next char
 	mov	[si+HELP_TEXTLEN+1],si	; (nothing buffered yet)
 ;
-; Every entry ends with a blank line, so start with one, too (except for a
-; usage line by itself; see printSpace).  Then keep track of the current
-; line's available characters (DL) and maximum characters (DH), and print
-; only whole words that will fit.
+; Every entry ends with a blank line, so start with one, too.  Then keep
+; track of the current line's available characters (DL) and maximum
+; characters (DH), and print only whole words that will fit.
 ;
-	cmp	[USAGE_ONLY],0
-	jne	h1a
 	call	printCRLF
-h1a:	mov	dl,[CON_COLS]		; DL = # available chars
+	mov	dl,[CON_COLS]		; DL = # available chars
 	dec	dx			; DL = # available chars - 1
 	mov	dh,dl
 ;
@@ -727,8 +712,6 @@ ps2:	call	printChar
 	jmp	ps1
 ps5:	dec	si
 	call	printEOL
-	cmp	[USAGE_ONLY],0		; usage only?
-	jne	ps7			; yes (so no blank line; see ps7b)
 	DEFLBL	skipSpace,near
 	call	printEOL
 ps7:	lodsb
@@ -739,19 +722,8 @@ ps7:	lodsb
 	jmp	ps7
 ps7a:	cmp	al,CHR_CTRLZ		; end of text?
 	je	ps8			; yes
-;
-; With /U, the end of the first line (the usage line) is the end of the text.
-;
-	cmp	al,CHR_LINEFEED		; end of a line?
-	jne	ps7b			; no
-	cmp	[USAGE_ONLY],0		; usage only?
-	je	ps7b			; no
-	dec	si
-	mov	byte ptr [si],CHR_CTRLZ	; yes, so end the text here
-	jmp	ps7
-ps7b:	cmp	al,CHR_SPACE		; non-whitespace?
-	ja	ps8			; yes
-	jmp	ps7			; keep looping
+	cmp	al,CHR_SPACE		; whitespace?
+	jbe	ps7			; yes, so keep looping
 ps8:	dec	si
 	ret
 ENDPROC	printSpace
@@ -794,7 +766,6 @@ CON_COLS	db	?
 SWITCH_CHAR	db	?
 PATH_CHAR	db	?
 ENTRY_TAGS	db	?		; tags of the last entry (see findHelp)
-USAGE_ONLY	db	0		; non-zero for /U (see main)
 
 ;
 ; COMHEAP 0 means we don't need a heap, but BASIC-DOS will still allocate a

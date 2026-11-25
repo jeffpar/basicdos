@@ -219,18 +219,18 @@ VER | DIR
 IF ERRORLEVEL = 0 THEN PRINT "internal pipe target failed" : FAILS = FAILS + 1
 TREE /Z > E.TMP
 IF ERRORLEVEL <> 1 THEN PRINT "TREE /Z failed" : FAILS = FAILS + 1
-REM The usage of an internal or COM command goes to the BAT's output (a BAS
-REM utility in T2.BAT would nest too deeply to compile; see genMore)
+REM The help of an internal or COM command with a usage error goes to the
+REM BAT's output (a BAS utility in T2.BAT would nest too deeply to compile;
+REM see genMore), and a switch is a usage error for HELP, too
 OPEN "T2.BAT" FOR OUTPUT AS #1 : PRINT #1, "TYPE /Z" : PRINT #1, "FIND /Z x"
-CLOSE #1
+PRINT #1, "HELP /U VOL" : CLOSE #1
 T2 > E.TMP
 IF ERRORLEVEL <> 1 THEN PRINT "usage ERRORLEVEL failed" : FAILS = FAILS + 1
 C$ = "TYPE /Z" : M$ = "Usage: TYPE" : GOSUB 900
+C$ = "TYPE /Z help" : M$ = "contents of the specified" : GOSUB 900
 C$ = "FIND /Z" : M$ = "Usage: FIND" : GOSUB 900
+C$ = "HELP /U" : M$ = "Usage: HELP" : GOSUB 900
 DEL T2.BAT
-HELP /U VOL > E.TMP
-IF ERRORLEVEL THEN PRINT "HELP /U failed" : FAILS = FAILS + 1
-C$ = "HELP /U" : M$ = "Usage: VOL" : GOSUB 900
 REM END sets ERRORLEVEL (0 by default), and falling off the end leaves it alone
 OPEN "T1.BAS" FOR OUTPUT AS #1 : PRINT #1, "IF 1 THEN END 7 ELSE PRINT 1" : CLOSE #1
 T1

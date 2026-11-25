@@ -391,9 +391,9 @@ ENDPROC	runLine
 ; showUsage
 ;
 ; Displays the usage of a command with a usage error (see cmdUsage) by
-; running "HELP /U name" (with the current switch char), where name is the
-; command's name without any path or extension (eg, LS for A:\EXT\BAS\LS.BAS),
-; or if HELP can't display it, "Syntax error".
+; running "HELP name", which displays the command's help (starting with its
+; usage line), where name is the command's name without any path or extension
+; (eg, LS for A:\EXT\BAS\LS.BAS), or if HELP can't display it, "Syntax error".
 ;
 ; Inputs:
 ;	DS:SI -> command (may be preceded by whitespace)
@@ -406,7 +406,8 @@ ENDPROC	runLine
 ;	Any but BX
 ;
 SU_NAMELEN	equ	12		; longest name we give HELP
-SU_BUFLEN	equ	8 + SU_NAMELEN	; room for "HELP /U " and the name
+SU_BUFLEN	equ	6 + SU_NAMELEN	; room for "HELP ", the name, and a pad
+					; byte (to keep the stack word-aligned)
 
 DEFPROC	showUsage
 	push	bx
@@ -414,17 +415,12 @@ DEFPROC	showUsage
 	mov	di,sp
 	push	ss
 	pop	es			; ES:DI -> buffer
-	mov	ax,DOS_MSC_GETSWC
-	int	21h			; DL = switch char
 	mov	ax,('E' SHL 8) OR 'H'
 	stosw
 	mov	ax,('P' SHL 8) OR 'L'
 	stosw
 	mov	al,' '
-	mov	ah,dl
-	stosw
-	mov	ax,(' ' SHL 8) OR 'U'
-	stosw				; "HELP /U "
+	stosb				; "HELP "
 	mov	bx,di			; BX -> name
 su1:	lodsb
 	cmp	al,CHR_SPACE		; whitespace?
@@ -463,7 +459,7 @@ su6:	loop	su2
 	push	ss
 	push	di
 	push	cs
-	call	callDOS			; run "HELP /U name"
+	call	callDOS			; run "HELP name"
 	mov	bx,ss:[PSP_HEAP]
 	mov	al,1			; a usage error sets ERRORLEVEL to 1
 	xchg	al,ss:[bx].EXIT_CODE

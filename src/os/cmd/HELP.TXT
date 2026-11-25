@@ -224,8 +224,8 @@ Calls the subroutine at the line with the specified label number; the subroutine
 [b]GOTO *label*
 Transfers program control to the line with the specified label number.
 
-[e]HELP [[~U] *keyword*|ALL|BASIC|CORE|FUNC|CMD|EXT]
-Displays help for *keyword* (eg, HELP MID$), or lists the keywords in a category: ALL (every keyword), BASIC (BASIC statements and commands), FUNC (functions, like MID$), CMD (internal commands, like DIR), or EXT (external commands, like FORMAT).  HELP CORE lists the keywords that low memory systems don't support, and HELP KEYS lists the keys for editing command lines.  ~U displays only the keyword's Usage line, as a command with a syntax error does.
+[e]HELP [*keyword*|ALL|BASIC|CORE|FUNC|CMD|EXT]
+Displays help for *keyword* (eg, HELP MID$), or lists the keywords in a category: ALL (every keyword), BASIC (BASIC statements and commands), FUNC (functions, like MID$), CMD (internal commands, like DIR), or EXT (external commands, like FORMAT).  HELP CORE lists the keywords that low memory systems don't support, and HELP KEYS lists the keys for editing command lines.  A command used incorrectly displays its help, too.
 
 [f+]HEX$(*n*)
 Returns the hexadecimal representation of the integer *n*.  Negative values are treated as unsigned 32-bit values (eg, HEX$(-1) is FFFFFFFF).
