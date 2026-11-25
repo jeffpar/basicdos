@@ -47,7 +47,7 @@ Device drivers can also call DOS_UTL_WAIT, DOS_UTL_ENDWAIT, DOS_UTL_HOTKEY, DOS_
 | 13h | [DOS_UTL_LOAD](#sessions) | Loads a program into a new session |
 | 14h | [DOS_UTL_START](#sessions) | Starts a session |
 | 15h | [DOS_UTL_STOP](#sessions) | Stops a session (not implemented yet) |
-| 16h | [DOS_UTL_END](#sessions) | Ends the current program in a session |
+| 16h | [DOS_UTL_END](#sessions) | Ends the current program in a session, or the session |
 | 17h | [DOS_UTL_WAITEND](#sessions) | Waits for all programs in a session to end |
 | 18h | [DOS_UTL_YIELD](#scheduling) | Lets another session run |
 | 19h | [DOS_UTL_SLEEP](#scheduling) | Sleeps for a number of milliseconds |

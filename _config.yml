@@ -18,6 +18,7 @@ github:
 plugins:
   - jekyll-feed
   - jekyll-redirect-from
+  - jekyll-relative-links   # GitHub Pages enables it by default; listed so local builds match (eg, README.md's demo links)
 
 exclude:
   - CNAME
