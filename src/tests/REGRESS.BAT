@@ -4,7 +4,7 @@ REM from \TESTS).  Each test prints "failed" (or "passed") messages, and
 REM the tests that return an exit code are checked here.  The programs in
 REM \TESTS\MISC aren't run, since each needs something more (eg, a CGA,
 REM V86.COM, or a debugger), faults or fails on purpose, measures instead
-REM of checking (MICRO.BAS), or just runs (eg, PIPES.BAT).
+REM of checking (MICRO.BAS), or just runs (eg, RANDOM.BAT).
 IF NOT EXISTS("REGRESS\DOSTESTS.COM") THEN PRINT "Run REGRESS from \TESTS" : END
 D$ = LEFT$(CURDIR$, 1)
 CD REGRESS

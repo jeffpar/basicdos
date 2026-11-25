@@ -29,8 +29,8 @@
 #            GFXTESTS.BAS needs a CGA, V86TESTS needs V86.COM, DBGTESTS needs a
 #            debugger, and MEMTESTS needs a protected-mode machine with several
 #            sessions), cause a fault or failure on purpose (FAULT, ASSERT),
-#            measure rather than check (MICRO.BAS), or just run (PIPES.BAT,
-#            RANDOM.BAT, and the BAT and EXE versions of PRIMES)
+#            measure rather than check (MICRO.BAS), or just run (RANDOM.BAT,
+#            and the BAT and EXE versions of PRIMES)
 #   TESTS/SAMPLES  the rest of the PC DOS 1.00 BASIC samples (hard disk only)
 #            (ie, machines/demos/dos/basic/*.BAS except for any file that DEMOS lists)
 #   TOOLS    tools used for testing (DISKREAD, DISKWRIT, SYMDEB, and MSBASIC)
@@ -44,10 +44,7 @@
 # diskimage.js resolves) followed by the file's path within the image.
 #
 # gulpfile.js builds the BASICDOS-360K distribution diskette and every demo
-# diskette with ROOT, EXT (CMD, BAS, and DLL), and DEMOS (and a demo diskette also has, in TESTS,
-# the test files that its CONFIG.SYS runs, eg, PIPES.BAT, and any that
-# gulpfile.js lists for it, eg, FPUTESTS.COM on the Single diskette, whose
-# machines have a coprocessor), the BASICDOS-360K-TESTS diskette with
+# diskette with ROOT, EXT (CMD, BAS, and DLL), and DEMOS, the BASICDOS-360K-TESTS diskette with
 # TESTS (and its REGRESS and MISC subfolders) and TOOLS, and the BASICDOS-20MB
 # hard disk with all of them (plus TESTS/SAMPLES, DEMOS/WOLF3D, the WOLF3D.BAT, JIVE, and src/demos/other files that only it has
 # in DEMOS, SRC, and the build tools in TOOLS/BIN, with the C compiler's include
@@ -139,7 +136,6 @@ src/tests/misc/OBJ/V86TESTS.COM
 src/tests/misc/OBJ/PRIMES.EXE
 src/tests/misc/GFXTESTS.BAS
 src/tests/misc/MICRO.BAS
-src/tests/misc/PIPES.BAT
 src/tests/misc/PRIMES.BAT
 src/tests/misc/RANDOM.BAT
 

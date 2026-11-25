@@ -158,6 +158,7 @@ function getDemos()
     // additional demo configurations aren't in the table.
     //
     for (const hw of ['xt', 'at', '386']) demos.push({ path: `bd/vt100/${hw}/noavo/`, key: 'vt100', hw });
+    for (const hw of ['pc', 'xt', 'at', '386']) demos.push({ path: `bd/dual/multi/${hw}/`, key: 'dual/multi', hw });
     for (const path of ['serial', 'parallel', 'mmu/vt100/47mb']) demos.push({ path: `bd/${path}/`, key: path, hw: '' });
     return demos;
 }

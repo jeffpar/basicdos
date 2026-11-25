@@ -154,12 +154,8 @@ const toolFiles = (dir) => globSync(SRC + "/tools/" + dir + "/*").sort().filter(
     !fs.statSync(file).isDirectory());
 
 //
-// The distribution diskette and the 64K demo diskettes (whose machines can't run the tests) have only EXT (CMD, BAS,
-// and DLL) and DEMOS;
-// every other demo diskette also has, in TESTS (which its CONFIG.SYS adds to PATH$, since a diskette doesn't need
-// the TESTS subfolders), the test files that its CONFIG.SYS runs (eg, PIPES.BAT on the Dual Monitor diskettes) and
-// any that its entry lists (eg, FPUTESTS.COM on the Single diskette, whose machines have a coprocessor); the rest of
-// the tests are on the TESTS diskette.
+// The distribution diskette and the demo diskettes have only EXT (CMD, BAS, and DLL) and DEMOS; the tests are on the
+// TESTS diskette, so that no other diskette has to make room for them.
 //
 const distFolders = { "EXT/CMD": manifest["EXT/CMD"], "EXT/BAS": manifest["EXT/BAS"], "EXT/DLL": manifest["EXT/DLL"], DEMOS: manifest.DEMOS };
 //
@@ -167,19 +163,6 @@ const distFolders = { "EXT/CMD": manifest["EXT/CMD"], "EXT/BAS": manifest["EXT/B
 // on COM2 that the demo pages don't have, so that they have room for everything else.
 //
 const demoFolders = { ...distFolders, "EXT/BAS": manifest["EXT/BAS"].filter(file => !/(^|\/)CLAUDE\.BAS$/i.test(file)) };
-const testFiles = [].concat(manifest.TESTS, manifest["TESTS/REGRESS"], manifest["TESTS/MISC"]);
-function diskFolders(disk)
-{
-    let config = fs.readFileSync(disk.config, "utf8").toUpperCase();
-    let named = (file) => new RegExp("(^|[^\\w$])" + path.basename(file).toUpperCase().replace(".", "\\.") + "\\b").test(config);
-    let tests = testFiles.filter(named);
-    for (let name of disk.tests || []) {
-        let file = testFiles.find(file => path.basename(file).toUpperCase() == name);
-        if (!file) throw new Error("test file " + name + " isn't in the manifest");
-        if (!tests.includes(file)) tests.push(file);
-    }
-    return { ...demoFolders, TESTS: tests };
-}
 /**
  * diskFiles(diskName, fileSpecs)
  *
@@ -210,7 +193,7 @@ let disks = {
         img: true,
         final: true
     },
-    "BASICDOS-360K-S80": { config: "./machines/demos/bd/s80/CONFIG.SYS", title: "BASIC-DOS Single", tests: [ "FPUTESTS.COM" ] },
+    "BASICDOS-360K-S80": { config: "./machines/demos/bd/s80/CONFIG.SYS", title: "BASIC-DOS Single" },
     "BASICDOS-360K-D40": { config: "./machines/demos/bd/d40/CONFIG.SYS", title: "BASIC-DOS 40-Cols" },
     "BASICDOS-360K-D80": { config: "./machines/demos/bd/d80/CONFIG.SYS", title: "BASIC-DOS 80-Cols" },
     "BASICDOS-360K-P80": { config: "./machines/demos/bd/p80/CONFIG.SYS", title: "BASIC-DOS Multi-Page" },
@@ -367,7 +350,7 @@ function stageDisk(diskName)
         fs.utimesSync(path.join(dirStage, "MKFINAL"), DIST_DATE, DIST_DATE);
         entries.push(path.join(dirStage, "MKFINAL"));
     }
-    let folders = disk.folders || diskFolders(disk);
+    let folders = disk.folders || demoFolders;
     for (let folder in folders) {
         let files = folders[folder];
         if (!files.length) continue;
@@ -528,7 +511,7 @@ function diskSources(diskName)
     if (!disk.data && !disk.hd) {
         sources.push(...manifest.ROOT.filter(file => file != "CONFIG.SYS"), SRC + "/os/boot/obj/BOOT1.COM");
     }
-    let folders = disk.folders || diskFolders(disk);
+    let folders = disk.folders || demoFolders;
     for (let folder in folders) {
         let files = folders[folder];
         if (typeof files == "string") sources.push(files + "/**"); else sources.push(...files);
