@@ -106,7 +106,8 @@ const VERSION = MAJOR + "." + String(MINOR).padStart(2, "0") + (REV ? String.fro
 /*
  * The distribution files (the root files, and the files that the manifest lists in the EXT folders and DEMOS) are dated
  * September 9, 1986, at a time that matches the version (eg, 2:10 AM for 2.10, whatever its revision), on every
- * disk; the PC DOS 1.00 samples keep their own timestamps (see stageDisk()).
+ * disk, and so is every disk's volume label (diskimage.js's --labeldate, and pc.js's --sysdate); the PC DOS 1.00
+ * samples keep their own timestamps (see stageDisk()).
  */
 const DIST_TIME = "1986-09-09T" + String(MAJOR).padStart(2, "0") + ":" + String(MINOR).padStart(2, "0");
 const DIST_DATE = new Date(DIST_TIME);         // (a date-time string without a time zone is local time)
@@ -458,7 +459,7 @@ function buildDisk(diskName, mode, diskImage)
             cmd = "node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" --files " + entries.join(",") +
                   (disks[diskName].data? "" : " --boot " + binPath(mode, SRC + "/os/boot/obj/BOOT1.COM") + " --attr=" + SYSATTRS) +
                   " --output " + diskNew +
-                  " --label=" + label + " --normalize --writable --target=360 --overwrite" + DIQUIET;
+                  " --label=" + label + " --labeldate=" + DIST_TIME + " --normalize --writable --target=360 --overwrite" + DIQUIET;
         }
         /*
          * The staging directory is needed only to build the disk, so it's removed once the build succeeds (if the
