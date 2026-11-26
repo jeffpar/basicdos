@@ -46,6 +46,44 @@ template doesn't add them to the Computer component anymore, since we started su
 
 {%- endcomment -%}
 
+{%- comment -%}
+
+On a developer server, "?debug=true" in a page's URL (as in .vscode/launch.json) switches the page's BASIC-DOS disks to
+their DEBUG copies in /disks/debug, which basicdos-diskettes-debug.json lists ("gulp demos" writes it): bdDisks()
+replaces every /disks/current path that has a DEBUG copy (the FINAL-only disks, eg, the 64K demo diskettes, keep
+theirs) in the machines' configurations above (eg, the FDCs' diskette lists, which auto-mounts by name use, and the
+HDCs' drives) and in their machine parameters (eg, a page's "drives"), before any machine starts, and the page's links
+to other pages on the site keep the parameter.  pcx86.js itself ignores "debug=true" (only "debug=false" means anything
+to it, in uncompiled code), and the published site gets none of this.
+
+{%- endcomment -%}
+{%- assign bd_debug_disks = nil -%}
+{%- if site.developer -%}{%- assign bd_debug_disks = site.data.pcx86.basicdos-diskettes-debug -%}{%- endif -%}
+{%- if bd_debug_disks %}
+    <script>
+      var bdDebug = /[?&]debug=true(&|#|$)/.test(location.search);
+      var bdDebugDisks = {{ bd_debug_disks | jsonify }};
+      function bdDisks(s) {
+        return bdDebug? s.replace(/\/disks\/current\/([^"'?&\s\/]+\.json)/g, function(path, file) {
+          return bdDebugDisks["/disks/debug/" + file]? "/disks/debug/" + file : path;
+        }) : s;
+      }
+      if (bdDebug) {
+        document.querySelectorAll("[data-value]").forEach(function(e) {
+          e.setAttribute("data-value", bdDisks(e.getAttribute("data-value")));
+        });
+        document.querySelectorAll("option").forEach(function(e) { e.value = bdDisks(e.value); });
+        document.querySelectorAll("a[href]").forEach(function(a) {
+          var url = new URL(a.href, location.href);
+          if (url.origin == location.origin && /(\/|\.html)$/.test(url.pathname) && !url.searchParams.has("debug")) {
+            url.searchParams.set("debug", "true");
+            a.href = url.href;
+          }
+        });
+      }
+    </script>
+{%- endif -%}
+
 {%- for candidate in page.machines -%}
   {%- assign machine_id = candidate.id -%}
   {%- capture machine_type -%}{{ candidate.type | remove: "-dbg" }}{%- endcapture -%}
@@ -204,6 +242,8 @@ template doesn't add them to the Computer component anymore, since we started su
   {%- endif -%}
   {%- capture machine_parms -%}{{ machine_autoMount }}{{ machine_autoScript }}{{ machine_autoStart }}{{ machine_autoType }}{{ machine_cdroms }}{{ machine_floppies }}{{ machine_drives }}{{ machine_resume }}{{ machine_sound }}{{ machine_state }}{{ machine_flicker }}{{ machine_sizeRAM }}{{ machine_testRAM }}{{ machine_commands }}{{ machine_messages }}{{ machine_connection }}{{ machine_avo }}{%- endcapture -%}
   {%- if machine_parms != "" -%}{%- capture machine_parms -%}{{ site.left_brace }}{{ machine_parms | prepend: "@" | replace: "@,","" }}{{ site.right_brace }}{%- endcapture -%}{%- endif -%}
+  {%- capture machine_parms_arg -%}'{{ machine_parms }}'{%- endcapture -%}
+  {%- if bd_debug_disks and machine_parms != "" -%}{%- capture machine_parms_arg -%}bdDisks({{ machine_parms_arg }}){%- endcapture -%}{%- endif -%}
   {%- assign machine_dev = site.developer -%}
   {%- if machine.compiled == true -%}{%- assign machine_dev = false -%}{%- endif -%}
   {%- if machine_dev -%}
@@ -243,13 +283,13 @@ template doesn't add them to the Computer component anymore, since we started su
     {%- capture machine_template -%}{{ site.baseurl }}/machines/{{ machine_type }}/xsl/components.xsl{%- endcapture -%}
   {%- endif -%}
   {%- if machine_factory contains "embed" %}
-    <script>{{ machine_factory }}('{{ machine_id }}','{{ machine_config }}','{{ machine_template }}','{{ machine_parms }}'{{ machine_class }});</script>
+    <script>{{ machine_factory }}('{{ machine_id }}','{{ machine_config }}','{{ machine_template }}',{{ machine_parms_arg }}{{ machine_class }});</script>
   {%- elsif machine_dev and machine.unbundled %}
-    <script type="module">PCjsMachine('{{ machine_id }}','{{ machine_config | strip_newlines }}','{{ machine_parms }}');</script>
+    <script type="module">PCjsMachine('{{ machine_id }}','{{ machine_config | strip_newlines }}',{{ machine_parms_arg }});</script>
   {%- elsif machine_dev or machine.uncompiled %}
-    <script>PCjsMachine('{{ machine_id }}','{{ machine_config | strip_newlines }}','{{ machine_parms }}');</script>
+    <script>PCjsMachine('{{ machine_id }}','{{ machine_config | strip_newlines }}',{{ machine_parms_arg }});</script>
   {%- else %}
-    <script>{{ machine_factory }}('{{ machine_id }}','{{ machine_config | strip_newlines }}','{{ machine_parms }}');</script>
+    <script>{{ machine_factory }}('{{ machine_id }}','{{ machine_config | strip_newlines }}',{{ machine_parms_arg }});</script>
   {%- endif %}
   {%- if machine.sticky == "top" %}
     <script src="{{ site.baseurl }}/machines/shared/lib/sticky.js"></script>

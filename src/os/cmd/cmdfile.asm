@@ -20,7 +20,7 @@ CODE    SEGMENT
 	ENDIF
 	EXTNEAR	<freeAllVars,cmdLoad,freeIdleVars,findVar,saveChains>
 	EXTNEAR	<restoreChains,compactStrs,runTransient,transParas>
-	EXTNEAR	<showCursor,hideCursor,buildEnv,freeEnv>
+	EXTNEAR	<showCursor,hideCursor,buildEnv,freeEnv,startV86>
 	EXTNEAR	<chkString,cmdDone,cmdNew,cmdRunFlags,cmdStart,getToken>
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT>
 
@@ -427,7 +427,18 @@ cf10:	call	freeVarsRetry
 	jmp	cf5a
 cf10a:	call	freeEnv			; (the program never ran)
 	mov	si,dx
-	jmp	cf8
+;
+; Protected mode can't run a real-mode program, but a V86 machine can, so
+; startV86 (which isn't part of the core; see genUpper) runs it in one, if
+; it's loaded and there can be one.
+;
+	cmp	ax,ERR_BADMODE		; a real-mode program?
+	jne	cf8			; no
+	mov	dx,offset startV86
+	cmp	dx,ds:[PSP_CODESIZE]	; is startV86 loaded?
+	jae	cf8			; no
+	call	dx			; (it reports any error)
+	jmp	cf9a
 cf11:	call	freeVarsRetry
 	jc	cf8
 	jmp	cf6a

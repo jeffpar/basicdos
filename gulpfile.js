@@ -86,11 +86,13 @@ function checkOutput(task, outputFile)
  * A ZIP file in a list of files (eg, PUBLIC.zip) is extracted into the folder itself, preserving the original
  * timestamps of its files.
  *
- * A disk's binaries are FINAL if it's marked "final" (the release diskette and the 64K demos, which don't have room for
- * DEBUG binaries), and otherwise DEBUG while package.json's config.release is "debug", or the current build mode (the
- * mode of the last mkdos.sh or mk.sh build, which tools/pc/disks/mkmode records) once it's "final".  A diskette whose
- * mode isn't the current one gets that mode's saved binaries (see SAVED), so any change to a diskette's files (eg, its
- * CONFIG.SYS) updates it in either mode; the hard disk, whose system files pc.js adds from src itself (and
+ * Every disk has two sets of images (see SETS): disks/current, with FINAL binaries, which the web site uses, and
+ * disks/debug, with DEBUG binaries, except for the disks marked "final" (the release diskette and the 64K demos, which
+ * need FINAL binaries), which are only in disks/current.  "gulp demos" (which mk.sh and mkdos.sh run after a build)
+ * updates the set of the current build mode (the mode of the last mkdos.sh or mk.sh build, which tools/pc/disks/mkmode
+ * records), and "gulp build" updates both.  A diskette whose mode isn't the current one gets that mode's saved binaries
+ * (see SAVED), so any change to a diskette's files (eg, its CONFIG.SYS) updates it in both sets ("gulp watch" updates
+ * the disks of both sets that a changed file is on); the hard disk, whose system files pc.js adds from src itself (and
  * whose SRC has the current mode's OBJ folders), is updated only by a build of its mode.
  */
 const SRC = "./src";
@@ -122,8 +124,10 @@ const SAVED = "./tools/pc/disks/objs";
 const readMode = () => fs.existsSync(MKMODE)? fs.readFileSync(MKMODE, "utf8").trim() : "";
 const MODE = readMode();
 const SWITCHING = MODE == "SWITCHING";
-const FINAL = MODE == "FINAL";
-const RELEASE = JSON.parse(fs.readFileSync("./package.json", "utf8")).config?.release == "final";
+/*
+ * The folder of each build mode's set of disk images.
+ */
+const SETS = { FINAL: "./disks/current", DEBUG: "./disks/debug" };
 /*
  * diskimage.js prints its banner, options, and output file for every diskette it builds, so it runs with --quiet
  * (which still reports errors) unless gulp is run with --verbose (eg, "npx gulp watch --verbose").
@@ -276,34 +280,47 @@ let disks = {
 };
 
 /**
- * binPath(disk, fileSpec)
+ * binPath(mode, fileSpec)
  *
- * Returns the path of a build output (a file spec for an OBJ or BIN folder in src) for the disk's build mode
- * (see disk.mode), which is the saved copy (see SAVED) if that mode isn't the current one; any other spec is unchanged.
+ * Returns the path of a build output (a file spec for an OBJ or BIN folder in src) for the given build mode, which is
+ * the saved copy (see SAVED) if that mode isn't the current one; any other spec is unchanged.
  *
- * @param {Object} disk
+ * @param {string} mode
  * @param {string} fileSpec
  * @returns {string}
  */
-function binPath(disk, fileSpec)
+function binPath(mode, fileSpec)
 {
     let match = path.normalize(fileSpec).match(/^src\/(.*\/(obj|bin)\/[^\/]+)$/i);
-    return match && disk.mode && disk.mode != MODE? path.join(SAVED, disk.mode, match[1]) : fileSpec;
+    return match && mode != MODE? path.join(SAVED, mode, match[1]) : fileSpec;
 }
 
 /**
- * stageDisk(diskName)
+ * stageDir(diskName, mode)
  *
- * Copies the files for a BASIC-DOS disk (see "disks" above) to a staging directory (tools/pc/disks/diskName),
- * and returns the root entries in the order they should appear on the disk.
+ * Returns the staging directory for a disk of the given build mode's set (tools/pc/disks/diskName for FINAL, and
+ * tools/pc/disks/diskName-DEBUG for DEBUG).
  *
  * @param {string} diskName
+ * @param {string} mode
+ * @returns {string}
+ */
+const stageDir = (diskName, mode) => "./tools/pc/disks/" + diskName + (mode == "FINAL"? "" : "-" + mode);
+
+/**
+ * stageDisk(diskName, mode)
+ *
+ * Copies the files for a BASIC-DOS disk (see "disks" above), with the given build mode's binaries, to a staging
+ * directory (see stageDir()), and returns the root entries in the order they should appear on the disk.
+ *
+ * @param {string} diskName
+ * @param {string} mode
  * @returns {Array.<string>}
  */
-function stageDisk(diskName)
+function stageDisk(diskName, mode)
 {
     let disk = disks[diskName];
-    let dirStage = "./tools/pc/disks/" + diskName;
+    let dirStage = stageDir(diskName, mode);
     fs.rmSync(dirStage, { recursive: true, force: true });
     fs.mkdirSync(dirStage, { recursive: true });
     let entries = [];
@@ -312,7 +329,7 @@ function stageDisk(diskName)
         for (let fileSpec of fileSpecs) {
             let image = fileSpec.match(/^(.*\.json)\/(.*)$/);
             if (image) fileSpec = diskFiles(image[1], [image[2]])[0];
-            let source = binPath(disk, fileSpec);
+            let source = binPath(mode, fileSpec);
             let files = source.indexOf('*') >= 0? globSync(source).sort() : [source];
             for (let file of files) {
                 /*
@@ -342,13 +359,13 @@ function stageDisk(diskName)
         if (disk.autoexec && launchesAutoexec) copyFiles([disk.autoexec], dirStage, "AUTOEXEC.BAT", true);
     }
     /*
-     * MK.BAT (in SRC) builds DEBUG binaries unless there's an MKFINAL file in its parent directory (as MKDOS.BAT does
-     * on the build disk), so the hard disk gets one if its binaries are FINAL (see FINAL).
+     * MK.BAT (in SRC, and in SRC\SDK) builds FINAL binaries unless there's an MKDEBUG file in the root directory, so
+     * the hard disk gets one if its binaries are DEBUG.
      */
-    if (disk.hd && FINAL) {
-        fs.writeFileSync(path.join(dirStage, "MKFINAL"), "");
-        fs.utimesSync(path.join(dirStage, "MKFINAL"), DIST_DATE, DIST_DATE);
-        entries.push(path.join(dirStage, "MKFINAL"));
+    if (disk.hd && mode == "DEBUG") {
+        fs.writeFileSync(path.join(dirStage, "MKDEBUG"), "");
+        fs.utimesSync(path.join(dirStage, "MKDEBUG"), DIST_DATE, DIST_DATE);
+        entries.push(path.join(dirStage, "MKDEBUG"));
     }
     let folders = disk.folders || demoFolders;
     for (let folder in folders) {
@@ -408,35 +425,38 @@ function stageDisk(diskName)
 }
 
 /**
- * buildDisk(diskName, diskImage)
+ * buildDisk(diskName, mode, diskImage)
  *
- * Returns a gulp task function that stages the files for a BASIC-DOS disk and then builds the disk image:
- * a hard disk with pc.js, or a 360K diskette with diskimage.js (which requires PCJS).
+ * Returns a gulp task function that stages the files for a BASIC-DOS disk with the given build mode's binaries and
+ * then builds the disk image: a hard disk with pc.js, or a 360K diskette with diskimage.js (which requires PCJS).
  *
  * @param {string} diskName
+ * @param {string} mode
  * @param {string} diskImage
  * @returns {function(function(Error=))}
  */
-function buildDisk(diskName, diskImage)
+function buildDisk(diskName, mode, diskImage)
 {
     return function(done) {
-        let entries = stageDisk(diskName);
+        let entries = stageDisk(diskName, mode);
+        let dirStage = stageDir(diskName, mode);
         let label = disks[diskName].label || diskName.replace(/^BASICDOS-(360K-)?/, "BD-");
         /*
          * The disk is built as diskNew, which replaces diskImage only if the build mode didn't change while its
          * binaries were read (see readMode()).
          */
-        let diskNew = "./tools/pc/disks/" + diskName + "-new.json";
+        let diskNew = dirStage + "-new.json";
+        fs.mkdirSync(path.dirname(diskImage), { recursive: true });
         let cmd;
         if (disks[diskName].hd) {
             //
             // pc.js adds the system files (and CONFIG.SYS) itself, so it dates them (see DIST_TIME).
             //
-            cmd = "node ./tools/pc/pc.js ibm5160 ./tools/pc/disks/" + diskName + " --sys=bd:2 --sysdate=" + DIST_TIME + " --drivetype=615:4:17 --fat=16:2048 --normalize --bare --label=" + label +
+            cmd = "node ./tools/pc/pc.js ibm5160 " + dirStage + " --sys=bd:2 --sysdate=" + DIST_TIME + " --drivetype=615:4:17 --fat=16:2048 --normalize --bare --label=" + label +
                   " --order=" + entries.map(entry => path.basename(entry)).join(",") + " --save=" + diskNew;
         } else {
             cmd = "node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" --files " + entries.join(",") +
-                  (disks[diskName].data? "" : " --boot " + binPath(disks[diskName], SRC + "/os/boot/obj/BOOT1.COM") + " --attr=" + SYSATTRS) +
+                  (disks[diskName].data? "" : " --boot " + binPath(mode, SRC + "/os/boot/obj/BOOT1.COM") + " --attr=" + SYSATTRS) +
                   " --output " + diskNew +
                   " --label=" + label + " --normalize --writable --target=360 --overwrite" + DIQUIET;
         }
@@ -454,7 +474,7 @@ function buildDisk(diskName, diskImage)
                 return;
             }
             fs.renameSync(diskNew, diskImage);
-            fs.rmSync("./tools/pc/disks/" + diskName, { recursive: true, force: true });
+            fs.rmSync(dirStage, { recursive: true, force: true });
             if (!disks[diskName].img) {
                 done();
                 return;
@@ -472,16 +492,20 @@ function buildDisk(diskName, diskImage)
  * path to its title; since Jekyll's data_dir is "machines", _includes/machine.html adds them to every FDC's list.  It
  * also writes machines/pcx86/basicdos-configs.json, which maps each disk's name to its CONFIG.SYS, for the pages whose
  * machines boot a disk whose CONFIG.SYS is in another folder (eg, {{ site.data.pcx86.basicdos-configs.BASICDOS-20MB }}
- * on the Wolfenstein 3D pages), since include_relative can't reach another folder.
+ * on the Wolfenstein 3D pages), since include_relative can't reach another folder.  And it writes
+ * machines/pcx86/basicdos-diskettes-debug.json, which maps the path of every disk in disks/debug (ie, every disk that
+ * isn't marked "final") to its title (or its name, if it has none), which a page on a developer server uses when its URL
+ * has "?debug=true" (see _includes/scripts.html).
  *
  * @param {function(Error=)} done
  */
 function writeDiskettes(done)
 {
-    let diskettes = {}, configs = {};
+    let diskettes = {}, debugDisks = {}, configs = {};
     for (let diskName in disks) {
         let disk = disks[diskName];
         if (disk.title) diskettes["/disks/current/" + diskName + ".json"] = disk.title;
+        if (!disk.final) debugDisks[SETS.DEBUG.replace(/^\./, "") + "/" + diskName + ".json"] = disk.title || diskName;
         if (disk.config) configs[diskName] = fs.readFileSync(disk.config, "utf8");
     }
     let writeData = function(file, data) {
@@ -489,22 +513,25 @@ function writeDiskettes(done)
         if (!fs.existsSync(file) || fs.readFileSync(file, "utf8") != text) fs.writeFileSync(file, text);
     };
     writeData("./machines/pcx86/basicdos-diskettes.json", diskettes);
+    writeData("./machines/pcx86/basicdos-diskettes-debug.json", debugDisks);
     writeData("./machines/pcx86/basicdos-configs.json", configs);
     done();
 }
 gulp.task("diskettes", writeDiskettes);
 
 /**
- * diskSources(diskName)
+ * diskSources(diskName, mode)
  *
- * Returns the files that a BASIC-DOS disk is built from, as stageDisk() and buildDisk() use them: paths that may
- * contain wildcards, where a folder that's copied whole (eg, the hard disk's SRC) ends with "/**".  Files that come
- * from inside another disk image aren't included.
+ * Returns the files that a BASIC-DOS disk of the given build mode's set is built from, as stageDisk() and buildDisk()
+ * use them: paths that may contain wildcards, where a folder that's copied whole (eg, the hard disk's SRC) ends with
+ * "/**", and build outputs are the mode's (see binPath()).  Files that come from inside another disk image aren't
+ * included.
  *
  * @param {string} diskName
+ * @param {string} mode
  * @returns {Array.<string>}
  */
-function diskSources(diskName)
+function diskSources(diskName, mode)
 {
     let disk = disks[diskName];
     let sources = [disk.config, disk.autoexec];
@@ -516,22 +543,23 @@ function diskSources(diskName)
         let files = folders[folder];
         if (typeof files == "string") sources.push(files + "/**"); else sources.push(...files);
     }
-    return sources.filter(file => file && !/\.json\//.test(file));
+    return sources.filter(file => file && !/\.json\//.test(file)).map(file => binPath(mode, file));
 }
 
 /**
- * isAffected(diskName, files)
+ * isAffected(diskName, mode, files)
  *
- * Returns true if any of the given files (resolved paths) is one that the disk is built from; a wildcard matches
- * by name, so a file that's been deleted, or added since the last build, still counts.
+ * Returns true if any of the given files (resolved paths) is one that the disk of the given build mode's set is built
+ * from; a wildcard matches by name, so a file that's been deleted, or added since the last build, still counts.
  *
  * @param {string} diskName
+ * @param {string} mode
  * @param {Array.<string>} files
  * @returns {boolean}
  */
-function isAffected(diskName, files)
+function isAffected(diskName, mode, files)
 {
-    return diskSources(diskName).some(source => {
+    return diskSources(diskName, mode).some(source => {
         let re = new RegExp("^" + path.resolve(source).replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*\*/g, "\0").replace(/\*/g, "[^/]*").replace(/\?/g, "[^/]").replace(/\0/g, ".*") + "$", "i");
         return files.some(file => re.test(file));
     });
@@ -539,37 +567,46 @@ function isAffected(diskName, files)
 
 /*
  * The "watch" task (below) runs "demos" with the files that changed in BD_CHANGED (one path per line, or "*" if there
- * were too many to list), so that only the disks built from those files are rebuilt; a change to one of WATCHALL
- * (the files that define what's on every disk) rebuilds them all.
+ * were too many to list), so that only the disks (of either set) built from those files are rebuilt; a change to one
+ * of WATCHALL (the files that define what's on every disk) rebuilds them all.
  */
 const WATCHALL = [ "./manifest.txt", "./gulpfile.js", "./package.json" ];
 let changed = process.env["BD_CHANGED"]? process.env["BD_CHANGED"].split("\n").map(file => path.resolve(file)) : null;
-if (changed && (process.env["BD_CHANGED"] == "*" || WATCHALL.some(file => changed.includes(path.resolve(file))))) {
-    changed = null;
-}
+let changedAll = changed && (process.env["BD_CHANGED"] == "*" || WATCHALL.some(file => changed.includes(path.resolve(file))));
 
-let demoTasks = ["diskettes"];
-for (let diskName in disks) {
+/*
+ * demoTasks updates the current mode's set (or with BD_CHANGED, the disks of both sets that the changes affect), and
+ * buildTasks updates both sets.  A set whose mode isn't the current one is built only if that mode's binaries were
+ * saved, and it doesn't get the hard disk (see above).
+ */
+let demoTasks = ["diskettes"], buildTasks = ["diskettes"];
+for (let mode in SETS) {
     if (SWITCHING) break;               // the binaries may be from either mode (see readMode())
-    let disk = disks[diskName];
-    disk.mode = disk.final? "FINAL" : (RELEASE || !FINAL? MODE : "DEBUG");
-    if (disk.mode != MODE && (disk.hd || !fs.existsSync(path.join(SAVED, disk.mode)))) continue;
-    if (changed && !isAffected(diskName, changed)) continue;
-    let buildTask = "BUILD-" + diskName;
-    let diskImage = "./disks/current/" + diskName + ".json";
-    gulp.task(buildTask, checkOutput(buildDisk(diskName, diskImage), diskImage));
-    demoTasks.push(buildTask);
+    if (mode != MODE && !fs.existsSync(path.join(SAVED, mode))) continue;
+    for (let diskName in disks) {
+        let disk = disks[diskName];
+        if (mode != "FINAL" && disk.final) continue;
+        if (mode != MODE && disk.hd) continue;
+        let buildTask = SETS[mode].replace(/^.*\//, "") + "/" + diskName;
+        let diskImage = SETS[mode] + "/" + diskName + ".json";
+        gulp.task(buildTask, checkOutput(buildDisk(diskName, mode, diskImage), diskImage));
+        buildTasks.push(buildTask);
+        if (changed? changedAll || isAffected(diskName, mode, changed) : mode == MODE) demoTasks.push(buildTask);
+    }
 }
 
 if (process.env["BD_CHANGED"]) {
-    console.log(demoTasks.length > 1? "updating " + demoTasks.slice(1).map(task => task.replace("BUILD-", "")).join(", ") : "no disks to update");
+    console.log(demoTasks.length > 1? "updating " + demoTasks.slice(1).join(", ") : "no disks to update");
 }
 
 /*
  * "gulp build" (or simply "gulp") rebuilds every disk on demand, and "gulp watch" rebuilds the disks that a file is
  * on whenever the file changes (eg, a BAS file in DEMOS, a CONFIG.SYS, or the binaries of a new build), 2 seconds
  * after the last change.  Each update is a separate "gulp demos", so that it uses the current manifest, build mode,
- * and version, and if files change during an update, another one follows it.
+ * and version, and if files change during an update, another one follows it.  An update waits while the build mode is
+ * SWITCHING, and if the mode changes during an update (whose disks then may not have been updated), every disk of both
+ * sets is updated next.  While updates are pending or running, WATCHBUSY exists, so that setMode (in tools/release.sh)
+ * can wait for them to finish before it swaps the build outputs (eg, between the builds of "mk.sh all").
  *
  * WATCHED covers more than the disks use, since the manifest can list any file in those folders; the test
  * configurations (src/configs, which tools/tests/prep.sh fills) aren't on any disk, so they're ignored,
@@ -581,6 +618,7 @@ if (process.env["BD_CHANGED"]) {
  */
 const WATCHED = WATCHALL.concat([ SRC + "/**", "./machines/demos/**", "./disks/downloads/**" ]);
 const WATCHPID = "./tools/pc/disks/watch.pid";
+const WATCHBUSY = "./tools/pc/disks/watch.busy";
 
 gulp.task("watch", function() {
     if (!process.env["PCJS"] && fs.existsSync("../pcjs/tools/diskimage/diskimage.js")) {
@@ -598,26 +636,36 @@ gulp.task("watch", function() {
     }
     fs.mkdirSync(path.dirname(WATCHPID), { recursive: true });
     fs.writeFileSync(WATCHPID, process.pid + "\n");
-    process.on("exit", () => fs.rmSync(WATCHPID, { force: true }));
+    let setBusy = (busy) => busy? fs.writeFileSync(WATCHBUSY, "") : fs.rmSync(WATCHBUSY, { force: true });
+    process.on("exit", () => { fs.rmSync(WATCHPID, { force: true }); setBusy(false); });
     for (let signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => process.exit());
-    let files = new Set();
-    let update = function(done) {
+    let files = new Set(), timer = null, running = false;
+    let schedule = () => { clearTimeout(timer); timer = setTimeout(update, 2000); };
+    let update = function() {
+        if (running) return;            // (the update in progress schedules the next one)
+        if (!files.size) return setBusy(false);
+        let mode = readMode();
+        if (mode == "SWITCHING") return schedule();
         let list = [...files];
         files.clear();
-        if (!list.length) return done();
-        let env = Object.assign({}, process.env, { BD_CHANGED: list.length > 2000? "*" : list.join("\n") });
+        running = true;
+        let env = Object.assign({}, process.env, { BD_CHANGED: list.length > 2000 || list.includes("*")? "*" : list.join("\n") });
         spawn("npx gulp demos --silent" + (VERBOSE? " --verbose" : ""), { shell: true, stdio: "inherit", env }).on("close", (code) => {
-            if (code) console.log("error: unable to update the disks (run \"npx gulp demos\" for details)");
-            done();
+            running = false;
+            if (readMode() != mode) {
+                files.add("*");
+            } else if (code) {
+                console.log("error: unable to update the disks (run \"npx gulp demos\" for details)");
+            }
+            if (files.size) schedule(); else setBusy(false);
         });
     };
     let watcher = gulp.watch(WATCHED, {
-        delay: 2000,
         ignored: (file) => /(^|\/)\.[^\/.]/.test(file) || /(^|\/)src\/configs\//.test(file)
-    }, update);
-    watcher.on("all", (event, file) => files.add(file));
+    });
+    watcher.on("all", (event, file) => { files.add(file); setBusy(true); schedule(); });
     return watcher;
 });
 gulp.task("demos", gulp.series(demoTasks));
-gulp.task("build", gulp.series(demoTasks));
+gulp.task("build", gulp.series(buildTasks));
 gulp.task("default", gulp.series("build"));

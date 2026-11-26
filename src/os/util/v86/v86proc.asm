@@ -18,7 +18,7 @@ CODE    SEGMENT word public 'CODE'
 	EXTBYTE	<VARS>
 	EXTWORD	<cur_psp,mach_paras>
 	EXTLONG	<dta>
-	EXTNEAR	<seg_ptr,v86_get,v86_put,get_word,put_word>
+	EXTNEAR	<seg_ptr,v86_get,v86_put,get_word,put_word,mem_need>
 
 	.286p
 
@@ -801,7 +801,8 @@ ENDPROC	ld_alloc
 ;
 ; ld_read
 ;
-; Reads CX bytes (at most 32K) of the program into the machine at AX:DI.
+; Reads CX bytes (at most 32K) of the program into the machine at AX:DI,
+; once that memory has its pages (see mem_need).
 ;
 ; Outputs:
 ;	Carry set if error (AX = error code)
@@ -810,6 +811,7 @@ ENDPROC	ld_alloc
 ;	BX, DX (and AX, on error)
 ;
 DEFPROC	ld_read
+	call	mem_need
 	push	ax
 	push	di
 	push	es

@@ -71,5 +71,8 @@ V_STUB		equ	V_BUF + BUF_LEN	; INT 2Bh and a format (uprintf)
 STUB_LEN	equ	512
 V_PARMS		equ	V_STUB + STUB_LEN	; its parameters
 PARMS_LEN	equ	256
-V_END		equ	V_PARMS + PARMS_LEN
+V_POP		equ	V_PARMS + PARMS_LEN	; a popup, or what it covers
+POP_W		equ	30		; its width (see pop_on)
+POP_LEN		equ	POP_W * 2 * 3	; (three rows of it)
+V_END		equ	V_POP + POP_LEN
 STACK_LEN	equ	2048

@@ -1448,6 +1448,13 @@ DEFPROC	show_now
 	call	set_hwmode
 sp2:	pop	es
 	ASSUME	ES:NOTHING
+;
+; In one of an EGA or VGA's graphics modes (0Dh-13h), the start address is
+; the context's programs' to set (eg, to flip pages), and it's just been
+; restored with the rest of the adapter's state (see show_vga).
+;
+	cmp	ds:[CT_MODE],0Dh
+	jae	sp9
 	call	get_start		; AX = offset of the context's page
 	shr	ax,1
 	xchg	bx,ax			; BX = start address (in cells)
@@ -2110,6 +2117,7 @@ DEFPROC	hide_vga
 	push	ds
 	mov	ds,cx			; DS = context to display
 	call	set_mode
+	call	vga_off			; (until its memory is back)
 	mov	cl,ds:[CT_MODE]
 	pop	ds
 	push	cx
@@ -2124,6 +2132,7 @@ DEFPROC	hide_vga
 	sub	di,di			; (and SI is zero)
 	rep	movsw			; the others' memory goes back
 	pop	ds
+	call	vga_on
 	xchg	ax,dx			; AX = the copy, DX = adapter's memory
 	call	move_ctxs		; and they use the adapter's again
 	pop	cx
@@ -2316,9 +2325,12 @@ ENDPROC	vga_map
 ;
 ; vga_raw sets the registers that make each plane a 64K array at A0000h: no
 ; chain-4 or odd/even addressing, read mode 0 and write mode 0 (with no
-; set/reset, rotation, or function, and every bit written).
+; set/reset, rotation, or function, and every bit written), with the screen
+; off, since it would show the planes that way while they're copied (the
+; mode that's set afterward, or the state that's restored, turns it on).
 ;
 DEFPROC	vga_raw
+	call	vga_off
 	mov	dx,3C4h
 	mov	ax,0604h		; memory mode
 	out	dx,ax
@@ -2335,6 +2347,34 @@ DEFPROC	vga_raw
 	out	dx,ax
 	ret
 ENDPROC	vga_raw
+
+;
+; vga_off turns the screen off, and vga_on turns it on again, with the
+; screen off bit of the sequencer's clocking mode register.
+;
+; Modifies:
+;	None
+;
+DEFPROC	vga_off
+	push	ax
+	mov	ah,20h
+	jmp	short vgb1
+	DEFLBL	vga_on,near
+	push	ax
+	mov	ah,0
+vgb1:	push	dx
+	mov	dx,3C4h
+	mov	al,1
+	out	dx,al
+	inc	dx
+	in	al,dx
+	and	al,NOT 20h
+	or	al,ah
+	out	dx,al
+	pop	dx
+	pop	ax
+	ret
+ENDPROC	vga_off
 
 ;
 ; vga_free frees the block (see vga_alloc), if any.

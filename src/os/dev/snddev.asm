@@ -389,9 +389,10 @@ ENDPROC	ddsnd_irq
 ; when the machine unmasks it, the real channel is programmed with them, with
 ; the address translated to a physical one (as long as all of the transfer is
 ; in the machine's memory, and doesn't cross a 64K boundary, which it can't
-; on the machine either, since its memory starts on one; see CPU_V86), or else
-; it stays masked.  Reading the channel's address or count reads the real
-; one (the low 16 bits of a physical address are the same as the machine's),
+; on the machine either, since each 64K of its memory is a 64K of physical
+; memory; see CPU_V86), or else it stays masked.  Reading the channel's
+; address or count reads the real one (the low 16 bits of a physical address
+; are the same as the machine's),
 ; and the status register has the channel's bits of the real one.  The other
 ; channels' registers read as zero, and writing them does nothing, but the
 ; flip-flop works for all of them.
@@ -500,8 +501,9 @@ dm8:	mov	dl,0			; (zero for an IN)
 dm9:	ret
 ;
 ; Unmasking the card's channel programs the real one, if the transfer is all
-; in the machine's memory (whose segment's limit CPU_SEGINFO reports, with
-; ADDR_V86), and doesn't cross a 64K boundary; otherwise, it stays masked.
+; in pages of the machine's memory that are there, and physically consecutive
+; (whose limit CPU_SEGINFO reports, with ADDR_V86 and ADDR_PHYS), and doesn't
+; cross a 64K boundary; otherwise, it stays masked.
 ;
 dma_on:	mov	al,[dma_page]
 	cmp	al,10h			; below 1Mb?
@@ -515,7 +517,7 @@ dma_on:	mov	al,[dma_page]
 	mov	al,0
 	shl	ax,cl
 	or	bx,ax			; BX = segment
-	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_V86
+	mov	ax,(CPU_SEGINFO SHL 8) OR ADDR_V86 OR ADDR_PHYS
 	call	far ptr DDINT_CPU	; DX:CX = address, AX = limit
 	jc	dn9
 	mov	di,[dma_count]

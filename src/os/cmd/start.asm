@@ -87,8 +87,8 @@ ENDPROC	addPath
 ; the program are its own; see cmdDOS).  Like a session from CONFIG.SYS, it
 ; has its own LDT (see DOS_UTL_LOAD), but its program can end (eg, COMMAND's
 ; EXIT), which closes the session and its console, and the focus goes back to
-; the console that had it.  On success, we display the new session's number
-; (eg, for KILL or "> @n").
+; the console that had it.  On success with /B, we display the new session's
+; number (eg, for KILL or "> @n").
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -252,10 +252,16 @@ st4:	lea	sp,[bx + size SPB]
 	pop	di			; DI -> the end of the name
 	pop	bx			; BX -> CMDHEAP
 	jc	st8
+;
+; Only a background session's number is displayed: otherwise, the new console
+; has the focus, so the number would be seen only after the session ends.
+;
+	TESTSW	<'B'>			; /B?
+	jz	st7			; no
 	mov	ch,0
 	inc	cx			; CX = session # (from 1)
 	PRINTF	<"Started session %d",13,10>,cx
-	clc
+st7:	clc
 	ret
 st8:	mov	byte ptr [di],0		; the name alone, for openError
 	jmp	openError		; report error AX for program SI
@@ -263,11 +269,82 @@ ENDPROC	cmdStartSes
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; startV86
+;
+; When cmdFile can't load a real-mode program in protected mode (ERR_BADMODE),
+; and the processor has V86 mode, we run it as "START V86 program [arguments]"
+; would: in a new session and console, whose V86 machine (and so the session)
+; ends when the program does.  If its STDIN or STDOUT is redirected (eg, to a
+; pipe), which a new console would replace, we report the error instead.
+;
+; Inputs:
+;	BP -> CMDHEAP
+;	DS:SI -> the program's name (in LINEBUF)
+;	CMD_ARGPTR and CMD_ARGLEN -> the name as given (the arguments follow)
+;
+; Outputs:
+;	Carry clear if successful, set if error (reported)
+;
+; Modifies:
+;	Any
+;
+DEFPROC	startV86
+	mov	bx,bp			; BX -> CMDHEAP
+	mov	ax,word ptr [bx].SFH_STDIN
+	xchg	ax,word ptr ds:[PSP_PFT][STDIN]	; (for openError; see cf8)
+	cmp	ax,word ptr [bx].SFH_STDIN	; STDIN or STDOUT redirected?
+	jne	sv8			; yes
+	call	chkV86			; V86 mode?
+	jc	sv8			; no
+;
+; Switches are parsed only for internal commands, so clear any /B left over
+; from one (eg, COPY /B), which would keep the new console from taking the
+; focus (see cmdStartSes).
+;
+	and	byte ptr ds:[PSP_LETTERS],0FDh
+;
+; V86's arguments are the program's name and arguments, which we copy to the
+; stack, since finding V86 reuses LINEBUF.
+;
+	mov	di,[bx].CMD_ARGPTR
+	add	di,[bx].CMD_ARGLEN	; DI -> the arguments
+	mov	dx,di
+sv1:	mov	al,[di]
+	inc	di
+	cmp	al,CHR_RETURN		; the end of the arguments?
+	ja	sv1			; no
+	sub	di,dx			; DI = their length (with the end)
+	DOSUTIL	STRLEN			; AX = the name's length
+	xchg	cx,ax			; CX = the name's length
+	lea	ax,[di+1]
+	add	ax,cx
+	and	al,0FEh			; AX = length of both (even)
+	mov	bp,sp			; BP = SP to restore
+	sub	sp,ax
+	xchg	ax,di			; AX = the arguments' length
+	mov	di,sp			; ES:DI -> the copy
+	rep	movsb			; copy the name
+	xchg	cx,ax			; CX = the arguments' length
+	mov	si,dx
+	rep	movsb			; and the arguments
+	lea	si,[bx].LINEBUF
+	mov	word ptr [si],('8' SHL 8) OR 'V'
+	mov	word ptr [si+2],'6'	; DS:SI -> "V86"
+	mov	cl,3			; CX = its length
+	mov	ax,sp			; AX -> its arguments
+	call	st1			; START it
+	mov	sp,bp
+	ret
+sv8:	mov	ax,ERR_BADMODE		; report the error after all
+	jmp	openError
+ENDPROC	startV86
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; v86Hint
 ;
 ; After fileError reports a real-mode program that protected mode can't load
-; (ERR_BADMODE), add how to run it, if the processor has V86 mode (the same
-; test that V86.COM makes).
+; (ERR_BADMODE), add how to run it, if the processor has V86 mode.
 ;
 ; Inputs:
 ;	None
@@ -280,6 +357,30 @@ ENDPROC	cmdStartSes
 ;
 DEFPROC	v86Hint
 	push	ax
+	call	chkV86			; V86 mode?
+	jc	vh9			; no
+	PRINTF	<"Run START V86 first",13,10>
+vh9:	pop	ax
+	ret
+ENDPROC	v86Hint
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chkV86
+;
+; Checks whether the processor has V86 mode (the same test that V86.COM
+; makes).
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	Carry clear if so, set if not
+;
+; Modifies:
+;	AX
+;
+DEFPROC	chkV86
 	push	cx
 	push	di
 	push	es
@@ -292,14 +393,11 @@ DEFPROC	v86Hint
 	mov	al,es:[di].SI_CPUTYPE
 	add	sp,size SYSINFO
 	cmp	al,CPUTYPE_80386	; 80386 features (so V86 mode)?
-	jb	vh9			; no
-	PRINTF	<"Run START V86 first",13,10>
-vh9:	pop	es
+	pop	es
 	pop	di
 	pop	cx
-	pop	ax
 	ret
-ENDPROC	v86Hint
+ENDPROC	chkV86
 
 ;
 ; For VKD$, an adapter of 2 is the adapter of our own console (see ddcon_open).

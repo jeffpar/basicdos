@@ -11,12 +11,23 @@
 ; code in virtual-8086 mode, at ring 3, for a host program (eg, V86.COM) that
 ; provides the services the code asks for (eg, DOS).  The 80386 driver
 ; provides the machine (CPU_V86), and DOS gives it to programs (DOSUTIL
-; MAPSEG with AL = 2 and 3):
+; MAPSEG with AL = 2, 3, and 6):
 ;
 ;	CPU_V86 with AL = 0 creates a machine whose memory (SI:DI bytes,
 ;	rounded up to a multiple of 4K, at most 640K) starts at linear address
 ;	0, owned by BX (as for CPU_ALLOC); it returns the memory's first
-;	selector in AX, which names the machine.  Its DPL 3 LDT selectors
+;	selector in AX, which names the machine.  Its memory uses physical
+;	memory only as it's touched (by the machine, or through its
+;	selectors): the first touch of each 64K gives that 64K a 64K of
+;	physical memory with the same low 16 address bits (as a DMA
+;	controller's addresses need), or if no free block has room for one,
+;	just the page touched gets a page.  So creating a machine needs
+;	little, and when a page that the machine touches can't have any
+;	memory, it exits (V86X_NOMEM).  A page touched through its selectors
+;	can use the last 64K that's free, which the others can't, and if
+;	that's gone, the touch is a page fault (so a host gives the memory
+;	that DOS will fill its pages first, with AL = 9).  Its DPL 3 LDT
+;	selectors (in the active LDT)
 ;	start every 32K, and each covers the 64K there (or what remains), so
 ;	anything smaller than 32K at linear address L can be reached through
 ;	selector AX + (L SHR 15) * 8.  The machine also maps the ROMs
@@ -31,7 +42,7 @@
 ;	console sets one of an EGA or VGA's graphics modes), and while it's
 ;	below B0000h, which means that the console has the screen to itself,
 ;	the machine's code can use the video ports (3C0h-3DFh) as well.
-;	Freeing the memory (or its owner ending) frees the machine.
+;	Its owner ending frees the machine.
 ;
 ;	CPU_V86 with AL = 1 runs machine BX, with the registers in the V86REGS
 ;	at ES:DI, until it exits (see V86X_*), and then stores its registers
@@ -61,6 +72,12 @@
 ;	VR_VEC sends the machine's single-step traps and INT 3s to the
 ;	system's INT 01h and 03h handlers (the debugger's) instead of its own
 ;	vectors, the same way, until another AL = 3 with VR_VEC zero.
+;
+;	CPU_V86 with AL = 9 gives the pages of SI:DI bytes at address DX:CX
+;	in machine BX their physical memory now (any that aren't its
+;	memory's, eg, its video memory's, are skipped), or fails with
+;	ERR_NOMEMORY, in which case the host can wait and try again (as it
+;	does after V86X_NOMEM, with the page that VR_ERR names).
 ;
 ; A flat machine runs 32-bit code instead, at ring 3, in protected mode, in a
 ; linear address space of its own (every address below C0000000h, where the
@@ -162,3 +179,4 @@ V86X_TICK	equ	0	; a timer tick (VR_VEC = 08h)
 V86X_INT	equ	1	; an INT to a default vector (VR_VEC = vector)
 V86X_FAULT	equ	2	; an exception (VR_VEC = vector, VR_ERR = code)
 V86X_IO		equ	3	; an IN or OUT (VR_ERR = port and opcode)
+V86X_NOMEM	equ	4	; no memory for a page (VR_ERR = its address)

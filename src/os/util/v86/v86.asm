@@ -28,7 +28,7 @@ CODE    SEGMENT word public 'CODE'
 	EXTBYTE	<VARS>
 	EXTNEAR	<int21,int2b,load_prog,start_prog,mem_init,mem_alloc>
 	EXTNEAR	<term_prog,pft_save,dd_cpu,dd_vec,int10,int16,int17,set_keys>
-	EXTNEAR	<tick,do_io,con_ioctl,int1a,virq_ret,snd_lend>
+	EXTNEAR	<tick,do_io,con_ioctl,con_write,int1a,virq_ret,snd_lend>
 	EXTBYTE	<kbd_sent>
 ;
 ; Only the CPU check (and its message) must run on an 8086; everything after
@@ -289,7 +289,14 @@ m5:	push	ds
 	DOSUTIL	MAPSEG,3		; AL = V86X_*
 	jnc	run1
 	jmp	m8
-run1:	cmp	al,V86X_IO
+run1:	cmp	al,V86X_NOMEM		; no memory for a page it touched?
+	jne	run1b			; no
+	mov	ax,word ptr [VARS+VR_ERR]
+	mov	dx,word ptr [VARS+VR_ERR+2]
+	mov	cx,1
+	call	mem_lin			; wait until the page has some
+	jmp	run
+run1b:	cmp	al,V86X_IO
 	jne	run1h
 	jmp	do_io			; an IN or OUT
 run1h:	cmp	al,V86X_INT
@@ -471,6 +478,7 @@ ENDPROC	main
 DEFPROC	v86_ctrlc,far
 	mov	ds,cs:[our_ds]
 	mov	sp,[run_sp]		; (SS is still ours)
+	call	pop_off			; (if we were waiting; see mem_need)
 	DEFLBL	do_ctrlc,near
 	cmp	[in_call],0		; were we doing a call for the program?
 	je	dc1			; no
@@ -831,10 +839,172 @@ DEFPROC	v86_get
 ENDPROC	v86_get
 
 DEFPROC	v86_put
+	call	mem_need
 	call	seg_ptr			; ES:DI -> the machine's memory
 	rep	movsb
 	ret
 ENDPROC	v86_put
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; mem_need and mem_lin
+;
+; A machine's memory gets its pages as they're touched (see v86.inc), and a
+; page that DOS or a driver touches can't wait for one, so before we have
+; DOS fill part of it (or fill it ourselves), we give the CX bytes at the
+; machine's AX:DI (mem_need), or at its linear address DX:AX (mem_lin), their
+; pages (CPU_V86 with AL = 9).  When there's no memory for them, we say so
+; (see pop_on), and try again every half second, until another session has
+; freed some, or a CTRLC ends the wait (see v86_ctrlc), which DOS looks for
+; only when it reads or writes a console, so we write nothing to ours.
+;
+; Modifies:
+;	None
+;
+DEFPROC	mem_need
+	pusha
+	mov	dx,ax
+	shl	ax,4
+	shr	dx,12
+	add	ax,di
+	adc	dx,0			; DX:AX = linear address
+	jmp	short mn1
+	DEFLBL	mem_lin,near
+	pusha
+mn1:	mov	di,cx
+	sub	si,si			; SI:DI = # of bytes
+	xchg	cx,ax			; DX:CX = address
+mn2:	mov	bx,[machine]
+	DOSUTIL	MAPSEG,6
+	jnc	mn9
+	cmp	ax,ERR_NOMEMORY
+	jne	mn9			; (they aren't its memory's)
+	call	pop_on
+	push	cx
+	push	dx
+	sub	cx,cx
+	call	con_write		; (so that DOS sees a CTRLC)
+	sub	cx,cx
+	mov	dx,500			; CX:DX = 500ms
+	DOSUTIL	SLEEP
+	pop	dx
+	pop	cx
+	jmp	mn2
+mn9:	call	pop_off
+	popa
+	ret
+ENDPROC	mem_need
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; pop_on and pop_off
+;
+; pop_on tells the user that the machine is waiting for memory: on a console
+; with video memory in a text mode, with a popup in the middle of the screen,
+; which is stored in that memory (so it's seen whenever the console is), in
+; exchange for what it covers (pop_off exchanges them again); in a graphics
+; mode, with a beep; and on any other console (eg, a terminal), with a
+; message.
+;
+; Modifies:
+;	None
+;
+DEFPROC	pop_on
+	cmp	[pop_up],0		; have we said so already?
+	jne	pn9			; yes
+	pusha
+	push	es
+	inc	[pop_up]
+	mov	bx,offset POP_TEXT + 1
+	mov	cx,POP_W - 2		; (the message, and its CR and LF)
+	cmp	[vid_sel],0		; does our console have video memory?
+	je	pn7			; no
+	mov	cl,0
+	mov	al,IOCTL_GETMODE
+	call	con_ioctl		; DL = its video mode
+	mov	ax,80			; AX = columns
+	cmp	dl,7			; monochrome text?
+	je	pn1			; yes
+	mov	bx,offset POP_BEL
+	mov	cx,1
+	cmp	dl,3			; a graphics mode?
+	ja	pn7			; yes
+	cmp	dl,2
+	jae	pn1
+	mov	al,40
+pn1:	mov	bx,ax
+	shl	bx,1
+	mov	[pop_pitch],bx
+	mov	cl,23
+	mul	cl
+	sub	ax,POP_W		; AX = the middle of rows 11-13
+	mov	[pop_pos],ax
+	push	ds
+	pop	es
+	mov	di,offset VARS + V_POP
+	mov	ax,70DAh		; (reverse video)
+	mov	bx,0BFC4h
+	call	pn_row			; the top of its box
+	mov	al,0B3h
+	stosw
+	mov	si,offset POP_TEXT
+	mov	cx,POP_W - 3
+pn2:	lodsb
+	stosw
+	loop	pn2
+	mov	al,' '
+	stosw
+	mov	al,0B3h
+	stosw
+	mov	al,0C0h
+	mov	bh,0D9h
+	call	pn_row			; and the bottom
+	inc	[pop_up]
+	call	pop_swap
+	jmp	short pn8
+pn7:	mov	dx,bx
+	call	con_write
+pn8:	pop	es
+	popa
+pn9:	ret
+;
+; pn_row stores a row of the box: AL, then BL (POP_W - 2 times), then BH.
+;
+pn_row:	stosw
+	mov	al,bl
+	mov	cx,POP_W - 2
+	rep	stosw
+	mov	al,bh
+	stosw
+	ret
+ENDPROC	pop_on
+
+DEFPROC	pop_off
+	cmp	[pop_up],2		; is a popup there?
+	mov	[pop_up],0
+	jne	ps9			; no
+	DEFLBL	pop_swap,near
+	pusha
+	push	es
+	mov	es,[vid_sel]
+	mov	di,[pop_pos]
+	mov	si,offset VARS + V_POP
+	mov	dx,3			; DX = rows
+ps1:	mov	cx,POP_W
+ps2:	mov	ax,es:[di]
+	xchg	ax,[si]
+	stosw
+	inc	si
+	inc	si
+	loop	ps2
+	add	di,[pop_pitch]
+	sub	di,POP_W * 2
+	dec	dx
+	jnz	ps1
+	pop	es
+	popa
+ps9:	ret
+ENDPROC	pop_off
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -934,6 +1104,18 @@ NOP_INTS_LEN	equ	$ - NOP_INTS
 	DEFWORD	ctrlc_ip,0		; where a CTRLC interrupted it
 	DEFWORD	ctrlc_cs,0
 	DEFWORD	ctrlc_sp,0		; its SP in its CTRLC handler
+	DEFBYTE	pop_up,0		; 1 if we've said we're waiting, 2 if
+					; with a popup (see pop_on)
+	DEFWORD	pop_pos,0		; the popup's offset in video memory
+	DEFWORD	pop_pitch,0		; and the length of a row there
+;
+; The popup's text (after a space, and with one more), which is also the
+; message for a console that can't have a popup.
+;
+	DEFLBL	POP_TEXT,byte
+	db	" Not enough memory: waiting",13,10
+	DEFLBL	POP_BEL,byte
+	db	CHR_CTRLG		; (a beep)
 
 CODE	ENDS
 

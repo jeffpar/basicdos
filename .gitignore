@@ -11,5 +11,6 @@ tmp/
 package-lock.json
 private.md
 /_site
+/disks/debug
 /node_modules
 /tools/pc/disks/

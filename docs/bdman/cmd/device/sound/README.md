@@ -25,8 +25,9 @@ Plays music, using these commands:
 - P *n*: pauses for length *n*
 - T *n*: sets the tempo, in quarter notes per minute (32-255); the default is 120
 - MN, ML, MS: plays notes normally, legato (full length), or staccato (three-quarter length)
+- X*variable*; : plays the commands in a string variable (eg, `PLAY "XTUNE$;"`)
 
-Any number can also be given as =*variable*; to use the value of a numeric variable (eg, `PLAY "O=J;C"`), and a variable that hasn't been assigned has a value of zero.
+Any number can also be given as =*variable*; to use the value of a numeric variable (eg, `PLAY "O=J;C"`), and a variable that hasn't been assigned has a value of zero.  Commands can be separated by semicolons.
 
 The octave, length, tempo, and mode persist from one PLAY to the next.  MF and MB are ignored, since music always plays in the foreground (PLAY returns when the music ends).
 

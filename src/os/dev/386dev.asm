@@ -52,7 +52,7 @@ CODE	segment para public 'CODE'
 ; initialization's, only on an 80386.
 ;
 	EXTERNS	<ddcpu_init>,far
-	EXTNEAR	<v86_func,v86_info,v86_irqret>
+	EXTNEAR	<v86_func,v86_info,v86_irqret,v86_free,v86_syspf>
 
 	.286p
 
@@ -282,17 +282,20 @@ DEFPROC	ddcpu_free
 	call	pmb_used		; BX -> PMB
 	jc	cf9
 	DEFLBL	pmb_free,near		; BX -> PMB to free
-	mov	ds:[bx].PMB_TYPE,PMBTYPE_FREE
+	cmp	ds:[bx].PMB_V86,0	; a machine's block (80386 only)?
+	je	cf0			; no
+	call	v86_free		; yes, so its window goes with it
+cf0:	mov	ds:[bx].PMB_TYPE,PMBTYPE_FREE
 	sub	ax,ax
 	mov	ds:[bx].PMB_OWNER,ax
 	push	ds:[bx].PMB_SHARE	; save the block it shares, if any
 	xchg	ax,ds:[bx].PMB_CODE	; does it have a code alias?
 	test	ax,ax
-	jz	cf0			; no
+	jz	cf0a			; no
 	mov	cx,1
 	call	desc_free		; yes, so free it, too
 	sub	ax,ax
-cf0:	push	es
+cf0a:	push	es
 	push	ds
 	pop	es
 	lea	di,[bx].PMB_MCBTYPE
@@ -879,10 +882,11 @@ ENDPROC	ddcpu_rwmem
 ; seg_lin (CPU_SEGINFO with ADDR_LIN alone; see ddcpu_seginfo)
 ;
 ; A linear address (BX:SI) without paging is a physical one; with paging, it
-; goes through the page directory in CR3 (eg, a V86 machine's, while one is
-; interrupted) to its page table, and then its page; the base we return is
-; that page's physical address less the offset's page bits, so the base plus
-; SI is the address's physical address, and the limit ends with SI's page.
+; goes through the page directory of the machine that's interrupted (see
+; SV_MCR3), or else the one in CR3, to its page table, and then its page; the
+; base we return is that page's physical address less the offset's page bits,
+; so the base plus SI is the address's physical address, and the limit ends
+; with SI's page.
 ;
 DEFPROC	seg_lin
 	cmp	ds:[SYS_VARS].SV_TYPE,CPUTYPE_80386	; paging?
@@ -890,11 +894,16 @@ DEFPROC	seg_lin
 	test	ds:[SYS_VARS].SV_FLAGS,CPUF_PM
 	jnz	sn2			; yes
 sn1:	jmp	sg0			; (the same as physical)
-sn2:	db	0Fh,20h,0D8h		; MOV EAX,CR3
+sn2:	mov	ax,ds:[SYS_VARS].SV_MCR3.LW
+	mov	dx,ds:[SYS_VARS].SV_MCR3.HW
+	mov	cx,ax
+	or	cx,dx			; is a machine interrupted?
+	jnz	sn3			; yes, so it's the machine's
+	db	0Fh,20h,0D8h		; MOV EAX,CR3
 	db	66h,50h			; PUSH EAX
 	pop	ax
 	pop	dx
-	and	ax,NOT (PG_SIZE - 1)	; DX:AX = page directory
+sn3:	and	ax,NOT (PG_SIZE - 1)	; DX:AX = page directory
 	mov	cx,bx
 	shr	cx,6			; CX = PDE # (bits 31-22)
 	call	pg_entry		; DX:AX = page table
@@ -3105,7 +3114,16 @@ ex1:	lea	si,[bp+16]		; SS:SI -> IP and CS
 	mov	bx,ss:[si]		; BX = error code
 	inc	si
 	inc	si			; SS:SI -> IP and CS
-	cmp	ah,0Dh			; general protection fault
+;
+; A page fault (which only an 80386 has) in a V86 machine's window is how
+; its memory gets its pages (see v86_syspf), and then the instruction runs
+; again; any other one is fatal.
+;
+	cmp	ah,INT_PF		; a page fault?
+	jne	ex1a			; no
+	call	v86_syspf		; did the page get its memory?
+	jnc	ex3			; yes
+ex1a:	cmp	ah,0Dh			; general protection fault
 	jne	ex8
 	test	bx,bx			; with a zero error code
 	jnz	ex8

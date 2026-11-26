@@ -120,7 +120,8 @@ ENDPROC	utl_alias
 ; current program, whose memory's first selector names it (and which also has
 ; a console's video memory, if REG_DX is its selector), and with REG_AL = 3,
 ; it runs one until it exits; both need CPU_TYPE 3 (see CPU_V86).  REG_AL = 4
-; and 5 are for a flat machine (see le_mapseg).
+; and 5 are for a flat machine (see le_mapseg), and REG_AL = 6 gives part of a
+; V86 machine's memory its pages (CPU_V86 with AL = 9).
 ;
 ; Inputs:
 ;	REG_AL = 0, REG_BX = real-mode segment
@@ -128,6 +129,8 @@ ENDPROC	utl_alias
 ;	REG_AL = 2, REG_BX = paragraphs of memory for a V86 machine, REG_DX =
 ;	video memory's selector (or zero)
 ;	REG_AL = 3, REG_BX = V86 machine, REG_ES:REG_DI -> V86REGS
+;	REG_AL = 6, REG_BX = V86 machine, REG_DX:REG_CX = address in it,
+;	REG_SI:REG_DI = # of bytes
 ;
 ; Outputs:
 ;	Carry clear if successful: REG_AX = selector (or segment), or the word
@@ -205,7 +208,17 @@ ums8:	mov	[bp].REG_AX,ax		; (carry is set)
 ums4:	cmp	al,3			; run a machine?
 	je	ums6			; yes
 	jb	ums5
+	cmp	al,6			; give its memory its pages?
+	je	ums4a			; yes
 	jmp	le_mapseg		; no, a flat machine's (see leload.asm)
+ums4a:	mov	cx,[bp].REG_CX
+	mov	dx,[bp].REG_DX
+	mov	si,[bp].REG_SI
+	mov	di,[bp].REG_DI
+	mov	ax,(CPU_V86 SHL 8) OR 9
+	call	far ptr DDINT_CPU
+	jc	ums8
+	ret
 ums5:	xchg	ax,bx			; AX = paragraphs
 	call	para_len		; SI:DI = length
 	call	get_psp			; AX = owner

@@ -1,15 +1,15 @@
 	@ECHO OFF
-	REM Usage: MK [FINAL or DEBUG] [CLEAN] (DEBUG is the default, unless
-	REM there's an MKFINAL file in the parent directory, as there is for
-	REM MKDOS.BAT; CLEAN deletes everything in each OBJ folder for a clean
-	REM build).
+	REM Usage: MK [FINAL or DEBUG] [CLEAN] (FINAL is the default, unless
+	REM there's an MKDEBUG file in the parent directory, as there is on a
+	REM hard disk with DEBUG binaries; CLEAN deletes everything in each OBJ
+	REM folder for a clean build).
 	REM Builds BASIC-DOS on BASIC-DOS (eg, in SRC on BASICDOS-20MB).
 	REM NOTE: MAKE can't tell when the mode changes, so use CLEAN to
 	REM rebuild everything in a new mode.  ERRORLEVEL is 1 if MK fails
 	REM (E saves it, since a command that works, like CD, resets it).
 	M$ = UCASE$(ARG$(1))
-	IF M$ = "" AND EXISTS("..\MKFINAL") THEN M$ = "FINAL"
-	IF M$ = "" THEN M$ = "DEBUG"
+	IF M$ = "" AND EXISTS("..\MKDEBUG") THEN M$ = "DEBUG"
+	IF M$ = "" THEN M$ = "FINAL"
 	IF M$ <> "FINAL" AND M$ <> "DEBUG" THEN 200
 	C$ = UCASE$(ARG$(2))
 	IF C$ <> "" AND C$ <> "CLEAN" THEN 200

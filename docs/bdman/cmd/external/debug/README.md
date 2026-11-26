@@ -197,8 +197,8 @@ Without arguments, lists each session with a program: its number, its program, a
 Otherwise, displays the entries of a session's LDT that are in use, or just the one for *selector*, as [DG](#dg) does (*session* is in hex).  An LDT holds the selectors of the ring 3 programs in the sessions that share it, and of their consoles' video memory, so with `RING=0`, where every program runs at ring 0, only the first LDT has entries, if any.  A number from 1 to 20 (hex) that isn't in the list displays nothing, and any other number displays `?`.
 
 	-DL
-	 01 VKD$     COMMAND
-	*02 VKD$     COMMAND
+	 01 COMMAND  [VKD$]
+	*02 COMMAND  [VKD$]
 	-DL 1
 	0004: base=00100000 limit=B22F type=13 (data,writable,accessed) ext=0000 dpl=03
 	000C: base=00100000 limit=B22F type=1B (code,readable,accessed) ext=0000 dpl=03

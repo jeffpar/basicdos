@@ -20,7 +20,7 @@ CODE    SEGMENT word public 'CODE'
 	EXTWORD	<cur_psp,root_psp,vid_sel,vid_seg>
 	EXTLONG	<dta>
 	EXTNEAR	<run,do_exit,do_ctrlc,seg_ptr,v86_get,v86_put>
-	EXTNEAR	<get_word,put_word,push_word,pop_word>
+	EXTNEAR	<get_word,put_word,push_word,pop_word,mem_need>
 	EXTNEAR	<mem_alloc,mem_free,mem_realloc,mem_freeall,mcb_ptr,load_prog>
 	EXTNEAR	<start_prog,set_dta,fpu_copy>
 	EXTWORD	<ld_cs,ld_ip,ld_ss,ld_sp>
@@ -49,10 +49,18 @@ DEFPROC	int21
 	mov	ax,word ptr [VARS+VR_EAX]
 	jmp	I21_PROCS[di]
 ;
-; Pass anything else on to BASIC-DOS (see call_dos).
+; Pass anything else on to BASIC-DOS (see call_dos); what it reads from a
+; handle goes into the machine's memory, which must have its pages first
+; (see mem_need).
 ;
 	DEFLBL	pass21,near
-	mov	al,INT_DOSFUNC
+	cmp	byte ptr [VARS+VR_EAX+1],DOS_HDL_READ
+	jne	p21a
+	mov	ax,word ptr [VARS+VR_DS]
+	mov	di,word ptr [VARS+VR_EDX]
+	mov	cx,word ptr [VARS+VR_ECX]
+	call	mem_need
+p21a:	mov	al,INT_DOSFUNC
 	call	call_dos		; AX = result flags
 	DEFLBL	i21f,near
 	and	word ptr [VARS+VR_EFL],NOT FL_RESULTS

@@ -1,17 +1,17 @@
 	' BROGUE.BAS: a dungeon crawl in the spirit of Rogue
 	'
-	' Each depth is a map of 2 to 4 rooms, joined in a path by hallways.
+	' Each level is a map of 2 to 4 rooms, joined in a path by hallways.
 	' You (u) start on the stairs up (<) in the first room, and the stairs
 	' down (>) are in the last.  The rooms are full of stones (O): walking
 	' into one pushes it, and it rolls until something stops it.  Bricks
 	' never move.  Move with the cursor keys (Home, PgUp, End, and PgDn
 	' for the diagonals) or h, j, k, l, y, u, b, and n; R restarts the
-	' depth, N makes a new map, and Q quits.
+	' level, N makes a new map, and Q quits.
 	'
 	' Every map is made from a 32-bit seed (SEED, on the top row) given to
 	' RANDOMIZE, so R makes the same map again; only N and the stairs
 	' choose a new seed.  Play uses no random numbers.  To play a map
-	' again later, run BROGUE with its seed (and its depth, if it isn't 1;
+	' again later, run BROGUE with its seed (and its level, if it isn't 1;
 	' eg, BROGUE 36AF971E 4).
 	'
 	' The map (M$) is on rows 2-23, between the message row and the status
@@ -52,7 +52,7 @@
 	' the left, bottom, top, and right walls, like the moves)
 	Q$ = CHR$(217) + CHR$(191) + CHR$(191) + CHR$(218)
 	Q$ = Q$ + CHR$(217) + CHR$(192) + CHR$(192) + CHR$(218)
-	' A seed (in hex) and a depth on the command line choose the map (I
+	' A seed (in hex) and a level on the command line choose the map (I
 	' counts them), and the switch char (W$) followed by M plays with
 	' other BROGUEs (MP)
 	DOS &H3700 : W$ = CHR$(DOS(3) AND 255)
@@ -272,16 +272,16 @@
 	IF MID$(M$(I), X - 2, LEN(T$)) <> T$ THEN F = 1
 	NEXT
 	RETURN
-	' Display the depth, seed, and message (M1$) on the top row, and the
-	' keys on the bottom row
-500	T$ = "Depth" + STR$(L) + "  Seed " + RIGHT$("0000000" + HEX$(SEED), 8)
-	LOCATE 1, 1 : PRINT LEFT$(T$ + "  " + M1$ + B$, 79);
+	' Display the level and message (M1$) on the top row, with the
+	' seed at the right, and the keys on the bottom row
+500	T$ = "Level" + STR$(L) + ": " + M1$ + B$
+	LOCATE 1, 1 : PRINT LEFT$(T$, 66) + "Seed " + RIGHT$("0000000" + HEX$(SEED), 8);
 	T$ = "Move: hjklyubn (or the cursor keys)  Retry: R  New: N  Quit: Q"
 	LOCATE 24, 1 : PRINT T$;
 	RETURN
 	' In multiplayer, wait for a key (K$), or a message from another
 	' BROGUE (K$ is empty), which is 9 bytes: its session number (S), plus
-	' 64 times its type (ZT); its seed (ZS) and depth (ZM is set if
+	' 64 times its type (ZT); its seed (ZS) and level (ZM is set if
 	' they're ours); and two values (X and Y) and a count (D), which
 	' depend on the type:
 	'

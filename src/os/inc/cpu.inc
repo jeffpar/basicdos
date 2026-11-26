@@ -70,7 +70,7 @@ CPU_SYSREGS	equ	0Fh	; ES:DI -> 16-byte buffer (GDTR, IDTR, ...)
 CPU_SETFAULT	equ	10h	; DX:CX = fault handler (0:0 for none)
 CPU_SETSTACK	equ	11h	; DX:CX = ring 0 stack (SS:SP)
 CPU_SETLDT	equ	12h	; AL = LDT # (for a session; see SCB_LDT)
-CPU_V86		equ	13h	; AL = 0-8 (see v86.inc)
+CPU_V86		equ	13h	; AL = 0-9 (see v86.inc)
 CPU_MAXFUNC	equ	13h
 
 ;
@@ -125,8 +125,12 @@ SELID_WAIT	equ	0FFFFh	; segment of a selector ID's wait ID
 ; CPU_SETLDT), and the segment is that LDT, whose limit is FFFFh if it's empty,
 ; or (likewise) ADDR_V86 is set, in which case the address is a real-mode one
 ; in the V86 machine (see v86.inc) whose memory's first selector is in the
-; active LDT (an error if there's none), where only its memory and the ROMs
-; are mapped, so the limit ends where they do, or ADDR_LIN is set, in which
+; active LDT (an error if there's none), where only the pages of its memory
+; that have been touched, its video memory, and the ROMs are mapped, so the
+; limit ends where they do (and the address is in the machine's window, not
+; physical memory, unless ADDR_PHYS is set as well, in which case the limit
+; ends with the last physically consecutive page of the same 64K, eg, for a
+; DMA transfer), or ADDR_LIN is set, in which
 ; case it's a linear address (the "segment" holds bits 16-31, and the offset
 ; is in SI, even for CPU_SEGINFO), which is the same as a physical address
 ; unless paging is on (in protected mode, with the 80386's features), when

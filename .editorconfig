@@ -1,5 +1,20 @@
 root = true
 
+#
+# The EditorConfig extension overrides VS Code's per-language settings, so these sections must match the language
+# settings in .vscode/settings.json (eg, JSON files indent with 2 spaces, and tabs in them, as in machines/pcx86's
+# diskettes.json, are 2 columns), or every file would get 8-column tabs.
+#
 [*]
 indent_style = tab
 tab_width = 8
+
+[*.{json,jsonc}]
+indent_style = space
+indent_size = 2
+tab_width = 2
+
+[*.{js,mjs,md}]
+indent_style = space
+indent_size = 4
+tab_width = 4

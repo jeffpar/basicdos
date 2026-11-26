@@ -70,11 +70,11 @@ As in IBM PC BASIC, [LET](../cmd/basic/let/) is optional for assignments, even a
 
 ### Playing BROGUE
 
-On an 80-column PC display or VT100 console, run `CD \DEMOS` followed by `BROGUE`. Each depth is a few rooms joined by hallways, which are drawn as two walls with nothing between them. You (`u`) start on the stairs up (`<`) in the first room, and the stairs down (`>`) are in the last. Walk onto `>` to descend.
+On an 80-column PC display or VT100 console, run `CD \DEMOS` followed by `BROGUE`. Each level is a few rooms joined by hallways, which are drawn as two walls with nothing between them. You (`u`) start on the stairs up (`<`) in the first room, and the stairs down (`>`) are in the last. Walk onto `>` to descend.
 
 Move with the arrow keys (and Home, PgUp, End, and PgDn for the diagonals) or lowercase `h`, `j`, `k`, `l` (and `y`, `u`, `b`, `n` for the diagonals). The rooms are full of stones (`O`): push one by walking into it, and it rolls until something stops it. Bricks (shaded squares, or a checkerboard on a VT100) never move.
 
-The top row shows the depth and the map's seed. Press `R` to start the depth over (the same map), `N` for a new map at the same depth, or `Q` to quit. To play a map again later, run BROGUE with its seed, followed by its depth if it isn't 1 (eg, `BROGUE 36AF971E 4`).
+The top row shows the level and the map's seed (in hex). Press `R` to start the level over (the same map), `N` for a new map at the same level, or `Q` to quit. To play a map again later, run BROGUE with its seed, followed by its level if it isn't 1 (eg, `BROGUE 36AF971E 4`).
 
 To play with others, run `BROGUE /M` in two or more sessions (eg, consoles that [START](../cmd/system/#start) opens). The first one makes the map, and each one that starts later plays the same map as it is then (with the stones where they are), starting on a random cell of the first room; a player who takes the stairs (or presses `R`) on a map that another player is already on gets that map as it is, too. Your player is always `u`, and the other players are shown by their session numbers (`1`-`9`, then `A`-`W`), wherever they are on the same map; a player who presses `N` (or quits) disappears from the others' maps. Players who take the stairs down meet again on the next map, since the stairs choose the next map from the current one. A stone that one player pushes rolls on every player's map, and if it rolls into another player, that player is squashed.
 

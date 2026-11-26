@@ -1,1 +1,19 @@
 developer: true
+#
+# A developer server also serves disks/debug (the DEBUG disk images, which aren't part of the repository or the
+# published site), for pages loaded with "?debug=true" (see _includes/scripts.html).  Jekyll replaces a list from an
+# earlier configuration file, so this is _config.yml's "exclude" list without /disks/debug; keep the two in sync.
+#
+exclude:
+  - CNAME
+  - Gemfile
+  - Gemfile.lock
+  - gulpfile.js
+  - package.json
+  - package-lock.json
+  - /src
+  - /tools
+  - "*.sh"
+  - /.history
+  - /node_modules
+  - "**/archive"

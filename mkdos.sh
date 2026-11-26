@@ -25,37 +25,37 @@
 # happens at about 8x); mk.sh uses the same multiplier.
 #
 # After building, if pc.js exits normally (ie, via QUIT, which a successful
-# build runs automatically), update the BASIC-DOS disk images with the new
-# binaries (which requires PCJS; see gulpfile.js), unless "gulp watch" is
-# running, which updates them itself a couple of seconds later: while
-# package.json's
-# config.release is "debug", a DEBUG build updates every disk except the
-# release diskette (BASICDOS-360K) and the 64K demo disks (BASICDOS-360K-M64
-# and BASICDOS-360K-TERM, which have room only for FINAL binaries), and a
-# FINAL build updates only those three; once config.release is "final", a
-# FINAL build updates them all, and a DEBUG build updates all but those three.
-# If a build fails and you don't want the disks updated, use pc.js's "abort"
-# command.
+# build runs automatically), update the disk images of the build's mode with
+# the new binaries (which requires PCJS; see gulpfile.js): a FINAL build
+# updates disks/current (the disks that the web site uses), and a DEBUG build
+# updates disks/debug (every disk but the release diskette, BASICDOS-360K, and
+# the 64K demo disks, BASICDOS-360K-M64 and BASICDOS-360K-TERM, which are
+# FINAL only), unless "gulp watch" is running, which updates them itself a
+# couple of seconds later.  If a build fails and you don't want the disks
+# updated, use pc.js's "abort" command.
 #
-# Usage: mkdos.sh [FINAL or DEBUG] [CLEAN] (the same arguments as mk.sh and
-# os/mk.bat, in either case).  FINAL builds non-debug binaries, and DEBUG
-# builds the traditional DEBUG binaries; the default is package.json's
-# config.release property, and its "version" sets the BASIC-DOS version (see
-# tools/release.sh, which updates version.inc).  The C: AUTOEXEC.BAT
-# always runs MKDOS without arguments, so for a FINAL build, we create an
-# MKFINAL file in the source directory (D:\), which tells MKDOS.BAT to build
-# FINAL binaries instead, and we remove it when pc.js exits.  And since MAKE
-# can't tell that the mode has changed, each mode keeps its own build outputs
-# (see setMode in tools/release.sh, which records the last mode in
-# tools/pc/disks/mkmode, and saves the other mode's outputs alongside it), so
-# switching modes rebuilds only what's changed since that mode's last build.
+# Usage: mkdos.sh [FINAL, DEBUG, or ALL] [CLEAN] (in either case; the same
+# modes as mk.sh).  FINAL builds non-debug binaries, DEBUG builds the
+# traditional DEBUG binaries, and ALL (the default) builds DEBUG and then
+# FINAL, so FINAL is the current mode afterward; package.json's "version" sets the
+# BASIC-DOS version (see tools/release.sh, which updates version.inc).  The C:
+# AUTOEXEC.BAT always runs MKDOS without arguments, so for a FINAL build, we
+# create an MKFINAL file in the source directory (D:\), which tells MKDOS.BAT
+# to build FINAL binaries instead of DEBUG, and we remove it when pc.js exits.
+# And since MAKE can't tell that the mode has changed, each mode keeps its own
+# build outputs (see setMode in tools/release.sh, which records the last mode
+# in tools/pc/disks/mkmode, and saves the other mode's outputs alongside it),
+# so switching modes rebuilds only what's changed since that mode's last
+# build.
 #
-# Use "mkdos.sh final clean" (or "mkdos.sh debug clean") for a clean build:
+# Use "mkdos.sh final clean" (or "mkdos.sh debug clean", or "mkdos.sh all
+# clean") for a clean build:
 # we create a CLEAN file in the source directory, which tells MKDOS.BAT to run
 # MKCLEAN.BAT first (which deletes CLEAN and all the build outputs).
 #
-# "mkdos.sh masm4 [FINAL or DEBUG]" instead checks that everything still
-# assembles with MASM 4.00, whose symbol space is fixed (see AGENTS.md): it
+# "mkdos.sh masm4 [FINAL or DEBUG]" (FINAL by default) instead checks that
+# everything still assembles with MASM 4.00, whose symbol space is fixed (see
+# AGENTS.md): it
 # copies the source directory to tools/pc/disks/tmp-masm4 and does a clean
 # build there, with each component's MKDOS.BAT running "MAKE /I ASM=MASM", so
 # that the ASM macro overrides the makefile's (ASM=MASM5) and one failure
@@ -67,7 +67,7 @@
 # not part of every build.
 #
 cd "$(dirname "$0")" || exit 1
-usage() { echo "Usage: $0 [FINAL or DEBUG] [CLEAN], or $0 MASM4 [FINAL or DEBUG]" >&2; exit 1; }
+usage() { echo "Usage: $0 [FINAL, DEBUG, or ALL] [CLEAN], or $0 MASM4 [FINAL or DEBUG]" >&2; exit 1; }
 [ $# -le 2 ] || usage
 . tools/release.sh
 src=src
@@ -118,34 +118,27 @@ masm4() {
     return $code
 }
 if [ "$(echo "$1" | tr a-z A-Z)" = MASM4 ]; then
-    mode=$(echo "${2:-$release}" | tr a-z A-Z)
-    [ "$mode" = FINAL ] || [ "$mode" = DEBUG ] || usage
-    masm4 $mode
+    getModes "${2:-FINAL}" && [ "$modes" != "DEBUG FINAL" ] || usage
+    masm4 $modes
     exit
 fi
-mode=$(echo "${1:-$release}" | tr a-z A-Z)
-[ "$mode" = FINAL ] || [ "$mode" = DEBUG ] || usage
+getModes "$1" || usage
 clean=
 case "$(echo "$2" | tr a-z A-Z)" in
     "") ;;
     CLEAN) clean=1 ;;
     *) usage ;;
 esac
-setMode $mode
-rm -f $src/MKFINAL $src/CLEAN
 trap 'rm -f '$src'/MKFINAL '$src'/CLEAN' EXIT
-if [ $mode = FINAL ]; then
-    touch $src/MKFINAL
-fi
-if [ -n "$clean" ]; then
-    touch $src/CLEAN
-fi
-tools/pc/pc.js --disk=disks/historical/dos/MSDOS320-C400.json --dir=$src --normalize --speed=16 --target=30M --fat=16:2048:512
-code=$?
-if [ $code -eq 0 ] && [ -n "$PCJS" ] && ! watching; then
-    if ! npx gulp demos --silent > /dev/null; then
-        echo "error: unable to update the demo disks (run \"npx gulp demos\" for details)" >&2
-        exit 1
+for mode in $modes; do
+    setMode $mode
+    rm -f $src/MKFINAL $src/CLEAN
+    if [ $mode = FINAL ]; then
+        touch $src/MKFINAL
     fi
-fi
-exit $code
+    if [ -n "$clean" ]; then
+        touch $src/CLEAN
+    fi
+    tools/pc/pc.js --disk=disks/historical/dos/MSDOS320-C400.json --dir=$src --normalize --speed=16 --target=30M --fat=16:2048:512 || exit
+    updateDisks || exit 1
+done

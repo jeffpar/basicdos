@@ -13,12 +13,25 @@
 ; ddcpu_v86).
 ;
 ; Each machine has a page directory and a page table, in a block of their
-; own, whose PMB has the two LDT selectors that the machine's exits update
-; (VR_DSSEL and VR_ESSEL), so that they're freed with it; the machine's
-; memory's PMB has its page number (PMB_V86).  The page directory has the
-; system's PDEs (see LIN_HI) and the PDE for the page table, which maps the
-; machine's first 1Mb (plus the 64K that wraps), and the rest of its page is
-; free, so the machine's context (V86CTX) is there, too.  A machine that has
+; own, whose PMB has its page number (PMB_V86) and the machine's LDT
+; selectors, so that they're freed with it: the ones for its memory (see
+; v86_tiles), and the two that its exits update (VR_DSSEL and VR_ESSEL).  The
+; page directory has the system's PDEs (see LIN_HI) and the PDE for the page
+; table, which maps the machine's first 1Mb (plus the 64K that wraps), and
+; the rest of its page is free, so the machine's context (V86CTX) is there,
+; too.
+;
+; The machine's memory gets its pages as they're touched (see pg_get), a
+; chunk at a time (PG_NCHUNK pages, in a block of its owner's), so a machine
+; costs only the memory that it uses, and more machines can be created than
+; there's memory for.  Its page table is also the system's for one of the
+; windows (see WIN_SLOTS), which is where everything outside the machine
+; finds its memory (and what its selectors' bases are), so a page that isn't
+; there yet faults either way: in the machine (see v86_pf), which exits
+; (V86X_NOMEM) when there's no memory for it, so that its host can wait for
+; some, or in its window (see v86_syspf), where nothing can wait, so those
+; pages can use the last chunk's worth of free memory, which the others
+; leave alone.  A machine that has
 ; a console's video memory (see v86_vsel) gets the selector's memory in its
 ; page table each time it resumes (see v86_vid), or while the selector isn't
 ; present, no pages there, so that touching them waits (see v86_pf); and
@@ -64,7 +77,7 @@ CODE	segment para public 'CODE'
 
 	EXTNEAR	<alloc_at,ddcpu_alloc,pmb_fit,pmb_used,pmb_free,desc_alloc>
 	EXTNEAR	<sel_desc,pm_ptr,cpu_inval,ddcpu_seginfo,id_desc,desc_addr>
-	EXTNEAR	<enc_owner>
+	EXTNEAR	<enc_owner,pg_entry,pmb_largest>
 
 	.286p
 ;
@@ -78,7 +91,7 @@ VC_KSP		dw	?	; the kernel's stack (SS:SP) to exit to
 VC_KSS		dw	?
 VC_SP0		dw	?	; the TSS's ring 0 stack (SS0:SP0) to restore
 VC_SS0		dw	?
-VC_MEM		dd	?	; the machine's memory (physical address)
+VC_MEM		dd	?	; the machine's memory (its window's address)
 VC_LEN		dd	?	; and its length
 VC_VIF		db	?	; the machine's IF (FL_INTS SHR 8, or 0)
 VC_DBG		db	?	; nonzero if a debugger gets traps (v86_refl)
@@ -96,13 +109,16 @@ VC_FLAT		db	?	; nonzero for a flat machine (see fl_create)
 VC_PEND		db	?	; flat: nonzero for a pending fault (fl_event)
 VC_FSEL		dw	?	; flat: its first selector (the machine)
 VC_TOP		dd	?	; flat: the end of its memory (linear address)
-VC_OWNER	dw	?	; flat: its owner ID (see enc_owner)
+VC_OWNER	dw	?	; its owner ID (see enc_owner)
+VC_NEXT		dd	?	; the next page of its chunk (see pg_get)
+VC_NFREE	db	?	; and how many pages the chunk has left
 V86CTX		ends
 
 V86_CTX		equ	0800h	; context's offset (PDEs for 80000000h and up)
 V86_PT		equ	PG_SIZE	; page table's offset (in the next page)
 V86_MAXLEN	equ	0Ah	; most memory a machine can have (640K), in 64K
 V86_NSTUBS	equ	12h	; exception stubs (00h-11h), before the IRQs'
+PG_NCHUNK	equ	16	; pages in a chunk of a machine's memory (64K)
 FL_V86		equ	0DD5h	; flags that the machine can change
 TSS_ESP0	equ	SYS_TSS + 4	; the 80386 TSS's ring 0 stack
 TSS_SS0		equ	SYS_TSS + 8
@@ -130,8 +146,9 @@ EXT_FLAT	equ	0CBh	; DESC_EXT: 4K granularity, 32-bit, limit 19-16
 ;
 ; Inputs:
 ;	AL = 0 to create a machine (see v86_create), 1 to run one (see
-;	v86_run), 2 or 3 to copy registers (see v86_regs), or 4 or 5 to lend
-;	ports or take them back (see v86_ports)
+;	v86_run), 2 or 3 to copy registers (see v86_regs), 4 or 5 to lend
+;	ports or take them back (see v86_ports), 6 to 8 for a flat machine
+;	(see fl_func), or 9 to give memory its pages (see v86_commit)
 ;
 DEFPROC	v86_func
 	cmp	al,1
@@ -143,8 +160,11 @@ DEFPROC	v86_func
 	ja	vf2			; no
 	jmp	v86_ports		; yes
 vf2:	cmp	al,8			; a flat machine's function?
-	ja	vf8			; no
+	ja	vf3			; no
 	jmp	fl_func			; yes
+vf3:	cmp	al,9			; giving a machine's memory its pages?
+	jne	vf8			; no
+	jmp	v86_commit		; yes
 vf8:	jmp	cpu_inval
 vf1:	jmp	v86_create
 ENDPROC	v86_func
@@ -220,7 +240,7 @@ ENDPROC	v86_regs
 ; and its IOPL is 0.
 ;
 ; Inputs:
-;	BX = machine (its memory's first selector)
+;	BX = machine (see v86_find)
 ;	ES:DI -> V86REGS
 ;
 ; Outputs:
@@ -228,22 +248,13 @@ ENDPROC	v86_regs
 ;	Carry set: AX = error code
 ;
 DEFPROC	v86_run
-	mov	cx,bx
-	mov	dx,-1
-	call	pmb_used		; BX -> PMB
+	mov	bp,es			; BP:DI -> V86REGS
+	call	v86_find		; ES = its context, DX:CX = its address
 	jc	vr9
-	mov	ax,ds:[bx].PMB_V86
-	test	ax,ax			; is the block a machine's memory?
-	jz	vr8			; no
-	mov	dx,ax
-	shr	dx,4
-	shl	ax,12			; DX:AX = its page directory
-	push	es
+	push	bp
 	push	di
 	push	dx
-	push	ax			; (see v86_resume)
-	xchg	cx,ax			; DX:CX = page directory
-	call	v86_stk			; ES = its context's selector
+	push	cx			; (see v86_resume)
 	mov	bp,sp
 	push	ds
 	lds	si,dword ptr [bp+4]	; DS:SI -> V86REGS
@@ -277,7 +288,6 @@ DEFPROC	v86_run
 	add	ax,size DESC
 	mov	word ptr es:[V86_CTX].VR_SS,ax
 	jmp	short v86_resume
-vr8:	jmp	cpu_inval
 vr9:	ret
 ENDPROC	v86_run
 
@@ -463,7 +473,7 @@ DEFPROC	v86_noerr
 ;
 	test	byte ptr [bp+VR_CS],3	; from a flat machine?
 	jnz	vc0b			; yes
-	jmp	vc9			; no (from the kernel)
+	jmp	v86_kern		; no (from the kernel)
 vc0b:	mov	word ptr [bp+VR_ES],es
 	mov	word ptr [bp+VR_DS],ds
 	db	8Ch,66h,VR_FS		; MOV [BP+VR_FS],FS
@@ -512,10 +522,12 @@ vc0a:
 	jb	vc8			; no
 vc2:	mov	dx,offset DEV:v86_irq
 ;
-; v86_leave goes back to the kernel's stack, with the system's IDT and the
-; kernel's ring 0 stack in the TSS, and every port's bit set again (see
-; io_close), and then on to DX, with AX unchanged, DS = SEL_SYS, and ES =
-; context.
+; v86_leave goes back to the kernel's stack, with the system's IDT and page
+; directory (the only one with the machines' windows; the machine's own is
+; in SV_MCR3 until it exits, for a debugger that asks about its linear
+; addresses; see seg_lin), the kernel's ring 0 stack in the TSS, and every
+; port's bit set again (see io_close), and then on to DX, with AX unchanged,
+; DS = SEL_SYS, and ES = context.
 ;
 	DEFLBL	v86_leave,near
 	call	io_close
@@ -530,17 +542,19 @@ vc2:	mov	dx,offset DEV:v86_irq
 	mov	cx,es:[V86_CTX].VC_KSP
 	mov	ss,es:[V86_CTX].VC_KSS
 	mov	sp,cx
+	push	ax
+	db	0Fh,20h,0D8h		; MOV EAX,CR3
+	db	66h			; (MOV [...],EAX)
+	mov	ds:[SYS_VARS].SV_MCR3.LW,ax
+	push	ds:[SYS_VARS].SV_PDIR.HW
+	push	ds:[SYS_VARS].SV_PDIR.LW
+	db	66h,58h			; POP EAX
+	db	0Fh,22h,0D8h		; MOV CR3,EAX
+	pop	ax
 	jmp	dx
 vc3:	jmp	v86_refl
 vc8:	mov	al,V86X_FAULT
 	jmp	v86_out
-;
-; Only a debugger's trace (after the LIDT in v86_resume) or an NMI (eg,
-; while a fault is handled above) can get here from the kernel, before the
-; machine runs, so the trace ends (as if it were a G) and the code goes on.
-;
-vc9:	and	byte ptr [bp+VR_EFL+1],NOT (FL_TRAP SHR 8)
-	jmp	vr_ret
 ENDPROC	v86_noerr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -782,8 +796,8 @@ ENDPROC	v86_out
 ; v86_exit
 ;
 ; Ends the call that ran the machine (see v86_run), storing its registers in
-; the caller's V86REGS (with its own IF, and VR_DSSEL and VR_ESSEL updated),
-; and loading the system's page directory again (the machine's can be freed).
+; the caller's V86REGS (with its own IF, and VR_DSSEL and VR_ESSEL updated);
+; no machine is interrupted now (see SV_MCR3), and this one can be freed.
 ;
 ; Inputs:
 ;	AL = V86X_*
@@ -825,10 +839,9 @@ vx2:	push	ds
 	mov	cx,(size V86REGS) / 2
 	rep	movsw
 	pop	ds
-	push	ds:[SYS_VARS].SV_PDIR.HW
-	push	ds:[SYS_VARS].SV_PDIR.LW
-	db	66h,58h			; POP EAX
-	db	0Fh,22h,0D8h		; MOV CR3,EAX
+	sub	ax,ax
+	mov	ds:[SYS_VARS].SV_MCR3.LW,ax
+	mov	ds:[SYS_VARS].SV_MCR3.HW,ax
 	mov	es,[bp+6]		; (the caller's ES)
 	pop	ax			; AL = V86X_*
 	add	sp,8
@@ -881,13 +894,18 @@ ENDPROC	v86_irq
 ;
 ; v86_pf
 ;
-; A page fault in the machine's video memory (see v86_vid) means that its
-; selector wasn't present when the machine resumed, so unless it's present
-; now, the machine waits until it is, as a program that loads it does (see
-; SELID_WAIT), and then runs again, at the same instruction; if the wait ends
-; early (eg, for a CTRLC), it exits as after a timer tick, so that DOS can act
-; on it.  Any other page fault exits (V86X_FAULT), as one does after its
-; selector is freed.
+; A page fault in the machine's memory means that the page hasn't been
+; touched before, so it gets its memory now (see pg_get), and the machine
+; runs again, at the same instruction; if there's none to give it, the
+; machine exits (V86X_NOMEM, with the page's address in VR_ERR), so that its
+; host can wait until there is (see v86_commit).
+;
+; One in its video memory (see v86_vid) means that its selector wasn't
+; present when the machine resumed, so unless it's present now, the machine
+; waits until it is, as a program that loads it does (see SELID_WAIT), and
+; then runs again; if the wait ends early (eg, for a CTRLC), it exits as
+; after a timer tick, so that DOS can act on it.  Any other page fault exits
+; (V86X_FAULT), as one does after its selector is freed.
 ;
 ; Inputs:
 ;	DS = SEL_SYS, ES = context
@@ -895,6 +913,10 @@ ENDPROC	v86_irq
 DEFPROC	v86_pf
 	db	0Fh,20h,0D0h		; MOV EAX,CR2
 	db	66h,0C1h,0E8h,12	; SHR EAX,12 (AX = its page)
+	db	66h,3Dh			; CMP EAX,110h
+	dw	0110h,0
+	jae	pf8			; (beyond the machine's addresses)
+	mov	si,ax			; SI = the page
 	mov	cx,word ptr es:[V86_CTX].VC_VPG	; CL = first page, CH = count
 ;
 ; Video memory is below 1Mb, so the page's high byte must be zero, and then
@@ -902,10 +924,10 @@ DEFPROC	v86_pf
 ; than the count (which is zero if there's no video memory).
 ;
 	test	ah,ah
-	jnz	pf8
+	jnz	pf2
 	sub	al,cl
 	cmp	al,ch			; in the machine's video memory?
-	jae	pf8			; no
+	jae	pf2			; no
 	call	v86_vid			; ZF clear if it's there now
 	jc	pf8			; (it's gone)
 	jnz	pf1			; it is
@@ -913,11 +935,73 @@ DEFPROC	v86_pf
 	mov	di,es:[V86_CTX].VC_VID	; DX:DI = its wait ID
 	mov	ah,DDUTL_WAIT
 	call	far ptr DDINT_UTIL
-	jc	vi9			; the wait ended early
+	jc	pf7			; the wait ended early
 pf1:	jmp	v86_resume
+pf2:	mov	ax,si
+	cwd				; (DL = 0: not from the reserve)
+	call	pg_get
+	jnc	pf1
+	cmp	al,ERR_NOMEMORY
+	jne	pf8			; (it's not the machine's memory)
+	mov	ax,si
+	shl	ax,12
+	shr	si,4			; SI:AX = the page's address
+	mov	es:[V86_CTX].VR_ERR.LW,ax
+	mov	es:[V86_CTX].VR_ERR.HW,si
+	mov	al,V86X_NOMEM
+	jmp	short pf9
+pf7:	mov	al,V86X_TICK
+	jmp	short pf9
 pf8:	mov	al,V86X_FAULT
-	jmp	v86_exit
+pf9:	jmp	v86_exit
 ENDPROC	v86_pf
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; v86_kern
+;
+; An interrupt from the kernel, on the context's stack (see v86_common).
+;
+; Inputs:
+;	SS:BP -> its PUSHAD frame, in the context
+;
+DEFPROC	v86_kern
+;
+; A page fault from the kernel is ours, touching a page of the machine's
+; memory that isn't there yet (eg, v86_refl pushing a frame on its stack),
+; so the page gets its memory (from the reserve, if need be; see pg_get) and
+; the instruction runs again; if it can't, the machine exits with a fault.
+;
+	cmp	word ptr [bp+VR_VEC],offset DEV:v86_stubs + (INT_PF + 1) * 3
+	jne	vkn2			; not a page fault
+	push	ds
+	push	es
+	mov	ax,SEL_SYS
+	mov	ds,ax
+	mov	ax,ss
+	mov	es,ax			; ES = context
+	db	0Fh,20h,0D0h		; MOV EAX,CR2
+	db	66h,0C1h,0E8h,12	; SHR EAX,12 (AX = its page)
+	db	66h,3Dh			; CMP EAX,110h
+	dw	0110h,0
+	jae	vkn1			; (beyond the machine's addresses)
+	mov	dl,1
+	call	pg_get
+	jc	vkn1
+	pop	es
+	pop	ds
+	jmp	vr_ret
+vkn1:	mov	al,V86X_FAULT
+	jmp	v86_out
+;
+; Otherwise, only a debugger's trace (after the LIDT in v86_resume) or an
+; NMI (eg, while a fault is handled above) can get here from the kernel,
+; before the machine runs, so the trace ends (as if it were a G) and the code
+; goes on.
+;
+vkn2:	and	byte ptr [bp+VR_EFL+1],NOT (FL_TRAP SHR 8)
+	jmp	vr_ret
+ENDPROC	v86_kern
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1116,8 +1200,8 @@ ENDPROC	v86_stkchk
 ; v86_chk
 ;
 ; Checks that the first and last bytes at the machine's AX:SI (within the
-; segment) are in pages that the machine has, so that touching them can't
-; fault.
+; segment) are in pages that the machine has, or pages of its memory that
+; aren't there yet, which get their memory when we touch them (see vc9).
 ;
 ; Inputs:
 ;	AX = segment, SI = offset, CX = # of bytes after the first
@@ -1152,7 +1236,11 @@ ck1:	push	ax
 	pop	ax
 	test	byte ptr es:[V86_PT+bx],1	; is its PTE present?
 	jnz	ck2			; yes (and carry is clear)
-	stc
+	push	ax
+	mov	ax,bx
+	shr	ax,2
+	call	pg_mine			; carry set unless it's memory's
+	pop	ax
 ck2:	ret
 ENDPROC	v86_chk
 
@@ -1208,13 +1296,16 @@ ENDPROC	v86_stk
 ; v86_info (CPU_SEGINFO with ADDR_V86)
 ;
 ; Finds the machine whose memory's first selector is in the active LDT (with
-; that memory as its base, since another LDT can have a selector at the same
-; index), and returns where a segment is in it, and how many of the bytes
-; there are mapped (by v86_init) in the same order: the rest of its memory,
-; or of the ROMs.
+; the machine's window as its base, since another LDT can have a selector at
+; the same index), and returns where a segment is in that window, and how
+; many of the bytes there are in consecutive pages that are present: its
+; memory's (the ones that have been touched), its video memory's, or the
+; ROMs'.  With ADDR_PHYS as well, the address is the segment's physical one,
+; and the bytes are only those in physically consecutive pages of the same
+; 64K (eg, for a DMA transfer, which the pages of a chunk allow; see pg_get).
 ;
 ; Inputs:
-;	BX = segment
+;	AL = ADDR_* flags, BX = segment
 ;
 ; Outputs:
 ;	Carry clear if successful: DX:CX = address, AX = limit (FFFFh if the
@@ -1225,56 +1316,97 @@ ENDPROC	v86_stk
 ;	AX, CX, DX, SI
 ;
 DEFPROC	v86_info
-	push	bx
+	push	bx			; [BP+10] = segment
 	push	di
+	push	es
 	push	bp
-	mov	di,SYS_PMBS
-	mov	bp,ds:[SYS_VARS].SV_NPMBS
-vq1:	cmp	ds:[di].PMB_V86,0	; a machine's memory?
-	je	vq2			; no
-	cmp	ds:[di].PMB_FLAT,0	; a flat machine's context?
-	jne	vq2			; yes
-	push	bx
-	mov	bx,ds:[di].PMB_SEL
-	mov	al,ADDR_SEL
-	call	ddcpu_seginfo		; DX:CX = its first selector's base
-	pop	bx
-	jc	vq2			; (it isn't in the active LDT)
-	cmp	cx,ds:[di].PMB_ADDR.LW
-	jne	vq2
-	cmp	dx,ds:[di].PMB_ADDR.HW
-	je	vq3			; it's this machine
-vq2:	add	di,size PMB
-	dec	bp
-	jnz	vq1
-vq8:	pop	bp
+	push	ax			; [BP+2] = ADDR_* flags
+	push	ax			; [BP] = a physical page (bits 31-16)
+	mov	bp,sp
+	sub	di,di			; DI = slot
+vq1:	mov	ax,di
+	call	win_ctx			; ES = the slot's machine's context
+	jc	vq2			; (it has none)
+	mov	bx,es:[V86_CTX].VC_FSEL
+	call	sel_desc		; SI -> its first selector's descriptor
+	jc	vq2
+	call	desc_addr		; DX:CX = its base
+	jcxz	vq3
+vq2:	inc	di
+	cmp	di,WIN_SLOTS
+	jb	vq1
+vq8:	pop	ax
+	pop	ax
+	pop	bp
+	pop	es
 	pop	di
 	pop	bx
 	jmp	cpu_inval
-vq3:	mov	ax,16
-	mul	bx			; DX:AX = linear address
-	mov	cx,ds:[di].PMB_LEN.LW
-	mov	si,ds:[di].PMB_LEN.HW
-	stc
-	sbb	cx,ax
-	sbb	si,dx			; SI:CX = bytes after it in memory
-	jb	vq4			; it's beyond the memory
-	add	ax,ds:[di].PMB_ADDR.LW
-	adc	dx,ds:[di].PMB_ADDR.HW	; DX:AX = its physical address
-	jmp	short vq5
-vq4:	cmp	dx,0Ch			; is it in the ROMs?
-	jb	vq8			; no (it isn't mapped)
-	mov	cx,0FFFFh
+vq3:	cmp	dx,word ptr es:[V86_CTX].VC_MEM+2
+	jne	vq2			; (another LDT's)
+	mov	ax,16
+	mul	word ptr [bp+10]	; DX:AX = linear address
+	mov	si,ax
+	shr	si,12
+	mov	di,dx
+	shl	di,4
+	or	si,di
+	shl	si,2			; SI = offset of its page's PTE
+	sub	cx,cx			; CX = # of pages that are present
+vq4:	mov	bx,es:[V86_PT+si]
+	test	bl,PG_PRESENT
+	jz	vq5
+	test	byte ptr [bp+2],ADDR_PHYS
+	jz	vq4c
+	and	bx,NOT (PG_SIZE - 1)
+	jcxz	vq4a			; (the first page)
+	cmp	bx,di			; the next physical page?
+	jne	vq5			; no
+	push	ax
+	mov	ax,es:[V86_PT+si+2]
+	cmp	ax,[bp]			; of the same 64K?
+	pop	ax
+	jne	vq5			; no
+	jmp	short vq4b
+vq4a:	mov	di,es:[V86_PT+si+2]
+	mov	[bp],di
+vq4b:	lea	di,[bx+PG_SIZE]		; DI = the page that would follow it
+vq4c:	add	si,4
+	inc	cx
+	cmp	cl,17			; more than 64K yet?
+	jb	vq4			; no
+vq5:	jcxz	vq8			; it isn't mapped
+	test	byte ptr [bp+2],ADDR_PHYS
+	jnz	vq5a
+	add	dx,word ptr es:[V86_CTX].VC_MEM+2
+	mov	di,ax			; DX:DI = its address (in the window)
+	jmp	short vq5b
+vq5a:	mov	bx,cx
+	shl	bx,12
+	sub	di,bx			; DI = the first page (bits 15-0)
+	mov	bx,ax
+	and	bx,PG_SIZE - 1
+	or	di,bx
+	mov	dx,[bp]			; DX:DI = its physical address
+vq5b:	mov	si,0FFFFh
+	cmp	cl,17
+	jae	vq6
+	mov	ch,cl
+	shl	ch,4
+	mov	cl,0			; CX = the pages' length (0 if 64K)
+	and	ax,PG_SIZE - 1
 	sub	cx,ax
-	mov	si,0Fh
-	sbb	si,dx			; SI:CX = bytes after it in the ROMs
-vq5:	test	si,si			; more than 64K?
-	jz	vq6			; no (and carry is clear)
-	mov	cx,0FFFFh
-vq6:	xchg	ax,cx			; DX:CX = address, AX = limit
+	dec	cx
+	mov	si,cx			; SI = limit
+vq6:	mov	cx,di			; DX:CX = address
+	xchg	ax,si			; AX = limit
+	pop	bx
+	pop	bx
 	pop	bp
+	pop	es
 	pop	di
 	pop	bx
+	clc
 	ret
 ENDPROC	v86_info
 
@@ -1283,10 +1415,12 @@ ENDPROC	v86_info
 ; v86_create
 ;
 ; Creates a machine, owned by BX, with SI:DI bytes of memory (rounded up to a
-; multiple of 4K, at most 640K), allocated from the top of memory (which is
-; likely to be extended memory), so that it doesn't take conventional memory
-; that DOS could use, and with a console's video memory, if DX is its
-; selector (see v86_vsel).
+; multiple of 4K, at most 640K), none of which it has yet (see pg_get) except
+; its first page, and with a console's video memory, if DX is its selector
+; (see v86_vsel).  Its context and page table are in a block from the top of
+; memory (which is likely to be extended memory), as its memory's chunks will
+; be, so that it doesn't take conventional memory that DOS could use, and it
+; gets a window (see WIN_SLOTS), where its selectors find its memory.
 ;
 ; Inputs:
 ;	BX = owner, SI:DI = length, DX = video memory's selector (or zero)
@@ -1306,191 +1440,167 @@ DEFPROC	v86_create
 	pop	di
 	pop	si
 	pop	bx
-	jc	vcr0
+	jc	vcr0a
 	add	di,PG_SIZE - 1
 	adc	si,0
 	and	di,NOT (PG_SIZE - 1)	; SI:DI = length, in pages
 	mov	ax,di
 	or	ax,si			; is it zero?
-	jz	vcr8			; yes
+	jz	vcr0			; yes
 	cmp	si,V86_MAXLEN		; more than 640K?
 	jb	vcr1			; no
-	ja	vcr8			; yes
+	ja	vcr0			; yes
 	test	di,di
 	jz	vcr1			; no
-vcr8:	jmp	cpu_inval
-vcr5:	pop	cx
-	pop	cx			; (the video memory's ID and pages)
-vcr0:	ret
+vcr0:	jmp	cpu_inval
+vcr0a:	ret
 vcr1:	call	v86_vsel		; DX = video ID, CX = its pages
-	jc	vcr0
-	push	cx
-	push	dx
+	jc	vcr0a
+	push	cx			; [BP+10] = the video memory's pages
+	push	dx			; [BP+8] = and its ID
 	push	si
-	push	di
-	push	bx
-	mov	al,MEMF_NONE OR MEMF_HIGH
-	call	alloc_64k		; DX:CX = address (see v86_tiles)
-	pop	bx			; BX = owner
-	pop	di
-	pop	si
-	jc	vcr5
-	push	si
-	push	di
-	push	dx
-	push	cx
-	push	ax
-	mov	bp,sp			; BP -> selector, address, length,
-					; and video memory's ID and pages
-	push	bx
-	push	bp
+	push	di			; [BP+6]:[BP+4] = length
 	mov	al,MEMF_NONE OR MEMF_HIGH
 	sub	si,si
 	mov	di,2 * PG_SIZE
-	call	alloc_page		; DX:CX = page directory (and table)
-	pop	bp			; (alloc_at uses BP)
-	pop	bx
-	jc	vcr7
+	call	alloc_page		; DX:CX = its context, BX -> PMB
+	jc	vcr8
 	push	dx
-	push	cx
-	mov	al,MEMF_LDT OR MEMF_USER
-	mov	cx,2
-	call	desc_alloc		; AX = VR_DSSEL and VR_ESSEL
-	jc	vcr6
-	push	ax			; [BP-6] = them
-	mov	cx,[bp-4]
-	mov	dx,[bp-2]
-	call	pmb_used		; BX -> page directory's PMB
-	pop	ax
-	mov	ds:[bx].PMB_SEL,ax
-	mov	ds:[bx].PMB_NSEL,2	; (so they're freed with it)
-	push	ax
-	mov	cx,[bp+2]
-	mov	dx,[bp+4]
-	call	pmb_used		; BX -> memory's PMB
-	push	bx
-	mov	si,[bp+8]
-	mov	di,[bp+6]		; SI:DI = length
-	mov	dx,[bp+4]
+	push	cx			; [BP+2]:[BP] = its context
+	mov	bp,sp
+	push	ds:[bx].PMB_OWNER	; [BP-2] = its owner ID
+	call	win_slot		; AX = a free window's slot
+	jc	vcr7
+	push	ax			; [BP-4] = its slot
+	shl	ax,6
+	add	ax,WIN_ADDR
+	push	ax			; [BP-6] = its window (bits 31-16)
+	xchg	dx,ax
+	mov	si,[bp+6]
+	mov	di,[bp+4]		; SI:DI = length
 	push	bp
-	mov	bp,[bp+2]		; DX:BP = address
+	sub	bp,bp			; DX:BP = the window's address
 	call	v86_tiles		; AX = first selector, CX = count
 	pop	bp
-	pop	bx
-	jc	vcr6
-	mov	[bp],ax			; (the memory's selector)
+	jc	vcr7
+	push	ax			; [BP-8] = the machine
+	push	cx
+	mov	cx,[bp]
+	mov	dx,[bp+2]
+	call	pmb_used		; BX -> its context's PMB
+	pop	cx
+	mov	ax,[bp-8]
 	mov	ds:[bx].PMB_SEL,ax
 	mov	ds:[bx].PMB_NSEL,cx	; (so they're freed with it)
-	mov	ax,[bp-4]
-	mov	dx,[bp-2]
+	dec	cx
+	dec	cx
+	shl	cx,3
+	add	cx,ax
+	push	cx			; [BP-10] = VR_DSSEL (see v86_tiles)
+	mov	ax,[bp]
+	mov	dx,[bp+2]
 	shr	ax,12
 	shl	dx,4
-	or	ax,dx			; AX = page directory's page #
+	or	ax,dx			; AX = its context's page #
 	mov	ds:[bx].PMB_V86,ax
-	call	v86_init
-	add	sp,6
-	pop	ax			; AX = memory's selector
-	add	sp,10			; (its address, length, and video ID)
-	pop	dx			; DL = video memory's first page (or 0)
-	mov	dh,dl
-	mov	dl,0			; DX = its segment (or 0)
+	call	v86_init		; ES = its context
+;
+; The machine's first page (its vectors) is always there (see v86_refl), so
+; a machine that has it has at least a chunk of its memory, too.
+;
+	sub	ax,ax
+	cwd				; (DL = 0: not from the reserve)
+	call	pg_get
+	jc	vcr7
+	mov	ax,[bp-8]		; AX = the machine
+	mov	dh,[bp+10]
+	mov	dl,0			; DX = video memory's segment (or 0)
+	lea	sp,[bp+12]
 	clc
 	ret
-vcr6:	mov	cx,[bp-4]
-	mov	dx,[bp-2]
-	call	vcr_free		; free the page directory's block
-vcr7:	mov	cx,[bp+2]
-	mov	dx,[bp+4]
-	call	vcr_free		; and the memory's block
-	mov	sp,bp
-	add	sp,14
+vcr7:	mov	cx,[bp]
+	mov	dx,[bp+2]
+	call	pmb_used
+	jc	vcr7a
+	call	pmb_free		; (and its selectors and window)
+vcr7a:	lea	sp,[bp+4]
+vcr8:	add	sp,8
 	mov	ax,ERR_NOMEMORY
 	stc
-	ret
-vcr_free:
-	call	pmb_used
-	jc	vcf9
-	call	pmb_free
-vcf9:	ret
+vcr9:	ret
 ENDPROC	v86_create
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; v86_init
 ;
-; Fills in a new machine's page directory, page table, and context: its
-; memory, the ROMs (C0000h-FFFFFh, read-only), and the wrap of its first 64K
-; at 1Mb, and its video memory's selector ID and pages, if any, which get
-; their PTEs as it runs (see v86_vid).
+; Fills in a new machine's page directory, page table, and context: the ROMs
+; (C0000h-FFFFFh, read-only), its window in the system's page directory (the
+; same page table), its length (its memory's pages come later; see pg_get),
+; and its video memory's selector ID and pages, if any, which get their PTEs
+; as it runs (see v86_vid).
 ;
 ; Inputs:
-;	SS:BP -> memory's selector, address, and length, and video memory's
-;	ID and pages (see v86_create)
-;	SS:BP-4 -> page directory's address, and [BP-6] = VR_DSSEL
+;	SS:BP -> context's address and memory's length, and video memory's ID
+;	and pages (see v86_create)
+;	[BP-2] = owner ID, [BP-4] = window's slot, [BP-6] = window's address
+;	(bits 31-16), [BP-8] = the machine, [BP-10] = VR_DSSEL
 ;	DS = SEL_SYS
 ;
+; Outputs:
+;	ES = context
+;
 ; Modifies:
-;	AX, BX, CX, DX, SI, DI, ES
+;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	v86_init
-	mov	ax,[bp-4]
-	mov	dx,[bp-2]
-	mov	bx,SEL_TMP
-	call	pm_ptr			; BX = SEL_TMP, AX = 0
-	mov	es,bx
+	mov	cx,[bp]
+	mov	dx,[bp+2]
+	call	v86_stk			; ES = context
 	sub	di,di
+	sub	ax,ax
 	mov	cx,PG_SIZE		; (8K, in words)
 	cld
 	rep	stosw
-	mov	ax,[bp-4]
-	mov	dx,[bp-2]
+	mov	ax,[bp]
+	mov	dx,[bp+2]
 	sub	di,di
 	call	v86_pdes
-	mov	di,V86_PT
-	mov	ax,[bp+2]
-	mov	dx,[bp+4]
-	or	al,PG_USER		; DX:AX = its memory's first PTE
-	mov	cx,[bp+6]
-	mov	bx,[bp+8]
-	shr	cx,12
-	shl	bx,4
-	or	cx,bx			; CX = # of its pages
-	push	cx
-	call	vi_ptes
 	mov	di,V86_PT + 0C0h * 4
 	mov	ax,PG_ROM
 	mov	dx,000Ch		; DX:AX = PTE for C0000h
 	mov	cx,40h
 	call	vi_ptes
-	pop	cx
-	cmp	cx,10h			; more than 64K of memory?
-	jbe	vi1			; no
-	mov	cx,10h
-vi1:	shl	cx,1
-	mov	si,V86_PT
-	mov	di,V86_PT + 100h * 4
-	push	ds
-	push	es
-	pop	ds
-	rep	movsw			; the 64K at 1Mb wraps to the first
-	pop	ds
-	mov	ax,[bp+2]
-	mov	word ptr es:[V86_CTX].VC_MEM,ax
-	mov	ax,[bp+4]
+	mov	ax,[bp-6]
 	mov	word ptr es:[V86_CTX].VC_MEM+2,ax
-	mov	ax,[bp+6]
+	mov	ax,[bp+4]
 	mov	word ptr es:[V86_CTX].VC_LEN,ax
-	mov	ax,[bp+8]
+	mov	ax,[bp+6]
 	mov	word ptr es:[V86_CTX].VC_LEN+2,ax
-	mov	ax,[bp+10]
+	mov	ax,[bp+8]
 	mov	es:[V86_CTX].VC_VID,ax
-	mov	ax,[bp+12]
+	mov	ax,[bp+10]
 	mov	word ptr es:[V86_CTX].VC_VPG,ax
+	mov	ax,[bp-2]
+	mov	es:[V86_CTX].VC_OWNER,ax
+	mov	ax,[bp-8]
+	mov	es:[V86_CTX].VC_FSEL,ax
 	mov	di,V86_CTX + VC_IOMAP
 	mov	cx,(IOMAP_LEN - 1) / 2
 	mov	ax,-1
 	rep	stosw			; no ports lent to it yet
-	mov	bx,[bp-6]
+	push	es
+	call	pd_master		; ES:0 -> the system's page directory
+	mov	bx,[bp-4]
+	shl	bx,2
+	mov	ax,[bp]
+	mov	dx,[bp+2]
+	add	ax,V86_PT + PG_USER
+	adc	dx,0			; DX:AX = PDE for its page table
+	mov	es:[bx+WIN_PDE*4],ax
+	mov	es:[bx+WIN_PDE*4+2],dx	; (its window)
+	pop	es
+	mov	bx,[bp-10]
 	or	bl,3			; (RPL 3, for the ring 3 caller)
 	mov	es:[V86_CTX].VR_DSSEL,bx
 	sub	ax,ax
@@ -1742,13 +1852,15 @@ ENDPROC	v86_vid
 ;
 ; Gives a machine's memory its selectors (in the active LDT, at DPL 3): one
 ; for every 32K, each covering the next 64K (or whatever remains), so that
-; the host can reach anything smaller than 32K through a single selector.
+; the host can reach anything smaller than 32K through a single selector;
+; two more follow them, for the machine's exits (VR_DSSEL and VR_ESSEL; see
+; v86_alias).
 ;
 ; Inputs:
-;	DX:BP = address, SI:DI = length (non-zero)
+;	DX:BP = address (in its window), SI:DI = length (non-zero)
 ;
 ; Outputs:
-;	Carry clear: AX = first selector, CX = # of selectors
+;	Carry clear: AX = first selector, CX = # of selectors (with the two)
 ;	Carry set: AX = error code
 ;
 ; Modifies:
@@ -1765,6 +1877,8 @@ DEFPROC	v86_tiles
 	shl	ax,1
 	rcl	cx,1			; CX = # of 32K parts
 	push	cx
+	inc	cx
+	inc	cx			; (and the exits' two)
 	mov	al,MEMF_LDT OR MEMF_USER
 	call	desc_alloc		; AX = first selector, BX -> its DESC
 	pop	cx
@@ -1793,6 +1907,8 @@ vt2:	dec	ax
 	add	bx,size DESC
 	loop	vt1
 	pop	cx
+	inc	cx
+	inc	cx			; (carry is still clear)
 	ret
 vt8:	mov	ax,ERR_NOMEMORY
 	ret
@@ -1856,6 +1972,511 @@ ENDPROC	alloc_page
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; pg_get, pg_set, pg_mine, pg_chunk, and pg_fit
+;
+; pg_get gives a page of a machine's memory its physical memory, if it has
+; none yet.  The first page touched in each 64K of the machine gets a chunk
+; for all of that 64K (PG_NCHUNK pages, on a 64K boundary, from the top of
+; memory, in a block of its owner's, so that it's freed when the owner ends),
+; and all of its pages are mapped at once, so the 64K is contiguous, and its
+; physical addresses have the machine's low 16 bits, as a DMA transfer needs
+; (see v86_info).  When no free block has room for that, the page gets the
+; next page (pg_set) of a chunk wherever one fits, of as many pages as fit
+; (half as many each time, down to one; see pg_chunk).
+;
+; The last free block with room for a whole chunk is a reserve, for the pages
+; that code outside the machine touches (DL nonzero), which can't wait for
+; memory, as the machine can (see V86X_NOMEM); a chunk for any other page
+; leaves such a block free, or isn't allocated.  A page in the machine's first
+; 64K is also the same page of the 64K at 1Mb, which wraps, as an 8086's does.
+; pg_mine checks that a page is one of its memory's (and unwraps it).
+;
+; Inputs:
+;	AX = page # (in the machine's page table)
+;	DL = nonzero if it can use the reserve (pg_get)
+;	DS = SEL_SYS, ES = context
+;
+; Outputs:
+;	Carry clear if the page is there (pg_get), or is memory's (pg_mine,
+;	with AX = its page # in memory)
+;	Carry set if not: AX = ERR_INVALID (it isn't memory's) or ERR_NOMEMORY
+;	(pg_get)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	pg_get
+	push	bx
+	push	cx
+	push	dx
+	push	si
+	call	pg_mine			; AX = the page of its memory
+	jc	pgg8
+	mov	bx,ax
+	shl	bx,2			; BX = offset of its PTE
+	test	byte ptr es:[V86_PT+bx],PG_PRESENT
+	jnz	pgg9			; it's there (and carry is clear)
+	cmp	es:[V86_CTX].VC_NFREE,0	; any pages left in a chunk?
+	jne	pgg6			; yes
+	mov	si,bx
+	and	si,NOT (PG_NCHUNK * 4 - 1)
+	push	si			; SI = offset of its 64K's first PTE
+	mov	cx,PG_NCHUNK
+pgg1:	test	byte ptr es:[V86_PT+si],PG_PRESENT
+	jnz	pgg2			; the 64K has a page already
+	add	si,4
+	loop	pgg1
+pgg2:	pop	si
+	jcxz	pgg3
+	jmp	short pgg5
+pgg3:	mov	dh,1
+	call	pg_chunk		; a chunk for the 64K
+	jc	pgg5			; there's no room for one
+	mov	bx,si
+	mov	cx,PG_NCHUNK
+pgg4:	mov	ax,bx
+	shr	ax,2
+	call	pg_mine			; is this page in its memory?
+	jc	pgg4a			; no (it ends before the 64K does)
+	call	pg_set
+pgg4a:	add	bx,4
+	loop	pgg4
+	mov	es:[V86_CTX].VC_NFREE,0
+	clc
+	jmp	short pgg9
+pgg5:	mov	dh,0
+	call	pg_chunk		; a chunk wherever one fits
+	jc	pgg9
+pgg6:	call	pg_set
+	clc
+	jmp	short pgg9
+pgg8:	mov	ax,ERR_INVALID		; (carry is still set)
+pgg9:	pop	si
+	pop	dx
+	pop	cx
+	pop	bx
+	ret
+ENDPROC	pg_get
+;
+; pg_set gives the PTE at BX the chunk's next page.
+;
+DEFPROC	pg_set
+	push	dx
+	dec	es:[V86_CTX].VC_NFREE
+	mov	ax,word ptr es:[V86_CTX].VC_NEXT
+	mov	dx,word ptr es:[V86_CTX].VC_NEXT+2
+	add	word ptr es:[V86_CTX].VC_NEXT,PG_SIZE
+	adc	word ptr es:[V86_CTX].VC_NEXT+2,0
+	or	al,PG_USER		; DX:AX = its PTE
+	mov	es:[V86_PT+bx],ax
+	mov	es:[V86_PT+bx+2],dx
+	cmp	bx,10h * 4		; in the first 64K?
+	jae	pgs9			; no
+	mov	es:[V86_PT+bx+100h*4],ax
+	mov	es:[V86_PT+bx+100h*4+2],dx
+pgs9:	pop	dx
+	ret
+ENDPROC	pg_set
+
+DEFPROC	pg_mine
+	cmp	ax,100h			; in the 64K at 1Mb?
+	jb	pgm1			; no
+	sub	ax,100h
+	cmp	ax,10h
+	cmc
+	jc	pgm9			; no, beyond it
+pgm1:	push	dx
+	mov	dx,word ptr es:[V86_CTX].VC_LEN+1
+	shr	dx,4			; DX = # of pages in its memory
+	cmp	ax,dx
+	pop	dx
+	cmc				; carry set if it's beyond them
+pgm9:	ret
+ENDPROC	pg_mine
+;
+; pg_chunk gets the machine a chunk (VC_NEXT, with VC_NFREE pages): PG_NCHUNK
+; pages on a 64K boundary (see pg_fit), or unless DH is nonzero, as many as
+; fit anywhere (half as many each time, down to one).  The chunk's block is
+; allocated as the system's and then given to the machine's owner (as fl_grow
+; does), since the owner's LDT may not be the active one (see enc_owner), and
+; SV_LEN, SV_OWNER, and SV_ARG are saved, since a page fault can interrupt the
+; CPU$ function that's using them.
+;
+; Inputs:
+;	DL = nonzero if it can use the reserve, DH = nonzero for a whole
+;	chunk (or none)
+;
+; Outputs:
+;	Carry set if there's no memory for it (AX = ERR_NOMEMORY)
+;
+DEFPROC	pg_chunk
+	pusha
+	push	es
+	push	ds:[SYS_VARS].SV_LEN.HW
+	push	ds:[SYS_VARS].SV_LEN.LW
+	push	ds:[SYS_VARS].SV_OWNER
+	push	word ptr ds:[SYS_VARS].SV_ARG
+	mov	ah,PG_NCHUNK		; AH = # of pages to try for
+	mov	al,dl			; AL = nonzero if the reserve will do
+pgc1:	push	ax
+	cmp	ah,PG_NCHUNK		; a whole chunk?
+	jne	pgc1a			; no
+	call	pg_fit			; BX -> free PMB, DX:CX = address
+	jc	pgc1b
+	mov	ds:[SYS_VARS].SV_ARG,MEMF_NONE OR MEMF_HIGH
+	mov	ds:[SYS_VARS].SV_OWNER,MCBOWNER_SYSTEM
+	mov	ds:[SYS_VARS].SV_LEN.LW,0
+	mov	ds:[SYS_VARS].SV_LEN.HW,PG_NCHUNK / 16
+	call	alloc_at		; BX -> its PMB
+	jmp	short pgc1b
+pgc1a:	mov	al,ah
+	mov	ah,0
+	mov	si,ax
+	shr	si,4
+	shl	ax,12
+	xchg	di,ax			; SI:DI = the chunk's length
+	mov	al,MEMF_NONE OR MEMF_HIGH
+	mov	bx,MCBOWNER_SYSTEM
+	call	alloc_page		; DX:CX = address, BX -> its PMB
+pgc1b:	pop	ax
+	mov	si,sp
+	jc	pgc2
+	mov	es,ss:[si+8]		; ES = context (again)
+	mov	di,es:[V86_CTX].VC_OWNER
+	mov	ds:[bx].PMB_OWNER,di	; (the machine's owner's)
+	test	al,al			; can it use the reserve?
+	jnz	pgc3			; yes
+	push	ax
+	push	cx
+	push	dx
+	mov	ds:[SYS_VARS].SV_ARG,0	; (anywhere; see pmb_largest)
+	call	pmb_largest		; DX:CX = the largest free block now
+	sub	cx,PG_SIZE
+	sbb	dx,PG_NCHUNK / 16	; room for a whole chunk (on a page)?
+	pop	dx
+	pop	cx
+	pop	ax
+	jnc	pgc3			; yes
+	push	ax
+	call	pmb_used		; no, so this one was the reserve's
+	call	pmb_free
+	pop	ax
+	mov	si,sp
+pgc2:	cmp	byte ptr ss:[si+21],0	; a whole chunk (the caller's DH)?
+	jne	pgc2a			; yes, so nothing less will do
+	shr	ah,1			; try for half as many
+	jnz	pgc1
+pgc2a:	stc
+	jmp	short pgc9
+pgc3:	mov	word ptr es:[V86_CTX].VC_NEXT,cx
+	mov	word ptr es:[V86_CTX].VC_NEXT+2,dx
+	mov	es:[V86_CTX].VC_NFREE,ah
+	clc
+pgc9:	pop	word ptr ds:[SYS_VARS].SV_ARG
+	pop	ds:[SYS_VARS].SV_OWNER
+	pop	ds:[SYS_VARS].SV_LEN.LW
+	pop	ds:[SYS_VARS].SV_LEN.HW
+	pop	es
+	popa
+	mov	ax,ERR_NOMEMORY		; (if carry is set)
+	ret
+ENDPROC	pg_chunk
+;
+; pg_fit finds the highest free block that has room for a chunk on a 64K
+; boundary, and returns the highest one in it.
+;
+; Outputs:
+;	Carry clear: BX -> free PMB, DX:CX = the chunk's address
+;	Carry set if there's none
+;
+; Modifies:
+;	BX, CX, DX
+;
+DEFPROC	pg_fit
+	mov	bx,ds:[SYS_VARS].SV_NPMBS
+	shl	bx,5
+	add	bx,SYS_PMBS		; BX -> the end of the PMBs
+pgf1:	sub	bx,size PMB
+	cmp	bx,SYS_PMBS		; any more blocks?
+	jb	pgf9			; no (and carry is set)
+	cmp	ds:[bx].PMB_TYPE,PMBTYPE_FREE
+	jne	pgf1
+	mov	cx,ds:[bx].PMB_ADDR.LW
+	mov	dx,ds:[bx].PMB_ADDR.HW
+	add	cx,ds:[bx].PMB_LEN.LW
+	adc	dx,ds:[bx].PMB_LEN.HW	; DX = the 64K where it ends
+	sub	dx,PG_NCHUNK / 16	; DX:0 = the last whole 64K before that
+	jb	pgf1
+	cmp	dx,ds:[bx].PMB_ADDR.HW	; is that in the block?
+	jb	pgf1			; no
+	ja	pgf2			; yes
+	cmp	ds:[bx].PMB_ADDR.LW,0
+	jne	pgf1			; no
+pgf2:	sub	cx,cx			; DX:CX = the chunk's address
+pgf9:	ret
+ENDPROC	pg_fit
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; v86_syspf
+;
+; A page fault outside the machines (see exc_common): if it's in a machine's
+; window, at a page of its memory that isn't there yet (eg, its host, or DOS,
+; storing something where its program hasn't touched), the page gets its
+; memory, from the reserve if need be (see pg_get), since nothing here can
+; wait, and the instruction runs again.  SEL_V86STK, which finds the machine's
+; context, is restored, in case we interrupted something that was using it.
+;
+; Outputs:
+;	Carry clear if the page is there now, set if the fault isn't ours (or
+;	there's no memory for it)
+;
+; Modifies:
+;	None
+;
+DEFPROC	v86_syspf
+	pusha
+	push	ds
+	push	es
+	mov	ax,SEL_SYS
+	mov	ds,ax
+	mov	bx,ds:[SYS_VARS].SV_V86SEL
+	test	bx,bx			; has a machine been created?
+	stc
+	jz	vsp9			; no
+	db	0Fh,20h,0D0h		; MOV EAX,CR2
+	db	66h,0C1h,0E8h,12	; SHR EAX,12
+	db	66h,50h			; PUSH EAX
+	pop	si			; SI = address bits 27-12
+	pop	ax			; AX = address bits 31-28
+	mov	di,si
+	and	di,03FFh		; DI = its page # in its page table
+	shr	si,10
+	shl	ax,6
+	or	ax,si			; AX = its PDE #
+	sub	ax,WIN_PDE
+	cmp	ax,WIN_SLOTS		; in one of the windows?
+	cmc
+	jc	vsp9			; no
+	push	ds:[SYS_GDT+bx].DESC_BASE
+	push	word ptr ds:[SYS_GDT+bx].DESC_BASE16
+	push	ds:[SYS_GDT+bx].DESC_EXT
+	call	win_ctx			; ES = its machine's context
+	jc	vsp1			; (it has none)
+	xchg	ax,di			; AX = page #
+	mov	dl,1			; (the reserve is for these)
+	call	pg_get
+vsp1:	mov	bx,ds:[SYS_VARS].SV_V86SEL
+	pop	ds:[SYS_GDT+bx].DESC_EXT
+	pop	word ptr ds:[SYS_GDT+bx].DESC_BASE16
+	pop	ds:[SYS_GDT+bx].DESC_BASE
+vsp9:	pop	es
+	pop	ds
+	popa
+	ret
+ENDPROC	v86_syspf
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; v86_commit (CPU_V86 with AL = 9)
+;
+; Gives the pages of SI:DI bytes of a machine's memory their memory now (see
+; pg_get), without using the reserve, so that its host knows they're there
+; before it has DOS store something in them (eg, a program it's loading), or
+; can wait until they can be (see V86X_NOMEM); any that aren't its memory's
+; (eg, its video memory's) are skipped.
+;
+; Inputs:
+;	BX = machine, DX:CX = address in the machine, SI:DI = # of bytes
+;
+; Outputs:
+;	Carry clear if successful, set if not (AX = ERR_NOMEMORY, or
+;	ERR_INVALID if it's not a V86 machine or its addresses)
+;
+DEFPROC	v86_commit
+	push	es
+	push	cx
+	push	dx
+	push	si
+	call	v86_find		; ES = its context
+	pop	si
+	pop	dx
+	pop	cx
+	jc	vcm9
+	cmp	es:[V86_CTX].VC_FLAT,0	; a flat machine?
+	jne	vcm8			; yes
+	mov	ax,si
+	or	ax,di			; any bytes?
+	jz	vcm9			; no (and carry is clear)
+	add	di,cx
+	adc	si,dx
+	sub	di,1
+	sbb	si,0			; SI:DI = the last byte's address
+	cmp	si,10h			; beyond the 64K at 1Mb (or wrapped)?
+	ja	vcm8			; yes
+	shr	cx,12
+	shl	dx,4
+	or	cx,dx			; CX = the first page
+	shr	di,12
+	shl	si,4
+	or	di,si			; DI = the last
+	cmp	di,cx
+	jb	vcm8
+	sub	dx,dx			; (DL = 0: not from the reserve)
+vcm1:	mov	ax,cx
+	call	pg_get
+	jnc	vcm2
+	cmp	al,ERR_NOMEMORY
+	stc
+	je	vcm9
+vcm2:	inc	cx
+	cmp	cx,di
+	jbe	vcm1
+	clc
+	jmp	short vcm9
+vcm8:	mov	ax,ERR_INVALID
+	stc
+vcm9:	pop	es
+	ret
+ENDPROC	v86_commit
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; v86_find, win_ctx, win_slot, and pd_master
+;
+; v86_find finds a machine's context: a V86 machine is the first selector of
+; its memory, whose base is its window's, and the window's PDE is its page
+; table, which follows its context (win_ctx does that for a window's slot);
+; a flat machine is its context's selector (see fl_create).  win_slot finds
+; a window that no machine has, and pd_master points ES at the system's page
+; directory.
+;
+; Inputs:
+;	BX = machine (v86_find), or AX = slot (win_ctx)
+;	DS = SEL_SYS
+;
+; Outputs:
+;	Carry clear: ES = SEL_V86STK (its context) and DX:CX = its address
+;	(v86_find and win_ctx), or AX = slot (win_slot)
+;	Carry set if there's none (AX = ERR_INVALID)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI (v86_find); AX, BX, CX, DX (win_ctx and pd_master);
+;	AX, BX, DX, ES (win_slot)
+;
+DEFPROC	v86_find
+	push	bx
+	call	sel_desc		; SI -> its descriptor
+	pop	cx			; CX = the machine
+	jc	wc8
+	cmp	ds:[si].DESC_BASE,0
+	jne	vfd1
+	mov	al,ds:[si].DESC_BASE16
+	mov	ah,byte ptr ds:[si].DESC_EXT+1
+	sub	ax,(LIN_HI SHL 8) + WIN_ADDR
+	test	al,3Fh			; a window's base?
+	jnz	vfd1			; no
+	shr	ax,6			; AX = slot
+	cmp	ax,WIN_SLOTS
+	jb	win_ctx
+vfd1:	mov	dx,-1
+	call	pmb_used		; BX -> PMB
+	jc	wc8
+	mov	cx,ds:[bx].PMB_V86
+	jcxz	wc8			; it isn't a flat machine's context
+	mov	dx,cx
+	shr	dx,4
+	shl	cx,12			; DX:CX = its context
+	jmp	short wc1
+	DEFLBL	win_ctx,near
+	add	ax,WIN_PDE
+	xchg	cx,ax			; CX = its PDE #
+	mov	ax,ds:[SYS_VARS].SV_PDIR.LW
+	mov	dx,ds:[SYS_VARS].SV_PDIR.HW
+	call	pg_entry		; DX:AX = its page table
+	jc	wc8			; (no machine has it)
+	sub	ax,V86_PT
+	sbb	dx,0
+	xchg	cx,ax			; DX:CX = its context
+wc1:	call	v86_stk
+	clc
+	ret
+wc8:	jmp	cpu_inval
+ENDPROC	v86_find
+
+DEFPROC	win_slot
+	call	pd_master
+	mov	bx,WIN_PDE * 4
+	sub	ax,ax
+ws1:	test	byte ptr es:[bx],PG_PRESENT
+	jz	ws9			; it's free (and carry is clear)
+	add	bx,4
+	inc	ax
+	cmp	ax,WIN_SLOTS
+	jb	ws1
+	stc
+ws9:	ret
+ENDPROC	win_slot
+
+DEFPROC	pd_master
+	mov	ax,ds:[SYS_VARS].SV_PDIR.LW
+	mov	dx,ds:[SYS_VARS].SV_PDIR.HW
+	mov	bx,SEL_TMP2
+	call	pm_ptr			; BX = selector, AX = offset (zero)
+	mov	es,bx
+	ret
+ENDPROC	pd_master
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; v86_free
+;
+; When a V86 machine's context is freed (see pmb_free), its window's PDE
+; goes, and the TLB's entries for it, so that another machine can have the
+; window; its memory's chunks are its owner's, and are freed with the owner.
+;
+; Inputs:
+;	BX -> PMB (with PMB_V86), DS = SEL_SYS
+;
+; Modifies:
+;	None
+;
+DEFPROC	v86_free
+	cmp	ds:[bx].PMB_FLAT,0	; a flat machine's context?
+	jne	vfr9			; yes (it has no window)
+	pusha
+	push	es
+	mov	si,ds:[bx].PMB_ADDR.LW
+	mov	di,ds:[bx].PMB_ADDR.HW
+	add	si,V86_PT
+	adc	di,0			; DI:SI = its page table
+	call	pd_master		; ES:0 -> the system's page directory
+	mov	bx,WIN_PDE * 4
+	mov	cx,WIN_SLOTS
+vfr1:	mov	ax,es:[bx]
+	test	al,PG_PRESENT
+	jz	vfr2
+	and	ax,NOT (PG_SIZE - 1)
+	cmp	ax,si
+	jne	vfr2
+	cmp	es:[bx+2],di		; is this its window?
+	jne	vfr2			; no
+	sub	ax,ax
+	mov	es:[bx],ax
+	mov	es:[bx+2],ax
+	db	0Fh,20h,0D8h		; MOV EAX,CR3
+	db	0Fh,22h,0D8h		; MOV CR3,EAX (flush the TLB)
+	jmp	short vfr8
+vfr2:	add	bx,4
+	loop	vfr1
+vfr8:	pop	es
+	popa
+vfr9:	ret
+ENDPROC	v86_free
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; io_close
 ;
 ; Sets the bits of a machine's ports in the TSS's I/O permission bitmap
@@ -1896,7 +2517,7 @@ ENDPROC	io_close
 ; and it has a byte for every 8 ports, so the ports must be whole bytes.
 ;
 ; Inputs:
-;	AL = 4 or 5, BX = machine (its memory's first selector)
+;	AL = 4 or 5, BX = machine (see v86_find)
 ;	CX = first port, DX = # of ports (multiples of 8)
 ;	ES:DI -> the driver's function to call when the machine is suspended
 ;	or resumes (see v86_susp), or 0:0 (AL = 4 only)
@@ -1919,21 +2540,11 @@ DEFPROC	v86_ports
 	push	ax
 	push	cx
 	push	dx
-	mov	cx,bx
-	mov	dx,-1
-	call	pmb_used		; BX -> PMB
+	call	v86_find		; ES = its context
 	pop	si			; SI = # of ports
 	pop	di			; DI = first port
 	pop	ax
 	jc	vp8
-	mov	cx,ds:[bx].PMB_V86
-	jcxz	vp8			; it isn't a machine's memory
-	mov	dx,cx
-	shr	dx,4
-	shl	cx,12			; DX:CX = its page directory
-	push	ax
-	call	v86_stk			; ES = its context
-	pop	ax
 	pop	word ptr es:[V86_CTX].VC_NOTE
 	pop	word ptr es:[V86_CTX].VC_NOTE+2
 	sub	al,5			; AL = 0 to take them back, else FFh

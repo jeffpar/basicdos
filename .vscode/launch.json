@@ -6,78 +6,82 @@
   // Each browser configuration also passes its URL in runtimeArgs, so that Chrome opens the page itself; otherwise,
   // the debugger starts Chrome on about:blank and then navigates, which can leave focus in the address bar (so typing
   // meant for the machine goes there instead, and Enter reloads the page).
+  //
+  // Every URL ends with "?debug=true", which makes the page use the DEBUG disk images in disks/debug instead of the
+  // FINAL ones in disks/current, and keeps the parameter on its links to other pages (see _includes/scripts.html); it
+  // works only on the developer server (the "jekyll serve" task, with _developer.yml).
   "version": "0.2.0",
   "configurations": [
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS Demos",
-      "url": "http://localhost:4040/machines/demos/",
-      "runtimeArgs": ["http://localhost:4040/machines/demos/"],
+      "url": "http://localhost:4040/machines/demos/?debug=true",
+      "runtimeArgs": ["http://localhost:4040/machines/demos/?debug=true"],
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS on an IBM PC",
-      "url": "http://localhost:4040/machines/demos/bd/s80/pc/",
-      "runtimeArgs": ["http://localhost:4040/machines/demos/bd/s80/pc/"],
+      "url": "http://localhost:4040/machines/demos/bd/s80/pc/?debug=true",
+      "runtimeArgs": ["http://localhost:4040/machines/demos/bd/s80/pc/?debug=true"],
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS with Dual Monitors",
-      "url": "http://localhost:4040/machines/demos/bd/dual/xt/",
-      "runtimeArgs": ["http://localhost:4040/machines/demos/bd/dual/xt/"],
+      "url": "http://localhost:4040/machines/demos/bd/dual/xt/?debug=true",
+      "runtimeArgs": ["http://localhost:4040/machines/demos/bd/dual/xt/?debug=true"],
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS with Dueling Monitors",
-      "url": "http://localhost:4040/machines/demos/bd/dual/multi/xt/",
-      "runtimeArgs": ["http://localhost:4040/machines/demos/bd/dual/multi/xt/"],
+      "url": "http://localhost:4040/machines/demos/bd/dual/multi/xt/?debug=true",
+      "runtimeArgs": ["http://localhost:4040/machines/demos/bd/dual/multi/xt/?debug=true"],
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS on a Hard Disk",
-      "url": "http://localhost:4040/machines/demos/bd/hd/xt/",
-      "runtimeArgs": ["http://localhost:4040/machines/demos/bd/hd/xt/"],
+      "url": "http://localhost:4040/machines/demos/bd/hd/xt/?debug=true",
+      "runtimeArgs": ["http://localhost:4040/machines/demos/bd/hd/xt/?debug=true"],
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS with a Serial Port",
-      "url": "http://localhost:4040/machines/demos/bd/serial/",
-      "runtimeArgs": ["http://localhost:4040/machines/demos/bd/serial/"],
+      "url": "http://localhost:4040/machines/demos/bd/serial/?debug=true",
+      "runtimeArgs": ["http://localhost:4040/machines/demos/bd/serial/?debug=true"],
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS with a VT100 Terminal",
-      "url": "http://localhost:4040/machines/demos/bd/vt100/xt/",
-      "runtimeArgs": ["http://localhost:4040/machines/demos/bd/vt100/xt/"],
+      "url": "http://localhost:4040/machines/demos/bd/vt100/xt/?debug=true",
+      "runtimeArgs": ["http://localhost:4040/machines/demos/bd/vt100/xt/?debug=true"],
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS with a Serial Debugger",
-      "url": "http://localhost:4040/machines/demos/bd/debug/at/",
-      "runtimeArgs": ["http://localhost:4040/machines/demos/bd/debug/at/"],
+      "url": "http://localhost:4040/machines/demos/bd/debug/at/?debug=true",
+      "runtimeArgs": ["http://localhost:4040/machines/demos/bd/debug/at/?debug=true"],
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS Protected Mode",
-      "url": "http://localhost:4040/machines/demos/bd/mmu/",
-      "runtimeArgs": ["http://localhost:4040/machines/demos/bd/mmu/"],
+      "url": "http://localhost:4040/machines/demos/bd/mmu/?debug=true",
+      "runtimeArgs": ["http://localhost:4040/machines/demos/bd/mmu/?debug=true"],
       "webRoot": "${workspaceFolder}"
     },
     {

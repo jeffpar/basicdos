@@ -31,5 +31,6 @@ exclude:
   - /tools
   - "*.sh"
   - /.history
+  - /disks/debug       # (except on a developer server; see _developer.yml, whose copy of this list must match)
   - /node_modules
   - "**/archive"

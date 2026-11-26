@@ -8,6 +8,9 @@
  *
  *      filter          run only the demos whose path contains a filter (eg, dual mmu/vt100 /386/)
  *      --url=URL       site to test (default: http://localhost:4040, the local Jekyll server)
+ *      --debug         load each page with "?debug=true", so its machines use the DEBUG disk images in disks/debug
+ *                      (see _includes/scripts.html), and fail any page that loads a disk image from disks/current
+ *                      that has a DEBUG copy
  *      --jobs=N        machines to run at once (default: 4)
  *      --timeout=N     seconds to wait for each machine's demo to appear (default: 180)
  *      --dump          print each machine's screen and serial port text, pass or fail
@@ -125,6 +128,10 @@ const HOOKS = `(() => {
 })();`;
 
 const opts = { url: 'http://localhost:4040', jobs: 4, timeout: 180 }, filters = [];
+//
+// The disk images that have DEBUG copies (see writeDiskettes() in gulpfile.js), for --debug.
+//
+const DEBUG_DISKS = JSON.parse(readFileSync(join(root, 'machines', 'pcx86', 'basicdos-diskettes-debug.json'), 'utf8'));
 for (const arg of process.argv.slice(2)) {
     const m = arg.match(/^--(\w+)(?:=(.*))?$/);
     if (!m) filters.push(arg);
@@ -246,7 +253,7 @@ async function runDemo(demo)
     const spec = DEMOS[demo.key]?.(demo.hw);
     if (!spec) return { failures: [`no entry for "${demo.key}" in the DEMOS table`], seconds: 0 };
     const start = Date.now(), failures = [];
-    const page = await openPage(`${opts.url}/machines/demos/${demo.path}${spec.claude? '#claudeecho' : ''}`);
+    const page = await openPage(`${opts.url}/machines/demos/${demo.path}${opts.debug? '?debug=true' : ''}${spec.claude? '#claudeecho' : ''}`);
     let state = null;
     const strip = (s) => (s || '').replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '');
     const getState = async () => {
@@ -340,6 +347,12 @@ async function runDemo(demo)
             await sleep(1000);
             await getState();
             if (!state.running || state.cycles == cycles) failures.push('the machine stopped');
+        }
+        if (opts.debug) {
+            const loaded = await page.evaluate(`performance.getEntriesByType('resource').map((e) => new URL(e.name).pathname)`) || [];
+            for (const path of new Set(loaded)) {
+                if (path.startsWith('/disks/current/') && DEBUG_DISKS[path.replace('/current/', '/debug/')]) failures.push('loaded ' + path);
+            }
         }
         failures.push(...new Set(page.problems));
     } finally {

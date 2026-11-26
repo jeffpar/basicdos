@@ -136,6 +136,7 @@ SV_LDT		dw	?	; active LDT's offset (see CPU_SETLDT)
 SV_LDTTOP	dw	?	; the end of LDT 0 (see ldt_grow)
 SV_LDTS		dw	LDT_SESSIONS dup (?) ; each LDT's offset
 SV_PMBHIT	dw	?	; last PMB found, from SYS_PMBS (see pmb_find)
+SV_MCR3		dd	?	; 80386: interrupted machine's CR3 (v86_leave)
 SYSVARS		ends
 SV_LDTLOW	equ	SV_LDTS + (LDT_SESSIONS - 1) * 2 ; (the lowest LDT)
 	ASSERT	<SYS_VARS + size SYSVARS>,LE,SYS_GDT
@@ -182,6 +183,19 @@ EXT_GRAN	equ	80h	; DESC_EXT: 4K granularity
 ; memory, too, as they must for the instruction that turns paging on.
 ;
 LIN_HI		equ	0C0h	; linear map of physical memory: base bits 31-24
+;
+; A V86 machine's page table is also the system's for a 4Mb window of its
+; own, one of WIN_SLOTS that start at linear address D0000000h (so a window's
+; bases still have a top byte that no ring 3 program can use as an access
+; byte; see SYS_PMBS), where the machine's memory is for everything outside
+; the machine (its host, DOS, and the drivers), since that memory gets its
+; pages only as they're touched (see pg_get in 386v86.asm).  As an address,
+; a window is its linear address less the linear map's (WIN_ADDR, plus 40h
+; for each slot, in bits 31-16), which is beyond any physical memory.
+;
+WIN_SLOTS	equ	32	; windows (one for each V86 machine)
+WIN_PDE		equ	340h	; the first window's PDE # (D0000000h)
+WIN_ADDR	equ	1000h	; and its address (bits 31-16)
 PDE_KERNEL	equ	LIN_HI * 4 * 4	; offset of its first PDE (C0000000h)
 PG_USER		equ	07h	; PDE and PTE bits: present, writable, user
 PG_PRESENT	equ	01h	; PDE and PTE bit: present
