@@ -26,11 +26,11 @@
 ;
 ;	MASM5 /MX BDCRT386.ASM,BDCRT386.OBJ,NUL;
 ;
-; The OS/2 functions are the ones that the library's stdio, heap, and
-; startup functions need (see DOS32READ and the others below); a program that
-; calls a library function needing any other (eg, fopen, which calls
-; DOS32OPEN) has unresolved externals when it's linked.  The library has no
-; getch, so this module has one.
+; The OS/2 functions are the ones that the library's stdio (including
+; fopen and remove), heap, and startup functions need (see DOS32READ and the
+; others below); a program that calls a library function needing any other
+; (eg, rename, which calls DOS32MOVE) has unresolved externals when it's
+; linked.  The library has no getch, so this module has one.
 ;
 ; The segments are declared here in the order the library needs (the first
 ; module's order is the program's), since Microsoft's crt0 orders them by
@@ -329,6 +329,109 @@ DOS32QUERYHTYPE:
 	adc	eax,eax
 	mov	ecx,[esp+8]
 	jmp	short ok1
+
+;
+; APIRET DOS32OPEN(PSZ name, PHFILE phf, PULONG pAction, ULONG cb,
+;		ULONG attr, ULONG flags, ULONG mode, PEAOP2 peaop2)
+;
+; The flags' low 4 bits say what to do if the file exists (0 = fail, 1 =
+; open, 2 = replace), and the next 4 bits what to do if it doesn't (0 =
+; fail, 1 = create), and the mode's low byte is a DOS open mode.  Only the
+; handle is returned (the library ignores the action), and the size and
+; extended attributes are ignored.
+;
+	public	DOS32OPEN
+DOS32OPEN:
+	push	ebx
+	mov	edx,[esp+8]
+	mov	al,[esp+32]
+	mov	ah,3Dh
+	int	21h			; open the file
+	mov	cl,[esp+28]		; CL = flags
+	jnc	short op2		; it exists
+;
+; Only a missing file (ERROR_FILE_NOT_FOUND) can be created.
+;
+	cmp	al,2
+	jne	short op9
+	test	cl,10h			; create it?
+	jz	short op9		; no
+op1:	mov	ecx,[esp+24]
+	mov	ah,3Ch
+	int	21h			; create (or replace) the file
+op3:	pop	ebx
+	jc	short op8
+	mov	ecx,[esp+8]
+;
+; This copy of the ok1 tail, for the functions that follow, is in reach of
+; their short jumps.
+;
+	mov	[ecx],eax
+op6:	sub	eax,eax
+op8:	ret
+op2:	and	cl,0Fh
+	cmp	cl,1			; open it?
+	je	op3			; yes
+	xchg	ebx,eax
+	mov	ah,3Eh
+	int	21h			; no, so close it
+	mov	eax,110			; ERROR_OPEN_FAILED
+	test	cl,cl			; fail?
+	jnz	op1			; no, so replace it
+op9:	pop	ebx
+	ret
+
+;
+; APIRET DOS32QUERYPATHINFO(PSZ name, ULONG level, PVOID pb, ULONG cb)
+;
+; Only level 1's attributes (the word at offset 20) are returned, which is
+; all that the library uses.
+;
+	public	DOS32QUERYPATHINFO
+DOS32QUERYPATHINFO:
+	mov	edx,[esp+4]
+	mov	ax,4300h
+	int	21h			; CX = attributes
+	jc	op8
+	mov	eax,[esp+12]
+	mov	[eax+20],cx
+	jmp	op6
+
+;
+; APIRET DOS32CLOSE(HFILE h)
+; APIRET DOS32DELETE(PSZ name)
+; APIRET DOS32SETFILESIZE(HFILE h, ULONG cb)
+;
+; DOS32SETFILESIZE moves the file pointer to the new end of the file (both
+; of the library's callers restore it).
+;
+	public	DOS32CLOSE,DOS32DELETE,DOS32SETFILESIZE
+DOS32CLOSE:
+	mov	ah,3Eh
+	push	ebx
+	mov	ebx,[esp+8]
+cl1:	int	21h
+cl9:	pop	ebx
+	jnc	op6
+	ret
+
+DOS32DELETE:
+	mov	edx,[esp+4]
+	mov	ah,41h
+	push	ebx
+	jmp	cl1
+
+DOS32SETFILESIZE:
+	push	ebx
+	mov	ebx,[esp+8]
+	mov	edx,[esp+12]
+	shld	ecx,edx,16		; CX:DX = the size
+	mov	ax,4200h
+	int	21h			; move the file pointer there
+	jc	cl9
+	sub	ecx,ecx
+	mov	ah,40h
+	jmp	cl1			; and write nothing, to set the size
 
 ;
 ; VOID DOS32EXIT(ULONG action, ULONG result)

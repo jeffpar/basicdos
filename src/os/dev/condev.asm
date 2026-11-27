@@ -33,7 +33,7 @@ CODE	segment para public 'CODE'
 	EXTNEAR	<update_biosdata,update_context,update_curtype,update_mode>
 	EXTNEAR	<video_ctx,wait_focus,write_char,write_context,write_crtc16>
 	EXTNEAR	<write_curpos,get_vbuf,free_vbuf,next_page,next_place>
-	EXTNEAR	<open_nofocus,close_focus>
+	EXTNEAR	<open_nofocus,close_focus,set_font>
 	extrn	ddcon_init:far
 
 	public	VKD
@@ -52,7 +52,7 @@ VKD	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	dw	ddcon_none,   ddcon_getdim, ddcon_getpos, ddcon_getlen	; D0-D3
 	dw	ddcon_movcur, ddcon_setins, ddcon_scroll, ddcon_getclr	; D4-D7
 	dw	ddcon_setclr, ddcon_setpos, ddcon_getmode,ddcon_setmode	; D8-DB
-	dw	ddcon_getchar,ddcon_setkeys				; DC-DD
+	dw	ddcon_getchar,ddcon_setkeys,set_font			; DC-DE
 	DEFABS	IOCTBL_SIZE,<($ - IOCTBL) SHR 1>
 
 	DEFLBL	CON_PARMS,word
@@ -81,6 +81,8 @@ VKD	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFBYTE	adapters,0	; video adapters present (see ADAPTER_*)
 	DEFBYTE	mode_hid,0	; FFh if mode_ctx is hidden (see hide_mode)
 	DEFWORD	bios_ctx,0	; context for our own INT 10h call (see scroll)
+	DEFWORD	font_seg,0	; font for EGA/VGA text modes (see set_font)
+	DEFBYTE	font_cell,0	; and its lines per character (0 if none)
 ;
 ; Where the next context goes on each adapter (primary, then alternate; see
 ; ddcon_open): the position (X,Y) of its top left, followed by its page (LO)

@@ -82,6 +82,7 @@ IOCTL_SETMODE	equ	0DBh	; CON: set video mode (CL), rows (CH; 0 = 25)
 MODE_WIDE	equ	23h	; CON: a terminal's 132-column "video mode"
 IOCTL_GETCHAR	equ	0DCh	; CON: get char/attr (DL/DH) at col,row (CL,CH)
 IOCTL_SETKEYS	equ	0DDh	; CON: set raw keys ON (CL=1) or OFF (CL=0)
+IOCTL_SETFONT	equ	0DEh	; CON: set font: chars DL+ (DH lines) at DS:SI
 
 IOCTL_FPU	equ	0E0h
 IOCTL_GETFPU	equ	0E1h	; FPU$: store FPUTBL far ptr at DS:SI (see fpu.inc)

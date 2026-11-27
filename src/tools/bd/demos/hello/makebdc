@@ -1,0 +1,15 @@
+#
+# Builds BDC\HELLO.EXE, the program that MAKEFILE builds (in BIN), but
+# compiled with BDC (the BASIC-DOS C compiler; see TOOLS\BDC) instead of
+# Microsoft C 4.00.
+#
+# Run "MAKE MAKEBDC" in this folder, with TOOLS\BIN in PATH$; see MAKEFILE
+# for what the steps do (BDC takes CL's /I and /Fo, but it has no floating
+# point, so it needs no /FPa, and it only compiles, so it needs no /c).
+#
+bdc\hello.obj: hello.c
+	bdc /I..\..\include /Fobdc\hello.obj hello.c
+
+bdc\hello.exe: bdc\hello.obj bdc\hello.def
+	link4 bdc\hello,bdc\hello.ne,nul,..\..\lib\,bdc\hello.def
+	stub bdc\hello.ne bdc\hello.exe

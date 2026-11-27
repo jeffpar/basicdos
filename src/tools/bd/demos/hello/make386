@@ -1,5 +1,5 @@
 #
-# Builds HELLOC.EXE, the program that MAKEFILE builds (HELLO.EXE), but
+# Builds 386\HELLO.EXE, the program that MAKEFILE builds (in BIN), but
 # compiled with CL386 (the Microsoft 386 C Compiler) as a 32-bit LE program,
 # which BASIC-DOS runs on an 80386 in protected mode.
 #
@@ -7,16 +7,17 @@
 # mode (CL386 and LINK386 are OS/2 programs).  The steps are:
 #
 #   1. CL386 compiles HELLO.C (/c means compile only, since CL386 would run
-#      LINK386) to HELLOC.OBJ (/Fo names the object file, so that it doesn't
-#      replace MAKEFILE's).  /I names the 386 compiler's include folder,
-#      whose files are its own, not those of Microsoft C 4.00.
+#      LINK386) to 386\HELLO.OBJ (/Fo names the object file).  /I names the
+#      386 compiler's include folder, whose files are its own, not those of
+#      Microsoft C 4.00.
 #
 #   2. LINK386 links BDCRT386.OBJ (the BASIC-DOS startup code, which must be
-#      the first object file) and HELLOC.OBJ with the 386 compiler's library,
-#      all in ..\..\LIB\386, making an LE program, as HELLOC.DEF asks.
+#      the first object file) and 386\HELLO.OBJ with the 386 compiler's
+#      library, all in ..\..\LIB\386, making an LE program, as 386\HELLO.DEF
+#      asks.
 #
-helloc.obj: hello.c
-	cl386 /c /I..\..\include\386 /Fohelloc.obj hello.c
+386\hello.obj: hello.c
+	cl386 /c /I..\..\include\386 /Fo386\hello.obj hello.c
 
-helloc.exe: helloc.obj helloc.def
-	link386 /NOE ..\..\lib\386\bdcrt386 helloc,helloc,nul,..\..\lib\386\,helloc.def
+386\hello.exe: 386\hello.obj 386\hello.def
+	link386 /NOE ..\..\lib\386\bdcrt386 386\hello,386\hello,nul,..\..\lib\386\,386\hello.def

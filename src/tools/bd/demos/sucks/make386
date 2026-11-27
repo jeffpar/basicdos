@@ -1,22 +1,21 @@
 #
-# Builds SUCKS1C.EXE and SUCKS2C.EXE, which are the programs that the
-# makefile in this folder builds (SUCKS1.EXE and SUCKS2.EXE), but compiled
-# with CL386 (the Microsoft 386 C Compiler) as 32-bit LE programs, which
-# BASIC-DOS runs on an 80386 in protected mode.
+# Builds 386\SUCKS1.EXE and 386\SUCKS2.EXE, which are the programs that the
+# makefile in this folder builds (in BIN), but compiled with CL386 (the
+# Microsoft 386 C Compiler) as 32-bit LE programs, which BASIC-DOS runs on an
+# 80386 in protected mode.
 #
 # Run "MAKE MAKE386" in this folder (TOOLS\DEMOS\SUCKS on a BASIC-DOS hard
 # disk), with TOOLS\BIN in PATH$, in protected mode; see ..\hello\make386 for
-# what the steps do.  The files it creates have different names from the
-# makefile's, so all the programs can be built here and compared.
+# what the steps do.
 #
-sucks1c.obj: sucks1.c
-	cl386 /c /I..\..\include\386 /Fosucks1c.obj sucks1.c
+386\sucks1.obj: sucks1.c
+	cl386 /c /I..\..\include\386 /Fo386\sucks1.obj sucks1.c
 
-sucks1c.exe: sucks1c.obj sucks1c.def
-	link386 /NOE ..\..\lib\386\bdcrt386 sucks1c,sucks1c,nul,..\..\lib\386\,sucks1c.def
+386\sucks1.exe: 386\sucks1.obj 386\sucks1.def
+	link386 /NOE ..\..\lib\386\bdcrt386 386\sucks1,386\sucks1,nul,..\..\lib\386\,386\sucks1.def
 
-sucks2c.obj: sucks2.c
-	cl386 /c /I..\..\include\386 /Fosucks2c.obj sucks2.c
+386\sucks2.obj: sucks2.c
+	cl386 /c /I..\..\include\386 /Fo386\sucks2.obj sucks2.c
 
-sucks2c.exe: sucks2c.obj sucks2c.def
-	link386 /NOE ..\..\lib\386\bdcrt386 sucks2c,sucks2c,nul,..\..\lib\386\,sucks2c.def
+386\sucks2.exe: 386\sucks2.obj 386\sucks2.def
+	link386 /NOE ..\..\lib\386\bdcrt386 386\sucks2,386\sucks2,nul,..\..\lib\386\,386\sucks2.def

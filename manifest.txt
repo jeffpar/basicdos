@@ -14,6 +14,7 @@
 #   EXT/DLL  the NE libraries (DLL files), which the kernel's NE loader looks
 #            for there, unless a LIBPATH= line in CONFIG.SYS names another
 #            directory (distribution)
+#   EXT/FONTS  the fonts that MODE FONT loads (distribution)
 #   DEMOS    demo programs (distribution), including DONKEY.BAS, the only PC
 #            DOS 1.00 BASIC sample on every disk (the demos in
 #            src/demos/other, eg, CLOCK.BAS and TETRIS.BAS, are only
@@ -44,7 +45,7 @@
 # diskimage.js resolves) followed by the file's path within the image.
 #
 # gulpfile.js builds the BASICDOS-360K distribution diskette and every demo
-# diskette with ROOT, EXT (CMD, BAS, and DLL), and DEMOS, the BASICDOS-360K-TESTS diskette with
+# diskette with ROOT, EXT (CMD, BAS, DLL, and FONTS), and DEMOS, the BASICDOS-360K-TESTS diskette with
 # TESTS (and its REGRESS and MISC subfolders) and TOOLS, and the BASICDOS-20MB
 # hard disk with all of them (plus TESTS/SAMPLES, DEMOS/WOLF3D, the WOLF3D.BAT, JIVE, and src/demos/other files that only it has
 # in DEMOS, SRC, and the build tools in TOOLS/BIN, with the C compiler's include
@@ -88,6 +89,9 @@ src/os/dll/obj/DOSCALLS.DLL
 src/os/dll/obj/KBDCALLS.DLL
 src/os/dll/obj/MSG.DLL
 src/os/dll/obj/NLS.DLL
+
+[EXT/FONTS]
+src/os/fonts/OS2.F14
 
 [DEMOS]
 src/demos/*.BA?

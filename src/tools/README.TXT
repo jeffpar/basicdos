@@ -11,8 +11,8 @@ same on a BASIC-DOS hard disk with the BASIC-DOS sources in C:\SRC; just run
 the MK.BAT file in that directory.
 
 Either way, building BASIC-DOS (MKDOS.BAT on MS-DOS, MK.BAT on BASIC-DOS) runs
-only MAKE, MASM5, LINK, LINK4 (for TESTS\MISC\OBJ\PRIMES.EXE), EXE2BIN, EXEMOD (for
-MSBASIC.EXE), and MAPSYM, all from this collection: on BASIC-DOS, MK finds
+only MAKE, MASM5, LINK, LINK4 (for TESTS\MISC\OBJ\PRIMES.EXE), EXE2BIN, EXEMOD
+(for MSBASIC.EXE), and MAPSYM, all from this collection: on BASIC-DOS, MK finds
 their BASIC-DOS versions in TOOLS\BD, and on MS-DOS, the build disk's
 AUTOEXEC.BAT puts the originals (D:\TOOLS\DOS) first in the PATH.
 
@@ -183,7 +183,8 @@ is in TOOLS\LIB\386.  The library is for OS/2 2.0: its startup code expects
 OS/2's, and the rest of it calls a few OS/2 2.0 functions, so a program for
 BASIC-DOS is linked with BDCRT386.OBJ (in TOOLS\LIB\386, too) first, which
 replaces the startup code and makes those functions DOS calls (see
-TOOLS\CRT\BDCRT386.ASM, and MAKE386 in TOOLS\DEMOS\HELLO and SUCKS):
+TOOLS\CRT\BDCRT386.ASM, and MAKE386 in TOOLS\DEMOS\HELLO and SUCKS and in
+TOOLS\BDC):
 
     CL386 /c /I\TOOLS\INCLUDE\386 PROG.C
     LINK386 /NOE \TOOLS\LIB\386\BDCRT386 PROG,,NUL,\TOOLS\LIB\386\,PROG.DEF;
@@ -217,4 +218,11 @@ they run on any 80286 or later, although the programs they build need an
 BDC.EXE in TOOLS\BIN isn't one of the original tools: it's a small, fast C
 compiler written for BASIC-DOS, with its source in TOOLS\BDC.  Its object
 files link with the Microsoft C libraries, as "MAKE MAKEBDC" in
-TOOLS\DEMOS\SUCKS shows (the makefile there uses Microsoft C).
+TOOLS\DEMOS\HELLO and SUCKS shows (the makefiles there use Microsoft C).
+"MAKE MAKE386" in TOOLS\BDC builds a 32-bit BDC with the 386 C compiler and
+copies it to TOOLS\BIN\BDC.EXE, replacing the 16-bit one; it compiles the
+same object files, but it runs only on an 80386 in protected mode.
+
+The makefiles in TOOLS\BDC and TOOLS\DEMOS put what they build in subfolders:
+MAKEFILE in BIN, MAKEBDC in BDC, and MAKE386 in 386, each of which has the
+.DEF files for the programs built there.

@@ -27,16 +27,16 @@ DEV	group	CODE
 CODE	segment byte public 'CODE'
 
 	EXTBYTE	<adapters,bios_lock,max_cols,max_rows,req_switch,shown_page>
-	EXTBYTE	<one_con,mode_hid>
+	EXTBYTE	<one_con,mode_hid,font_cell>
 	EXTWORD	<bios_ctx,con_place,ct_focus,ct_head,frame_seg,mode_ctx>
-	EXTWORD	<save_seg,save_addr,vga_addr,vga_state>
+	EXTWORD	<save_seg,save_addr,vga_addr,vga_state,font_seg,IOCTBL>
 	extrn	ddcon_int09:far
 	extrn	ddcon_int10:far
 	extrn	ddcon_int29:far
 	extrn	ddcon_req:far
 	EXTNEAR	<draw_border,draw_char,draw_cursor,draw_linefeed,free_buf>
 	EXTNEAR	<get_curpos,hide_cursor,update_cursor,alloc_sys,set_gfxclr>
-	EXTNEAR	<free_seg>
+	EXTNEAR	<free_seg,ddcon_none>
 	EXTLONG	<kbd_int,video_int,wait_ptr>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -628,7 +628,8 @@ ENDPROC	update_biosdata
 ; 14-line characters when it converts cursor types, which would hide the
 ; cursor in 8-line characters, so its cursor emulation is turned off as long
 ; as the rows are displayed (bit 0 of EGA_MISC_INFO), and a VGA goes back to
-; 400 scan lines at its next mode set, whoever sets it.
+; 400 scan lines at its next mode set, whoever sets it.  With the usual rows,
+; a font from set_font, if any, replaces the BIOS's (see load_font).
 ;
 ; Inputs:
 ;	DS = CONSOLE context (whose mode the BIOS just set)
@@ -653,8 +654,12 @@ DEFPROC	set_rows
 	mov	bl,0
 	xchg	bl,ds:[CT_ROWS]
 	test	bl,bl			; more rows?
-	jz	sr8			; no
-	mov	ch,bl
+	jnz	sr7			; yes
+	cmp	[font_cell],bl		; no, but is there a font to load?
+	je	sr8			; no
+	call	load_font
+	jmp	short sr8
+sr7:	mov	ch,bl
 	or	[EGA_MISC_INFO],1
 	ASSUME	ES:NOTHING
 	mov	ax,VIDEO_FONT8X8
@@ -1015,6 +1020,11 @@ ENDPROC	update_context
 ; for the MDA as well, even though the MDA's defaults are different (11,12),
 ; and this behavior seems to be true regardless of BIOS revision.  Bummer.
 ;
+; A VGA's BIOS stores the values for its 16-line characters (13,14) instead,
+; which would put the cursor below the 8-line characters of 43 or 50 rows
+; (see set_rows), so we use the CGA's values, which the BIOS converts with
+; the rest (its cursor emulation), as an EGA's does.
+;
 ; Inputs:
 ;	ES = BIOS
 ;
@@ -1028,8 +1038,10 @@ ENDPROC	update_context
 DEFPROC	update_curtype
 	mov	ax,[CURSOR_MODE]
 	cmp	ax,0067h		; buggy cursor scanline values?
+	je	uct0			; yes
+	cmp	ax,0D0Eh		; or a VGA's 16-line values?
 	jne	uct1			; no
-	mov	ax,0607h		; yes, fix them
+uct0:	mov	ax,0607h		; yes, fix them
 uct1:	cmp	[ADDR_6845].LB,0B4h	; MDA?
 	jne	uct2			; no
 	cmp	ax,0607h		; bogus values for MDA?
@@ -1468,7 +1480,8 @@ ENDPROC	show_now
 ; set_hwmode
 ;
 ; Sets an adapter's mode without clearing its memory.  The BIOS of an EGA or
-; VGA does that if bit 7 of the mode is set.  A CGA's BIOS always clears all
+; VGA does that if bit 7 of the mode is set (and then set_rows loads its rows
+; or font, which every mode set replaces).  A CGA's BIOS always clears all
 ; 16K, so we program a CGA ourselves: the 6845's horizontal timing registers
 ; (0-3, which differ between 40 and 80 columns), the vertical ones that
 ; differ between text and graphics (4, 6, 7, and 9), and the mode and color
@@ -1480,7 +1493,7 @@ ENDPROC	show_now
 ;	DS = CONSOLE context
 ;
 ; Modifies:
-;	AX, BX, DX
+;	AX, BX, CH, DX, ES
 ;
 	DEFLBL	CGA_MODES,byte
 	db	2Ch,28h,2Dh,29h		; mode register values for modes 0-3
@@ -1505,7 +1518,7 @@ DEFPROC	set_hwmode
 	pushf
 	call	[video_int]
 	pop	bp
-	ret
+	jmp	set_rows
 shm1:	push	cx
 	push	si
 	push	es
@@ -2403,8 +2416,8 @@ ENDPROC	vga_free
 ; set_mode
 ;
 ; Sets the adapter's mode to a context's, without clearing its memory (see
-; set_hwmode), and with the context's rows, if it has more than 25 (see
-; set_rows).  An MDA has only one mode.
+; set_hwmode), and with the context's rows, if it has more than 25 (which
+; set_hwmode's call to set_rows loads).  An MDA has only one mode.
 ;
 ; Inputs:
 ;	DS = CONSOLE context
@@ -2433,11 +2446,180 @@ smd0:	mov	ah,VIDEO_ALTSEL
 	call	[video_int]
 smd1:	mov	al,ds:[CT_MODE]
 	call	set_hwmode
-	call	set_rows
 	pop	dx
 	pop	ax
 smd9:	ret
 ENDPROC	set_mode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; set_font (IOCTL_SETFONT)
+;
+; Gives an EGA or VGA's 25-row text modes a font of our own (eg, from MODE
+; FONT), which we keep in system memory and load after every mode set (see
+; load_font), until a request with no lines returns the adapter's own font.
+; A BASIC string holds at most 255 bytes, so a font can arrive in pieces:
+; each has the lines of characters DL and up, and the font is loaded once
+; it has its last character (FFh).  A font with fewer lines than the
+; adapter's characters (14 on an EGA, 16 on a VGA) gets blank lines above and
+; below each character, except that a line-drawing or block character
+; (B0h-DFh) repeats its top and bottom lines, so it still meets its
+; neighbors.  The only console has no fonts (see ddcon_init).
+;
+; Inputs:
+;	ES:DI -> DDPRW (DDPRW_ADDR -> the characters' lines)
+;	CX = length of the lines
+;	DL = first character
+;	DH = lines per character (0 for the adapter's own font)
+;	DS = CONSOLE context
+;
+; Outputs:
+;	Carry clear if successful
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	set_font
+	test	[adapters],ADAPTER_EGA	; is there an EGA or VGA?
+	jz	fn1			; no
+	cmp	ds:[CT_PORT].LB,0B4h	; is the context on it?
+	jne	fn2			; yes
+fn1:	jmp	ddcon_none
+fn2:	mov	ax,VIDEO_GETDCC
+	pushf
+	call	[video_int]
+	mov	bx,(14 SHL 8) OR 1	; BH = an EGA's lines, BL = its font
+	cmp	al,1Ah			; a VGA?
+	jne	fn3			; no
+	mov	bx,(16 SHL 8) OR 4	; yes
+fn3:	cmp	dh,bh			; more lines than the adapter's?
+	ja	fn1			; yes
+	push	di
+	push	es
+	push	bp
+	push	ds
+	lds	si,es:[di].DDPRW_ADDR	; DS:SI -> the characters' lines
+	mov	es,cs:[0].DDH_DATA
+	ASSUME	ES:CODE
+	test	dh,dh			; the adapter's own font?
+	jnz	fn4			; no
+	sub	cx,cx
+	mov	[font_cell],cl		; (no font; see set_rows)
+	xchg	cx,[font_seg]		; CX = our font, if any
+	jcxz	fn3a
+	call	free_buf
+fn3a:	mov	al,bl
+	mov	ah,VIDEO_FONT SHR 8	; AX = function for the adapter's font
+	mov	bl,0			; (font block 0)
+	jmp	short fn7
+fn4:	mov	bp,cx			; BP = length of the lines
+	mov	ax,[font_seg]
+	test	ax,ax			; do we have a font yet?
+	jnz	fn5			; yes
+	mov	ah,bh
+	xchg	di,ax			; DI = length of 256 characters
+	call	alloc_sys		; AX = its segment
+	jc	fn10
+	mov	[font_seg],ax
+fn5:	mov	[font_cell],bh
+	mov	es,ax
+	ASSUME	ES:NOTHING
+	mov	al,dl
+	mul	bh
+	xchg	di,ax			; ES:DI -> character DL's lines
+	sub	bh,dh			; BH = lines to add
+	mov	bl,bh
+	shr	bl,1			; BL = lines above
+	sub	bh,bl			; BH = lines below
+	mov	ch,0
+fn6:	mov	al,dh
+	cbw
+	sub	bp,ax			; lines for another character?
+	jb	fn8			; no
+	mov	al,dl
+	sub	al,0B0h
+	cmp	al,30h			; a line-drawing or block character?
+	sbb	ah,ah			; AH = FFh if so
+	mov	al,[si]
+	and	al,ah			; AL = its top line, or 0
+	mov	cl,bl
+	rep	stosb
+	mov	cl,dh
+	rep	movsb
+	mov	al,[si-1]
+	and	al,ah			; AL = its bottom line, or 0
+	mov	cl,bh
+	rep	stosb
+	inc	dl			; was that the last character?
+	jnz	fn6			; no
+	call	font_regs		; yes, so load the font
+;
+; The font is loaded now if the adapter is in a 25-row text mode (ie, no
+; context has another mode), or otherwise when one is set (see load_font).
+;
+fn7:	pop	ds			; DS = CONSOLE context again
+	cmp	[mode_ctx],0		; does a context have another mode?
+	jne	fn9			; yes
+	call	video_ctx
+	jmp	short fn9
+fn8:	pop	ds
+fn9:	pop	bp
+	pop	es
+	pop	di
+	clc
+	ret
+fn10:	pop	ds
+	pop	bp
+	pop	es
+	pop	di
+	jmp	ddcon_none
+ENDPROC	set_font
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; load_font
+;
+; Loads our font (see set_font) after the BIOS has set a 25-row mode (see
+; set_rows), if it's a text mode, since every mode set loads the BIOS's font.
+;
+; Inputs:
+;	DS = CONSOLE context (whose mode the BIOS just set)
+;	ES = BIOS
+;
+; Modifies:
+;	AX, BX, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:BIOS, SS:NOTHING
+DEFPROC	load_font
+	cmp	[CRT_MODE],MODE_CO80	; a text mode (0-3)?
+	ja	lf9			; no
+	push	cx
+	push	dx
+	push	bp
+	call	font_regs
+	pushf
+	call	[video_int]
+	pop	bp
+	pop	dx
+	pop	cx
+lf9:	ret
+ENDPROC	load_font
+
+;
+; font_regs sets the inputs of VIDEO_FONT for our font.
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	font_regs
+	mov	es,[font_seg]
+	sub	bp,bp			; ES:BP -> our font
+	mov	cx,256			; CX = all its characters
+	sub	dx,dx			; DX = the first
+	mov	bh,[font_cell]		; BH = their lines
+	mov	bl,0			; (font block 0)
+	mov	ax,VIDEO_FONT
+	ret
+ENDPROC	font_regs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -3624,6 +3806,7 @@ DEFPROC	ddcon_init,far
 	ja	ddn0			; yes
 	mov	es:[bx].DDPI_END._OFF,offset con_opt
 	inc	[one_con]		; one console only (see con_opt)
+	mov	IOCTBL[(IOCTL_SETFONT - (IOCTL_CON - 8)) * 2],offset ddcon_none
 ddn0:
 	mov	ds:[0].DDH_REQUEST,offset DEV:ddcon_req
 ;

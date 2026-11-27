@@ -1,0 +1,32 @@
+#
+# Builds 386\BDC.EXE, which is BDC (the program that MAKEFILE builds in BIN)
+# compiled with CL386 (the Microsoft 386 C Compiler) as a 32-bit LE program,
+# which BASIC-DOS runs on an 80386 in protected mode, and copies it to
+# ..\BIN\BDC.EXE, replacing the 16-bit BDC there (which also runs on an 8088
+# and in real mode).  Both compile the same object files.
+#
+# Run "MAKE MAKE386" in this folder (TOOLS\BDC on a BASIC-DOS hard disk),
+# with TOOLS\BIN in PATH$, in protected mode; see ..\demos\hello\make386 for
+# what the steps do.
+#
+386\bdc.obj: bdc.c bdc.h
+	cl386 /c /Gs /I..\include\386 /Fo386\bdc.obj bdc.c
+
+386\pp.obj: pp.c bdc.h
+	cl386 /c /Gs /I..\include\386 /Fo386\pp.obj pp.c
+
+386\decl.obj: decl.c bdc.h
+	cl386 /c /Gs /I..\include\386 /Fo386\decl.obj decl.c
+
+386\expr.obj: expr.c bdc.h
+	cl386 /c /Gs /I..\include\386 /Fo386\expr.obj expr.c
+
+386\gen.obj: gen.c bdc.h
+	cl386 /c /Gs /I..\include\386 /Fo386\gen.obj gen.c
+
+386\obj.obj: obj.c bdc.h
+	cl386 /c /Gs /I..\include\386 /Fo386\obj.obj obj.c
+
+386\bdc.exe: 386\bdc.obj 386\pp.obj 386\decl.obj 386\expr.obj 386\gen.obj 386\obj.obj 386\bdc.def
+	link386 /NOE ..\lib\386\bdcrt386 386\bdc+386\pp+386\decl+386\expr+386\gen+386\obj,386\bdc,nul,..\lib\386\,386\bdc.def
+	copy 386\bdc.exe ..\bin\bdc.exe

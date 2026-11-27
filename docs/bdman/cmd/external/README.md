@@ -51,6 +51,7 @@ These are the programs provided with BASIC-DOS, each of which has a page of its 
 - [LS.BAS](ls/): lists files and directories like the UNIX `ls` command
 - [MODE.BAS](mode/): sets the display, a serial port, or a printer
 - [MORE.COM](more/): a filter that displays its input one screen at a time
+- OS2.F14 (in **EXT\\FONTS**): the font of OS/2 2.0's windowed sessions, which [MODE FONT](mode/#fonts) loads (not a command; fonts have a directory of their own)
 - [SED.COM](sed/): a filter that edits lines, like a simple version of the UNIX `sed` command
 - [SLEEP.COM](sleep/): waits the specified number of seconds
 - [SORT.COM](sort/): a filter that sorts lines

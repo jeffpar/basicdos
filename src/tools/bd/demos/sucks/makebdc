@@ -1,24 +1,22 @@
 #
-# Builds SUCKS1B.EXE and SUCKS2B.EXE, which are the programs that the makefile
-# in this folder builds (SUCKS1.EXE and SUCKS2.EXE), but compiled with BDC
-# (the BASIC-DOS C compiler; see TOOLS\BDC) instead of Microsoft C 4.00.  BDC
+# Builds BDC\SUCKS1.EXE and BDC\SUCKS2.EXE, which are the programs that the
+# makefile in this folder builds (in BIN), but compiled with BDC (the
+# BASIC-DOS C compiler; see TOOLS\BDC) instead of Microsoft C 4.00.  BDC
 # compiles several times faster, but its code is larger and slower.
 #
 # Run "MAKE MAKEBDC" in this folder (TOOLS\DEMOS\SUCKS on a BASIC-DOS hard
-# disk), with TOOLS\BIN in PATH$.  The files it creates have different names
-# from the makefile's, so both sets of programs can be built here and
-# compared.
+# disk), with TOOLS\BIN in PATH$.
 #
-sucks1b.obj: sucks1.c
-	bdc /I..\..\include /Fosucks1b.obj sucks1.c
+bdc\sucks1.obj: sucks1.c
+	bdc /I..\..\include /Fobdc\sucks1.obj sucks1.c
 
-sucks1b.exe: sucks1b.obj sucks1.def
-	link4 sucks1b,sucks1b.ne,nul,..\..\lib\,sucks1.def
-	stub sucks1b.ne sucks1b.exe
+bdc\sucks1.exe: bdc\sucks1.obj bdc\sucks1.def
+	link4 bdc\sucks1,bdc\sucks1.ne,nul,..\..\lib\,bdc\sucks1.def
+	stub bdc\sucks1.ne bdc\sucks1.exe
 
-sucks2b.obj: sucks2.c
-	bdc /I..\..\include /Fosucks2b.obj sucks2.c
+bdc\sucks2.obj: sucks2.c
+	bdc /I..\..\include /Fobdc\sucks2.obj sucks2.c
 
-sucks2b.exe: sucks2b.obj sucks2.def
-	link4 sucks2b,sucks2b.ne,nul,..\..\lib\,sucks2.def
-	stub sucks2b.ne sucks2b.exe
+bdc\sucks2.exe: bdc\sucks2.obj bdc\sucks2.def
+	link4 bdc\sucks2,bdc\sucks2.ne,nul,..\..\lib\,bdc\sucks2.def
+	stub bdc\sucks2.ne bdc\sucks2.exe

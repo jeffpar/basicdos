@@ -196,12 +196,19 @@ lf5a:	mov	[lineOffset],si
 	ASSERT	Z,<test dx,dx>		; DX:AX is the result but keep only AX
 	mov	[lineLabel],ax
 	pop	dx
-	jnc	lf6			; we found a label #
+	jc	lf5b			; no label #
+;
+; Digits followed by a backslash start a path (eg, 386\HELLO runs HELLO in a
+; folder named 386), not a label #.
+;
+	cmp	byte ptr [si],'\'
+	jne	lf6			; we found a label #
+	and	[lineLabel],0
 ;
 ; There's no label #, so keep any leading whitespace (which ATOI32D skipped),
 ; so that SAVE and LIST show the line as it was.
 ;
-	mov	si,[lineOffset]
+lf5b:	mov	si,[lineOffset]
 	jmp	short lf7
 ;
 ; We've extracted the label #; skip over one intervening space.

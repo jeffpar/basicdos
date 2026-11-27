@@ -3,10 +3,10 @@
 # Usage: tools/bdc/mkbdc.sh
 #
 # Builds src/tools/bd/BDC.EXE from the source in src/tools/bd/bdc, as its makefile
-# does on a BASIC-DOS hard disk, but on MS-DOS 3.20 (disks/historical/dos/MSDOS320-C400.json) running in pc.js, whose
-# drive D: is a folder here: Microsoft C 4.00 compiles it, LINK4 (the original, in src/tools/dos) links it
-# with the BASIC-DOS libraries (src/tools/bd/lib, over src/tools/dos/lib), and STUB adds the NE
-# loader stub.  A BASIC-DOS build produces the same file.
+# does on a BASIC-DOS hard disk, but on MS-DOS 3.20 (disks/historical/dos/MSDOS320-C400.json)
+# running in pc.js, whose drive D: is a folder here: Microsoft C 4.00 compiles it,
+# LINK4 (the original, in src/tools/dos) links it with the BASIC-DOS libraries (src/tools/bd/lib,
+# over src/tools/dos/lib), and STUB adds the NE loader stub.  A BASIC-DOS build produces the same file.
 #
 # Everything is done in tools/pc/disks/tmp-bdcbuild, which is removed first, and left for inspection afterward.
 # Run test.sh before building a BDC.EXE that's going to be kept.
@@ -24,8 +24,8 @@ fi
 rm -rf "$work"
 mkdir -p "$dos/LIB" || exit 1
 cp disks/historical/dos/MSDOS320-C400.json "$work.json" || exit 1
-cp $src/*.c $src/*.h $src/bdc.def $tools/dos/LINK4.EXE $tools/bd/STUB.EXE "$dos/" || exit 1
-cp $tools/dos/lib/* "$dos/LIB/" && cp $tools/bd/lib/* "$dos/LIB/" || exit 1
+cp $src/*.c $src/*.h $src/bin/bdc.def $tools/dos/LINK4.EXE $tools/bd/STUB.EXE "$dos/" || exit 1
+cp $tools/dos/lib/* "$dos/LIB/" && cp $tools/bd/lib/*.LIB "$dos/LIB/" || exit 1
 bat=$dos/MKDOS.BAT
 : > "$bat"
 for m in BDC PP DECL EXPR GEN OBJ; do

@@ -7,11 +7,14 @@
  *
  * This file is part of PCjs, a computer emulation software project at pcjs.org
  *
- * BDC [/Idir] [/Dname[=text]] [/FIfile] [/Fofile] file.c
+ * BDC [/c] [/Idir] [/Dname[=text]] [/FIfile] [/Fofile] file.c
  *
  * /I adds a directory to look for include files in, /D defines a macro (which
  * can have parameters, if the command line allows the characters), /FI
- * includes a file ahead of the source file, and /Fo names the object file.
+ * includes a file ahead of the source file, and /Fo names the object file
+ * (/c, compile only, is accepted for compatibility with CL).  Without any
+ * arguments, BDC prompts for the source and object filenames, and /? or
+ * /help (or an invalid command line) displays its usage.
  *
  * BDC is a small, fast, single-pass C compiler.  It reads one C source file
  * and writes one object file, in a single program and with no intermediate
@@ -59,6 +62,7 @@ int pooltop;
 int keeppool;                   /* set when the pool can't be released */
 
 static char objname[PATHSZ];
+static char srcname[PATHSZ];
 #ifdef HOST
 int stats[12];
 #endif
@@ -117,10 +121,70 @@ char *s;
     return h & 255;
 }
 
+static void banner()
+{
+    printf("BASIC-DOS C Compiler Version 1.00\n");
+    printf("Copyright (c) PCJS.ORG 2026\n\n");
+}
+
+/*
+ * Displays the usage, and ends with the given exit code.
+ */
+static void usage(code)
+int code;
+{
+    banner();
+    printf("Usage: BDC [/c] [/Idir] [/Dname[=text]] [/FIfile] [/Fofile] file.c\n");
+    printf("  /c             compile only (the default)\n");
+    printf("  /Idir          look for include files in dir\n");
+    printf("  /Dname[=text]  define a macro\n");
+    printf("  /FIfile        include file ahead of the source file\n");
+    printf("  /Fofile        name the object file\n");
+    printf("Without arguments, BDC prompts for the filenames.\n");
+    exit(code);
+}
+
 static void syntax()
 {
-    printf("Syntax error\n");
-    exit(1);
+    usage(1);
+}
+
+/*
+ * Prompts for a filename, with its default in brackets, and returns the
+ * answer (empty for the default) in buf, which must hold PATHSZ characters;
+ * the end of input ends the program.
+ */
+static char *ask(msg, def, buf)
+char *msg, *def, *buf;
+{
+    char *a, *p;
+
+    printf("%s [%s]: ", msg, def);
+    fflush(stdout);
+    if (!fgets(buf, PATHSZ - 4, stdin)) {
+        printf("\n");
+        exit(1);
+    }
+    for (a = buf; *a == ' ' || *a == '\t'; a++) ;
+    for (p = a; *p > ' '; p++) ;
+    *p = 0;
+    return a;
+}
+
+/*
+ * Adds an extension to a filename that doesn't have one.
+ */
+static void defext(name, ext)
+char *name, *ext;
+{
+    char *p, *e;
+
+    e = 0;
+    for (p = name; *p; p++) {
+        if (*p == '.') e = p;
+        else if (*p == '\\' || *p == '/' || *p == ':') e = 0;
+    }
+    if (!e) strcpy(p, ext);
 }
 
 main(argc, argv)
@@ -140,6 +204,11 @@ char **argv;
 #else
         if (*a == '-' || *a == '/') {
 #endif
+            /*
+             * /? and /help display the usage.
+             */
+            if (!strcmp(a + 1, "?") || !strcmp(a + 1, "help") ||
+                !strcmp(a + 1, "HELP")) usage(0);
             switch (a[1]) {
             case 'I':
             case 'i':
@@ -178,6 +247,16 @@ char **argv;
         } else if (!src) src = a;
         else syntax();
     }
+    /*
+     * Without any arguments, prompt for the source filename (until there is
+     * one), and then the object filename.
+     */
+    if (argc < 2) {
+        banner();
+        do src = ask("Source filename", ".C", srcname);
+        while (!*src);
+        defext(src, ".C");
+    }
     if (!src) syntax();
 
     /*
@@ -193,6 +272,13 @@ char **argv;
         n = 0;
         while (*a && *a != '.' && n < 64) objname[n++] = *a++;
         strcpy(objname + n, ".obj");
+    }
+    if (argc < 2) {
+        out = ask("Object filename", objname, dtext);
+        if (*out) {
+            defext(out, ".obj");
+            strcpy(objname, out);
+        }
     }
 
     define("MSDOS 1");

@@ -56,7 +56,7 @@ function checkOutput(task, outputFile)
 /*
  * The files on every BASIC-DOS disk come from manifest.txt, which lists the files for each folder (ROOT, the EXT
  * folders, DEMOS, and TESTS).  Every demo diskette gets ROOT (the system files, and its own CONFIG.SYS and
- * AUTOEXEC.BAT, if any), followed by EXT/CMD (which includes HELP.TXT), EXT/BAS, EXT/DLL (the libraries), and DEMOS, so each demo diskette
+ * AUTOEXEC.BAT, if any), followed by EXT/CMD (which includes HELP.TXT), EXT/BAS, EXT/DLL (the libraries), EXT/FONTS, and DEMOS, so each demo diskette
  * differs only in its CONFIG.SYS, which sets PATH$ on each SHELL line (eg, SHELL=COMMAND.COM
  * PATH$="A:\;A:\EXT\CMD;A:\EXT\BAS;A:\DEMOS").
  *
@@ -159,10 +159,10 @@ const toolFiles = (dir) => globSync(SRC + "/tools/" + dir + "/*").sort().filter(
     !fs.statSync(file).isDirectory());
 
 //
-// The distribution diskette and the demo diskettes have only EXT (CMD, BAS, and DLL) and DEMOS; the tests are on the
-// TESTS diskette, so that no other diskette has to make room for them.
+// The distribution diskette and the demo diskettes have only EXT (CMD, BAS, DLL, and FONTS) and DEMOS; the tests are on
+// the TESTS diskette, so that no other diskette has to make room for them.
 //
-const distFolders = { "EXT/CMD": manifest["EXT/CMD"], "EXT/BAS": manifest["EXT/BAS"], "EXT/DLL": manifest["EXT/DLL"], DEMOS: manifest.DEMOS };
+const distFolders = { "EXT/CMD": manifest["EXT/CMD"], "EXT/BAS": manifest["EXT/BAS"], "EXT/DLL": manifest["EXT/DLL"], "EXT/FONTS": manifest["EXT/FONTS"], DEMOS: manifest.DEMOS };
 //
 // The demo diskettes (every diskette except the distribution diskette) leave out CLAUDE.BAS, which needs a gateway
 // on COM2 that the demo pages don't have, so that they have room for everything else.
@@ -266,16 +266,25 @@ let disks = {
             //
             // The BASIC-DOS C startup code and floating-point library sources (with a test), the source of STUB.EXE,
             // and the C demos (HELLO is the sample that explains each step); all but the first have a makefile that
-            // builds a program there, and the demos also have MAKE386, which builds them with the 386 C compiler.
-            // SUCKS gets everything in its folder (MAKEBDC is its makefile for BDC) but README.md (README.TXT is the
-            // version for the disk).
+            // builds a program there, and BDC and the demos also have MAKE386, which builds them with the 386 C
+            // compiler (and the demos MAKEBDC, which builds them with BDC).  Each of those makefiles puts what it
+            // builds in a subfolder of its own (BIN, 386, or BDC), which holds the .DEF files that it links with.
+            // SUCKS gets everything in its folder but README.md (README.TXT is the version for the disk).
             //
             "TOOLS/CRT": [ SRC + "/tools/bd/crt/*" ],
             "TOOLS/FP": [ SRC + "/tools/bd/fp/*" ],
             "TOOLS/STUB": [ SRC + "/tools/bd/stub/*" ],
             "TOOLS/BDC": [ SRC + "/tools/bd/bdc/*" ],             // the BASIC-DOS C compiler's source (BDC.EXE is in TOOLS/BIN)
+            "TOOLS/BDC/BIN": [ SRC + "/tools/bd/bdc/bin/*" ],
+            "TOOLS/BDC/386": [ SRC + "/tools/bd/bdc/386/*" ],
             "TOOLS/DEMOS/HELLO": [ SRC + "/tools/bd/demos/hello/*" ],
-            "TOOLS/DEMOS/SUCKS": [ SRC + "/tools/bd/demos/sucks/*.c", SRC + "/tools/bd/demos/sucks/*.def", SRC + "/tools/bd/demos/sucks/make*", SRC + "/tools/bd/demos/sucks/README.TXT" ]
+            "TOOLS/DEMOS/HELLO/BIN": [ SRC + "/tools/bd/demos/hello/bin/*" ],
+            "TOOLS/DEMOS/HELLO/BDC": [ SRC + "/tools/bd/demos/hello/bdc/*" ],
+            "TOOLS/DEMOS/HELLO/386": [ SRC + "/tools/bd/demos/hello/386/*" ],
+            "TOOLS/DEMOS/SUCKS": [ SRC + "/tools/bd/demos/sucks/*.c", SRC + "/tools/bd/demos/sucks/make*", SRC + "/tools/bd/demos/sucks/README.TXT" ],
+            "TOOLS/DEMOS/SUCKS/BIN": [ SRC + "/tools/bd/demos/sucks/bin/*" ],
+            "TOOLS/DEMOS/SUCKS/BDC": [ SRC + "/tools/bd/demos/sucks/bdc/*" ],
+            "TOOLS/DEMOS/SUCKS/386": [ SRC + "/tools/bd/demos/sucks/386/*" ]
         }
     }
 };
@@ -325,7 +334,7 @@ function stageDisk(diskName, mode)
     fs.rmSync(dirStage, { recursive: true, force: true });
     fs.mkdirSync(dirStage, { recursive: true });
     let entries = [];
-    let distSpecs = new Set(manifest.ROOT.concat(manifest["EXT/CMD"], manifest["EXT/BAS"], manifest["EXT/DLL"], manifest.DEMOS));
+    let distSpecs = new Set(manifest.ROOT.concat(manifest["EXT/CMD"], manifest["EXT/BAS"], manifest["EXT/DLL"], manifest["EXT/FONTS"], manifest.DEMOS));
     let copyFiles = function(fileSpecs, dirTarget, name, dist = false) {
         for (let fileSpec of fileSpecs) {
             let image = fileSpec.match(/^(.*\.json)\/(.*)$/);
@@ -418,7 +427,7 @@ function stageDisk(diskName, mode)
     /*
      * The distribution folders get the distribution date, too, once nothing else will be copied into them.
      */
-    for (let folder of ["EXT/CMD", "EXT/BAS", "EXT/DLL", "EXT", "DEMOS"]) {
+    for (let folder of ["EXT/CMD", "EXT/BAS", "EXT/DLL", "EXT/FONTS", "EXT", "DEMOS"]) {
         let dirTarget = path.join(dirStage, folder);
         if (fs.existsSync(dirTarget)) fs.utimesSync(dirTarget, DIST_DATE, DIST_DATE);
     }

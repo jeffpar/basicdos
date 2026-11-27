@@ -1,10 +1,17 @@
 	' MODE.BAS: sets the display, a serial port, or a printer
 	'
-	'   MODE 40|80|132|BW40|BW80|CO40|CO80[,rows]  display columns (and color),
-	'                                           and rows (25, 43, or 50)
-	'   MODE COMn:baud[,parity[,data[,stop]]]   serial port (eg, COM1:9600,N,8,1)
-	'   MODE LPTn:[cols][,lines]                printer columns (80 or 132) and
-	'                                           lines per inch (6 or 8)
+	'   MODE [video options|serial port options|parallel port options]
+	'
+	' Video options:
+	'   40|80|132|BW40|BW80|CO40|CO80[,rows]  columns (and color), and rows
+	'                                         (25, 43, or 50)
+	'   FONT [file]                           font (EGA or VGA), or without a
+	'                                         file, the adapter's own font
+	' Serial port options:
+	'   COMn:baud[,parity[,data[,stop]]]      eg, COM1:9600,N,8,1
+	' Parallel port options:
+	'   LPTn:[cols][,lines]                   printer columns (80 or 132) and
+	'                                         lines per inch (6 or 8)
 	'
 	' A serial port is set by opening it with its parameters and an input
 	' buffer length of 0, which initializes the port and releases it again (a
@@ -19,6 +26,7 @@
 	M$ = UCASE$(ARG$(1))
 	IF LEFT$(M$, 3) = "COM" THEN GOTO 20
 	IF LEFT$(M$, 3) = "LPT" THEN GOTO 30
+	IF M$ = "FONT" THEN GOTO 40
 	R$ = M$ + ","
 	GOSUB 50 : M$ = I$
 	GOSUB 50 : L$ = I$
@@ -60,6 +68,24 @@
 	IF L$ = "6" THEN PRINT #1, CHR$(27); "2";
 	CLOSE #1
 	END
+40	' Font: a file of 256 characters, each with LOF / 256 lines, goes to the
+	' console (IOCTL &HDE) in records of up to 255 bytes (the most a string
+	' holds); a file name without a path is in EXT\FONTS on the system drive
+	F$ = ARG$(2)
+	DOS &H3700 : IF LEFT$(F$, 1) = CHR$(DOS(3) AND 255) THEN GOTO 990
+	IF ARG$(3) <> "" THEN GOTO 990
+	ON ERROR GOTO 900
+	OPEN "CON" FOR OUTPUT AS #1
+	IF F$ = "" THEN IOCTL #1, &HDE, 0, 0 : END
+	DOS &H3704 : A = DOS(3) : P$ = CHR$(A AND 255)
+	IF INSTR(F$, ":") = 0 AND INSTR(F$, P$) = 0 THEN F$ = CHR$(A \ 256) + ":" + P$ + "EXT" + P$ + "FONTS" + P$ + F$
+	OPEN F$ FOR INPUT AS #2 : L = LOF(2) : CLOSE #2
+	H = L \ 256 : IF H = 0 OR L MOD 256 THEN ERROR 5 ' BERR_ILLFUNC
+	N = 255 \ H
+	OPEN F$ AS #2 LEN = N * H : FIELD #2, N * H AS D$
+	FOR C = 0 TO 255 STEP N : GET #2 : IOCTL #1, &HDE, D$, H * 256 + C : NEXT
+	CLOSE
+	END
 50	' Return the next comma-separated item of R$ in I$
 	I = INSTR(R$, ",")
 	IF I = 0 THEN I$ = "" : RETURN
@@ -68,5 +94,6 @@
 900	' Report a runtime error, whose number (ERR) is the exit code
 	CLOSE
 	IF ERR = 5 THEN PRINT "Illegal function call" : END ERR ' BERR_ILLFUNC
+	IF ERR = 53 THEN PRINT "Unable to find "; F$ : END ERR ' BERR_NOFILE
 	PRINT "Unable to set the mode (error"; ERR; ")" : END ERR
 990	END 80 ' BERR_USAGE

@@ -210,7 +210,7 @@ Everything else, including INPUT and LINE INPUT from the keyboard and WRITE to t
 BASIC-DOS runs many IBM PC BASIC programs unchanged (eg, DONKEY.BAS, from the original PC DOS 1.00 diskette), but there are differences:
 
 - Programs are text files, which can be edited with a text editor, or typed at the prompt with line numbers (see [Entering Programs](../intro/#entering-programs)) and saved with [SAVE](../cmd/disk/#save); there's no RENUM command, and tokenized BAS files saved by BASICA and GW-BASIC can be loaded, but not saved
-- Line numbers are optional, and only needed on lines that are targets of GOTO, GOSUB, etc
+- Line numbers are optional, and only needed on lines that are targets of GOTO, GOSUB, etc; digits followed by a backslash aren't a line number but the start of a path, so a line can run a program in a folder whose name starts with a digit (eg, `386\HELLO`)
 - Single-precision values are double-precision (so there's no DEFSNG; use DEFDBL), and integers are 32-bit, not 16-bit
 - Function names don't need to begin with FN, and functions can have multiple lines
 - PRINT commas print a tab instead of advancing to the next print zone
