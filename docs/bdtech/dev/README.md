@@ -72,7 +72,7 @@ DOS calls the REQUEST entry point with a far call, with ES:BX -> request packet.
 
 PC DOS defined only the first 5 bytes of the header; BASIC-DOS uses the rest to pass context information.  For example, DDC_OPEN returns a new context in DDP_CONTEXT, which DOS stores in the open file's SFB and passes back with every later request for that handle.
 
-INIT requests use a DDPI packet, and for built-in drivers, DDP_PTR points to the CONFIG.SYS text (null-terminated, and empty if there's no CONFIG.SYS), so a driver can look for its own settings (eg, CPU$'s `CPU=8088`; see [Protected Mode](../mmu/)):
+INIT requests use a DDPI packet, and for built-in drivers, DDP_PTR points to the CONFIG.SYS text (null-terminated, empty if there's no CONFIG.SYS, and with a [startup menu](../../bdman/cfg/#startup-menus), only the chosen configuration's lines), so a driver can look for its own settings (eg, CPU$'s `CPU=8088`; see [Protected Mode](../mmu/)):
 
 | Offset | Field | Description |
 |--------|-------|-------------|

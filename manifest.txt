@@ -44,8 +44,8 @@
 # and a file inside a disk image can be listed as the image's path (which PCJS's
 # diskimage.js resolves) followed by the file's path within the image.
 #
-# gulpfile.js builds the BASICDOS-360K distribution diskette and every demo
-# diskette with ROOT, EXT (CMD, BAS, DLL, and FONTS), and DEMOS, the BASICDOS-360K-TESTS diskette with
+# gulpfile.js builds the BASICDOS-360K and BASICDOS-1440K distribution
+# diskettes and every demo diskette with ROOT, EXT (CMD, BAS, DLL, and FONTS), and DEMOS, the BASICDOS-360K-TESTS diskette with
 # TESTS (and its REGRESS and MISC subfolders) and TOOLS, and the BASICDOS-20MB
 # hard disk with all of them (plus TESTS/SAMPLES, DEMOS/WOLF3D, the WOLF3D.BAT, JIVE, and src/demos/other files that only it has
 # in DEMOS, SRC, and the build tools in TOOLS/BIN, with the C compiler's include

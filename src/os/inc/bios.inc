@@ -94,6 +94,12 @@ KBD_READ	equ	00h	; returns char code in AL, scan code in AH
 KBD_CHECK	equ	01h	; returns ZF set if no key
 
 ;
+; INT_COM functions (DX = port number, 0 for COM1)
+;
+COM_INIT	equ	00h	; AL=settings (eg, COM_9600N81)
+COM_9600N81	equ	0E3h	; COM_INIT AL: 9600 baud, N, 8, 1
+
+;
 ; INT_CASSETTE functions (PC AT and up)
 ;
 CAS_GETEXTMEM	equ	88h	; returns AX = Kb of extended memory

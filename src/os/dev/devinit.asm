@@ -22,6 +22,9 @@ DV_SLACK	equ	32		; after DOS_FILE and CFG_FILE (see i9b)
 
 DEV	segment para public 'CODE'
 
+	EXTNEAR	<multi_cfg>
+	EXTBYTE	<mc_end>
+
 ;
 ; Because this is the last module appended to DEV_FILE, we must include
 ; a fake device header, so that the BOOT code will stop looking for drivers.
@@ -94,6 +97,10 @@ DEFPROC	devinit,far
 ; get the CFG_FILE data (see DDP_PTR below), which is empty if there's no
 ; CFG_FILE.
 ;
+; The data is only the lines of the chosen configuration (see multi_cfg),
+; which follow multi_cfg's copy of CFG_FILE, so we copy them to devinit_end,
+; over multi_cfg.
+;
 	push	di
 	push	cs
 	pop	es
@@ -101,12 +108,21 @@ DEFPROC	devinit,far
 	mov	es:[rd_addr],bx		; (see rd_file)
 	mov	es:[dv_data],cs		; our data segment (see chk_cpu)
 	mov	es:[dv_addr],di		; and our address (end of drivers)
-	mov	di,offset devinit_end	; DI -> CFG_FILE buffer
+	mov	di,offset devinit_end	; DI -> CFG_FILE data
 	lea	bx,[si+BOOT_CFGFILE]	; BX -> CFG_FILE DIR info
 	mov	es:[cfg_info],bx
 	cmp	byte ptr [bx],0		; was CFG_FILE found?
 	jne	d1			; no, so leave it empty
+	push	di
+	mov	di,offset mc_end
 	call	rd_file
+	call	multi_cfg		; CS:SI -> lines to keep, CX = length
+	pop	di
+	push	ds
+	push	cs
+	pop	ds
+	rep	movsb
+	pop	ds
 d1:	mov	byte ptr es:[di],0	; null-terminate the CFG_FILE data
 	mov	ax,di
 	sub	ax,offset devinit_end

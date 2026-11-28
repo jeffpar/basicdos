@@ -62,7 +62,9 @@ function checkOutput(task, outputFile)
  *
  * The release diskette, BASICDOS-360K, is the same, but its build also writes a raw image of it (marked "img"),
  * BASICDOS-360K.img, which the home page offers for download, and its title includes the version (eg, "BASIC-DOS 2.01
- * (Release)"), which also lists it first.
+ * (Release)"), which also lists it first.  BASICDOS-1440K is the same release diskette in a 1.44M format (a disk's
+ * "kb" sets its size, which is 360 otherwise), for 3.5-inch drives; it's only a download, so it has no title (an FDC's
+ * list doesn't omit diskettes its drives can't read).
  *
  * The TESTS files (with the regression tests in TESTS/REGRESS and other test programs in TESTS/MISC) and the TOOLS
  * files (eg, SYMDEB and MSBASIC) are on a separate data diskette (marked "data"), BASICDOS-360K-TESTS; it isn't
@@ -194,6 +196,14 @@ let disks = {
         config: "./disks/downloads/CONFIG.SYS",
         label: "BASIC-DOS",
         title: "BASIC-DOS " + VERSION + " (Release)",
+        folders: distFolders,
+        img: true,
+        final: true
+    },
+    "BASICDOS-1440K": {
+        config: "./disks/downloads/CONFIG.SYS",
+        label: "BASIC-DOS",
+        kb: 1440,
         folders: distFolders,
         img: true,
         final: true
@@ -438,7 +448,8 @@ function stageDisk(diskName, mode)
  * buildDisk(diskName, mode, diskImage)
  *
  * Returns a gulp task function that stages the files for a BASIC-DOS disk with the given build mode's binaries and
- * then builds the disk image: a hard disk with pc.js, or a 360K diskette with diskimage.js (which requires PCJS).
+ * then builds the disk image: a hard disk with pc.js, or a diskette (360K, unless it sets "kb") with diskimage.js
+ * (which requires PCJS).
  *
  * @param {string} diskName
  * @param {string} mode
@@ -468,7 +479,7 @@ function buildDisk(diskName, mode, diskImage)
             cmd = "node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" --files " + entries.join(",") +
                   (disks[diskName].data? "" : " --boot " + binPath(mode, SRC + "/os/boot/obj/BOOT1.COM") + " --attr=" + SYSATTRS) +
                   " --output " + diskNew +
-                  " --label=" + label + " --labeldate=" + DIST_TIME + " --normalize --writable --target=360 --overwrite" + DIQUIET;
+                  " --label=" + label + " --labeldate=" + DIST_TIME + " --normalize --writable --target=" + (disks[diskName].kb || 360) + " --overwrite" + DIQUIET;
         }
         /*
          * The staging directory is needed only to build the disk, so it's removed once the build succeeds (if the

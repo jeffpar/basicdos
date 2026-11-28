@@ -7,6 +7,8 @@ redirect_from: /demos/
 
 Each BASIC-DOS demo runs on up to four generations of PC hardware: the original IBM PC (Model 5150) with its 4.77Mhz 8088 and diskette drives, the IBM PC XT (Model 5160), which added a hard disk, the IBM PC AT (Model 5170), with a 6Mhz 80286 and a battery-powered real-time clock that keeps the date and time, and the COMPAQ DeskPro 386, COMPAQ's first PC with a 16Mhz 80386, shown here with 1Mb of memory (2Mb in the Extended Memory demos) and a VGA.  Click a machine to run that demo on that hardware.
 
+You can also browse the [BASIC-DOS Release Diskettes](/disks/downloads/) to test or download the latest release.
+
 | Demo | IBM PC | IBM PC XT | IBM PC AT | COMPAQ DeskPro 386 |
 |------|--------|-----------|-----------|--------------------|
 | 1. Monochrome | [64K, MDA](bd/m64/pc/) | [640K, MDA](bd/m64/xt/) | | |

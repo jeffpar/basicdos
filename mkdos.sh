@@ -28,9 +28,9 @@
 # build runs automatically), update the disk images of the build's mode with
 # the new binaries (which requires PCJS; see gulpfile.js): a FINAL build
 # updates disks/current (the disks that the web site uses), and a DEBUG build
-# updates disks/debug (every disk but the release diskette, BASICDOS-360K, and
-# the 64K demo disks, BASICDOS-360K-M64 and BASICDOS-360K-TERM, which are
-# FINAL only), unless "gulp watch" is running, which updates them itself a
+# updates disks/debug (every disk but the release diskettes, BASICDOS-360K and
+# BASICDOS-1440K, and the 64K demo disks, BASICDOS-360K-M64 and
+# BASICDOS-360K-TERM, which are FINAL only), unless "gulp watch" is running, which updates them itself a
 # couple of seconds later.  If a build fails and you don't want the disks
 # updated, use pc.js's "abort" command.
 #

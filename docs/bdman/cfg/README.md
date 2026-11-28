@@ -34,15 +34,21 @@ The recognized keywords are:
 - [DEVICE](#device)
 - [FILES](#files)
 - [HOTKEY](#hotkey)
+- [INCLUDE](#startup-menus)
 - [LIBPATH](#libpath)
 - [MEMSIZE](#memsize)
+- [MENUDEFAULT](#startup-menus)
+- [MENUITEM](#startup-menus)
 - [PATHCHAR](#pathchar)
 - [PRN](#prn)
 - [RING](#ring)
 - [SESSIONS](#sessions)
 - [SHELL](#shell)
 - [SKIP](#skip)
+- [SUBMENU](#startup-menus)
 - [SWITCHAR](#switchar)
+
+One CONFIG.SYS can also hold several configurations, and offer a menu of them when BASIC-DOS starts (see [Startup Menus](#startup-menus)).
 
 ### AUX
 
@@ -226,6 +232,69 @@ Changes the character that introduces command options (switches) from `/` (the d
 The switch character can't also be the path character (see [PATHCHAR](#pathchar)), so if it is (eg, `SWITCHAR=/` with `PATHCHAR=/`), a warning is displayed at boot, and the switch character is left unchanged.
 
 A `-` begins a switch only at the start of an argument, so that it can also appear inside arguments (eg, `TYPE MY-FILE.TXT`).
+
+### Startup Menus
+
+> [*name*[:*conditions*]]  
+> MENUITEM=*name*[,*text*]  
+> SUBMENU=*name*[,*text*]  
+> MENUDEFAULT=*name*[,*seconds*]  
+> INCLUDE=*name*
+
+As with MS-DOS 6.0's MultiConfig, a CONFIG.SYS can be divided into blocks, each starting with a line that has the block's name in brackets (eg, `[D40]`) and ending at the next block or the end of the file.  When BASIC-DOS starts, it displays a menu of the items in the [MENU] block, and then uses only these lines, in the order they appear in the file:
+
+- the lines before the first block
+- every [COMMON] block
+- the block of the item chosen from the menu, and the block of each SUBMENU item chosen on the way to it
+
+An INCLUDE line in any of them is replaced by the lines of the block it names, so configurations can share lines.  A block can be included any number of times (eg, to repeat a CON and SHELL pair for each of several consoles), but not within itself, even through another block; an INCLUDE line like that is ignored, as is one that names a block that doesn't exist.  Without a [MENU] block, only the lines before the first block and the [COMMON] blocks are used.
+
+Each MENUITEM line in the [MENU] block adds an item that displays *text* (or the block's *name*, if there's no *text*), and each SUBMENU line adds an item whose block is another menu, with MENUITEM, SUBMENU, and MENUDEFAULT lines of its own; an INCLUDE line in a menu block adds the items of the block it names, so menus can share items.  A menu can have up to 9 items.  To choose one, type its number and press **Enter**.  MENUDEFAULT makes its item the initial choice (otherwise, it's the first item), and with *seconds* (0 to 99), that item is chosen if no key is pressed in that many seconds; the menu displays the time remaining, and pressing any key stops the countdown.  Menu lines are never passed on to the rest of BASIC-DOS, so a SUBMENU item's block can also hold lines for the configurations chosen through it (eg, `CPU=8088` in a "Real mode" menu).
+
+Block names must match exactly, including case (so `[common]` isn't a [COMMON] block), and can't contain spaces or any of `]`, `,`, `:`, or `+`.  The menu is displayed with the ROM BIOS, before any drivers are loaded, so it appears on the video adapter's screen, even when the chosen configuration's consoles are on serial ports, and its keys can be typed at the keyboard; on a machine without a video adapter (see `VIDEO` below), it appears on a terminal connected to COM1 instead, at 9600 baud with no parity, 8 data bits, and 1 stop bit, and its keys can be typed at either one.
+
+#### Conditions
+
+A block's name can be followed by a colon and a list of conditions, separated by commas, at least one of which must be met for the block to be used (eg, `[D40:CGA,EGA,VGA]`); a condition can combine keywords with plus signs, all of which must be met (eg, `[DUAL:MDA+CGA]`).  A block whose conditions aren't met is ignored, as if it weren't there: a menu doesn't display an item for it, and INCLUDE doesn't find it.  Blocks can therefore share a name, and the first whose conditions are met is used (eg, `[MENU:286]` followed by `[MENU]` gives an 80286 or later one menu, and other machines another).  The keywords are:
+
+| Keyword | Met if the machine has |
+|---------|------------------------|
+| MDA | a Monochrome Display Adapter |
+| CGA | a Color Graphics Adapter |
+| EGA | an Enhanced Graphics Adapter |
+| VGA | a VGA |
+| VIDEO | any of those adapters |
+| COM | a serial port |
+| COM2 | a second serial port |
+| 286 | an 80286 or later processor |
+| 386 | an 80386 or later processor |
+| *n*K | at least *n*K of conventional memory (eg, 256K or 640K) |
+| *n*M | at least *n*Mb of extended memory (eg, 1M) |
+
+Any other keyword is never met.  An EGA or VGA counts only as itself, so a machine with a VGA and an MDA meets VGA and MDA, but not CGA.  Memory is what the ROM BIOS reports, before any [MEMSIZE](#memsize) line.
+
+MS-DOS 6.0's MENUCOLOR, NUMLOCK, and SET lines, its `?` prompts (eg, `DEVICE?=`), and its F5 and F8 keys aren't supported, and there's no CONFIG environment variable; each block's SHELL lines can run their own startup commands instead.  Unrecognized lines are ignored, as always.
+
+For example, this CONFIG.SYS offers two of the [Demos](/machines/demos/) configurations, and after 10 seconds, starts the first:
+
+	[MENU]
+	MENUITEM=S80,One 80-column console
+	MENUITEM=D40,Two 40-column consoles
+	MENUDEFAULT=S80,10
+
+	[S80]
+	INCLUDE=SHELL
+
+	[D40]
+	CON=VKD$:40,25,1
+	INCLUDE=SHELL
+	CON=VKD$:40,25,1
+	INCLUDE=SHELL
+
+	[SHELL]
+	SHELL=COMMAND.COM PATH$="A:\;A:\EXT\CMD;A:\EXT\BAS;A:\DEMOS"
+
+Changing `[D40]` to `[D40:CGA+128K,EGA+128K,VGA+128K]` offers the second configuration only on a machine with a color adapter and at least 128K of memory (since a machine with 64K has only one video console).  The [BASIC-DOS Release](/disks/downloads/) diskette's CONFIG.SYS is a larger example: on an 80286 or later, it first offers protected or real mode, and then most of the Demos configurations that the machine's hardware supports.
 
 ### Sample Configuration
 
