@@ -6,11 +6,11 @@ permalink: /
 
 # PC DOS Reimagined
 
-Read the [Blog](blog/), check out the [Preview](machines/demos/preview/), see a few of the original [Demos](machines/demos/), and then download the current [Release](#current-release).
+Read the [Blog](blog/), check out the [Preview](machines/demos/preview/), see a few of the original [Demos](machines/demos/), and then download the current [Release](#release).
 
 [![BASIC-DOS 1.00](assets/images/BASIC-DOS-Cover.gif)](machines/demos/preview/)
 
-## Current Release
+## Release
 
 The current [BASIC-DOS Release Diskettes](disks/downloads/) are bootable disks with BASIC-DOS system files, a "basic" set of utilities, and a few demo programs (including DONKEY.BAS, from PC DOS 1.00).
 
