@@ -6,16 +6,13 @@ permalink: /
 
 # PC DOS Reimagined
 
-Read the [Blog](blog/), check out the [Preview](machines/demos/preview/), see a few of the original [Demos](machines/demos/), and then [Download](#download) the current release.
+Read the [Blog](blog/), check out the [Preview](machines/demos/preview/), see a few of the original [Demos](machines/demos/), and then download the current [Release](#current-release).
 
 [![BASIC-DOS 1.00](assets/images/BASIC-DOS-Cover.gif)](machines/demos/preview/)
 
-## Download
+## Current Release
 
-The current BASIC-DOS release diskette is a bootable diskette with BASIC-DOS system files, a "basic" set of utilities, and a few demo programs (including DONKEY.BAS, from PC DOS 1.00).  See it running on the [BASIC-DOS Release](disks/downloads/) page, or download one of these diskette images, which most PC emulators can boot, or which can be written to a physical diskette:
-
-- [BASICDOS-360K](disks/current/BASICDOS-360K.img), for a 5.25-inch 360K diskette
-- [BASICDOS-1440K](disks/current/BASICDOS-1440K.img), for a 3.5-inch 1.44M diskette
+The current [BASIC-DOS Release Diskettes](disks/downloads/) are bootable disks with BASIC-DOS system files, a "basic" set of utilities, and a few demo programs (including DONKEY.BAS, from PC DOS 1.00).
 
 When we say that BASIC-DOS comes with a "basic" set of utilities, we mean that both figuratively and literally, because while some are written in assembly language, many are in fact written in BASIC, including [CHKDSK](docs/bdman/cmd/external/chkdsk/), [FORMAT](docs/bdman/cmd/external/format/), [MODE](docs/bdman/cmd/external/mode/), and more.  BASIC-DOS takes its commitment to BASIC integration, performance, and ease-of-use very seriously.
 
