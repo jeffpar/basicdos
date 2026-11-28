@@ -1585,6 +1585,9 @@ ENDPROC	set_hwmode
 ; page's mode, which the adapter is given whenever the page is displayed
 ; (see show_page and set_hwmode).  The BIOS never sets the mode, so the
 ; adapter's other pages aren't cleared, and no other context is blocked.
+; The page is cleared in both modes, since a 40-column mode uses only half
+; of it, and the other half would otherwise keep 80-column text that could
+; reappear later (eg, in the copy that save_screen makes).
 ;
 ; Any other mode change still belongs to the BIOS, and takes the entire
 ; screen (see update_mode): a change to or from a graphics mode or more
@@ -1619,9 +1622,11 @@ DEFPROC	set_pmode
 	push	bx
 	push	cx
 	push	dx
+	mov	cl,0
+	call	scroll			; clear it in the old mode
 	call	spm1			; update the context
 	mov	cl,100
-	call	scroll			; clear it (inside any border)
+	call	scroll			; and in the new (inside any border)
 	mov	ax,ds
 	cmp	ax,[ct_focus]
 	jne	spm6
