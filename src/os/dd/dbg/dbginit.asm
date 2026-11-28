@@ -31,7 +31,7 @@ CODE	segment word public 'CODE'
 	EXTNEAR	<cmd_help,cmd_l,disarm,ip_mem,peek_b,resume,skip_space,step>
 	EXTNEAR	<chk_over,end_command,parse_addr,parse_hex,poke_b>
 	EXTNEAR	<get_char,gl1,hex_digit,mon3b,mon4,mon4a,mon_sp,newline>
-	EXTNEAR	<put_char,put_raw,put_string>
+	EXTNEAR	<cmd_reset,put_char,put_raw,put_string>
 	EXTNEAR	<dc_0f,dc_386,op_sreg>
 	EXTBYTE	<CMD_LN,CMD_Q,CMD_VEC,HELP_MSG,OPTAB,bp_tab,com_flow,command>
 	EXTBYTE	<HELP_END,brk_skip,cpu_flags,mute,notstart,sess_num>
@@ -621,6 +621,13 @@ cm1r:	lodsw
 	mov	ax,sp
 	sub	ax,330h			; leave the program room, and rebase
 	mov	word ptr [mon_sp+1],ax
+	push	ds
+	push	cs
+	pop	ds
+	mov	dx,offset com_ctrlc	; DS:DX -> our CTRL-C handler
+	mov	ax,(DOS_MSC_SETVEC SHL 8) OR INT_DOSCTRLC
+	int	21h
+	pop	ds
 	DEFLBL	cm1t,near		; (com_l re-enters here; see com_l)
 	mov	ax,DOS_MSC_GETSWC
 	int	21h			; DL = switch char
@@ -1545,6 +1552,31 @@ DEFPROC	dos_get
 	int	21h
 	ret
 ENDPROC	dos_get
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; com_ctrlc
+;
+; Program mode's CTRL-C (INT 23h) handler, which DOS calls when dos_put's
+; output sees a Ctrl-C (and has echoed it, with a CR and LF): if the monitor
+; is running (on its stack), it abandons the command and goes back to the
+; prompt (see cmd_stop), as the driver does; otherwise (eg, in com_main, or
+; in a program that we loaded, which inherits this handler), it ends the
+; program, as DOS's own handler would, with a RETF and carry set.
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	com_ctrlc,far
+	push	ax
+	mov	ax,ss
+	cmp	ax,cs:[0].DDH_DATA	; on the monitor's stack?
+	pop	ax
+	je	cc1			; yes
+	stc
+	ret				; no, so end the program
+cc1:	mov	ds,cs:[0].DDH_DATA
+	ASSUME	DS:CODE
+	jmp	cmd_reset
+ENDPROC	com_ctrlc
 
 	DEFBYTE	com_runs,0		; 0 L, 1 running, 2 program loaded, 3 Q
 	DEFWORD	com_cs,0		; our PSP's code segment (see com_main)

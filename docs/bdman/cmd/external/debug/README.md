@@ -35,7 +35,7 @@ Without a program, the registers are DEBUG's own, and since CS:IP holds a RET, G
 
 A command can also be given as a switch, which DEBUG performs (without displaying the registers) before exiting; eg, `DEBUG /DB 40:0` dumps the BIOS data area, `DEBUG /DM` displays the memory map, and `DEBUG /?` lists the commands.  `/H` changes nothing, since DEBUG always halts at the prompt.
 
-Since the console uses DOS, breakpoints in DOS itself should be set only with the driver, and INT 00h is the only vector that [VT](#vt) can trap in program mode.  CTRL-C cancels a line that's being typed at DEBUG's prompt, and while the program is running, it ends the program, and DEBUG, too.
+Since the console uses DOS, breakpoints in DOS itself should be set only with the driver, and INT 00h is the only vector that [VT](#vt) can trap in program mode.  CTRL-C cancels a line that's being typed at DEBUG's prompt, stops a command's output and returns to the prompt (see [CTRL-C](#ctrl-c)), and while the program is running, it ends the program, and DEBUG, too.
 
 ### Loading DEBUG as a Driver
 
@@ -101,7 +101,7 @@ The L and Q commands exist only in program mode, the commands marked "Driver" ex
 | [VT](#vt) | Set traps | Not at ring 3 |
 | [?](#help) | List the commands | Always |
 | [CTRL-A](#ctrl-a) | Repeat the last command | Always |
-| [CTRL-C](#ctrl-c) | Stop a command's output | Driver |
+| [CTRL-C](#ctrl-c) | Stop a command's output | Always |
 
 #### A
 
@@ -388,7 +388,7 @@ At an empty prompt, CTRL-A displays the last command and performs it again, so p
 
 #### CTRL-C
 
-In the driver, CTRL-C (or a BREAK) while a command is displaying something stops the command and returns to the prompt (eg, a long D, U, or [DI](#di), or a T or P with steps remaining), even if the terminal has paused the output with XOFF.  Anything else typed since the command started is discarded.  While the system is running, CTRL-C stops it and displays the prompt, as usual.
+CTRL-C while a command is displaying something stops the command and returns to the prompt (eg, a long D, U, or [DI](#di), or a T or P with steps remaining).  In the driver, a BREAK does, too, even if the terminal has paused the output with XOFF, anything else typed since the command started is discarded, and while the system is running, CTRL-C stops it and displays the prompt, as usual.  As a program, DEBUG gets the CTRL-C from DOS, which displays `^C` first.
 
 ### Exceptions and Faults
 

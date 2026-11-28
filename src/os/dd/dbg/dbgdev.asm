@@ -852,18 +852,21 @@ ENDPROC	monitor
 
 ;
 ; cmd_stop abandons whatever the monitor is doing, for a Ctrl-C while it's
-; displaying something (see put_char), so we can't assume anything about the
-; stack, and go back to the prompt, as get_line does for a Ctrl-C; this also
+; displaying something (see put_char, or in program mode, com_ctrlc), so we
+; can't assume anything about the stack (but SS is the monitor's, whose top
+; is mon_sp's, which program mode changes), and go back to the prompt, as
+; get_line does for a Ctrl-C; this also
 ; ends a T or P with steps remaining.  Nothing that we can interrupt needs more
 ; than that, because breakpoints aren't in memory while the monitor runs, and
 ; any muted output (see put_name) wouldn't have come here; only ln_find can be
 ; left set.
 ;
 DEFPROC	cmd_stop
-	mov	sp,offset mon_stack_end
+	call	newline
+	DEFLBL	cmd_reset,near		; (DOS's ^C ends the line; com_ctrlc)
+	mov	sp,word ptr [mon_sp+1]	; (the operand of mon_sp's MOV SP)
 	mov	[ln_find],0
 	call	mon_reset
-	call	newline
 	jmp	mon4
 ENDPROC	cmd_stop
 

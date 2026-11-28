@@ -7,7 +7,27 @@ redirect_from: /demos/
 
 Each BASIC-DOS demo runs on up to four generations of PC hardware: the original IBM PC (Model 5150) with its 4.77Mhz 8088 and diskette drives, the IBM PC XT (Model 5160), which added a hard disk, the IBM PC AT (Model 5170), with a 6Mhz 80286 and a battery-powered real-time clock that keeps the date and time, and the COMPAQ DeskPro 386, COMPAQ's first PC with a 16Mhz 80386, shown here with 1Mb of memory (2Mb in the Extended Memory demos) and a VGA.  Click a machine to run that demo on that hardware.
 
-You can also browse the [BASIC-DOS Release Diskettes](/disks/downloads/) to test or download the latest release.
+You can also browse the [BASIC-DOS Release Diskettes](/disks/downloads/) to test or download the latest release, or check this box <label><input type="checkbox" id="bdRelease"> to load a Release Diskette in any of the machines below.</label>
+
+<script>
+  //
+  // When the box is checked, each machine link in the table gets an autoMount parameter that loads the
+  // current BASIC-DOS Release Diskette in drive A (PCjs reads machine parameters from the page's URL).
+  //
+  (function() {
+    var box = document.getElementById("bdRelease");
+    var mount = '{A:{path:"/disks/current/BASICDOS-360K.json"}}';
+    function update() {
+      document.querySelectorAll("table a[href]").forEach(function(a) {
+        var url = new URL(a.href, location.href);
+        if (box.checked) url.searchParams.set("autoMount", mount); else url.searchParams.delete("autoMount");
+        a.href = url.href;
+      });
+    }
+    box.addEventListener("change", update);
+    window.addEventListener("pageshow", update);     // (a browser may restore the box when returning to the page)
+  })();
+</script>
 
 | Demo | IBM PC | IBM PC XT | IBM PC AT | COMPAQ DeskPro 386 |
 |------|--------|-----------|-----------|--------------------|
@@ -26,7 +46,7 @@ You can also browse the [BASIC-DOS Release Diskettes](/disks/downloads/) to test
 | 13. Extended Memory (2Mb) | | | [2Mb, CGA](bd/mmu/) | [2Mb, VGA](bd/mmu/386/) |
 | 14. Extended Memory (Debugger) | | | [2Mb, CGA, VT100](bd/mmu/vt100/) | [2Mb, VGA, VT100](bd/mmu/vt100/386/) |
 
-To compare BASIC-DOS v2 overhead to OS/2 v2, we also have [Microsoft OS/2 2.0 (Pre-Release 2)](os2/2.0/) installed on a 4Mb COMPAQ DeskPro 386, using the 1990 Microsoft OS/2 2.00 Software Development Kit diskettes.
+To compare BASIC-DOS features to OS/2 2.0, we also have [Microsoft OS/2 2.0 (Pre-Release 2)](os2/2.0/) installed on a 4Mb COMPAQ DeskPro 386, using the 1990 Microsoft OS/2 2.00 Software Development Kit diskettes.
 
 The boot sector first displays `Diskette loading...`; press any key (or wait 2 seconds) to continue.  The PC XT, PC AT, and DeskPro 386 machines also have the 20Mb BASIC-DOS hard disk (drive C:), so when they boot a diskette, you can press **Esc** to boot from the hard disk instead.  On a PC AT or DeskPro 386, the demos run in protected mode (and on the DeskPro 386, with the 80386's features), except Wolfenstein 3D, which needs real mode; press **R** to run any other demo in real mode instead.
 

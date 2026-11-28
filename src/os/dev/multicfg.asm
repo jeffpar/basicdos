@@ -15,6 +15,7 @@
 
 MAX_ITEMS	equ	9		; menu items per menu (1-9)
 MAX_LEVELS	equ	4		; chosen blocks recorded (see mc_path)
+MAX_VARS	equ	4		; string variables (see chk_var)
 ;
 ; Hardware that a block's conditions can name (see get_hw and HW_KEYS).
 ;
@@ -23,10 +24,16 @@ HW_CGA		equ	02h		; a CGA (port 3D4h)
 HW_EGA		equ	04h		; an EGA
 HW_VGA		equ	08h		; a VGA
 HW_VIDEO	equ	HW_MDA OR HW_CGA OR HW_EGA OR HW_VGA
-HW_COM		equ	10h		; a serial port
-HW_COM2		equ	20h		; a second serial port
-HW_286		equ	40h		; an 80286 or later
-HW_386		equ	80h		; an 80386 or later
+HW_COM1		equ	0010h		; serial ports (see RS232_BASE)
+HW_COM2		equ	0020h
+HW_COM3		equ	0040h
+HW_COM4		equ	0080h
+HW_LPT1		equ	0100h		; parallel ports (see PRINTER_BASE)
+HW_LPT2		equ	0200h
+HW_LPT3		equ	0400h
+HW_HD		equ	0800h		; a hard disk
+HW_286		equ	1000h		; an 80286 or later
+HW_386		equ	2000h		; an 80386 or later
 
 DEV	segment para public 'CODE'
 
@@ -135,9 +142,11 @@ ENDPROC	with_blk
 ; copy_blk
 ;
 ; Copies lines to DI until the next block (or the end of the data), replacing
-; each "INCLUDE=name" line with the lines of that block, and skipping menu
-; lines (see chk_menu).  The last line of the data gets an LF if it has none,
-; so that lines copied after it don't join it.
+; each "INCLUDE=name" line with the lines of that block, recording string
+; variables instead of copying them (see chk_var), adding them to SHELL lines
+; (see copy_shell), and skipping menu lines (see chk_menu).  The last line of
+; the data gets an LF if it has none, so that lines copied after it don't
+; join it.
 ;
 ; Inputs:
 ;	SI -> line, DI -> where to copy it
@@ -168,18 +177,194 @@ cb1:	mov	al,[si]
 cb1a:	pop	si
 cb2:	call	next_ln
 	jmp	cb1
-cb3:	lodsb				; copy the line
+cb3:	call	chk_var			; NAME$=value?
+	jnc	cb2			; yes (it's recorded, not copied)
+	mov	bx,offset CFG_SHELL
+	call	chk_key			; SHELL=?
+	jne	cb4			; no
+	call	copy_shell		; copy it up to its commands
+cb4:	lodsb				; copy the (rest of the) line
 	test	al,al
-	jz	cb4
+	jz	cb5
 	stosb
 	cmp	al,CHR_LINEFEED
-	jne	cb3
+	jne	cb4
 	jmp	cb1
-cb4:	dec	si			; SI -> null
+cb5:	dec	si			; SI -> null
 	mov	al,CHR_LINEFEED
 	stosb
 cb9:	ret
 ENDPROC	copy_blk
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_var
+;
+; Records a string variable line (eg, PATH$="A:\;A:\EXT\CMD"): a name that
+; ends with "$", followed by "=", at the start of the line.  A variable set
+; again replaces its earlier setting (once MAX_VARS are set, a new one
+; replaces the last).
+;
+; Inputs:
+;	SI -> line
+;
+; Outputs:
+;	Carry clear if it's a variable line (recorded in mc_vars), set if not
+;
+; Modifies:
+;	AX, BX
+;
+DEFPROC	chk_var
+	push	si
+cv1:	lodsb
+	cmp	al,'$'
+	je	cv2
+	cmp	al,'='			; a keyword (eg, SHELL=)?
+	je	cv9			; yes
+	cmp	al,' '
+	ja	cv1
+	jmp	short cv9
+cv2:	cmp	byte ptr [si],'='	; is "=" next?
+	jne	cv9			; no
+	pop	si
+	call	find_var		; BX -> its slot
+	mov	[bx],si
+	clc
+	ret
+cv9:	pop	si
+	stc
+	ret
+ENDPROC	chk_var
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; find_var
+;
+; Inputs:
+;	SI -> variable name (ending with "$")
+;
+; Outputs:
+;	BX -> the variable's mc_vars slot (or an empty one), AX = its line
+;	(0 if none)
+;
+; Modifies:
+;	AX, BX
+;
+DEFPROC	find_var
+	mov	bx,offset mc_vars
+fv1:	mov	ax,[bx]
+	test	ax,ax			; an empty slot?
+	jz	fv9			; yes
+	push	si
+	push	di
+	xchg	di,ax			; DI -> a variable's line
+fv2:	lodsb
+	scasb				; does the name match so far?
+	jne	fv3			; no
+	cmp	al,'$'			; the end of the name?
+	jne	fv2			; no
+fv3:	pop	di
+	pop	si
+	mov	ax,[bx]
+	je	fv9			; it's the variable's slot
+	inc	bx
+	inc	bx
+	cmp	bx,offset mc_vars + MAX_VARS * 2
+	jb	fv1
+	dec	bx
+	dec	bx			; no room, so the last slot is reused
+	sub	ax,ax
+fv9:	ret
+ENDPROC	find_var
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; copy_shell
+;
+; Copies a SHELL line up to its commands, adding every string variable set so
+; far (see chk_var) after the program (eg, SHELL=COMMAND.COM DIR becomes
+; SHELL=COMMAND.COM PATH$="A:\" : DIR), and if PATH$ starts with a drive and
+; the program doesn't, giving the program that drive (eg, A:COMMAND.COM).
+;
+; Inputs:
+;	SI -> what follows "SHELL=", DI -> where to copy it
+;
+; Outputs:
+;	SI -> the line's commands (if any), DI updated
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+DEFPROC	copy_shell
+	push	si
+	mov	si,offset CFG_SHELL + 1
+	movsw
+	movsw
+	movsw				; "SHELL="
+	mov	si,offset PATH_NAME
+	call	find_var		; AX -> PATH$'s line (if any)
+	pop	si
+	mov	bx,si			; BX -> the program
+	xchg	cx,ax
+	jcxz	cs2			; no PATH$
+cs1:	lodsb
+	cmp	al,':'			; does the program have a drive?
+	je	cs2			; yes
+	cmp	al,' '
+	ja	cs1
+	mov	si,cx
+	add	si,PATH_LEN		; SI -> PATH$'s value
+	lodsb
+	cmp	al,'"'			; is it a string
+	jne	cs2
+	lodsw
+	cmp	ah,':'			; that starts with a drive?
+	jne	cs2			; no
+	stosw				; yes, so the program gets that drive
+cs2:	mov	si,bx
+cs3:	lodsb				; copy the program
+	cmp	al,' '
+	jbe	cs4
+	stosb
+	jmp	cs3
+cs4:	dec	si			; SI -> what follows it
+	mov	bx,offset mc_vars
+	sub	dx,dx			; DX = 0 until a variable is added
+cs5:	mov	cx,[bx]
+	jcxz	cs7			; no more variables
+	test	dx,dx			; the first one?
+	jz	cs6			; yes
+	mov	ax,(':' SHL 8) OR ' '
+	stosw				; no, so separate it with " :"
+cs6:	mov	al,' '
+	stosb
+	push	si
+	mov	si,cx
+cs6a:	lodsb				; copy the variable's line
+	cmp	al,' '
+	jb	cs6b
+	stosb
+	jmp	cs6a
+cs6b:	pop	si
+	inc	dx
+	inc	bx
+	inc	bx
+	cmp	bx,offset mc_vars + MAX_VARS * 2
+	jb	cs5
+cs7:	test	dx,dx			; were any variables added?
+	jz	cs9			; no
+	push	si
+cs7a:	lodsb
+	cmp	al,' '
+	je	cs7a
+	pop	si
+	jb	cs9			; there are no commands
+	cmp	al,':'			; do they start with a ":" already?
+	je	cs9			; yes
+	mov	ax,(':' SHL 8) OR ' '
+	stosw				; no, so separate them with " :"
+cs9:	ret
+ENDPROC	copy_shell
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -216,10 +401,15 @@ rm1:	sub	ax,ax
 	jnz	rm2
 	ret				; none
 ;
-; Make the menu's default choice the MENUDEFAULT item (if any), and display
-; the items.
+; A menu with only one item (eg, on a machine whose hardware offers only one
+; configuration) chooses it without being displayed.  Otherwise, make the
+; menu's default choice the MENUDEFAULT item (if any), and display the items.
 ;
-rm2:	mov	dl,'1'			; DL = default choice
+rm2:	mov	bx,[mc_items]		; BX -> the first item's name
+	cmp	di,1			; is it the only one?
+	jne	rm2a			; no
+	jmp	rm13a			; yes, so it's chosen
+rm2a:	mov	dl,'1'			; DL = default choice
 	mov	bx,[mc_def]
 	test	bx,bx			; any MENUDEFAULT?
 	jz	rm4			; no
@@ -314,7 +504,7 @@ rm13:	call	show_choice
 	mov	bh,0
 	shl	bx,1
 	mov	bx,[mc_items+bx]	; BX -> the chosen item's name
-	call	find_blk		; SI -> its block's name
+rm13a:	call	find_blk		; SI -> its block's name
 	jc	rm15
 	mov	ax,si
 	mov	di,[mc_next]
@@ -454,30 +644,39 @@ ENDPROC	show_choice
 ; (low) register and reading it back, and an EGA or VGA (and the ports that it
 ; uses, so they don't also count as an MDA or CGA) with the EGA BIOS function
 ; that returns its information.  Processors are told apart as CPU$ does (see
-; 386init.asm), by which FLAGS bits 12-15 can be changed.
+; 386init.asm), by which FLAGS bits 12-15 can be changed, and hard disks as
+; HDC$ finds them.
 ;
 ; Modifies:
-;	AX, BX, CX, DX
+;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	get_hw
 	push	ds
 	mov	ax,BIOS
 	mov	ds,ax
 	ASSUME	DS:BIOS
+;
+; Each serial or parallel port that the ROM BIOS found has its address in
+; RS232_BASE or PRINTER_BASE, which follows it.
+;
+	ASSERT	<offset PRINTER_BASE>,EQ,<offset RS232_BASE + 8>
+	mov	si,offset RS232_BASE
+	mov	cx,7			; COM1-COM4 and LPT1-LPT3
+	mov	dx,HW_COM1
+	sub	bx,bx			; BX = HW_* bits
+gh1:	lodsw
+	test	ax,ax			; is the port present?
+	jz	gh2			; no
+	or	bx,dx
+gh2:	shl	dx,1
+	loop	gh1
 	mov	ax,[MEMORY_SIZE]
 	mov	cx,[RS232_BASE]
-	mov	dx,[RS232_BASE+2]
 	pop	ds
 	ASSUME	DS:DEV
 	mov	[mc_conv],ax		; Kb of conventional memory
 	mov	[mc_port],cx		; COM1's port (if any)
-	mov	al,0
-	jcxz	gh1
-	or	al,HW_COM
-gh1:	test	dx,dx
-	jz	gh2
-	or	al,HW_COM2
-gh2:	mov	[mc_hw],al
+	mov	[mc_hw],bx
 ;
 ; An 8086 (or 80186) always sets FLAGS bits 12-15, an 80286 in real mode
 ; always clears them, and an 80386 lets us set bits 12-14.
@@ -492,7 +691,7 @@ gh2:	mov	[mc_hw],al
 	pop	ax
 	cmp	ah,0F0h			; are bits 12-15 still set?
 	jae	gh4			; yes, so it's not an 80286 or later
-	or	byte ptr [mc_hw],HW_286
+	or	byte ptr [mc_hw+1],HW_286 SHR 8
 	mov	ah,70h
 	push	ax
 	popf
@@ -500,7 +699,7 @@ gh2:	mov	[mc_hw],al
 	pop	ax
 	test	ah,70h			; could bits 12-14 be set?
 	jz	gh3			; no, so it's not an 80386 or later
-	or	byte ptr [mc_hw],HW_386
+	or	byte ptr [mc_hw+1],HW_386 SHR 8
 gh3:	mov	ah,CAS_GETEXTMEM
 	int	INT_CASSETTE		; AX = Kb of extended memory
 	jc	gh4
@@ -508,7 +707,19 @@ gh3:	mov	ah,CAS_GETEXTMEM
 	shr	ax,cl
 	mov	[mc_ext],ax		; Mb of extended memory
 gh4:	popf
-	mov	dx,3B4h			; start with the MDA
+;
+; A hard disk is one that the ROM BIOS reports, as HDC$ finds them.
+;
+	push	es
+	mov	ah,HDC_GETPARMS
+	mov	dl,80h
+	int	INT_FDC			; DL = # hard disks
+	pop	es
+	jc	gh4a
+	test	dl,dl
+	jz	gh4a
+	or	byte ptr [mc_hw+1],HW_HD SHR 8
+gh4a:	mov	dx,3B4h			; start with the MDA
 	mov	bl,HW_MDA
 gh5:	mov	al,0Fh			; cursor position (low)
 	out	dx,al
@@ -522,7 +733,7 @@ gh5:	mov	al,0Fh			; cursor position (low)
 	out	dx,al			; restore the original value
 	cmp	ah,55h			; did the adapter respond?
 	jne	gh6			; no
-	or	[mc_hw],bl
+	or	byte ptr [mc_hw],bl
 gh6:	mov	dx,3D4h			; then the CGA
 	shl	bl,1
 	cmp	bl,HW_CGA
@@ -536,9 +747,9 @@ gh6:	mov	dx,3D4h			; then the CGA
 	test	bh,bh			; is it using the CGA's ports?
 	jz	gh7			; yes
 	mov	al,not HW_MDA
-gh7:	and	al,[mc_hw]
+gh7:	and	al,byte ptr [mc_hw]
 	or	al,HW_EGA
-	mov	[mc_hw],al
+	mov	byte ptr [mc_hw],al
 	mov	ax,VIDEO_GETDCC
 	int	INT_VIDEO
 	cmp	al,VIDEO_GETDCC SHR 8	; is it a VGA?
@@ -665,10 +876,10 @@ ENDPROC	match_blk
 DEFPROC	chk_hw
 	push	si
 	mov	bx,offset HW_KEYS
-ch1:	mov	cl,[bx]			; CL = the keyword's HW_* bits
+ch1:	mov	cx,[bx]			; CX = the keyword's HW_* bits
 	inc	bx
-	test	cl,cl			; the end of HW_KEYS?
-	jz	ch2			; yes
+	inc	bx
+	jcxz	ch2			; the end of HW_KEYS
 	call	cmp_name		; is it this keyword?
 	je	ch5			; yes
 ch1a:	inc	bx			; skip the keyword
@@ -698,8 +909,8 @@ ch3:	mov	cx,[mc_conv]
 ch4:	cmp	cx,bx
 	cmc				; carry set if CX >= BX
 	jmp	short ch6
-ch5:	and	cl,[mc_hw]
-	neg	cl			; carry set if the hardware is present
+ch5:	and	cx,[mc_hw]
+	neg	cx			; carry set if the hardware is present
 ch6:	sbb	al,al			; AL = 0FFh if met, 0 if not
 	pop	si
 	mov	ah,al
@@ -954,14 +1165,44 @@ CFG_MENUITEM	db	9,"MENUITEM="
 CFG_SUBMENU	db	8,"SUBMENU="
 CFG_MENUDEF	db	12,"MENUDEFAULT="
 		db	0		; (the end of the menu lines)
+CFG_SHELL	db	6,"SHELL="
+PATH_NAME	db	"PATH$="
+PATH_LEN	equ	$ - PATH_NAME
 ;
-; Each condition keyword follows its HW_* bits, any of which meets it.
+; Each condition keyword follows its HW_* bits (a word), any of which meets
+; it.
 ;
-HW_KEYS		db	HW_MDA,"MDA",0,HW_CGA,"CGA",0
-		db	HW_EGA,"EGA",0,HW_VGA,"VGA",0
-		db	HW_VIDEO,"VIDEO",0
-		db	HW_COM,"COM",0,HW_COM2,"COM2",0
-		db	HW_286,"286",0,HW_386,"386",0,0
+HW_KEYS		dw	HW_MDA
+		db	"MDA",0
+		dw	HW_CGA
+		db	"CGA",0
+		dw	HW_EGA
+		db	"EGA",0
+		dw	HW_VGA
+		db	"VGA",0
+		dw	HW_VIDEO
+		db	"VIDEO",0
+		dw	HW_COM1
+		db	"COM1",0
+		dw	HW_COM2
+		db	"COM2",0
+		dw	HW_COM3
+		db	"COM3",0
+		dw	HW_COM4
+		db	"COM4",0
+		dw	HW_LPT1
+		db	"LPT1",0
+		dw	HW_LPT2
+		db	"LPT2",0
+		dw	HW_LPT3
+		db	"LPT3",0
+		dw	HW_HD
+		db	"HD",0
+		dw	HW_286
+		db	"286",0
+		dw	HW_386
+		db	"386",0
+		dw	0
 ITEM_STR	db	"  "
 ITEM_NUM	db	"1. ",0
 ;
@@ -981,12 +1222,13 @@ mc_last		dw	0		; tick count at the last second
 mc_conv		dw	0		; Kb of conventional memory
 mc_ext		dw	0		; Mb of extended memory
 mc_port		dw	0		; COM1's port, if the menu uses it
-mc_hw		db	0		; HW_* bits (see get_hw)
+mc_hw		dw	0		; HW_* bits (see get_hw)
 mc_secs		db	0		; seconds remaining (0FFh if none)
 mc_choice	db	0		; current choice ('1' to mc_max)
 mc_max		db	0		; highest choice
 mc_items	dw	MAX_ITEMS dup (0)	; each item's name
 mc_path		dw	MAX_LEVELS dup (0)	; each chosen block's name
+mc_vars		dw	MAX_VARS dup (0)	; each string variable's line
 
 	DEFLBL	mc_end,byte		; devinit reads CFG_FILE here
 

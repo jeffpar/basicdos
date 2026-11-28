@@ -390,10 +390,18 @@ Returns a 2-byte string containing the integer *n* (see CVI), for a random acces
 [f+]MKL$(*n*)
 Returns a 4-byte string containing the integer *n* (see CVL), for a random access file.
 
-[e]MODE [*video options*|*serial port options*|*parallel port options*]
-Video options: 40|80|132|BW40|BW80|CO40|CO80[,*rows*] sets the display's columns (BW or CO also turns color off or on; 132 is for VT100 terminals) and *rows* (25, 43, or 50), and FONT [*file*] loads an EGA or VGA font from *file* (in EXT\FONTS on the system drive, unless it has a path; eg, MODE FONT OS2.F14), or without *file*, the adapter's own font.
-Serial port options: COM*n*:*baud*[,*parity*[,*data*[,*stop*]]] sets a serial port (eg, MODE COM1:9600,N,8,1).
-Parallel port options: LPT*n*:[*cols*][,*lines*] sets a printer's columns (80 or 132) and lines per inch (6 or 8).
+[e]MODE [*options*]
+Video options:
+	40|80|132|BW40|BW80|CO40|CO80[,*rows*]\
+	BW or CO controls color on color monitors\
+	*columns* can be 80, 40 on color monitors, or 132 on VT100s\
+	*rows* can be 25, 43 on EGA or VGA, or 50 on VGA\
+	FONT [*file*] loads a font from *file*, or reloads adapter's font
+Serial port options:
+	COM*n*:*baud*[,*parity*[,*data*[,*stop*]]] sets a serial port\
+	Example: MODE COM1:9600,N,8,1
+Parallel port options:
+	LPT*n*:[*cols*][,*lines*] sets a printer's columns and lines per inch
 
 [e]MORE [*file*]
 Displays input (or *file*) one screen at a time (eg, TYPE README.TXT | MORE), waiting for a key after each screen.
@@ -454,30 +462,30 @@ Prints a series of values (or with #*n*, writes them to file *n*).  A semicolon 
 
 [b+]PRINTF [#*n*,]USING *format*;[*value*][*separator*][*value*]...
 Writes values to the screen (or, with #*n*, to file *n*) using format codes:
-%c  character\
-%d  integer (decimal)\
-%f  double-precision number\
-%n  new line\
-%s  string\
-%x  integer (hexadecimal)\
-%%  percent sign
+	%c  character\
+	%d  integer (decimal)\
+	%f  double-precision number\
+	%n  new line\
+	%s  string\
+	%x  integer (hexadecimal)\
+	%%  percent sign
 Packed DATE and TIME values (eg, from DIR$) can also use these format codes:
-%M  month\
-%D  day\
-%Y  year\
-%F  month (string)\
-%W  weekday (string)\
-%H  hour\
-%N  minute\
-%S  second\
+	%M  month\
+	%D  day\
+	%Y  year\
+	%F  month (string)\
+	%W  weekday (string)\
+	%H  hour\
+	%N  minute\
+	%S  second
 Most format codes also support width and precision values (eg, "%5d", "%-8.3s", "%.2f").  A trailing ; or , suppresses a final new line.
 
 [f+]PROMPT$[=*string*]
 Determines how the command prompt is displayed, using a PRINTF format string that supports the DATE and TIME format codes (for the current date and time) along with these:
-%d  session number\
-%g  close bracket\
-%l  open bracket\
-%s  current drive and directory
+	%d  session number\
+	%g  close bracket\
+	%l  open bracket\
+	%s  current drive and directory
 The brackets show the processor's mode: <> in real mode, [] in protected mode, or () in V86 mode.  The default is "%l%s%g".
 
 [b+]PSET (*x*,*y*)[,*color*]
