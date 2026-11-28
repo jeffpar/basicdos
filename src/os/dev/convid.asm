@@ -1622,8 +1622,10 @@ DEFPROC	set_pmode
 	push	bx
 	push	cx
 	push	dx
+	push	ax
 	mov	cl,0
 	call	scroll			; clear it in the old mode
+	pop	ax			; AL = mode requested (scroll changes AX)
 	call	spm1			; update the context
 	mov	cl,100
 	call	scroll			; and in the new (inside any border)
