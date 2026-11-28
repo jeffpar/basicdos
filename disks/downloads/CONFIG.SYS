@@ -28,15 +28,15 @@ INCLUDE=LAYOUTS
 MENUITEM=S80,One console
 MENUITEM=D40,Two 40-column consoles
 MENUITEM=D80,Two 80-column consoles
-MENUITEM=P80,Three consoles on video pages
+MENUITEM=P80,Consoles on separate video pages
 MENUITEM=DUAL,Dual monitors
 MENUITEM=MULTI,Dual monitors, two consoles each
 SUBMENU=SERIAL,Serial port options
-MENUDEFAULT=S80,5
+MENUDEFAULT=S80
 
 [LAYOUTS]
 INCLUDE=SERIAL
-MENUDEFAULT=TERM,5
+MENUDEFAULT=TERM
 
 [SERIAL:COM]
 MENUITEM=VT100,Video console and a VT100 on COM1
